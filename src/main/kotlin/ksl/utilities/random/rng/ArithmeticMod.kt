@@ -151,8 +151,7 @@ object ArithmeticMod {
         var i: Int
         var j: Int
         /* initialize: B = A */
-        //       if (A != B) { //TODO testing the references?, if not equal then make them equal, just make them equal
-        i = 0
+         i = 0
         while (i < A.size) {
             j = 0
             while (j < A.size) {
@@ -162,8 +161,8 @@ object ArithmeticMod {
             }
             i++
         }
-        //       }
-        /* Compute B = A^{2^e} */i = 0
+        /* Compute B = A^{2^e} */
+        i = 0
         while (i < e) {
             matMatModM(B, B, B, m)
             i++
@@ -301,7 +300,6 @@ object ArithmeticMod {
         var i: Int
         var j: Int
         /* initialize: B = A */
-        //       if (A != B) { //TODO reference testing
         i = 0
         while (i < A.size) {
             j = 0
@@ -312,8 +310,8 @@ object ArithmeticMod {
             }
             i++
         }
-        //       }
-        /* Compute B = A^{2^e} */i = 0
+        /* Compute B = A^{2^e} */
+        i = 0
         while (i < e) {
             matMatModM(B, B, B, m)
             i++
@@ -500,7 +498,6 @@ object ArithmeticMod {
         var i: Int
         var j: Int
         /* initialize: B = A */
-//        if (A != B) { //TODO reference testing
         i = 0
         while (i < A.size) {
             j = 0
@@ -510,9 +507,9 @@ object ArithmeticMod {
                 ++j
             }
             i++
-            //           }
         }
-        /* Compute B = A^{2^e} */i = 0
+        /* Compute B = A^{2^e} */
+        i = 0
         while (i < e) {
             matMatModM(B, B, B, m)
             i++
