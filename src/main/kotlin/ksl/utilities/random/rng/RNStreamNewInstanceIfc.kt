@@ -27,7 +27,7 @@ interface RNStreamNewInstanceIfc {
      * @return Returns a copy of the stream with
      * exactly the same state
      */
-    fun newInstance(): RNStreamIfc
+//    fun newInstance(): RNStreamIfc
 
     /** Returns a copy of the stream that
      * has exactly the same state
@@ -36,5 +36,5 @@ interface RNStreamNewInstanceIfc {
      * @return Returns a copy of the stream with
      * exactly the same state
      */
-    fun newInstance(name: String?): RNStreamIfc
+    fun newInstance(name: String? = null): RNStreamIfc
 }

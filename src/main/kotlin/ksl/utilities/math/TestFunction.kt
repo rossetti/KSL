@@ -13,23 +13,15 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package ksl.utilities
+package ksl.utilities.math
 
-/*
-interface NameIfc {
-    */
 /**
-     *
-     * @return a string representing the name of the object
-     *//*
-
-    val name: String
+ *
+ */
+class TestFunction : FunctionIfc {
+    /** Returns the value of the function for the specified variable value.
+     */
+    override fun f(x: Double): Double {
+        return x * x * x + 4.0 * x * x - 10.0
+    }
 }
-
-class Name(override val name: String): NameIfc
-
-fun main() {
-    val n = Name("Manuel")
-
-    println(n.name)
-}*/

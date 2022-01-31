@@ -1,18 +1,11 @@
 package ksl.utilities.random.rng
 
-import jsl.utilities.random.rng.RNStreamFactory
+//import jsl.utilities.random.rng.RNStreamFactory
 import ksl.utilities.IdentityIfc
 
 class RNStreamFactory {
 
     companion object {
-        private val DefaultFactory = RNStreamFactory("Default")
-
-        /**
-         * A counter to count the number of created streams
-         */
-        private var myStreamCounter_ = 0
-
         /* private static constants global to all stream factories of this class */
         private const val m1 = 4294967087.0
         private const val m2 = 4294944443.0
@@ -51,10 +44,12 @@ class RNStreamFactory {
                                 B: Array<DoubleArray>, m2: Double) {
             val vv = DoubleArray(3)
             for (i in 0..2) vv[i] = v[i]
-            ArithmeticMod.matVecModM(A, vv, vv, m1)
+//            ArithmeticMod.matVecModM(A, vv, vv, m1)
+            matVecModM(A, vv, vv, m1)
             for (i in 0..2) v[i] = vv[i]
             for (i in 0..2) vv[i] = v[i + 3]
-            ArithmeticMod.matVecModM(B, vv, vv, m2)
+//            ArithmeticMod.matVecModM(B, vv, vv, m2)
+            matVecModM(B, vv, vv, m2)
             for (i in 0..2) v[i + 3] = vv[i]
         }
 
@@ -74,7 +69,7 @@ class RNStreamFactory {
         }
 
         /**
-         * Use to check seeds to see if they are valid for the factory
+         * Used to check seeds to see if they are valid for the factory
          *
          * @param seed the seed to check
          * @return true if the supplied seed can be used, false otherwise
@@ -86,7 +81,7 @@ class RNStreamFactory {
             val m1 = 4294967087L
             if (seed[0] >= m1 || seed[1] >= m1 || seed[2] >= m1) return false
             val m2 = 4294944443L
-            return if (seed[3] >= m2 || seed[4] >= m2 || seed[5] >= m2) false else true
+            return !(seed[3] >= m2 || seed[4] >= m2 || seed[5] >= m2)
         }
 
     }
@@ -98,6 +93,10 @@ class RNStreamFactory {
      */
     private val nextSeed = doubleArrayOf(12345.0, 12345.0, 12345.0, 12345.0, 12345.0, 12345.0)
 
+    /**
+     * A counter to count the number of created streams
+     */
+    private var myStreamCounter = 0
 
     /**
      * Gets the default initial package seed: seed = {12345, 12345, 12345,
@@ -110,7 +109,7 @@ class RNStreamFactory {
     }
 
     /**
-     * Returns the current factory seed
+     * Returns the current factory seed. This is essentially the "state" of the generator.
      *
      * @return the array of seed values for the current state
      */
@@ -131,11 +130,11 @@ class RNStreamFactory {
      * If it is	called,	the first 3 values of the seed must all be less than m1
      * = 4294967087, and not all 0; and the last 3 values must all be less than
      * m2 = 4294944443, and not all 0. Throws illegal argument exception for
-     * invalid seeds
+     * invalid seeds.
      *
      * @param seed the seeds
      */
-    fun setFactorySeed(seed: LongArray) {
+    fun setFactorySeed(seed: LongArray = longArrayOf(12345, 12345, 12345, 12345, 12345, 12345)) {
         // Must use long because there is no unsigned int type.
         validateSeed(seed)
         for (i in 0..5) {
@@ -155,55 +154,49 @@ class RNStreamFactory {
      * Advances the seeds n times. Acts as if n streams were created, without
      * actually creating the streams. The seeds will be advanced 2^127 steps
      *
-     * @param n the number of times to advance
+     * @param n the number of times to advance, must be 1 or more
      */
-    fun advanceSeeds(n: Int) {
+    fun advanceSeeds(n: Int = 1) {
+        require(n > 0){
+            "The number of times to advance must be > 0"
+        }
         for (k in 1..n) {
             multMatVect(nextSeed, A1p127, m1, A2p127, m2)
         }
     }
 
     /**
-     * Tells the provider to make and return a RNStream with the provided name
+     * Tells the factory to make and return a RNStream with the provided name
      *
      * @param name can be null
      * @return the made stream
      */
-    fun nextStream(name: String?): RNStreamIfc {
+    fun nextStream(name: String? = null): RNStreamIfc {
         // create the stream using the current seed state of the factory
         return RNStream(name)
-    }
-
-    /**
-     * Tells the factory to make and return a RNStream
-     *
-     * @return the made stream
-     */
-    fun nextStream(): RNStreamIfc {
-        return nextStream(null)
     }
 
     /**
      * Instances of RNStream are what is made by the factory. Each created
      * stream should be 2 to 127 {@literal 2^127} steps ahead of the last stream created.
      */
-    inner class RNStream(sName: String?) : IdentityIfc, RNStreamIfc,
+    inner class RNStream(sName: String? = null) : IdentityIfc, RNStreamIfc,
             RNStreamNewInstanceIfc, GetAntitheticStreamIfc {
 
         /**
          * The id of this object
          */
-        override val id = ++myStreamCounter_
+        override val id = ++myStreamCounter
 
         /**
          * Describes the stream (for writing the state, error messages, etc.).
          */
-        override var name: String? = sName ?: javaClass.simpleName + "#" + id
+        override val name: String = sName ?: (javaClass.simpleName + "_" + id)
 
         override var label: String? = null
 
         /**
-         * This stream generates antithetic variates if and only if {\tt anti = true}.
+         * This stream generates antithetic variates if and only if {\tt antithetic = true}.
          */
         override var antithetic = false
 
@@ -238,7 +231,6 @@ class RNStreamFactory {
             // cause Bg to be set to Ig, and Cg set to Bg
             // cause Bg to be set to Ig, and Cg set to Bg
             resetStartStream()
-            // advances nextSeed by 2^127 steps, to be ready for next stream
             // advances nextSeed by 2^127 steps, to be ready for next stream
             multMatVect(nextSeed, A1p127, m1, A2p127, m2)
         }
@@ -317,15 +309,6 @@ class RNStreamFactory {
             return if (antithetic) 1 - u else u
         }
 
-        override fun randInt(i: Int, j: Int): Int {
-            require(i <= j) { "The lower limit must be <= the upper limit" }
-            return i + (randU01() * (j - i + 1)).toInt()
-        }
-
-        override fun newInstance(): RNStreamIfc {
-            return RNStream(null)
-        }
-
         override fun newInstance(name: String?): RNStreamIfc {
             val s: RNStream = RNStream(name)
             s.antithetic = antithetic
@@ -348,11 +331,6 @@ class RNStreamFactory {
             s.antithetic = !s.antithetic
             return s
         }
-
-        override fun newAntitheticInstance(): RNStreamIfc {
-            return newAntitheticInstance(null)
-        }
-
 
     }
 

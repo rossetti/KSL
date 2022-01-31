@@ -25,11 +25,11 @@ interface GetAntitheticStreamIfc {
      * @param name the name of the antithetic instance
      * @return a copy of the stream that produces antithetic value
      */
-    fun newAntitheticInstance(name: String?): RNStreamIfc
+    fun newAntitheticInstance(name: String? = null): RNStreamIfc
 
     /**
      *
      * @return a copy of the stream that produces antithetic value
      */
-    fun newAntitheticInstance(): RNStreamIfc
+//    fun newAntitheticInstance(): RNStreamIfc
 }

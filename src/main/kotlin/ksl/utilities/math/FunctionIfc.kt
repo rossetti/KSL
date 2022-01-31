@@ -13,15 +13,19 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package ksl.utilities
+package ksl.utilities.math
 
-///** An interface to defining the identity of an object in terms
-// * of a name and a number
-// */
-//interface IdentityIfc : NameIfc {
-//    /**
-//     *
-//     * @return an int representing the id of the object
-//     */
-//    val id: Int
-//}
+/**
+ * FunctionIfc is an interface for mathematical functions of
+ * a single variable, that is functions of the form f(x).
+ *
+ */
+fun interface FunctionIfc {
+    //TODO look more at using Kotlin functions
+    /**
+     * Returns the value of the function for the specified variable value.
+     * @param x the input value
+     * @return the function value
+     */
+    fun f(x: Double): Double
+}

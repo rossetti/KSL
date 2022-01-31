@@ -15,7 +15,7 @@
  */
 package ksl.utilities
 
-/** An interface to defining the name of an object
+/** An interface for defining the name of an object
  */
 interface NameIfc {
     /**
@@ -37,6 +37,9 @@ interface IdentityIfc : NameIfc {
      */
     val id: Int
 
+    /**
+     *  @return a changeable label associated with the object
+     */
     var label: String?
 }
 
@@ -48,8 +51,7 @@ open class Identity(aName: String? = null) : IdentityIfc, NameIfc {
 
     override val id: Int = ++IDCounter
 
-    override val name: String = aName ?:javaClass.simpleName + "#" + id
-
+    override val name: String = aName ?: (javaClass.simpleName + "_" + id)
     override var label: String? = null
 
     override fun toString(): String {
@@ -57,11 +59,6 @@ open class Identity(aName: String? = null) : IdentityIfc, NameIfc {
     }
 
 }
-
-class Something: Identity(){
-
-}
-
 
 fun main() {
     val n1 = Identity("Manuel")
@@ -72,4 +69,5 @@ fun main() {
     println(n2)
     println(n3)
     println(n4)
+
 }

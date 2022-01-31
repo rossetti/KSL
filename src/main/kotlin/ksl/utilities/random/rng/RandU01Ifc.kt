@@ -45,7 +45,7 @@ interface RandU01Ifc : GetAntitheticValueIfc, DoubleSupplier {
      *
      * @return the doubles into a DoubleStream for the Stream API
      */
-    fun asDoubleStream(): DoubleStream? {
+    fun asDoubleStream(): DoubleStream {
         return DoubleStream.generate(this)
     }
 }

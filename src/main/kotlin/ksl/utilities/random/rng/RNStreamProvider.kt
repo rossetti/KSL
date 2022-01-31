@@ -42,6 +42,9 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
     override fun lastRNStreamNumber() = myStreams.size
 
     override fun rnStream(i: Int): RNStreamIfc {
+        require(i > 0) {
+            "The stream number must be > 0!"
+        }
         if (i > lastRNStreamNumber()) {
             var stream: RNStreamIfc? = null
             for (j in lastRNStreamNumber()..i) {
@@ -98,7 +101,7 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
      *
      * @param seed the seeds
      */
-    fun initialSeed(seed: LongArray) {
+    fun initialSeed(seed: LongArray = longArrayOf(12345, 12345, 12345, 12345, 12345, 12345)) {
         myStreamFactory.setFactorySeed(seed)
     }
 }

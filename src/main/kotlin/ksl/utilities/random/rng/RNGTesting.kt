@@ -2,8 +2,16 @@ package ksl.utilities.random.rng
 
 
 fun main() {
-    testIt()
-//    test()
+
+//    val range = 1.0.rangeTo(10.0)
+//    println(range)
+//    val start = 1.0
+//    val end = -10.0
+//    val r = start.rangeTo(end)
+//    println(r)
+
+//    testIt()
+    test()
 //    test1()
 //    test2()
 }

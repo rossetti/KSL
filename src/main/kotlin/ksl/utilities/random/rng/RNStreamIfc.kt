@@ -29,5 +29,16 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param j end of range
      * @return The integer pseudo random number
      */
-    fun randInt(i: Int, j: Int): Int
+    fun randInt(i: Int, j: Int): Int {
+        require(i <= j) { "The lower limit must be <= the upper limit" }
+        return i + (randU01() * (j - i + 1)).toInt()
+    }
+
+    /** A convenience function for allowing the range to be specified via a range
+     *
+     *  @param range the integer range to generate over
+     */
+    fun randInt(range: IntRange): Int {
+        return randInt(range.first, range.last)
+    }
 }
