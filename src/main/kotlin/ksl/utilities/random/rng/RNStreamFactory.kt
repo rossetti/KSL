@@ -44,11 +44,11 @@ class RNStreamFactory {
                                 B: Array<DoubleArray>, m2: Double) {
             val vv = DoubleArray(3)
             for (i in 0..2) vv[i] = v[i]
-//            ArithmeticMod.matVecModM(A, vv, vv, m1)
+//          calls  ArithmeticMod.matVecModM(A, vv, vv, m1)
             matVecModM(A, vv, vv, m1)
             for (i in 0..2) v[i] = vv[i]
             for (i in 0..2) vv[i] = v[i + 3]
-//            ArithmeticMod.matVecModM(B, vv, vv, m2)
+//          calls  ArithmeticMod.matVecModM(B, vv, vv, m2)
             matVecModM(B, vv, vv, m2)
             for (i in 0..2) v[i + 3] = vv[i]
         }
