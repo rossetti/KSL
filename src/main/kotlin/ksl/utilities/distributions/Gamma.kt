@@ -1,13 +1,15 @@
 package ksl.utilities.distributions
 
-import jsl.simulation.JSLTooManyIterationsException
 import jsl.utilities.distributions.Normal
+import ksl.utilities.exceptions.KSLTooManyIterationsException
 import ksl.utilities.math.KSLMath
 import kotlin.math.*
 
 class Gamma {
 
     companion object {
+        const val DEFAULT_MAX_ITERATIONS = 5000
+
         /**
          * The maximum number of iterations permitted for the incomplete gamma function
          * evaluation process
@@ -40,7 +42,7 @@ class Gamma {
          * GAMMAD = AS 239.
          *
          * @param p must lie in the range [0.0,1.0]
-         * @param v must be positive, degrees of freedom
+         * @param dof must be positive, degrees of freedom
          * @param maxSeriesIterations must be greater than 0. Maximum number of iterations
          * permitted in the series computation, default is 500
          * @param maxIncGammaIterations maximum number of iterations for incomplete gamma computation
@@ -49,7 +51,7 @@ class Gamma {
          * @return The quantile at p
          */
         fun invChiSquareDistribution(
-            p: Double, v: Double,
+            p: Double, dof: Double,
             maxSeriesIterations : Int = CHISQ_CDF_SERIES_MAX_ITERATIONS,
             maxIncGammaIterations: Int = INC_GAMMA_MAX_ITERATIONS,
             EPS: Double = KSLMath.defaultNumericalPrecision
@@ -60,9 +62,9 @@ class Gamma {
                 "The precision must be >= ${KSLMath.machinePrecision}"
             }
             require(!(p < 0.0 || p > 1.0)) { "Probability must be [0,1]" }
-            require(v > 0) { "Degrees of Freedom must be >= 1" }
+            require(dof > 0) { "Degrees of Freedom must be >= 1" }
 
-            val g = logGammaFunction(v / 2.0)
+            val g = logGammaFunction(dof / 2.0)
 
             val aa = 0.6931471806
             val e = 0.0000005
@@ -125,24 +127,24 @@ class Gamma {
             var s6: Double
             var t: Double
             val x: Double
-            val xx: Double = half * v
+            val xx: Double = half * dof
             val c = xx - one
 
             // ...starting approximation for small chi-squared
 
-            if (v >= -c5 * ln(p)) {
+            if (dof >= -c5 * ln(p)) {
                 //....starting approximation for v less than or equal to 0.32
-                if (v > c3) {
+                if (dof > c3) {
                     // call to algorithm AS 111 - note that p has been tested above.
                     //AS 241 could be used as an alternative.
                     x = Normal.stdNormalInvCDF(p)
 
                     // starting approximation using Wilson and Hilferty estimate
-                    p1 = c2 / v
-                    ch = v * (x * sqrt(p1) + one - p1).pow(3.0)
+                    p1 = c2 / dof
+                    ch = dof * (x * sqrt(p1) + one - p1).pow(3.0)
 
                     // starting approximation for p tending to 1
-                    if (ch > c6 * v + six) {
+                    if (ch > c6 * dof + six) {
                         ch = -two * (ln(one - p) - c * ln(half * ch) + g)
                     }
                 } else {
@@ -352,7 +354,7 @@ class Gamma {
                     n++
                 }
             }
-            throw JSLTooManyIterationsException("Too many iterations in computing incomplete gamma function, increase max iterations.")
+            throw KSLTooManyIterationsException("Too many iterations in computing incomplete gamma function, increase max iterations.")
         }
 
         /** Evaluates the incomplete gamma fraction
@@ -393,7 +395,7 @@ class Gamma {
                 }
                 n++
             }
-            throw JSLTooManyIterationsException("Too many iterations in computing incomplete gamma function, increase max iterations.")
+            throw KSLTooManyIterationsException("Too many iterations in computing incomplete gamma function, increase max iterations.")
         }
 
         /**

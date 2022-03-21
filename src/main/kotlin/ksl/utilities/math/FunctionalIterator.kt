@@ -24,10 +24,13 @@ import kotlin.math.abs
  *
  */
 abstract class FunctionalIterator(
-    var func: FunctionIfc, // this means that func is a changeable property that must not be null
-    maxIter: Int = 100,
-    desiredPrec: Double = KSLMath.defaultNumericalPrecision
-) : DBHIterativeProcess(maxIter, desiredPrec) {
+    aFunction: FunctionIfc,
+    maxIterations: Int = 100,
+    desiredPrecision: Double = KSLMath.defaultNumericalPrecision
+) : DBHIterativeProcess(maxIterations, desiredPrecision) {
+
+    var func:FunctionIfc = aFunction // this means that func is a changeable property that must not be null
+        protected set
 
     /**
      * Returns the result (assuming convergence has been attained).

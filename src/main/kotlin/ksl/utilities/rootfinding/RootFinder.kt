@@ -7,27 +7,27 @@ import ksl.utilities.math.KSLMath
 
 /**
  *  @param func the function to search. The function must contain a root in the interval
- *  @param interval the interval to search
- *  @param initialPoint the initial point for the search, defaults to mid-point of the interval
+ *  @param anInterval the interval to search
+ *  @param anInitialPoint the initial point for the search, defaults to mid-point of the interval
  *  @param maxIter the maximum number of iterations allowed for the search, default = 100
  *  @param desiredPrec the desired precision of the search, default is KSLMath.defaultNumericalPrecision
  */
 abstract class RootFinder(
-    func: FunctionIfc,
-    interval: Interval,
-    initialPoint: Double = (interval.lowerLimit + interval.upperLimit) / 2.0,
+    aFunction: FunctionIfc,
+    anInterval: Interval,
+    anInitialPoint: Double = (anInterval.lowerLimit + anInterval.upperLimit) / 2.0,
     maxIter: Int = 100,
     desiredPrec: Double = KSLMath.defaultNumericalPrecision
 ) :
-    FunctionalIterator(func, maxIter, desiredPrec) {
+    FunctionalIterator(aFunction, maxIter, desiredPrec) {
 
     // check the constructor parameters
     init {
-        require(Companion.hasRoot(func, interval)) {
-            "The function does not have a root in the supplied interval $interval"
+        require(Companion.hasRoot(aFunction, anInterval)) {
+            "The function does not have a root in the supplied interval $anInterval"
         }
-        require(interval.contains(initialPoint)) {
-            "The initial point $initialPoint was not in the supplied initial interval $interval"
+        require(anInterval.contains(anInitialPoint)) {
+            "The initial point $anInitialPoint was not in the supplied initial interval $anInterval"
         }
     }
 
@@ -37,12 +37,25 @@ abstract class RootFinder(
      * The initial point for the search
      *
      */
-    protected var initialPt = initialPoint
+    var initialPoint : Double = anInitialPoint
+        protected set
 
     /**
      *  The interval to search for the root
      */
-    protected var interval: Interval = interval
+    protected var interval: Interval = anInterval
+
+    /**
+     * The lower limit for the search interval
+     */
+    val intervalLowerLimit: Double
+        get() = interval.lowerLimit
+
+    /**
+     * The upper limit for the search interval
+     */
+    val intervalUpperLimit: Double
+        get() = interval.upperLimit
 
     /**
      * Value at which the function's value is negative.
@@ -64,27 +77,29 @@ abstract class RootFinder(
      */
     protected var fPos = 0.0
 
-    // set up the initial interval
     init {
-        setupInterval(interval, initialPoint)
+        setUpSearch(aFunction, anInterval, anInitialPoint)
     }
 
     /**
      *  The interval must have a root for the function and the initial point must be within the interval
      *
      *  @param anInterval the interval to change to
-     *  @param initialPoint the initial point within the interval, default is the mid-point of the interval
+     *  @param anInitialPoint the initial point within the interval, default is the mid-point of the interval
      */
-    fun setupInterval(
+    fun setUpSearch(
+        aFunction: FunctionIfc,
         anInterval: Interval,
-        initialPoint: Double = (anInterval.lowerLimit + anInterval.upperLimit) / 2.0
+        anInitialPoint: Double = (anInterval.lowerLimit + anInterval.upperLimit) / 2.0
     ): Unit {
-        require(Companion.hasRoot(func, anInterval)) {
+        require(anInterval.contains(anInitialPoint)) {
+            "The initial point ${anInitialPoint} was not in the supplied initial interval $anInterval"
+        }
+        require(Companion.hasRoot(aFunction, anInterval)) {
             "The function does not have a root in the supplied interval $anInterval"
         }
-        require(anInterval.contains(initialPt)) {
-            "The initial point $initialPt was not in the supplied initial interval $anInterval"
-        }
+        initialPoint = anInitialPoint
+        func = aFunction
         val fL = func.f(anInterval.lowerLimit)
         val fU = func.f(anInterval.upperLimit)
         if (fL < 0.0) {
@@ -98,8 +113,56 @@ abstract class RootFinder(
             xPos = anInterval.lowerLimit
             xNeg = anInterval.upperLimit
         }
-        initialPt = initialPoint
         interval = anInterval
+    }
+
+    /**
+     * Returns true if the supplied interval contains a root
+     *
+     * @param xLower the lower limit of the interval to check
+     * @param xUpper the upper limit of the interval to check
+     * @return true if there is a root for the function in the interval
+     */
+    fun hasRoot(xLower: Double, xUpper: Double): Boolean {
+        return Companion.hasRoot(func, xLower, xUpper)
+    }
+
+    /**
+     * Returns true if the supplied interval contains a root
+     *
+     * @param interval the interval to check
+     * @return true if there is a root for the function in the interval
+     */
+    fun hasRoot(interval: Interval): Boolean {
+        return Companion.hasRoot(func, interval)
+    }
+
+    /**
+     * Checks to see if the supplied point is within the search interval
+     *
+     * @param x the x to check
+     * @return true of the search interval contains x
+     */
+    operator fun contains(x: Double): Boolean {
+        return interval.contains(x)
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.append("Root Finder").append(System.lineSeparator())
+        sb.append("Search Interval = $interval").append(System.lineSeparator())
+        sb.append("Initial point = $initialPoint").append(System.lineSeparator())
+        sb.append("Final root = $result").append(System.lineSeparator())
+        sb.append("Maximum number of iterations allowed = $maximumIterations").append(System.lineSeparator())
+        sb.append("Number of iterations executed = $iterationsExecuted").append(System.lineSeparator())
+        sb.append("Converged? = ${hasConverged()}").append(System.lineSeparator())
+        sb.append("Desired Precision = $desiredPrecision").append(System.lineSeparator())
+        sb.append("Actual Precision = $achievedPrecision").append(System.lineSeparator())
+        sb.append("Last negative f(x) = $fNeg").append(System.lineSeparator())
+        sb.append("x at last negative f(x) = $xNeg").append(System.lineSeparator())
+        sb.append("Last positive f(x) = $fPos").append(System.lineSeparator())
+        sb.append("x at last positive f(x) = $xPos").append(System.lineSeparator())
+        return sb.toString()
     }
 
     companion object {
@@ -158,6 +221,8 @@ abstract class RootFinder(
             numIter: Int = numIterations,
             searchFact: Double = searchFactor
         ): Boolean {
+            require(numIter > 0) { "The number of iterations $numIter must be > 0" }
+            require(searchFact > 0) { "The search factor $searchFact must be > 0" }
             var x1 = interval.lowerLimit
             var x2 = interval.upperLimit
             var f1 = func.f(x1)
@@ -187,12 +252,14 @@ abstract class RootFinder(
          * @param func the function to evaluate
          * @param interval the starting (main) interval
          * @param n number of subdivisions of the main interval
-         * @param nmax max number of bracketing intervals
+         * @param nMax max number of bracketing intervals
          * @return The list of bracketing intervals
          */
         fun findInterval(
-            func: FunctionIfc, interval: Interval, n: Int, nmax: Int
+            func: FunctionIfc, interval: Interval, n: Int, nMax: Int
         ): List<Interval> {
+            require(n > 0) { "The number of sub-intervals must be at least 1" }
+            require(nMax > 0) { "The number of bracketing intervals must be at least 1" }
             val intervals: MutableList<Interval> = ArrayList()
             val x1 = interval.lowerLimit
             val x2 = interval.upperLimit
@@ -206,7 +273,7 @@ abstract class RootFinder(
                 if (fc * fp <= 0.0) {
                     val i = Interval(x, x - dx)
                     intervals.add(i)
-                    if (intervals.size == nmax) {
+                    if (intervals.size == nMax) {
                         return intervals
                     }
                 }
@@ -215,65 +282,4 @@ abstract class RootFinder(
             return intervals
         }
     }
-
-    /**
-     * Returns true if the supplied interval contains a root
-     *
-     * @param xLower the lower limit of the interval to check
-     * @param xUpper the upper limit of the interval to check
-     * @return true if there is a root for the function in the interval
-     */
-    fun hasRoot(xLower: Double, xUpper: Double): Boolean {
-        return Companion.hasRoot(func, xLower, xUpper)
-    }
-
-    /**
-     * Returns true if the supplied interval contains a root
-     *
-     * @param interval the interval to check
-     * @return true if there is a root for the function in the interval
-     */
-    fun hasRoot(interval: Interval): Boolean {
-        return Companion.hasRoot(func, interval)
-    }
-
-    /**
-     * Checks to see if the supplied point is within the search interval
-     *
-     * @param x the x to check
-     * @return true of the search interval contains x
-     */
-    operator fun contains(x: Double): Boolean {
-        return interval.contains(x)
-    }
-
-    override fun toString(): String {
-        var sb = StringBuilder()
-        sb.append("Root Finder").append(System.lineSeparator())
-        sb.append("Search Interval = $interval").append(System.lineSeparator())
-        sb.append("Initial point = $initialPt").append(System.lineSeparator())
-        sb.append("Final root = $result").append(System.lineSeparator())
-        sb.append("Maximum number of iterations allowed = $maximumIterations").append(System.lineSeparator())
-        sb.append("Number of iterations executed = $iterationsExecuted").append(System.lineSeparator())
-        sb.append("Converged? = ${hasConverged()}").append(System.lineSeparator())
-        sb.append("Desired Precision = $desiredPrecision").append(System.lineSeparator())
-        sb.append("Actual Precision = $achievedPrecision").append(System.lineSeparator())
-        sb.append("Last negative f(x) = $fNeg").append(System.lineSeparator())
-        sb.append("x at last negative f(x) = $xNeg").append(System.lineSeparator())
-        sb.append("Last positive f(x) = $fPos").append(System.lineSeparator())
-        sb.append("x at last positive f(x) = $xPos").append(System.lineSeparator())
-        return sb.toString()
-    }
-
-    /**
-     * The lower limit for the search interval
-     */
-    val intervalLowerLimit: Double
-        get() = interval.lowerLimit
-
-    /**
-     * The upper limit for the search interval
-     */
-    val intervalUpperLimit: Double
-        get() = interval.upperLimit
 }

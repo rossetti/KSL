@@ -24,8 +24,8 @@ package ksl.utilities.math
 abstract class DBHIterativeProcess(maxIter: Int = 100, desiredPrec: Double = KSLMath.defaultNumericalPrecision) {
 
     init {
-        require(maxIter >= 1) { "Non-positive maximum iteration: $maxIter" }
-        require(desiredPrec > 0) {"Non-positive desired precision: $desiredPrec" }
+        require(maxIter >= 1) { "The maximum number of iterations must be >= 1: $maxIter" }
+        require(desiredPrec > 0) {"The desired precision must be > 0: $desiredPrec" }
     }
 
     /**
@@ -33,7 +33,7 @@ abstract class DBHIterativeProcess(maxIter: Int = 100, desiredPrec: Double = KSL
      */
     var maximumIterations = maxIter
         set(value) {
-            require(value >= 1) { "Non-positive maximum iteration: $value" }
+            require(value >= 1) { "The maximum number of iterations must be >= 1: $value" }
             field = value
         }
 
@@ -42,7 +42,7 @@ abstract class DBHIterativeProcess(maxIter: Int = 100, desiredPrec: Double = KSL
      */
     var desiredPrecision = desiredPrec
         set(value) {
-            require(value > 0) { "Non-positive precision: $value" }
+            require(value > 0) { "The desired precision must be > 0: $value" }
             field = value
         }
 

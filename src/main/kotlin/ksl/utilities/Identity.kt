@@ -51,7 +51,7 @@ open class Identity(aName: String? = null) : IdentityIfc, NameIfc {
 
     override val id: Int = ++IDCounter
 
-    override val name: String = aName ?: (javaClass.simpleName + "_" + id)
+    override val name: String = aName ?: (this::class.simpleName + "_" + id)
     override var label: String? = null
 
     override fun toString(): String {
