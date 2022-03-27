@@ -42,11 +42,18 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
     }
 
     /**
-     * @return returns a sampled values
+     * The randomly generated value. Each value
+     * will be different
      */
-    override fun value(): Double {
-        return sample()
-    }
+    val value: Double
+        get() = sample()
+
+    /**
+     * The randomly generated value. Each value
+     * will be different
+     * @return the randomly generated value, same as using property value
+     */
+    override fun value(): Double = value
 
     /**
      * @param n the number of values to sum, must be 1 or more
@@ -56,7 +63,7 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
         require(n >= 1) { "There must be at least 1 in the sum" }
         var sum = 0.0
         for (i in 1..n) {
-            sum = sum + value()
+            sum = sum + value
         }
         return sum
     }
@@ -75,6 +82,6 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
     }
 
     override fun antitheticInstance(): RVariableIfc{
-        return instance(rnStream.newAntitheticInstance())
+        return instance(rnStream.antitheticInstance())
     }
 }

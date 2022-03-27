@@ -17,7 +17,6 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
 
-
 /**
  * BinomialRV(probability of success, number of trials)
  * @param pSuccess  the probability of success, must be in (0,1)
@@ -31,11 +30,6 @@ class BinomialRV constructor(
     stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
 ) : RVariable(stream, name) {
-
-    /**
-     * @param pSuccess  the probability of success, must be in (0,1)
-     * @param numTrials the number of trials, must be greater than 0
-     */
     init {
         require(!(pSuccess < 0.0 || pSuccess > 1.0)) { "Success Probability must be [0,1]" }
         require(numTrials > 0) { "Number of trials must be >= 1" }

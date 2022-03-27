@@ -16,36 +16,41 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import kotlin.math.sqrt
 
 /**
- * Beta(alpha1, alpha2) random variable, range (0,1)
- * @param alpha1 the first shape parameter
- * @param alpha2 the second shape parameter
- * @param stream the random number stream
+ * Normal(mean, variance)
+ * @param mean the mean of the distribution
+ * @param variance the variance of the distribution
  */
-class BetaRV(
-    val alpha1: Double = 1.0,
-    val alpha2: Double = 1.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-    name: String? = null
-) : RVariable(stream, name) {
+class NormalRV(
+    val mean: Double = 0.0,
+    val variance: Double = 1.0,
+    rng: RNStreamIfc = KSLRandom.nextRNStream()
+) : RVariable(rng) {
+
     init {
-        require(alpha1 > 0) { "The 1st shape parameter must be > 0" }
-        require(alpha2 > 0) { "The 2nd shape parameter must be > 0" }
+        require(variance > 0) { "Variance must be positive" }
     }
 
-    constructor(alpha1: Double, alpha2: Double, streamNum: Int) : this(alpha1, alpha2, KSLRandom.rnStream(streamNum)) {}
+    /**
+     * @return the standard deviation of the random variable
+     */
+    val stdDeviation: Double = sqrt(variance)
 
-    override fun instance(stream: RNStreamIfc): BetaRV {
-        return BetaRV(alpha1, alpha2, stream)
+    constructor(mean: Double, variance: Double, streamNum: Int) :
+            this(mean, variance, KSLRandom.rnStream(streamNum))
+
+    override fun instance(stream: RNStreamIfc): NormalRV {
+        return NormalRV(mean, variance, stream)
     }
 
     override fun generate(): Double {
-        return KSLRandom.rBeta(alpha1, alpha2, rnStream)
+        return KSLRandom.rNormal(mean, variance, rnStream)
     }
 
     override fun toString(): String {
-        return "BetaRV(alpha1=$alpha1, alpha2=$alpha2)"
+        return "NormalRV(mean=$mean, variance=$variance)"
     }
 
 }

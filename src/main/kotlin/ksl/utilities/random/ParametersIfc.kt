@@ -7,7 +7,7 @@ package ksl.utilities.random
  * @author rossetti
  */
 interface ParametersIfc {
-
+//TODO this should probably be an abstract property
     /**
      * Sets the parameters
      *

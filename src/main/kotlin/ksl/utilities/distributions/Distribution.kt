@@ -1,6 +1,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.NewInstanceIfc
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.rootfinding.BisectionRootFinder
 

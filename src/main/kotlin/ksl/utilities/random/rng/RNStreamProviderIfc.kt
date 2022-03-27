@@ -129,7 +129,7 @@ interface RNStreamProviderIfc {
     fun resetAllStreamsToStartOfCurrentSubStream() {
         val n = lastRNStreamNumber()
         for (i in 1..n) {
-            rnStream(i).resetStartSubstream()
+            rnStream(i).resetStartSubStream()
         }
     }
 
@@ -142,7 +142,7 @@ interface RNStreamProviderIfc {
     fun advanceAllStreamsToNextSubstream() {
         val n = lastRNStreamNumber()
         for (i in 1..n) {
-            rnStream(i).advanceToNextSubstream()
+            rnStream(i).advanceToNextSubStream()
         }
     }
 

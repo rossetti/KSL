@@ -18,34 +18,33 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.random.rng.RNStreamIfc
 
 /**
- * Beta(alpha1, alpha2) random variable, range (0,1)
- * @param alpha1 the first shape parameter
- * @param alpha2 the second shape parameter
+ * Pearson Type 5(shape, scale) random variable
+ * @param shape the shape parameter, must be greater than 0.0
+ * @param scale the scale parameter, must be greater than 0.0
  * @param stream the random number stream
  */
-class BetaRV(
-    val alpha1: Double = 1.0,
-    val alpha2: Double = 1.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-    name: String? = null
-) : RVariable(stream, name) {
+class PearsonType5RV (
+    val shape: Double,
+    val scale: Double,
+    stream: RNStreamIfc = KSLRandom.nextRNStream()
+) : RVariable(stream) {
     init {
-        require(alpha1 > 0) { "The 1st shape parameter must be > 0" }
-        require(alpha2 > 0) { "The 2nd shape parameter must be > 0" }
+        require(shape > 0) { "Shape parameter must be positive" }
+        require(scale > 0) { "Scale parameter must be positive" }
     }
 
-    constructor(alpha1: Double, alpha2: Double, streamNum: Int) : this(alpha1, alpha2, KSLRandom.rnStream(streamNum)) {}
+    constructor(shape: Double, scale: Double, streamNum: Int) : this(shape, scale, KSLRandom.rnStream(streamNum)) {}
 
-    override fun instance(stream: RNStreamIfc): BetaRV {
-        return BetaRV(alpha1, alpha2, stream)
+    override fun instance(stream: RNStreamIfc): PearsonType5RV {
+        return PearsonType5RV(shape, scale, stream)
     }
 
     override fun generate(): Double {
-        return KSLRandom.rBeta(alpha1, alpha2, rnStream)
+        return KSLRandom.rPearsonType5(shape, scale, rnStream)
     }
 
     override fun toString(): String {
-        return "BetaRV(alpha1=$alpha1, alpha2=$alpha2)"
+        return "PearsonType5RV(shape=$shape, scale=$scale)"
     }
 
 }

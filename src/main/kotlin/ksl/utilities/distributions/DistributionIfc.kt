@@ -1,5 +1,6 @@
 package ksl.utilities.distributions
 
+import ksl.utilities.NewInstanceIfc
 import ksl.utilities.random.ParametersIfc
 
 /**

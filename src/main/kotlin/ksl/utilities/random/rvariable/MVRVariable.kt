@@ -20,15 +20,10 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 
-/**
- * An abstract base class for building random variables.  Implement
- * the random generation procedure in the method generate().
- */
-abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) : RVariableIfc,
+abstract class MVRVariable(stream: RNStreamIfc, name: String? = null) : MVRVariableIfc,
     IdentityIfc by Identity(name), RNStreamControlIfc by stream {
 
     constructor(stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(stream, null)
-
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
@@ -37,40 +32,38 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
      */
-    var previous: Double = Double.NaN
+    var previous: DoubleArray = doubleArrayOf()
         private set
 
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
      * @return the last randomly generated value, same as using property previous
      */
-    override fun previous(): Double = previous
-
-    /** Makes a new instance.  False allows the new instance to keep using
-     * the same underlying source of random numbers.
-     *
-     * @param newRNG true means use new stream. This is same as instance(). False
-     * means clone uses same underlying source of randomness
-     * @return a new instance configured based on current instance
-     */
-    fun instance(newRNG: Boolean): RVariableIfc {
-        return if (newRNG) {
-            instance()
-        } else {
-            instance(rnStream)
-        }
-    }
+    fun previous(): DoubleArray = previous
 
     /**
-     *
-     * @return the randomly generated variate
+     * The randomly generated values. Each access to value will
+     * result in a new sample
      */
-    protected abstract fun generate(): Double
+    val value: DoubleArray
+        get() = sample()
 
-    override fun sample(): Double {
+    /**
+     * The randomly generated values.  Each call to value() will
+     * result in a new sample
+     * @return the randomly generated values, same as using property value
+     */
+    fun value(): DoubleArray = value
+
+    override fun sample(): DoubleArray {
         val x = generate()
         previous = x
         return x
     }
 
+    /**
+     *
+     * @return the randomly generated variates
+     */
+    protected abstract fun generate(): DoubleArray
 }

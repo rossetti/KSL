@@ -237,10 +237,10 @@ class RNStreamFactory {
 
         override fun resetStartStream() {
             for (i in 0..5) Bg[i] = Ig[i]
-            resetStartSubstream()
+            resetStartSubStream()
         }
 
-        override fun resetStartSubstream() {
+        override fun resetStartSubStream() {
             Cg0 = Bg[0]
             Cg1 = Bg[1]
             Cg2 = Bg[2]
@@ -249,9 +249,9 @@ class RNStreamFactory {
             Cg5 = Bg[5]
         }
 
-        override fun advanceToNextSubstream() {
+        override fun advanceToNextSubStream() {
             multMatVect(Bg, A1p76, m1, A2p76, m2)
-            resetStartSubstream()
+            resetStartSubStream()
         }
 
         /**
@@ -309,7 +309,7 @@ class RNStreamFactory {
             return if (antithetic) 1 - u else u
         }
 
-        override fun newInstance(name: String?): RNStreamIfc {
+        override fun instance(name: String?): RNStreamIfc {
             val s: RNStream = RNStream(name)
             s.antithetic = antithetic
             s.previousU = previousU
@@ -326,8 +326,8 @@ class RNStreamFactory {
             return s
         }
 
-        override fun newAntitheticInstance(name: String?): RNStreamIfc {
-            val s = newInstance(name)
+        override fun antitheticInstance(name: String?): RNStreamIfc {
+            val s = instance(name)
             s.antithetic = !s.antithetic
             return s
         }

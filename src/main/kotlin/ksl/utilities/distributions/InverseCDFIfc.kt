@@ -1,8 +1,7 @@
 package ksl.utilities.distributions
 
 /**
- * Provides the inverse cumulative distribution function interface for the
- * distribution
+ * Provides the inverse cumulative distribution function interface for a CDF
  *
  * @author rossetti
  */

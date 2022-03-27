@@ -18,34 +18,33 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.random.rng.RNStreamIfc
 
 /**
- * Beta(alpha1, alpha2) random variable, range (0,1)
- * @param alpha1 the first shape parameter
- * @param alpha2 the second shape parameter
- * @param stream the random number stream
+ * Generates a continuous uniform over the range
+ *
+ * @param min the minimum of the range, must be less than maximum
+ * @param max the maximum of the range
+ * @param stream     the random number stream
  */
-class BetaRV(
-    val alpha1: Double = 1.0,
-    val alpha2: Double = 1.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-    name: String? = null
-) : RVariable(stream, name) {
+class UniformRV (
+    val min: Double = 0.0,
+    val max: Double = 1.0,
+    stream: RNStreamIfc = KSLRandom.nextRNStream()
+) : RVariable(stream) {
     init {
-        require(alpha1 > 0) { "The 1st shape parameter must be > 0" }
-        require(alpha2 > 0) { "The 2nd shape parameter must be > 0" }
+        require(min < max) { "Lower limit must be < upper limit. lower limit = $min upper limit = $max" }
     }
 
-    constructor(alpha1: Double, alpha2: Double, streamNum: Int) : this(alpha1, alpha2, KSLRandom.rnStream(streamNum)) {}
+    constructor(min: Double, max: Double, streamNum: Int) : this(min, max, KSLRandom.rnStream(streamNum))
 
-    override fun instance(stream: RNStreamIfc): BetaRV {
-        return BetaRV(alpha1, alpha2, stream)
+    override fun instance(stream: RNStreamIfc): UniformRV {
+        return UniformRV(min, max, stream)
     }
 
     override fun generate(): Double {
-        return KSLRandom.rBeta(alpha1, alpha2, rnStream)
+        return KSLRandom.rUniform(min, max, rnStream)
     }
 
     override fun toString(): String {
-        return "BetaRV(alpha1=$alpha1, alpha2=$alpha2)"
+        return "UniformRV(min=$min, max=$max)"
     }
 
 }

@@ -13,32 +13,32 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package ksl.utilities.random.rng
+package ksl.utilities.random.rvariable
+
+import ksl.utilities.random.rng.RNStreamIfc
+
 
 /**
- * Controls the movement through a pseudo-random number stream
- *
+ * An interface for getting random variables
  */
-interface RNStreamControlIfc {
+interface GetRVariableIfc {
     /**
-     * The resetStartStream method will position the RNG at the beginning of its
-     * stream. This is the same location in the stream as assigned when the RNG
-     * was created and initialized.
+     * @param stream the stream to use
+     * @return a random variable
      */
-    fun resetStartStream()
+    fun randomVariable(stream: RNStreamIfc): RVariableIfc
 
     /**
-     * Resets the position of the RNG at the start of the current substream
+     * @param streamNum the stream number to use
+     * @return a random variable
      */
-    fun resetStartSubStream()
+    fun randomVariable(streamNum: Int): RVariableIfc {
+        return randomVariable(KSLRandom.rnStream(streamNum))
+    }
 
     /**
-     * Positions the RNG at the beginning of its next substream
+     * @return an instance of the random variable based on the next stream
      */
-    fun advanceToNextSubStream()
-
-    /**
-     * Tells the stream to start producing antithetic variates
-     */
-    var antithetic: Boolean
+    val randomVariable: RVariableIfc
+        get() = randomVariable(KSLRandom.nextRNStream())
 }

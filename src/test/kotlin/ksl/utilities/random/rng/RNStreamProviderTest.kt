@@ -1,6 +1,5 @@
 package ksl.utilities.random.rng
 
-import jsl.utilities.random.rng.RNStreamFactory
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -74,7 +73,7 @@ internal class RNStreamProviderTest {
         for (i in 1..3) {
             s.appendLine("u = " + s1.randU01())
         }
-        s1.advanceToNextSubstream()
+        s1.advanceToNextSubStream()
         s.appendLine("Advance to next sub-stream and get some more random numbers")
         for (i in 1..3) {
             s.appendLine("u = " + s1.randU01())
@@ -139,7 +138,7 @@ internal class RNStreamProviderTest {
         val rm = ksl.utilities.random.rng.RNStreamFactory()
         val rng = rm.nextStream()
         for (i in 0 until advance) {
-            rng.advanceToNextSubstream()
+            rng.advanceToNextSubStream()
         }
         var sum = 0.0
         for (i in 1..count) {
@@ -187,8 +186,8 @@ internal class RNStreamProviderTest {
             println("u1 = $u1\t u2 = $u2")
         }
         assertNotEquals(s1, s2)
-        g1.advanceToNextSubstream()
-        g1.advanceToNextSubstream()
+        g1.advanceToNextSubStream()
+        g1.advanceToNextSubStream()
         println("Advancing to the start of the next substream ")
         println("causes them to advance to the beginning of the next substream.")
         s1 = 0.0
@@ -269,7 +268,7 @@ internal class RNStreamProviderTest {
         println("Current state of f1")
         println(f1)
         println("Clone the stream")
-        val rngf2 = rngf1.newInstance("clone of rngf1") as ksl.utilities.random.rng.RNStreamFactory.RNStream
+        val rngf2 = rngf1.instance("clone of rngf1") as ksl.utilities.random.rng.RNStreamFactory.RNStream
         println(rngf2)
         val s1 = rngf1.state()
         val s2 = rngf2.state()

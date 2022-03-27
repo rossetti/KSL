@@ -15,8 +15,7 @@
  */
 package ksl.utilities.math
 
-import jsl.utilities.distributions.Gamma
-import jsl.utilities.math.JSLMath
+import ksl.utilities.distributions.Gamma
 import kotlin.math.*
 
 /**
@@ -351,21 +350,4 @@ object KSLMath {
         }
     }
 
-}
-
-fun main(){
-    println(KSLMath)
-    println()
-    JSLMath.printParameters(System.out)
-    assert(JSLMath.binomialCoefficient(10,3) == KSLMath.binomialCoefficient(10, 3))
-    assert(JSLMath.logFactorial(100) == KSLMath.logFactorial(100))
-    assert(JSLMath.factorial(100) == KSLMath.factorial(100))
-    var a = 1.0
-    var b = 9.0
-    val pointRange = b.rangeTo(a)
-    println(pointRange)
-    println(pointRange.contains(5.0))
-    for (i in 1..9){
-        println(i)
-    }
 }

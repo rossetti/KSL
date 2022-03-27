@@ -28,7 +28,7 @@ fun test() {
     for (i in 1..3) {
         println("u = " + s1.randU01())
     }
-    s1.advanceToNextSubstream()
+    s1.advanceToNextSubStream()
     println("advanced")
     for (i in 1..3) {
         println("u = " + s1.randU01())

@@ -15,10 +15,8 @@
  */
 package ksl.utilities.random.rng
 
-import java.util.function.DoubleSupplier
-import java.util.stream.DoubleStream
 
-interface RandU01Ifc : GetAntitheticValueIfc, DoubleSupplier {
+interface RandU01Ifc : GetAntitheticValueIfc {
     /**
      * Returns a pseudo-random uniformly distributed number
      *
@@ -33,19 +31,4 @@ interface RandU01Ifc : GetAntitheticValueIfc, DoubleSupplier {
      */
     val previousU: Double
 
-    /**
-     *
-     * @return the generated random number using randU01()
-     */
-    override fun getAsDouble(): Double {
-        return randU01()
-    }
-
-    /** Turns the doubles into a DoubleStream for the Stream API
-     *
-     * @return the doubles into a DoubleStream for the Stream API
-     */
-    fun asDoubleStream(): DoubleStream {
-        return DoubleStream.generate(this)
-    }
 }

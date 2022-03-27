@@ -23,14 +23,18 @@ import ksl.utilities.random.rng.RNStreamIfc
  *
  * @param probOfSuccess      the probability, must be in (0,1)
  * @param stream the stream
-*/
-class BernoulliRV constructor(val probOfSuccess: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
-    RVariable(stream, name) {
+ */
+class BernoulliRV constructor(
+    val probOfSuccess: Double,
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : RVariable(stream, name) {
+
     /**
      * @param probOfSuccess      the probability, must be in (0,1)
      * @param streamNum the stream number
      */
-    constructor(probOfSuccess: Double, streamNum: Int) : this(probOfSuccess, KSLRandom.rnStream(streamNum)) {}
+    constructor(probOfSuccess: Double, streamNum: Int) : this(probOfSuccess, KSLRandom.rnStream(streamNum))
 
     init {
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Probability must be (0,1)" }

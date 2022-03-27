@@ -22,25 +22,20 @@ import ksl.utilities.distributions.*
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import kotlin.math.exp
-import kotlin.math.ln
-import kotlin.math.pow
-import kotlin.math.sqrt
+import kotlin.math.*
 
 /**
  * The purpose of this class is to facilitate random variate generation from
- * various distributions.
- *
+ * various distributions without having to create object instances.
  *
  * Each function marked rXXXX will generate random variates from the named
  * distribution. The user has the option of supplying a RNStreamIfc as the source of
  * the randomness. Functions that do not have a RNStreamIfc parameter use,
- * getDefaultRNStream() as the source of randomness. That is, they all **share** the same
+ * defaultRNStream() as the default source of randomness. That is, they all **share** the same
  * stream, which is the default stream from the default random number stream provider.
  * The user has the option of supplying a stream number to identify the stream
  * from the underlying stream provider. By default, stream 1 is the default stream
  * for the default provider. Stream 2 refers to the 2nd stream, etc.
- *
  *
  * Also provides a number of methods for sampling with and without replacement
  * from arrays and lists as well as creating permutations of arrays and lists.
@@ -53,8 +48,6 @@ object KSLRandom {
     enum class AlgoType {
         Inverse, AcceptanceRejection
     }
-
-    private var myBeta: Beta? = null
 
     /**
      * @return gets the next stream of pseudo random numbers from the default random
@@ -98,14 +91,22 @@ object KSLRandom {
 
     /**
      * @param pSuccess the probability of success, must be in (0,1)
-     * @param rng      the RNStreamIfc
+     * @param stream the random number stream
      * @return the random value
      */
-    fun rBernoulli(pSuccess: Double, rng: RNStreamIfc = defaultRNStream()): Double {
-        if (pSuccess <= 0.0 || pSuccess >= 1.0) {
-            throw IllegalArgumentException("Success Probability must be (0,1)")
-        }
-        return (rng.randU01() <= pSuccess).toDouble()
+    fun rBernoulli(pSuccess: Double, stream: RNStreamIfc = defaultRNStream()): Double {
+        require(!(pSuccess <= 0.0 || pSuccess >= 1.0)) { "Success Probability must be in (0,1)" }
+        return (stream.randU01() <= pSuccess).toDouble()
+    }
+
+    /**
+     * @param pSuccess the probability of success, must be in (0,1)
+     * @param stream the random number stream
+     * @return the random value as a Boolean value
+     */
+    fun rBernoulliBoolean(pSuccess: Double, stream: RNStreamIfc = defaultRNStream()): Boolean {
+        require(!(pSuccess <= 0.0 || pSuccess >= 1.0)) { "Success Probability must be in (0,1)" }
+        return (stream.randU01() <= pSuccess)
     }
 
     /**
@@ -121,17 +122,13 @@ object KSLRandom {
     /**
      * @param pSuccess the probability of success, must be in (0,1)
      * @param nTrials  the number of trials, must be greater than 0
-     * @param rng      the RNStreamIfc, must not be null
+     * @param stream   the random number stream
      * @return the random value
      */
-    fun rBinomial(pSuccess: Double, nTrials: Int, rng: RNStreamIfc = defaultRNStream()): Int {
-        if (nTrials <= 0) {
-            throw IllegalArgumentException("Number of trials must be >= 1")
-        }
-        if (pSuccess <= 0.0 || pSuccess >= 1.0) {
-            throw IllegalArgumentException("Success Probability must be (0,1)")
-        }
-        return Binomial.binomialInvCDF(rng.randU01(), nTrials, pSuccess)
+    fun rBinomial(pSuccess: Double, nTrials: Int, stream: RNStreamIfc = defaultRNStream()): Int {
+        require(nTrials > 0) { "The number of trials must be > 0" }
+        require(!(pSuccess <= 0.0 || pSuccess >= 1.0)) { "Success Probability must be in (0,1)" }
+        return Binomial.binomialInvCDF(stream.randU01(), nTrials, pSuccess)
     }
 
     /**
@@ -145,11 +142,11 @@ object KSLRandom {
 
     /**
      * @param mean the mean of the Poisson, must be greater than 0
-     * @param rng  the RNStreamIfc, must not be null
+     * @param stream  the random number stream
      * @return the random value
      */
-    fun rPoisson(mean: Double, rng: RNStreamIfc = defaultRNStream()): Int {
-        return Poisson.poissonInvCDF(rng.randU01(), mean)
+    fun rPoisson(mean: Double, stream: RNStreamIfc = defaultRNStream()): Int {
+        return Poisson.poissonInvCDF(stream.randU01(), mean)
     }
 
     /**
@@ -169,11 +166,34 @@ object KSLRandom {
      *
      * @param minimum the minimum of the range
      * @param maximum the maximum of the range
-     * @param rng     the RNStreamIfc, must not be null
+     * @param stream     the random number stream
+     * @return the random value
+     *
+     */
+    fun rDUniform(minimum: Int, maximum: Int, stream: RNStreamIfc = defaultRNStream()): Int {
+        return stream.randInt(minimum, maximum)
+    }
+
+    /**
+     * Generates a discrete uniform over the range
+     *
+     * @param range the range of the random variate
+     * @param stream     the random number stream
      * @return the random value
      */
-    fun rDUniform(minimum: Int, maximum: Int, rng: RNStreamIfc = defaultRNStream()): Int {
-        return rng.randInt(minimum, maximum)
+    fun rDUniform(range: IntRange, streamNum: Int): Int {
+        return rDUniform(range.first, range.last, streamNum)
+    }
+
+    /**
+     * Generates a discrete uniform over the range
+     *
+     * @param range the range of the random variate
+     * @param stream     the random number stream
+     * @return the random value
+     */
+    fun rDUniform(range: IntRange, stream: RNStreamIfc = defaultRNStream()): Int {
+        return stream.randInt(range.first, range.last)
     }
 
     /**
@@ -187,15 +207,13 @@ object KSLRandom {
 
     /**
      * @param pSuccess the probability of success, must be in (0,1)
-     * @param rng      the RNStreamIfc, must not be null
+     * @param stream      the random number stream
      * @return the random value
      */
-    fun rGeometric(pSuccess: Double, rng: RNStreamIfc = defaultRNStream()): Int {
-        if (pSuccess < 0.0 || pSuccess > 1.0) {
-            throw IllegalArgumentException("Success Probability must be [0,1]")
-        }
-        val u = rng.randU01()
-        return Math.ceil(Math.log(1.0 - u) / Math.log(1.0 - pSuccess) - 1.0).toInt()
+    fun rGeometric(pSuccess: Double, stream: RNStreamIfc = defaultRNStream()): Int {
+        require(!(pSuccess <= 0.0 || pSuccess >= 1.0)) { "Success Probability must be in (0,1)" }
+        val u = stream.randU01()
+        return ceil(ln(1.0 - u) / ln(1.0 - pSuccess) - 1.0).toInt()
     }
 
     /**
@@ -211,15 +229,15 @@ object KSLRandom {
     /**
      * @param pSuccess   the probability of success
      * @param rSuccesses number of trials until rth success
-     * @param rng        the RNStreamIfc, must not be null
+     * @param stream        the random number stream
      * @return the random value
      */
     fun rNegBinomial(
         pSuccess: Double,
         rSuccesses: Double,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ): Int {
-        return NegativeBinomial.negBinomialInvCDF(rng.randU01(), pSuccess, rSuccesses)
+        return NegativeBinomial.negBinomialInvCDF(stream.randU01(), pSuccess, rSuccesses)
     }
 
     /**
@@ -235,11 +253,11 @@ object KSLRandom {
     /**
      * Generates a continuous U(0,1) using the supplied stream
      *
-     * @param rnStream the RNStreamIfc, must not be null
+     * @param stream the random number stream
      * @return the random value
      */
-    fun rUniform(rnStream: RNStreamIfc = defaultRNStream()): Double {
-        return rUniform(0.0, 1.0, rnStream)
+    fun rUniform(stream: RNStreamIfc = defaultRNStream()): Double {
+        return rUniform(0.0, 1.0, stream)
     }
 
     /**
@@ -259,21 +277,16 @@ object KSLRandom {
      *
      * @param minimum the minimum of the range, must be less than maximum
      * @param maximum the maximum of the range
-     * @param rng     the RNStreamIfc, must not be null
+     * @param stream     the random number stream
      * @return the random value
      */
     fun rUniform(
         minimum: Double = 0.0,
         maximum: Double = 1.0,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ): Double {
-        if (minimum >= maximum) {
-            throw IllegalArgumentException(
-                "Lower limit must be < upper "
-                        + "limit. lower limit = " + minimum + " upper limit = " + maximum
-            )
-        }
-        return minimum + (maximum - minimum) * rng.randU01()
+        require(minimum < maximum) { "Lower limit must be < upper limit. lower limit = $minimum upper limit = $maximum" }
+        return minimum + (maximum - minimum) * stream.randU01()
     }
 
     /**
@@ -289,11 +302,11 @@ object KSLRandom {
     /**
      * Generates a N(0,1) random value using the supplied stream
      *
-     * @param rng the RNStreamIfc, must not null
+     * @param stream the random number stream
      * @return the random value
      */
-    fun rNormal(rng: RNStreamIfc): Double {
-        return rNormal(0.0, 1.0, rng)
+    fun rNormal(stream: RNStreamIfc): Double {
+        return rNormal(0.0, 1.0, stream)
     }
 
     /**
@@ -309,20 +322,102 @@ object KSLRandom {
     /**
      * @param mean     the mean of the normal
      * @param variance the variance of the normal, must be greater than 0
-     * @param rng      the RNStreamIfc, must not null
+     * @param stream      the random number stream
      * @return the random value
      */
     fun rNormal(
         mean: Double = 0.0,
         variance: Double = 1.0,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ): Double {
-        if (variance <= 0) {
-            throw IllegalArgumentException("Variance must be positive")
-        }
-        val z = Normal.stdNormalInvCDF(rng.randU01())
-        val stdDev = Math.sqrt(variance)
+        require(variance > 0) { "The variance must be > 0" }
+        val z = Normal.stdNormalInvCDF(stream.randU01())
+        val stdDev = sqrt(variance)
         return (z * stdDev + mean)
+    }
+
+    /** Generated a pair of normal random variates via the Box-Muller transform method
+     *  The user can use destructuring to access the individual values
+     * @param mean     the mean of the normal
+     * @param variance the variance of the normal, must be greater than 0
+     * @param stream      the random number stream
+     * @return the pair of random values
+     */
+    fun rNormalBoxMuller(
+        mean: Double = 0.0,
+        variance: Double = 1.0,
+        stream: RNStreamIfc = defaultRNStream()
+    ): Pair<Double, Double> {
+        require(variance > 0) { "The variance must be > 0" }
+        val u1 = stream.randU01()
+        val u2 = stream.randU01()
+        val k = sqrt(-2.0 * ln(u2))
+        val z1 = k * sin(2.0 * PI * u1)
+        val z2 = k * cos(2.0 * PI * u1)
+        val s = sqrt(variance)
+        val x1 = z1 * s + mean
+        val x2 = z2 * s + mean
+        return Pair(x1, x2)
+    }
+
+    /** Generated a pair of normal random variates via the Box-Muller transform method
+     *  The user can use destructuring to access the individual values
+     * @param mean     the mean of the normal
+     * @param variance the variance of the normal, must be greater than 0
+     * @param streamNum      the random number stream number
+     * @return the pair of random values
+     */
+    fun rNormalBoxMuller(
+        mean: Double = 0.0,
+        variance: Double = 1.0,
+        streamNum: Int
+    ): Pair<Double, Double> {
+        return rNormalBoxMuller(mean, variance, rnStream(streamNum))
+    }
+
+    /** Generated a pair of normal random variates via the Box-Muller transform method
+     *  The user can use destructuring to access the individual values
+     * @param mean     the mean of the normal
+     * @param variance the variance of the normal, must be greater than 0
+     * @param stream      the random number stream
+     * @return the pair of random values
+     */
+    fun rNormalPolar(
+        mean: Double = 0.0,
+        variance: Double = 1.0,
+        stream: RNStreamIfc = defaultRNStream()
+    ): Pair<Double, Double> {
+        require(variance > 0) { "The variance must be > 0" }
+        var v1: Double
+        var v2: Double
+        var w: Double
+        do {
+            v1 = 2.0 * stream.randU01() - 1.0
+            v2 = 2.0 * stream.randU01() - 1.0
+            w = v1 * v1 + v2 * v2
+        } while (w > 1.0)
+        val y = sqrt(-2.0 * ln(w) / w)
+        val z1 = v2 * y
+        val z2 = v1 * y
+        val s = sqrt(variance)
+        val x1 = z1 * s + mean
+        val x2 = z2 * s + mean
+        return Pair(x1, x2)
+    }
+
+    /** Generated a pair of normal random variates via the Box-Muller transform method
+     *  The user can use destructuring to access the individual values
+     * @param mean     the mean of the normal
+     * @param variance the variance of the normal, must be greater than 0
+     * @param streamNum      the random number stream number
+     * @return the pair of random values
+     */
+    fun rNormalPolar(
+        mean: Double = 0.0,
+        variance: Double = 1.0,
+        streamNum: Int
+    ): Pair<Double, Double> {
+        return rNormalPolar(mean, variance, rnStream(streamNum))
     }
 
     /**
@@ -338,27 +433,23 @@ object KSLRandom {
     /**
      * @param mean     the mean of the lognormal, must be greater than 0
      * @param variance the variance of the lognormal, must be greater than 0
-     * @param rng      the RNStreamIfc, must not be null
+     * @param stream      the random number stream
      * @return the random value
      */
     fun rLogNormal(
         mean: Double,
         variance: Double,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ): Double {
-        if (mean <= 0) {
-            throw IllegalArgumentException("Mean must be positive")
-        }
-        if (variance <= 0) {
-            throw IllegalArgumentException("Variance must be positive")
-        }
-        val z = Normal.stdNormalInvCDF(rng.randU01())
+        require(mean > 0) { "The mean must be > 0" }
+        require(variance > 0) { "The variance must be > 0" }
+        val z = Normal.stdNormalInvCDF(stream.randU01())
         val d = variance + mean * mean
         val t = mean * mean
-        val normalMu = Math.log((t) / Math.sqrt(d))
-        val normalSigma = Math.sqrt(Math.log(d / t))
+        val normalMu = ln((t) / sqrt(d))
+        val normalSigma = sqrt(ln(d / t))
         val x = z * normalSigma + normalMu
-        return (Math.exp(x))
+        return (exp(x))
     }
 
     /**
@@ -374,12 +465,12 @@ object KSLRandom {
     /**
      * @param shape the shape, must be greater than 0
      * @param scale the scale, must be greater than 0
-     * @param rng   the RNStreamIfc, must not null
+     * @param stream   the random number stream
      * @return the random value
      */
-    fun rWeibull(shape: Double, scale: Double, rng: RNStreamIfc = defaultRNStream()): Double {
+    fun rWeibull(shape: Double, scale: Double, stream: RNStreamIfc = defaultRNStream()): Double {
         checkShapeAndScale(shape, scale)
-        val u = rng.randU01()
+        val u = stream.randU01()
         return scale * (-ln(1.0 - u)).pow(1.0 / shape)
     }
 
@@ -390,12 +481,8 @@ object KSLRandom {
      * @param scale the scale, must be greater than 0
      */
     private fun checkShapeAndScale(shape: Double, scale: Double) {
-        if (shape <= 0) {
-            throw IllegalArgumentException("Shape parameter must be positive")
-        }
-        if (scale <= 0) {
-            throw IllegalArgumentException("Scale parameter must be positive")
-        }
+        require(shape > 0) { "Shape parameter must be > 0" }
+        require(scale > 0) { "Scale parameter must be > 0" }
     }
 
     /**
@@ -409,14 +496,12 @@ object KSLRandom {
 
     /**
      * @param mean the mean, must be greater than 0
-     * @param rng  the RNStreamIfc, must not null
+     * @param stream  the random number stream
      * @return the random value
      */
-    fun rExponential(mean: Double, rng: RNStreamIfc = defaultRNStream()): Double {
-        if (mean <= 0.0) {
-            throw IllegalArgumentException("Exponential mean must be > 0.0")
-        }
-        val u = rng.randU01()
+    fun rExponential(mean: Double, stream: RNStreamIfc = defaultRNStream()): Double {
+        require(mean > 0) { "The mean of the exponential distribution must be > 0" }
+        val u = stream.randU01()
         return (-mean * ln(1.0 - u))
     }
 
@@ -440,20 +525,16 @@ object KSLRandom {
      * @param alpha2 alpha2 parameter, must be greater than zero
      * @param min    the min, must be less than max
      * @param max    the max
-     * @param rng    the RNStreamIfc, must not be null
+     * @param stream    the random number stream
      * @return the generated value
      */
     fun rJohnsonB(
         alpha1: Double, alpha2: Double,
-        min: Double, max: Double, rng: RNStreamIfc = defaultRNStream()
+        min: Double, max: Double, stream: RNStreamIfc = defaultRNStream()
     ): Double {
-        if (alpha2 <= 0) {
-            throw IllegalArgumentException("alpha2 must be > 0")
-        }
-        if (max <= min) {
-            throw IllegalArgumentException("the min must be < than the max")
-        }
-        val u = rng.randU01()
+        require(alpha2 > 0) { "alpha2 must be > 0" }
+        require(max > min) { "the min must be < than the max" }
+        val u = stream.randU01()
         val z = Normal.stdNormalInvCDF(u)
         val y = exp((z - alpha1) / alpha2)
         return (min + max * y) / (y + 1.0)
@@ -504,27 +585,21 @@ object KSLRandom {
      * @param min  the min, must be less than or equal to mode
      * @param mode the mode, must be less than or equal to max
      * @param max  the max
-     * @param rng  the RNStreamIfc, must not be null
+     * @param stream  the random number stream
      * @return the random value
      */
     fun rTriangular(
         min: Double, mode: Double,
-        max: Double, rng: RNStreamIfc = defaultRNStream()
+        max: Double, stream: RNStreamIfc = defaultRNStream()
     ): Double {
-        if (min > mode) {
-            throw IllegalArgumentException("min must be <= mode")
-        }
-        if (min >= max) {
-            throw IllegalArgumentException("min must be < max")
-        }
-        if (mode > max) {
-            throw IllegalArgumentException("mode must be <= max")
-        }
+        require(min <= mode) { "min must be <= mode" }
+        require(min < max) { "min must be < max" }
+        require(mode <= max) { "mode must be <= max" }
         val range = max - min
         val c = (mode - min) / range
         // get the invCDF for a triang(0,c,1)
         val x: Double
-        val p = rng.randU01()
+        val p = stream.randU01()
         if (c == 0.0) { // left triangular, mode equals min
             x = 1.0 - sqrt(1 - p)
         } else if (c == 1.0) { //right triangular, mode equals max
@@ -646,21 +721,20 @@ object KSLRandom {
      * @return the randomly generated value
      */
     private fun rARGammaScaleEQ1ShapeBTW01(shape: Double, rng: RNStreamIfc): Double {
-        val e = Math.E
-        val b = (e + shape) / e
+        val b = (E + shape) / E
         while (true) {
             val u1 = rng.randU01()
             val p = b * u1
             if (p > 1) {
-                val y = -Math.log((b - p) / shape)
+                val y = -ln((b - p) / shape)
                 val u2 = rng.randU01()
-                if (u2 <= Math.pow(y, shape - 1.0)) {
+                if (u2 <= y.pow(shape - 1.0)) {
                     return y
                 }
             } else {
-                val y = Math.pow(p, 1.0 / shape)
+                val y = p.pow(1.0 / shape)
                 val u2 = rng.randU01()
-                if (u2 <= Math.exp(-y)) {
+                if (u2 <= exp(-y)) {
                     return y
                 }
             }
@@ -677,19 +751,18 @@ object KSLRandom {
      */
     private fun rARGammaScaleEQ1ShapeGT1(shape: Double, rng: RNStreamIfc): Double {
         val d = shape - 1.0 / 3.0
-        val c = 1.0 / Math.sqrt(9.0 * d)
+        val c = 1.0 / sqrt(9.0 * d)
         while (true) {
             var x: Double
             var v: Double
-            var u: Double
             do {
                 x = rNormal(0.0, 1.0, rng)
                 v = 1.0 + (c * x)
             } while (v <= 0.0)
             v = v * v * v
-            u = rng.randU01()
+            val u = rng.randU01()
             if (u < 1.0 - .0331 * (x * x) * (x * x)) return (d * v)
-            if (Math.log(u) < 0.5 * x * x + d * (1.0 - v + Math.log(v))) return (d * v)
+            if (ln(u) < 0.5 * x * x + d * (1.0 - v + ln(v))) return (d * v)
         }
     }
 
@@ -869,7 +942,7 @@ object KSLRandom {
         }
         val p = rng.randU01()
         val u = p - 0.5
-        return mean - scale * Math.signum(u) * Math.log(1.0 - 2.0 * Math.abs(u))
+        return mean - scale * sign(u) * ln(1.0 - 2.0 * abs(u))
     }
 
     /**
@@ -886,15 +959,16 @@ object KSLRandom {
     /**
      * Randomly select an element from the array
      *
-     * @param array the array to select from
-     * @param rng   the source of randomness
+     * @param array the array to select from, must not be empty
+     * @param stream   the source of randomness
      * @return the randomly selected value
      */
-    fun randomlySelect(array: IntArray, rng: RNStreamIfc = defaultRNStream()): Int {
+    fun randomlySelect(array: IntArray, stream: RNStreamIfc = defaultRNStream()): Int {
+        require(array.isNotEmpty()) { "The array had no elements." }
         if (array.size == 1) {
             return array[0]
         }
-        val randInt = rng.randInt(0, array.size - 1)
+        val randInt = stream.randInt(0, array.size - 1)
         return array[randInt]
     }
 
@@ -912,15 +986,16 @@ object KSLRandom {
     /**
      * Randomly select an element from the array
      *
-     * @param array the array to select from
-     * @param rng   the source of randomness
+     * @param array the array to select from, must not be empty
+     * @param stream   the source of randomness
      * @return the randomly selected value
      */
-    fun randomlySelect(array: DoubleArray, rng: RNStreamIfc = defaultRNStream()): Double {
+    fun randomlySelect(array: DoubleArray, stream: RNStreamIfc = defaultRNStream()): Double {
+        require(array.isNotEmpty()) { "The array had no elements." }
         if (array.size == 1) {
             return array[0]
         }
-        val randInt = rng.randInt(0, array.size - 1)
+        val randInt = stream.randInt(0, array.size - 1)
         return array[randInt]
     }
 
@@ -943,13 +1018,13 @@ object KSLRandom {
      * @param array array to select from
      * @param cdf   the cumulative probability associated with each element of
      * array
-     * @param rng   the source of randomness
+     * @param stream   the source of randomness
      * @return the randomly selected value
      */
     fun randomlySelect(
         array: DoubleArray,
         cdf: DoubleArray,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ): Double {
         if (!isValidCDF(cdf)) {
             throw IllegalArgumentException("The supplied cdf was not valid")
@@ -957,6 +1032,18 @@ object KSLRandom {
         require(array.size == cdf.size) {
             "The list size, $array.size, and cdf size, $cdf.size, must be equal!"
         }
+        return discreteInverseCDF(array, cdf, stream)
+    }
+
+    /**
+     * Randomly selects from the array using the supplied cdf, no checking of arrays
+     *
+     * @param array array to select from
+     * @param cdf   the cumulative probability associated with each element of array
+     * @param rng   the source of randomness
+     * @return the randomly selected value
+     */
+    internal fun discreteInverseCDF(array: DoubleArray, cdf: DoubleArray, rng: RNStreamIfc): Double {
         if (cdf.size == 1) {
             return array[0]
         }
@@ -988,13 +1075,13 @@ object KSLRandom {
      *
      * @param array array to select from
      * @param cdf   the cumulative probability associated with each element of array
-     * @param rng   the source of randomness
+     * @param stream   the source of randomness
      * @return the randomly selected value
      */
     fun randomlySelect(
         array: IntArray,
         cdf: DoubleArray,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ): Int {
         if (!isValidCDF(cdf)) {
             throw IllegalArgumentException("The supplied cdf was not valid")
@@ -1007,7 +1094,7 @@ object KSLRandom {
         }
         var i = 0
         var value = array[i]
-        val u = rng.randU01()
+        val u = stream.randU01()
         while (cdf[i] <= u) {
             i = i + 1
             value = array[i]
@@ -1036,13 +1123,13 @@ object KSLRandom {
      * @param list list to select from
      * @param cdf  the cumulative probability associated with each element of
      * array
-     * @param rng  the source of randomness
+     * @param stream  the source of randomness
      * @return the randomly selected value
     </T> */
     fun <T> randomlySelect(
         list: List<T>,
         cdf: DoubleArray,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ): T {
         if (!isValidCDF(cdf)) {
             throw IllegalArgumentException("The supplied cdf was not valid")
@@ -1055,7 +1142,7 @@ object KSLRandom {
         }
         var i = 0
         var value = list[i]
-        val u = rng.randU01()
+        val u = stream.randU01()
         while (cdf[i] <= u) {
             i = i + 1
             value = list[i]
@@ -1165,8 +1252,8 @@ object KSLRandom {
      * @param x         the array
      * @param streamNum the stream number from the stream provider to use
      */
-    fun permutation(x: DoubleArray, streamNum: Int) {
-        permutation(x, rnStream(streamNum))
+    fun permute(x: DoubleArray, streamNum: Int) {
+        permute(x, rnStream(streamNum))
     }
 
     /**
@@ -1174,10 +1261,10 @@ object KSLRandom {
      * number, the array is changed
      *
      * @param x   the array
-     * @param rng the source of randomness
+     * @param stream the source of randomness
      */
-    fun permutation(x: DoubleArray, rng: RNStreamIfc = defaultRNStream()) {
-        sampleWithoutReplacement(x, x.size, rng)
+    fun permute(x: DoubleArray, stream: RNStreamIfc = defaultRNStream()) {
+        sampleWithoutReplacement(x, x.size, stream)
     }
 
     /**
@@ -1222,8 +1309,8 @@ object KSLRandom {
      * @param x         the array
      * @param streamNum the stream number from the stream provider to use
      */
-    fun permutation(x: IntArray, streamNum: Int) {
-        permutation(x, rnStream(streamNum))
+    fun permute(x: IntArray, streamNum: Int) {
+        permute(x, rnStream(streamNum))
     }
 
     /**
@@ -1233,7 +1320,7 @@ object KSLRandom {
      * @param x   the array
      * @param rng the source of randomness
      */
-    fun permutation(x: IntArray, rng: RNStreamIfc = defaultRNStream()) {
+    fun permute(x: IntArray, rng: RNStreamIfc = defaultRNStream()) {
         sampleWithoutReplacement(x, x.size, rng)
     }
 
@@ -1280,8 +1367,8 @@ object KSLRandom {
      * @param x         the array
      * @param streamNum the stream number from the stream provider to use
      */
-    fun permutation(x: BooleanArray, streamNum: Int) {
-        permutation(x, rnStream(streamNum))
+    fun permute(x: BooleanArray, streamNum: Int) {
+        permute(x, rnStream(streamNum))
     }
 
     /**
@@ -1291,7 +1378,7 @@ object KSLRandom {
      * @param x   the array
      * @param rng the source of randomness
      */
-    fun permutation(x: BooleanArray, rng: RNStreamIfc = defaultRNStream()) {
+    fun permute(x: BooleanArray, rng: RNStreamIfc = defaultRNStream()) {
         sampleWithoutReplacement(x, x.size, rng)
     }
 
@@ -1338,8 +1425,8 @@ object KSLRandom {
      * @param x         the array
      * @param streamNum the stream number from the stream provider to use
      */
-    fun <T> permutation(x: Array<T>, streamNum: Int) {
-        permutation(x, rnStream(streamNum))
+    fun <T> permute(x: Array<T>, streamNum: Int) {
+        permute(x, rnStream(streamNum))
     }
 
     /**
@@ -1349,7 +1436,7 @@ object KSLRandom {
      * @param x   the array
      * @param rng the source of randomness
      */
-    fun <T> permutation(x: Array<T>, rng: RNStreamIfc = defaultRNStream()) {
+    fun <T> permute(x: Array<T>, rng: RNStreamIfc = defaultRNStream()) {
         sampleWithoutReplacement(x, x.size, rng)
     }
 
@@ -1371,18 +1458,18 @@ object KSLRandom {
      *
      * @param x          the array
      * @param sampleSize the size to generate
-     * @param rng        the source of randomness
+     * @param stream        the source of randomness
      */
     fun <T> sampleWithoutReplacement(
         x: Array<T>,
         sampleSize: Int,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements $x.size"
         }
         for (j in 0 until sampleSize) {
-            val i = rng.randInt(j, x.size - 1)
+            val i = stream.randInt(j, x.size - 1)
             val temp = x[j]
             x[j] = x[i]
             x[i] = temp
@@ -1397,8 +1484,8 @@ object KSLRandom {
      * @param x         the list
      * @param streamNum the stream number from the stream provider to use
     </T> */
-    fun <T> permutation(x: MutableList<T>, streamNum: Int) {
-        permutation(x, rnStream(streamNum))
+    fun <T> permute(x: MutableList<T>, streamNum: Int) {
+        permute(x, rnStream(streamNum))
     }
 
     /**
@@ -1407,10 +1494,10 @@ object KSLRandom {
      *
      * @param <T> the type of the list
      * @param x   the list
-     * @param rng the source of randomness
+     * @param stream the source of randomness
     </T> */
-    fun <T> permutation(x: MutableList<T>, rng: RNStreamIfc = defaultRNStream()) {
-        sampleWithoutReplacement(x, x.size, rng)
+    fun <T> permute(x: MutableList<T>, stream: RNStreamIfc = defaultRNStream()) {
+        sampleWithoutReplacement(x, x.size, stream)
     }
 
     /**
@@ -1432,16 +1519,16 @@ object KSLRandom {
      * @param <T>        the type of the list
      * @param x          the list
      * @param sampleSize the size to generate
-     * @param rng        the source of randomness
+     * @param stream        the source of randomness
     </T> */
     fun <T> sampleWithoutReplacement(
-        x: MutableList<T>, sampleSize: Int, rng: RNStreamIfc = defaultRNStream()
+        x: MutableList<T>, sampleSize: Int, stream: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements $x.size"
         }
         for (j in 0 until sampleSize) {
-            val i = rng.randInt(j, x.size - 1)
+            val i = stream.randInt(j, x.size - 1)
             val temp = x[j]
             x[j] = x[i]
             x[i] = temp
@@ -1453,4 +1540,3 @@ object KSLRandom {
 fun Boolean.toInt() = if (this) 1 else 0
 fun Boolean.toDouble() = if (this) 1.0 else 0.0
 
-//TODO many additional extension functions for working with arrays

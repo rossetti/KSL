@@ -18,34 +18,31 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.random.rng.RNStreamIfc
 
 /**
- * Beta(alpha1, alpha2) random variable, range (0,1)
- * @param alpha1 the first shape parameter
- * @param alpha2 the second shape parameter
- * @param stream the random number stream
+ * GammaRV(shape, scale) random variable
  */
-class BetaRV(
-    val alpha1: Double = 1.0,
-    val alpha2: Double = 1.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-    name: String? = null
-) : RVariable(stream, name) {
+class GammaRV (val shape: Double, val scale: Double, rng: RNStreamIfc = KSLRandom.nextRNStream()) :
+    RVariable(rng) {
+
     init {
-        require(alpha1 > 0) { "The 1st shape parameter must be > 0" }
-        require(alpha2 > 0) { "The 2nd shape parameter must be > 0" }
+        require(shape > 0){"The shape parameter must be > 0"}
+        require(scale > 0){"The shape parameter must be > 0"}
     }
+    constructor(shape: Double, scale: Double, streamNum: Int) : this(shape, scale, KSLRandom.rnStream(streamNum))
 
-    constructor(alpha1: Double, alpha2: Double, streamNum: Int) : this(alpha1, alpha2, KSLRandom.rnStream(streamNum)) {}
-
-    override fun instance(stream: RNStreamIfc): BetaRV {
-        return BetaRV(alpha1, alpha2, stream)
+    /**
+     * @param stream the RNStreamIfc to use
+     * @return a new instance with same parameter value
+     */
+    override fun instance(stream: RNStreamIfc): GammaRV {
+        return GammaRV(shape, scale, stream)
     }
 
     override fun generate(): Double {
-        return KSLRandom.rBeta(alpha1, alpha2, rnStream)
+        return KSLRandom.rGamma(shape, scale, rnStream)
     }
 
     override fun toString(): String {
-        return "BetaRV(alpha1=$alpha1, alpha2=$alpha2)"
+        return "GammaRV(shape=$shape, scale=$scale)"
     }
 
 }
