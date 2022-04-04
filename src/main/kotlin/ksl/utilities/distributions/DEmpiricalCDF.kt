@@ -226,7 +226,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
         }
 
         override fun toString(): String {
-            return "ProbPoint(value=$value, prob=$prob, cumProb=$cumProb)"
+            return "ProbPoint(value=$value, prob=$prob, cumProb=$cumProb)${System.lineSeparator()}"
         }
     }
 
