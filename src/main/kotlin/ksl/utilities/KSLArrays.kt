@@ -2102,7 +2102,7 @@ fun DoubleArray.isDistinct(): Boolean{
     if (this.isEmpty()){
         return false
     }
-    return this.size != this.distinct().size
+    return this.size == this.distinct().size
 }
 
 /**

@@ -16,6 +16,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.column
+import ksl.utilities.divideConstant
 import ksl.utilities.isDistinct
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.DEmpiricalRV
@@ -319,6 +320,11 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
 
 fun main() {
     var values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+
+    println("size of values = ${values.size}")
+    println("size of distinct values = ${values.distinct().size}")
+    values.distinct().forEach(::println)
+
     var cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
     val n2 = DEmpiricalCDF(values, cdf)
     val rv2 = n2.randomVariable
