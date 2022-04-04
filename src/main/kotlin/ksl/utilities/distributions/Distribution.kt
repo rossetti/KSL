@@ -1,11 +1,12 @@
 package ksl.utilities.distributions
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
-import ksl.utilities.NewInstanceIfc
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.rootfinding.BisectionRootFinder
 
-abstract class Distribution<T> : DistributionIfc<T>, NewInstanceIfc<T> {
+abstract class Distribution<T>(name: String? = null) : DistributionIfc<T>, IdentityIfc by Identity(name) {
 
     companion object {
 

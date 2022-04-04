@@ -2093,6 +2093,20 @@ fun DoubleArray.isAllEqual(): Boolean {
 
 /**
  * Examines each element, a_i starting at 0, and determines if all
+ * the elements are different (distinct) a_0 != a_1 != a_2, etc.
+ *
+ * @return true if all elements are distinct, if there
+ * are 0 elements then it returns false
+ */
+fun DoubleArray.isDistinct(): Boolean{
+    if (this.isEmpty()){
+        return false
+    }
+    return this.size != this.distinct().size
+}
+
+/**
+ * Examines each element, a_i starting at 0, and determines if all
  * the elements are equal a_0 = a_1 = a_2, etc.
  *
  * @return true if all elements are equal, if there

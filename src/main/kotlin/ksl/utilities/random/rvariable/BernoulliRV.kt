@@ -24,7 +24,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  * @param probOfSuccess      the probability, must be in (0,1)
  * @param stream the stream
  */
-class BernoulliRV constructor(
+class BernoulliRV (
     val probOfSuccess: Double,
     stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null

@@ -32,7 +32,7 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    override var rnStream: RNStreamIfc = stream
+    final override var rnStream: RNStreamIfc = stream
 
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
@@ -44,7 +44,7 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
      *  change until the next randomly generated value is obtained
      * @return the last randomly generated value, same as using property previous
      */
-    override fun previous(): Double = previous
+    final override fun previous(): Double = previous
 
     /** Makes a new instance.  False allows the new instance to keep using
      * the same underlying source of random numbers.
@@ -67,7 +67,7 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
      */
     protected abstract fun generate(): Double
 
-    override fun sample(): Double {
+    final override fun sample(): Double {
         val x = generate()
         previous = x
         return x

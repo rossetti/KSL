@@ -24,7 +24,7 @@ fun main(){
 
     val r: IntRange = 1..20
 
-    val du = DUniformRV(1..20)
+    val du = DUniformRV(r)
     for(i in 1..10){
         println(du.value)
     }

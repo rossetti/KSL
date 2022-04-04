@@ -1,6 +1,5 @@
 package ksl.utilities.random.rng
 
-//import jsl.utilities.random.rng.RNStreamFactory
 import ksl.utilities.IdentityIfc
 
 class RNStreamFactory {

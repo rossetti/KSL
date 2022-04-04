@@ -1201,9 +1201,7 @@ object KSLRandom {
      * @return a valid CDF
      */
     fun makeCDF(prob: DoubleArray): DoubleArray {
-        if (!isValidPMF(prob)) {
-            throw IllegalArgumentException("The supplied array was not a valid PMF")
-        }
+        require(isValidPMF(prob)){"The supplied array was not a valid PMF"}
         val cdf = DoubleArray(prob.size)
         var sum = 0.0
         for (i in 0 until prob.size - 1) {
@@ -1212,6 +1210,24 @@ object KSLRandom {
         }
         cdf[prob.size - 1] = 1.0
         return cdf
+    }
+
+    /** Makes an array that holds the probability mass function associated with
+     *  the supplied discrete cumulative distribution function.
+     *
+     * @param cdf an array representing a valid cumulative distribution function
+     */
+    fun makePMF(cdf: DoubleArray) : DoubleArray {
+        require(isValidCDF(cdf)){"The supplied array was not a CDF!" }
+        val pmf = DoubleArray(cdf.size)
+        for(i in pmf.indices){
+            if (i == 0) {
+                pmf[i] = cdf[i]
+            } else {
+                pmf[i] = cdf[i] - cdf[i-1]
+            }
+        }
+        return pmf
     }
 
     /**

@@ -1,12 +1,169 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
-import kotlin.math.exp
-import kotlin.math.floor
-import kotlin.math.ln
-import kotlin.math.sqrt
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.BinomialRV
+import ksl.utilities.random.rvariable.RVariableIfc
+import kotlin.math.*
 
-class Binomial {
+class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) : Distribution<Binomial>(name),
+    DiscreteDistributionIfc, LossFunctionDistributionIfc {
+
+    init {
+        require(!(pSuccess < 0.0 || pSuccess > 1.0)) { "Success Probability must be [0,1]" }
+        require(nTrials > 0) { "Number of trials must be >= 1" }
+    }
+
+    /** The probability of success
+     *
+     */
+    var probOfSuccess = pSuccess
+        set(prob) {
+            require(!(prob <= 0.0 || prob >= 1.0)) { "Probability must be (0,1)" }
+            field = prob
+        }
+
+    /** The number of trials
+     *
+     */
+    var numTrials = nTrials
+        set(value) {
+            require(value > 0) { "Number of trials must be >= 1" }
+            field = value
+        }
+
+    /** indicates whether pmf and cdf calculations are
+     * done by recursive (iterative) algorithm based on logarithms
+     * or via beta incomplete function and binomial coefficients.
+     *
+     */
+    var useRecursiveAlgorithm = true
+
+    override fun instance(): Binomial {
+        return Binomial(probOfSuccess, numTrials)
+    }
+
+    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
+        return BinomialRV(probOfSuccess, numTrials, stream)
+    }
+
+    override fun cdf(x: Double): Double {
+        return cdf(floor(x).toInt())
+    }
+
+    fun cdf(x: Int): Double {
+        return binomialCDF(x, numTrials, probOfSuccess, useRecursiveAlgorithm)
+    }
+
+    override fun pmf(x: Double): Double {
+        return if (floor(x) == x) {
+            pmf(x.toInt())
+        } else {
+            0.0
+        }
+    }
+
+    /**
+     *
+     * @param x value to evaluate
+     * @return the associated probability
+     */
+    fun pmf(x: Int): Double {
+        return binomialPMF(x, numTrials, probOfSuccess, useRecursiveAlgorithm)
+    }
+
+    override fun mean(): Double {
+        return (numTrials * probOfSuccess)
+    }
+
+    override fun variance(): Double {
+        return (numTrials * probOfSuccess * (1.0 - probOfSuccess))
+    }
+
+    override fun invCDF(p: Double): Double {
+        return binomialInvCDF(p, numTrials, probOfSuccess, useRecursiveAlgorithm).toDouble()
+    }
+
+    override fun firstOrderLossFunction(x: Double): Double {
+        return if (x < 0.0) {
+            floor(abs(x)) + mean()
+        } else if (x > 0.0) {
+            mean() - sumCCDF(x)
+        } else  // x== 0.0
+        {
+            mean()
+        }
+    }
+
+    override fun secondOrderLossFunction(x: Double): Double {
+        val mu: Double = mean()
+        val g2: Double = 0.5 * (variance() + mu * mu - mu) // 1/2 the 2nd binomial moment
+        return if (x < 0.0) {
+            var s = 0.0
+            var y = 0
+            while (y > x) {
+                s = s + firstOrderLossFunction(y.toDouble())
+                y--
+            }
+            s + g2
+        } else if (x > 0.0) {
+            g2 - sumFirstLoss(x)
+        } else  // x == 0.0
+        {
+            g2
+        }
+    }
+
+    /** Returns the sum of the complementary CDF
+     * from 0 up to but not including x
+     *
+     * @param x the value to evaluate
+     * @return the sum of the complementary CDF
+     */
+    private fun sumCCDF(x: Double): Double {
+        if (x <= 0.0) {
+            return 0.0
+        }
+        val n : Int = if (x > numTrials) {
+            numTrials
+        } else {
+            x.toInt()
+        }
+        var c = 0.0
+        var i = 0
+        while (i < n) {
+            c = c + complementaryCDF(i.toDouble())
+            i++
+        }
+        return c
+    }
+
+    /** Sums the first order loss function from
+     * 1 up to and including x. x is interpreted
+     * as an integer
+     *
+     * @param x the x to evaluate
+     * @return the first order loss functio
+     */
+    private fun sumFirstLoss(x: Double): Double {
+        val n = x.toInt()
+        var sum = 0.0
+        for (i in 1..n) {
+            sum = sum + firstOrderLossFunction(i.toDouble())
+        }
+        return sum
+    }
+
+
+    override fun parameters(params: DoubleArray) {
+        require(params.size == 2){"There must be two parameters (probOfSuccess, numTrials) for the Binomial distribution!"}
+        probOfSuccess = params[0]
+        numTrials = params[1].toInt()
+    }
+
+    override fun parameters(): DoubleArray {
+        return doubleArrayOf(probOfSuccess, numTrials.toDouble())
+    }
 
     companion object {
         /**
@@ -27,7 +184,7 @@ class Binomial {
          * @param moments the mean is in element 0 and the variance is in element 1, must not be null
          * @return the values of n and p that match the moments with p as element 0 and n as element 1
          */
-        fun getParametersFromMoments(vararg moments: Double): DoubleArray {
+        fun computeParametersFromMoments(vararg moments: Double): DoubleArray {
             require(canMatchMoments(*moments)) { "Mean and variance must be positive, mean > variance, and variance >= mean*(1-mean). Your mean: " + moments[0] + " and variance: " + moments[1] }
             val m = moments[0]
             val v = moments[1]
@@ -309,23 +466,24 @@ class Binomial {
          * from 0 up to but not including x
          *
          * @param x the value to evaluate
-         * @param n the number of trials
+         * @param nTrials the number of trials
          * @param recursive the flag to use the recursive algorithm
          * @param p the probability of success
          * @return the sum of the complementary CDF
          */
-        protected fun sumCCDF_(x: Double, n: Int, p: Double, recursive: Boolean): Double {
-            var x = x
+        protected fun sumCCDF_(x: Double, nTrials: Int, p: Double, recursive: Boolean): Double {
             if (x <= 0.0) {
                 return 0.0
             }
-            if (x > n) {
-                x = n.toDouble()
+            val n : Int = if (x > nTrials) {
+                nTrials
+            } else { // 0 < x <= nTrials
+                x.toInt()
             }
             var c = 0.0
             var i = 0
-            while (i < x) {
-                c = c + binomialCCDF(i, n, p, recursive)
+            while (i < n) {
+                c = c + binomialCCDF(i, nTrials, p, recursive)
                 i++
             }
             return c
@@ -431,10 +589,6 @@ class Binomial {
             val start = invCDFViaNormalApprox(x, n, p)
             val cdfAtStart = binomialCDF(start, n, p, recursive)
 
-            //System.out.println("start = " + start);
-            //System.out.println("cdfAtStart = " + cdfAtStart);
-            //System.out.println("p = " + p);
-            //System.out.println();
             return if (x >= cdfAtStart) {
                 searchUpCDF(x, n, p, start, cdfAtStart, recursive)
             } else {
@@ -511,4 +665,6 @@ class Binomial {
         }
 
     }
+
+
 }

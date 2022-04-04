@@ -9,12 +9,12 @@ import kotlin.test.assertNotEquals
 
 internal class RNStreamProviderTest {
 
-    private var f: ksl.utilities.random.rng.RNStreamFactory? = null
+    private var f: RNStreamFactory? = null
 
     @BeforeEach
     fun setUp() {
         println("Making new factory.")
-        f = ksl.utilities.random.rng.RNStreamFactory()
+        f = RNStreamFactory()
         println(f)
     }
 
@@ -97,7 +97,7 @@ internal class RNStreamProviderTest {
 
     @Test
     fun test1() {
-        val rm = ksl.utilities.random.rng.RNStreamFactory()
+        val rm = RNStreamFactory()
         val rng = rm.nextStream()
         var sum = 0.0
         val n = 1000
@@ -116,7 +116,7 @@ internal class RNStreamProviderTest {
         // test the advancement of streams
         val count = 100
         val advance = 20
-        val rm = ksl.utilities.random.rng.RNStreamFactory()
+        val rm = RNStreamFactory()
         rm.advanceSeeds(advance)
         val rng = rm.nextStream()
         var sum = 0.0
@@ -135,7 +135,7 @@ internal class RNStreamProviderTest {
         // test the advancement of sub streams
         val count = 100
         val advance = 20
-        val rm = ksl.utilities.random.rng.RNStreamFactory()
+        val rm = RNStreamFactory()
         val rng = rm.nextStream()
         for (i in 0 until advance) {
             rng.advanceToNextSubStream()
@@ -223,8 +223,8 @@ internal class RNStreamProviderTest {
     @Test
     fun test5() {
         // factories produce the same streams
-        val f1 = ksl.utilities.random.rng.RNStreamFactory()
-        val f2 = ksl.utilities.random.rng.RNStreamFactory()
+        val f1 = RNStreamFactory()
+        val f2 = RNStreamFactory()
         val g1f1 = f1.nextStream()
         val g1f2 = f2.nextStream()
         println()
@@ -255,10 +255,10 @@ internal class RNStreamProviderTest {
         println("**********************************************")
         println("Test 8")
         println("Make a factory")
-        val f1 = ksl.utilities.random.rng.RNStreamFactory()
+        val f1 = RNStreamFactory()
         println(f1)
         println("Make a stream from f1")
-        val rngf1 = f1.nextStream() as ksl.utilities.random.rng.RNStreamFactory.RNStream
+        val rngf1 = f1.nextStream() as RNStreamFactory.RNStream
         println(rngf1)
         println("Generate 5 numbers from rngf1")
         for (i in 1..5) {
@@ -268,7 +268,7 @@ internal class RNStreamProviderTest {
         println("Current state of f1")
         println(f1)
         println("Clone the stream")
-        val rngf2 = rngf1.instance("clone of rngf1") as ksl.utilities.random.rng.RNStreamFactory.RNStream
+        val rngf2 = rngf1.instance("clone of rngf1") as RNStreamFactory.RNStream
         println(rngf2)
         val s1 = rngf1.state()
         val s2 = rngf2.state()

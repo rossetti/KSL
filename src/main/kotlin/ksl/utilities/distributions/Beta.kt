@@ -5,6 +5,9 @@ import ksl.utilities.Interval
 import ksl.utilities.exceptions.KSLTooManyIterationsException
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.math.KSLMath
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.BetaRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
 import kotlin.math.*
@@ -15,7 +18,8 @@ import kotlin.math.*
  * @param shape1 the first shape parameter
  * @param shape2 the second shape parameter
  */
-class Beta(shape1: Double, shape2: Double) : DistributionIfc<Beta>, ContinuousDistributionIfc, InverseCDFIfc {
+class Beta(shape1: Double, shape2: Double, name: String? = null) : Distribution<Beta>(name), ContinuousDistributionIfc,
+    InverseCDFIfc {
     init {
         require(shape1 > 0) { "The 1st shape parameter must be > 0" }
         require(shape2 > 0) { "The 2nd shape parameter must be > 0" }
@@ -85,6 +89,10 @@ class Beta(shape1: Double, shape2: Double) : DistributionIfc<Beta>, ContinuousDi
 
     override fun instance(): Beta {
         return Beta(alpha1, alpha2)
+    }
+
+    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
+        return BetaRV(alpha1, alpha1, stream)
     }
 
     companion object {
