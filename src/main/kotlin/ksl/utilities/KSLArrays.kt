@@ -8,7 +8,6 @@ import kotlin.math.sqrt
 
 /**
  * This class has some array manipulation methods that I have found useful over the years.
- * Other libraries (e.g. guava and apache commons) also have array utilities which you might find useful.
  */
 object KSLArrays {
     /**
@@ -213,6 +212,33 @@ object KSLArrays {
     }
 
     /**
+     *
+     * @param array the array to check
+     * @return true if the array as at least one zero element
+     */
+    fun hasZero(array: IntArray): Boolean {
+        return findIndex(0, array) >= 0
+    }
+
+    /**
+     *
+     * @param array the array to check
+     * @return true if the array as at least one zero element
+     */
+    fun hasZero(array: DoubleArray): Boolean {
+        return findIndex(0.0, array) >= 0
+    }
+
+    /**
+     *
+     * @param array the array to check
+     * @return true if the array as at least one zero element
+     */
+    fun hasZero(array: LongArray): Boolean {
+        return findIndex(0, array) >= 0
+    }
+
+    /**
      * If the array is empty, -1 is returned.
      *
      * @param element the element to search for
@@ -380,6 +406,23 @@ object KSLArrays {
         val c = DoubleArray(a.size)
         for (i in a.indices) {
             c[i] = a[i] * b[i]
+        }
+        return c
+    }
+
+    /**
+     * Divides the arrays element by element. Arrays must have same length and must not be null.
+     *
+     * @param a the first array
+     * @param b the second array, must not have any zero elements
+     * @return the array containing a[i]/b[i]
+     */
+    fun divideElements(a: DoubleArray, b: DoubleArray): DoubleArray {
+        require(!hasZero(b)) { "The divisor array has at least one element that is 0.0" }
+        require(a.size == b.size) { "The array lengths must match" }
+        val c = DoubleArray(a.size)
+        for (i in a.indices) {
+            c[i] = a[i] / b[i]
         }
         return c
     }
@@ -690,6 +733,22 @@ object KSLArrays {
         val c = DoubleArray(a.size)
         for (i in a.indices) {
             c[i] = a[i] + b[i]
+        }
+        return c
+    }
+
+    /**
+     * Adds the arrays element by element. Arrays must have same length and must not be null.
+     *
+     * @param a the first array
+     * @param b the second array
+     * @return the array containing a[i]-b[i]
+     */
+    fun subtractElements(a: DoubleArray, b: DoubleArray): DoubleArray {
+        require(a.size == b.size) { "The array lengths must match" }
+        val c = DoubleArray(a.size)
+        for (i in a.indices) {
+            c[i] = a[i] - b[i]
         }
         return c
     }
@@ -1574,6 +1633,30 @@ fun LongArray.findIndex(element: Long): Int {
 }
 
 /**
+ *
+ * @return true if the array has at least one 0.0
+ */
+fun DoubleArray.hasZero(): Boolean {
+    return KSLArrays.hasZero(this)
+}
+
+/**
+ *
+ * @return true if the array has at least one 0.0
+ */
+fun IntArray.hasZero(): Boolean {
+    return KSLArrays.hasZero(this)
+}
+
+/**
+ *
+ * @return true if the array has at least one 0.0
+ */
+fun LongArray.hasZero(): Boolean {
+    return KSLArrays.hasZero(this)
+}
+
+/**
  * If the array is empty, -1 is returned.
  *
  * @param element the element to search for
@@ -2043,7 +2126,7 @@ fun Array<LongArray>.transpose(): Array<LongArray> {
  * @return true if all elements are strictly increasing, if there
  * are 0 elements then it returns false, 1 element returns true
  */
-fun DoubleArray.isStrictlyIncreasing() : Boolean {
+fun DoubleArray.isStrictlyIncreasing(): Boolean {
     return KSLArrays.isStrictlyIncreasing(this)
 }
 
@@ -2054,7 +2137,7 @@ fun DoubleArray.isStrictlyIncreasing() : Boolean {
  * @return true if all elements are strictly increasing, if there
  * are 0 elements then it returns false, 1 element returns true
  */
-fun DoubleArray.isStrictlyDecreasing() : Boolean {
+fun DoubleArray.isStrictlyDecreasing(): Boolean {
     return KSLArrays.isStrictlyDecreasing(this)
 }
 
@@ -2065,7 +2148,7 @@ fun DoubleArray.isStrictlyDecreasing() : Boolean {
  * @return true if all elements are strictly increasing, if there
  * are 0 elements then it returns false, 1 element returns true
  */
-fun DoubleArray.isIncreasing() : Boolean {
+fun DoubleArray.isIncreasing(): Boolean {
     return KSLArrays.isIncreasing(this)
 }
 
@@ -2076,7 +2159,7 @@ fun DoubleArray.isIncreasing() : Boolean {
  * @return true if all elements are decreasing, if there
  * are 0 elements then it returns false, 1 element returns true
  */
-fun DoubleArray.isDecreasing() : Boolean {
+fun DoubleArray.isDecreasing(): Boolean {
     return KSLArrays.isDecreasing(this)
 }
 
@@ -2098,8 +2181,8 @@ fun DoubleArray.isAllEqual(): Boolean {
  * @return true if all elements are distinct, if there
  * are 0 elements then it returns false
  */
-fun DoubleArray.isDistinct(): Boolean{
-    if (this.isEmpty()){
+fun DoubleArray.isDistinct(): Boolean {
+    if (this.isEmpty()) {
         return false
     }
     return this.size == this.distinct().size
@@ -2123,7 +2206,7 @@ fun IntArray.isAllEqual(): Boolean {
  * @return true if all elements are strictly increasing, if there
  * are 0 elements then it returns false, 1 element returns true
  */
-fun IntArray.isStrictlyIncreasing() : Boolean {
+fun IntArray.isStrictlyIncreasing(): Boolean {
     return KSLArrays.isStrictlyIncreasing(this)
 }
 
@@ -2134,7 +2217,7 @@ fun IntArray.isStrictlyIncreasing() : Boolean {
  * @return true if all elements are strictly increasing, if there
  * are 0 elements then it returns false, 1 element returns true
  */
-fun IntArray.isStrictlyDecreasing() : Boolean {
+fun IntArray.isStrictlyDecreasing(): Boolean {
     return KSLArrays.isStrictlyDecreasing(this)
 }
 
@@ -2145,7 +2228,7 @@ fun IntArray.isStrictlyDecreasing() : Boolean {
  * @return true if all elements are strictly increasing, if there
  * are 0 elements then it returns false, 1 element returns true
  */
-fun IntArray.isIncreasing() : Boolean {
+fun IntArray.isIncreasing(): Boolean {
     return KSLArrays.isIncreasing(this)
 }
 
@@ -2156,6 +2239,6 @@ fun IntArray.isIncreasing() : Boolean {
  * @return true if all elements are decreasing, if there
  * are 0 elements then it returns false, 1 element returns true
  */
-fun IntArray.isDecreasing() : Boolean {
+fun IntArray.isDecreasing(): Boolean {
     return KSLArrays.isDecreasing(this)
 }

@@ -350,5 +350,9 @@ fun main() {
     println("invCDF(0.2) = " + d.invCDF(0.2))
     println("invCDF(0.983) = " + d.invCDF(0.983))
     println("invCDF(" + d.cdf(1.0) + ") = " + d.invCDF(d.cdf(1.0)))
+    for(i in 1..10){
+        val x = i/2.0
+        println("pmf($x) = ${d.pmf(x)}")
+    }
     println("done")
 }
