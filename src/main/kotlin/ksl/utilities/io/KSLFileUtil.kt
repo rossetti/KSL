@@ -2,14 +2,9 @@ package ksl.utilities.io
 
 import java.nio.file.Paths
 import jsl.utilities.reporting.LogPrintWriter
-import org.slf4j.LoggerFactory
+import mu.KLoggable
 import kotlin.Throws
-import javax.swing.JOptionPane
-import java.awt.Desktop
 import java.io.*
-import java.lang.InterruptedException
-import java.lang.ProcessBuilder
-import java.lang.invoke.MethodHandles
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
@@ -17,15 +12,17 @@ import java.util.*
 /**
  * Provides some basic file utilities. Additional utilities can be found in Google Guava and
  * Apache Commons IO.  However, this basic IO provides basic needs without external libraries and
- * is integrated withe JSL functionality.
+ * is integrated withe KSL functionality.
  */
-object KSLFileUtil {
+object KSLFileUtil : KLoggable {
     private var myFileCounter_ = 0
+
+    override val logger = logger()
 
     /**
      * for logging
      */
-    val LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+//    val LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
     /**
      * Returns the directory that the program was launched from on the OS
@@ -66,11 +63,11 @@ object KSLFileUtil {
      * @param pathToFile the path to the file that will be underneath the PrintWriter, must not be null
      * @return the returned PrintWriter, or a PrintWriter wrapping System.out if some problem occurs
      */
-    fun makePrintWriter(pathToFile: Path): PrintWriter {
+    fun createPrintWriter(pathToFile: Path): PrintWriter {
         // make the intermediate directories
         val dir = pathToFile.parent
         createDirectories(dir)
-        return makePrintWriter(pathToFile.toFile())
+        return createPrintWriter(pathToFile.toFile())
     }
 
     /**
@@ -80,12 +77,12 @@ object KSLFileUtil {
      * @param file the file support the returned PrintWriter, must not be null
      * @return the PrintWriter, may be System.out if an IOException occurred
      */
-    fun makePrintWriter(file: File): PrintWriter {
+    fun createPrintWriter(file: File): PrintWriter {
         return try {
             PrintWriter(FileWriter(file), true)
         } catch (ex: IOException) {
             val str = "Problem creating PrintWriter for " + file.absolutePath
-            LOGGER.error(str, ex)
+            logger.error(str, ex)
             PrintWriter(System.out)
         }
     }
@@ -96,8 +93,8 @@ object KSLFileUtil {
      * @param fileName the name of the file to make
      * @return the created PrintWriter, may be System.out if an IOException occurred
      */
-    fun makePrintWriter(fileName: String): PrintWriter {
-        return makePrintWriter(programLaunchDirectory.resolve(fileName))
+    fun createPrintWriter(fileName: String): PrintWriter {
+        return createPrintWriter(programLaunchDirectory.resolve(fileName))
     }
 
     /**
@@ -106,11 +103,11 @@ object KSLFileUtil {
      * @param pathToFile the path to the file that will be underneath the PrintWriter, must not be null
      * @return the returned PrintWriter, or System.out if some IOException occurred
      */
-    fun makeLogPrintWriter(pathToFile: Path): LogPrintWriter {
+    fun createLogPrintWriter(pathToFile: Path): LogPrintWriter {
         // make the intermediate directories
         val dir = pathToFile.parent
         createDirectories(dir)
-        return makeLogPrintWriter(pathToFile.toFile())
+        return createLogPrintWriter(pathToFile.toFile())
     }
 
     /**
@@ -120,12 +117,12 @@ object KSLFileUtil {
      * @param file the file support the returned PrintWriter, must not be null
      * @return the LogPrintWriter, may be a PrintWriter wrapping System.out if an IOException occurred
      */
-    fun makeLogPrintWriter(file: File): LogPrintWriter {
+    fun createLogPrintWriter(file: File): LogPrintWriter {
         return try {
             LogPrintWriter(FileWriter(file), true)
         } catch (ex: IOException) {
             val str = "Problem creating LogPrintWriter for " + file.absolutePath
-            LOGGER.error(str, ex)
+            logger.error(str, ex)
             LogPrintWriter(System.out)
         }
     }
@@ -140,7 +137,7 @@ object KSLFileUtil {
         try {
             return Files.createDirectories(path)
         } catch (e: IOException) {
-            LOGGER.error("There was a problem creating the directories for {}", path)
+            logger.error("There was a problem creating the directories for {}", path)
             e.printStackTrace()
         }
         return null
@@ -153,12 +150,12 @@ object KSLFileUtil {
      * @param dirName the name of the sub-directory, must not be null
      * @return the path to the sub-directory, or mainDir, if something went wrong
      */
-    fun makeSubDirectory(mainDir: Path, dirName: String): Path {
+    fun createSubDirectory(mainDir: Path, dirName: String): Path {
         val newDirPath = mainDir.resolve(dirName)
         return try {
             Files.createDirectories(newDirPath)
         } catch (e: IOException) {
-            LOGGER.error("There was a problem creating the sub-directory for {}", newDirPath)
+            logger.error("There was a problem creating the sub-directory for {}", newDirPath)
             mainDir
         }
     }
@@ -167,50 +164,50 @@ object KSLFileUtil {
      * @param pathToFile the path to the file, must not be null and must not be a directory
      * @return the reference to the File
      */
-    fun makeFile(pathToFile: Path): File {
+    fun createFile(pathToFile: Path): File {
         require(!Files.isDirectory(pathToFile)) { "The path was a directory not a file!" }
         createDirectories(pathToFile.parent)
         return pathToFile.toFile()
     }
 
-    /**
-     * Uses Desktop.getDesktop() to open the file
-     *
-     * @param file the file
-     * @throws IOException if file cannot be opened
-     */
-    @Throws(IOException::class)
-    fun openFile(file: File?) {
-        if (file == null) {
-            JOptionPane.showMessageDialog(
-                null,
-                "Cannot open the supplied file because it was null",
-                "Warning",
-                JOptionPane.WARNING_MESSAGE
-            )
-            return
-        }
-        if (!file.exists()) {
-            JOptionPane.showMessageDialog(
-                null,
-                "Cannot open the supplied file because it does not exist.",
-                "Warning",
-                JOptionPane.WARNING_MESSAGE
-            )
-            return
-        }
-        if (Desktop.isDesktopSupported()) {
-            Desktop.getDesktop().open(file)
-        } else {
-            JOptionPane.showMessageDialog(
-                null,
-                "Cannot open the supplied file because it \n AWT Desktop is not supported!",
-                "Warning",
-                JOptionPane.WARNING_MESSAGE
-            )
-            return
-        }
-    }
+//    /**
+//     * Uses Desktop.getDesktop() to open the file
+//     *
+//     * @param file the file
+//     * @throws IOException if file cannot be opened
+//     */
+//    @Throws(IOException::class)
+//    fun openFile(file: File?) {
+//        if (file == null) {
+//            JOptionPane.showMessageDialog(
+//                null,
+//                "Cannot open the supplied file because it was null",
+//                "Warning",
+//                JOptionPane.WARNING_MESSAGE
+//            )
+//            return
+//        }
+//        if (!file.exists()) {
+//            JOptionPane.showMessageDialog(
+//                null,
+//                "Cannot open the supplied file because it does not exist.",
+//                "Warning",
+//                JOptionPane.WARNING_MESSAGE
+//            )
+//            return
+//        }
+//        if (Desktop.isDesktopSupported()) {
+//            Desktop.getDesktop().open(file)
+//        } else {
+//            JOptionPane.showMessageDialog(
+//                null,
+//                "Cannot open the supplied file because it \n AWT Desktop is not supported!",
+//                "Warning",
+//                JOptionPane.WARNING_MESSAGE
+//            )
+//            return
+//        }
+//    }
 
 //    /**
 //     * Creates a PDF representation of a LaTeX file within the
@@ -429,8 +426,8 @@ object KSLFileUtil {
      * @param name the name
      * @return the formed String
      */
-    fun makeCSVFileName(name: String?): String {
-        return makeFileName(name, "csv")
+    fun createCSVFileName(name: String?): String {
+        return createFileName(name, "csv")
     }
 
     /**
@@ -439,8 +436,8 @@ object KSLFileUtil {
      * @param name the name
      * @return the formed String
      */
-    fun makeTxtFileName(name: String?): String {
-        return makeFileName(name, "txt")
+    fun createTxtFileName(name: String?): String {
+        return createFileName(name, "txt")
     }
 
     /**
@@ -451,7 +448,7 @@ object KSLFileUtil {
      * @param ext  the extension
      * @return the String
      */
-    fun makeFileName(name: String?, ext: String?): String {
+    fun createFileName(name: String?, ext: String?): String {
         var name = name
         var ext = ext
         if (name == null) {

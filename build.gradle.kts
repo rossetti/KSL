@@ -26,7 +26,12 @@ dependencies {
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
     api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "2.1.21")
-//    implementation("org.junit.jupiter:junit-jupiter:5.7.0")
+
+    // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
+    api(group = "ch.qos.logback", name = "logback-classic", version = "1.2.10")
+    // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
+    api(group = "ch.qos.logback", name = "logback-core", version = "1.2.10")
+
     implementation("org.junit.jupiter:junit-jupiter:5.7.0")
 
     testImplementation(kotlin("test"))
