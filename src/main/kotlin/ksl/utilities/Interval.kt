@@ -27,25 +27,23 @@ package ksl.utilities
  * @param xUpper  the upper limit
  * @author rossetti
  */
-class Interval(xLower: Double, xUpper: Double) {
-
+class Interval(xLower: Double, xUpper: Double) : NewInstanceIfc<Interval> {
+    init {
+        require(xLower <= xUpper) { "The lower limit must be <= the upper limit" }
+    }
     /**
      *
      * @return the lower limit of the interval
      */
-    var lowerLimit = Double.NEGATIVE_INFINITY
+    var lowerLimit = xLower
         private set
 
     /**
      *
      * @return The upper limit of the interval
      */
-    var upperLimit = Double.POSITIVE_INFINITY
+    var upperLimit = xUpper
         private set
-
-    init {
-        setInterval(xLower, xUpper)
-    }
 
     /** The width of the interval
      *
@@ -75,9 +73,9 @@ class Interval(xLower: Double, xUpper: Double) {
 
     /** A new instance with the same interval settings.
      *
-     * @return
+     * @return A new instance with the same interval settings.
      */
-    fun newInstance(): Interval {
+    override fun instance(): Interval {
         return Interval(lowerLimit, upperLimit)
     }
 
