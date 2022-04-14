@@ -1,6 +1,6 @@
 package ksl.utilities.random.rng
 
-import jsl.utilities.reporting.JSL
+import ksl.utilities.io.JSL
 
 /**
  * A concrete implementation of RNStreamProviderIfc.  If more than streamNumberWarningLimit
@@ -33,8 +33,8 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
         myStreams.add(stream)
         if (myStreams.size > streamNumberWarningLimit) {
             //TODO change so logger is local to this class
-            JSL.getInstance().LOGGER.warn("The number of streams made is now = {}", myStreams.size)
-            JSL.getInstance().LOGGER.warn("Increase the stream warning limit if you don't want to see this message")
+            JSL.instance.LOGGER.warn("The number of streams made is now = {}", myStreams.size)
+            JSL.instance.LOGGER.warn("Increase the stream warning limit if you don't want to see this message")
         }
         return stream
     }

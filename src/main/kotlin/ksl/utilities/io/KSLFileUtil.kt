@@ -1,7 +1,6 @@
 package ksl.utilities.io
 
 import java.nio.file.Paths
-import jsl.utilities.reporting.LogPrintWriter
 import mu.KLoggable
 import kotlin.Throws
 import java.io.*
