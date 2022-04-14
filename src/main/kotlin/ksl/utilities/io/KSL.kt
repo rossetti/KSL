@@ -6,7 +6,7 @@ import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
 
-object JSL : KLoggable {
+object KSL : KLoggable {
 
     /**
      * A global logger for logging

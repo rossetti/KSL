@@ -16,12 +16,10 @@ import java.util.*
 object KSLFileUtil : KLoggable {
     private var myFileCounter_ = 0
 
-    override val logger = logger()
-
     /**
-     * for logging
+     *  Use for general logging
      */
-//    val LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+    override val logger = logger()
 
     /**
      * Returns the directory that the program was launched from on the OS

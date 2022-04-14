@@ -8,7 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 
-private val logger = KotlinLogging.logger {}
+//private val logger = KotlinLogging.logger {}
 
 /**
  * This class provides basic context for creating and writing output files.
@@ -18,7 +18,7 @@ private val logger = KotlinLogging.logger {}
  * @param outputDirectoryPath the base output directory to use for writing text files relative to this OutputDirectory instance
  * @param outFileName the name of the created text file related to property out
  */
-class OutputDirectory(outputDirectoryPath: Path, outFileName: String) {
+class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirectory, outFileName: String = "out.txt") {
 
     /**
      *
@@ -52,12 +52,12 @@ class OutputDirectory(outputDirectoryPath: Path, outFileName: String) {
      *
      *  @param pathToDir the path to the directory
      */
-    fun createDirectoryPath(pathToDir: Path) : Path {
-        try {
-             return Files.createDirectories(pathToDir)
+    private fun createDirectoryPath(pathToDir: Path) : Path {
+        return try {
+            Files.createDirectories(pathToDir)
         } catch (e: IOException) {
-            logger.error("There was a problem creating the directories for {} used program launch directory", pathToDir)
-            return KSLFileUtil.programLaunchDirectory
+            KSLFileUtil.logger.error("There was a problem creating the directories for {} used program launch directory", pathToDir)
+            KSLFileUtil.programLaunchDirectory
         }
     }
 
@@ -67,12 +67,12 @@ class OutputDirectory(outputDirectoryPath: Path, outFileName: String) {
     val excelDir: Path = createExcelDirectory()
 
     private fun createExcelDirectory(): Path {
-        try {
-            return Files.createDirectories(outDir.resolve("excel"))
+        return try {
+            Files.createDirectories(outDir.resolve("excel"))
         } catch (e: IOException) {
-            logger.error("There was a problem creating the directories for {} used program launch directory",
+            KSLFileUtil.logger.error("There was a problem creating the directories for {} used program launch directory",
                 outDir.resolve("excel"))
-            return KSLFileUtil.programLaunchDirectory
+            KSLFileUtil.programLaunchDirectory
         }
     }
 

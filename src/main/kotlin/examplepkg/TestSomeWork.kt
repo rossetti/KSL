@@ -1,6 +1,9 @@
 package examplepkg
 
 import ksl.utilities.KSLArrays
+import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.OutputDirectory
 import ksl.utilities.random.permute
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.DUniformRV
@@ -62,4 +65,23 @@ fun main(){
         }
         println()
     }
+
+    KSL.out.println("This is some stuff!")
+
+    for (array in nr){
+        for (value in array){
+            KSL.out.print("$value ")
+        }
+        KSL.out.println()
+    }
+//    var outDir = OutputDirectory("someDir", "someFile")
+//    outDir.out.println("Some other stuff")
+//    outDir.createSubDirectory("another directory")
+    KSL.logger.info { "Some info message" }
+    KSL.logger.warn { "Some warn message" }
+    KSL.logger.debug { "Some debug message" }
+    KSL.logger.error { "Some error message" }
+
+    KSLFileUtil.logger.error{ "error to report"}
+    KSLFileUtil.logger.info{ "info to report"}
 }

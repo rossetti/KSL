@@ -1,6 +1,9 @@
 package ksl.utilities.random.rng
 
-import ksl.utilities.io.JSL
+import ksl.utilities.io.KSL
+import mu.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * A concrete implementation of RNStreamProviderIfc.  If more than streamNumberWarningLimit
@@ -32,9 +35,8 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
         val stream = myStreamFactory.nextStream()
         myStreams.add(stream)
         if (myStreams.size > streamNumberWarningLimit) {
-            //TODO change so logger is local to this class
-            JSL.instance.LOGGER.warn("The number of streams made is now = {}", myStreams.size)
-            JSL.instance.LOGGER.warn("Increase the stream warning limit if you don't want to see this message")
+            logger.warn("The number of streams made is now = {}", myStreams.size)
+            logger.warn("Increase the stream warning limit if you don't want to see this message")
         }
         return stream
     }
