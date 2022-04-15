@@ -1,6 +1,7 @@
 package ksl.utilities
 
 //TODO remove java dependence
+import ksl.utilities.random.rvariable.ConstantRV
 import java.io.FileNotFoundException
 import java.nio.file.Path
 import java.util.*
@@ -676,6 +677,28 @@ object KSLArrays {
             return Array(0) { LongArray(0) }
         }
         return Array(src.size) { src[it].copyOf() }
+    }
+
+    /**
+     *
+     * @param array the array to fill, must not be null
+     * @param theValue the supplier of the value, must not be null
+     */
+    fun fill(array: DoubleArray, theValue: GetValueIfc = ConstantRV.ZERO) {
+        for (i in array.indices) {
+            array[i] = theValue.value()
+        }
+    }
+
+    /**
+     *
+     * @param array the array to fill, must not be null
+     * @param theValue the supplier of the value, must not be null
+     */
+    fun fill(array: Array<DoubleArray>, theValue: GetValueIfc = ConstantRV.ZERO) {
+        for (doubles in array) {
+            fill(doubles, theValue)
+        }
     }
 
     /**
@@ -1863,6 +1886,20 @@ fun Array<IntArray>.copyOf(): Array<IntArray> {
  */
 fun Array<LongArray>.copyOf(): Array<LongArray> {
     return KSLArrays.copy2DArray(this)
+}
+
+/**
+ *  Fills the array with the value
+ */
+fun DoubleArray.fill(theValue : GetValueIfc = ConstantRV.ZERO){
+    KSLArrays.fill(this, theValue)
+}
+
+/**
+ *  Fills the array with the provided value
+ */
+fun Array<DoubleArray>.fill(theValue : GetValueIfc = ConstantRV.ZERO){
+    KSLArrays.fill(this, theValue)
 }
 
 /**

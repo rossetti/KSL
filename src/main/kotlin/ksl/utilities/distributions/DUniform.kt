@@ -1,0 +1,169 @@
+/*
+ * Copyright (c) 2018. Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+package ksl.utilities.distributions
+
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.DUniformRV
+import ksl.utilities.random.rvariable.RVariableIfc
+import kotlin.math.floor
+
+
+/** Models discrete random variables that are uniformly distributed
+ * over a contiguous range of integers.
+ * the lower limit must be &lt; upper limit
+ * @param min The lower limit of the range
+ * @param max The upper limit of the range
+ * @param name an optional name/label
+ */
+class DUniform(min: Int = 0, max: Int = 1, name: String? = null) :
+    Distribution<DUniform>(name), DiscreteDistributionIfc {
+
+    /** Constructs a discrete uniform where parameter[0] is the
+     * lower limit and parameter[1] is the upper limit of the range.
+     * the lower limit must be &lt; upper limit
+     * @param parameters An array containing the lower limit and upper limit
+     */
+    constructor(parameters: DoubleArray) : this(parameters[0].toInt(), parameters[1].toInt(), null)
+
+    /**
+     * @param range an integer range
+     */
+    constructor(range: IntRange) : this(range.first, range.last, null)
+
+    init {
+        require(min < max) { "Lower limit must be < upper limit." }
+    }
+
+    /** The distribution's lower limit
+     * @return The lower limit
+     */
+    var minimum = min
+        private set
+
+    /** The distribution's upper limit
+     * @return The upper limit
+     */
+    var maximum = max
+        private set
+
+    /** The discrete maximum - minimum + 1
+     *
+     * @return the returned range
+     */
+    val range = maximum - minimum + 1
+
+    override fun instance(): DUniform {
+        return DUniform(minimum, maximum)
+    }
+
+    /** Sets the range for the distribution
+     * the lower limit must be &lt; upper limit
+     * @param minimum The lower limit for the range
+     * @param maximum The upper limit for the range
+     */
+    fun setRange(minimum: Int, maximum: Int) {
+        require(minimum < maximum) { "Lower limit must be < upper limit." }
+        this.minimum = minimum
+        this.maximum = maximum
+    }
+
+    /**
+     *  @param range sets the range using an IntRange
+     */
+    fun setRange (range: IntRange) {
+        setRange(range.first, range.last)
+    }
+
+    override fun cdf(x: Double): Double {
+        return if (x < minimum) {
+            0.0
+        } else if (x >= minimum && x <= maximum) {
+            (floor(x) - minimum + 1) / range
+        } else  //if (x > myMaximum)
+        {
+            1.0
+        }
+    }
+
+    /** Provides the inverse cumulative distribution function for the distribution
+     * @param p The probability to be evaluated for the inverse, prob must be [0,1] or
+     * an IllegalArgumentException is thrown
+     */
+    override fun invCDF(p: Double): Double {
+        require(!(p < 0.0 || p > 1.0)) { "Probability must be [0,1]" }
+        return minimum + floor(range * p)
+    }
+
+    /** If x is not and integer value, then the probability must be zero
+     * otherwise pmf(int x) is used to determine the probability
+     *
+     * @param x the value to evaluate
+     * @return the associated probability
+     */
+    override fun pmf(x: Double): Double {
+        return if (floor(x) == x) {
+            pmf(x.toInt())
+        } else {
+            0.0
+        }
+    }
+
+    override fun mean(): Double {
+        return (minimum + maximum) / 2.0
+    }
+
+    override fun variance(): Double {
+        return (range * range - 1) / 12.0
+    }
+
+    /** Returns the probability associated with x
+     *
+     * @param x the value to evaluate
+     * @return the associated probability
+     */
+    fun pmf(x: Int): Double {
+        return if (x < minimum || x > maximum) {
+            0.0
+        } else 1.0 / range
+    }
+
+    /** Sets the parameters for the distribution where parameters[0] is the
+     * lower limit and parameters[1] is the upper limit of the range.
+     * the lower limit must be &lt; upper limit
+     *
+     * @param params an array of doubles representing the parameters for
+     * the distribution
+     */
+    override fun parameters(params: DoubleArray) {
+        setRange(params[0].toInt(), params[1].toInt())
+    }
+
+    /** Gets the parameters for the distribution where parameters[0] is the
+     * lower limit and parameters[1] is the upper limit of the range.
+     *
+     * @return Returns an array of the parameters for the distribution
+     */
+    override fun parameters(): DoubleArray {
+        val param = DoubleArray(2)
+        param[0] = minimum.toDouble()
+        param[1] = maximum.toDouble()
+        return param
+    }
+
+    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
+        return DUniformRV(minimum, maximum, stream)
+    }
+}
