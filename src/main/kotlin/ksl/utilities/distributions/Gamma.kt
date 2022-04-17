@@ -1,10 +1,253 @@
+/*
+ * Copyright (c) 2018. Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
 package ksl.utilities.distributions
 
+import ksl.utilities.Interval
 import ksl.utilities.exceptions.KSLTooManyIterationsException
 import ksl.utilities.math.KSLMath
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.GammaRV
+import ksl.utilities.random.rvariable.GetRVariableIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.*
 
-class Gamma {
+/** Models random variables that have gamma distribution
+ * For more information on the gamma distribution and its related functions, see
+ * "Object-Oriented Numerical Methods" by D. Besset
+ * @param theShape The shape parameter of the distribution, must be greater than 0
+ * @param theScale The scale parameter of the distribution, must be greater than 0
+ * @param name an optional name/label
+ */
+class Gamma (theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
+    Distribution<Gamma>(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+
+    init {
+        require(theShape > 0) { "Shape parameter must be positive" }
+        require(theScale > 0) { "Scale parameter must be positive" }
+    }
+
+    /**
+     *  the shape must be greater than 0.0
+     */
+    var shape = theShape
+        set(value) {
+            require(value > 0) { "Shape parameter must be positive" }
+            field = value
+        }
+
+    /**
+     *  the scale must be greater than 0.0
+     */
+    var scale = theScale
+        set(value) {
+            require(value > 0) { "Scale parameter must be positive" }
+            field = value
+        }
+
+    /** Constructs a gamma distribution with
+     * shape = parameters[0] and scale = parameters[1]
+     * @param parameters An array with the shape and scale
+     */
+    constructor(parameters: DoubleArray) : this(parameters[0], parameters[1], null)
+
+    override fun instance(): Gamma {
+        return Gamma(shape, scale)
+    }
+
+    override fun domain(): Interval {
+        return Interval(0.0, Double.POSITIVE_INFINITY)
+    }
+
+    override fun mean(): Double {
+        return shape * scale
+    }
+
+    /**
+     *
+     * @return the 2nd moment
+     */
+    val moment2: Double
+        get() = scale * mean() * (shape + 1.0)
+
+    /**
+     *
+     * @return the 3rd moment
+     */
+    val moment3: Double
+        get() = scale * moment2 * (shape + 2.0)
+
+    /**
+     *
+     * @return the 4th moment
+     */
+    val moment4: Double
+        get() = scale * moment3 * (shape + 3.0)
+
+    /**
+     *
+     * @param n the desired moment
+     * @return the nth moment
+     */
+    fun moment(n: Int): Double {
+        require(n >= 1) { "The moment should be >= 1" }
+        if (n == 1) {
+            return mean()
+        }
+        val y = scale.pow(n.toDouble())
+        val t = gammaFunction(shape + n)
+        val b = gammaFunction(shape)
+        return y * (t / b)
+    }
+
+    override fun variance(): Double {
+        return shape * scale * scale
+    }
+
+    override fun cdf(x: Double): Double {
+        return if (x <= 0) {
+            0.0
+        } else incompleteGammaFunction(x / scale, shape, maxNumIterations, numericalPrecision)
+    }
+
+    /** Provides the inverse cumulative distribution function for the distribution
+     * This is based on a numerical routine that computes the percentage points for the chi-squared distribution
+     * @param p The probability to be evaluated for the inverse, p must be [0,1] or
+     * an IllegalArgumentException is thrown
+     * p = 0.0 returns 0.0
+     * p = 1.0 returns Double.POSITIVE_INFINITY
+     *
+     * @return The inverse cdf evaluated at p
+     */
+    override fun invCDF(p: Double): Double {
+        require(!(p < 0.0 || p > 1.0)) { "Probability must be [0,1]" }
+        if (p <= 0.0) {
+            return 0.0
+        }
+        if (p >= 1.0) {
+            return Double.POSITIVE_INFINITY
+        }
+        val x: Double
+        // ...special case: exponential distribution
+        if (shape == 1.0) {
+            x = -scale * ln(1.0 - p)
+            return x
+        }
+        // ...compute the gamma(alpha, beta) inverse.
+        //    ...compute the chi-square inverse with 2*alpha degrees of
+        //      freedom, which is equivalent to gamma(alpha, 2).
+        val v = 2.0 * shape
+//        val g = myLNGammaOfShape
+//        val chi2 = invChiSquareDistribution(p, v, g, myMaxIterations, myNumericalPrecision)
+        val chi2 = invChiSquareDistribution(p, v, maxIncGammaIterations = maxNumIterations, EPS = numericalPrecision)
+
+        // ...transfer chi-square to gamma.
+        x = scale * chi2 / 2.0
+        return x
+    }
+
+    override fun pdf(x: Double): Double {
+        return if (x > 0.0) {
+            //double norm = Math.log(myScale) * myShape + logGammaFunction(myShape);
+            //val norm = norm
+            val norm = ln(scale) * shape + logGammaFunction(shape)
+            exp(ln(x) * (shape - 1.0) - x / scale - norm)
+        } else {
+            0.0
+        }
+    }
+
+//    protected fun setNorm(scale: Double, shape: Double) {
+//        myLNGammaOfShape = logGammaFunction(shape)
+//        norm = Math.log(scale) * shape + myLNGammaOfShape
+//    }
+
+    /** Gets the kurtosis of the distribution
+     * @return the kurtosis
+     */
+    val kurtosis: Double
+        get() = 6.0 / shape
+
+    /** Gets the skewness of the distribution
+     * @return the skewness
+     */
+    val skewness: Double
+        get() = 2.0 / sqrt(shape)
+
+    /**
+     * the maximum number of iterations for the gamma functions
+     */
+    var maxNumIterations: Int = DEFAULT_MAX_ITERATIONS
+        set(iterations) {
+            field = max(iterations, DEFAULT_MAX_ITERATIONS)
+        }
+
+    /**
+     * the numerical precision used in computing the gamma functions
+     */
+    var numericalPrecision: Double = KSLMath.defaultNumericalPrecision
+        set(precision) {
+            field = if (precision < KSLMath.machinePrecision) {
+                KSLMath.defaultNumericalPrecision
+            } else {
+                precision
+            }
+        }
+
+    /** Sets the parameters for the distribution with
+     * shape = parameters[0] and scale = parameters[1]
+     *
+     * @param params an array of doubles representing the parameters for the distribution
+     */
+    override fun parameters(params: DoubleArray) {
+        shape = params[0]
+        scale = params[1]
+    }
+
+    /** Gets the parameters for the distribution
+     *
+     * @return Returns an array of the parameters for the distribution
+     */
+    override fun parameters(): DoubleArray {
+        return doubleArrayOf(shape, scale)
+    }
+
+    override fun firstOrderLossFunction(x: Double): Double {
+        if (x <= 0.0) {
+            return mean() - x
+        }
+        val mu = 1.0 / scale
+        return ((shape - mu * x) * complementaryCDF(x) + x * pdf(x)) / mu
+    }
+
+    override fun secondOrderLossFunction(x: Double): Double {
+        if (x <= 0.0) {
+            val m = mean()
+            val m2 = variance() + m * m
+            return 0.5 * (m2 - 2.0 * x * m + x * x)
+        }
+        val mu = 1.0 / scale
+        var g2 = ((shape - mu * x) * (shape - mu * x) + shape) * complementaryCDF(x)
+        g2 = g2 + (shape - mu * x + 1.0) * x * pdf(x)
+        g2 = 0.5 * g2 / (mu * mu)
+        return g2
+    }
+
+    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
+        return GammaRV(shape, scale, stream)
+    }
 
     companion object {
         const val DEFAULT_MAX_ITERATIONS = 5000
@@ -447,19 +690,31 @@ class Gamma {
             return parametersFromMeanAndVariance(moments[0], moments[1])
         }
     }
-
 }
 
-fun main(){
+fun main() {
+    val shape = 0.1
+    val scale = 8.0
+    val g = Gamma(shape, scale)
+    println("shape (alpha) = " + g.shape)
+    println("scale (beta)  = " + g.scale)
+    println("mean = " + g.mean())
+    println("var = " + g.variance())
+    var x = 9.0
+    println("g at  " + x + " = " + g.pdf(x))
+    println("G at  " + x + " = " + g.cdf(x))
+    println("G0 at  " + x + " = " + g.complementaryCDF(x))
+    println("G1 at  " + x + " = " + g.firstOrderLossFunction(x))
+    println("G2 at  " + x + " = " + g.secondOrderLossFunction(x))
+    println("digamma(1) = " + Gamma.diGammaFunction(1.0))
+    println("digamma(1) = " + Gamma.digamma(1.0))
 
     // test digamma function
     val n = 20
-    var x = 0.0
+    x = 0.0
     val delta = 0.1
     for (i in 1..n) {
         x = x + delta
-        //System.out.println("digamma(x=" + x +") = " + Gamma.diGammaFunction(x));
         println("digamma(x=" + x + ") = " + Gamma.digamma(x))
     }
 }
-

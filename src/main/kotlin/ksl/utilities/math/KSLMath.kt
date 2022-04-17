@@ -350,4 +350,22 @@ object KSLMath {
         }
     }
 
+    /** Computes the binomial coefficient.  Computes the number of combinations of size k
+     * that can be formed from n distinct objects.
+     * @param n The total number of distinct items
+     * @param k The number of subsets
+     * @return the coefficient
+     */
+    fun binomialCoefficient(n: Double, k: Double): Double {
+        return exp(logFactorial(n) - logFactorial(k) - logFactorial(n - k))
+    }
+
+    /** Computes the natural logarithm of the factorial operator.
+     * ln(n!)
+     * @param n The value to be operated on.
+     * @return the natural log of the factorial
+     */
+    fun logFactorial(n: Double): Double {
+        return Gamma.logGammaFunction(n + 1.0)
+    }
 }
