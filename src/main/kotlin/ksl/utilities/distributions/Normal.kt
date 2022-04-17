@@ -1,11 +1,131 @@
+/*
+ * Copyright (c) 2018. Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
 package ksl.utilities.distributions
 
+import ksl.utilities.Interval
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.GetRVariableIfc
+import ksl.utilities.random.rvariable.NormalRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.sqrt
 
-class Normal {
+
+/** Models normally distributed random variables
+ * @param theMean of the distribution
+ * @param theVariance must be &gt; 0
+ * @param name an optional name/label
+ */
+class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = null) :
+    Distribution<Normal>(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+
+    init {
+        require(theVariance > 0) { "Variance must be positive" }
+    }
+
+    var mean = theMean
+
+    var variance = theVariance
+        set(value) {
+            require(value > 0) { "Variance must be positive" }
+            field = value
+        }
+
+    /** Constructs a normal distribution with
+     * mean = parameters[0] and variance = parameters[1]
+     * @param parameters An array with the mean and variance
+     */
+    constructor(parameters: DoubleArray) : this(parameters[0], parameters[1], null)
+
+    override fun instance(): Normal {
+        return Normal(mean, variance)
+    }
+
+    override fun domain(): Interval {
+        return Interval(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)
+    }
+
+    override fun mean(): Double {
+        return mean
+    }
+
+    override fun variance(): Double {
+        return variance
+    }
+
+    override fun cdf(x: Double): Double {
+        return stdNormalCDF((x - mean) / standardDeviation())
+    }
+
+    override fun pdf(x: Double): Double {
+        val z = (x - mean) / standardDeviation()
+        return stdNormalPDF(z) / standardDeviation()
+    }
+
+    override fun invCDF(p: Double): Double {
+        val z = stdNormalInvCDF(p)
+        return z * standardDeviation() + mean
+    }
+
+    /** Gets the kurtosis of the distribution
+     * @return the kurtosis
+     */
+    val kurtosis: Double
+        get() = 0.0
+
+    /** Gets the skewness of the distribution
+     * @return the skewness
+     */
+    val skewness: Double
+        get() = 0.0
+
+    override fun complementaryCDF(x: Double): Double {
+        return stdNormalComplementaryCDF((x - mean) / standardDeviation())
+    }
+
+    override fun firstOrderLossFunction(x: Double): Double {
+        return standardDeviation() * stdNormalFirstOrderLossFunction((x - mean) / standardDeviation())
+    }
+
+    override fun secondOrderLossFunction(x: Double): Double {
+        return variance * stdNormalSecondOrderLossFunction((x - mean) / standardDeviation())
+    }
+
+    /** Sets the parameters for the distribution
+     * mean = parameters[0] and variance = parameters[1]
+     * @param params an array of doubles representing the parameters for the distribution
+     */
+    override fun parameters(params: DoubleArray) {
+        mean = params[0]
+        variance = params[1]
+    }
+
+    /** Gets the parameters for the distribution
+     *
+     * @return Returns an array of the parameters for the distribution
+     */
+    override fun parameters(): DoubleArray {
+        return doubleArrayOf(mean, variance)
+    }
+
+    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
+        return NormalRV(mean, variance, stream)
+    }
 
     companion object {
         private val baseNorm = sqrt(2.0 * PI)
@@ -174,4 +294,5 @@ class Normal {
         }
 
     }
+
 }

@@ -1,6 +1,5 @@
 package ksl.utilities.distributions
 
-import jsl.utilities.distributions.Normal
 import ksl.utilities.exceptions.KSLTooManyIterationsException
 import ksl.utilities.math.KSLMath
 import kotlin.math.*
