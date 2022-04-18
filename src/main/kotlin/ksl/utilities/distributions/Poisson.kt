@@ -1,9 +1,191 @@
+/*
+ * Copyright (c) 2018. Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
 package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.GetRVariableIfc
+import ksl.utilities.random.rvariable.PoissonRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.*
 
-class Poisson {
+/**
+ * Represents a Poisson random variable. A Poisson random
+ * variable represents the number of occurrences of an event with time or space.
+ * @param theMean the mean rate
+ * @param name an optional label/name
+ */
+class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisson>(name),
+    DiscreteDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
+
+    init {
+        require(theMean > 0.0) { "Mean must be > 0)" }
+    }
+
+    /**
+     * indicates whether pmf and cdf calculations are
+     * done by recursive (iterative) algorithm based on logarithms
+     * or via beta incomplete function and binomial coefficients.
+     */
+    var useRecursiveAlgorithm = true
+
+    /**
+     * the mean (parameter) of the poisson
+     */
+    var mean = theMean
+        set(value) {
+            require(value > 0.0) { "Mean must be > 0)" }
+            field = value
+        }
+
+    /**
+     * Constructs a Poisson using the supplied parameter
+     *
+     * @param parameters A array that holds the parameters, parameters[0] should be the mean rate
+     */
+    constructor(parameters: DoubleArray) : this(parameters[0], null)
+
+    override fun instance(): Poisson {
+        return Poisson(mean)
+    }
+
+    override fun mean(): Double {
+        return mean
+    }
+
+    override fun variance(): Double {
+        return mean
+    }
+
+    /**
+     * @return the mode of the distribution
+     */
+    val mode: Int
+        get() = if (floor(mean) == mean) {
+            mean.toInt() - 1
+        } else {
+            floor(mean).toInt()
+        }
+
+    fun cdf(x: Int): Double {
+        return poissonCDF(x, mean, useRecursiveAlgorithm)
+    }
+
+    override fun cdf(x: Double): Double {
+        return cdf(x.toInt())
+    }
+
+    override fun firstOrderLossFunction(x: Double): Double {
+        val mu = mean
+        return if (x < 0.0) {
+            floor(abs(x)) + mu
+        } else if (x > 0.0) {
+            val g0 = complementaryCDF(x)
+            val g = pmf(x)
+            val g1 = -1.0 * (x - mu) * g0 + mu * g
+            g1
+        } else  // x== 0.0
+        {
+            mu
+        }
+    }
+
+    override fun secondOrderLossFunction(x: Double): Double {
+        val mu = mean
+        val sbm = 0.5 * (mu * mu) // 1/2 the 2nd binomial moment
+        return if (x < 0.0) {
+            var s = 0.0
+            var y = 0
+            while (y > x) {
+                s = s + firstOrderLossFunction(y.toDouble())
+                y--
+            }
+            s + sbm
+        } else if (x > 0.0) {
+            val g0 = complementaryCDF(x)
+            val g = pmf(x)
+            val g2 = 0.5 * (((x - mu) * (x - mu) + x) * g0 - mu * (x - mu) * g)
+            g2
+        } else {
+            // x == 0.0
+            sbm
+        }
+    }
+
+    fun thirdOrderLossFunction(x: Double): Double {
+        val term1 = mean.pow(3.0) * complementaryCDF(x - 3)
+        val term2 = 3 * mean * mean * x * complementaryCDF(x - 2)
+        val term3 = 3 * mean * x * (x + 1) * complementaryCDF(x - 1)
+        val term4 = x * (x + 1) * (x + 2) * complementaryCDF(x)
+        return (term1 - term2 + term3 - term4) / 3.0
+    }
+
+    override fun invCDF(p: Double): Double {
+        require(!(p < 0.0 || p > 1.0)) { "Supplied probability was $p Probability must be [0,1]" }
+        if (p <= 0.0) {
+            return 0.0
+        }
+        return if (p >= 1.0) {
+            Double.POSITIVE_INFINITY
+        } else poissonInvCDF(p, mean, useRecursiveAlgorithm).toDouble()
+    }
+
+    fun pmf(x: Int): Double {
+        return poissonPMF(x, mean, useRecursiveAlgorithm)
+    }
+
+    /**
+     * If x is not and integer value, then the probability must be zero
+     * otherwise pmf(int x) is used to determine the probability
+     *
+     * @param x the value to evaluate
+     * @return the probability at the point
+     */
+    override fun pmf(x: Double): Double {
+        return if (floor(x) == x) {
+            pmf(x.toInt())
+        } else {
+            0.0
+        }
+    }
+
+    /**
+     * Sets the parameters for the distribution
+     * parameters[0] should be the mean rate
+     *
+     * @param params an array of doubles representing the parameters for
+     * the distribution
+     */
+    override fun parameters(params: DoubleArray) {
+        mean = params[0]
+    }
+
+    /**
+     * Gets the parameters for the distribution
+     *
+     * @return Returns an array of the parameters for the distribution
+     */
+    override fun parameters(): DoubleArray {
+        return doubleArrayOf(mean)
+    }
+
+    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
+        return PoissonRV(mean, stream)
+    }
+
     companion object {
         /** Used in the calculation of the incomplete gamma function
          *
@@ -15,7 +197,7 @@ class Poisson {
          *  @return true if the moment can be matched, false otherwise
          */
         fun canMatchMoments(vararg moments: Double): Boolean {
-            require(moments.size >= 1) { "Must provide a mean." }
+            require(moments.isNotEmpty()) { "Must provide a mean." }
             val mean = moments[0]
             return mean > 0
         }
@@ -24,15 +206,15 @@ class Poisson {
          * @param moments the moments to check
          * @return an array holding the moments
          */
-        fun getParametersFromMoments(vararg moments: Double): DoubleArray {
+        fun parametersFromMoments(vararg moments: Double): DoubleArray {
             require(canMatchMoments(*moments)) { "Mean must be positive. You provided " + moments[0] + "." }
             return doubleArrayOf(moments[0])
         }
 
-//        fun createFromMoments(vararg moments: Double): Poisson? {
-//            val prob = getParametersFromMoments(*moments)
-//            return Poisson(prob)
-//        }
+        fun createFromMoments(vararg moments: Double): Poisson {
+            val prob = parametersFromMoments(*moments)
+            return Poisson(prob)
+        }
 
         /**
          * Computes the probability mass function at j using a
@@ -100,26 +282,13 @@ class Poisson {
         /**
          * Allows static computation of prob mass function
          * assumes that distribution's range is {0,1, ...}
-         * Uses the recursive logarithmic algorithm
-         *
-         * @param j    value for which prob is needed
-         * @param mean of the distribution
-         * @return the PMF value
-         */
-        fun poissonPMF(j: Int, mean: Double): Double {
-            return poissonPMF(j, mean, true)
-        }
-
-        /**
-         * Allows static computation of prob mass function
-         * assumes that distribution's range is {0,1, ...}
          *
          * @param j         value for which prob is needed
          * @param mean      of the distribution
          * @param recursive true indicates that the recursive logarithmic algorithm should be used
          * @return the PMF value
          */
-        fun poissonPMF(j: Int, mean: Double, recursive: Boolean): Double {
+        fun poissonPMF(j: Int, mean: Double, recursive: Boolean = true): Double {
             require(mean > 0.0) { "Mean must be > 0)" }
             if (j < 0) {
                 return 0.0
@@ -144,19 +313,6 @@ class Poisson {
         /**
          * Allows static computation of cdf
          * assumes that distribution's range is {0,1, ...}
-         * Uses the recursive logarithmic algorithm
-         *
-         * @param j    value for which prob is needed
-         * @param mean of the distribution
-         * @return the cdf value
-         */
-        fun poissonCDF(j: Int, mean: Double): Double {
-            return poissonPMF(j, mean, true)
-        }
-
-        /**
-         * Allows static computation of cdf
-         * assumes that distribution's range is {0,1, ...}
          * false indicated the use of the incomplete gamma function
          * It yields about 7 digits of accuracy, the recursive
          * algorithm has more accuracy
@@ -166,7 +322,7 @@ class Poisson {
          * @param recursive true indicates that the recursive logarithmic algorithm should be used
          * @return the cdf value
          */
-        fun poissonCDF(j: Int, mean: Double, recursive: Boolean): Double {
+        fun poissonCDF(j: Int, mean: Double, recursive: Boolean = true): Double {
             require(mean > 0.0) { "Mean must be > 0)" }
             if (j < 0) {
                 return 0.0
@@ -182,26 +338,13 @@ class Poisson {
         /**
          * Allows static computation of complementary cdf function
          * assumes that distribution's range is {0,1, ...}
-         * Uses the recursive logarithmic algorithm
-         *
-         * @param j    value for which ccdf is needed
-         * @param mean of the distribution
-         * @return the complimentary CDF value
-         */
-        fun poissonCCDF(j: Int, mean: Double): Double {
-            return poissonCCDF(j, mean, true)
-        }
-
-        /**
-         * Allows static computation of complementary cdf function
-         * assumes that distribution's range is {0,1, ...}
          *
          * @param j         value for which ccdf is needed
          * @param mean      of the distribution
          * @param recursive true indicates that the recursive logarithmic algorithm should be used
          * @return the complimentary CDF value
          */
-        fun poissonCCDF(j: Int, mean: Double, recursive: Boolean): Double {
+        fun poissonCCDF(j: Int, mean: Double, recursive: Boolean = true): Double {
             require(mean > 0.0) { "Mean must be > 0)" }
             return if (j < 0) {
                 1.0
@@ -217,7 +360,7 @@ class Poisson {
          * @param recursive true indicates that the recursive logarithmic algorithm should be used
          * @return The loss function value, E[max(X-x,0)]
          */
-        fun poissonLF1(x: Double, mean: Double, recursive: Boolean): Double {
+        fun poissonLF1(x: Double, mean: Double, recursive: Boolean = true): Double {
             require(mean > 0.0) { "Mean must be > 0)" }
             return if (x < 0.0) {
                 floor(abs(x)) + mean
@@ -241,7 +384,7 @@ class Poisson {
          * @param recursive true indicates that the recursive logarithmic algorithm should be used
          * @return The loss function value, (1/2)E[max(X-x,0)*max(X-x-1,0)]
          */
-        fun poissonLF2(x: Double, mean: Double, recursive: Boolean): Double {
+        fun poissonLF2(x: Double, mean: Double, recursive: Boolean = true): Double {
             require(mean > 0.0) { "Mean must be > 0)" }
             val sbm = 0.5 * (mean * mean) // 1/2 the 2nd binomial moment
             return if (x < 0.0) {
@@ -265,26 +408,13 @@ class Poisson {
         /**
          * Returns the quantile associated with the supplied probablity, x
          * assumes that distribution's range is {0,1, ...}
-         * Uses the recursive logarithmic algorithm
-         *
-         * @param p    The probability that the quantile is needed for
-         * @param mean of the distribution
-         * @return the quantile associated with the supplied probablity
-         */
-        fun poissonInvCDF(p: Double, mean: Double): Int {
-            return poissonInvCDF(p, mean, true)
-        }
-
-        /**
-         * Returns the quantile associated with the supplied probablity, x
-         * assumes that distribution's range is {0,1, ...}
          *
          * @param p         The probability that the quantile is needed for
          * @param mean      of the distribution
          * @param recursive true indicates that the recursive logarithmic algorithm should be used
          * @return the quantile associated with the supplied probablity
          */
-        fun poissonInvCDF(p: Double, mean: Double, recursive: Boolean): Int {
+        fun poissonInvCDF(p: Double, mean: Double, recursive: Boolean = true): Int {
             require(mean > 0.0) { "Mean must be > 0)" }
             require(!(p < 0.0 || p > 1.0)) { "Supplied probability was $p Probability must be [0,1]" }
             if (p <= 0.0) {
@@ -320,7 +450,7 @@ class Poisson {
          */
         private fun searchUpCDF(
             p: Double, mean: Double,
-            start: Int, cdfAtStart: Double, recursive: Boolean
+            start: Int, cdfAtStart: Double, recursive: Boolean = true
         ): Int {
             var i = start
             var cdf = cdfAtStart
@@ -341,7 +471,7 @@ class Poisson {
          */
         private fun searchDownCDF(
             p: Double, mean: Double,
-            start: Int, cdfAtStart: Double, recursive: Boolean
+            start: Int, cdfAtStart: Double, recursive: Boolean = true
         ): Int {
             var i = start
             var cdfi = cdfAtStart
@@ -381,4 +511,6 @@ class Poisson {
         }
 
     }
+
+
 }
