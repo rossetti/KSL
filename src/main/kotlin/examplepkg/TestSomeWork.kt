@@ -3,22 +3,40 @@ package examplepkg
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
-import ksl.utilities.io.OutputDirectory
 import ksl.utilities.random.permute
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.DUniformRV
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.statistic.Statistic
 
-fun main(){
+fun main() {
+    testStatistics()
+}
 
+public fun testStatistics() {
+    val rv = ExponentialRV(10.0)
+    val sample = rv.sample(100)
+    val s = Statistic()
+    for (x in sample) {
+//        s.collect(x > 8.0)
+        s.collect(x)
+    }
+    println(s)
+    println(s.statisticData())
+    println()
+    println(s.summaryStatisticsHeader)
+    println(s.summaryStatistics)
+}
+
+public fun testSomeThings() {
     val a: DoubleArray = DoubleArray(0)
-    a.forEach {println(it)}
-    val b : Array<Double> = a.toTypedArray()
-    b.forEach {println(it)}
+    a.forEach { println(it) }
+    val b: Array<Double> = a.toTypedArray()
+    b.forEach { println(it) }
 
     val rv = ExponentialRV(10.0)
 
-    for(i in 1..10){
+    for (i in 1..10) {
         println(rv.value)
     }
     println(rv.previous)
@@ -28,7 +46,7 @@ fun main(){
     val r: IntRange = 1..20
 
     val du = DUniformRV(r)
-    for(i in 1..10){
+    for (i in 1..10) {
         println(du.value)
     }
 
@@ -59,8 +77,8 @@ fun main(){
 
     var nr = KSLArrays.copy2DArray(ar)
 
-    for (array in nr){
-        for (value in array){
+    for (array in nr) {
+        for (value in array) {
             print("$value ")
         }
         println()
@@ -68,8 +86,8 @@ fun main(){
 
     KSL.out.println("This is some stuff!")
 
-    for (array in nr){
-        for (value in array){
+    for (array in nr) {
+        for (value in array) {
             KSL.out.print("$value ")
         }
         KSL.out.println()
@@ -82,6 +100,7 @@ fun main(){
     KSL.logger.debug { "Some debug message" }
     KSL.logger.error { "Some error message" }
 
-    KSLFileUtil.logger.error{ "error to report"}
-    KSLFileUtil.logger.info{ "info to report"}
+    KSLFileUtil.logger.error { "error to report" }
+    KSLFileUtil.logger.info { "info to report" }
+
 }

@@ -22,10 +22,10 @@ interface NameIfc {
      *
      * @return a string representing the name of the object
      */
-    val name: String?
+    val name: String
 }
 
-open class Name(override val name: String?) : NameIfc
+open class Name(override val name: String = "defaultName") : NameIfc
 
 /** An interface to defining the identity of an object in terms
  * of a name and a number
@@ -51,7 +51,7 @@ open class Identity(aName: String? = null) : IdentityIfc, NameIfc {
 
     override val id: Int = ++IDCounter
 
-    override val name: String = aName ?: (this::class.simpleName + "_" + id)
+    override val name: String = aName ?: ("ID_$id")
     override var label: String? = null
 
     override fun toString(): String {
