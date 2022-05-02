@@ -49,12 +49,12 @@ abstract class AbstractStatistic(name: String? = null) : Collector(name), Statis
     override var numberMissing = 0.0
         protected set
 
-    override fun collect(value: Double) {
-        if (value.isMissing()) {
+    override fun collect(obs: Double) {
+        if (obs.isMissing()) {
             numberMissing++
             return
         }
-        super.collect(value)
+        super.collect(obs)
     }
 
     override fun reset() {

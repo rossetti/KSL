@@ -131,6 +131,9 @@ interface StatisticIfc : GetCSVStatisticIfc {
     val halfWidth: Double
         get() = halfWidth(confidenceLevel)
 
+    /**
+     * @return the width of the default confidence interval
+     */
     val width: Double
         get() = width(confidenceLevel)
 
@@ -145,6 +148,10 @@ interface StatisticIfc : GetCSVStatisticIfc {
      */
     fun halfWidth(level: Double): Double
 
+    /**
+     * @param  level the confidence level
+     * @return the width of the confidence interval
+     */
     fun width(level: Double): Double {
         return 2.0 * halfWidth(level)
     }
@@ -281,7 +288,7 @@ interface StatisticIfc : GetCSVStatisticIfc {
 
     fun statisticData(): StatisticData {
         return StatisticData(
-            name?.toString() ?: "NA",
+            name ?: "NA",
             count,
             average,
             standardDeviation,
@@ -388,7 +395,7 @@ interface StatisticIfc : GetCSVStatisticIfc {
             if (name == null) {
                 sb.append("NA")
             } else {
-                sb.append(name!!)
+                sb.append(name)
             }
             sb.append(",")
             val stats = asArray

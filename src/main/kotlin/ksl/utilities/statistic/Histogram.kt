@@ -15,7 +15,12 @@
  */
 package ksl.utilities.statistic
 
+import ksl.utilities.KSLArrays
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ExponentialRV
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.pow
 
 
 /**
@@ -58,23 +63,25 @@ import ksl.utilities.random.rvariable.ExponentialRV
  * @param breakPoints the break points for the histogram, must be strictly increasing
  * @param name an optional name for the histogram
  */
-class HistogramB(breakPoints: DoubleArray, name: String? = null) : AbstractStatistic(name),
+class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatistic(name),
     HistogramIfc {
 
     /**
      * holds the binned data
      */
-    private val myBins: List<HistogramBin> = HistogramIfc.makeBins(breakPoints)
+    private val myBins: List<HistogramBin> = makeBins(breakPoints)
 
     /**
      * Lower limit of first histogram bin.
      */
-    override val firstBinLowerLimit: Double = myBins[0].lowerLimit
+    override val firstBinLowerLimit: Double
+        get() = myBins[0].lowerLimit
 
     /**
      * Upper limit of last histogram bin.
      */
-    override val lastBinUpperLimit: Double = myBins[myBins.size - 1].upperLimit
+    override val lastBinUpperLimit: Double
+        get() = myBins[myBins.size - 1].upperLimit
 
     /**
      * Counts of values located below first bin.
@@ -93,7 +100,8 @@ class HistogramB(breakPoints: DoubleArray, name: String? = null) : AbstractStati
      */
     private val myStatistic: Statistic = Statistic("$name Histogram")
 
-    override val totalCount: Double = myStatistic.count + overFlowCount + underFlowCount
+    override val totalCount: Double
+        get() = myStatistic.count + overFlowCount + underFlowCount
 
     override val count: Double
         get() = myStatistic.count()
@@ -130,20 +138,20 @@ class HistogramB(breakPoints: DoubleArray, name: String? = null) : AbstractStati
         return myStatistic.leadingDigitRule(multiplier)
     }
 
-    override fun collect(value: Double) {
-        if (value.isMissing()) {
+    override fun collect(observation: Double) {
+        if (observation.isMissing()) {
             numberMissing++
             return
         }
-        if (value < firstBinLowerLimit) {
+        if (observation < firstBinLowerLimit) {
             underFlowCount++
-        } else if (value >= lastBinUpperLimit) {
+        } else if (observation >= lastBinUpperLimit) {
             overFlowCount++
         } else {
-            val bin = findBin(value)
+            val bin = findBin(observation)
             bin.increment()
             // collect statistics on only binned observations
-            myStatistic.collect(value)
+            myStatistic.collect(observation)
         }
     }
 
@@ -341,24 +349,184 @@ class HistogramB(breakPoints: DoubleArray, name: String? = null) : AbstractStati
         return sb.toString()
     }
 
-//    /**
-//     * Returns the observation weighted sum of the data i.e. sum = sum + j*x
-//     * where j is the observation number and x is jth observation
-//     *
-//     * @return the observation weighted sum of the data
-//     */
-//    fun getObsWeightedSum(): Double {
-//        return myStatistic.obsWeightedSum
-//    }
 
+    companion object {
+        /**
+         * Create a histogram with lower limit set to zero
+         *
+         * @param upperLimit the upper limit of the last bin, cannot be positive infinity
+         * @param numBins    the number of bins to create, must be greater than 0
+         * @return the histogram
+         */
+        fun create(upperLimit: Double, numBins: Int): HistogramIfc {
+            return create(0.0, upperLimit, numBins, null)
+        }
+
+        /**
+         * Create a histogram
+         *
+         * @param lowerLimit lower limit of first bin, cannot be negative infinity
+         * @param upperLimit the upper limit of the last bin, cannot be positive infinity
+         * @param numBins    the number of bins to create, must be greater than 0
+         * @return the histogram
+         */
+        fun create(lowerLimit: Double, upperLimit: Double, numBins: Int): HistogramIfc {
+            return create(lowerLimit, upperLimit, numBins, null)
+        }
+
+        /**
+         * Create a histogram with the given name based on the provided values
+         *
+         * @param lowerLimit lower limit of first bin, cannot be negative infinity
+         * @param upperLimit the upper limit of the last bin, cannot be positive infinity
+         * @param numBins    the number of bins to create, must be greater than zero
+         * @param name       the name of the histogram
+         * @return the histogram
+         */
+        fun create(lowerLimit: Double, upperLimit: Double, numBins: Int, name: String?): HistogramIfc {
+            return Histogram(createBreakPoints(lowerLimit, upperLimit, numBins))
+        }
+
+        /**
+         * @param numBins    the number of bins to make, must be greater than zero
+         * @param lowerLimit the lower limit of the first bin, cannot be negative infinity
+         * @param width      the width of each bin, must be greater than zero
+         * @return the created histogram
+         */
+        fun create(lowerLimit: Double, numBins: Int, width: Double): HistogramIfc {
+            return Histogram(createBreakPoints(lowerLimit, numBins, width))
+        }
+
+        /**
+         * Divides the range equally across the number of bins.
+         *
+         * @param lowerLimit lower limit of first bin, cannot be negative infinity
+         * @param upperLimit the upper limit of the last bin, cannot be positive infinity
+         * @param numBins    the number of bins to create, must be greater than zero
+         * @return the break points
+         */
+        fun createBreakPoints(lowerLimit: Double, upperLimit: Double, numBins: Int): DoubleArray {
+            require(!lowerLimit.isInfinite()) { "The lower limit of the range cannot be infinite." }
+            require(!upperLimit.isInfinite()) { "The upper limit of the range cannot be infinite." }
+            require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit of the range" }
+            require(numBins > 0) { "The number of bins must be > 0" }
+            val binWidth = KSLMath.roundToScale((upperLimit - lowerLimit) / numBins, false)
+            return createBreakPoints(lowerLimit, numBins, binWidth)
+        }
+
+        /**
+         * @param numBins    the number of bins to make, must be greater than 0
+         * @param lowerLimit the lower limit of the first bin, cannot be negative infinity
+         * @param width      the width of each bin, must be greater than 0
+         * @return the constructed break points
+         */
+        fun createBreakPoints(lowerLimit: Double, numBins: Int, width: Double): DoubleArray {
+            require(!lowerLimit.isInfinite()) { "The lower limit of the range cannot be infinite." }
+            require(numBins > 0) { "The number of bins must be > 0" }
+            require(width > 0) { "The width of the bins must be > 0" }
+            val points = DoubleArray(numBins + 1)
+            points[0] = lowerLimit
+            for (i in 1 until points.size) {
+                points[i] = points[i - 1] + width
+            }
+            return points
+        }
+
+        /**
+         * @param breakPoints the break points w/o negative infinity
+         * @return the break points with Double.NEGATIVE_INFINITY as the first break point
+         */
+        fun addNegativeInfinity(breakPoints: DoubleArray): DoubleArray {
+            require(breakPoints.isNotEmpty()) { "The break points array was empty" }
+            val b = DoubleArray(breakPoints.size + 1)
+            System.arraycopy(breakPoints, 0, b, 1, breakPoints.size)
+            b[0] = kotlin.Double.NEGATIVE_INFINITY
+            return b
+        }
+
+        /**
+         * @param breakPoints the break points w/o positive infinity
+         * @return the break points with Double.POSITIVE_INFINITY as the last break point
+         */
+        fun addPositiveInfinity(breakPoints: DoubleArray): DoubleArray {
+            require(breakPoints.isNotEmpty()) { "The break points array was empty" }
+            val b = breakPoints.copyOf(breakPoints.size + 1)
+            b[b.size - 1] = Double.POSITIVE_INFINITY
+            return b
+        }
+
+        /**
+         * http://www.fmrib.ox.ac.uk/analysis/techrep/tr00mj2/tr00mj2/node24.html
+         *
+         * @param observations observations for a histogram
+         * @return a set of break points based on some theory
+         */
+        fun recommendBreakPoints(observations: DoubleArray): DoubleArray {
+            require(observations.isNotEmpty()) { "The supplied observations array was empty" }
+            if (observations.size == 1) {
+                // use the sole observation
+                val b = DoubleArray(1)
+                b[0] = floor(observations[0])
+                return b
+            }
+            // 2 or more observations
+            val statistic = Statistic(observations)
+            val LL = statistic.min
+            val UL = statistic.max
+            if (KSLMath.equal(LL, UL)) {
+                // essentially the same, go back to 1 observation
+                val b = DoubleArray(1)
+                b[0] = floor(LL)
+                return b
+            }
+            // more than 2 and some spread
+            // try to approximate a reasonable number of bins from the observations
+            // first determine a reasonable bin width
+            val s = statistic.standardDeviation
+            val n = statistic.count
+            // http://www.fmrib.ox.ac.uk/analysis/techrep/tr00mj2/tr00mj2/node24.html
+            //double iqr = 1.35*s;
+            // use the more "optimal" estimate
+            val width = 3.49 * s * n.pow(-1.0 / 3.0)
+            // round the width to a reasonable scale
+            val binWidth = KSLMath.roundToScale(width, false)
+            // now compute a number of bins for this width
+            val nb = (ceil(UL) - floor(LL)) / binWidth
+            val numBins = ceil(nb).toInt()
+            return createBreakPoints(floor(LL), numBins, binWidth)
+        }
+
+        /** Creates a list of ordered bins for use in a histogram
+         *
+         * @param breakPoints the break points
+         * @return the list of histogram bins
+         */
+        fun makeBins(breakPoints: DoubleArray): List<HistogramBin> {
+            require(KSLArrays.isStrictlyIncreasing(breakPoints)) { "The break points were not strictly increasing." }
+            val binList: MutableList<HistogramBin> = ArrayList()
+            // case of 1 break point must be handled
+            if (breakPoints.size == 1) {
+                // two bins, 1 below and 1 above
+                binList.add(HistogramBin(1, Double.NEGATIVE_INFINITY, breakPoints[0]))
+                binList.add(HistogramBin(2, breakPoints[0], Double.POSITIVE_INFINITY))
+                return binList
+            }
+
+            // two or more break points
+            for (i in 1 until breakPoints.size) {
+                binList.add(HistogramBin(i, breakPoints[i - 1], breakPoints[i]))
+            }
+            return binList
+        }
+    }
 
 }
 
 fun main() {
     val d = ExponentialRV(2.0)
-    val points = HistogramIfc.createBreakPoints(0.0, 10, 0.25)
-    val h1: HistogramIfc = HistogramB(points)
-    val h2: HistogramIfc = HistogramB(HistogramIfc.addPositiveInfinity(points))
+    val points = Histogram.createBreakPoints(0.0, 10, 0.25)
+    val h1: HistogramIfc = Histogram(points)
+    val h2: HistogramIfc = Histogram(Histogram.addPositiveInfinity(points))
     for (i in 1..100) {
         val x = d.value
         h1.collect(x)

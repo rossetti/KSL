@@ -1,11 +1,11 @@
 package ksl.utilities.io
 
-import java.nio.file.Paths
+import ksl.utilities.toCSVString
 import mu.KLoggable
-import kotlin.Throws
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.*
 
 /**
@@ -441,13 +441,13 @@ object KSLFileUtil : KLoggable {
      * Makes a String that has the form name.ext
      * If an extension already exists it is replaced.
      *
-     * @param name the name
-     * @param ext  the extension
+     * @param theName the name
+     * @param theFileExtension  the extension
      * @return the String
      */
-    fun createFileName(name: String?, ext: String?): String {
-        var name = name
-        var ext = ext
+    fun createFileName(theName: String?, theFileExtension: String?): String {
+        var name = theName
+        var ext = theFileExtension
         if (name == null) {
             myFileCounter_ = myFileCounter_ + 1
             name = "Temp" + myFileCounter_
@@ -492,7 +492,7 @@ object KSLFileUtil : KLoggable {
         if (!destinationDirectory.exists()) {
             destinationDirectory.mkdir()
         }
-        for (f in sourceDirectory.list()) {
+        for (f in sourceDirectory.list()!!) {
             copyDirectory(File(sourceDirectory, f), File(destinationDirectory, f))
         }
     }
@@ -525,14 +525,110 @@ object KSLFileUtil : KLoggable {
 
     @Throws(IOException::class)
     private fun copyFile(sourceFile: File, destinationFile: File) {
-        FileInputStream(sourceFile).use { `in` ->
+        FileInputStream(sourceFile).use { inStream ->
             FileOutputStream(destinationFile).use { out ->
                 val buf = ByteArray(1024)
                 var length: Int
-                while (`in`.read(buf).also { length = it } > 0) {
+                while (inStream.read(buf).also { length = it } > 0) {
                     out.write(buf, 0, length)
                 }
             }
         }
     }
+
+    /**
+     * Writes the data in the array to rows in the file, each row with one data point
+     *
+     * @param array    the array to write, must not be null
+     * @param fileName the name of the file, must not be null, file will appear in JSL.getInstance().getOutDir()
+     */
+    fun writeToFile(array: DoubleArray, fileName: String) {
+        val pathToFile = KSL.outDir.resolve(fileName)
+        writeToFile(array, pathToFile)
+    }
+
+    /**
+     * Writes the data in the array to rows in the file, each row with one data point
+     *
+     * @param array      the array to write, must not be null
+     * @param pathToFile the path to the file, must not be null
+     */
+    fun writeToFile(array: DoubleArray, pathToFile: Path) {
+        val out = createPrintWriter(pathToFile)
+        write(array, out)
+    }
+
+    /**  Allows writing directly to a known PrintWriter.  Facilitates writing
+     * to the file before or after the array is written
+     *
+     * @param array the array to write, must not be null
+     * @param out the PrintWriter to write to, must not be null
+     */
+    fun write(array: DoubleArray, out: PrintWriter) {
+        for (x in array) {
+            out.println(x)
+        }
+        out.flush()
+    }
+
+    /**
+     * Writes the data in the array to rows in the file, each element in a row is
+     * separated by a comma
+     *
+     * @param array    the array to write, must not be null
+     * @param fileName the name of the file, must not be null, file will appear in JSL.getInstance().getOutDir()
+     */
+    fun writeToFile(array: Array<DoubleArray>, fileName: String) {
+        val pathToFile = KSL.outDir.resolve(fileName)
+        writeToFile(array, pathToFile)
+    }
+
+    /**
+     * Writes the data in the array to rows in the file, each element in a row is
+     * separated by a comma
+     *
+     * @param array      the array to write, must not be null
+     * @param pathToFile the path to the file, must not be null
+     */
+    fun writeToFile(array: Array<DoubleArray>, pathToFile: Path) {
+        val out = createPrintWriter(pathToFile)
+        write(array, out)
+    }
+
+    /**  Allows writing directly to a known PrintWriter.  Facilitates writing
+     * to the file before or after the array is written
+     *
+     * @param array the array to write, must not be null
+     * @param out the PrintWriter to write to, must not be null
+     */
+    fun write(array: Array<DoubleArray>, out: PrintWriter) {
+        for (doubles in array) {
+            out.println(doubles.toCSVString())
+        }
+        out.flush()
+    }
+}
+
+fun Array<DoubleArray>.write(out: PrintWriter) {
+    KSLFileUtil.write(this, out)
+}
+
+fun Array<DoubleArray>.writeToFile(pathToFile: Path) {
+    KSLFileUtil.writeToFile(this, pathToFile)
+}
+
+fun Array<DoubleArray>.writeToFile(fileName: String) {
+    KSLFileUtil.writeToFile(this, fileName)
+}
+
+fun DoubleArray.write(out: PrintWriter) {
+    KSLFileUtil.write(this, out)
+}
+
+fun DoubleArray.writeToFile(pathToFile: Path) {
+    KSLFileUtil.writeToFile(this, pathToFile)
+}
+
+fun DoubleArray.writeToFile(fileName: String) {
+    KSLFileUtil.writeToFile(this, fileName)
 }

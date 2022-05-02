@@ -2,13 +2,11 @@ package ksl.utilities.statistic
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.observers.DoubleValueChanged
-import ksl.utilities.observers.DoubleValueChangedIfc
-import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableIfc
+import ksl.utilities.observers.*
 
-abstract class Collector(name: String? = null) : CollectorIfc, IdentityIfc by Identity(name), ObservableIfc<Double> by Observable(),
-    DoubleValueChangedIfc by DoubleValueChanged() {
+abstract class Collector(name: String? = null) : CollectorIfc, IdentityIfc by Identity(name),
+    ObservableIfc<Double> by Observable(),
+    DoubleChangedIfc by DoubleChanged() {
 
     var lastValue = Double.NaN
         protected set
@@ -19,10 +17,10 @@ abstract class Collector(name: String? = null) : CollectorIfc, IdentityIfc by Id
             collect(value)
         }
 
-    override fun collect(value: Double) {
-        lastValue = value
-        notifyObservers(this, value)
-        doubleValueChangedSignal.emit(value)
+    override fun collect(obs: Double) {
+        lastValue = obs
+        notifyObservers(this, lastValue)
+        changedSignal.emit(lastValue)
     }
 
     override fun reset() {

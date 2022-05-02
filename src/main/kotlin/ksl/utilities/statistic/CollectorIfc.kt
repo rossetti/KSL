@@ -31,7 +31,7 @@ interface CollectorIfc {
     /**
      * The last value collected
      */
-    var value : Double
+    var value: Double
 
     /**
      * Collects on the values returned by the supplied GetValueIfc
@@ -45,26 +45,26 @@ interface CollectorIfc {
     /**
      * Collects on the boolean value true = 1.0, false = 0.0
      *
-     * @param value the value to collect on
+     * @param obs the observation to collect on
      */
-    fun collect(value: Boolean) {
-        collect(value.toDouble())
+    fun collect(obs: Boolean) {
+        collect(obs.toDouble())
     }
 
     /**
      * Collect on the supplied value
      *
-     * @param value a double representing the observation
+     * @param obs a double representing the observation
      */
-    fun collect(value: Double)
+    fun collect(obs: Double)
 
     /**
      * Collects on the values in the supplied array.
      *
-     * @param values the values, must not be null
+     * @param observations the values, must not be null
      */
-    fun collect(values: DoubleArray) {
-        for (v in values) {
+    fun collect(observations: DoubleArray) {
+        for (v in observations) {
             collect(v)
         }
     }

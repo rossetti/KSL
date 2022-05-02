@@ -7,6 +7,7 @@ import ksl.utilities.random.permute
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.DUniformRV
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.statistic.DoubleArraySaver
 import ksl.utilities.statistic.Statistic
 
 fun main() {
@@ -17,6 +18,8 @@ public fun testStatistics() {
     val rv = ExponentialRV(10.0)
     val sample = rv.sample(100)
     val s = Statistic()
+    val saver = DoubleArraySaver()
+    s.attach(saver)
     for (x in sample) {
 //        s.collect(x > 8.0)
         s.collect(x)
@@ -26,6 +29,8 @@ public fun testStatistics() {
     println()
     println(s.summaryStatisticsHeader)
     println(s.summaryStatistics)
+
+    saver.write(KSL.out)
 }
 
 public fun testSomeThings() {

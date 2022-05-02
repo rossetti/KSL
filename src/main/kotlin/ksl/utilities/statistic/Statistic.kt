@@ -30,7 +30,8 @@ private var StatCounter: Int = 0
  * @param name an optional String representing the name of the statistic
  * @param values an optional array of values to collect on
  */
-open class Statistic (name: String = "Statistic_${++StatCounter}", values: DoubleArray? = null) : AbstractStatistic(name) {
+open class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray? = null) :
+    AbstractStatistic(name) {
 
     init {
         values?.let { collect(it) }
@@ -113,11 +114,11 @@ open class Statistic (name: String = "Statistic_${++StatCounter}", values: Doubl
      *
      * @return a copy of the supplied Statistic
      */
-    fun newInstance(): Statistic {
+    fun instance(): Statistic {
         val s = Statistic(name)
         s.numberMissing = numberMissing
         s.myFirstX = myFirstX
-        s.myMax= myMax
+        s.myMax = myMax
         s.myMin = myMin
         s.confidenceLevel = confidenceLevel
         s.myJsum = myJsum
@@ -299,8 +300,8 @@ open class Statistic (name: String = "Statistic_${++StatCounter}", values: Doubl
         } else standardDeviation / Math.sqrt(myMoments[0])
     }
 
-    override fun leadingDigitRule(a: Double): Int {
-        return Math.floor(Math.log10(a * standardError)).toInt()
+    override fun leadingDigitRule(multiplier: Double): Int {
+        return Math.floor(Math.log10(multiplier * standardError)).toInt()
     }
 
     fun lag1Covariance(): Double {
@@ -323,7 +324,8 @@ open class Statistic (name: String = "Statistic_${++StatCounter}", values: Doubl
     fun vonNeumannLag1TestStatistic(): Double {
         return if (myNum > 2.0) {
             val r1 = lag1Correlation
-            val t = (myFirstX - myMoments[1]) * (myFirstX - myMoments[1]) + (myValue - myMoments[1]) * (myValue - myMoments[1])
+            val t =
+                (myFirstX - myMoments[1]) * (myFirstX - myMoments[1]) + (myValue - myMoments[1]) * (myValue - myMoments[1])
             val b = 2.0 * myNum * myMoments[2]
             val v = Math.sqrt((myNum * myNum - 1.0) / (myNum - 2.0)) * (r1 + t / b)
             v
@@ -345,15 +347,15 @@ open class Statistic (name: String = "Statistic_${++StatCounter}", values: Doubl
     val obsWeightedSum: Double
         get() = myJsum
 
-    override fun collect(x: Double) {
-        super.collect(x)
+    override fun collect(obs: Double) {
+        super.collect(obs)
         // update moments
         myNum = myNum + 1
-        myJsum = myJsum + myNum * x
+        myJsum = myJsum + myNum * obs
         val n = myMoments[0]
         val n1 = n + 1.0
         val n2 = n * n
-        val delta = (myMoments[1] - x) / n1
+        val delta = (myMoments[1] - obs) / n1
         val d2 = delta * delta
         val d3 = delta * d2
         val r1 = n / n1
@@ -368,23 +370,23 @@ open class Statistic (name: String = "Statistic_${++StatCounter}", values: Doubl
 
         // to collect lag 1 cov, we need x(1)
         if (myNum == 1.0) {
-            myFirstX = x
+            myFirstX = obs
         }
 
         // to collect lag 1 cov, we must provide new x and previous x
         // to collect lag 1 cov, we must sum x(i) and x(i+1)
         if (myNum >= 2.0) {
-            mySumXX = mySumXX + x * myValue
+            mySumXX = mySumXX + obs * myValue
         }
 
         // update min, max, current value
-        if (x > myMax) {
-            myMax = x
+        if (obs > myMax) {
+            myMax = obs
         }
-        if (x < myMin) {
-            myMin = x
+        if (obs < myMin) {
+            myMin = obs
         }
-        myValue = x
+        myValue = obs
     }
 
     override fun reset() {
@@ -415,71 +417,71 @@ open class Statistic (name: String = "Statistic_${++StatCounter}", values: Doubl
         val sb = StringBuilder()
         sb.append("ID ")
         sb.append(id)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Name ")
         sb.append(name)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Number ")
         sb.append(count)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Average ")
         sb.append(average)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Standard Deviation ")
         sb.append(standardDeviation)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Standard Error ")
         sb.append(standardError)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Half-width ")
         sb.append(halfWidth)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Confidence Level ")
         sb.append(confidenceLevel)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Confidence Interval ")
         sb.append(confidenceInterval)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Minimum ")
         sb.append(min)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Maximum ")
         sb.append(max)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Sum ")
         sb.append(sum)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Variance ")
         sb.append(variance)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Deviation Sum of Squares ")
         sb.append(deviationSumOfSquares)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Last value collected ")
         sb.append(lastValue)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
 //        sb.append(System.lineSeparator())
         sb.append("Kurtosis ")
         sb.append(kurtosis)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Skewness ")
         sb.append(skewness)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Lag 1 Covariance ")
         sb.append(lag1Covariance)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Lag 1 Correlation ")
         sb.append(lag1Correlation)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Von Neumann Lag 1 Test Statistic ")
         sb.append(vonNeumannLag1TestStatistic)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Number of missing observations ")
         sb.append(numberMissing)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Lead-Digit Rule(1) ")
         sb.append(leadingDigitRule(1.0))
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         return sb.toString()
     }
 

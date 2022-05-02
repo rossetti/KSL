@@ -2,6 +2,7 @@ package ksl.utilities
 
 //TODO remove java dependence
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.statistic.Statistic
 import java.io.FileNotFoundException
 import java.nio.file.Path
 import java.util.*
@@ -328,6 +329,25 @@ object KSLArrays {
     }
 
     /**
+     * Returns a new array that has been scaled so that the values are
+     * the (x - avg)/sd values of the supplied array
+     *
+     * @param array the array to scale, must not be null
+     * @return the scaled array
+     */
+    fun normScaledArray(array: DoubleArray): DoubleArray {
+        val s = Statistic(array)
+        val avg = s.average
+        val sd = s.standardDeviation
+        require(sd != 0.0) { "The array cannot be scaled because std dev == 0.0" }
+        val x = DoubleArray(array.size)
+        for (i in array.indices) {
+            x[i] = (array[i] - avg) / sd
+        }
+        return x
+    }
+
+    /**
      * Copies all but element index of array fromA into array toB
      * If fromA has 1 element, toB will be empty
      * @param index index of element to leave out, must be 0 to fromA.length-1
@@ -596,7 +616,7 @@ object KSLArrays {
      */
     fun column(k: Int, matrix: Array<DoubleArray>): DoubleArray {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
-        val column = DoubleArray(matrix[0].size) // Here I assume a rectangular 2D array!
+        val column = DoubleArray(matrix.size) // Here I assume a rectangular 2D array!
         for (i in column.indices) {
             column[i] = matrix[i][k]
         }
@@ -610,7 +630,7 @@ object KSLArrays {
      */
     fun column(k: Int, matrix: Array<IntArray>): IntArray {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
-        val column = IntArray(matrix[0].size) // Here I assume a rectangular 2D array!
+        val column = IntArray(matrix.size) // Here I assume a rectangular 2D array!
         for (i in column.indices) {
             column[i] = matrix[i][k]
         }
@@ -624,7 +644,7 @@ object KSLArrays {
      */
     fun column(k: Int, matrix: Array<LongArray>): LongArray {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
-        val column = LongArray(matrix[0].size) // Here I assume a rectangular 2D array!
+        val column = LongArray(matrix.size) // Here I assume a rectangular 2D array!
         for (i in column.indices) {
             column[i] = matrix[i][k]
         }
@@ -639,7 +659,7 @@ object KSLArrays {
     fun column(index: Int, matrix: Array<Array<Any>>): Array<Any?> {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
         //TODO can this be made generic
-        val column = arrayOfNulls<Any>(matrix[0].size) // Here I assume a rectangular 2D array!
+        val column = arrayOfNulls<Any>(matrix.size) // Here I assume a rectangular 2D array!
         for (i in column.indices) {
             column[i] = matrix[i][index]
         }
@@ -1697,6 +1717,17 @@ fun Array<String>.findIndex(element: String): Int {
  */
 fun DoubleArray.minMaxScaledArray(): DoubleArray {
     return KSLArrays.minMaxScaledArray(this)
+}
+
+/**
+ * Returns a new array that has been scaled so that the values are
+ * the (x - avg)/sd values of the supplied array
+ *
+ *
+ * @return the scaled array
+ */
+fun DoubleArray.normScaledArray(): DoubleArray {
+    return KSLArrays.normScaledArray(this)
 }
 
 /**

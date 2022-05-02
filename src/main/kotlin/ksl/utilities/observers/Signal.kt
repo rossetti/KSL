@@ -21,10 +21,18 @@ class Signal<TType> {
     }
 }
 
-interface DoubleValueChangedIfc {
-    val doubleValueChangedSignal : Signal<Double>
+interface DoubleChangedIfc {
+    val changedSignal : Signal<Double>
 }
 
-class DoubleValueChanged : DoubleValueChangedIfc {
-    override val doubleValueChangedSignal: Signal<Double> = Signal()
+class DoubleChanged : DoubleChangedIfc {
+    override val changedSignal: Signal<Double> = Signal()
+}
+
+interface DoublePairChangedIfc {
+    val changedSignal : Signal<Pair<Double, Double>>
+}
+
+class DoublePairChanged : DoublePairChangedIfc {
+    override val changedSignal: Signal<Pair<Double, Double>> = Signal()
 }
