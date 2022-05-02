@@ -15,15 +15,17 @@
  */
 package ksl.utilities.statistic
 
+import jsl.utilities.statistic.StateFrequency
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.DEmpiricalCDF
+import ksl.utilities.random.rvariable.DEmpiricalRV
 
 /**
  *
  * @param numStates the number of states to observe
  */
-class StateFrequency(numStates: Int) : IdentityIfc by Identity() {
+class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Identity(name) {
     private val myFreq: IntegerFrequency
     private val myTransCnts: Array<IntArray>
     private val myStates: MutableSet<State>
@@ -276,13 +278,6 @@ class StateFrequency(numStates: Int) : IdentityIfc by Identity() {
         return myFreq.createDEmpiricalCDF()
     }
 
-    /** Returns a sorted set containing the cells
-     *
-     * @return the sorted set of cells
-     */
-    val cells: List<IntegerFrequency.Cell>
-        get() = myFreq.cells()
-
     /**
      *
      * @return a Statistic over the observed integers mapped to the states
@@ -330,4 +325,15 @@ class StateFrequency(numStates: Int) : IdentityIfc by Identity() {
         return sb.toString()
     }
 
+}
+
+fun main(){
+    val rv = DEmpiricalRV(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(0.2, 0.7, 1.0))
+    val sf = StateFrequency(3)
+    val states = sf.states
+    for (i in 1..20000) {
+        val x: Int = rv.value().toInt()
+        sf.collect(states[x-1])
+    }
+    println(sf)
 }

@@ -30,12 +30,12 @@ private var StatCounter: Int = 0
  * @param name an optional String representing the name of the statistic
  * @param values an optional array of values to collect on
  */
-open class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray? = null) :
+class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray? = null) :
     AbstractStatistic(name) {
-
-    init {
-        values?.let { collect(it) }
-    }
+    /**
+     * Holds the first 4 statistical central moments
+     */
+    protected var myMoments: DoubleArray = DoubleArray(5)
 
     /**
      * Holds the number of observations observed
@@ -59,11 +59,6 @@ open class Statistic(name: String = "Statistic_${++StatCounter}", values: Double
     protected var myFirstX = 0.0
 
     /**
-     * Holds the first 4 statistical central moments
-     */
-    protected var myMoments: DoubleArray = DoubleArray(5)
-
-    /**
      * Holds sum = sum + j*x
      */
     protected var myJsum = 0.0
@@ -72,12 +67,20 @@ open class Statistic(name: String = "Statistic_${++StatCounter}", values: Double
 
     protected var myMax = Double.NEGATIVE_INFINITY
 
+    init {
+        if (values != null){
+            for(x in values){
+                collect(x)
+            }
+        }
+    }
+
     /**
-     * Creates a Statistic \based on the provided array
+     * Creates a Statistic based on the provided array
      *
      * @param values an array of values to collect statistics on
      */
-    constructor(values: DoubleArray) : this("Statistic_${++StatCounter}", values)
+    constructor(values: DoubleArray?) : this("Statistic_${++StatCounter}", values)
 
     override val count: Double
         get() = count()

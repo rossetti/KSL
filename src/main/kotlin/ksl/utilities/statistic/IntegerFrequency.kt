@@ -406,7 +406,7 @@ class IntegerFrequency(
      *
      * @return the sorted set of cells
      */
-    internal fun cells(): List<Cell> {
+    private fun cells(): List<Cell> {
         val list: MutableList<Cell> = ArrayList()
         // go through the integers from smallest observed to biggest
         for (i in min..max) {

@@ -1,0 +1,364 @@
+/*
+ * Copyright (c) 2018. Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+package ksl.utilities.statistic
+
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
+import ksl.utilities.math.KSLMath
+import kotlin.math.sqrt
+
+/** A counter to count the number of created to assign "unique" ids
+ */
+private var myIdCounter_: Int = 0
+
+/**
+ *
+ */
+class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc by Identity(name) {
+
+    // variables for collecting statistics
+    protected var avgx = 0.0
+    protected var avgy = 0.0
+    protected var varx = 0.0
+    protected var vary = 0.0
+    protected var sumxy = 0.0
+    protected var covxy = 0.0
+    protected var nxy = 0.0
+
+    fun instance(): StatisticXY {
+        val s = StatisticXY()
+        s.avgx = avgx
+        s.avgy = avgy
+        s.covxy = covxy
+        s.nxy = nxy
+        s.varx = varx
+        s.vary = vary
+        return s
+    }
+
+    val averageX: Double
+        get() = avgx
+    val sumX: Double
+        get() = avgx * count
+    val averageY: Double
+        get() = avgy
+    val sumY: Double
+        get() = avgy * count
+    val varianceX: Double
+        get() = varx
+    val varianceY: Double
+        get() = vary
+    val sumXY: Double
+        get() = sumxy
+    val sumXX: Double
+        get() = if (KSLMath.equal(count, 0.0)) {
+            Double.NaN
+        } else sumOfSquaredXX + sumX * averageX
+    val sumYY: Double
+        get() = if (KSLMath.equal(count, 0.0)) {
+            Double.NaN
+        } else sumOfSquaredYY + sumY * averageY
+    val sumOfSquaredXX: Double
+        get() = varx * count
+    val sumOfSquaredYY: Double
+        get() = vary * count
+    val sumOfSquaredXY: Double
+        get() = covxy * count
+    val sumSquaredErrorsRegression: Double
+        get() {
+            val t = sumOfSquaredXY
+            return t * t / sumOfSquaredXX
+        }
+    val sumOfSquaresErrorTotal: Double //TODO check this
+        get() = sumOfSquaredYY
+    val coeffOfDetermination: Double
+        get() = sumSquaredErrorsRegression / sumOfSquaredYY
+    val sumSquareErrorResiduals: Double
+        get() = sumOfSquaresErrorTotal - sumSquaredErrorsRegression
+    val mseOfResiduals: Double
+        get() {
+            val n = count - 2.0
+            return if (n <= 0.0) {
+                Double.NaN
+            } else sumSquareErrorResiduals / n
+        }
+    val slope: Double
+        get() = if (KSLMath.equal(sumOfSquaredXX, 0.0)) {
+            Double.NaN
+        } else sumOfSquaredXY / sumOfSquaredXX
+    val slopeStdError: Double
+        get() = sqrt(mseOfResiduals / sumOfSquaredXX)
+    val intercept: Double
+        get() = averageY - slope * averageX
+    val interceptStdError: Double
+        get() {
+            val n = count
+            val n2 = n - 2.0
+            if (n2 <= 0.0) {
+                return Double.NaN
+            }
+            val t1 = 1.0 / n + avgx * avgx / sumOfSquaredXX
+            val t2 = sumSquareErrorResiduals / n2
+            return sqrt(t1 * t2)
+        }
+    val adjustedRSq: Double
+        get() {
+            val n = count
+            val k = 1.0
+            val r2 = coeffOfDetermination
+            val d = n - 1.0 - k
+            return if (d <= 0.0) {
+                Double.NaN
+            } else ((n - 1.0) * r2 - k) / d
+        }
+    val covarianceXY: Double
+        get() = if (nxy > 1.0) {
+            covxy
+        } else {
+            Double.NaN
+        }
+    val count: Double
+        get() = nxy
+
+    // matches Pearson correlation
+    val correlationXY: Double
+        get() = if (nxy > 1.0) {
+            covxy / sqrt(varx * vary) // matches Pearson correlation
+        } else {
+            Double.NaN
+        }
+
+    fun reset() {
+        avgx = 0.0
+        avgy = 0.0
+        varx = 0.0
+        vary = 0.0
+        sumxy = 0.0
+        covxy = 0.0
+        nxy = 0.0
+    }
+
+    fun collectXY(x: Double, y: Double) {
+        // compute for n+1
+        val n1: Double = nxy + 1.0
+        val r1: Double = nxy / n1
+        val deltax = (avgx - x) / n1
+        val deltay = (avgy - y) / n1
+        sumxy = sumxy + x * y
+        covxy = r1 * covxy + nxy * deltax * deltay
+        avgx = avgx - deltax
+        avgy = avgy - deltay
+        varx = nxy * deltax * deltax + r1 * varx
+        vary = nxy * deltay * deltay + r1 * vary
+        nxy = nxy + 1.0
+    }
+
+    val ratioXY: Double
+        get() = if (avgy == 0.0) {
+            if (avgx > 0.0) {
+                Double.POSITIVE_INFINITY
+            } else if (avgx < 0.0) {
+                Double.NEGATIVE_INFINITY
+            } else {
+                Double.NaN
+            }
+        } else {
+            avgx / avgy
+        }
+    val ratioXYVariance: Double
+        get() {
+            val mu = ratioXY
+            val vx = varianceX
+            val vy = varianceY
+            val cxy = covarianceXY
+            return vx - 2.0 * mu * cxy + mu * mu * vy
+        }
+    val ratioXYStdError: Double
+        get() = if (nxy >= 1.0) {
+            if (avgy != 0.0) {
+                val sd = sqrt(ratioXYVariance)
+                val se = sd / (avgy * nxy)
+                se
+            } else {
+                Double.NaN
+            }
+        } else {
+            Double.NaN
+        }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.append("---------------")
+        sb.appendLine()
+        sb.append("X Y Statistics: ")
+        sb.appendLine()
+        sb.append("---------------")
+        sb.appendLine()
+        sb.append("nxy: ")
+        sb.append(nxy)
+        sb.appendLine()
+        sb.append("avg x: ")
+        sb.append(avgx)
+        sb.appendLine()
+        sb.append("sum x: ")
+        sb.append(sumX)
+        sb.appendLine()
+        sb.append("avg y: ")
+        sb.append(avgy)
+        sb.appendLine()
+        sb.append("sum y: ")
+        sb.append(sumY)
+        sb.appendLine()
+        sb.append("var x: ")
+        sb.append(varx)
+        sb.appendLine()
+        sb.append("var y: ")
+        sb.append(vary)
+        sb.appendLine()
+        sb.append("covxy: ")
+        sb.append(covxy)
+        sb.appendLine()
+        sb.append("corrxy: ")
+        sb.append(correlationXY)
+        sb.appendLine()
+        sb.append("sum xy: ")
+        sb.append(sumXY)
+        sb.appendLine()
+        sb.append("SSXY: ")
+        sb.append(sumOfSquaredXY)
+        sb.appendLine()
+        sb.append("SSXX: ")
+        sb.append(sumOfSquaredXX)
+        sb.appendLine()
+        sb.append("sum xx: ")
+        sb.append(sumXX)
+        sb.appendLine()
+        sb.append("sum yy: ")
+        sb.append(sumYY)
+        sb.appendLine()
+        sb.append("intercept: ")
+        sb.append(intercept)
+        sb.appendLine()
+        sb.append("slope: ")
+        sb.append(slope)
+        sb.appendLine()
+        sb.append("Sum Squared Error Regression: ")
+        sb.append(sumSquaredErrorsRegression)
+        sb.appendLine()
+        sb.append("Sum Squared Error Residuals: ")
+        sb.append(sumSquareErrorResiduals)
+        sb.appendLine()
+        sb.append("Sum Squared Error Total: ")
+        sb.append(sumOfSquaresErrorTotal)
+        sb.appendLine()
+        sb.append("coefficient of determination: ")
+        sb.append(coeffOfDetermination)
+        sb.appendLine()
+        sb.append("adjusted R Squared: ")
+        sb.append(adjustedRSq)
+        sb.appendLine()
+        sb.append("MSE of Residuals: ")
+        sb.append(mseOfResiduals)
+        sb.appendLine()
+        sb.append("Slope std error: ")
+        sb.append(slopeStdError)
+        sb.appendLine()
+        sb.append("Intercept std error: ")
+        sb.append(interceptStdError)
+        sb.appendLine()
+        sb.append("ratio of xy: ")
+        sb.append(ratioXY)
+        sb.appendLine()
+        sb.append("var ratio of xy: ")
+        sb.append(ratioXYVariance)
+        sb.appendLine()
+        sb.append("se ratio of xy: ")
+        sb.append(ratioXYStdError)
+        sb.appendLine()
+        return sb.toString()
+    }
+
+    companion object {
+
+        fun instance(stat: StatisticXY): StatisticXY {
+            val s = StatisticXY()
+            s.avgx = stat.avgx
+            s.avgy = stat.avgy
+            s.covxy = stat.covxy
+            s.nxy = stat.nxy
+            s.varx = stat.varx
+            s.vary = stat.vary
+            return s
+        }
+    }
+
+    /**
+     *
+     */
+    init {
+        myIdCounter_ = myIdCounter_ + 1
+        avgx = 0.0
+        avgy = 0.0
+        covxy = 0.0
+        nxy = 0.0
+        varx = 0.0
+        vary = 0.0
+    }
+}
+
+fun main() {
+    test2()
+}
+
+fun test1() {
+    val x = doubleArrayOf(0.0, 30.0, 10.0, 25.0, 12.0, 14.0, 5.0, 40.0, 42.0, 32.0, 16.0)
+    val y = doubleArrayOf(0.0, 4.0, 2.0, 3.0, 2.0, 3.0, 1.0, 6.0, 7.0, 5.0, 3.0)
+    val stat = StatisticXY()
+    for (i in x.indices) {
+        stat.collectXY(x[i], y[i])
+    }
+    println(stat)
+}
+
+fun test2() {
+    val x = doubleArrayOf(
+        99.0, 101.1, 102.7, 103.0, 105.4, 107.0, 108.7, 110.8,
+        112.1, 112.4, 113.6, 113.8, 115.1, 115.4, 120.0
+    )
+    val y = doubleArrayOf(
+        28.8, 27.9, 27.0, 25.2, 22.8, 21.5, 20.9, 19.6, 17.1,
+        18.9, 16.0, 16.7, 13.0, 13.6, 10.8
+    )
+    val stat = StatisticXY()
+    for (i in x.indices) {
+        stat.collectXY(x[i], y[i])
+    }
+    println(stat)
+}
+
+fun test3() {
+    val x = doubleArrayOf(
+        12.0, 30.0, 36.0, 40.0, 45.0, 57.0, 62.0, 67.0, 71.0, 78.0, 93.0, 94.0, 100.0, 105.0
+    )
+    val y = doubleArrayOf(
+        3.3, 3.2, 3.4, 3.0, 2.8, 2.9, 2.7, 2.6, 2.5, 2.6, 2.2, 2.0, 2.3, 2.1
+    )
+    val stat = StatisticXY()
+    for (i in x.indices) {
+        stat.collectXY(x[i], y[i])
+    }
+    println(stat)
+}

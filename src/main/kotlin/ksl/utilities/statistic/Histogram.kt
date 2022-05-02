@@ -138,20 +138,20 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
         return myStatistic.leadingDigitRule(multiplier)
     }
 
-    override fun collect(observation: Double) {
-        if (observation.isMissing()) {
+    override fun collect(obs: Double) {
+        if (obs.isMissing()) {
             numberMissing++
             return
         }
-        if (observation < firstBinLowerLimit) {
+        if (obs < firstBinLowerLimit) {
             underFlowCount++
-        } else if (observation >= lastBinUpperLimit) {
+        } else if (obs >= lastBinUpperLimit) {
             overFlowCount++
         } else {
-            val bin = findBin(observation)
+            val bin = findBin(obs)
             bin.increment()
             // collect statistics on only binned observations
-            myStatistic.collect(observation)
+            myStatistic.collect(obs)
         }
     }
 
