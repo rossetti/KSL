@@ -1,7 +1,10 @@
 package ksl.utilities
 
 //TODO remove java dependence
+import jsl.utilities.JSLArrayUtil
+import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.statistic.DoubleArraySaver
 import ksl.utilities.statistic.Statistic
 import java.io.FileNotFoundException
 import java.nio.file.Path
@@ -373,6 +376,129 @@ object KSLArrays {
     }
 
     /**
+     * @param a the double[nRow][nCol] array, must not be null, must be rectangular with nRow rows
+     * @param b the double[nRows] array, must not be null, must have nRow elements
+     * @return post multiplies a by b, a result with nRow elements representing the dot product of
+     * b with each row of a.
+     */
+    fun postProduct(a: Array<DoubleArray>, b: DoubleArray): DoubleArray {
+        require(isRectangular(a)) { "The double[][] array was not rectangular" }
+        require(a.size == b.size) { "The double[][] array is not multiplication compatible with the double[]" }
+        require(b.isNotEmpty()) { "The arrays were empty!" }
+        val result = DoubleArray(b.size)
+        for (i in a.indices) {
+            result[i] = dotProduct(a[i], b)
+        }
+        return result
+    }
+
+    /**
+     * @param a the first array, must not be null
+     * @param b the second array, must not be null
+     * @return the summed product of the two arrays
+     */
+    fun dotProduct(a: DoubleArray, b: DoubleArray): Double {
+        require(a.size == b.size) { "The length of the arrays was not equal" }
+        require(a.size != 0) { "The arrays were empty!" }
+        var sum = 0.0
+        for (i in a.indices) {
+            sum = sum + a[i] * b[i]
+        }
+        return sum
+    }
+
+    /**
+     * The arrays must be rectangular and n columns of first must
+     * be same and n rows for second
+     *
+     * @param first  the first array, must not be null
+     * @param second the second array, must not be null
+     * @return true if arrays can be multiplied
+     */
+    fun isMultiplyCompatible(first: Array<DoubleArray>, second: Array<DoubleArray>): Boolean {
+        if (!isRectangular(first)) {
+            return false
+        }
+        if (!isRectangular(second)) {
+            return false
+        }
+        val nColsFirst: Int = numColumns(first)
+        val nRowsSecond: Int = numRows(second)
+        return nColsFirst == nRowsSecond
+    }
+
+    /**
+     * @param first  the first array, must not be null, must be rectangular
+     * @param second the second array, must not be null, must be rectangular
+     * @return true if arrays have the same elements
+     */
+    fun isEqual(first: Array<DoubleArray>, second: Array<DoubleArray>): Boolean {
+        require(isRectangular(first)) { "The first array was not rectangular" }
+        require(isRectangular(second)) { "The second array was not rectangular" }
+        val nColsFirst: Int = numColumns(first)
+        val nRowsFirst: Int = numRows(first)
+        val nColsSecond: Int = numColumns(second)
+        val nRowsSecond: Int = numRows(second)
+        if (nRowsFirst != nRowsSecond) {
+            return false
+        }
+        if (nColsFirst != nColsSecond) {
+            return false
+        }
+        for (i in 0 until nRowsFirst) {
+            for (j in 0 until nColsFirst) {
+                if (first[i][j] != second[i][j]) return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * The arrays must be rectangular with the number of rows of the first
+     * array equal to the number of columns of the second array.
+     *
+     * @param first  the first array, must not be null
+     * @param second the second array, must not be null
+     * @return the product of the arrays
+     */
+    fun multiply(first: Array<DoubleArray>, second: Array<DoubleArray>): Array<DoubleArray> {
+        require(isRectangular(first)) { "The first array was not rectangular" }
+        require(isRectangular(second)) { "The second array was not rectangular" }
+        val nColsFirst: Int = numColumns(first)
+        val nRowsSecond: Int = numRows(second)
+        require(nColsFirst == nRowsSecond) { "The arrays are not multiplication compatible" }
+        val nr: Int = numRows(first)
+        val nc: Int = numColumns(second)
+        val result = Array(nr) { DoubleArray(nc) }
+        for (i in 0 until nr) {
+            for (j in 0 until nc) {
+                for (k in 0 until nRowsSecond) {
+                    result[i][j] = result[i][j] + first[i][k] * second[k][j]
+                }
+            }
+        }
+        return result
+    }
+
+    /**
+     * @param array a 2-D rectangular array, must not be null
+     * @return the number of rows in the array
+     */
+    fun numRows(array: Array<DoubleArray>): Int {
+        require(isRectangular(array)) { "The array was not rectangular" }
+        return array.size
+    }
+
+    /**
+     * @param array a 2-D rectangular array, must not be null
+     * @return the number of columns in the array
+     */
+    fun numColumns(array: Array<DoubleArray>): Int {
+        require(isRectangular(array)) { "The array was not rectangular" }
+        return array[0].size
+    }
+
+    /**
      * @param a the array to add the constant to
      * @param c the constant to add to each element
      * @return the transformed array
@@ -590,6 +716,37 @@ object KSLArrays {
             }
         }
         return true
+    }
+
+    /**
+     * @param array the square array, must not be null
+     * @return the diagonal elements of the array as an array
+     */
+    fun diagonal(array: Array<DoubleArray>): DoubleArray {
+        require(isSquare(array)) { "The diagonal cannot be extracted because the array is not square" }
+        val diagonal = DoubleArray(array.size)
+        for (i in array.indices) {
+            diagonal[i] = array[i][i]
+        }
+        return diagonal
+    }
+
+    /**
+     * @param array the array to check
+     * @return true if the number of rows equals the number of columns
+     */
+    fun isSquare(array: Array<DoubleArray>): Boolean {
+        if (array.isEmpty()) {
+            return false // no rows can't be square
+        }
+        // must be rectangular and nc = nr
+        return if (isRectangular(array)) {
+            val nc: Int = array[0].size // number of columns in first row, all rows must have this
+            val nr = array.size
+            nc == nr
+        } else {
+            false
+        }
     }
 
     /**
@@ -1529,6 +1686,94 @@ object KSLArrays {
         }
         return true
     }
+
+    /**
+     * Performs element-wise modulo (%) operator on the array.
+     * The array is changed in place.
+     *
+     * @param array   the array to apply the modulo operator on
+     * @param divisor the divisor for each element
+     */
+    fun remainder(array: DoubleArray, divisor: Double) {
+        Objects.requireNonNull(array, "The array was null")
+        require(divisor != 0.0) { "The divisor cannot be zero!" }
+        for (i in array.indices) {
+            array[i] = array[i] % divisor
+        }
+    }
+
+    /**
+     * Performs element-wise absolute value on the array.
+     * The array is changed in place.
+     *
+     * @param array the array to apply the absolute value function on
+     */
+    fun abs(array: DoubleArray) {
+        for (i in array.indices) {
+            array[i] = kotlin.math.abs(array[i])
+        }
+    }
+
+    /**
+     * Element-wise application of the supplied function. The
+     * array is changed in place. Using FunctionIfc avoids autoboxing
+     * when dealing with primitive doubles.
+     *
+     * @param array    the array to apply the function on, must not be null
+     * @param function the function to apply, must not be null
+     */
+    fun apply(array: DoubleArray, function: FunctionIfc) {
+        for (i in array.indices) {
+            array[i] = function.f(array[i])
+        }
+    }
+
+    /**
+     * Element-wise application of the supplied function. The
+     * array is changed in place. Using FunctionIfc avoids autoboxing
+     * when dealing with primitive doubles.
+     *
+     * @param array    the array to apply the function on, must not be null
+     * @param function the function to apply, must not be null
+     */
+    fun apply(array: Array<DoubleArray>, function: FunctionIfc) {
+        for (i in array.indices) {
+            for (j in 0 until array[i].size) {
+                array[i][j] = function.f(array[i][j])
+            }
+        }
+    }
+
+    /**
+     * Checks if any element of the array is equal to Double.NaN
+     *
+     * @param array the array to check, must not be null
+     * @return true if any element of array is NaN
+     */
+    fun checkForNaN(array: DoubleArray): Boolean {
+        for (x in array) {
+            if (x.isNaN()) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * @param array    the array to process
+     * @param interval the interval
+     * @return an array containing the array values that are contained in the interval
+     */
+    fun dataInInterval(array: DoubleArray, interval: Interval): DoubleArray {
+        val saver = DoubleArraySaver()
+        for (x in array) {
+            if (interval.contains(x)) {
+                saver.save(x)
+            }
+        }
+        return saver.savedData()
+    }
+
 }
 
 /** Extension functions and other functions for working with arrays
@@ -2309,4 +2554,35 @@ fun IntArray.isIncreasing(): Boolean {
  */
 fun IntArray.isDecreasing(): Boolean {
     return KSLArrays.isDecreasing(this)
+}
+
+/**
+ *  Applies the transformation to each element of the array
+ *  in place
+ */
+fun <T> Array<T>.mapInPlace(transform: (T) -> T) {
+    for (i in this.indices) {
+        this[i] = transform(this[i])
+    }
+}
+
+/**
+ *  Applies the transformation to each element of the array
+ *  in place
+ */
+fun IntArray.mapInPlace(transform: (Int) -> Int) {
+    for (i in this.indices) {
+        this[i] = transform(this[i])
+    }
+}
+
+/**
+ *  Applies the transformation to each element of the array
+ *  in place
+ */
+
+fun DoubleArray.mapInPlace(transform: (Double) -> Double) {
+    for (i in this.indices) {
+        this[i] = transform(this[i])
+    }
 }

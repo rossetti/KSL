@@ -22,6 +22,11 @@ object KSLFileUtil : KLoggable {
     override val logger = logger()
 
     /**
+     * System.out as a PrintWriter
+     */
+    val SOUT = PrintWriter(System.out)
+
+    /**
      * Returns the directory that the program was launched from on the OS
      * as a string. This call may throw a SecurityException if the system information
      * is not accessible. Uses System property "user.dir"
