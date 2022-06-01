@@ -60,22 +60,17 @@ class MVIndependentMarginals(marginals: List<RVariableIfc>, stream: RNStreamIfc)
         myRNStream.advanceToNextSubStream()
     }
 
-    override fun getRandomNumberStream(): RNStreamIfc {
-        return myRNStream
-    }
-
-    override fun setRandomNumberStream(stream: RNStreamIfc) {
-        myRNStream = Objects.requireNonNull(stream, "RNStreamIfc stream must be non-null")
-        for (rv in myRVs) {
-            rv.randomNumberStream = myRNStream
+    override var rnStream: RNStreamIfc
+        get() = myRNStream
+        set(value) {
+            for (rv in myRVs) {
+                rv.rnStream = value
+            }
         }
-    }
-    
-    override fun setAntitheticOption(flag: Boolean) {
-        myRNStream.antitheticOption = flag
-    }
 
-    override fun getAntitheticOption(): Boolean {
-        return myRNStream.antitheticOption
-    }
+    override var antithetic: Boolean
+        get() = myRNStream.antithetic
+        set(value) {
+            myRNStream.antithetic = value
+        }
 }
