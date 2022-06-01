@@ -1,5 +1,6 @@
 package ksl.utilities.io
 
+import ksl.utilities.KSLArrays
 import ksl.utilities.toCSVString
 import mu.KLoggable
 import java.io.*
@@ -611,6 +612,31 @@ object KSLFileUtil : KLoggable {
             out.println(doubles.toCSVString())
         }
         out.flush()
+    }
+
+    /**
+     * Assumes that the file holds doubles with each value on a different line
+     * 1.0
+     * 4.0
+     * 2.0
+     * etc
+     *
+     * @param pathToFile the path to a file holding the data
+     * @return the data as an array
+     */
+    fun scanToArray(pathToFile: Path): DoubleArray {
+        try {
+            Scanner(pathToFile.toFile()).use { scanner ->
+                val list = ArrayList<Double>()
+                while (scanner.hasNextDouble()) {
+                    list.add(scanner.nextDouble())
+                }
+                return KSLArrays.toPrimitives(list.toTypedArray())
+            }
+        } catch (e: FileNotFoundException) {
+            e.printStackTrace()
+        }
+        return DoubleArray(0)
     }
 }
 

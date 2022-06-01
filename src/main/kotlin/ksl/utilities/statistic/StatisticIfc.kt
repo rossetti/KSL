@@ -181,7 +181,7 @@ interface StatisticIfc : GetCSVStatisticIfc {
      */
     fun confidenceInterval(level: Double): Interval {
         if (count < 1.0) {
-            return Interval(Double.NaN, Double.NaN)
+            return Interval(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)
         }
         val hw = halfWidth(level)
         val avg = average

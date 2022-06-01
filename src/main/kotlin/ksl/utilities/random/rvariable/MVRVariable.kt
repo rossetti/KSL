@@ -55,15 +55,14 @@ abstract class MVRVariable(stream: RNStreamIfc, name: String? = null) : MVRVaria
      */
     fun value(): DoubleArray = value
 
-    override fun sample(): DoubleArray {
-        val x = generate()
-        previous = x
-        return x
+    override fun sample(array: DoubleArray) {
+        generate(array)
+        previous = array
     }
 
     /**
      *
      * @return the randomly generated variates
      */
-    protected abstract fun generate(): DoubleArray
+    protected abstract fun generate(array: DoubleArray)
 }

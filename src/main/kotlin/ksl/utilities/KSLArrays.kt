@@ -1,14 +1,9 @@
 package ksl.utilities
 
-//TODO remove java dependence
-import jsl.utilities.JSLArrayUtil
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.DoubleArraySaver
 import ksl.utilities.statistic.Statistic
-import java.io.FileNotFoundException
-import java.nio.file.Path
-import java.util.*
 import kotlin.math.sqrt
 
 /**
@@ -584,7 +579,6 @@ object KSLArrays {
      * @return the minimum number of columns in the array
      */
     fun minNumColumns(array2D: Array<DoubleArray>): Int {
-        Objects.requireNonNull(array2D, "The array was null")
         var min = Int.MAX_VALUE
         for (row in array2D.indices) {
             if (array2D[row].size < min) {
@@ -1418,32 +1412,6 @@ object KSLArrays {
     }
 
     /**
-     * Assumes that the file holds doubles with each value on a different line
-     * 1.0
-     * 4.0
-     * 2.0
-     * etc
-     *
-     * @param pathToFile the path to a file holding the data
-     * @return the data as an array
-     */
-    fun scanToArray(pathToFile: Path): DoubleArray {
-        //TODO move to IO package
-        try {
-            Scanner(pathToFile.toFile()).use { scanner ->
-                val list = ArrayList<Double>()
-                while (scanner.hasNextDouble()) {
-                    list.add(scanner.nextDouble())
-                }
-                return toPrimitives(list.toTypedArray())
-            }
-        } catch (e: FileNotFoundException) {
-            e.printStackTrace()
-        }
-        return DoubleArray(0)
-    }
-
-    /**
      * @param array the array of objects
      * @param <T>   the type of the objects
      * @return a String array holding the string value of the elements of the array
@@ -1695,7 +1663,6 @@ object KSLArrays {
      * @param divisor the divisor for each element
      */
     fun remainder(array: DoubleArray, divisor: Double) {
-        Objects.requireNonNull(array, "The array was null")
         require(divisor != 0.0) { "The divisor cannot be zero!" }
         for (i in array.indices) {
             array[i] = array[i] % divisor

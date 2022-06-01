@@ -22,9 +22,27 @@ package ksl.utilities.random.rvariable
 interface MVSampleIfc {
     /**
      *
-     * @return generates an array of random values
+     * the expected size of the array from sample()
      */
-    fun sample(): DoubleArray
+    val dimension: Int
+
+    /**
+     *
+     * @return generates an array of random values of size getDimension()
+     */
+    fun sample(): DoubleArray {
+        val array = DoubleArray(dimension)
+        sample(array)
+        return array
+    }
+
+    /** Fills the supplied array with a sample of values. This method
+     * avoids the creation of a new array.  The size of the array
+     * must match getDimension()
+     *
+     * @param array the array to fill with the sample
+     */
+    fun sample(array: DoubleArray)
 
     /**
      * Generates a list holding the randomly generated arrays of the given size

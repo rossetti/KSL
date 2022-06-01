@@ -187,6 +187,13 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
          * @return the P(Z&lt;=z) for standard normal
          */
         fun stdNormalCDF(z: Double): Double {
+            require(!z.isNaN()) { "The supplied z value was Double.NaN in Normal.stdNormalCDF(z)" }
+            if (z == Double.NEGATIVE_INFINITY) {
+                return 0.0
+            }
+            if (z == Double.POSITIVE_INFINITY) {
+                return 1.0
+            }
             if (z < -8.0) return 0.0
             if (z > 8.0) return 1.0
             var sum = 0.0

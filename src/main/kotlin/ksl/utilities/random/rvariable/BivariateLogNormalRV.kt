@@ -83,12 +83,12 @@ class BivariateLogNormalRV(
         name: String?
     ) : this(m1, v1, m2, v2, corr, KSLRandom.rnStream(streamNum), name)
 
-    override fun generate(): DoubleArray {
-        val x = myBVN.sample()
+    override fun generate(array: DoubleArray) {
+        require(array.size == dimension) { "The size of the array to fill does not match the sampling dimension!" }
+        myBVN.sample(array)
         // transform them to bi-variate lognormal
-        x[0] = exp(x[0])
-        x[1] = exp(x[1])
-        return x
+        array[0] = exp(array[0])
+        array[1] = exp(array[1])
     }
 
     override fun instance(stream: RNStreamIfc): MVRVariableIfc {
@@ -98,5 +98,8 @@ class BivariateLogNormalRV(
     override fun toString(): String {
         return "BivariateLogNormalRV(m1=$m1, v1=$v1, m2=$m2, v2=$v2, corr=$corr)"
     }
+
+    override val dimension: Int
+        get() = 2
 
 }

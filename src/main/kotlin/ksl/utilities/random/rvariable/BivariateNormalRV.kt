@@ -70,15 +70,14 @@ class BivariateNormalRV(
         name: String?
     ) : this(mean1, v1, mean2, v2, corr, KSLRandom.rnStream(streamNum), name)
 
-    override fun generate(): DoubleArray {
-        val x = DoubleArray(2)
+    override fun generate(array: DoubleArray) {
+        require(array.size == dimension) { "The size of the array to fill does not match the sampling dimension!" }
         val z0 = Normal.stdNormalInvCDF(rnStream.randU01())
         val z1 = Normal.stdNormalInvCDF(rnStream.randU01())
         val s1 = sqrt(v1)
         val s2 = sqrt(v2)
-        x[0] = mean1 + s1 * z0
-        x[1] = mean2 + s2 * (corr * z0 + sqrt(1.0 - corr * corr) * z1)
-        return x
+        array[0] = mean1 + s1 * z0
+        array[1] = mean2 + s2 * (corr * z0 + sqrt(1.0 - corr * corr) * z1)
     }
 
     override fun instance(stream: RNStreamIfc): MVRVariableIfc {
@@ -88,5 +87,9 @@ class BivariateNormalRV(
     override fun toString(): String {
         return "BivariateNormalRV(mean1=$mean1, v1=$v1, mean2=$mean2, v2=$v2, corr=$corr)"
     }
+
+    override val dimension: Int
+        get() = 2
+
 
 }
