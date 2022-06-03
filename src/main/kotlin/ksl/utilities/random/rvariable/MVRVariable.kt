@@ -20,10 +20,8 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 
-abstract class MVRVariable(stream: RNStreamIfc, name: String? = null) : MVRVariableIfc,
+abstract class MVRVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) : MVRVariableIfc,
     IdentityIfc by Identity(name), RNStreamControlIfc by stream {
-
-    constructor(stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(stream, null)
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */

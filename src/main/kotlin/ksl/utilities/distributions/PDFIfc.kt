@@ -5,7 +5,7 @@ package ksl.utilities.distributions
  *
  * @author rossetti
  */
-fun interface PDFIfc {
+interface PDFIfc : DomainIfc {
     /** Returns the f(x) where f represents the probability
      * density function for the distribution.  Note this is not
      * a probability.

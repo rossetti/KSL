@@ -59,13 +59,13 @@ interface MVSampleIfc {
     }
 
     /**
-     * Fills the supplied list of arrays with a randomly generated samples
+     * Fills the supplied array of arrays with randomly generated samples
      *
-     * @param values the list to fill
+     * @param values the arrays to fill
      */
-    fun sample(values: MutableList<DoubleArray>) {
+    fun sample(values: Array<DoubleArray>) {
         for (i in values.indices) {
-            values.add(sample())
+            values[i] = sample()
         }
     }
 }

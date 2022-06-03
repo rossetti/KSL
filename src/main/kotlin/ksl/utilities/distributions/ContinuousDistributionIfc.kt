@@ -1,4 +1,6 @@
 package ksl.utilities.distributions
 
-interface ContinuousDistributionIfc : CDFIfc, PDFIfc, DomainIfc {
+import ksl.utilities.random.rvariable.GetRVariableIfc
+
+interface ContinuousDistributionIfc : CDFIfc, PDFIfc, DomainIfc, GetRVariableIfc {
 }

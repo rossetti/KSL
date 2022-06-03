@@ -1,7 +1,6 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
-import java.util.*
 
 /**
  * Represents a multi-variate distribution with the specified marginals
@@ -9,22 +8,25 @@ import java.util.*
  * distribution has independent marginals. The supplied marginals may be the same
  * distribution or not.  If they are all the same, then use MVIndependentRV instead.
  * All the random variables will share the same stream. The sampling ensures that
- * draws are consecutive and thus independent.
+ * is the sampling is consecutive within the stream and thus independent.
+ * @param marginals must have at least 2 supplied marginals
+ * @param stream the stream to associate with each marginal
  */
-class MVIndependentMarginals(marginals: List<RVariableIfc>, stream: RNStreamIfc) : MVRVariableIfc {
-    protected val myRVs: MutableList<RVariableIfc>
-
+class MVIndependentMarginals(
+    marginals: List<RVariableIfc>,
+    stream: RNStreamIfc = KSLRandom.nextRNStream()
+) : MVRVariableIfc {
     /**
      * myRNStream provides a reference to the underlying stream of random numbers
      */
-    protected var myRNStream: RNStreamIfc
+    private var myRNStream: RNStreamIfc = stream
+
+    private val myRVs: MutableList<RVariableIfc> = ArrayList()
 
     init {
-        myRNStream = Objects.requireNonNull(stream, "RNStreamIfc stream must be non-null")
-        myRVs = ArrayList()
+        require(marginals.size > 1) { "The number of supplied marginals must be at least 2" }
         for (rv in marginals) {
-            requireNotNull(rv) { "The list of marginal random variables had a null member!" }
-            myRVs.add(rv.instance(stream))
+            myRVs.add(rv.instance(myRNStream))
         }
     }
 
@@ -32,7 +34,7 @@ class MVIndependentMarginals(marginals: List<RVariableIfc>, stream: RNStreamIfc)
         return MVIndependentMarginals(myRVs, stream)
     }
 
-    fun antitheticInstance(): MVRVariableIfc {
+    override fun antitheticInstance(): MVRVariableIfc {
         return MVIndependentMarginals(myRVs, myRNStream.antitheticInstance())
     }
 
@@ -41,10 +43,8 @@ class MVIndependentMarginals(marginals: List<RVariableIfc>, stream: RNStreamIfc)
 
     override fun sample(array: DoubleArray) {
         require(array.size == dimension) { "The size of the array to fill does not match the sampling dimension!" }
-        var i = 0
-        for (rv in myRVs) {
+        for ((i, rv) in myRVs.withIndex()) {
             array[i] = rv.sample()
-            i++
         }
     }
 

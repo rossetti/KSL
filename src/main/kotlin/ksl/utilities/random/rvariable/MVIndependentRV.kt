@@ -7,22 +7,22 @@ import ksl.utilities.random.rng.RNStreamIfc
  * The sampling of each dimension is independent. That is the resulting
  * distribution has independent marginals that are represented by the same
  * distribution as provided by the supplied random variable
- * @param dimension         the dimension, must be at least 1
+ * @param theDimension         the dimension, must be at least 2
  * @param theRandomVariable the random variable for the marginals
  */
-class MVIndependentRV(dimension: Int, theRandomVariable: RVariableIfc) : MVRVariableIfc {
+class MVIndependentRV(theDimension: Int, theRandomVariable: RVariableIfc) : MVRVariableIfc {
     init {
-        require(dimension > 0) { "The multi-variate dimension must be at least 1" }
+        require(theDimension > 1) { "The multi-variate dimension must be at least 2" }
     }
-    override val dimension: Int = dimension
+    override val dimension: Int = theDimension
 
-    protected val myRV: RVariableIfc = theRandomVariable
+    private val myRV: RVariableIfc = theRandomVariable
 
     override fun instance(stream: RNStreamIfc): MVRVariableIfc {
         return MVIndependentRV(dimension, myRV.instance())
     }
 
-    fun newAntitheticInstance(): MVRVariableIfc {
+    override fun antitheticInstance(): MVRVariableIfc {
         return MVIndependentRV(dimension, myRV.antitheticInstance())
     }
 

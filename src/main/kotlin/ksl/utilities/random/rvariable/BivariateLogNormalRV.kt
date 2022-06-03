@@ -23,7 +23,7 @@ import kotlin.math.sqrt
 
 /**
  * Allows for the generation of bi-variate lognormal
- * random variables
+ * random variables.  These parameters are all for the lognormal distribution
  * @param m1        mean of first coordinate
  * @param v1        variance of first coordinate
  * @param m2        mean of 2nd coordinate
@@ -102,4 +102,8 @@ class BivariateLogNormalRV(
     override val dimension: Int
         get() = 2
 
+    override fun antitheticInstance(): MVRVariableIfc {
+        return BivariateLogNormalRV(m1, v1, m2, v2, corr, rnStream.antitheticInstance()
+        )
+    }
 }

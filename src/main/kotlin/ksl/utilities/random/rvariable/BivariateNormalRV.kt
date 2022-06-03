@@ -91,5 +91,9 @@ class BivariateNormalRV(
     override val dimension: Int
         get() = 2
 
-
+    override fun antitheticInstance(): MVRVariableIfc {
+        return BivariateNormalRV(
+            mean1, v1, mean2, v2, corr, rnStream.antitheticInstance()
+        )
+    }
 }

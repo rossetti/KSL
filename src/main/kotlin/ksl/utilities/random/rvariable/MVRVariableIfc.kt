@@ -33,7 +33,12 @@ interface MVRVariableIfc : RNStreamControlIfc, MVSampleIfc, RNStreamChangeIfc {
     /**
      * @return a new instance with same parameter value
      */
-    fun instance(): MVRVariableIfc? {
+    fun instance(): MVRVariableIfc {
         return instance(KSLRandom.nextRNStream())
     }
+
+    /**
+     * @return a new instance with same parameter value, but that has antithetic variates
+     */
+    fun antitheticInstance(): MVRVariableIfc
 }
