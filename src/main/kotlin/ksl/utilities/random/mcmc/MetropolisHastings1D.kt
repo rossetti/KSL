@@ -1,0 +1,298 @@
+/*
+ * Copyright (c) 2018. Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+package ksl.utilities.random.mcmc
+
+import ksl.utilities.math.FunctionIfc
+import ksl.utilities.observers.Observable
+import ksl.utilities.observers.ObservableIfc
+import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.statistic.Statistic
+
+/**
+ * An implementation for a 1-Dimensional Metropolis Hasting process. The
+ * process is observable at each step
+ * @param initialX the initial value to start generation process
+ * @param targetFun the target function
+ * @param proposalFun the proposal function
+ */
+class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposalFun: ProposalFunction1DIfc) :
+    RandomIfc, ObservableIfc<Double> by Observable() {
+
+    private val myTargetFun: FunctionIfc = targetFun
+    private val myProposalFun: ProposalFunction1DIfc = proposalFun
+    private val myAcceptanceStat: Statistic = Statistic("Acceptance Statistics")
+    private val myObservedStat: Statistic = Statistic("Observed Value Statistics")
+
+    override var rnStream: RNStreamIfc = KSLRandom.nextRNStream()
+        set(value) {
+            field = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
+
+    /**
+     *
+     * @return the current state (x) of the process
+     */
+    var currentX = 0.0
+        protected set
+
+    /**
+     *
+     * @return the last proposed state (y)
+     */
+    var proposedY = 0.0
+        protected set
+
+    /**
+     *
+     * @return the previous state (x) of the process
+     */
+    var prevX = 0.0
+        protected set
+
+    /**
+     *
+     * @return the last value of the computed probability of acceptance
+     */
+    var lastAcceptanceProbability = 0.0
+        protected set
+
+    /**
+     *
+     * @return the last value of the target function evaluated at the proposed state (y)
+     */
+    var fofProposedY = 0.0
+        protected set
+
+    /**
+     *
+     * @return the last value of the target function evaluated at the current state (x)
+     */
+    var fofCurrentX = 0.0
+        protected set
+
+    /**
+     *
+     * @return true if the process has been initialized
+     */
+    var isInitialized: Boolean = false
+        protected set
+
+    /**
+     *
+     * @return true if the process has been warmed up
+     */
+    var isWarmedUp: Boolean = false
+        protected set
+
+    /** Runs a burn in period and assigns the initial value of the process to the last
+     * value from the burn in process.
+     *
+     * @param burnInAmount the amount of sampling for the burn-in (warm up) period
+     */
+    fun runBurnInPeriod(burnInAmount: Int) {
+        val x = runAll(burnInAmount)
+        isWarmedUp = true
+        isInitialized = false
+        initialX = x
+        resetStatistics()
+    }
+
+    /**  Resets statistics and sets the initial state the the initial value or to the value
+     * found via the burn in period (if the burn in period was run).
+     *
+     */
+    fun initialize() {
+        isInitialized = true
+        currentX = initialX
+        resetStatistics()
+    }
+
+    /**
+     * Resets the automatically collected statistics
+     */
+    fun resetStatistics() {
+        myObservedStat.reset()
+        myAcceptanceStat.reset()
+    }
+
+    /**
+     *
+     * @param n  runs the process for n steps
+     * @return the value of the process after n steps
+     */
+    fun runAll(n: Int): Double {
+        require(n > 0) { "The number of iterations to run was less than or equal to zero." }
+        initialize()
+        var value = 0.0
+        for (i in 1..n) {
+            value = next()
+        }
+        return value
+    }
+
+    /**
+     *
+     * @return statistics for the proportion of the proposed state (y) that are accepted
+     */
+    val acceptanceStatistics: Statistic
+        get() = myAcceptanceStat.instance()
+
+    /**
+     *
+     * @return statistics on the observed (generated) values of the process
+     */
+    val observedStatistics: Statistic
+        get() = myObservedStat.instance()
+
+    /** Moves the process one step
+     *
+     * @return the next value of the process after proposing the next state (y)
+     */
+   fun next(): Double {
+        if (!isInitialized) {
+            initialize()
+        }
+        prevX = currentX
+        proposedY = myProposalFun.generateProposedGivenCurrent(currentX)
+        lastAcceptanceProbability = acceptanceFunction(currentX, proposedY)
+        if (rnStream.randU01() <= lastAcceptanceProbability) {
+            currentX = proposedY
+            myAcceptanceStat.collect(1.0)
+        } else {
+            myAcceptanceStat.collect(0.0)
+        }
+        myObservedStat.collect(currentX)
+        notifyObservers(this, currentX)
+        return currentX
+    }
+
+    override fun value(): Double {
+        return next()
+    }
+
+    override fun sample(): Double {
+        return value()
+    }
+
+    /** Computes the acceptance function for each step
+     *
+     * @param currentX the current state
+     * @param proposedY the proposed state
+     * @return the evaluated acceptance function
+     */
+    private fun acceptanceFunction(currentX: Double, proposedY: Double): Double {
+        val fRatio = functionRatio(currentX, proposedY)
+        val pRatio: Double = myProposalFun.proposalRatio(currentX, proposedY)
+        val ratio = fRatio * pRatio
+        return Math.min(ratio, 1.0)
+    }
+
+    /**
+     *
+     * @param currentX the current state
+     * @param proposedY the proposed state
+     * @return the ratio of f(y)/f(x) for the generation step
+     */
+    private fun functionRatio(currentX: Double, proposedY: Double): Double {
+        val fx = myTargetFun.f(currentX)
+        val fy = myTargetFun.f(proposedY)
+        check(fx >= 0.0) { "The target function was < 0 at current = $currentX" }
+        check(fy >= 0.0) { "The proposal function was < 0 at proposed = $proposedY" }
+        val ratio: Double
+        if (fx != 0.0) {
+            ratio = fy / fx
+            fofCurrentX = fx
+            fofProposedY = fy
+        } else {
+            ratio = Double.POSITIVE_INFINITY
+            fofCurrentX = fx
+            fofProposedY = fy
+        }
+        return ratio
+    }
+
+    override fun toString(): String {
+        return asString()
+    }
+
+    fun asString(): String {
+        val sb = StringBuilder("MetropolisHastings1D")
+        sb.append(System.lineSeparator())
+        sb.append("Initialized Flag = ").append(this.isInitialized)
+        sb.append(System.lineSeparator())
+        sb.append("Burn In Flag = ").append(isWarmedUp)
+        sb.append(System.lineSeparator())
+        sb.append("Initial X =").append(initialX)
+        sb.append(System.lineSeparator())
+        sb.append("Current X = ").append(currentX)
+        sb.append(System.lineSeparator())
+        sb.append("Previous X = ").append(prevX)
+        sb.append(System.lineSeparator())
+        sb.append("Last Proposed Y= ").append(proposedY)
+        sb.append(System.lineSeparator())
+        sb.append("Last Prob. of Acceptance = ").append(lastAcceptanceProbability)
+        sb.append(System.lineSeparator())
+        sb.append("Last f(Y) = ").append(fofProposedY)
+        sb.append(System.lineSeparator())
+        sb.append("Last f(X) = ").append(fofCurrentX)
+        sb.append(System.lineSeparator())
+        sb.append("Acceptance Statistics")
+        sb.append(System.lineSeparator())
+        sb.append(myAcceptanceStat.asString())
+        sb.append(System.lineSeparator())
+        sb.append(myObservedStat.asString())
+        return sb.toString()
+    }
+
+    companion object {
+        /**
+         *
+         * @param initialX the initial value to start the burn in period
+         * @param burnInAmount the number of samples in the burn in period
+         * @param targetFun the target function
+         * @param proposalFun the proposal function
+         * @return the created instance
+         */
+        fun create(
+            initialX: Double, burnInAmount: Int, targetFun: FunctionIfc,
+            proposalFun: ProposalFunction1DIfc
+        ): MetropolisHastings1D {
+            val m = MetropolisHastings1D(initialX, targetFun, proposalFun)
+            m.runBurnInPeriod(burnInAmount)
+            return m
+        }
+    }
+}
