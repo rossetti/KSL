@@ -13,31 +13,9 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package ksl.utilities.random
-
-import ksl.utilities.GetValueIfc
-import ksl.utilities.random.rng.RNStreamChangeIfc
-import ksl.utilities.random.rng.RNStreamControlIfc
+package ksl.utilities.random.robj
 
 /**
- *
+ * @author rossetti
  */
-interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, RNStreamChangeIfc {
-    override fun resetStartStream() {
-        rnStream.resetStartStream()
-    }
-
-    override fun resetStartSubStream() {
-        rnStream.resetStartSubStream()
-    }
-
-    override fun advanceToNextSubStream() {
-        rnStream.advanceToNextSubStream()
-    }
-
-    override var antithetic: Boolean
-        get() = rnStream.antithetic
-        set(value) {
-            rnStream.antithetic = value
-        }
-}
+interface RListIfc<T> : RElementIfc<T>, MutableList<T>

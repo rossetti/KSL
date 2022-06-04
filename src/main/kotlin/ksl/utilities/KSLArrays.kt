@@ -1542,6 +1542,52 @@ object KSLArrays {
 
     /**
      * Examines each element, a_i starting at 0, and determines if all
+     * the elements are equal a_0 != a_1 != a_2, etc.
+     *
+     * @param array the array to check, must not be null
+     * @return true if all elements are different, if there
+     * are 0 elements then it returns false, 1 element returns true
+     */
+    fun isAllDifferent(array: DoubleArray): Boolean {
+        if (array.isEmpty()) {
+            return false
+        }
+        if (array.size == 1) {
+            return true
+        }
+        for (i in 1 until array.size) {
+            if (array[i - 1] == array[i]) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * Examines each element, a_i starting at 0, and determines if all
+     * the elements are equal a_0 != a_1 != a_2, etc.
+     *
+     * @param array the array to check, must not be null
+     * @return true if all elements are different, if there
+     * are 0 elements then it returns false, 1 element returns true
+     */
+    fun isAllDifferent(array: IntArray): Boolean {
+        if (array.isEmpty()) {
+            return false
+        }
+        if (array.size == 1) {
+            return true
+        }
+        for (i in 1 until array.size) {
+            if (array[i - 1] == array[i]) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * Examines each element, a_i starting at 0, and determines if all
      * the elements are equal a_0 = a_1 = a_2, etc.
      *
      * @param array the array to check, must not be null
@@ -2461,11 +2507,19 @@ fun DoubleArray.isAllEqual(): Boolean {
  * @return true if all elements are distinct, if there
  * are 0 elements then it returns false
  */
-fun DoubleArray.isDistinct(): Boolean {
-    if (this.isEmpty()) {
-        return false
-    }
-    return this.size == this.distinct().size
+fun DoubleArray.isAllDifferent(): Boolean {
+    return KSLArrays.isAllDifferent(this)
+}
+
+/**
+ * Examines each element, a_i starting at 0, and determines if all
+ * the elements are different (distinct) a_0 != a_1 != a_2, etc.
+ *
+ * @return true if all elements are distinct, if there
+ * are 0 elements then it returns false
+ */
+fun IntArray.isAllDifferent(): Boolean {
+    return KSLArrays.isAllDifferent(this)
 }
 
 /**

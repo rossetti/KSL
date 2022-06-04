@@ -39,9 +39,6 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
     private val myObservedStat: Statistic = Statistic("Observed Value Statistics")
 
     override var rnStream: RNStreamIfc = KSLRandom.nextRNStream()
-        set(value) {
-            field = value
-        }
 
     override fun resetStartStream() {
         rnStream.resetStartStream()

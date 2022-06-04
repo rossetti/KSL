@@ -17,7 +17,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.column
 import ksl.utilities.divideConstant
-import ksl.utilities.isDistinct
+import ksl.utilities.isAllDifferent
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.GetRVariableIfc
@@ -49,7 +49,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
     init {
         require(values.size == cdf.size) { "The values array was not the same size as the CDF array1" }
         require(KSLRandom.isValidCDF(cdf)) { "The supplied CDF array was not a CDF!" }
-        require(values.isDistinct()) { "The supplied array of values did not have distinct values!" }
+        require(values.isAllDifferent()) { "The supplied array of values did not have distinct values!" }
         val pmf = KSLRandom.makePMF(cdf)
         for (i in values.indices) {
             myProbabilityPoints.add(ProbPoint(values[i], pmf[i], cdf[i]))
@@ -184,7 +184,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
         val splitParamArr = splitParameterArray(params)
         splitParamArr.column(0)
         val valArray = splitParamArr.column(0)
-        require(valArray.isDistinct()) { "The values in the supplied parameters array were not distinct!" }
+        require(valArray.isAllDifferent()) { "The values in the supplied parameters array were not distinct!" }
         val cdfArray = splitParamArr.column(1)
         require(KSLRandom.isValidCDF(cdfArray)) { "The supplied CDF in the parameters array was not a CDF!" }
         val pmf = KSLRandom.makePMF(cdfArray);
@@ -306,7 +306,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
         fun makeParameterArray(values: DoubleArray, cdf: DoubleArray): DoubleArray {
             require(values.size == cdf.size) { "The values array was not the same size as the CDF array1" }
             require(KSLRandom.isValidCDF(cdf)) { "The supplied CDF array was not a CDF!" }
-            require(values.isDistinct()) { "The supplied array of values did not have distinct values!" }
+            require(values.isAllDifferent()) { "The supplied array of values did not have distinct values!" }
             val pairs = DoubleArray(cdf.size * 2)
             for (i in cdf.indices) {
                 pairs[2 * i] = values[i]

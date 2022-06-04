@@ -13,16 +13,19 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package ksl.utilities.random
+package ksl.utilities.random.robj
 
-import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 
-/**
- *
- */
-interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, RNStreamChangeIfc {
+interface RElementIfc<T> : RNStreamControlIfc, RNStreamChangeIfc {
+
+    /** Returns an element randomly selected from the list
+     *
+     * @return a randomly selected element from the list
+     */
+    val randomElement: T
+
     override fun resetStartStream() {
         rnStream.resetStartStream()
     }
