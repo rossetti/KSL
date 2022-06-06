@@ -570,7 +570,7 @@ object KSLFileUtil : KLoggable {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: DoubleArray, out: PrintWriter) {
+    fun write(array: DoubleArray, out: PrintWriter) {//TODO add decimal format
         for (x in array) {
             out.println(x)
         }
@@ -607,9 +607,81 @@ object KSLFileUtil : KLoggable {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: Array<DoubleArray>, out: PrintWriter) {
+    fun write(array: Array<DoubleArray>, out: PrintWriter) {//TODO add decimal format
         for (doubles in array) {
             out.println(doubles.toCSVString())
+        }
+        out.flush()
+    }
+
+    /**
+     * Writes the data in the array to rows in the file, each row with one data point
+     *
+     * @param array    the array to write, must not be null
+     * @param fileName the name of the file, must not be null, file will appear in JSL.getInstance().getOutDir()
+     */
+    fun writeToFile(array: IntArray, fileName: String) {
+        val pathToFile = KSL.outDir.resolve(fileName)
+        writeToFile(array, pathToFile)
+    }
+
+    /**
+     * Writes the data in the array to rows in the file, each row with one data point
+     *
+     * @param array      the array to write, must not be null
+     * @param pathToFile the path to the file, must not be null
+     */
+    fun writeToFile(array: IntArray, pathToFile: Path) {
+        val out = createPrintWriter(pathToFile)
+        write(array, out)
+    }
+
+    /**  Allows writing directly to a known PrintWriter.  Facilitates writing
+     * to the file before or after the array is written
+     *
+     * @param array the array to write, must not be null
+     * @param out the PrintWriter to write to, must not be null
+     */
+    fun write(array: IntArray, out: PrintWriter) {
+        for (x in array) {
+            out.println(x)
+        }
+        out.flush()
+    }
+
+    /**
+     * Writes the data in the array to rows in the file, each element in a row is
+     * separated by a comma
+     *
+     * @param array    the array to write, must not be null
+     * @param fileName the name of the file, must not be null, file will appear in JSL.getInstance().getOutDir()
+     */
+    fun writeToFile(array: Array<IntArray>, fileName: String) {
+        val pathToFile = KSL.outDir.resolve(fileName)
+        writeToFile(array, pathToFile)
+    }
+
+    /**
+     * Writes the data in the array to rows in the file, each element in a row is
+     * separated by a comma
+     *
+     * @param array      the array to write, must not be null
+     * @param pathToFile the path to the file, must not be null
+     */
+    fun writeToFile(array: Array<IntArray>, pathToFile: Path) {
+        val out = createPrintWriter(pathToFile)
+        write(array, out)
+    }
+
+    /**  Allows writing directly to a known PrintWriter.  Facilitates writing
+     * to the file before or after the array is written
+     *
+     * @param array the array to write, must not be null
+     * @param out the PrintWriter to write to, must not be null
+     */
+    fun write(array: Array<IntArray>, out: PrintWriter) {
+        for (ints in array) {
+            out.println(ints.toCSVString())
         }
         out.flush()
     }
@@ -661,5 +733,29 @@ fun DoubleArray.writeToFile(pathToFile: Path) {
 }
 
 fun DoubleArray.writeToFile(fileName: String) {
+    KSLFileUtil.writeToFile(this, fileName)
+}
+
+fun Array<IntArray>.write(out: PrintWriter) {
+    KSLFileUtil.write(this, out)
+}
+
+fun Array<IntArray>.writeToFile(pathToFile: Path) {
+    KSLFileUtil.writeToFile(this, pathToFile)
+}
+
+fun Array<IntArray>.writeToFile(fileName: String) {
+    KSLFileUtil.writeToFile(this, fileName)
+}
+
+fun IntArray.write(out: PrintWriter) {
+    KSLFileUtil.write(this, out)
+}
+
+fun IntArray.writeToFile(pathToFile: Path) {
+    KSLFileUtil.writeToFile(this, pathToFile)
+}
+
+fun IntArray.writeToFile(fileName: String) {
     KSLFileUtil.writeToFile(this, fileName)
 }

@@ -262,6 +262,15 @@ object KSLArrays {
     }
 
     /**
+     * @param element the element to check
+     * @param array the array to check
+     * @return true if the array as at least one occurrence of the element
+     */
+    fun hasElement(element: Double, array: DoubleArray): Boolean{
+        return findIndex(element, array) >= 0
+    }
+
+    /**
      * If the array is empty, -1 is returned.
      *
      * @param element the element to search for
@@ -282,6 +291,24 @@ object KSLArrays {
             }
         }
         return -1
+    }
+
+    /**
+     * @param element the element to check
+     * @param array the array to check
+     * @return true if the array as at least one occurrence of the element
+     */
+    fun hasElement(element: Long, array: LongArray): Boolean{
+        return findIndex(element, array) >= 0
+    }
+
+    /**
+     * @param element the element to check
+     * @param array the array to check
+     * @return true if the array as at least one occurrence of the element
+     */
+    fun hasElement(element: Int, array: IntArray): Boolean{
+        return findIndex(element, array) >= 0
     }
 
     /**
@@ -1917,6 +1944,16 @@ fun DoubleArray.findIndex(element: Double): Int {
  * If the array is empty, -1 is returned.
  *
  * @param element the element to search for
+ * @return true if an instance of the element is found
+ */
+fun DoubleArray.hasElement(element: Double): Boolean {
+    return KSLArrays.hasElement(element, this)
+}
+
+/**
+ * If the array is empty, -1 is returned.
+ *
+ * @param element the element to search for
  * @return the index of the first occurrence of the element
  */
 fun IntArray.findIndex(element: Int): Int {
@@ -1927,10 +1964,30 @@ fun IntArray.findIndex(element: Int): Int {
  * If the array is empty, -1 is returned.
  *
  * @param element the element to search for
+ * @return true if an instance of the element is found
+ */
+fun IntArray.hasElement(element: Int): Boolean {
+    return KSLArrays.hasElement(element, this)
+}
+
+/**
+ * If the array is empty, -1 is returned.
+ *
+ * @param element the element to search for
  * @return the index of the first occurrence of the element
  */
 fun LongArray.findIndex(element: Long): Int {
     return KSLArrays.findIndex(element, this)
+}
+
+/**
+ * If the array is empty, -1 is returned.
+ *
+ * @param element the element to search for
+ * @return true if an instance of the element is found
+ */
+fun LongArray.hasElement(element: Long): Boolean {
+    return KSLArrays.hasElement(element, this)
 }
 
 /**

@@ -1036,20 +1036,42 @@ object KSLRandom {
     }
 
     /**
-     * Randomly selects from the array using the supplied cdf, no checking of arrays
+     * Randomly selects from the array using the supplied cdf, NO checking of arrays
      *
      * @param array array to select from
      * @param cdf   the cumulative probability associated with each element of array
-     * @param rng   the source of randomness
+     * @param stream   the source of randomness
      * @return the randomly selected value
      */
-    internal fun discreteInverseCDF(array: DoubleArray, cdf: DoubleArray, rng: RNStreamIfc): Double {
+     fun discreteInverseCDF(array: DoubleArray, cdf: DoubleArray, stream: RNStreamIfc): Double {
         if (cdf.size == 1) {
             return array[0]
         }
         var i = 0
         var value = array[i]
-        val u = rng.randU01()
+        val u = stream.randU01()
+        while (cdf[i] <= u) {
+            i = i + 1
+            value = array[i]
+        }
+        return value
+    }
+
+    /**
+     * Randomly selects from the array using the supplied cdf, NO checking of arrays
+     *
+     * @param array array to select from
+     * @param cdf   the cumulative probability associated with each element of array
+     * @param stream   the source of randomness
+     * @return the randomly selected value
+     */
+    fun discreteInverseCDF(array: IntArray, cdf: DoubleArray, stream: RNStreamIfc): Int {
+        if (cdf.size == 1) {
+            return array[0]
+        }
+        var i = 0
+        var value = array[i]
+        val u = stream.randU01()
         while (cdf[i] <= u) {
             i = i + 1
             value = array[i]
