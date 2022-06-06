@@ -101,10 +101,6 @@ class BatchStatistic constructor(
         private set
 
     /**
-     *
-     * @return the number of re-batches performed
-     */
-    /**
      * the number of times re-batching has occurred
      */
     var numRebatches = 0

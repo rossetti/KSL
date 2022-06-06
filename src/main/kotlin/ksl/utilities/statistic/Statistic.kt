@@ -17,6 +17,10 @@ package ksl.utilities.statistic
 
 import ksl.utilities.distributions.Normal
 import ksl.utilities.distributions.StudentT
+import ksl.utilities.indexOfMax
+import ksl.utilities.indexOfMin
+import ksl.utilities.max
+import ksl.utilities.min
 import kotlin.math.ceil
 import kotlin.math.roundToLong
 
@@ -35,37 +39,37 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
     /**
      * Holds the first 4 statistical central moments
      */
-    protected var myMoments: DoubleArray = DoubleArray(5)
+    private var myMoments: DoubleArray = DoubleArray(5)
 
     /**
      * Holds the number of observations observed
      */
-    protected var myNum = 0.0
+    private var myNum = 0.0
 
     /**
      * Holds the last value observed
      */
-    protected var myValue = 0.0
+    private var myValue = 0.0
 
     /**
      * Holds the sum the lag-1 data, i.e. from the second data point on variable
      * for collecting lag1 covariance
      */
-    protected var mySumXX = 0.0
+    private var mySumXX = 0.0
 
     /**
      * Holds the first observed data point, needed for von-neuman statistic
      */
-    protected var myFirstX = 0.0
+    private var myFirstX = 0.0
 
     /**
      * Holds sum = sum + j*x
      */
-    protected var myJsum = 0.0
+    private var myJsum = 0.0
 
-    protected var myMin = Double.POSITIVE_INFINITY
+    private var myMin = Double.POSITIVE_INFINITY
 
-    protected var myMax = Double.NEGATIVE_INFINITY
+    private var myMax = Double.NEGATIVE_INFINITY
 
     init {
         if (values != null){
@@ -110,10 +114,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         get() = vonNeumannLag1TestStatistic()
 
     /**
-     * Creates a instance of Statistic that is a copy of the supplied Statistic
-     * All internal state is the same (including whether the collection is
-     * on or off) and the collection rule. The only exception is for the id of the returned Statistic.
-     * If this statistic has saved data, the new instance will also have that data.
+     * Creates an instance of Statistic that is a copy of the supplied Statistic
+     * All internal state is the same. The only exception is for the id of the returned Statistic.
      *
      * @return a copy of the supplied Statistic
      */
@@ -463,7 +465,6 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         sb.append("Last value collected ")
         sb.append(lastValue)
         sb.appendLine()
-//        sb.append(System.lineSeparator())
         sb.append("Kurtosis ")
         sb.append(kurtosis)
         sb.appendLine()
@@ -545,10 +546,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         }
 
         /**
-         * Creates a instance of Statistic that is a copy of the supplied Statistic
-         * All internal state is the same (including whether the collection is
-         * on or off) and the collection rule. The only exception is for the id of the returned Statistic
-         * If this statistic has saved data, the new instance will also have that data.
+         * Creates an instance of Statistic that is a copy of the supplied Statistic
+         * All internal state is the same. The only exception is for the id of the returned Statistic
          *
          * @param stat the stat to copy
          * @return a copy of the supplied Statistic
@@ -576,15 +575,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          * @return the index associated with the minimum element
          */
         fun indexOfMin(x: DoubleArray): Int {
-            var index = 0
-            var min = Double.MAX_VALUE
-            for (i in x.indices) {
-                if (x[i] < min) {
-                    min = x[i]
-                    index = i
-                }
-            }
-            return index
+            return x.indexOfMin()
         }
 
         /**
@@ -592,7 +583,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          * @return the minimum value in the array
          */
         fun min(x: DoubleArray): Double {
-            return x[indexOfMin(x)]
+            return x.min()
         }
 
         /**
@@ -603,23 +594,15 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          * @return the index associated with the maximum element
          */
         fun indexOfMax(x: DoubleArray): Int {
-            var index = 0
-            var max = Double.MIN_VALUE
-            for (i in x.indices) {
-                if (x[i] > max) {
-                    max = x[i]
-                    index = i
-                }
-            }
-            return index
+            return x.indexOfMax()
         }
 
         /**
          * @param x the array of data
          * @return the maximum value in the array
          */
-        fun getMax(x: DoubleArray): Double {
-            return x[indexOfMax(x)]
+        fun max(x: DoubleArray): Double {
+            return x.max()
         }
 
         /**
