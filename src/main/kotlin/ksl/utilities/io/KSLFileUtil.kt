@@ -7,6 +7,7 @@ import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.text.DecimalFormat
 import java.util.*
 
 /**
@@ -548,9 +549,9 @@ object KSLFileUtil : KLoggable {
      * @param array    the array to write, must not be null
      * @param fileName the name of the file, must not be null, file will appear in JSL.getInstance().getOutDir()
      */
-    fun writeToFile(array: DoubleArray, fileName: String) {
+    fun writeToFile(array: DoubleArray, fileName: String, df: DecimalFormat? = null) {
         val pathToFile = KSL.outDir.resolve(fileName)
-        writeToFile(array, pathToFile)
+        writeToFile(array, pathToFile, df)
     }
 
     /**
@@ -559,9 +560,9 @@ object KSLFileUtil : KLoggable {
      * @param array      the array to write, must not be null
      * @param pathToFile the path to the file, must not be null
      */
-    fun writeToFile(array: DoubleArray, pathToFile: Path) {
+    fun writeToFile(array: DoubleArray, pathToFile: Path, df: DecimalFormat? = null) {
         val out = createPrintWriter(pathToFile)
-        write(array, out)
+        write(array, out, df)
     }
 
     /**  Allows writing directly to a known PrintWriter.  Facilitates writing
@@ -570,9 +571,13 @@ object KSLFileUtil : KLoggable {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: DoubleArray, out: PrintWriter) {//TODO add decimal format
+    fun write(array: DoubleArray, out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
         for (x in array) {
-            out.println(x)
+            if (df == null){
+                out.println(x)
+            } else {
+                out.println(df.format(x))
+            }
         }
         out.flush()
     }
@@ -584,9 +589,9 @@ object KSLFileUtil : KLoggable {
      * @param array    the array to write, must not be null
      * @param fileName the name of the file, must not be null, file will appear in JSL.getInstance().getOutDir()
      */
-    fun writeToFile(array: Array<DoubleArray>, fileName: String) {
+    fun writeToFile(array: Array<DoubleArray>, fileName: String, df: DecimalFormat? = null) {
         val pathToFile = KSL.outDir.resolve(fileName)
-        writeToFile(array, pathToFile)
+        writeToFile(array, pathToFile, df)
     }
 
     /**
@@ -596,9 +601,9 @@ object KSLFileUtil : KLoggable {
      * @param array      the array to write, must not be null
      * @param pathToFile the path to the file, must not be null
      */
-    fun writeToFile(array: Array<DoubleArray>, pathToFile: Path) {
+    fun writeToFile(array: Array<DoubleArray>, pathToFile: Path, df: DecimalFormat? = null) {
         val out = createPrintWriter(pathToFile)
-        write(array, out)
+        write(array, out, df)
     }
 
     /**  Allows writing directly to a known PrintWriter.  Facilitates writing
@@ -607,11 +612,31 @@ object KSLFileUtil : KLoggable {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: Array<DoubleArray>, out: PrintWriter) {//TODO add decimal format
+    fun write(array: Array<DoubleArray>, out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
         for (doubles in array) {
-            out.println(doubles.toCSVString())
+            out.println(toCSVString(doubles, df))
         }
         out.flush()
+    }
+
+    /**
+     * @param df a format to apply to the values of the array when writing the strings
+     * @param array  the array to convert
+     * @return a comma delimited string of the array, if empty or null, returns the empty string
+     */
+    fun toCSVString(array: DoubleArray, df: DecimalFormat? = null): String {
+        if (array.isEmpty()) {
+            return ""
+        }
+        val joiner = StringJoiner(", ")
+        for (i in array.indices) {
+            if (df == null) {
+                joiner.add(array[i].toString())
+            } else {
+                joiner.add(df.format(array[i]))
+            }
+        }
+        return joiner.toString()
     }
 
     /**
@@ -642,7 +667,7 @@ object KSLFileUtil : KLoggable {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: IntArray, out: PrintWriter) {
+    fun write(array: IntArray, out: PrintWriter = KSLFileUtil.SOUT) {
         for (x in array) {
             out.println(x)
         }
@@ -679,7 +704,7 @@ object KSLFileUtil : KLoggable {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: Array<IntArray>, out: PrintWriter) {
+    fun write(array: Array<IntArray>, out: PrintWriter = KSLFileUtil.SOUT) {
         for (ints in array) {
             out.println(ints.toCSVString())
         }
@@ -712,31 +737,31 @@ object KSLFileUtil : KLoggable {
     }
 }
 
-fun Array<DoubleArray>.write(out: PrintWriter) {
-    KSLFileUtil.write(this, out)
+fun Array<DoubleArray>.write(out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
+    KSLFileUtil.write(this, out, df)
 }
 
-fun Array<DoubleArray>.writeToFile(pathToFile: Path) {
-    KSLFileUtil.writeToFile(this, pathToFile)
+fun Array<DoubleArray>.writeToFile(pathToFile: Path, df: DecimalFormat? = null) {
+    KSLFileUtil.writeToFile(this, pathToFile, df)
 }
 
-fun Array<DoubleArray>.writeToFile(fileName: String) {
-    KSLFileUtil.writeToFile(this, fileName)
+fun Array<DoubleArray>.writeToFile(fileName: String, df: DecimalFormat? = null) {
+    KSLFileUtil.writeToFile(this, fileName, df)
 }
 
-fun DoubleArray.write(out: PrintWriter) {
-    KSLFileUtil.write(this, out)
+fun DoubleArray.write(out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
+    KSLFileUtil.write(this, out, df)
 }
 
-fun DoubleArray.writeToFile(pathToFile: Path) {
-    KSLFileUtil.writeToFile(this, pathToFile)
+fun DoubleArray.writeToFile(pathToFile: Path, df: DecimalFormat? = null) {
+    KSLFileUtil.writeToFile(this, pathToFile, df)
 }
 
-fun DoubleArray.writeToFile(fileName: String) {
-    KSLFileUtil.writeToFile(this, fileName)
+fun DoubleArray.writeToFile(fileName: String, df: DecimalFormat? = null) {
+    KSLFileUtil.writeToFile(this, fileName, df)
 }
 
-fun Array<IntArray>.write(out: PrintWriter) {
+fun Array<IntArray>.write(out: PrintWriter = KSLFileUtil.SOUT) {
     KSLFileUtil.write(this, out)
 }
 
@@ -748,7 +773,7 @@ fun Array<IntArray>.writeToFile(fileName: String) {
     KSLFileUtil.writeToFile(this, fileName)
 }
 
-fun IntArray.write(out: PrintWriter) {
+fun IntArray.write(out: PrintWriter = KSLFileUtil.SOUT) {
     KSLFileUtil.write(this, out)
 }
 

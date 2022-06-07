@@ -4,6 +4,7 @@ import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.DoubleArraySaver
 import ksl.utilities.statistic.Statistic
+import java.text.DecimalFormat
 import kotlin.math.sqrt
 
 /**
@@ -1119,18 +1120,33 @@ object KSLArrays {
         return LongArray(list.size) { list[it] ?: replaceNull }
     }
 
+//    /**
+//     * Convert the array of double to an array of strings with each element the
+//     * corresponding value
+//     *
+//     * @param array the array of doubles
+//     * @return the array of strings representing the values of the doubles
+//     */
+//    fun toStrings(array: DoubleArray): Array<String> {
+//        if (array.isEmpty()) {
+//            return emptyArray()
+//        }
+//        return Array(array.size) { array[it].toString() }
+//    }
+
     /**
-     * Convert the array of double to an array of strings with each element the
+     * Convert the array of doubles to an array of strings with each element the
      * corresponding value
      *
      * @param array the array of doubles
+     * @param df the decimal format to apply to each element, may be null
      * @return the array of strings representing the values of the doubles
      */
-    fun toStrings(array: DoubleArray): Array<String> {
+    fun toStrings(array: DoubleArray, df: DecimalFormat? = null): Array<String> {
         if (array.isEmpty()) {
             return emptyArray()
         }
-        return Array(array.size) { array[it].toString() }
+        return Array(array.size) { df?.format(array[it]) ?: array[it].toString() }
     }
 
     /**
