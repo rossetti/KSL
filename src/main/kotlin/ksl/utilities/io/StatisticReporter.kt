@@ -20,11 +20,17 @@
  */
 package ksl.utilities.io
 
+import ksl.utilities.KSLArrays
+import ksl.utilities.random.rvariable.NormalRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import java.text.DecimalFormat
 import java.util.*
 
+const val DEFAULT_ROW_FORMAT = "%-40s \t %12d \t %12.4f \t %12.4f %n"
+const val DEFAULT_HEADER_FORMAT = "%-40s \t %12s \t %12s \t %12s %n"
+val D2FORMAT = DecimalFormat(".##")
 /**
  * A class to help with making useful statistical reports. Creates summary
  * reports as StringBuilders based on the supplied list of statistics
@@ -32,11 +38,9 @@ import java.util.*
  * @author rossetti
  * @param listOfStats a list containing the StatisticAccessorIfc instances
  */
-class StatisticReporter (listOfStats: MutableList<StatisticIfc> = ArrayList()) {
-    val DEFAULT_ROW_FORMAT = "%-40s \t %12d \t %12.4f \t %12.4f %n"
-    val DEFAULT_HEADER_FORMAT = "%-40s \t %12s \t %12s \t %12s %n"
+class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
     private val myStats: MutableList<StatisticIfc>
-    val myRowFormat: StringBuilder
+    private val myRowFormat: StringBuilder
     private val myHeaderFormat: StringBuilder
     private val myNumCols = 100
     private val myNumDecPlaces = 6
@@ -118,8 +122,8 @@ class StatisticReporter (listOfStats: MutableList<StatisticIfc> = ArrayList()) {
     fun setNameFieldSize(n: Int) {
         require(n >= 10) { "The number of decimal places must be >=10" }
         require(n <= 99) { "The number of decimal places must be <=99" }
-        myRowFormat.replace(2, 4, Integer.toString(n))
-        myHeaderFormat.replace(2, 4, Integer.toString(n))
+        myRowFormat.replace(2, 4, n.toString())
+        myHeaderFormat.replace(2, 4, n.toString())
     }
 
     /**
@@ -128,11 +132,11 @@ class StatisticReporter (listOfStats: MutableList<StatisticIfc> = ArrayList()) {
      *
      * @param n must be between 0 and 9
      */
-    fun setDecimalPlaces(n: Int) {
+    fun decimalPlaces(n: Int) {
         require(n >= 0) { "The number of decimal places must be >=0" }
         require(n <= 9) { "The number of decimal places must be <=9" }
-        myRowFormat.replace(19, 20, Integer.toString(n))
-        myRowFormat.replace(28, 29, Integer.toString(n))
+        myRowFormat.replace(19, 20, n.toString())
+        myRowFormat.replace(28, 29, n.toString())
     }
 
     /**
@@ -172,6 +176,104 @@ class StatisticReporter (listOfStats: MutableList<StatisticIfc> = ArrayList()) {
         }
         formatter.format("%s %n", myHline)
         return sb
+    }
+
+    fun summaryReportAsMarkDown(title: String? = null, df: DecimalFormat?): StringBuilder {
+        val sb = StringBuilder()
+        val formatter = Formatter(sb)
+        if (reportLabelFlag) {
+            if (reportTitle != null) {
+                formatter.format("%s %n", reportTitle)
+            }
+            formatter.format("Statistical Summary Report%n")
+        }
+        if (timeDateFlag) {
+            formatter.format("%tc%n%n", Calendar.getInstance().timeInMillis)
+        }
+        if (title != null) {
+            formatter.format("%s %n", title)
+        }
+        val t = MarkDown.Table(summaryReportHeader(), MarkDown.ColFmt.CENTER)
+        for (stat in myStats) {
+            t.addRow(summaryReportRow(stat, df))
+        }
+        sb.append(t)
+        sb.append(System.lineSeparator())
+        return sb
+    }
+
+    fun summaryReportHeader(): List<String> {
+        val list: MutableList<String> = ArrayList()
+        list.add("Name")
+        list.add("Count")
+        list.add("Average")
+        list.add("Std. Dev.")
+        return list
+    }
+
+    fun summaryReportRow(statistic: StatisticIfc, df: DecimalFormat? = null): List<String> {
+        val list: MutableList<String> = ArrayList()
+        list.add(statistic.name)
+        val data = doubleArrayOf(
+            statistic.count,
+            statistic.average,
+            statistic.standardDeviation
+        )
+        list.addAll(KSLArrays.toStrings(data, df).toList())
+        return list
+    }
+
+    fun halfWidthSummaryReportAsMarkDown(
+        title: String? = null,
+        level: Double = 0.95,
+        df: DecimalFormat? = null
+    ): StringBuilder {
+        val sb = StringBuilder()
+        val formatter = Formatter(sb)
+        if (reportLabelFlag) {
+            if (reportTitle != null) {
+                formatter.format("%s %n", reportTitle)
+            }
+            formatter.format("Statistical Summary Report%n")
+        }
+        if (timeDateFlag) {
+            formatter.format("%tc%n%n", Calendar.getInstance().timeInMillis)
+        }
+        if (title != null) {
+            formatter.format("%s %n", title)
+        }
+        val t = MarkDown.Table(getHalfWidthSummaryReportHeader(), MarkDown.ColFmt.CENTER)
+        for (stat in myStats) {
+            t.addRow(getHalfWidthSummaryReportRow(stat, level, df))
+        }
+        sb.append(t)
+        sb.append(System.lineSeparator())
+        return sb
+    }
+
+    fun getHalfWidthSummaryReportHeader(): List<String> {
+        val list: MutableList<String> = ArrayList()
+        list.add("Name")
+        list.add("Count")
+        list.add("Average")
+        list.add("Half-Width")
+        return list
+    }
+
+    fun getHalfWidthSummaryReportRow(
+        statistic: StatisticIfc,
+        level: Double = 0.95,
+        df: DecimalFormat? = null
+    ): List<String> {
+        val list: MutableList<String> = ArrayList()
+        list.add(statistic.name)
+        val data = doubleArrayOf(
+            statistic.count,
+            statistic.average,
+            statistic.halfWidth(level)
+        )
+        list.addAll(KSLArrays.toStrings(data, df).toList())
+        return list
     }
 
     /**
@@ -443,8 +545,27 @@ class StatisticReporter (listOfStats: MutableList<StatisticIfc> = ArrayList()) {
         }
         return sb
     }
+}
 
-    companion object {
-        val D2FORMAT = DecimalFormat(".##")
-    }
+fun main() {
+    val n: RVariableIfc = NormalRV()
+    val s1 = Statistic("s1")
+    val s2 = Statistic("s2 blah")
+    s1.collect(n.sample(100))
+    s2.collect(n.sample(200))
+    val list: MutableList<StatisticIfc> = ArrayList()
+    list.add(s1)
+    list.add(s2)
+    val r = StatisticReporter(list)
+    println(r.halfWidthSummaryReport(confLevel = .95))
+    println(r.summaryReport())
+    //r.setDecimalPlaces(2);
+    r.setNameFieldSize(r.findSizeOfLongestName() + 5)
+    println(r.halfWidthSummaryReport())
+    println(r.findSizeOfLongestName())
+    println(r.summaryReportAsLaTeXTabular(5))
+    println(r.csvStatistics())
+    val out = KSL.createPrintWriter("Report.md")
+    out.print(r.halfWidthSummaryReportAsMarkDown())
+    out.flush()
 }
