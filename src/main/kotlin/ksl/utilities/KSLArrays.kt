@@ -5,7 +5,8 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.DoubleArraySaver
 import ksl.utilities.statistic.Statistic
 import java.text.DecimalFormat
-import kotlin.math.sqrt
+import java.util.*
+import kotlin.math.*
 
 /**
  * This class has some array manipulation methods that I have found useful over the years.
@@ -1828,6 +1829,152 @@ object KSLArrays {
             }
         }
         return saver.savedData()
+    }
+
+    // contributed by Andrew Gibson
+
+    // contributed by Andrew Gibson
+    /**
+     * contributed by Andrew Gibson
+     * simple way to create a n-element vector of the same value (x)
+     *
+     * @param x - scalar input value
+     * @param n - number of replications
+     * @return - 1D array of length n filled with values x
+     */
+    fun replicate(x: Double, n: Int): DoubleArray? {
+        require(n >= 0) { "n cannot be negative" }
+        val res = DoubleArray(n)
+        Arrays.fill(res, x)
+        return res
+    }
+
+    /**
+     * contributed by Andrew Gibson
+     * round the 1D array x  to a multiple of granularity (double[])
+     * note that 0 or null granularity values are interpreted as "no rounding"
+     *
+     * @param x           - the input
+     * @param granularity - the granularity to which to round x
+     * @return - 1 1D array of elements i s.t. x[i] is rounded to granularity[i]
+     */
+    fun mround(x: DoubleArray, granularity: DoubleArray?): DoubleArray {
+        return if (granularity == null) {
+            x
+        } else {
+            require(x.size == granularity.size) { "x array and granularity array have different lengths" }
+            val res = DoubleArray(x.size)
+            for (i in x.indices) {
+                res[i] = mround(x[i], granularity[i])
+            }
+            res
+        }
+    }
+
+    /**
+     * contributed by Andrew Gibson
+     * round a scalar double to a multiple of granularity
+     * note that 0 or null granularity values are interpreted as "no rounding"
+     *
+     * @param x           - input
+     * @param granularity a scalar Double
+     * @return x rounded to granularity
+     */
+    fun mround(x: Double, granularity: Double): Double {
+        // interpret 0 and null  granularity as "no rounding"
+        granularity.compareTo(0.0)
+        return if (granularity.compareTo(0.0) < 1) {
+            x
+        } else {
+            /*
+                  Math.round converts to a Long internally and where granularity is tiny compared
+                  to x, x/granularity could cause an overlow and instability in the calculation
+                   e.g. Math.round(1E50 / (1E-50))*1E-50 = 99.223372036854776E-32 !!
+
+                  the biggest Long is Math.pow(2^63) - 1
+                  We certainly don't want to overlflow that but 2^63 - 1 has 19 significant figures
+                  (more than a double can represent 2^53 - 1)
+                  we want (x/prec) < (2^63 - 1) to avoid overflow
+                   - work with 2^50 , any rounding beyond that is pointless)
+                   - note that Math.log uses base 10 AND
+                       - log(x, base = 2) = log(x, base = 10)/ log(2, base = 10)
+                       - which lets us derive the formula below
+                  */
+            if (ln(x) - ln(granularity) > 50.0 * ln(2.0)) {
+                // not worth rounding to such a small degree or risking overflow
+                // in conversion to Long
+                x
+            } else {
+                // go ahead and round it !
+                (x / granularity).roundToInt() * granularity
+            }
+        }
+    }
+
+    /**
+     * contributed by Andrew Gibson
+     * round a 1D array x to a multiple of a scalar granularity value
+     * note that 0 or null granularity values are interpreted as "no rounding"
+     *
+     * @param x           - input[]
+     * @param granularity - Double
+     * @return - 1D array the same size as x
+     */
+    fun mround(x: DoubleArray, granularity: Double): DoubleArray? {
+        val gr = DoubleArray(x.size)
+        Arrays.fill(gr, granularity)
+        return mround(x, gr)
+    }
+
+    /**
+     * contributed by Andrew Gibson
+     * calculate the number of decimal places needed to
+     * give AT LEAST sf digits to all values
+     *
+     * @param values - double array
+     * @param sf     - number of significant figures
+     * @return the number of decimal places
+     */
+    fun sigFigDecimals(values: DoubleArray, sf: Int): Int {
+        val p = IntArray(values.size)
+        for (i in values.indices) {
+            p[i] = sigFigDecimals(values[i], sf)
+        }
+        return if (p.isNotEmpty()) {
+            p.max()
+        } else {
+            0
+        }
+    }
+
+    /**
+     * contributed by Andrew Gibson
+     * calculate the number of decimal places needed to
+     * give sf digits
+     *
+     * @param value - double value
+     * @param sf    -
+     * @return the number of decimal places
+     */
+    fun sigFigDecimals(value: Double, sf: Int): Int {
+        // handle 0 (which requires no sigfigs) and for
+        // which log(0) is -Inf
+        if (value.compareTo(0.0) == 0) return 0
+        var p = floor(log10(abs(value))).toInt()
+        p = max(0, sf - p - 1)
+        return p
+    }
+
+    /**
+     * contributed by Andrew Gibson
+     *
+     * @param value - double value
+     * @param sf    -
+     * @return the value formatted as a String
+     */
+    fun sigFigFormat(value: Double, sf: Int): String {
+        val p = sigFigDecimals(value, sf)
+        return String.format("%,." + p + "f", value)
     }
 
 }
