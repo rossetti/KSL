@@ -21,7 +21,7 @@ import ksl.utilities.distributions.Normal
 /**
  * The StatisticIfc interface presents a read-only view of a Statistic
  */
-interface StatisticIfc : MeanEstimatorIfc, GetCSVStatisticIfc {
+interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc {
     /**
      * Gets the name of the Statistic
      *
@@ -44,20 +44,6 @@ interface StatisticIfc : MeanEstimatorIfc, GetCSVStatisticIfc {
      * the average
      */
     val deviationSumOfSquares: Double
-
-    /**
-     * Gets the minimum of the observations.
-     *
-     * @return A double representing the minimum
-     */
-    val min: Double
-
-    /**
-     * Gets the maximum of the observations.
-     *
-     * @return A double representing the maximum
-     */
-    val max: Double
 
     /**
      * Gets the last observed data point
