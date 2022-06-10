@@ -17,25 +17,17 @@ package ksl.utilities.statistic
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
-import kotlin.math.sqrt
 
 /**
  * The StatisticIfc interface presents a read-only view of a Statistic
  */
-interface StatisticIfc : GetCSVStatisticIfc {
+interface StatisticIfc : MeanEstimatorIfc, GetCSVStatisticIfc {
     /**
      * Gets the name of the Statistic
      *
      * @return The name as a String
      */
     val name: String
-
-    /**
-     * Gets the count of the number of the observations.
-     *
-     * @return A double representing the count
-     */
-    val count: Double
 
     /**
      * Gets the sum of the observations.
@@ -45,13 +37,6 @@ interface StatisticIfc : GetCSVStatisticIfc {
     val sum: Double
 
     /**
-     * Gets the unweighted average of the observations.
-     *
-     * @return A double representing the average or Double.NaN if no observations.
-     */
-    val average: Double
-
-    /**
      * Gets the sum of squares of the deviations from the average This is the
      * numerator in the classic sample variance formula
      *
@@ -59,23 +44,6 @@ interface StatisticIfc : GetCSVStatisticIfc {
      * the average
      */
     val deviationSumOfSquares: Double
-
-    /**
-     * Gets the sample variance of the observations.
-     *
-     * @return A double representing the variance or Double.NaN if 1 or less observations.
-     */
-    val variance: Double
-
-    /**
-     * Gets the sample standard deviation of the observations. Simply
-     * the square root of getVariance()
-     *
-     * @return A double representing the generate standard deviation or Double.NaN
-     * if 1 or less observations.
-     */
-    val standardDeviation: Double
-        get() = sqrt(variance)
 
     /**
      * Gets the minimum of the observations.
@@ -424,7 +392,7 @@ interface StatisticIfc : GetCSVStatisticIfc {
             if (name == null) {
                 sb.add("NA")
             } else {
-                sb.add(name!!)
+                sb.add(name)
             }
             val stats = asArray
             for (i in stats.indices) {
