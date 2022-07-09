@@ -28,7 +28,7 @@ class ExponentialRV(val mean: Double, rng: RNStreamIfc = KSLRandom.nextRNStream(
      * @param mean      must be greater than 0.0
      * @param streamNum the stream number
      */
-    constructor(mean: Double, streamNum: Int) : this(mean, KSLRandom.rnStream(streamNum)) {}
+    constructor(mean: Double, streamNum: Int) : this(mean, KSLRandom.rnStream(streamNum))
 
     init {
         require(mean > 0.0) { "Exponential mean must be > 0.0" }

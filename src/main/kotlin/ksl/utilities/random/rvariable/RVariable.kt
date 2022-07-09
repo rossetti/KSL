@@ -17,7 +17,6 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 
 /**
@@ -25,7 +24,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  * the random generation procedure in the method generate().
  */
 abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) : RVariableIfc,
-    IdentityIfc by Identity(name), RNStreamControlIfc by stream {
+    IdentityIfc by Identity(name) {
 
     constructor(stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(stream, null)
 

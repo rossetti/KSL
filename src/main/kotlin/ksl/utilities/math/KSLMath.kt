@@ -16,6 +16,7 @@
 package ksl.utilities.math
 
 import ksl.utilities.distributions.Gamma
+import mu.KLoggable
 import kotlin.math.*
 
 /**
@@ -26,7 +27,13 @@ import kotlin.math.*
  * This is based on the DhbMath class of Didier Besset in "Object-Oriented
  * Implementation of Numerical Methods", Morgan-Kaufmann
  */
-object KSLMath {
+object KSLMath : KLoggable {
+
+    /**
+     *  Use for general logging
+     */
+    override val logger = logger()
+
     /**
      * holds initial factorials
      */
@@ -246,7 +253,7 @@ object KSLMath {
      * Round the specified value upward to the next scale value.
      *
      * @param value         the value to be rounded.
-     * @param integerValued fag specified whether integer scale are used,
+     * @param integerValued flag specified whether integer scale are used,
      * otherwise double scale is used.
      * @return a number rounded upward to the next scale value.
      */
@@ -367,5 +374,136 @@ object KSLMath {
      */
     fun logFactorial(n: Double): Double {
         return Gamma.logGammaFunction(n + 1.0)
+    }
+
+    /**
+     * Converts a double to a byte. If the double is outside
+     * the natural range, then the value is set to the minimum or
+     * maximum of the range. If within the range, the value
+     * is rounded to the nearest value. For example, 4.9999 is
+     * rounded to 5.0.
+     *
+     * @param value the value to convert
+     * @return the converted value
+     */
+    fun toByteValue(value: Double): Byte {
+        return if (value >= Byte.MAX_VALUE) {
+            logger.trace("{} was limited to {} in toByteValue()", value, Byte.MAX_VALUE)
+            Byte.MAX_VALUE
+        } else if (value <= Byte.MIN_VALUE) {
+            logger.trace("{} was limited to {} in toByteValue()", value, Byte.MIN_VALUE)
+            Byte.MIN_VALUE
+        } else {
+            // in the range of byte, convert to the nearest byte
+            value.roundToInt().toByte()
+        }
+    }
+
+    /**
+     * Converts a double to a long. If the double is outside
+     * the natural range, then the value is set to the minimum or
+     * maximum of the range. If within the range, the value
+     * is rounded to the nearest value. For example, 4.9999 is
+     * rounded to 5.0.
+     *
+     * @param value the value to convert
+     * @return the converted value
+     */
+    fun toLongValue(value: Double): Long {
+        return if (value >= Long.MAX_VALUE) {
+            logger.trace("{} was limited to {} in toLongValue()", value, Long.MAX_VALUE)
+            Long.MAX_VALUE
+        } else if (value <= Long.MIN_VALUE) {
+            logger.trace("{} was limited to {} in toLongValue()", value, Long.MIN_VALUE)
+            Long.MIN_VALUE
+        } else {
+            // in the range of long, convert to the nearest long
+            value.roundToLong()
+        }
+    }
+
+    /**
+     * Converts a double to an int. If the double is outside
+     * the natural range, then the value is set to the minimum or
+     * maximum of the range. If within the range, the value
+     * is rounded to the nearest value. For example, 4.9999 is
+     * rounded to 5.0.
+     *
+     * @param value the value to convert
+     * @return the converted value
+     */
+    fun toIntValue(value: Double): Int {
+        return if (value >= Int.MAX_VALUE) {
+            logger.trace("{} was limited to {} in toIntValue()", value, Int.MAX_VALUE)
+            Int.MAX_VALUE
+        } else if (value <= Int.MIN_VALUE) {
+            logger.trace("{} was limited to {} in toIntValue()", value, Int.MIN_VALUE)
+            Int.MIN_VALUE
+        } else {
+            // in the range of int, convert to the nearest int
+            value.roundToInt()
+        }
+    }
+
+    /**
+     * Converts a double to a short. If the double is outside
+     * the natural range, then the value is set to the minimum or
+     * maximum of the range. If within the range, the value
+     * is rounded to the nearest value. For example, 4.9999 is
+     * rounded to 5.0.
+     *
+     * @param value the value to convert
+     * @return the converted value
+     */
+    fun toShortValue(value: Double): Short {
+        return if (value >= Short.MAX_VALUE) {
+            logger.trace("{} was limited to {} in toShortValue()", value, Short.MAX_VALUE)
+            Short.MAX_VALUE
+        } else if (value <= Short.MIN_VALUE) {
+            logger.trace("{} was limited to {} in toShortValue()", value, Short.MIN_VALUE)
+            Short.MIN_VALUE
+        } else {
+            // in the range of int, convert to the nearest int
+            value.roundToInt().toShort()
+        }
+    }
+
+    /**
+     * Converts a double to a boolean. 1.0 is true. Double.NEGATIVE_INFINITY is mapped to false,
+     * Double.POSITIVE_INFINITY is mapped to true, any other double values other are mapped to false.
+     *
+     * @param value the value to convert
+     * @return the converted value
+     */
+    fun toBooleanValue(value: Double): Boolean {
+        return if (value == 1.0) {
+            logger.trace("{} was converted to {} in toBooleanValue()", value, true)
+            true
+        } else {
+            if (value == Double.NEGATIVE_INFINITY) {
+                logger.trace("{} was converted to {} in toBooleanValue()", value, false)
+                return false
+            } else if (value == Double.POSITIVE_INFINITY) {
+                logger.trace("{} was converted to {} in toBooleanValue()", value, true)
+                return true
+            } else if (value != 0.0) {
+                logger.trace("{} was converted to {} in toBooleanValue()", value, false)
+                return false
+            }
+            false
+        }
+    }
+
+    /**
+     * Converts a double to a float. Standard loss of precision
+     * as noted by the Java Language Specification will occur
+     * as per Double.floatValue()
+     *
+     * @param value the value to convert
+     * @return the converted value
+     */
+    fun toFloatValue(value: Double): Float {
+        // standard loss of precision is expected
+        return value.toFloat()
     }
 }

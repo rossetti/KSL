@@ -57,7 +57,7 @@ class BernoulliRV (
      *
      * @return a randomly generated boolean
      */
-    val bValue: Boolean
+    val boolValue: Boolean
         get() = (value != 0.0)
 
     /**
@@ -70,7 +70,7 @@ class BernoulliRV (
         require(n > 0) { "The generate size must be > 0" }
         val b = BooleanArray(n)
         for (i in 0 until n) {
-            b[i] = bValue
+            b[i] = boolValue
         }
         return b
     }
