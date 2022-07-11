@@ -519,78 +519,82 @@ object Tukey {
      *  the search is terminated
      */
     fun qtukey(p: Double, nMeans: Double, df: Double, nRanges: Double, lower_tail: Boolean, log_p: Boolean): Double {
-        var p = p
+        var pp = p
         val eps = qTukeyEPS
         val maxiter = qTukeyMaxIterations
-        var ans = 0.0
+        var ans: Double
         var valx0: Double
         var valx1: Double
         var x0: Double
         var x1: Double
         var xabs: Double
-        var iter: Int
-        if (java.lang.Double.isNaN(p) || java.lang.Double.isNaN(nRanges) || java.lang.Double.isNaN(nMeans) || java.lang.Double.isNaN(
-                df
-            )
-        ) {
+        if (java.lang.Double.isNaN(pp) || java.lang.Double.isNaN(nRanges)
+            || java.lang.Double.isNaN(nMeans) || java.lang.Double.isNaN(df)) {
             //ML_ERROR(ME_DOMAIN, "qtukey");
-            return p + nRanges + nMeans + df
+            return pp + nRanges + nMeans + df
         }
 
-        /* df must be > 1 ; there must be at least two values */if (df < 2 || nRanges < 1 || nMeans < 2) return Double.NaN
+        // df must be > 1 ; there must be at least two values
+        if (df < 2 || nRanges < 1 || nMeans < 2) return Double.NaN
 
         //R_Q_P01_boundaries(p, 0, ML_POSINF);
         if (log_p) {
-            if (p > 0) return Double.NaN
-            if (p == 0.0) /* upper bound*/ return if (lower_tail) Double.POSITIVE_INFINITY else 0.0
-            if (p == Double.NEGATIVE_INFINITY) return if (lower_tail) 0.0 else Double.POSITIVE_INFINITY
+            if (pp > 0) return Double.NaN
+            if (pp == 0.0) /* upper bound*/ return if (lower_tail) Double.POSITIVE_INFINITY else 0.0
+            if (pp == Double.NEGATIVE_INFINITY) return if (lower_tail) 0.0 else Double.POSITIVE_INFINITY
         } else { /* !log_p */
-            if (p < 0 || p > 1) return Double.NaN
-            if (p == 0.0) return if (lower_tail) 0.0 else Double.POSITIVE_INFINITY
-            if (p == 1.0) return if (lower_tail) Double.POSITIVE_INFINITY else 0.0
+            if (pp < 0 || pp > 1) return Double.NaN
+            if (pp == 0.0) return if (lower_tail) 0.0 else Double.POSITIVE_INFINITY
+            if (pp == 1.0) return if (lower_tail) Double.POSITIVE_INFINITY else 0.0
         }
 
-        //p = R_DT_qIv(p); /* lower_tail,non-log "p" */
-        p = if (log_p) if (lower_tail) Math.exp(p) else -Math.expm1(p) else if (lower_tail) p else 0.5 - p + 0.5
+        //p = R_DT_qIv(p); /* lower_tail,non-log "p"
+        pp = if (log_p) if (lower_tail) Math.exp(pp) else -Math.expm1(pp) else if (lower_tail) pp else 0.5 - pp + 0.5
 
-        /* Initial value */x0 = qinv(p, nMeans, df)
+        // Initial value
+        x0 = qinv(pp, nMeans, df)
 
-        /* Find prob(value < x0) */valx0 = ptukey(x0, nMeans, df, nRanges,  /*LOWER*/true,  /*LOG_P*/false) - p
+        // Find prob(value < x0)
+        valx0 = ptukey(x0, nMeans, df, nRanges,  /*LOWER*/true,  /*LOG_P*/false) - pp
 
-        /* Find the second iterate and prob(value < x1). */
-        /* If the first iterate has probability value */
-        /* exceeding p then second iterate is 1 less than */
-        /* first iterate; otherwise it is 1 greater. */x1 = if (valx0 > 0.0) Math.max(0.0, x0 - 1.0) else x0 + 1.0
-        valx1 = ptukey(x1, nMeans, df, nRanges,  /*LOWER*/true,  /*LOG_P*/false) - p
+        // Find the second iterate and prob(value < x1).
+        // If the first iterate has probability value
+        // exceeding p then second iterate is 1 less than
+        // first iterate; otherwise it is 1 greater.
+        x1 = if (valx0 > 0.0) Math.max(0.0, x0 - 1.0) else x0 + 1.0
+        valx1 = ptukey(x1, nMeans, df, nRanges, lower_tail = true, log_p = false) - pp
 
-        /* Find new iterate */iter = 1
+        // Find new iterate
+        var iter = 1
         while (iter < maxiter) {
             ans = x1 - valx1 * (x1 - x0) / (valx1 - valx0)
             valx0 = valx1
 
-            /* New iterate must be >= 0 */x0 = x1
+            // New iterate must be >= 0
+            x0 = x1
             if (ans < 0.0) {
                 ans = 0.0
-                valx1 = -p
+               // valx1 = -pp
             }
-            /* Find prob(value < new iterate) */valx1 =
-                ptukey(ans, nMeans, df, nRanges,  /*LOWER*/true,  /*LOG_P*/false) - p
+            // Find prob(value < new iterate)
+            valx1 = ptukey(ans, nMeans, df, nRanges, lower_tail = true, log_p = false) - pp
             x1 = ans
 
-            /* If the difference between two successive */
-            /* iterates is less than eps, stop */xabs = Math.abs(x1 - x0)
+            // If the difference between two successive
+            // iterates is less than eps, stop
+            xabs = Math.abs(x1 - x0)
             if (xabs < eps) return ans
             iter++
         }
 
-        /* The process did not converge in 'maxiter' iterations */
+        // The process did not converge in 'maxiter' iterations
         //ML_ERROR(ME_NOCONV, "qtukey");
         KSL.logger.warn("The computation of invCDF did not converge after {} iterations", maxiter)
         return Double.NaN
     }
 }
 
-fun main(args: Array<String>) {
+fun main() {
     val k = doubleArrayOf(2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0)
     val p = 0.99
     val df = 5.0

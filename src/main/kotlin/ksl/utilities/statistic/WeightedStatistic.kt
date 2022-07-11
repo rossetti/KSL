@@ -15,8 +15,6 @@
  */
 package ksl.utilities.statistic
 
-import ksl.utilities.Identity
-import ksl.utilities.IdentityIfc
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.random.rvariable.UniformRV
@@ -112,31 +110,31 @@ class WeightedStatistic(name: String? = null) : WeightedCollector(name), Weighte
         get() = unWeightedSum()
 
     /**
-     * @param x      the value to collect
+     * @param obs      the value to collect
      * @param weight the weight associated with the value
      */
-    override fun collect(x: Double, weight: Double) {
-        if (x.isMissing() || weight.isMissing() || weight <= 0.0) {
+    override fun collect(obs: Double, weight: Double) {
+        if (obs.isMissing() || weight.isMissing() || weight <= 0.0) {
             myNumMissing++
             return
         }
-        super.collect(x, weight)
+        super.collect(obs, weight)
 
         // update moments
         num = num + 1.0
         sumw = sumw + weight
-        uwsum = uwsum + x
-        wsum = wsum + x * weight
-        wsumsq = wsumsq + x * x * weight
+        uwsum = uwsum + obs
+        wsum = wsum + obs * weight
+        wsumsq = wsumsq + obs * obs * weight
 
         // update min, max, current value, current weight
-        if (x > myMax) {
-            myMax = x
+        if (obs > myMax) {
+            myMax = obs
         }
-        if (x < myMin) {
-            myMin = x
+        if (obs < myMin) {
+            myMin = obs
         }
-        myValue = x
+        myValue = obs
         myWeight = weight
     }
 

@@ -475,7 +475,6 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
         confLevel: Double = 0.95
     ): List<StringBuilder> {
         val list = halfWidthSummaryReportAsLaTeXTabular(maxRows, confLevel)
-        val hline = "\\hline"
         val caption = "\\caption{Half-Width Summary Report} \n"
         val captionc = "\\caption{Half-Width Summary Report (continued)} \n"
         val beginTable = "\\begin{table}[ht] \n"
@@ -504,7 +503,6 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
      */
     fun summaryReportAsLaTeXTables(maxRows: Int = 60): List<StringBuilder> {
         val list = summaryReportAsLaTeXTabular(maxRows)
-        val hline = "\\hline"
         val caption = "\\caption{Statistical Summary Report} \n"
         val captionc = "\\caption{Statistical Summary Report (continued)} \n"
         val beginTable = "\\begin{table}[ht] \n"

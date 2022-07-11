@@ -79,11 +79,11 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
     }
 
     override fun cdf(x: Double): Double {
-        var lowpt = myProbabilityPoints.first() as ProbPoint
+        var lowpt = myProbabilityPoints.first()
         if (x < lowpt.value) {
             return 0.0
         }
-        var uppt = myProbabilityPoints.last() as ProbPoint
+        var uppt = myProbabilityPoints.last()
         if (x >= uppt.value) {
             return 1.0
         }

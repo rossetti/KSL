@@ -35,8 +35,7 @@ class DPopulation(
     elements: DoubleArray,
     stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
-) : RandomIfc, SampleIfc, ParametersIfc, NewInstanceIfc<DPopulation>, IdentityIfc by Identity(name),
-    RNStreamControlIfc by stream {
+) : RandomIfc, SampleIfc, ParametersIfc, NewInstanceIfc<DPopulation>, IdentityIfc by Identity(name){
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers

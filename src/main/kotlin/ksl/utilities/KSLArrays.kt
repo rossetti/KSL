@@ -1977,13 +1977,141 @@ object KSLArrays {
         return String.format("%,." + p + "f", value)
     }
 
+    /**
+     * @param data the data to count
+     * @param x    the ordinate to check
+     * @return the number of data points less than or equal to x
+     */
+    fun countLessEqualTo(data: DoubleArray, x: Double): Int {
+        var cnt = 0
+        for (datum in data) {
+            if (datum <= x) {
+                cnt++
+            }
+        }
+        return cnt
+    }
+
+    /**
+     * @param data the data to count
+     * @param x    the ordinate to check
+     * @return the number of data points less than x
+     */
+    fun countLessThan(data: DoubleArray, x: Double): Int {
+        var cnt = 0
+        for (datum in data) {
+            if (datum < x) {
+                cnt++
+            }
+        }
+        return cnt
+    }
+
+    /**
+     * @param data the data to count
+     * @param x    the ordinate to check
+     * @return the number of data points greater than or equal to x
+     */
+    fun countGreaterEqualTo(data: DoubleArray, x: Double): Int {
+        var cnt = 0
+        for (datum in data) {
+            if (datum >= x) {
+                cnt++
+            }
+        }
+        return cnt
+    }
+
+    /**
+     * @param data the data to count
+     * @param x    the ordinate to check
+     * @return the number of data points greater than x
+     */
+    fun countGreaterThan(data: DoubleArray, x: Double): Int {
+        var cnt = 0
+        for (datum in data) {
+            if (datum > x) {
+                cnt++
+            }
+        }
+        return cnt
+    }
+
+    /**
+     * @param data the data to sort
+     * @return a copy of the sorted array in ascending order representing the order statistics
+     */
+    fun orderStatistics(data: DoubleArray): DoubleArray {
+        val doubles = data.copyOf()
+        doubles.sort()
+        return doubles
+    }
+
+    /**
+     * Returns a statistic that summarizes the passed in array of values
+     *
+     * @param x the values to compute statistics for
+     * @return a Statistic summarizing the data
+     */
+    fun statistics(x: DoubleArray): Statistic {
+        val s = Statistic()
+        s.collect(x)
+        return s
+    }
 }
 
 /** Extension functions and other functions for working with arrays
  * @author rossetti@uark.edu
  */
 
-//TODO add extension functions
+/**
+ * Returns a statistic that summarizes the array of values
+ *
+ * @return a Statistic summarizing the data
+ */
+fun DoubleArray.statistics():Statistic {
+    return KSLArrays.statistics(this)
+}
+
+/**
+ * @return a copy of the sorted array in ascending order representing the order statistics
+ */
+fun DoubleArray.orderStatistics(): DoubleArray {
+    return KSLArrays.orderStatistics(this)
+}
+
+/**
+ * @param x    the ordinate to check
+ * @return the number of data points greater than x
+ */
+fun DoubleArray.countGreaterThan(x: Double): Int {
+    return KSLArrays.countGreaterThan(this, x)
+}
+
+/**
+ * @param x    the ordinate to check
+ * @return the number of data points greater than or equal to x
+ */
+fun DoubleArray.countGreaterEqualTo(x: Double): Int {
+    return KSLArrays.countGreaterEqualTo(this, x)
+}
+
+/**
+ * @param x    the ordinate to check
+ * @return the number of data points less than x
+ */
+fun DoubleArray.countLessThan(x: Double): Int {
+    return KSLArrays.countLessThan(this, x)
+}
+
+/**
+ * @param x    the ordinate to check
+ * @return the number of data points less than or equal to x
+ */
+fun DoubleArray.countLessEqualTo(x: Double): Int {
+    return KSLArrays.countLessEqualTo(this, x)
+}
+
 /**
  * Returns the index associated with the minimum element in the array For
  * ties, this returns the first found.

@@ -242,7 +242,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc {
 
     fun statisticData(): StatisticData {
         return StatisticData(
-            name ?: "NA",
+            name,
             count,
             average,
             standardDeviation,
@@ -346,11 +346,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc {
     override val csvStatistic: String
         get() {
             val sb = StringBuilder()
-            if (name == null) {
-                sb.append("NA")
-            } else {
-                sb.append(name)
-            }
+            sb.append(name)
             sb.append(",")
             val stats = asArray
             for (i in stats.indices) {
@@ -375,11 +371,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc {
     val asStrings: List<String>
         get() {
             val sb: MutableList<String> = ArrayList()
-            if (name == null) {
-                sb.add("NA")
-            } else {
-                sb.add(name)
-            }
+            sb.add(name)
             val stats = asArray
             for (i in stats.indices) {
                 if (stats[i].isMissing()) {

@@ -16,7 +16,6 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.toStrings
 
 /**
  * This class automates the batching of observations that may be dependent. It
@@ -296,8 +295,8 @@ class BatchStatistic constructor(
     override val vonNeumannLag1TestStatisticPValue: Double
         get() = myBMStatistic.vonNeumannLag1TestStatisticPValue
 
-    override fun leadingDigitRule(a: Double): Int {
-        return myBMStatistic.leadingDigitRule(a)
+    override fun leadingDigitRule(multiplier: Double): Int {
+        return myBMStatistic.leadingDigitRule(multiplier)
     }
 
     override fun toString(): String {
@@ -469,8 +468,8 @@ fun main(){
     println()
     // this rebatches the 40 down to 10
     val reformed = bm.reformBatches(10)
-    for((i, x) in reformed.withIndex()){
-        println("reformed($i) = $x")
+    for((j, x) in reformed.withIndex()){
+        println("reformed($j) = $x")
     }
     println()
 

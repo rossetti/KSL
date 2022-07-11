@@ -28,7 +28,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  * Use sample() or getValue() to get a new random value and use getPreviousValue() to get the last sampled value.
  *
  *
- * The preferred approach to creating random variables is to sub-class AbstractRVariable.
+ * The preferred approach to creating random variables is to sub-class RVariable.
  */
 interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
     /**

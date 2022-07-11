@@ -25,7 +25,7 @@ import ksl.utilities.random.mcmc.ProposalFunction1DIfc
 import ksl.utilities.random.rvariable.NormalRV
 
 
-fun main(args: Array<String>) {
+fun main() {
     val f = Function()
     val q = PropFunction()
     val m = MetropolisHastings1D(0.0, f, q)
@@ -43,7 +43,7 @@ class Function : FunctionIfc {
 
 class PropFunction : ProposalFunction1DIfc {
     var n = NormalRV(0.0, 0.01)
-    override fun proposalRatio(x: Double, y: Double): Double {
+    override fun proposalRatio(current: Double, proposed: Double): Double {
         return 1.0
     }
 

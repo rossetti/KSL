@@ -185,7 +185,7 @@ class ExceedanceEstimator(name: String?, thresholds: DoubleArray = doubleArrayOf
 
 }
 
-fun main(args: Array<String>) {
+fun main() {
     val du = UniformRV(0.0, 100.0)
     val t = doubleArrayOf(0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0)
     val f = ExceedanceEstimator(*t)

@@ -104,31 +104,31 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
         get() = myStatistic.count + overFlowCount + underFlowCount
 
     override val count: Double
-        get() = myStatistic.count()
+        get() = myStatistic.count
     override val sum: Double
-        get() = myStatistic.sum()
+        get() = myStatistic.sum
     override val average: Double
-        get() = myStatistic.average()
+        get() = myStatistic.average
     override val deviationSumOfSquares: Double
-        get() = myStatistic.deviationSumOfSquares()
+        get() = myStatistic.deviationSumOfSquares
     override val variance: Double
-        get() = myStatistic.variance()
+        get() = myStatistic.variance
     override val min: Double
-        get() = myStatistic.min()
+        get() = myStatistic.min
     override val max: Double
-        get() = myStatistic.max()
+        get() = myStatistic.max
     override val kurtosis: Double
-        get() = myStatistic.kurtosis()
+        get() = myStatistic.kurtosis
     override val skewness: Double
-        get() = myStatistic.skewness()
+        get() = myStatistic.skewness
     override val standardError: Double
-        get() = myStatistic.standardError()
+        get() = myStatistic.standardError
     override val lag1Covariance: Double
-        get() = myStatistic.lag1Covariance()
+        get() = myStatistic.lag1Covariance
     override val lag1Correlation: Double
-        get() = myStatistic.lag1Correlation()
+        get() = myStatistic.lag1Correlation
     override val vonNeumannLag1TestStatistic: Double
-        get() = myStatistic.vonNeumannLag1TestStatistic()
+        get() = myStatistic.vonNeumannLag1TestStatistic
 
     override fun halfWidth(level: Double): Double {
         return myStatistic.halfWidth(level)
@@ -384,7 +384,7 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
          * @return the histogram
          */
         fun create(lowerLimit: Double, upperLimit: Double, numBins: Int, name: String?): HistogramIfc {
-            return Histogram(createBreakPoints(lowerLimit, upperLimit, numBins))
+            return Histogram(createBreakPoints(lowerLimit, upperLimit, numBins), name)
         }
 
         /**

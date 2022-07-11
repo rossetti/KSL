@@ -12,8 +12,8 @@ import kotlin.collections.ArrayList
 object MarkDown {
     val D2FORMAT = DecimalFormat("0.##")
     val D3FORMAT = DecimalFormat("0.###")
-    fun header(header: String?, level: Int): String {
-        var level = level
+    fun header(header: String?, hLevel: Int): String {
+        var level = hLevel
         if (level <= 0) {
             level = 1
         }
@@ -191,7 +191,7 @@ object MarkDown {
         }
 
         fun addRow(data: DoubleArray): Table {
-            return addRow(null, data!!, D3FORMAT)
+            return addRow(null, data, D3FORMAT)
         }
 
         fun addRow(rowLabel: String? = null, data: DoubleArray, df: DecimalFormat? = D3FORMAT): Table {

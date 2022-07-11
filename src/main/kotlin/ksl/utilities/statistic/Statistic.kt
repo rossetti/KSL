@@ -21,8 +21,7 @@ import ksl.utilities.indexOfMax
 import ksl.utilities.indexOfMin
 import ksl.utilities.max
 import ksl.utilities.min
-import kotlin.math.ceil
-import kotlin.math.roundToLong
+import kotlin.math.*
 
 private var StatCounter: Int = 0
 
@@ -72,8 +71,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
     private var myMax = Double.NEGATIVE_INFINITY
 
     init {
-        if (values != null){
-            for(x in values){
+        if (values != null) {
+            for (x in values) {
                 collect(x)
             }
         }
@@ -87,31 +86,87 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
     constructor(values: DoubleArray?) : this("Statistic_${++StatCounter}", values)
 
     override val count: Double
-        get() = count()
+        get() = myMoments[0]
+
     override val sum: Double
-        get() = sum()
+        get() = myMoments[1] * myMoments[0]
+
     override val average: Double
-        get() = average()
+        get() = if (myMoments[0] < 1.0) {
+            Double.NaN
+        } else myMoments[1]
+
     override val deviationSumOfSquares: Double
-        get() = deviationSumOfSquares()
+        get() = myMoments[2] * myMoments[0]
+
     override val variance: Double
-        get() = variance()
+        get() = if (myMoments[0] < 2.0) {
+            Double.NaN
+        } else deviationSumOfSquares / (myMoments[0] - 1.0)
+
     override val min: Double
-        get() = min()
+        get() = myMin
+
     override val max: Double
-        get() = max()
+        get() = myMax
+
     override val kurtosis: Double
-        get() = kurtosis()
+        get() {
+            if (myMoments[0] < 4.0) {
+                return Double.NaN
+            }
+            val n = myMoments[0]
+            val n1 = n - 1.0
+            val v = variance
+            val d = (n - 1.0) * (n - 2.0) * (n - 3.0) * v * v
+            val t = n * (n + 1.0) * n * myMoments[4] - 3.0 * n1 * n1 * n1 * v * v
+            return t / d
+        }
+
     override val skewness: Double
-        get() = skewness()
+        get() {
+            if (myMoments[0] < 3.0) {
+                return Double.NaN
+            }
+            val n = myMoments[0]
+            val v = variance
+            val s = sqrt(v)
+            val d = (n - 1.0) * (n - 2.0) * v * s
+            val t = n * n * myMoments[3]
+            return t / d
+        }
+
     override val standardError: Double
-        get() = standardError()
+        get() = if (myMoments[0] < 1.0) {
+            Double.NaN
+        } else standardDeviation / sqrt(myMoments[0])
+
     override val lag1Covariance: Double
-        get() = lag1Covariance()
+        get() = if (myNum > 2.0) {
+            val c1 = mySumXX - (myNum + 1.0) * myMoments[1] * myMoments[1] + myMoments[1] * (myFirstX + myValue)
+            c1 / myNum
+        } else {
+            Double.NaN
+        }
+
     override val lag1Correlation: Double
-        get() = lag1Correlation()
+        get() = if (myNum > 2.0) {
+            lag1Covariance / myMoments[2]
+        } else {
+            Double.NaN
+        }
+
     override val vonNeumannLag1TestStatistic: Double
-        get() = vonNeumannLag1TestStatistic()
+        get() = if (myNum > 2.0) {
+            val r1 = lag1Correlation
+            val t =
+                (myFirstX - myMoments[1]) * (myFirstX - myMoments[1]) + (myValue - myMoments[1]) * (myValue - myMoments[1])
+            val b = 2.0 * myNum * myMoments[2]
+            val v = sqrt((myNum * myNum - 1.0) / (myNum - 2.0)) * (r1 + t / b)
+            v
+        } else {
+            Double.NaN
+        }
 
     /**
      * Creates an instance of Statistic that is a copy of the supplied Statistic
@@ -134,46 +189,26 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         return s
     }
 
-    fun count(): Double {
-        return myMoments[0]
-    }
-
-    fun sum(): Double {
-        return myMoments[1] * myMoments[0]
-    }
-
-    fun average(): Double {
-        return if (myMoments[0] < 1.0) {
-            Double.NaN
-        } else myMoments[1]
-    }
-
     /**
      * Returns the 2nd statistical central moment
      *
      * @return the 2nd statistical central moment
      */
-    fun centralMoment2(): Double {
-        return myMoments[2]
-    }
+    val centralMoment2 = myMoments[2]
 
     /**
      * Returns the 3rd statistical central moment
      *
      * @return the 3rd statistical central moment
      */
-    fun centralMoment3(): Double {
-        return myMoments[3]
-    }
+    val centralMoment3 = myMoments[3]
 
     /**
      * Returns the 4th statistical central moment
      *
      * @return the 4th statistical central moment
      */
-    fun centralMoment4(): Double {
-        return myMoments[4]
-    }
+    val centralMoment4 = myMoments[4]
 
     /**
      * The 0th moment is the count, the 1st central moment zero,
@@ -189,80 +224,33 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
      *
      * @return the 2nd statistical raw moment (about zero)
      */
-    fun rawMoment2(): Double {
-        val mu = average
-        return myMoments[2] + mu * mu
-    }
+    val rawMoment2 = myMoments[2] + average * average
 
     /**
      * Returns the 3rd statistical raw moment (about zero)
      *
      * @return the 3rd statistical raw moment (about zero)
      */
-    fun rawMoment3(): Double {
-        val m3 = centralMoment3()
-        val mr2 = rawMoment2()
-        val mu = average
-        return m3 + 3.0 * mu * mr2 - 2.0 * mu * mu * mu
-    }
+    val rawMoment3: Double
+        get() {
+            val m3 = centralMoment3
+            val mr2 = rawMoment2
+            val mu = average
+            return m3 + 3.0 * mu * mr2 - 2.0 * mu * mu * mu
+        }
 
     /**
      * Returns the 4th statistical raw moment (about zero)
      *
      * @return the 4th statistical raw moment (about zero)
      */
-    fun rawMoment4(): Double {
-        val m4 = centralMoment4()
-        val mr3 = rawMoment3()
-        val mr2 = rawMoment2()
+    val rawMoment4: Double
+      get() {
+        val m4 = centralMoment4
+        val mr3 = rawMoment3
+        val mr2 = rawMoment2
         val mu = average
         return m4 + 4.0 * mu * mr3 - 6.0 * mu * mu * mr2 + 3.0 * mu * mu * mu * mu
-    }
-
-    fun deviationSumOfSquares(): Double {
-        return myMoments[2] * myMoments[0]
-    }
-
-    fun variance(): Double {
-        return if (myMoments[0] < 2) {
-            Double.NaN
-        } else deviationSumOfSquares / (myMoments[0] - 1.0)
-    }
-
-    fun min(): Double {
-        return myMin
-    }
-
-    fun max(): Double {
-        return myMax
-    }
-
-    fun lastValue(): Double {
-        return myValue
-    }
-
-    fun kurtosis(): Double {
-        if (myMoments[0] < 4) {
-            return Double.NaN
-        }
-        val n = myMoments[0]
-        val n1 = n - 1.0
-        val v = variance
-        val d = (n - 1.0) * (n - 2.0) * (n - 3.0) * v * v
-        val t = n * (n + 1.0) * n * myMoments[4] - 3.0 * n1 * n1 * n1 * v * v
-        return t / d
-    }
-
-    fun skewness(): Double {
-        if (myMoments[0] < 3) {
-            return Double.NaN
-        }
-        val n = myMoments[0]
-        val v = variance
-        val s = Math.sqrt(v)
-        val d = (n - 1.0) * (n - 2.0) * v * s
-        val t = n * n * myMoments[3]
-        return t / d
     }
 
     /**
@@ -299,47 +287,17 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         return t * standardError
     }
 
-    fun standardError(): Double {
-        return if (myMoments[0] < 1.0) {
-            Double.NaN
-        } else standardDeviation / Math.sqrt(myMoments[0])
-    }
-
     override fun leadingDigitRule(multiplier: Double): Int {
-        return Math.floor(Math.log10(multiplier * standardError)).toInt()
+        return floor(log10(multiplier * standardError)).toInt()
     }
 
-    fun lag1Covariance(): Double {
-        return if (myNum > 2.0) {
-            val c1 = mySumXX - (myNum + 1.0) * myMoments[1] * myMoments[1] + myMoments[1] * (myFirstX + myValue)
-            c1 / myNum
-        } else {
-            Double.NaN
-        }
-    }
-
-    fun lag1Correlation(): Double {
-        return if (myNum > 2.0) {
-            lag1Covariance / myMoments[2]
-        } else {
-            Double.NaN
-        }
-    }
-
-    fun vonNeumannLag1TestStatistic(): Double {
-        return if (myNum > 2.0) {
-            val r1 = lag1Correlation
-            val t =
-                (myFirstX - myMoments[1]) * (myFirstX - myMoments[1]) + (myValue - myMoments[1]) * (myValue - myMoments[1])
-            val b = 2.0 * myNum * myMoments[2]
-            val v = Math.sqrt((myNum * myNum - 1.0) / (myNum - 2.0)) * (r1 + t / b)
-            v
-        } else {
-            Double.NaN
-        }
-    }
-
+    /**
+     * @return the p-value associated with the current Von Neumann Lag 1 Test Statistic, or Double.NaN
+     */
     fun vonNeumannLag1TestStatisticPValue(): Double {
+        if (vonNeumannLag1TestStatistic.isNaN()){
+            return Double.NaN
+        }
         return Normal.stdNormalComplementaryCDF(vonNeumannLag1TestStatistic)
     }
 
@@ -349,8 +307,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
      *
      * @return the observation weighted sum of the data
      */
-    val obsWeightedSum: Double
-        get() = myJsum
+    val obsWeightedSum: Double = myJsum
 
     override fun collect(obs: Double) {
         super.collect(obs)
@@ -533,77 +490,6 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
     }
 
     companion object {
-        /**
-         * Returns a statistic that summarizes the passed in array of values
-         *
-         * @param x the values to compute statistics for
-         * @return a Statistic summarizing the data
-         */
-        fun collectStatistics(x: DoubleArray): Statistic {
-            val s = Statistic()
-            s.collect(x)
-            return s
-        }
-
-        /**
-         * Creates an instance of Statistic that is a copy of the supplied Statistic
-         * All internal state is the same. The only exception is for the id of the returned Statistic
-         *
-         * @param stat the stat to copy
-         * @return a copy of the supplied Statistic
-         */
-        fun instance(stat: Statistic): Statistic {
-            val s = Statistic(stat.name)
-            s.numberMissing = stat.numberMissing
-            s.myFirstX = stat.myFirstX
-            s.myMax = stat.myMax
-            s.myMin = stat.myMin
-            s.confidenceLevel = stat.confidenceLevel
-            s.myJsum = stat.myJsum
-            s.myValue = stat.myValue
-            s.myNum = stat.myNum
-            s.mySumXX = stat.mySumXX
-            s.myMoments = stat.myMoments.copyOf()
-            return s
-        }
-
-        /**
-         * Returns the index associated with the minimum element in the array For
-         * ties, this returns the first found
-         *
-         * @param x the array of data
-         * @return the index associated with the minimum element
-         */
-        fun indexOfMin(x: DoubleArray): Int {
-            return x.indexOfMin()
-        }
-
-        /**
-         * @param x the array of data
-         * @return the minimum value in the array
-         */
-        fun min(x: DoubleArray): Double {
-            return x.min()
-        }
-
-        /**
-         * Returns the index associated with the maximum element in the array For
-         * ties, this returns the first found
-         *
-         * @param x the array of data
-         * @return the index associated with the maximum element
-         */
-        fun indexOfMax(x: DoubleArray): Int {
-            return x.indexOfMax()
-        }
-
-        /**
-         * @param x the array of data
-         * @return the maximum value in the array
-         */
-        fun max(x: DoubleArray): Double {
-            return x.max()
-        }
 
         /**
          * Returns the median of the data. The array is sorted
@@ -614,8 +500,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         fun median(data: DoubleArray): Double {
             data.sort()
             val size = data.size
-            var median = -1.0
-            median = if (size % 2 == 0) { //even
+            val median = if (size % 2 == 0) { //even
                 val firstIndex = size / 2 - 1
                 val secondIndex = firstIndex + 1
                 val firstValue = data[firstIndex]
@@ -626,76 +511,6 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                 data[index]
             }
             return median
-        }
-
-        /**
-         * @param data the data to count
-         * @param x    the ordinate to check
-         * @return the number of data points less than or equal to x
-         */
-        fun countLessEqualTo(data: DoubleArray, x: Double): Int {
-            var cnt = 0
-            for (datum in data) {
-                if (datum <= x) {
-                    cnt++
-                }
-            }
-            return cnt
-        }
-
-        /**
-         * @param data the data to count
-         * @param x    the ordinate to check
-         * @return the number of data points less than x
-         */
-        fun countLessThan(data: DoubleArray, x: Double): Int {
-            var cnt = 0
-            for (datum in data) {
-                if (datum < x) {
-                    cnt++
-                }
-            }
-            return cnt
-        }
-
-        /**
-         * @param data the data to count
-         * @param x    the ordinate to check
-         * @return the number of data points greater than or equal to x
-         */
-        fun countGreaterEqualTo(data: DoubleArray, x: Double): Int {
-            var cnt = 0
-            for (datum in data) {
-                if (datum >= x) {
-                    cnt++
-                }
-            }
-            return cnt
-        }
-
-        /**
-         * @param data the data to count
-         * @param x    the ordinate to check
-         * @return the number of data points greater than x
-         */
-        fun countGreaterThan(data: DoubleArray, x: Double): Int {
-            var cnt = 0
-            for (datum in data) {
-                if (datum > x) {
-                    cnt++
-                }
-            }
-            return cnt
-        }
-
-        /**
-         * @param data the data to sort
-         * @return a copy of the sorted array in ascending order representing the order statistics
-         */
-        fun orderStatistics(data: DoubleArray): DoubleArray {
-            val doubles = data.copyOf()
-            doubles.sort()
-            return doubles
         }
 
         /**

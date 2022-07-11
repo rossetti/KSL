@@ -241,11 +241,11 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
             // define the breakpoints
             val plow = 0.02425
             val phigh = 1 - plow
-            var r = 0.0
-            var q = 0.0
-            var z = 0.0
-            var x = 0.0
-            var y = 0.0
+            var r: Double
+            var q: Double
+            var z: Double
+            var x: Double
+            var y: Double
             if (p < plow) { // rational approximation for the lower region
                 q = sqrt(-2 * ln(p))
                 x =

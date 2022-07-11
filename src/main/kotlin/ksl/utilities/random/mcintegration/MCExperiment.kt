@@ -134,7 +134,6 @@ abstract class MCExperiment : MCExperimentIfc {
             for (i in 1..k - m) {
                 macroReplicationStatistics.collect(runMicroReplications())
                 if (checkStoppingCriteria()) {
-                    converged = true
                     break
                 }
             }
@@ -252,7 +251,7 @@ abstract class MCExperiment : MCExperimentIfc {
         sb.append("Total number of observations = ")
         sb.append(macroReplicationStatistics.count * microRepSampleSize)
         sb.appendLine()
-        if (macroReplicationStatistics.count() == 0.0) {
+        if (macroReplicationStatistics.count == 0.0) {
             sb.append("**** There were no macro replications executed for results.")
         } else {
             sb.append(macroReplicationStatistics)

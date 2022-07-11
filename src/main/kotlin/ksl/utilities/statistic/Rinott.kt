@@ -215,8 +215,7 @@ class Rinott {
      */
     private fun chiSquaredPDF(dof: Int, x: Double): Double {
         val dof2 = dof.toDouble() / 2.0
-        var lng = 0.0
-        lng = if (dof > LNGAM.size) {
+        val lng = if (dof > LNGAM.size) {
             Gamma.logGammaFunction(dof2)
         } else {
             LNGAM[dof - 1]

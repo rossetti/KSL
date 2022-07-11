@@ -262,8 +262,7 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisso
                 }
             }
             val lnmu = Math.log(mean)
-            var sum = 0.0
-            sum = if (lnp <= KSLMath.smallestExponentialArgument) {
+            var sum = if (lnp <= KSLMath.smallestExponentialArgument) {
                 0.0
             } else {
                 exp(lnp)
