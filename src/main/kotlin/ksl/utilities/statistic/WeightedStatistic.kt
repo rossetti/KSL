@@ -329,20 +329,10 @@ class WeightedStatistic(name: String? = null) : WeightedCollector(name), Weighte
      *
      * @return the headers
      */
-    val statisticsHeader: Array<String?>
+    val statisticsHeader: Array<String>
         get() {
-            val s = arrayOfNulls<String>(11)
-            s[0] = "Count"
-            s[1] = "Average"
-            s[2] = "Minimum"
-            s[3] = "Maximum"
-            s[4] = "Weighted Sum"
-            s[5] = "Sum of Weights"
-            s[6] = "Weighted sum of squares"
-            s[7] = "Last Value"
-            s[8] = "Last Weight"
-            s[9] = "Unweighted Sum"
-            s[10] = "Unweighted Average"
+            val s = arrayOf("Count", "Average", "Minimum", "Maximum", "Weighted Sum", "Sum of Weights",
+            "Weighted sum of squares", "Last Value", "Last Weight", "Unweighted Sum", "Unweighted Average")
             return s
         }
 
