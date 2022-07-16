@@ -1,7 +1,7 @@
 package ksl.process
 
 import kotlin.coroutines.intrinsics.*
-import jsl.simulation.JSLEvent
+import ksl.simulation.JSLEvent
 import kotlin.coroutines.*
 
 // just place holders

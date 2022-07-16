@@ -15,7 +15,7 @@
  */
 package ksl.calendar
 
-import jsl.simulation.JSLEvent
+import ksl.simulation.JSLEvent
 import java.util.*
 
 /** This class provides an event calendar by using a tree set to hold the underlying events.

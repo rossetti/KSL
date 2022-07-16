@@ -15,7 +15,7 @@
  */
 package ksl.calendar
 
-import jsl.simulation.JSLEvent
+import ksl.simulation.JSLEvent
 import java.util.*
 
 /**

@@ -15,7 +15,7 @@
  */
 package ksl.calendar
 
-import jsl.simulation.JSLEvent
+import ksl.simulation.JSLEvent
 
 /**
  * The interface defines behavior for holding, adding and retrieving JSLEvents.

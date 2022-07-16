@@ -15,7 +15,7 @@
  */
 package ksl.calendar
 
-import jsl.simulation.JSLEvent
+import ksl.simulation.JSLEvent
 
 /** This class provides an event calendar by using a skew heap to hold the underlying events.
  */
