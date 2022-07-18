@@ -15,6 +15,11 @@
  */
 package ksl.simulation
 
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.TimeSource
+import kotlin.time.toDuration
+
 /**
  *
  * @author rossetti
@@ -41,23 +46,32 @@ interface IterativeProcessIfc  {
      */
     val isExecutionTimeExceeded: Boolean
 
+    //TODO use Duration and new time API, eventually
+
     /**
-     * Returns system time in milliseconds that the iterative process started
+     * Returns system time in nanoseconds that the iterative process started
      *
      * @return the number as a long
      */
     val beginExecutionTime: Long
 
     /**
-     * Gets the clock time in milliseconds since the iterative process was
+     * Gets the clock time in nanoseconds since the iterative process was
      * initialized
      *
      * @return a long representing the elapsed time
      */
     val elapsedExecutionTime: Long
+        get() {
+            return if (beginExecutionTime > 0) {
+                (System.nanoTime() - beginExecutionTime)
+            } else {
+                0
+            }
+        }
 
     /**
-     * Returns system time in milliseconds that the iterative process ended
+     * Returns system time in nanoseconds that the iterative process ended
      *
      * @return the number as a long
      */
@@ -65,7 +79,7 @@ interface IterativeProcessIfc  {
 
     /**
      * The maximum allotted (suggested) execution (real) clock for the
-     * entire iterative process. This is a suggested time because the execution
+     * entire iterative process in nanoseconds. This is a suggested time because the execution
      * time requirement is only checked after the completion of an individual
      * step After it is discovered that cumulative time for executing the step
      * has exceeded the maximum time, then the iterative process will be ended
@@ -106,7 +120,7 @@ interface IterativeProcessIfc  {
 
     /**
      * Checks if the iterative process is in the completed step state After the
-     * iterative process has successfully completed a step this property will
+     * iterative process has successfully completed a step this property will be true
      */
     val isStepCompleted: Boolean
 
@@ -120,13 +134,13 @@ interface IterativeProcessIfc  {
      * The iterative process may end by a variety of means, this  checks
      * if the iterative process ended because it ran all of its steps, true if all completed
      */
-    val isAllStepsCompleted: Boolean
+    val allStepsCompleted: Boolean
 
     /**
      * The iterative process may end by a variety of means, this method checks
      * if the iterative process ended because it was stopped, true if it was stopped via stop()
      */
-    val isStoppedByCondition: Boolean
+    val stoppedByCondition: Boolean
 
     /**
      * The iterative process may end by a variety of means, this method checks
@@ -198,7 +212,7 @@ interface IterativeProcessIfc  {
      *
      * @return true if the process has been told to stop via stop()
      */
-    val stoppingFlag: Boolean
+    val stopping: Boolean
 
     /**
      * This sets a flag to indicate to the process that is should stop after the
@@ -234,5 +248,5 @@ interface IterativeProcessIfc  {
      * Indicates that the iterative process ended because of no steps
      *
      */
-    val isNoStepsExecuted: Boolean
+    val noStepsExecuted: Boolean
 }
