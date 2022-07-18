@@ -29,3 +29,5 @@ fun interface EventActionIfc<T> {
      */
     fun action(event: JSLEvent<T>)
 }
+//TODO
+typealias EventAction<T> = (JSLEvent<T>) -> Unit
