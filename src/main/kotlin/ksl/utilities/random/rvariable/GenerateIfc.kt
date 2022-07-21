@@ -5,5 +5,5 @@ package ksl.utilities.random.rvariable
  */
 fun interface GenerateIfc {
 
-    fun generate()
+    fun generate(): Double
 }
