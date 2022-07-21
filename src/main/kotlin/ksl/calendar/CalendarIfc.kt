@@ -68,7 +68,9 @@ interface CalendarIfc {
      *
      * @param event The JSLEvent to be canceled
      */
-    fun cancel(event: JSLEvent<*>)
+    fun cancel(event: JSLEvent<*>){
+        event.cancelled = true;
+    }
 
     /**
      * Returns the number of events in the calendar

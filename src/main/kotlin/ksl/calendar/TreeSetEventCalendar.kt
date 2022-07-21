@@ -46,10 +46,6 @@ class TreeSetEventCalendar : CalendarIfc {
         myEventSet.clear()
     }
 
-    override fun cancel(event: JSLEvent<*>) {
-        event.canceledFlag = true
-    }
-
     override fun size(): Int {
         return myEventSet.size
     }

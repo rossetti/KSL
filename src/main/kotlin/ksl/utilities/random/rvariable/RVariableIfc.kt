@@ -45,7 +45,7 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
      * The randomly generated value. Each value
      * will be different
      */
-    val value: Double
+    override val value: Double
         get() = sample()
 
     /**

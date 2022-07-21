@@ -18,7 +18,10 @@ package ksl.utilities
 /**
  *
  */
-interface PreviousValueIfc {
+fun interface PreviousValueIfc {
+
+    //TODO consider adding val previous
+
     /**
      * Gets the previous value from the sequence of values
      * @return a double representing the last value in the sequence

@@ -137,7 +137,7 @@ class DPopulation(
      * elements are equally likely.
      * @return the randomly selected element
      */
-    val value: Double
+    override val value: Double
         get() = sample()
 
     /**

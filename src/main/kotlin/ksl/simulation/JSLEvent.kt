@@ -48,7 +48,7 @@ class JSLEvent<T> internal constructor(
         require(theTime >= 0.0) { "The event time must be >= 0.0" }
     }
 
-    private val action: EventActionIfc<T> = theAction
+    private val myAction: EventActionIfc<T> = theAction
     val time: Double = theTime
     val priority: Int = thePriority
     val message: T? = theMessage
@@ -125,7 +125,7 @@ class JSLEvent<T> internal constructor(
      */
     internal fun execute() {
         if (!cancelled) {
-            action.action(this)
+            myAction.action(this)
         }
     }
 

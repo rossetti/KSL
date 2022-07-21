@@ -86,14 +86,14 @@ fun main() {
     println(tws)
 }
 
-class TimeArray(var time: DoubleArray) : GetTimeIfc {
+class TimeArray(var timeValues: DoubleArray) : GetTimeIfc {
     private var index = -1
     override fun time(): Double {
-        if (index < time.size - 1) {
+        if (index < timeValues.size - 1) {
             index = index + 1
-            return time[index]
+            return timeValues[index]
         }
-        return time[index]
+        return timeValues[index]
     }
 
     fun reset() {

@@ -6,7 +6,7 @@ package ksl.utilities
  *  all relevant fields to achieve the same functionality.
  *
  */
-interface NewInstanceIfc<out T> {
+fun interface NewInstanceIfc<out T> {
     /**
      * Returns a new instance
      *

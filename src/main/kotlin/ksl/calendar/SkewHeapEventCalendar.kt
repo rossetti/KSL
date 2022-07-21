@@ -52,10 +52,6 @@ class SkewHeapEventCalendar: CalendarIfc {
         }
     }
 
-    override fun cancel(event: JSLEvent<*>) {
-        event.canceledFlag = true
-    }
-
     override fun size(): Int {
         return myNumEvents
     }
@@ -67,9 +63,9 @@ class SkewHeapEventCalendar: CalendarIfc {
     private fun merge(left: BinaryNode?, right: BinaryNode?): BinaryNode? {
         if (left == null) return right
         if (right == null) return left
-        val leftValue = left.value as JSLEvent<*>?
-        val rightValue = right.value as JSLEvent<*>?
-        return if (leftValue!!.compareTo(rightValue) < 0) {
+        val leftValue = left.value as JSLEvent<*>
+        val rightValue = right.value as JSLEvent<*>
+        return if (leftValue.compareTo(rightValue) < 0) {
             val swap = left.leftChild
             left.leftChild = merge(left.rightChild, right)
             left.rightChild = swap

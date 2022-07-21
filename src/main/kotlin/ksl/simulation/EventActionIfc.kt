@@ -15,6 +15,8 @@
  */
 package ksl.simulation
 
+//TODO needs to be an inner interface within ModelElement
+
 /** An interface used to implement the actions associated with
  * event logic within the simulation.
  * @param <T> the type associated with the JSLEvent's message property
@@ -23,11 +25,12 @@ package ksl.simulation
  * specification for the type T.
 </T> */
 fun interface EventActionIfc<T> {
+    //TODO change to just EventAction to take advantage of SAM
     /** This must be implemented by any objects that want to supply event
      * logic.  This is essentially the "event routine".
      * @param event The event that triggered this action.
      */
     fun action(event: JSLEvent<T>)
 }
-//TODO
+//TODO change to Action<T>
 typealias EventAction<T> = (JSLEvent<T>) -> Unit
