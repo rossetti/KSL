@@ -84,4 +84,20 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
     override fun antitheticInstance(): RVariableIfc{
         return instance(rnStream.antitheticInstance())
     }
+
+    operator fun plus(other: RVariableIfc): RVariableIfc {
+        return RVFunction(this, other, Double::plus)
+    }
+
+    operator fun times(other: RVariableIfc): RVariableIfc {
+        return RVFunction(this, other, Double::times)
+    }
+
+    operator fun div(other: RVariableIfc): RVariableIfc {
+        return RVFunction(this, other, Double::div)
+    }
+
+    operator fun minus(other: RVariableIfc): RVariableIfc {
+        return RVFunction(this, other, Double::minus)
+    }
 }

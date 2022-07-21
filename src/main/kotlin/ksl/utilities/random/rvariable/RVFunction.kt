@@ -27,9 +27,18 @@ class RVFunction(
 fun main() {
     var rv1 = ExponentialRV(10.0)
     var rv2 = ExponentialRV(20.0)
+    // default is sum
     var rv = RVFunction(rv1, rv2)
+    // divide them
     var rv3 = RVFunction(rv1, rv2, { f: Double, s: Double -> f / s })
 
-    print(rv.sample(100).statistics())
+//    print(rv.sample(100).statistics())
 
+    println()
+
+//    print(rv3.sample(100).statistics())
+
+    var n = (NormalRV(10.0, 2.0) + ExponentialRV(100.0) )/ NormalRV(1.0, 2.0)
+
+    print(n.sample(100).statistics())
 }
