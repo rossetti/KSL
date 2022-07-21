@@ -184,11 +184,19 @@ object KSLArrays {
      * @param array the array to operate on
      * @return max() - min()
      */
-    fun range(array: DoubleArray): Double {
-        val max = max(array)
-        val min = min(array)
-        return max - min
-    }
+    fun range(array: DoubleArray): Double = max(array) - min(array)
+
+    /**
+     * @param array the array to operate on
+     * @return max() - min()
+     */
+    fun range(array: IntArray): Int = max(array) - min(array)
+
+    /**
+     * @param array the array to operate on
+     * @return max() - min()
+     */
+    fun range(array: LongArray): Long = max(array) - min(array)
 
     /**
      * If the array is empty, -1 is returned.
@@ -241,7 +249,7 @@ object KSLArrays {
     }
 
     /**
-     * If the array is empty, -1 is returned.
+     * If the array is empty or the element is not found, -1 is returned.
      *
      * @param element the element to search for
      * @param array   the array to search in
@@ -273,7 +281,7 @@ object KSLArrays {
     }
 
     /**
-     * If the array is empty, -1 is returned.
+     * If the array is empty or the element is not found, -1 is returned.
      *
      * @param element the element to search for
      * @param array   the array to search in
@@ -314,7 +322,7 @@ object KSLArrays {
     }
 
     /**
-     * If the array is empty, -1 is returned.
+     * If the array is empty or the element is not found, -1 is returned.
      *
      * @param element the element to search for
      * @param array   the array to search in
@@ -366,7 +374,7 @@ object KSLArrays {
         val s = Statistic(array)
         val avg = s.average
         val sd = s.standardDeviation
-        require(sd != 0.0) { "The array cannot be scaled because std dev == 0.0" }
+        require(sd > 0.0) { "The array cannot be scaled because std dev == 0.0" }
         val x = DoubleArray(array.size)
         for (i in array.indices) {
             x[i] = (array[i] - avg) / sd
@@ -423,7 +431,7 @@ object KSLArrays {
      */
     fun dotProduct(a: DoubleArray, b: DoubleArray): Double {
         require(a.size == b.size) { "The length of the arrays was not equal" }
-        require(a.size != 0) { "The arrays were empty!" }
+        require(a.isNotEmpty()) { "The arrays were empty!" }
         var sum = 0.0
         for (i in a.indices) {
             sum = sum + a[i] * b[i]
@@ -582,7 +590,7 @@ object KSLArrays {
     }
 
     /**
-     * Divides the arrays element by element. Arrays must have same length and must not be null.
+     * Divides the arrays' element by element. Arrays must have same length and must not be null.
      *
      * @param a the first array
      * @param b the second array, must not have any zero elements
@@ -831,19 +839,29 @@ object KSLArrays {
         return column
     }
 
+//    /**
+//     * @param index  the column to be extracted (zero based indexing)
+//     * @param matrix must not be null, assumed 2D rectangular array (i.e. all rows have the same number of columns)
+//     * @return a copy of the extracted column
+//     */
+//    fun column(index: Int, matrix: Array<Array<Any>>): Array<Any?> {
+//        require(isRectangular(matrix)) { "The matrix was not rectangular" }
+//        //TODO can this be made generic
+//        val column = arrayOfNulls<Any>(matrix.size) // Here I assume a rectangular 2D array!
+//        for (i in column.indices) {
+//            column[i] = matrix[i][index]
+//        }
+//        return column
+//    }
+
     /**
      * @param index  the column to be extracted (zero based indexing)
      * @param matrix must not be null, assumed 2D rectangular array (i.e. all rows have the same number of columns)
      * @return a copy of the extracted column
      */
-    fun column(index: Int, matrix: Array<Array<Any>>): Array<Any?> {
+    inline fun <reified T> column(index: Int, matrix: Array<Array<T>>): Array<T> {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
-        //TODO can this be made generic
-        val column = arrayOfNulls<Any>(matrix.size) // Here I assume a rectangular 2D array!
-        for (i in column.indices) {
-            column[i] = matrix[i][index]
-        }
-        return column
+        return Array(matrix.size) {i -> matrix[i][index]}
     }
 
     /**
@@ -1121,20 +1139,6 @@ object KSLArrays {
         return LongArray(list.size) { list[it] ?: replaceNull }
     }
 
-//    /**
-//     * Convert the array of double to an array of strings with each element the
-//     * corresponding value
-//     *
-//     * @param array the array of doubles
-//     * @return the array of strings representing the values of the doubles
-//     */
-//    fun toStrings(array: DoubleArray): Array<String> {
-//        if (array.isEmpty()) {
-//            return emptyArray()
-//        }
-//        return Array(array.size) { array[it].toString() }
-//    }
-
     /**
      * Convert the array of doubles to an array of strings with each element the
      * corresponding value
@@ -1182,20 +1186,6 @@ object KSLArrays {
         }
         return array.joinToString()
     }
-
-//    /**
-//     * Convert the array of double to an array of Double with each element the
-//     * corresponding value
-//     *
-//     * @param array the array of doubles
-//     * @return the array of Doubles representing the values of the doubles
-//     */
-//    fun toDoubles(array: DoubleArray): Array<Double> {
-//        if (array.isEmpty()) {
-//            return emptyArray()
-//        }
-//        return array.toTypedArray()
-//    }
 
     /**
      * Convert the array of int to an array of double with each element the
@@ -1266,20 +1256,6 @@ object KSLArrays {
         }
         return Array(array.size) { array[it].toTypedArray() }
     }
-
-//    /**
-//     * Convert the array of int to an array of Intger with each element the
-//     * corresponding value
-//     *
-//     * @param array the array of ints
-//     * @return the array of Integers representing the values of the ints
-//     */
-//    fun toInts(array: IntArray): Array<Int> {
-//        if (array.isEmpty()) {
-//            return emptyArray()
-//        }
-//        return array.toTypedArray()
-//    }
 
     /**
      * Convert the 2D array of int to a 2D array of Integer with each element the
@@ -1353,7 +1329,7 @@ object KSLArrays {
      * @param array an array with m rows and n columns
      * @return an array with n columns and m rows
      */
-    fun transpose2DArray(array: Array<IntArray>): Array<IntArray> {
+    fun transpose(array: Array<IntArray>): Array<IntArray> {
         require(isRectangular(array)) { "The array was not rectangular" }
         val m = array.size
         val n: Int = array[0].size
@@ -1372,7 +1348,7 @@ object KSLArrays {
      * @param array an array with m rows and n columns
      * @return an array with n columns and m rows
      */
-    fun transpose2DArray(array: Array<DoubleArray>): Array<DoubleArray> {
+    fun transpose(array: Array<DoubleArray>): Array<DoubleArray> {
         require(isRectangular(array)) { "The array was not rectangular" }
         val m = array.size
         val n: Int = array[0].size
@@ -1391,7 +1367,7 @@ object KSLArrays {
      * @param array an array with m rows and n columns
      * @return an array with n columns and m rows
      */
-    fun transpose2DArray(array: Array<LongArray>): Array<LongArray> {
+    fun transpose(array: Array<LongArray>): Array<LongArray> {
         require(isRectangular(array)) { "The array was not rectangular" }
         val m = array.size
         val n: Int = array[0].size
@@ -1402,6 +1378,23 @@ object KSLArrays {
             }
         }
         return transpose
+    }
+
+    /**
+     * Transposes the array returned transpose[x][y] = array[y][x]
+     *
+     * @param array an array with m rows and n columns, must be rectangular
+     * @return an array with n columns and m rows
+     */
+    inline fun <reified T> transpose(array: Array<Array<T>>): Array<Array<T>> {
+        require(isRectangular(array)) { "The array was not rectangular" }
+        val cols = array[0].size
+        val rows = array.size
+        return Array(cols) { j ->
+            Array(rows) { i ->
+                array[i][j]
+            }
+        }
     }
 
     /**
@@ -1430,7 +1423,7 @@ object KSLArrays {
         }
         val data = copyToRows(labeledColumns)
         require(isRectangular(data)) { "The stored arrays do not have the same number of elements" }
-        return transpose2DArray(data)
+        return transpose(data)
     }
 
     /**
@@ -2500,7 +2493,7 @@ fun Array<LongArray>.column(k: Int): LongArray {
  * @param k      the kth column to be extracted (zero based indexing)
  * @return a copy of the extracted column
  */
-fun Array<Array<Any>>.column(k: Int): Array<Any?> {
+inline fun <reified T> Array<Array<T>>.column(k: Int): Array<T> {
     return KSLArrays.column(k, this)
 }
 
@@ -2772,7 +2765,7 @@ fun List<String?>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
  * @return an array with n columns and m rows
  */
 fun Array<IntArray>.transpose(): Array<IntArray> {
-    return KSLArrays.transpose2DArray(this)
+    return KSLArrays.transpose(this)
 }
 
 /**
@@ -2781,7 +2774,7 @@ fun Array<IntArray>.transpose(): Array<IntArray> {
  * @return an array with n columns and m rows
  */
 fun Array<DoubleArray>.transpose(): Array<DoubleArray> {
-    return KSLArrays.transpose2DArray(this)
+    return KSLArrays.transpose(this)
 }
 
 /**
@@ -2790,7 +2783,7 @@ fun Array<DoubleArray>.transpose(): Array<DoubleArray> {
  * @return an array with n columns and m rows
  */
 fun Array<LongArray>.transpose(): Array<LongArray> {
-    return KSLArrays.transpose2DArray(this)
+    return KSLArrays.transpose(this)
 }
 
 /**
