@@ -18,11 +18,37 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.statistic.Statistic
 
 /**
  * Allows a constant value to pretend to be a random variable
  */
 open class ConstantRV(var constVal: Double) : RVariableIfc, IdentityIfc by Identity() {
+
+    lateinit var statistic: Statistic
+
+    final override var collectStatistics: Boolean = false
+        set(value) {
+            field = value
+            if (field) {
+                if (!::statistic.isInitialized) {
+                    statistic = Statistic(name + "_Stats")
+                }
+            }
+        }
+
+    override fun statistics(): Statistic {
+        if (!collectStatistics){
+            collectStatistics = true
+        }
+        return statistic.instance()
+    }
+
+    override fun resetStatistics() {
+        if (::statistic.isInitialized) {
+            statistic.reset()
+        }
+    }
 
     override fun previous(): Double = constVal
 
@@ -39,6 +65,9 @@ open class ConstantRV(var constVal: Double) : RVariableIfc, IdentityIfc by Ident
     }
 
     override fun sample(): Double {
+        if (collectStatistics){
+            statistic.value = constVal
+        }
         return constVal
     }
 

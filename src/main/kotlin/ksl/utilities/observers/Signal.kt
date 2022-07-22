@@ -1,5 +1,8 @@
 package ksl.utilities.observers
 
+/**
+ *  https://in-kotlin.com/design-patterns/observer/
+ */
 class Signal<TType> {
     class Connection
     val callbacks = mutableMapOf<Connection, (TType) -> Unit>()

@@ -7,26 +7,60 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 fun main() {
-    var rv1 = ExponentialRV(10.0)
-    var rv2 = ExponentialRV(20.0)
-    // default is sum
-    var rv = RVFunction(rv1, rv2)
-    // divide them
-    var rv3 = RVFunction(rv1, rv2, { f: Double, s: Double -> f / s })
 
-//    print(rv.sample(100).statistics())
+//    test1()
+//   test2()
+
+//    test3()
+
+    test4()
+
+}
+
+fun test4(){
+    val rv = ExponentialRV(20.0)
+
+    rv.collectStatistics = true
+    val a = rv.sample(100)
+
+    println(rv.statistics())
 
     println()
 
-//    print(rv3.sample(100).statistics())
+    println(a.statistics())
 
-    var n = (NormalRV(10.0, 2.0) + ExponentialRV(100.0)) / NormalRV(1.0, 2.0)
+    rv.resetStatistics()
+    for(i in 1..1000){
+        rv.value
+    }
 
-//    print(n.sample(100).statistics())
+    println(rv.statistics())
+
+}
+fun test1() {
+    val rv1 = ExponentialRV(10.0)
+    val rv2 = ExponentialRV(20.0)
+    // default is sum
+    val rv = RVFunction(rv1, rv2)
+    // divide them
+    val rv3 = RVFunction(rv1, rv2, { f: Double, s: Double -> f / s })
+
+    print(rv.sample(100).statistics())
+
+    println()
+
+    print(rv3.sample(100).statistics())
+}
+
+fun test2() {
+    val rv1 = ExponentialRV(10.0)
+    val n = (NormalRV(10.0, 2.0) + ExponentialRV(100.0)) / NormalRV(1.0, 2.0)
+
+    print(n.sample(100).statistics())
 
     val rv4 = RVUFunction(rv1, { f: Double -> sin(f) })
 
-//    print(rv4.sample(100).statistics())
+    print(rv4.sample(100).statistics())
 
     val x = rv1 + 3.0
 
@@ -34,33 +68,30 @@ fun main() {
 
     val z = 3.0 * rv1
 
-//    print(z.sample(100).statistics())
+    print(z.sample(100).statistics())
 
     val w = sin(rv1)
-//    print(w.sample(100).statistics())
+    print(w.sample(100).statistics())
 
     val p = rv1.pow(2.0)
 
-//    print(p.sample(100).statistics())
+    print(p.sample(100).statistics())
+}
 
+fun test3() {
     var v = ExponentialRV(10.0)
     val m = 2.0.pow(v)
-//    val m = sin(v)
-//    m.useStreamNumber(100)
     val sn = m.streamNumber
     println("using stream number = $sn")
     m.resetStartStream()
     print(m.sample(100).statistics())
-
     println()
     println()
-//    v.useStreamNumber(100)
     v.useStreamNumber(sn)
     v.resetStartStream()
     val s = Statistic()
-    for(i in 1..100){
+    for (i in 1..100) {
         val y = 2.0.pow(v.value)
-//        val y = sin(v.value)
         s.collect(y)
     }
     print(s)

@@ -17,7 +17,12 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
+import ksl.utilities.observers.DoubleChanged
+import ksl.utilities.observers.DoubleChangedIfc
+import ksl.utilities.observers.Observable
+import ksl.utilities.observers.ObservableIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.statistic.Statistic
 
 /**
  * An abstract base class for building random variables.  Implement
@@ -32,6 +37,31 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
      * rnStream provides a reference to the underlying stream of random numbers
      */
     final override var rnStream: RNStreamIfc = stream
+
+    private lateinit var statistic: Statistic
+
+    final override var collectStatistics: Boolean = false
+        set(value) {
+            field = value
+            if (field) {
+                if (!::statistic.isInitialized) {
+                    statistic = Statistic(name + "_Stats")
+                }
+            }
+        }
+
+    override fun statistics(): Statistic {
+        if (!collectStatistics){
+            collectStatistics = true
+        }
+        return statistic.instance()
+    }
+
+    override fun resetStatistics() {
+        if (::statistic.isInitialized) {
+            statistic.reset()
+        }
+    }
 
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
@@ -69,6 +99,9 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
     final override fun sample(): Double {
         val x = generate()
         previous = x
+        if (collectStatistics){
+            statistic.value = x
+        }
         return x
     }
 

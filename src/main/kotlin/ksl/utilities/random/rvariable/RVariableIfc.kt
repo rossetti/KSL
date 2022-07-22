@@ -18,6 +18,7 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.PreviousValueIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.statistic.Statistic
 import kotlin.math.sin
 import kotlin.math.abs
 import kotlin.math.*
@@ -34,6 +35,7 @@ import kotlin.math.*
  * The preferred approach to creating random variables is to sub-class RVariable.
  */
 interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
+
     /**
      * The set of pre-defined distribution types
      */
@@ -43,6 +45,24 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
         Normal, PearsonType5, PearsonType6, Poisson, ShiftedGeometric, Triangular,
         Uniform, Weibull, DEmpirical, Empirical
     }
+
+    /**
+     *  Indicates whether statistics will be collected or are being collected if true
+     */
+    var collectStatistics: Boolean
+
+    /**
+     *  Provides the statistics on the random variable. Statistics that have
+     *  been collected will be reported.  If statistics have not been turned on,
+     *  then statistical collection will be started.
+     */
+    fun statistics(): Statistic
+
+    /**
+     *  If statistics have been collected they are reset.  If statistics
+     *  have not been collected then nothing occurs
+     */
+    fun resetStatistics()
 
     /**
      * The randomly generated value. Each value
