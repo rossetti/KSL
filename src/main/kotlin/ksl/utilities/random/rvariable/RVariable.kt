@@ -35,31 +35,6 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
      */
     final override var rnStream: RNStreamIfc = stream
 
-    private lateinit var statistic: Statistic
-
-    final override var collectStatistics: Boolean = false
-        set(value) {
-            field = value
-            if (field) {
-                if (!::statistic.isInitialized) {
-                    statistic = Statistic(name + "_Stats")
-                }
-            }
-        }
-
-    override fun statistics(): Statistic {
-        if (!collectStatistics){
-            collectStatistics = true
-        }
-        return statistic.instance()
-    }
-
-    override fun resetStatistics() {
-        if (::statistic.isInitialized) {
-            statistic.reset()
-        }
-    }
-
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
      */
@@ -97,9 +72,6 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
         val x = generate()
         previous = x
         emitter.emit(x)
-        if (collectStatistics){
-            statistic.value = x
-        }
         return x
     }
 

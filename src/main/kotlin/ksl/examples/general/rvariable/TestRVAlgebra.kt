@@ -14,45 +14,22 @@ fun main() {
 
 //    test3()
 
-//    test4()
-
-    test5()
+    test4()
 }
 
-fun test5(){
+fun test4(){
     val rv = ExponentialRV(20.0)
-    rv.collectStatistics = true
     val s = Statistic()
     val something: Emitter.Connection = rv.emitter.attach { x -> s.collect(x) }
     for(i in 1..10){
         rv.value
     }
-    println(rv.statistics())
     println()
     println(s)
     rv.emitter.detach(something)
 
 }
-fun test4(){
-    val rv = ExponentialRV(20.0)
 
-    rv.collectStatistics = true
-    val a = rv.sample(100)
-
-    println(rv.statistics())
-
-    println()
-
-    println(a.statistics())
-
-    rv.resetStatistics()
-    for(i in 1..1000){
-        rv.value
-    }
-
-    println(rv.statistics())
-
-}
 fun test1() {
     val rv1 = ExponentialRV(10.0)
     val rv2 = ExponentialRV(20.0)

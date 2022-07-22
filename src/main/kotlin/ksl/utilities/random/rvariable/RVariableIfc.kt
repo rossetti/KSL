@@ -48,24 +48,6 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, 
     }
 
     /**
-     *  Indicates whether statistics will be collected or are being collected if true
-     */
-    var collectStatistics: Boolean
-
-    /**
-     *  Provides the statistics on the random variable. Statistics that have
-     *  been collected will be reported.  If statistics have not been turned on,
-     *  then statistical collection will be started.
-     */
-    fun statistics(): Statistic
-
-    /**
-     *  If statistics have been collected they are reset.  If statistics
-     *  have not been collected then nothing occurs
-     */
-    fun resetStatistics()
-
-    /**
      * The randomly generated value. Each value
      * will be different
      */
