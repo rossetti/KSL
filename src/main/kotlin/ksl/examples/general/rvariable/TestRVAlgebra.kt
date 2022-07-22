@@ -1,5 +1,6 @@
 package ksl.examples.general.rvariable
 
+import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
@@ -13,10 +14,25 @@ fun main() {
 
 //    test3()
 
-    test4()
+//    test4()
 
+    test5()
 }
 
+fun test5(){
+    val rv = ExponentialRV(20.0)
+    rv.collectStatistics = true
+    val s = Statistic()
+    val something: Emitter.Connection = rv.emitter.attach { x -> s.collect(x) }
+    for(i in 1..10){
+        rv.value
+    }
+    println(rv.statistics())
+    println()
+    println(s)
+    rv.emitter.detach(something)
+
+}
 fun test4(){
     val rv = ExponentialRV(20.0)
 

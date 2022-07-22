@@ -17,10 +17,7 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.observers.DoubleChanged
-import ksl.utilities.observers.DoubleChangedIfc
-import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableIfc
+import ksl.utilities.observers.*
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.statistic.Statistic
 
@@ -29,7 +26,7 @@ import ksl.utilities.statistic.Statistic
  * the random generation procedure in the method generate().
  */
 abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) : RVariableIfc,
-    IdentityIfc by Identity(name) {
+    IdentityIfc by Identity(name), DoubleChangedIfc by DoubleChanged() {
 
     constructor(stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(stream, null)
 
@@ -99,6 +96,7 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
     final override fun sample(): Double {
         val x = generate()
         previous = x
+        emitter.emit(x)
         if (collectStatistics){
             statistic.value = x
         }

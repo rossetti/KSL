@@ -3,9 +3,9 @@ package ksl.utilities.observers
 /**
  *  https://in-kotlin.com/design-patterns/observer/
  */
-class Signal<TType> {
+class Emitter<TType> {
     class Connection
-    val callbacks = mutableMapOf<Connection, (TType) -> Unit>()
+    private val callbacks = mutableMapOf<Connection, (TType) -> Unit>()
 
     fun emit(newValue: TType) {
         for(cb in callbacks) {
@@ -13,29 +13,29 @@ class Signal<TType> {
         }
     }
 
-    fun connect(callback: (newValue: TType) -> Unit) : Connection {
+    fun attach(callback: (newValue: TType) -> Unit) : Connection {
         val connection = Connection()
         callbacks[connection] = callback
         return connection
     }
 
-    fun disconnect(connection : Connection) {
+    fun detach(connection : Connection) {
         callbacks.remove(connection)
     }
 }
 
 interface DoubleChangedIfc {
-    val changedSignal : Signal<Double>
+    val emitter : Emitter<Double>
 }
 
 class DoubleChanged : DoubleChangedIfc {
-    override val changedSignal: Signal<Double> = Signal()
+    override val emitter: Emitter<Double> = Emitter()
 }
 
 interface DoublePairChangedIfc {
-    val changedSignal : Signal<Pair<Double, Double>>
+    val emitter : Emitter<Pair<Double, Double>>
 }
 
 class DoublePairChanged : DoublePairChangedIfc {
-    override val changedSignal: Signal<Pair<Double, Double>> = Signal()
+    override val emitter: Emitter<Pair<Double, Double>> = Emitter()
 }

@@ -17,13 +17,17 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
+import ksl.utilities.observers.DoubleChanged
+import ksl.utilities.observers.DoubleChangedIfc
+import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.statistic.Statistic
 
 /**
  * Allows a constant value to pretend to be a random variable
  */
-open class ConstantRV(var constVal: Double) : RVariableIfc, IdentityIfc by Identity() {
+open class ConstantRV(var constVal: Double) : RVariableIfc, IdentityIfc by Identity(),
+    DoubleChangedIfc by DoubleChanged() {
 
     lateinit var statistic: Statistic
 
@@ -38,7 +42,7 @@ open class ConstantRV(var constVal: Double) : RVariableIfc, IdentityIfc by Ident
         }
 
     override fun statistics(): Statistic {
-        if (!collectStatistics){
+        if (!collectStatistics) {
             collectStatistics = true
         }
         return statistic.instance()
@@ -65,9 +69,10 @@ open class ConstantRV(var constVal: Double) : RVariableIfc, IdentityIfc by Ident
     }
 
     override fun sample(): Double {
-        if (collectStatistics){
+        if (collectStatistics) {
             statistic.value = constVal
         }
+        emitter.emit(constVal)
         return constVal
     }
 

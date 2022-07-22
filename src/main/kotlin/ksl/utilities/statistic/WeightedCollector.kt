@@ -30,7 +30,7 @@ abstract class WeightedCollector(name: String? = null) : WeightedCollectorIfc, I
         lastValue = obs
         lastWeight = weight
         notifyObservers(this, Pair(lastValue, lastWeight))
-        changedSignal.emit(Pair(lastValue, lastWeight))
+        emitter.emit(Pair(lastValue, lastWeight))
     }
 
     override fun reset() {
