@@ -27,12 +27,3 @@ class RVUFunction(
         first.useStreamNumber(streamNumber)
     }
 }
-
-fun main(){
-    val rv = ExponentialRV(10.0)
-
-    val rv1 = RVUFunction(rv, { f: Double -> sin(f) })
-
-    print(rv1.sample(100).statistics())
-
-}
