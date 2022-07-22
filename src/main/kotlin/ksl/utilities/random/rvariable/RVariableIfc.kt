@@ -18,6 +18,9 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.PreviousValueIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import kotlin.math.sin
+import kotlin.math.abs
+import kotlin.math.*
 
 /**
  * An interface for defining random variables. The methods sample() and getValue() gets a new
@@ -81,7 +84,7 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
         return instance(KSLRandom.nextRNStream())
     }
 
-    override fun antitheticInstance(): RVariableIfc{
+    override fun antitheticInstance(): RVariableIfc {
         return instance(rnStream.antitheticInstance())
     }
 
@@ -100,4 +103,138 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc {
     operator fun minus(other: RVariableIfc): RVariableIfc {
         return RVFunction(this, other, Double::minus)
     }
+
+    operator fun plus(x: Double): RVariableIfc {
+        return RVFunction(this, ConstantRV(x), Double::plus)
+    }
+
+    operator fun times(x: Double): RVariableIfc {
+        return RVFunction(this, ConstantRV(x), Double::times)
+    }
+
+    operator fun div(x: Double): RVariableIfc {
+        return RVFunction(this, ConstantRV(x), Double::div)
+    }
+
+    operator fun minus(x: Double): RVariableIfc {
+        return RVFunction(this, ConstantRV(x), Double::minus)
+    }
+
+    fun pow(x: Double): RVariableIfc {
+        return RVFunction(this, ConstantRV(x), Double::pow)
+    }
+
 }
+
+operator fun Double.plus(other: RVariableIfc): RVariableIfc {
+    return RVFunction(ConstantRV(this), other, Double::plus)
+}
+
+operator fun Double.minus(other: RVariableIfc): RVariableIfc {
+    return RVFunction(ConstantRV(this), other, Double::minus)
+}
+
+operator fun Double.div(other: RVariableIfc): RVariableIfc {
+    return RVFunction(ConstantRV(this), other, Double::div)
+}
+
+operator fun Double.times(other: RVariableIfc): RVariableIfc {
+    return RVFunction(ConstantRV(this), other, Double::times)
+}
+
+fun abs(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::abs)
+}
+
+fun acos(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::acos)
+}
+
+fun acosh(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::acosh)
+}
+
+fun asin(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::asin)
+}
+
+fun asinh(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::asinh)
+}
+
+fun atan(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::atan)
+}
+
+fun atanh(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::atanh)
+}
+
+fun ceil(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::ceil)
+}
+
+fun cos(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::cos)
+}
+
+fun cosh(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::cosh)
+}
+
+fun exp(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::exp)
+}
+
+fun floor(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::floor)
+}
+
+fun ln(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::ln)
+}
+
+fun log10(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::log10)
+}
+
+fun log2(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::log2)
+}
+
+fun Double.pow(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::pow)
+}
+
+fun round(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::round)
+}
+
+fun sin(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::sin)
+}
+
+fun sinh(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::sinh)
+}
+
+fun sqrt(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::sqrt)
+}
+
+fun tan(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::tan)
+}
+
+fun tanh(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::tanh)
+}
+
+fun truncate(rv: RVariableIfc): RVariableIfc {
+    return RVUFunction(rv, ::truncate)
+}
+
+
+
+
+
