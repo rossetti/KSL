@@ -35,6 +35,7 @@ private var StatCounter: Int = 0
  */
 class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray? = null) :
     AbstractStatistic(name) {
+
     /**
      * Holds the first 4 statistical central moments
      */

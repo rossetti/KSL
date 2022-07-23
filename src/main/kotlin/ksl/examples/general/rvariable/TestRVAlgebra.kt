@@ -20,6 +20,7 @@ fun main() {
 fun test4(){
     val rv = ExponentialRV(20.0)
     val s = Statistic()
+//        val something: Emitter.Connection = rv.emitter.attach { s.collector() }
     val something: Emitter.Connection = rv.emitter.attach { x -> s.collect(x) }
     for(i in 1..10){
         rv.value
