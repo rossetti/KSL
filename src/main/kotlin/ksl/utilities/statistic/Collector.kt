@@ -6,7 +6,7 @@ import ksl.utilities.observers.*
 
 abstract class Collector(name: String? = null) : CollectorIfc, IdentityIfc by Identity(name),
     ObservableIfc<Double> by Observable(),
-    DoubleChangedIfc by DoubleChanged() {
+    DoubleEmitterIfc by DoubleEmitter() {
 
     var lastValue = Double.NaN
         protected set

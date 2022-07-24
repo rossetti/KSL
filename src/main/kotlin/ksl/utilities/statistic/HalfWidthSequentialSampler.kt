@@ -18,8 +18,8 @@ package ksl.utilities.statistic
 import ksl.utilities.GetValueIfc
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.observers.DoubleChanged
-import ksl.utilities.observers.DoubleChangedIfc
+import ksl.utilities.observers.DoubleEmitter
+import ksl.utilities.observers.DoubleEmitterIfc
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableIfc
 import ksl.utilities.random.rvariable.NormalRV
@@ -34,7 +34,7 @@ private var counter: Int = 0
  */
 class HalfWidthSequentialSampler(aName: String? = null) : IdentityIfc by Identity(aName),
     ObservableIfc<Double> by Observable(),
-    DoubleChangedIfc by DoubleChanged() {
+    DoubleEmitterIfc by DoubleEmitter() {
 
     private var myStatistic: Statistic = Statistic(name)
 

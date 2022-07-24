@@ -24,18 +24,18 @@ class Emitter<TType> {
     }
 }
 
-interface DoubleChangedIfc {
+interface DoubleEmitterIfc {
     val emitter : Emitter<Double>
 }
 
-class DoubleChanged : DoubleChangedIfc {
+class DoubleEmitter : DoubleEmitterIfc {
     override val emitter: Emitter<Double> = Emitter()
 }
 
-interface DoublePairChangedIfc {
+interface DoublePairEmitterIfc {
     val emitter : Emitter<Pair<Double, Double>>
 }
 
-class DoublePairChanged : DoublePairChangedIfc {
+class DoublePairEmitter : DoublePairEmitterIfc {
     override val emitter: Emitter<Pair<Double, Double>> = Emitter()
 }

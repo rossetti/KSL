@@ -2,14 +2,14 @@ package ksl.utilities.statistic
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.observers.DoublePairChanged
-import ksl.utilities.observers.DoublePairChangedIfc
+import ksl.utilities.observers.DoublePairEmitter
+import ksl.utilities.observers.DoublePairEmitterIfc
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableIfc
 
 abstract class WeightedCollector(name: String? = null) : WeightedCollectorIfc, IdentityIfc by Identity(name),
     ObservableIfc<Pair<Double, Double>> by Observable(),
-    DoublePairChangedIfc by DoublePairChanged() {
+    DoublePairEmitterIfc by DoublePairEmitter() {
 
     var lastValue = Double.NaN
         protected set

@@ -16,10 +16,9 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.PreviousValueIfc
-import ksl.utilities.observers.DoubleChangedIfc
+import ksl.utilities.observers.DoubleEmitterIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.statistic.Statistic
 import kotlin.math.sin
 import kotlin.math.abs
 import kotlin.math.*
@@ -35,7 +34,7 @@ import kotlin.math.*
  *
  * The preferred approach to creating random variables is to sub-class RVariable.
  */
-interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, DoubleChangedIfc {
+interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, DoubleEmitterIfc {
 
     /**
      * The set of pre-defined distribution types

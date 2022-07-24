@@ -21,13 +21,18 @@ package ksl.simulation
  */
 interface IterativeProcessIfc {
 
-    enum class Status(val msg: String) {
+    enum class EndingStatus(val msg: String) {
         NO_STEPS_EXECUTED("No steps to run."),
         COMPLETED_ALL_STEPS("Completed all steps."),
         EXCEEDED_EXECUTION_TIME("Exceeded its maximum execution time."),
         MET_STOPPING_CONDITION("Stopped based on a condition."),
         UNFINISHED("The process is not finished")
     }
+
+    /**
+     *  Indicates the status of the iterative process
+     */
+    val endingStatus: EndingStatus
 
     /**
      * A flag to indicate whether the iterative process is done A iterative
