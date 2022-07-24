@@ -19,14 +19,13 @@ import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.*
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.statistic.Statistic
 
 /**
  * An abstract base class for building random variables.  Implement
  * the random generation procedure in the method generate().
  */
 abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) : RVariableIfc,
-    IdentityIfc by Identity(name), DoubleChangedIfc by DoubleChanged() {
+    IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter() {
 
     constructor(stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(stream, null)
 
