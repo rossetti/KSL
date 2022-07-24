@@ -15,16 +15,20 @@
  */
 package ksl.simulation
 
-import kotlin.time.Duration
-import kotlin.time.DurationUnit
-import kotlin.time.TimeSource
-import kotlin.time.toDuration
-
 /**
  *
  * @author rossetti
  */
-interface IterativeProcessIfc  {
+interface IterativeProcessIfc {
+
+    enum class Status(val msg: String) {
+        NO_STEPS_EXECUTED("No steps to run."),
+        COMPLETED_ALL_STEPS("Completed all steps."),
+        EXCEEDED_EXECUTION_TIME("Exceeded its maximum execution time."),
+        MET_STOPPING_CONDITION("Stopped based on a condition."),
+        UNFINISHED("The process is not finished")
+    }
+
     /**
      * A flag to indicate whether the iterative process is done A iterative
      * process can be done if: 1) it ran all of its steps 2) it was ended by a
@@ -184,18 +188,6 @@ interface IterativeProcessIfc  {
      * process at an arbitrary step. Once stopped, the process must be
      * restarted.
      *
-     */
-    fun end()
-
-    /**
-     * The iterative process will continue until there are no more steps or its
-     * maximum execution time has been reached, whichever comes first. If this
-     * method is called the iterative process will stop processing (terminate)
-     * before the next step and not process the next step in the process. The
-     * current step will be completed. This method can be used to stop the
-     * process at an arbitrary step. Once stopped, the process must be
-     * restarted.
-     *
      * @param msg an option message to indicate the reason for stopping
      */
     fun end(msg: String? = null)
@@ -213,16 +205,6 @@ interface IterativeProcessIfc  {
      * @return true if the process has been told to stop via stop()
      */
     val stopping: Boolean
-
-    /**
-     * This sets a flag to indicate to the process that is should stop after the
-     * next step is completed. This is different than end(). Calling end()
-     * immediately places the process in the End state. The process needs to be
-     * in a valid state before end() can be used. Calling stop tells the process
-     * to eventually get into the end state. stop() can be used to arbitrarily
-     * stop the process based on some user defined condition.
-     */
-    fun stop()
 
     /**
      * This sets a flag to indicate to the process that is should stop after the

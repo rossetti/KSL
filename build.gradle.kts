@@ -5,7 +5,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     `java-library`
     //kotlin("jvm") version "1.5.31"
-    kotlin("jvm") version "1.6.10"
+    kotlin("jvm") version "1.7.10"
 }
 group = "io.github.rossetti"
 version = "1.0-SNAPSHOT"
