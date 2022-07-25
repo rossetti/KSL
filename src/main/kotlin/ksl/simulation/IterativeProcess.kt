@@ -1,13 +1,20 @@
 package ksl.simulation
 
 import jsl.simulation.IllegalStateException
+import jsl.simulation.NoSuchStepException
+import ksl.utilities.observers.Observable
+import ksl.utilities.observers.ObservableIfc
+import mu.KLoggable
+import mu.KotlinLogging
 
 /**
  * A counter to count the number of created to assign "unique" ids
  */
 private var idCounter_: Int = 0
 
-open class IterativeProcess : IterativeProcessIfc {
+private val logger = KotlinLogging.logger {}
+
+abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Observable() {
 
     /**
      * A reference to the created state for the iterative process A iterative
@@ -37,10 +44,19 @@ open class IterativeProcess : IterativeProcessIfc {
     protected val myEndedState: Ended = Ended()
 
     /**
+     * A reference to an object related to the current step of the process It
+     * can be passed to observers
+     */
+    protected var myCurrentStep: T? = null
+
+    /**
      * A reference to the current state of the iterative process
      */
-    protected var state: IterativeProcess.IterativeState? = null
-        protected set(value) = TODO("Not yet implemented")
+    protected var state: IterativeProcess<T>.IterativeState = Created()
+        protected set(value) {
+            field = value
+            notifyObservers(this, myCurrentStep)
+        }
 
     override var endingStatus: IterativeProcessIfc.EndingStatus = IterativeProcessIfc.EndingStatus.UNFINISHED
         protected set
@@ -75,23 +91,7 @@ open class IterativeProcess : IterativeProcessIfc {
     override val isEnded: Boolean
         get() = state == myEndedState
 
-    override val allStepsCompleted: Boolean
-        get() = endingStatus == IterativeProcessIfc.EndingStatus.COMPLETED_ALL_STEPS
-
-    override val stoppedByCondition: Boolean
-        get() = endingStatus == IterativeProcessIfc.EndingStatus.MET_STOPPING_CONDITION
-
-    override val isUnfinished: Boolean
-        get() = endingStatus == IterativeProcessIfc.EndingStatus.UNFINISHED
-
-    override val isExecutionTimeExceeded: Boolean
-        get() = endingStatus == IterativeProcessIfc.EndingStatus.EXCEEDED_EXECUTION_TIME
-
-    override val noStepsExecuted: Boolean
-        get() = endingStatus == IterativeProcessIfc.EndingStatus.NO_STEPS_EXECUTED
-
-    override val stoppingMessage: String
-        get() = endingStatus.msg
+    override var stoppingMessage: String? = null
 
     override var isRunningStep: Boolean = false
         protected set
@@ -102,32 +102,78 @@ open class IterativeProcess : IterativeProcessIfc {
     override var stopping: Boolean = false
         protected set
 
-    override fun initialize() {
-        TODO("Not yet implemented")
+    final override fun initialize() {
+        state.initialize()
     }
 
-    override fun runNext() {
-        TODO("Not yet implemented")
+    final override fun runNext() {
+        if (!hasNext()) {
+            val s = StringBuilder()
+            s.append("Iterative Process: No such step exception!\n")
+            s.append(toString())
+            throw NoSuchStepException(s.toString())
+        }
+        state.runNext()
     }
 
-    override fun run() {
-        TODO("Not yet implemented")
+    /**
+     * This method should check to see if another step is necessary for the
+     * iterative process. True means that the process has another step to be
+     * executed. False, means that no more steps are available for execution.
+     *
+     * @return true if another step is present
+     */
+    protected abstract operator fun hasNext(): Boolean
+
+    /**
+     * This method should return the next step to be executed in the iterative
+     * process or null if no more steps can be executed. It should advance the
+     * current step to the next step if it is available
+     *
+     * @return the type of the step
+     */
+    protected abstract operator fun next(): T?
+
+    final override fun run() {
+        runAll_()
     }
 
-    override fun end(msg: String?) {
-        TODO("Not yet implemented")
+    final override fun end(msg: String?) {
+        stoppingMessage = msg
+        state.end()
     }
 
-    override fun stop(msg: String?) {
-        TODO("Not yet implemented")
+    final override fun stop(msg: String?) {
+        stoppingMessage = msg
+        stopping = true
     }
 
     protected fun initializeIterations() {
+        stoppingMessage = null
+        stopping = false
+        isDone = false
+        isRunningStep = false
+        isRunning = false
+        numberStepsCompleted = 0
+        beginExecutionTime = System.nanoTime()
+        state = myInitializedState
         TODO("Not yet implemented")
     }
 
     protected fun runAll_() {
-        TODO("Not yet implemented")
+        if (!isInitialized) {
+            initialize()
+        }
+        if (hasNext()) {
+            while (!isDone) {
+                runNext()
+            }
+        } else {
+            // no steps to execute
+            isDone = true
+            endingStatus = IterativeProcessIfc.EndingStatus.NO_STEPS_EXECUTED
+        }
+        endIterations()
     }
 
     protected fun runNext_() {
@@ -235,6 +281,5 @@ open class IterativeProcess : IterativeProcessIfc {
             initializeIterations()
         }
     }
-
 
 }

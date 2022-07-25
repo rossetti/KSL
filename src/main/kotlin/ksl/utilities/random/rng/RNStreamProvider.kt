@@ -1,6 +1,5 @@
 package ksl.utilities.random.rng
 
-import ksl.utilities.io.KSL
 import mu.KotlinLogging
 
 private val logger = KotlinLogging.logger {}

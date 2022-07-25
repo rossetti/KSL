@@ -54,6 +54,7 @@ interface IterativeProcessIfc {
      * getMaximumAllowedExecutionTime()
      */
     val isExecutionTimeExceeded: Boolean
+        get() = endingStatus == EndingStatus.EXCEEDED_EXECUTION_TIME
 
     //TODO use Duration and new time API, eventually
 
@@ -144,12 +145,14 @@ interface IterativeProcessIfc {
      * if the iterative process ended because it ran all of its steps, true if all completed
      */
     val allStepsCompleted: Boolean
+        get() = endingStatus == EndingStatus.COMPLETED_ALL_STEPS
 
     /**
      * The iterative process may end by a variety of means, this method checks
      * if the iterative process ended because it was stopped, true if it was stopped via stop()
      */
     val stoppedByCondition: Boolean
+        get() = endingStatus == EndingStatus.MET_STOPPING_CONDITION
 
     /**
      * The iterative process may end by a variety of means, this method checks
@@ -160,6 +163,7 @@ interface IterativeProcessIfc {
      * @return true if the process is not finished
      */
     val isUnfinished: Boolean
+        get() = endingStatus == EndingStatus.UNFINISHED
 
     /**
      * Initializes the iterative process prior to running any steps This must be
@@ -236,4 +240,6 @@ interface IterativeProcessIfc {
      *
      */
     val noStepsExecuted: Boolean
+        get() = endingStatus == EndingStatus.NO_STEPS_EXECUTED
+
 }
