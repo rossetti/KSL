@@ -23,8 +23,8 @@ import ksl.utilities.random.rng.RNStreamIfc
  * @param data the data to sample from
  * @param stream the random number stream to use
  */
-class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RVariable(stream) {
+class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
+    ParameterizedRV(stream, name){
     init {
         require(data.isNotEmpty()) { "The supplied data array had no elements." }
     }
@@ -54,5 +54,13 @@ class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStre
     override fun toString(): String {
         return "EmpiricalRV(data=${values.contentToString()})"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.EmpiricalRVParameters()
+            parameters.changeDoubleArrayParameter("population", values)
+            return parameters
+
+        }
 
 }

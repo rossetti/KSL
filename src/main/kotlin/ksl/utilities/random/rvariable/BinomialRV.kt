@@ -29,7 +29,7 @@ class BinomialRV constructor(
     val numTrials: Int,
     stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
-) : RVariable(stream, name) {
+) : ParameterizedRV(stream, name) {
     init {
         require(!(pSuccess < 0.0 || pSuccess > 1.0)) { "Success Probability must be [0,1]" }
         require(numTrials > 0) { "Number of trials must be >= 1" }
@@ -58,5 +58,13 @@ class BinomialRV constructor(
     override fun toString(): String {
         return "BinomialRV(pSuccess=$pSuccess, numTrials=$numTrials)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.BinomialRVParameters()
+            parameters.changeDoubleParameter("probOfSuccess", pSuccess)
+            parameters.changeIntegerParameter("numTrials", numTrials)
+            return parameters
+        }
 
 }

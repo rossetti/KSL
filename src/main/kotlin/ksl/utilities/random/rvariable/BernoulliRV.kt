@@ -28,7 +28,7 @@ class BernoulliRV (
     val probOfSuccess: Double,
     stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
-) : RVariable(stream, name) {
+) : ParameterizedRV(stream, name) {
 
     /**
      * @param probOfSuccess      the probability, must be in (0,1)
@@ -78,5 +78,12 @@ class BernoulliRV (
     override fun toString(): String {
         return "BernoulliRV(probOfSuccess=$probOfSuccess)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.BernoulliRVParameters()
+            parameters.changeDoubleParameter("probOfSuccess", probOfSuccess)
+            return parameters
+        }
 
 }

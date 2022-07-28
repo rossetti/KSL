@@ -28,8 +28,9 @@ class TriangularRV(
     val min: Double,
     val mode: Double,
     val max: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name)  {
     init {
         require(min <= mode) { "min must be <= mode" }
         require(min < max) { "min must be < max" }
@@ -51,4 +52,12 @@ class TriangularRV(
         return "TriangularRV(min=$min, mode=$mode, max=$max)"
     }
 
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.TriangularRVParameters()
+            parameters.changeDoubleParameter("min", min)
+            parameters.changeDoubleParameter("mode", mode)
+            parameters.changeDoubleParameter("max", max)
+            return parameters
+        }
 }

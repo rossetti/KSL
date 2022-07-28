@@ -30,8 +30,8 @@ class JohnsonBRV (
     val alpha2: Double,
     val min: Double,
     val max: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null
+) : ParameterizedRV(stream, name) {
     init {
         require(alpha2 > 0) { "alpha2 must be > 0" }
         require(max > min) { "the min must be < than the max" }
@@ -51,5 +51,15 @@ class JohnsonBRV (
     override fun toString(): String {
         return "JohnsonBRV(alpha1=$alpha1, alpha2=$alpha2, min=$min, max=$max)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.JohnsonBRVParameters()
+            parameters.changeDoubleParameter("alpha1", alpha1)
+            parameters.changeDoubleParameter("alpha2", alpha2)
+            parameters.changeDoubleParameter("min", min)
+            parameters.changeDoubleParameter("max", max)
+            return parameters
+        }
 
 }

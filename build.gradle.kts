@@ -33,6 +33,7 @@ dependencies {
     api(group = "ch.qos.logback", name = "logback-core", version = "1.2.10")
 
     implementation("org.junit.jupiter:junit-jupiter:5.7.0")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.10")
 
     testImplementation(kotlin("test"))
     implementation(kotlin("stdlib-jdk8"))

@@ -26,8 +26,9 @@ import ksl.utilities.random.rng.RNStreamIfc
 class NegativeBinomialRV(
     val probOfSuccess: Double,
     val numSuccess: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name) {
     init {
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Success Probability must be (0,1)" }
         require(numSuccess > 0) { "Number of trials until rth success must be > 0" }
@@ -54,4 +55,11 @@ class NegativeBinomialRV(
         return "NegativeBinomialRV(probOfSuccess=$probOfSuccess, numSuccess=$numSuccess)"
     }
 
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.NegativeBinomialRVParameters()
+            parameters.changeDoubleParameter("probOfSuccess", probOfSuccess)
+            parameters.changeIntegerParameter("numSuccesses", numSuccess.toInt())
+            return parameters
+        }
 }

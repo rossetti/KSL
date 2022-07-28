@@ -26,8 +26,9 @@ import ksl.utilities.random.rng.RNStreamIfc
 class PearsonType5RV (
     val shape: Double,
     val scale: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name) {
     init {
         require(shape > 0) { "Shape parameter must be positive" }
         require(scale > 0) { "Scale parameter must be positive" }
@@ -46,5 +47,13 @@ class PearsonType5RV (
     override fun toString(): String {
         return "PearsonType5RV(shape=$shape, scale=$scale)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.PearsonType5RVParameters()
+            parameters.changeDoubleParameter("shape", shape)
+            parameters.changeDoubleParameter("scale", scale)
+            return parameters
+        }
 
 }

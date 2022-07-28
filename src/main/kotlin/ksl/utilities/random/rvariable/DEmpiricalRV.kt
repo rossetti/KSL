@@ -30,8 +30,9 @@ import ksl.utilities.random.rng.RNStreamIfc
 class DEmpiricalRV(
     values: DoubleArray,
     cdf: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name) {
     init {
         require(values.size == cdf.size) { "The arrays did not have the same length." }
         require(KSLRandom.isValidCDF(cdf)) { "The supplied cdf was not valid." }
@@ -65,5 +66,13 @@ class DEmpiricalRV(
     override fun toString(): String {
         return "DEmpiricalRV(values=${values.contentToString()}, cdf=${cdf.contentToString()})"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.DEmpiricalRVParameters()
+            parameters.changeDoubleArrayParameter("values", values)
+            parameters.changeDoubleArrayParameter("cdf", cdf)
+            return parameters
+        }
 
 }

@@ -22,8 +22,8 @@ import ksl.utilities.random.rng.RNStreamIfc
  * @param probOfSuccess   probability of success, must be in range (0,1)
  * @param stream the random number stream to use
  */
-class GeometricRV (val probOfSuccess: Double, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RVariable(stream) {
+class GeometricRV (val probOfSuccess: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
+    ParameterizedRV(stream, name) {
     init {
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Probability must be (0,1)" }
     }
@@ -50,5 +50,11 @@ class GeometricRV (val probOfSuccess: Double, stream: RNStreamIfc = KSLRandom.ne
         return "GeometricRV(probOfSuccess=$probOfSuccess)"
     }
 
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.GeometricRVParameters()
+            parameters.changeDoubleParameter("ProbOfSuccess", probOfSuccess)
+            return parameters
+        }
 
 }

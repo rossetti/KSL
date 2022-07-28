@@ -22,8 +22,8 @@ import ksl.utilities.random.rng.RNStreamIfc
  * @param degreesOfFreedom the degrees of freedom for the random variable, must be greater than 0.0
  * @param stream the random number stream
  */
-class ChiSquaredRV (val degreesOfFreedom: Double, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RVariable(stream) {
+class ChiSquaredRV (val degreesOfFreedom: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
+    ParameterizedRV(stream, name) {
     init {
         require(degreesOfFreedom > 0.0) { "Chi-Squared degrees of freedom must be > 0.0" }
     }
@@ -32,7 +32,8 @@ class ChiSquaredRV (val degreesOfFreedom: Double, stream: RNStreamIfc = KSLRando
      * @param degreesOfFreedom the degrees of freedom for the random variable, must be greater than 0.0
      * @param streamNum the random number stream number
      */
-    constructor(degreesOfFreedom: Double, streamNum: Int) : this(degreesOfFreedom, KSLRandom.rnStream(streamNum)) {}
+    constructor(degreesOfFreedom: Double, streamNum: Int, name: String? = null)
+            : this(degreesOfFreedom, KSLRandom.rnStream(streamNum), name)
 
     override fun instance(stream: RNStreamIfc): ChiSquaredRV {
         return ChiSquaredRV(degreesOfFreedom, stream)
@@ -45,5 +46,13 @@ class ChiSquaredRV (val degreesOfFreedom: Double, stream: RNStreamIfc = KSLRando
     override fun toString(): String {
         return "ChiSquaredRV(degreesOfFreedom=$degreesOfFreedom)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.ChiSquaredRVParameters()
+            parameters.changeDoubleParameter("dof", degreesOfFreedom)
+            return parameters
+
+        }
 
 }

@@ -20,8 +20,8 @@ import ksl.utilities.random.rng.RNStreamIfc
 /**
  * GammaRV(shape, scale) random variable
  */
-class GammaRV (val shape: Double, val scale: Double, rng: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RVariable(rng) {
+class GammaRV (val shape: Double, val scale: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name:String? = null) :
+    ParameterizedRV(stream, name) {
 
     init {
         require(shape > 0){"The shape parameter must be > 0"}
@@ -44,5 +44,13 @@ class GammaRV (val shape: Double, val scale: Double, rng: RNStreamIfc = KSLRando
     override fun toString(): String {
         return "GammaRV(shape=$shape, scale=$scale)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.GammaRVParameters()
+            parameters.changeDoubleParameter("shape", shape)
+            parameters.changeDoubleParameter("scale", scale)
+            return parameters
+        }
 
 }

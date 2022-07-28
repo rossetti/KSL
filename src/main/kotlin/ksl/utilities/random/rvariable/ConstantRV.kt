@@ -15,19 +15,12 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.Identity
-import ksl.utilities.IdentityIfc
-import ksl.utilities.observers.DoubleEmitter
-import ksl.utilities.observers.DoubleEmitterIfc
 import ksl.utilities.random.rng.RNStreamIfc
 
 /**
  * Allows a constant value to pretend to be a random variable
  */
-open class ConstantRV(var constVal: Double) : RVariableIfc, IdentityIfc by Identity(),
-    DoubleEmitterIfc by DoubleEmitter() {
-
-    override fun previous(): Double = constVal
+open class ConstantRV(var constVal: Double, name: String? = null) : ParameterizedRV(KSLRandom.defaultRNStream(), name){
 
     override fun instance(stream: RNStreamIfc): ConstantRV {
         return ConstantRV(constVal)
@@ -37,18 +30,25 @@ open class ConstantRV(var constVal: Double) : RVariableIfc, IdentityIfc by Ident
         return ConstantRV(constVal)
     }
 
+    override fun generate(): Double {
+        return constVal
+    }
+
     override fun toString(): String {
         return "ConstantRV(value=$constVal)"
     }
 
-    override fun sample(): Double {
-        emitter.emit(constVal)
-        return constVal
-    }
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.ConstantRVParameters()
+            parameters.changeDoubleParameter("value", constVal)
+            return parameters
+        }
 
     override fun resetStartStream() {}
     override fun resetStartSubStream() {}
     override fun advanceToNextSubStream() {}
+
     override var antithetic: Boolean
         get() = false
         set(flag) {}
@@ -56,10 +56,6 @@ open class ConstantRV(var constVal: Double) : RVariableIfc, IdentityIfc by Ident
     override fun antitheticInstance(): RVariableIfc {
         return ConstantRV(constVal)
     }
-
-    override var rnStream: RNStreamIfc
-        get() = KSLRandom.defaultRNStream()
-        set(stream) {}
 
     companion object {
         /**

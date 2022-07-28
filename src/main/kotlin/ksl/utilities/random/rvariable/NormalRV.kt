@@ -26,8 +26,9 @@ import kotlin.math.sqrt
 class NormalRV(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
-    rng: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(rng) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name) {
 
     init {
         require(variance > 0) { "Variance must be positive" }
@@ -53,4 +54,11 @@ class NormalRV(
         return "NormalRV(mean=$mean, variance=$variance)"
     }
 
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.NormalRVParameters()
+            parameters.changeDoubleParameter("mean", mean)
+            parameters.changeDoubleParameter("variance", variance)
+            return parameters
+        }
 }

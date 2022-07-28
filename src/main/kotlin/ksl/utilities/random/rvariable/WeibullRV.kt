@@ -24,8 +24,10 @@ import ksl.utilities.random.rng.RNStreamIfc
  * @param scale the scale, must be greater than 0
  * @param stream   the random number stream
  */
-class WeibullRV (val shape: Double, val scale: Double, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RVariable(stream) {
+class WeibullRV (val shape: Double, val scale: Double,
+                 stream: RNStreamIfc = KSLRandom.nextRNStream(),
+name: String? = null) :
+    ParameterizedRV(stream, name) {
     init {
         require(shape > 0) { "Shape parameter must be positive" }
         require(scale > 0) { "Scale parameter must be positive" }
@@ -43,5 +45,13 @@ class WeibullRV (val shape: Double, val scale: Double, stream: RNStreamIfc = KSL
     override fun toString(): String {
         return "WeibullRV(shape=$shape, scale=$scale)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.WeibullRVParameters()
+            parameters.changeDoubleParameter("shape", shape)
+            parameters.changeDoubleParameter("scale", scale)
+            return parameters
+        }
 
 }

@@ -27,8 +27,9 @@ import ksl.utilities.random.rng.RNStreamIfc
 class UniformRV (
     val min: Double = 0.0,
     val max: Double = 1.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name) {
     init {
         require(min < max) { "Lower limit must be < upper limit. lower limit = $min upper limit = $max" }
     }
@@ -46,5 +47,13 @@ class UniformRV (
     override fun toString(): String {
         return "UniformRV(min=$min, max=$max)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.UniformRVParameters()
+            parameters.changeDoubleParameter("min", min)
+            parameters.changeDoubleParameter("max", max)
+            return parameters
+        }
 
 }

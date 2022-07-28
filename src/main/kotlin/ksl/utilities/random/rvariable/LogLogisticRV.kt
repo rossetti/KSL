@@ -26,8 +26,9 @@ import ksl.utilities.random.rng.RNStreamIfc
 class LogLogisticRV(
     val shape: Double,
     val scale: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name)  {
     init {
         require(shape > 0) { "Shape parameter must be > 0" }
         require(scale > 0) { "Scale parameter must be > 0" }
@@ -46,5 +47,13 @@ class LogLogisticRV(
     override fun toString(): String {
         return "LogLogisticRV(shape=$shape, scale=$scale)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.LogLogisticRVParameters()
+            parameters.changeDoubleParameter("shape", shape)
+            parameters.changeDoubleParameter("scale", scale)
+            return parameters
+        }
 
 }

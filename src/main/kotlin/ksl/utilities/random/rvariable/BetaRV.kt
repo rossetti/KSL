@@ -28,7 +28,7 @@ class BetaRV(
     val alpha2: Double = 1.0,
     stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
-) : RVariable(stream, name) {
+) : ParameterizedRV(stream, name) {
     init {
         require(alpha1 > 0) { "The 1st shape parameter must be > 0" }
         require(alpha2 > 0) { "The 2nd shape parameter must be > 0" }
@@ -47,5 +47,13 @@ class BetaRV(
     override fun toString(): String {
         return "BetaRV(alpha1=$alpha1, alpha2=$alpha2)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.BetaRVParameters()
+            parameters.changeDoubleParameter("alpha1", alpha1)
+            parameters.changeDoubleParameter("alpha2", alpha2)
+            return parameters
+        }
 
 }

@@ -26,8 +26,9 @@ import ksl.utilities.random.rng.RNStreamIfc
 class LognormalRV(
     val mean: Double,
     val variance: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name){
     init {
         require(mean > 0) { "Mean must be positive" }
         require(variance > 0) { "Variance must be positive" }
@@ -47,5 +48,13 @@ class LognormalRV(
     override fun toString(): String {
         return "LognormalRV(mean=$mean, variance=$variance)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.LognormalRVParameters()
+            parameters.changeDoubleParameter("mean", mean)
+            parameters.changeDoubleParameter("variance", variance)
+            return parameters
+        }
 
 }

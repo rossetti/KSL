@@ -30,8 +30,8 @@ class GeneralizedBetaRV(
     val alpha2: Double,
     val minimum: Double,
     val maximum: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null
+) : ParameterizedRV(stream, name) {
     init {
         require(maximum > minimum) { "the min must be < than the max" }
     }
@@ -64,5 +64,15 @@ class GeneralizedBetaRV(
     override fun toString(): String {
         return "GeneralizedBetaRV(alpha1=$alpha1, alpha2=$alpha2, minimum=$minimum, maximum=$maximum)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.GeneralizedBetaRVParameters()
+            parameters.changeDoubleParameter("alpha1", alpha1)
+            parameters.changeDoubleParameter("alpha2", alpha2)
+            parameters.changeDoubleParameter("min", minimum)
+            parameters.changeDoubleParameter("max", maximum)
+            return parameters
+        }
 
 }

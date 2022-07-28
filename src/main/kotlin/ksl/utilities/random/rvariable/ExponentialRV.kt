@@ -21,8 +21,8 @@ import ksl.utilities.random.rng.RNStreamIfc
  * Exponential(mean) random variable
  * @param mean must be greater than 0.0
  */
-class ExponentialRV(val mean: Double, rng: RNStreamIfc = KSLRandom.nextRNStream(), name:String? = null) :
-    RVariable(rng, name) {
+class ExponentialRV(val mean: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name:String? = null) :
+    ParameterizedRV(stream, name) {
 
     /**
      * @param mean      must be greater than 0.0
@@ -45,5 +45,12 @@ class ExponentialRV(val mean: Double, rng: RNStreamIfc = KSLRandom.nextRNStream(
     override fun toString(): String {
         return "ExponentialRV(mean=$mean)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.ExponentialRVParameters()
+            parameters.changeDoubleParameter("mean", mean)
+            return parameters
+        }
 
 }

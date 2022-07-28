@@ -23,8 +23,8 @@ import ksl.utilities.random.rng.RNStreamIfc
  * @param max the upper limit of the range, must be strictly greater than min
  * @param stream the random number stream
  */
-class DUniformRV(val min: Int, val max: Int, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RVariable(stream) {
+class DUniformRV(val min: Int, val max: Int, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
+    ParameterizedRV(stream, name)  {
     init {
         require(min < max) { "Lower limit must be < upper limit. lower limit = $min upper limit = $max" }
     }
@@ -62,5 +62,13 @@ class DUniformRV(val min: Int, val max: Int, stream: RNStreamIfc = KSLRandom.nex
     override fun toString(): String {
         return "DUniformRV(min=$min, max=$max)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.DUniformRVParameters()
+            parameters.changeIntegerParameter("min", min)
+            parameters.changeIntegerParameter("max", max)
+            return parameters
+        }
 
 }

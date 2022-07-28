@@ -28,8 +28,9 @@ class PearsonType6RV (
     val alpha1: Double,
     val alpha2: Double,
     val beta: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name)  {
     init {
         require(alpha1 > 0.0) { "The 1st shape parameter must be > 0.0" }
         require(alpha2 > 0.0) { "The 2nd shape parameter must be > 0.0" }
@@ -50,5 +51,14 @@ class PearsonType6RV (
     override fun toString(): String {
         return "PearsonType6RV(alpha1=$alpha1, alpha2=$alpha2, beta=$beta)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.PearsonType6RVParameters()
+            parameters.changeDoubleParameter("alpha1", alpha1)
+            parameters.changeDoubleParameter("alpha2", alpha2)
+            parameters.changeDoubleParameter("beta", beta)
+            return parameters
+        }
 
 }

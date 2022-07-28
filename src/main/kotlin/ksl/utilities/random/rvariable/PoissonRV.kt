@@ -22,8 +22,8 @@ import ksl.utilities.random.rng.RNStreamIfc
  * @param mean the mean rate, must be greater than 0.0
  * @param stream the random number stream
  */
-class PoissonRV (val mean: Double, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RVariable(stream) {
+class PoissonRV (val mean: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
+    ParameterizedRV(stream, name)  {
     init {
         require(mean > 0.0) { "Poisson mean must be > 0.0" }
     }
@@ -40,4 +40,11 @@ class PoissonRV (val mean: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(
     override fun toString(): String {
         return "PoissonRV(mean=$mean)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.PoissonRVParameters()
+            parameters.changeDoubleParameter("mean", mean)
+            return parameters
+        }
 }

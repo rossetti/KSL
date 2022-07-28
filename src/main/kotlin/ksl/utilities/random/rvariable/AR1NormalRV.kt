@@ -28,8 +28,9 @@ class AR1NormalRV(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
     val lag1Corr: Double = 0.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    name: String? = null
+) : ParameterizedRV(stream, name) {
     private var myX: Double
     private val myErrors: NormalRV
 
@@ -73,5 +74,14 @@ class AR1NormalRV(
     override fun toString(): String {
         return "AR1NormalRV(mean=$mean, variance=$variance, lag1Corr=$lag1Corr, errorVariance=$errorVariance)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = RVParameters.AR1NormalRVParameters()
+            parameters.changeDoubleParameter("mean", mean)
+            parameters.changeDoubleParameter("variance", variance)
+            parameters.changeDoubleParameter("correlation", lag1Corr)
+            return parameters
+        }
 
 }
