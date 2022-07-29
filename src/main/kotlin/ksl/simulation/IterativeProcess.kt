@@ -1,10 +1,10 @@
 package ksl.simulation
 
-import jsl.simulation.IllegalStateException
-import jsl.simulation.NoSuchStepException
+import ksl.utilities.exceptions.IllegalStateException
+import ksl.utilities.exceptions.NoSuchStepException
+import ksl.simulation.IterativeProcessIfc.EndingStatus.*
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableIfc
-import mu.KLoggable
 import mu.KotlinLogging
 
 /**
@@ -54,11 +54,12 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
      */
     protected var state: IterativeProcess<T>.IterativeState = Created()
         protected set(value) {
+            logger.trace { "current state = $field, transitioning to state = $value" }
             field = value
             notifyObservers(this, myCurrentStep)
         }
 
-    override var endingStatus: IterativeProcessIfc.EndingStatus = IterativeProcessIfc.EndingStatus.UNFINISHED
+    override var endingStatus: IterativeProcessIfc.EndingStatus = UNFINISHED
         protected set
 
     override var isDone: Boolean = false
@@ -91,7 +92,7 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
     override val isEnded: Boolean
         get() = state == myEndedState
 
-    override var stoppingMessage: String? = null
+    override var stoppingMessage: String? = UNFINISHED.msg
 
     override var isRunningStep: Boolean = false
         protected set
@@ -107,9 +108,10 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
     }
 
     final override fun runNext() {
-        if (!hasNext()) {
+        if (!hasNextStep()) {
             val s = StringBuilder()
-            s.append("Iterative Process: No such step exception!\n")
+            s.append("Iterative Process: No such step exception!")
+            s.appendLine()
             s.append(toString())
             throw NoSuchStepException(s.toString())
         }
@@ -123,7 +125,7 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
      *
      * @return true if another step is present
      */
-    protected abstract operator fun hasNext(): Boolean
+    protected abstract fun hasNextStep(): Boolean
 
     /**
      * This method should return the next step to be executed in the iterative
@@ -132,10 +134,10 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
      *
      * @return the type of the step
      */
-    protected abstract operator fun next(): T?
+    protected abstract fun nextStep(): T?
 
     final override fun run() {
-        runAll_()
+        runAllSteps()
     }
 
     final override fun end(msg: String?) {
@@ -157,31 +159,77 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
         numberStepsCompleted = 0
         beginExecutionTime = System.nanoTime()
         state = myInitializedState
-        TODO("Not yet implemented")
     }
 
-    protected fun runAll_() {
+    protected fun runAllSteps() {
         if (!isInitialized) {
             initialize()
         }
-        if (hasNext()) {
+        if (hasNextStep()) {
             while (!isDone) {
                 runNext()
             }
         } else {
             // no steps to execute
             isDone = true
-            endingStatus = IterativeProcessIfc.EndingStatus.NO_STEPS_EXECUTED
+            endingStatus = NO_STEPS_EXECUTED
+            stoppingMessage = endingStatus.msg
         }
         endIterations()
     }
 
-    protected fun runNext_() {
-        TODO("Not yet implemented")
+    protected fun runNextStep() {
+        isRunning = true
+        isRunningStep = true
+        runStep()
+        isRunningStep = false
+        numberStepsCompleted++
+        state = myStepCompletedState
+        stoppingConditionCheck()
     }
 
+    protected open fun checkStoppingCondition() {}
+
+    private fun stoppingConditionCheck() {
+        checkStoppingCondition()
+        if (stopping) {
+            // user called stop on the process
+            isDone = true
+            endingStatus = MET_STOPPING_CONDITION
+            if (stoppingMessage == null) {
+                // user message not available, set message to default
+                stoppingMessage = endingStatus.msg
+            }
+        } else {
+            // user did not call stop, check if it needs to stop
+            if (!hasNextStep()) {
+                // no more steps
+                isDone = true
+                endingStatus = COMPLETED_ALL_STEPS
+                stoppingMessage = endingStatus.msg
+            } else if (isExecutionTimeExceeded) {
+                isDone = true
+                endingStatus = EXCEEDED_EXECUTION_TIME
+                stoppingMessage = endingStatus.msg
+            }
+        }
+    }
+
+    /**
+     * This method tells the iterative process to execute the current step.
+     * Typical usage is to call this after calling next() to advance to the next
+     * step. This method should throw a NoSuchStepException if there are no more
+     * steps to run, and it is told to run the step.
+     *
+     */
+    protected abstract fun runStep()
+
     protected fun endIterations() {
-        TODO("Not yet implemented")
+        isRunning = false
+        isRunningStep = false
+        isDone = true
+        endExecutionTime = System.nanoTime()
+        state = myEndedState
     }
 
     open inner class IterativeState(private val name: String) {
@@ -250,11 +298,11 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
 
     protected inner class Initialized : IterativeState("InitializedState") {
         override fun runNext() {
-            runNext_()
+            runNextStep()
         }
 
         override fun runAll() {
-            runAll_()
+            runAllSteps()
         }
 
         override fun end() {
@@ -264,11 +312,11 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
 
     protected inner class StepCompleted : IterativeState("StepCompleted") {
         override fun runNext() {
-            runNext_()
+            runNextStep()
         }
 
         override fun runAll() {
-            runAll_()
+            runAllSteps()
         }
 
         override fun end() {
