@@ -15,6 +15,11 @@ fun main() {
 //    test3()
 
     test4()
+
+    val rvTypes: Array<RVType> = enumValues<RVType>()
+    for(t in rvTypes){
+        println(t.name)
+    }
 }
 
 fun test4(){

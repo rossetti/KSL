@@ -1,6 +1,6 @@
 package ksl.utilities.random.rvariable
 
-import java.util.*
+//import java.util.*
 import kotlin.reflect.KClass
 
 enum class RVType(rvClass: KClass<out ParameterizedRV>) {
@@ -115,11 +115,14 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) {
     abstract val rvParameters: RVParameters
 
     companion object {
-        val RVTYPE_SET: EnumSet<RVType> = EnumSet.of(
-            Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma, GeneralizedBeta, Geometric,
-            JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial, Normal, PearsonType5, PearsonType6,
-            Poisson, ShiftedGeometric, Triangular, Uniform, Weibull, DEmpirical, Empirical, AR1Normal
-        )
+
+         val RVTYPE_SET : Set<RVType> = enumValues<RVType>().toSet()
+
+//        val RVTYPE_SET: EnumSet<RVType> = EnumSet.of(
+//            Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma, GeneralizedBeta, Geometric,
+//            JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial, Normal, PearsonType5, PearsonType6,
+//            Poisson, ShiftedGeometric, Triangular, Uniform, Weibull, DEmpirical, Empirical, AR1Normal
+//        )
 
         val classToTypeMap: Map<KClass<out ParameterizedRV>, RVType> = mapOf(
             BernoulliRV::class to Bernoulli, BetaRV::class to Beta, ChiSquaredRV::class to ChiSquared,

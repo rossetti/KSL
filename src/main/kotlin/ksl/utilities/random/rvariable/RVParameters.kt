@@ -135,7 +135,7 @@ abstract class RVParameters {
      * @param name the name of the parameter
      * @return the Class type of the parameter
      */
-    fun getParameterDataType(name: String): DataType? {
+    fun parameterDataType(name: String): DataType? {
         return dataTypes[name]
     }
 
@@ -146,7 +146,7 @@ abstract class RVParameters {
      * @param parameterName the name of the parameter
      * @return the value of the parameter
      */
-    fun getDoubleParameter(parameterName: String): Double {
+    fun doubleParameter(parameterName: String): Double {
         checkKey(parameterName)
         return doubleParameters[parameterName]!!
     }
@@ -201,12 +201,10 @@ abstract class RVParameters {
      * @param parameterName the name of the parameter
      * @return a copy of the associated double[] is returned
      */
-    fun getDoubleArrayParameter(parameterName: String): DoubleArray {
+    fun doubleArrayParameter(parameterName: String): DoubleArray {
         checkKey(parameterName)
         val value = doubleArrayParameters[parameterName]
-        val tmp = DoubleArray(value!!.size)
-        System.arraycopy(value, 0, tmp, 0, value.size)
-        return tmp
+        return value!!.copyOf()
     }
 
     /**
@@ -216,7 +214,7 @@ abstract class RVParameters {
      * @param parameterName the name of the parameter
      * @return the size of the array
      */
-    fun getDoubleArrayParameterSize(parameterName: String): Int {
+    fun doubleArrayParameterSize(parameterName: String): Int {
         checkKey(parameterName)
         return doubleArrayParameters[parameterName]!!.size
     }
@@ -232,15 +230,9 @@ abstract class RVParameters {
      * @param value         the double[] value to be associated with parameterName, cannot be null, must be same size as original double[]
      * @return the previous double[] value that was associated with the parameterName
      */
-    fun changeDoubleArrayParameter(parameterName: String, value: DoubleArray?): DoubleArray? {
+    fun changeDoubleArrayParameter(parameterName: String, value: DoubleArray): DoubleArray? {
         checkKey(parameterName)
-        requireNotNull(value) { "The supplied array cannot be null" }
-        //        int size = this.getDoubleArrayParameterSize(parameterName);
-//        if (size != value.length) {
-//            throw new IllegalArgumentException("The supplied array is not the same size as the original double[]");
-//        }
-        val tmp = DoubleArray(value.size)
-        System.arraycopy(value, 0, tmp, 0, value.size)
+        val tmp = value.copyOf()
         return doubleArrayParameters.put(parameterName, tmp)
     }
 
@@ -251,7 +243,7 @@ abstract class RVParameters {
      * @param parameterName the name of the parameter
      * @return the value of the parameter
      */
-    fun getIntegerParameter(parameterName: String): Int {
+    fun integerParameter(parameterName: String): Int {
         checkKey(parameterName)
         return integerParameters[parameterName]!!
     }
@@ -313,30 +305,30 @@ abstract class RVParameters {
     }
 
     /**
-     * Returns an unmodifiable Set of the parameter's keys
+     * Returns an unmodifiable Set of the parameter's names
      * for Double Parameters
      *
      * @return the unmodifiable set
      */
-    val doubleParameterKeySet: Set<String>
+    val doubleParameterNames: Set<String>
         get() = (doubleParameters.keys)
 
     /**
-     * Returns an unmodifiable Set of the parameter's keys
+     * Returns an unmodifiable Set of the parameter's names
      * for double[] Parameters
      *
      * @return the unmodifiable set
      */
-    val doubleArrayParameterKeySet: Set<String>
+    val doubleArrayParameterNames: Set<String>
         get() = (doubleArrayParameters.keys)
 
     /**
-     * Returns an unmodifiable Set of the parameter's keys
+     * Returns an unmodifiable Set of the parameter's names
      * for Integer Parameters
      *
      * @return the unmodifiable set
      */
-    val integerParameterKeySet: Set<String>
+    val integerParameterNames: Set<String>
         get() = (integerParameters.keys)
 
     /**
@@ -433,8 +425,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val scale = getDoubleParameter("scale")
-            val shape = getDoubleParameter("shape")
+            val scale = doubleParameter("scale")
+            val shape = doubleParameter("shape")
             return WeibullRV(shape, scale, rnStream)
         }
     }
@@ -448,8 +440,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val min = getDoubleParameter("min")
-            val max = getDoubleParameter("max")
+            val min = doubleParameter("min")
+            val max = doubleParameter("max")
             return UniformRV(min, max, rnStream)
         }
     }
@@ -464,9 +456,9 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val mode = getDoubleParameter("mode")
-            val min = getDoubleParameter("min")
-            val max = getDoubleParameter("max")
+            val mode = doubleParameter("mode")
+            val min = doubleParameter("min")
+            val max = doubleParameter("max")
             return TriangularRV(min, mode, max, rnStream)
         }
     }
@@ -479,7 +471,7 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val probOfSuccess = getDoubleParameter("probOfSuccess")
+            val probOfSuccess = doubleParameter("probOfSuccess")
             return ShiftedGeometricRV(probOfSuccess, rnStream)
         }
     }
@@ -492,7 +484,7 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val mean = getDoubleParameter("mean")
+            val mean = doubleParameter("mean")
             return PoissonRV(mean, rnStream)
         }
     }
@@ -507,9 +499,9 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val alpha1 = getDoubleParameter("alpha1")
-            val alpha2 = getDoubleParameter("alpha2")
-            val beta = getDoubleParameter("beta")
+            val alpha1 = doubleParameter("alpha1")
+            val alpha2 = doubleParameter("alpha2")
+            val beta = doubleParameter("beta")
             return PearsonType6RV(alpha1, alpha2, beta, rnStream)
         }
     }
@@ -523,8 +515,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val scale = getDoubleParameter("scale")
-            val shape = getDoubleParameter("shape")
+            val scale = doubleParameter("scale")
+            val shape = doubleParameter("shape")
             return PearsonType5RV(shape, scale, rnStream)
         }
     }
@@ -538,8 +530,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val mean = getDoubleParameter("mean")
-            val variance = getDoubleParameter("variance")
+            val mean = doubleParameter("mean")
+            val variance = doubleParameter("variance")
             return NormalRV(mean, variance, rnStream)
         }
     }
@@ -553,8 +545,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val probOfSuccess = getDoubleParameter("probOfSuccess")
-            val numSuccesses = getDoubleParameter("numSuccesses")
+            val probOfSuccess = doubleParameter("probOfSuccess")
+            val numSuccesses = doubleParameter("numSuccesses")
             return NegativeBinomialRV(probOfSuccess, numSuccesses, rnStream)
         }
     }
@@ -568,8 +560,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val mean = getDoubleParameter("mean")
-            val variance = getDoubleParameter("variance")
+            val mean = doubleParameter("mean")
+            val variance = doubleParameter("variance")
             return LognormalRV(mean, variance, rnStream)
         }
     }
@@ -583,8 +575,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val scale = getDoubleParameter("scale")
-            val shape = getDoubleParameter("shape")
+            val scale = doubleParameter("scale")
+            val shape = doubleParameter("shape")
             return LogLogisticRV(shape, scale, rnStream)
         }
     }
@@ -598,8 +590,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val scale = getDoubleParameter("scale")
-            val mean = getDoubleParameter("mean")
+            val scale = doubleParameter("scale")
+            val mean = doubleParameter("mean")
             return LaplaceRV(mean, scale, rnStream)
         }
     }
@@ -615,10 +607,10 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val alpha1 = getDoubleParameter("alpha1")
-            val alpha2 = getDoubleParameter("alpha2")
-            val min = getDoubleParameter("min")
-            val max = getDoubleParameter("max")
+            val alpha1 = doubleParameter("alpha1")
+            val alpha2 = doubleParameter("alpha2")
+            val min = doubleParameter("min")
+            val max = doubleParameter("max")
             return JohnsonBRV(alpha1, alpha2, min, max, rnStream)
         }
     }
@@ -631,7 +623,7 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val probOfSuccess = getDoubleParameter("probOfSuccess")
+            val probOfSuccess = doubleParameter("probOfSuccess")
             return GeometricRV(probOfSuccess, rnStream)
         }
     }
@@ -647,10 +639,10 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val alpha1 = getDoubleParameter("alpha1")
-            val alpha2 = getDoubleParameter("alpha2")
-            val min = getDoubleParameter("min")
-            val max = getDoubleParameter("max")
+            val alpha1 = doubleParameter("alpha1")
+            val alpha2 = doubleParameter("alpha2")
+            val min = doubleParameter("min")
+            val max = doubleParameter("max")
             return GeneralizedBetaRV(alpha1, alpha2, min, max, rnStream)
         }
     }
@@ -664,8 +656,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val scale = getDoubleParameter("scale")
-            val shape = getDoubleParameter("shape")
+            val scale = doubleParameter("scale")
+            val shape = doubleParameter("shape")
             return GammaRV(shape, scale, rnStream)
         }
     }
@@ -678,7 +670,7 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val mean = getDoubleParameter("mean")
+            val mean = doubleParameter("mean")
             return ExponentialRV(mean, rnStream)
         }
     }
@@ -691,7 +683,7 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val population = getDoubleArrayParameter("population")
+            val population = doubleArrayParameter("population")
             return EmpiricalRV(population, rnStream)
         }
     }
@@ -705,8 +697,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val min = getIntegerParameter("min")
-            val max = getIntegerParameter("max")
+            val min = integerParameter("min")
+            val max = integerParameter("max")
             return DUniformRV(min, max, rnStream)
         }
     }
@@ -720,8 +712,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val values = getDoubleArrayParameter("values")
-            val cdf = getDoubleArrayParameter("cdf")
+            val values = doubleArrayParameter("values")
+            val cdf = doubleArrayParameter("cdf")
             return DEmpiricalRV(values, cdf, rnStream)
         }
     }
@@ -734,7 +726,7 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val value = getDoubleParameter("value")
+            val value = doubleParameter("value")
             return ConstantRV(value)
         }
     }
@@ -747,7 +739,7 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val dof = getDoubleParameter("dof")
+            val dof = doubleParameter("dof")
             return ChiSquaredRV(dof, rnStream)
         }
     }
@@ -761,8 +753,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val probOfSuccess = getDoubleParameter("probOfSuccess")
-            val numTrials = getIntegerParameter("numTrials")
+            val probOfSuccess = doubleParameter("probOfSuccess")
+            val numTrials = integerParameter("numTrials")
             return BinomialRV(probOfSuccess, numTrials, rnStream)
         }
     }
@@ -776,8 +768,8 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val alpha1 = getDoubleParameter("alpha1")
-            val alpha2 = getDoubleParameter("alpha2")
+            val alpha1 = doubleParameter("alpha1")
+            val alpha2 = doubleParameter("alpha2")
             return BetaRV(alpha1, alpha2, rnStream)
         }
     }
@@ -790,7 +782,7 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val probOfSuccess = getDoubleParameter("probOfSuccess")
+            val probOfSuccess = doubleParameter("probOfSuccess")
             return BernoulliRV(probOfSuccess, rnStream)
         }
     }
@@ -805,9 +797,9 @@ abstract class RVParameters {
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-            val mean = getDoubleParameter("mean")
-            val variance = getDoubleParameter("variance")
-            val correlation = getDoubleParameter("variance")
+            val mean = doubleParameter("mean")
+            val variance = doubleParameter("variance")
+            val correlation = doubleParameter("variance")
             return AR1NormalRV(mean, variance, correlation, rnStream)
         }
     }
