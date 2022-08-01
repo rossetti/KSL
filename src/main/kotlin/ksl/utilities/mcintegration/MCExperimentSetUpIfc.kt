@@ -1,4 +1,4 @@
-package ksl.utilities.random.mcintegration
+package ksl.utilities.mcintegration
 
 interface MCExperimentSetUpIfc {
     /**

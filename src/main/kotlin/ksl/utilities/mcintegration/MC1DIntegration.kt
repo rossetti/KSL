@@ -1,4 +1,4 @@
-package ksl.utilities.random.mcintegration
+package ksl.utilities.mcintegration
 
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.RVariableIfc

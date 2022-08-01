@@ -1,4 +1,4 @@
-package ksl.utilities.random.mcintegration
+package ksl.utilities.mcintegration
 
 import ksl.utilities.statistic.Statistic
 
