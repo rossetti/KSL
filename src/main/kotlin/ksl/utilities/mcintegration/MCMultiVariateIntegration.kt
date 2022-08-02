@@ -47,8 +47,9 @@ class MCMultiVariateIntegration(
 ) : MCExperiment() {
     init {
         require(function.dimension == sampler.dimension)
-        {"The multi-variate function must have the same dimension as the multi-variate sampler"}
+        { "The multi-variate function must have the same dimension as the multi-variate sampler" }
     }
+
     protected val myFunction: FunctionMVIfc = function
     protected val mySampler: MVRVariableIfc = sampler
     protected var myAntitheticSampler: MVRVariableIfc? = null
@@ -94,7 +95,7 @@ fun main() {
         override val dimension: Int = 2
 
         override fun fx(x: DoubleArray): Double {
-            require(x.size == dimension){"The array size was not ${dimension}"}
+            require(x.size == dimension) { "The array size was not $dimension" }
             return 4.0 * x[0] * x[0] * x[1] + x[1] * x[1]
         }
     }
