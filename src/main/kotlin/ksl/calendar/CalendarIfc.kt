@@ -55,6 +55,14 @@ interface CalendarIfc {
     val isEmpty: Boolean
 
     /**
+     * Checks to see if the calendar is not empty
+     *
+     * @return true is not empty, false is empty
+     */
+    val isNotEmpty: Boolean
+        get() = !isEmpty
+
+    /**
      * Clears or cancels every event in the data structure. Removes all
      * JSLEvents
      * from the data structure.

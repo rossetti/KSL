@@ -21,7 +21,6 @@ import ksl.utilities.NewInstanceIfc
 import ksl.utilities.random.ParametersIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.SampleIfc
-import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
@@ -158,5 +157,19 @@ class DPopulation(
     val randomIndex: Int
         get() = rnStream.randInt(0, myElements.size - 1)
 
+    override fun toString(): String {
+        val sb = StringBuilder()
+        for (i in myElements.indices) {
+            sb.append("Element(")
+            sb.append(i)
+            sb.append(") = ")
+            sb.append(myElements[i])
+            sb.append(System.lineSeparator())
+        }
+        return sb.toString()
+    }
 
+    fun contentToString() : String {
+        return myElements.contentToString()
+    }
 }

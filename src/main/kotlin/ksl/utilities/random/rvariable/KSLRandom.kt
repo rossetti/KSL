@@ -1043,7 +1043,7 @@ object KSLRandom {
      * @param stream   the source of randomness
      * @return the randomly selected value
      */
-     fun discreteInverseCDF(array: DoubleArray, cdf: DoubleArray, stream: RNStreamIfc): Double {
+    fun discreteInverseCDF(array: DoubleArray, cdf: DoubleArray, stream: RNStreamIfc): Double {
         if (cdf.size == 1) {
             return array[0]
         }
@@ -1223,7 +1223,7 @@ object KSLRandom {
      * @return a valid CDF
      */
     fun makeCDF(prob: DoubleArray): DoubleArray {
-        require(isValidPMF(prob)){"The supplied array was not a valid PMF"}
+        require(isValidPMF(prob)) { "The supplied array was not a valid PMF" }
         val cdf = DoubleArray(prob.size)
         var sum = 0.0
         for (i in 0 until prob.size - 1) {
@@ -1239,14 +1239,14 @@ object KSLRandom {
      *
      * @param cdf an array representing a valid cumulative distribution function
      */
-    fun makePMF(cdf: DoubleArray) : DoubleArray {
-        require(isValidCDF(cdf)){"The supplied array was not a CDF!" }
+    fun makePMF(cdf: DoubleArray): DoubleArray {
+        require(isValidCDF(cdf)) { "The supplied array was not a CDF!" }
         val pmf = DoubleArray(cdf.size)
-        for(i in pmf.indices){
+        for (i in pmf.indices) {
             if (i == 0) {
                 pmf[i] = cdf[i]
             } else {
-                pmf[i] = cdf[i] - cdf[i-1]
+                pmf[i] = cdf[i] - cdf[i - 1]
             }
         }
         return pmf
@@ -1260,7 +1260,7 @@ object KSLRandom {
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected element
     </T> */
-    fun <T> randomlySelect(list: List<T>, streamNum: Int): T? {
+    fun <T> randomlySelect(list: List<T>, streamNum: Int): T {
         return randomlySelect(list, rnStream(streamNum))
     }
 
@@ -1269,18 +1269,14 @@ object KSLRandom {
      *
      * @param <T>  The type of element in the list
      * @param list the list
-     * @param rng  the source of randomness
+     * @param stream  the source of randomness
      * @return the randomly selected element
     </T> */
-    fun <T> randomlySelect(list: List<T>, rng: RNStreamIfc = defaultRNStream()): T? {
-        if (list.isEmpty()) {
-            return null
-        }
+    fun <T> randomlySelect(list: List<T>, stream: RNStreamIfc = defaultRNStream()): T {
+        require(list.isNotEmpty()){"Cannot select from an empty list"}
         return if (list.size == 1) {
-            list.get(0)
-        } else list.get(rng.randInt(0, list.size - 1))
-
-        // more than 1, need to randomly pick
+            list[0]
+        } else list.get(stream.randInt(0, list.size - 1))
     }
 
     /**
@@ -1578,3 +1574,18 @@ object KSLRandom {
 fun Boolean.toInt() = if (this) 1 else 0
 fun Boolean.toDouble() = if (this) 1.0 else 0.0
 
+fun <T> List<T>.randomlySelect(stream: RNStreamIfc = KSLRandom.defaultRNStream()): T {
+    return KSLRandom.randomlySelect(this, stream)
+}
+
+fun <T> List<T>.randomlySelect(streamNum: Int): T {
+    return KSLRandom.randomlySelect(this, streamNum)
+}
+
+fun <T> MutableList<T>.permute(stream: RNStreamIfc = KSLRandom.defaultRNStream()) {
+    KSLRandom.permute(this, stream)
+}
+
+fun <T> MutableList<T>.permute(streamNum: Int){
+    KSLRandom.permute(this, streamNum)
+}

@@ -62,7 +62,7 @@ class JSLEvent<T> internal constructor(
         }
         internal set
 
-    private val modelElement: ModelElement = theModelElement
+    internal val modelElement: ModelElement = theModelElement
 
     /**
      *  Unique number assigned when the event is scheduled

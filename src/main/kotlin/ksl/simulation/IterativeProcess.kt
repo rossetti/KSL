@@ -3,18 +3,16 @@ package ksl.simulation
 import ksl.utilities.exceptions.IllegalStateException
 import ksl.utilities.exceptions.NoSuchStepException
 import ksl.simulation.IterativeProcessIfc.EndingStatus.*
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableIfc
 import mu.KotlinLogging
 
-/**
- * A counter to count the number of created to assign "unique" ids
- */
-private var idCounter_: Int = 0
-
 private val logger = KotlinLogging.logger {}
 
-abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Observable() {
+abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identity(name),
+    IterativeProcessIfc, ObservableIfc<T> by Observable() {
 
     /**
      * A reference to the created state for the iterative process A iterative
@@ -115,6 +113,7 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
             s.append(toString())
             throw NoSuchStepException(s.toString())
         }
+        logger.info { "Running a step of the iterative process: $name"}
         state.runNext()
     }
 
@@ -150,7 +149,8 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
         stopping = true
     }
 
-    protected fun initializeIterations() {
+    protected open fun initializeIterations() {
+        logger.info { "Initializing the iterative process: $name"}
         stoppingMessage = null
         stopping = false
         isDone = false
@@ -162,6 +162,7 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
     }
 
     protected fun runAllSteps() {
+        logger.info { "Running all the steps of the iterative process: $name"}
         if (!isInitialized) {
             initialize()
         }
@@ -224,7 +225,8 @@ abstract class IterativeProcess<T> : IterativeProcessIfc, ObservableIfc<T> by Ob
      */
     protected abstract fun runStep()
 
-    protected fun endIterations() {
+    protected open fun endIterations() {
+        logger.info { "Ending the iterations of the iterative process: $name"}
         isRunning = false
         isRunningStep = false
         isDone = true

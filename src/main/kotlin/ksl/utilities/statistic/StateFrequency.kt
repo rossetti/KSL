@@ -309,14 +309,14 @@ class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Ident
         sb.append("State transition counts")
         sb.append(System.lineSeparator())
         for (row in myTransCnts) {
-            sb.append(row.toString())
+            sb.append(row.contentToString())
             sb.append(System.lineSeparator())
         }
         sb.append("State transition proportions")
         sb.append(System.lineSeparator())
         val transitionProportions = transitionProportions
         for (row in transitionProportions) {
-            sb.append(row.toString())
+            sb.append(row.contentToString())
             sb.append(System.lineSeparator())
         }
         sb.append(System.lineSeparator())
