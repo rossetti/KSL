@@ -156,7 +156,7 @@ open class MetropolisHastingsMV(
         val fRatio = getFunctionRatio(currentX, proposedY)
         val pRatio = proposalFun.proposalRatio(currentX, proposedY)
         val ratio = fRatio * pRatio
-        return Math.min(ratio, 1.0)
+        return minOf(ratio, 1.0)
     }
 
     /**
