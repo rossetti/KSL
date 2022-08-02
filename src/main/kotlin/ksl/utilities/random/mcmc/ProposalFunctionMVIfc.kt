@@ -21,6 +21,13 @@ package ksl.utilities.random.mcmc
  *
  */
 interface ProposalFunctionMVIfc {
+
+    /**
+     *
+     * the expected size of the array
+     */
+    val dimension: Int
+
     /** The ratio of g(y,x)/g(x,y).  The ratio of the proposal function
      * evaluated at x = current and y = proposed, where g() is some
      * proposal function of x and y. The implementor should ensure

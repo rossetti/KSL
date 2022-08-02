@@ -6,24 +6,40 @@ import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.MVSampleIfc
 import ksl.utilities.statistic.Statistic
 
+/**
+ * An implementation for a multi-variable Metropolis Hasting process. The
+ * process is observable at each step
+ * @param theInitialX the initial value to start generation process
+ * @param theTargetFun the target function
+ * @param theProposalFun the proposal function
+ * @param stream the stream for accepting or rejecting proposed state
+ */
 open class MetropolisHastingsMV(
     theInitialX: DoubleArray,
     theTargetFun: FunctionMVIfc,
     theProposalFun: ProposalFunctionMVIfc,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
-) :
-    RNStreamControlIfc by stream, RNStreamChangeIfc, ObservableIfc<MetropolisHastingsMV> by Observable() {
+) : MVSampleIfc, RNStreamChangeIfc, RNStreamControlIfc, ObservableIfc<MetropolisHastingsMV> by Observable() {
 
     override var rnStream: RNStreamIfc = stream
+    init {
+        require(theTargetFun.dimension == theProposalFun.dimension)
+        {"The multi-variate target function must have the same dimension as the multi-variate proposal function"}
+        require(theInitialX.size == theProposalFun.dimension)
+        {"The initial array must have the same dimension as the multi-variate target and proposal functions"}
+    }
 
+    override val dimension: Int = theInitialX.size
     private val targetFun = theTargetFun
     private val proposalFun = theProposalFun
 
     var initialX = theInitialX.copyOf()
         get() = field.copyOf()
         set(value) {
+            require(value.size == field.size){"The supplied initial state array size must be = ${field.size}"}
             field = value.copyOf()
         }
 
@@ -42,17 +58,11 @@ open class MetropolisHastingsMV(
         }
     }
 
-    var currentX: DoubleArray = DoubleArray(initialX.size)
-        get() = field.copyOf()
-        protected set
+    protected var currentX: DoubleArray = DoubleArray(initialX.size)
 
-    var proposedY: DoubleArray = DoubleArray(initialX.size)
-        get() = field.copyOf()
-        protected set
+    protected var proposedY: DoubleArray = DoubleArray(initialX.size)
 
-    var previousX: DoubleArray = DoubleArray(initialX.size)
-        get() = field.copyOf()
-        protected set
+    protected var previousX: DoubleArray = DoubleArray(initialX.size)
 
     var lastAcceptanceProbability = Double.NaN
         protected set
@@ -62,6 +72,10 @@ open class MetropolisHastingsMV(
 
     var targetFunctionAtCurrentX = Double.NaN
         protected set
+
+    fun currentX() : DoubleArray = currentX.copyOf()
+    fun proposedY() : DoubleArray = proposedY.copyOf()
+    fun previousX() : DoubleArray = previousX.copyOf()
 
     fun observedStatistics(): List<Statistic> {
         val mutableList = mutableListOf<Statistic>()
@@ -94,7 +108,7 @@ open class MetropolisHastingsMV(
         resetStatistics()
     }
 
-    /**  Resets statistics and sets the initial state the the initial value or to the value
+    /**  Resets statistics and sets the initial state the initial value or to the value
      * found via the burn in period (if the burn in period was run).
      *
      */
@@ -181,6 +195,29 @@ open class MetropolisHastingsMV(
             targetFunctionAtProposedY = fy
         }
         return ratio
+    }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
+
+    override fun sample(array: DoubleArray) {
+        require(array.size == dimension) {"The array size must be ${dimension}"}
+        next().copyInto(array)
     }
 
     override fun toString(): String {
