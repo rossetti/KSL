@@ -46,7 +46,7 @@ open class MetropolisHastingsMV(
     var isInitialized = false
         protected set
 
-    var isBurnedIn = false
+    var isWarmedUp = false
         protected set
 
     val acceptanceStatistics: Statistic = Statistic("Acceptance Statistics")
@@ -95,14 +95,14 @@ open class MetropolisHastingsMV(
         acceptanceStatistics.reset()
     }
 
-    /** Runs a burn in period and assigns the initial value of the process to the last
-     * value from the burn in process.
+    /** Runs a warmup period and assigns the initial value of the process to the last
+     * value from the warmup process.
      *
-     * @param burnInAmount the amount to burn in
+     * @param warmUpAmount the amount to warmup
      */
-    fun runBurnInPeriod(burnInAmount: Int) {
-        val x: DoubleArray = runAll(burnInAmount)
-        isBurnedIn = true
+    fun runWarmUpPeriod(warmUpAmount: Int) {
+        val x: DoubleArray = runAll(warmUpAmount)
+        isWarmedUp = true
         isInitialized = false
         initialX = x
         resetStatistics()
@@ -229,7 +229,7 @@ open class MetropolisHastingsMV(
         sb.appendLine()
         sb.append("Initialized Flag = ").append(isInitialized)
         sb.appendLine()
-        sb.append("Burn In Flag = ").append(isBurnedIn)
+        sb.append("Burn In Flag = ").append(isWarmedUp)
         sb.appendLine()
         sb.append("Initial X =").append(initialX.contentToString())
         sb.appendLine()
@@ -260,16 +260,16 @@ open class MetropolisHastingsMV(
         /**
          *
          * @param initialX the initial value to start the burn in period
-         * @param burnInAmount the number of samples in the burn in period
+         * @param warmUpPeriod the number of samples in the burn in period
          * @param targetFun the target function
          * @param proposalFun the proposal function
          */
         fun create(
-            initialX: DoubleArray, burnInAmount: Int, targetFun: FunctionMVIfc,
+            initialX: DoubleArray, warmUpPeriod: Int, targetFun: FunctionMVIfc,
             proposalFun: ProposalFunctionMVIfc
         ): MetropolisHastingsMV {
             val m = MetropolisHastingsMV(initialX, targetFun, proposalFun)
-            m.runBurnInPeriod(burnInAmount)
+            m.runWarmUpPeriod(warmUpPeriod)
             return m
         }
     }

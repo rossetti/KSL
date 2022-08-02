@@ -76,7 +76,7 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
      *
      * @return the previous state (x) of the process
      */
-    var prevX = 0.0
+    var previousX = 0.0
         protected set
 
     /**
@@ -90,14 +90,14 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
      *
      * @return the last value of the target function evaluated at the proposed state (y)
      */
-    var fofProposedY = 0.0
+    var targetFunctionAtProposedY = 0.0
         protected set
 
     /**
      *
      * @return the last value of the target function evaluated at the current state (x)
      */
-    var fofCurrentX = 0.0
+    var targetFunctionAtCurrentX = 0.0
         protected set
 
     /**
@@ -114,21 +114,21 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
     var isWarmedUp: Boolean = false
         protected set
 
-    /** Runs a burn in period and assigns the initial value of the process to the last
-     * value from the burn in process.
+    /** Runs a warmup period and assigns the initial value of the process to the last
+     * value from the warmup process.
      *
-     * @param burnInAmount the amount of sampling for the burn-in (warm up) period
+     * @param warmUpAmount the amount of sampling for the burn-in (warmup) period
      */
-    fun runBurnInPeriod(burnInAmount: Int) {
-        val x = runAll(burnInAmount)
+    fun runWarmUpPeriod(warmUpAmount: Int) {
+        val x = runAll(warmUpAmount)
         isWarmedUp = true
         isInitialized = false
         initialX = x
         resetStatistics()
     }
 
-    /**  Resets statistics and sets the initial state the the initial value or to the value
-     * found via the burn in period (if the burn in period was run).
+    /**  Resets statistics and sets the initial state the initial value or to the value
+     * found via the warmup period (if the warmup period was run).
      *
      */
     fun initialize() {
@@ -182,7 +182,7 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
         if (!isInitialized) {
             initialize()
         }
-        prevX = currentX
+        previousX = currentX
         proposedY = myProposalFun.generateProposedGivenCurrent(currentX)
         lastAcceptanceProbability = acceptanceFunction(currentX, proposedY)
         if (rnStream.randU01() <= lastAcceptanceProbability) {
@@ -214,7 +214,7 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
         val fRatio = functionRatio(currentX, proposedY)
         val pRatio: Double = myProposalFun.proposalRatio(currentX, proposedY)
         val ratio = fRatio * pRatio
-        return Math.min(ratio, 1.0)
+        return minOf(ratio, 1.0)
     }
 
     /**
@@ -231,12 +231,12 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
         val ratio: Double
         if (fx != 0.0) {
             ratio = fy / fx
-            fofCurrentX = fx
-            fofProposedY = fy
+            targetFunctionAtCurrentX = fx
+            targetFunctionAtProposedY = fy
         } else {
             ratio = Double.POSITIVE_INFINITY
-            fofCurrentX = fx
-            fofProposedY = fy
+            targetFunctionAtCurrentX = fx
+            targetFunctionAtProposedY = fy
         }
         return ratio
     }
@@ -247,29 +247,29 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
 
     fun asString(): String {
         val sb = StringBuilder("MetropolisHastings1D")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Initialized Flag = ").append(this.isInitialized)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Burn In Flag = ").append(isWarmedUp)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Initial X =").append(initialX)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Current X = ").append(currentX)
-        sb.append(System.lineSeparator())
-        sb.append("Previous X = ").append(prevX)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
+        sb.append("Previous X = ").append(previousX)
+        sb.appendLine()
         sb.append("Last Proposed Y= ").append(proposedY)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Last Prob. of Acceptance = ").append(lastAcceptanceProbability)
-        sb.append(System.lineSeparator())
-        sb.append("Last f(Y) = ").append(fofProposedY)
-        sb.append(System.lineSeparator())
-        sb.append("Last f(X) = ").append(fofCurrentX)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
+        sb.append("Last f(Y) = ").append(targetFunctionAtProposedY)
+        sb.appendLine()
+        sb.append("Last f(X) = ").append(targetFunctionAtCurrentX)
+        sb.appendLine()
         sb.append("Acceptance Statistics")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append(myAcceptanceStat.asString())
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append(myObservedStat.asString())
         return sb.toString()
     }
@@ -278,17 +278,17 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
         /**
          *
          * @param initialX the initial value to start the burn in period
-         * @param burnInAmount the number of samples in the burn in period
+         * @param warmUpAmount the number of samples in the burn in period
          * @param targetFun the target function
          * @param proposalFun the proposal function
          * @return the created instance
          */
         fun create(
-            initialX: Double, burnInAmount: Int, targetFun: FunctionIfc,
+            initialX: Double, warmUpAmount: Int, targetFun: FunctionIfc,
             proposalFun: ProposalFunction1DIfc
         ): MetropolisHastings1D {
             val m = MetropolisHastings1D(initialX, targetFun, proposalFun)
-            m.runBurnInPeriod(burnInAmount)
+            m.runWarmUpPeriod(warmUpAmount)
             return m
         }
     }
