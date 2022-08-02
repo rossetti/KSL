@@ -17,7 +17,8 @@ package ksl.utilities.random.rvariable
 
 /**
  * An interface for getting multi-variable samples, each sample has many values
- * held in an array
+ * held in an array. Clients need to implement the sample(array) function
+ * in order to fill up the array with the sample values.
  */
 interface MVSampleIfc {
     /**
