@@ -1,6 +1,5 @@
 package ksl.simulation
 
-import jsl.simulation.Simulation
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.utilities.io.KSL
@@ -74,24 +73,22 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
      *
      * @param event represents the next event to execute or null
      */
-    protected open fun execute(event: JSLEvent<*>?) {
+    protected open fun execute(event: JSLEvent<*>) {
         try {
-            if (event != null) {
-                // the event is no longer scheduled
-                event.scheduled = false
-                if (!event.cancelled) {
-                    // event was not cancelled
-                    // update the current simulation time to the event time
-                    myCurrentTime = event.time
-                    myObserverState = Status.BEFORE_EVENT
-//TODO                    notifyObservers(event)
-                    event.execute()
-                    myLastExecutedEvent = event
-                    myNumEventsExecuted = myNumEventsExecuted + 1
-                    myObserverState = Status.AFTER_EVENT
-//TODO                    notifyObservers(event)
+            // the event is no longer scheduled
+            event.scheduled = false
+            if (!event.cancelled) {
+                // event was not cancelled
+                // update the current simulation time to the event time
+                myCurrentTime = event.time
+                myObserverState = Status.BEFORE_EVENT
+                notifyObservers(this, event)
+                event.execute()
+                myLastExecutedEvent = event
+                myNumEventsExecuted = myNumEventsExecuted + 1
+                myObserverState = Status.AFTER_EVENT
+                notifyObservers(this, event)
 //TODO                    performCPhase()
-                }
             }
         } catch (e: RuntimeException) {
             val sb = StringBuilder()
@@ -104,7 +101,7 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
-            val sim = event?.modelElement?.simulation
+            val sim = event.modelElement.simulation //TODO is there a better way to get the simulation?
             sb.append(sim)
             KSL.logger.error(sb.toString())
             throw e
@@ -125,8 +122,8 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
 //TODO        unregisterAllActions()
         myNumEventsScheduled = 0
         myNumEventsExecuted = 0
-        myObserverState = Executive.Status.INITIALIZED
-//TODO        notifyObservers(null)
+        myObserverState = Status.INITIALIZED
+        notifyObservers(this, null)
     }
 
     /**
@@ -161,7 +158,7 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
             myNumEventsScheduledDuringExecution = myNumEventsScheduled.toDouble()
             // set observer state and notify observers
             myObserverState = Status.AFTER_EXECUTION
-//TODO            notifyObservers(this, null)
+            this@Executive.notifyObservers(this@Executive, null)
             afterExecution()
         }
 
@@ -175,7 +172,9 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
 
         override fun runStep() {
             myCurrentStep = nextStep()
-            execute(myCurrentStep)
+            if (myCurrentStep != null) {
+                execute(myCurrentStep!!)
+            }
         }
     }
 }
