@@ -33,6 +33,8 @@ import ksl.utilities.exceptions.TooManyScansException
  */
 class ConditionalActionProcessor {
 
+//TODO it would be good to add some logging
+
     /** Sets the maximum scan checking flag.  If true
      * the maximum number of scans is monitored during
      * the c phase
@@ -46,7 +48,7 @@ class ConditionalActionProcessor {
      * @param action the action
      * @param priority the priority
      */
-    fun register(action: ConditionalAction, priority: Int = DEFAULT_PRIORITY) {
+    internal fun register(action: ConditionalAction, priority: Int = DEFAULT_PRIORITY) {
         action.id = ++myActionCounter
         action.priority = priority
         myActions.add(action)
@@ -57,7 +59,7 @@ class ConditionalActionProcessor {
      * @param action the action
      * @param priority the priority
      */
-    fun changePriority(action: ConditionalAction, priority: Int) {
+    internal fun changePriority(action: ConditionalAction, priority: Int) {
         unregister(action)
         action.priority = priority
         myActions.add(action)
@@ -67,7 +69,7 @@ class ConditionalActionProcessor {
      *
      * @param action the action
      */
-    fun unregister(action: ConditionalAction) {
+    internal fun unregister(action: ConditionalAction) {
         require(myActions.contains(action)) { "The supplied action is not registered" }
         myActions.remove(action)
     }
@@ -75,7 +77,7 @@ class ConditionalActionProcessor {
     /** Unregisters all actions that were previously registered.
      *
      */
-    fun unregisterAllActions() {
+    internal fun unregisterAllActions() {
         myActions.clear()
     }
 

@@ -1,7 +1,7 @@
 package ksl.simulation
 
 import jsl.simulation.ModelElement //TODO
-import jsl.simulation.Simulation //TODO
+import jsl.simulation.Simulation //TODO only due to using logger
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.utilities.exceptions.JSLEventException
@@ -19,22 +19,22 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
     }
 
     var status = Status.CREATED
-        protected set
+        private set
 
     var currentTime: Double = 0.0
-        protected set
+        private set
 
     var numEventsScheduled: Long = 0
-        protected set
+        private set
 
     var numEventsScheduledDuringExecution: Double = Double.NaN
-        protected set
+        private set
 
     var numEventsExecuted: Long = 0
-        protected set
+        private set
 
     var endingTime: Double = Double.NaN
-        protected set
+        private set
 
     private var lastExecutedEvent: JSLEvent<*>? = null
 
@@ -264,10 +264,9 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
         }
         // schedule the new time
         logger.info { "Executive: scheduling end of replication at time: $time" }
-        endEvent = scheduleEvent<Nothing>(
-            theElement,
-            EndEventAction(), time, JSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, null,
-            "End Replication"
+        endEvent = scheduleEvent(
+            theElement, EndEventAction(), time,
+            JSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, null, "End Replication"
         )
         return endEvent as JSLEvent<Nothing>
     }
@@ -313,7 +312,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
-            val sim = event.modelElement.simulation //TODO is there a better way to get the simulation?
+            val sim = event.modelElement.simulation //TODO is there a better way to get the simulation, is it needed?
             sb.append(sim)
             Simulation.LOGGER.error(sb.toString()) //TODO
             throw e
@@ -346,22 +345,6 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
         status = Status.INITIALIZED
         notifyObservers(this, null)
     }
-
-    /**
-     * This method is called before any events are executed and after
-     * initializing the iterative process. It can be used to insert behavior
-     * after initializing
-     *
-     */
-//    protected open fun beforeExecutingAnyEvents() {}
-
-    /**
-     * This method is called after executing all events when ending the
-     * iterative process. It can be used to insert behavior after the executive
-     * ends
-     *
-     */
-//    protected open fun afterExecution() {}
 
     internal fun unregisterAllActions() {
         conditionalActionProcessor.unregisterAllActions()
@@ -396,7 +379,6 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
         override fun initializeIterations() {
             super.initializeIterations()
             initializeCalendar()
-//            beforeExecutingAnyEvents()
         }
 
         override fun endIterations() {
@@ -408,7 +390,6 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             // set observer state and notify observers
             status = Status.AFTER_EXECUTION
             this@Executive.notifyObservers(this@Executive, null)
-//            afterExecution()
         }
 
         override fun hasNextStep(): Boolean {
