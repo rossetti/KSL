@@ -15,8 +15,8 @@
 */
 package ksl.simulation
 
-import jsl.modeling.elements.entity.Entity
-import jsl.simulation.ModelElement
+import jsl.modeling.elements.entity.Entity //TODO
+import jsl.simulation.ModelElement //TODO
 import java.text.DecimalFormat
 
 /**
@@ -34,7 +34,7 @@ import java.text.DecimalFormat
  * @param theModelElement the model element that scheduled the event
  * @param <T> the type associated with the (optional) message sent with the event
  */
-class JSLEvent<T> internal constructor(
+class JSLEvent<out T> internal constructor(
     theId: Long,
     theAction: EventActionIfc<T>,
     theTime: Double = 0.0,
@@ -49,9 +49,13 @@ class JSLEvent<T> internal constructor(
     }
 
     private val myAction: EventActionIfc<T> = theAction
+
     val time: Double = theTime
+
     val priority: Int = thePriority
+
     val message: T? = theMessage
+
     var name: String? = theName
         get() {
             return if (field == null) {
@@ -75,7 +79,8 @@ class JSLEvent<T> internal constructor(
      * handle the cancellation. If the event is canceled, it's execute method
      * will not be called when it becomes the current event. Thus, an event can
      * be canceled or uncanceled at any simulated time prior to when the event
-     * is scheduled to occur.
+     * is scheduled to occur. It is an error to attempt to cancel an event that
+     * is not scheduled.
      */
     var cancelled: Boolean = false
         set(value) {

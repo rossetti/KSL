@@ -24,7 +24,7 @@ package ksl.simulation
  * Implementor's of this interface should define a class that has concrete
  * specification for the type T.
 </T> */
-fun interface EventActionIfc<T> {
+fun interface EventActionIfc<in T> {
     //TODO change to just EventAction to take advantage of SAM
     /** This must be implemented by any objects that want to supply event
      * logic.  This is essentially the "event routine".
@@ -33,4 +33,4 @@ fun interface EventActionIfc<T> {
     fun action(event: JSLEvent<T>)
 }
 //TODO change to Action<T>
-typealias EventAction<T> = (JSLEvent<T>) -> Unit
+//typealias EventAction<T> = (JSLEvent<T>) -> Unit

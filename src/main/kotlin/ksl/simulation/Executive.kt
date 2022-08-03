@@ -1,52 +1,66 @@
 package ksl.simulation
 
+import jsl.simulation.ModelElement //TODO
+import jsl.simulation.Simulation //TODO
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
-import ksl.utilities.io.KSL
+import ksl.utilities.exceptions.JSLEventException
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableIfc
 import mu.KotlinLogging
 
-private val logger = KotlinLogging.logger {}
+private val logger = KotlinLogging.logger {} //TODO decide if this should be KSL or not Simulation logger
 
-open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) :
+class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) :
     ObservableIfc<JSLEvent<*>?> by Observable() {
 
     enum class Status {
         CREATED, INITIALIZED, BEFORE_EVENT, AFTER_EVENT, AFTER_EXECUTION
     }
 
-    var myObserverState = Status.CREATED
+    var status = Status.CREATED
         protected set
 
-    var myCurrentTime: Double = 0.0
+    var currentTime: Double = 0.0
         protected set
 
-    var myNumEventsScheduled: Long = 0
+    var numEventsScheduled: Long = 0
         protected set
 
-    var myNumEventsScheduledDuringExecution: Double = Double.NaN
+    var numEventsScheduledDuringExecution: Double = Double.NaN
         protected set
 
-    var myNumEventsExecuted: Long = 0
+    var numEventsExecuted: Long = 0
         protected set
 
-    var myActualEndingTime: Double = Double.NaN
+    var endingTime: Double = Double.NaN
         protected set
 
-    private var myLastExecutedEvent: JSLEvent<*>? = null
+    private var lastExecutedEvent: JSLEvent<*>? = null
 
-    private var myEndEvent: JSLEvent<*>? = null
+    private var endEvent: JSLEvent<Nothing>? = null
 
-    var myTerminationWarningMsgOption = true
+    var terminationWarningMsgOption = true
+
+    /**
+     * Controls the execution of events over time
+     */
+    private val eventExecutionProcess: EventExecutionProcess =
+        EventExecutionProcess("Executive's Inner Iterative Process")
+
+    /**
+     * Provides for 3 phase method for conditional events
+     *
+     */
+    private val conditionalActionProcessor: ConditionalActionProcessor = ConditionalActionProcessor()
 
     /**
      * Returns the time the execution was scheduled to end
      *
      * @return the scheduled end time or Double.POSITIVE_INFINITY
      */
-    fun getScheduledEndTime(): Double {
-        return myEndEvent?.time ?: Double.POSITIVE_INFINITY
+    fun scheduledEndTime(): Double {
+        return endEvent?.time ?: Double.POSITIVE_INFINITY
     }
 
     /**
@@ -56,7 +70,7 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
      * @return true if scheduled
      */
     fun isEndEventScheduled(): Boolean {
-        return myEndEvent != null
+        return endEvent != null
     }
 
     /**
@@ -69,26 +83,224 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
     }
 
     /**
+     * If the Executive has an end event or maximum allowed execution time, then
+     * return true
+     *
+     * @return true if the executive has an end event or max allowed execution
+     * time
+     */
+    fun willTerminate(): Boolean {
+        var flag = true
+        if (!isEndEventScheduled()) {
+            if (maximumAllowedExecutionTime == 0L) {
+                flag = false
+            }
+        }
+        return flag
+    }
+
+    val isInitialized
+        get() = eventExecutionProcess.isInitialized
+
+    val isUnfinished
+        get() = eventExecutionProcess.isUnfinished
+
+    val isRunning
+        get() = eventExecutionProcess.isRunning
+
+    val isEnded
+        get() = eventExecutionProcess.isEnded
+
+    val isDone
+        get() = eventExecutionProcess.isDone
+
+    val allEventsExecuted
+        get() = eventExecutionProcess.allStepsCompleted
+
+    val isEndConditionMet
+        get() = eventExecutionProcess.stoppedByCondition
+
+    val beginExecutionTime
+        get() = eventExecutionProcess.beginExecutionTime
+
+    val endedExecutionTime
+        get() = eventExecutionProcess.endExecutionTime
+
+    val elapsedExecutionTime
+        get() = eventExecutionProcess.elapsedExecutionTime
+
+    var maximumAllowedExecutionTime
+        get() = eventExecutionProcess.maximumAllowedExecutionTime
+        set(value) {
+            eventExecutionProcess.maximumAllowedExecutionTime = value
+        }
+
+    val stoppingMessage
+        get() = eventExecutionProcess.stoppingMessage
+
+    val isExecutionTimeExceeded
+        get() = eventExecutionProcess.isExecutionTimeExceeded
+
+    internal fun initialize() {
+        eventExecutionProcess.initialize()
+    }
+
+    /**
+     * Causes the next event to be executed if it exists
+     *
+     */
+    internal fun executeNextEvent() {
+        eventExecutionProcess.runNext()
+    }
+
+    /*
+     * Executes all the events in the calendar, clears the calendar if the
+     * Executive has not been initialized
+     *
+     */
+    internal fun executeAllEvents() {
+        if (!willTerminate()) {
+            // no end event scheduled, no max exec time, warn the user
+            if (terminationWarningMsgOption) {
+                val sb = StringBuilder()
+                sb.append("Executive: In initializeIterations()")
+                sb.appendLine()
+                sb.append("The executive was told to run all events without an end event scheduled.")
+                sb.appendLine()
+                sb.append("There was no maximum real-clock execution time specified.")
+                sb.appendLine()
+                sb.append("The user is responsible for ensuring that the Executive is stopped.")
+                sb.appendLine()
+                Simulation.LOGGER.warn(sb.toString()) //TODO
+                System.out.flush()
+            }
+        }
+        eventExecutionProcess.run()
+    }
+
+    internal fun stop(msg: String = "The executive was told to stop by the user at time $currentTime") {
+        eventExecutionProcess.stop(msg)
+    }
+
+    internal fun end(msg: String = "The executive was told to end by the user at time $currentTime") {
+        eventExecutionProcess.end(msg)
+    }
+
+    /**
+     * Creates an event and schedules it onto the event calendar
+     *
+     * @param T the type of the event message
+     * @param eventAction represents an ActionListener that will handle the change of state logic, cannot be null
+     * @param interEventTime represents the inter-event time, i.e. the interval from the
+     * current time to when the event will need to occur, Cannot be negative
+     * @param priority is used to influence the ordering of events
+     * @param message is a generic Object that may represent data to be
+     * transmitted with the event, may be null
+     * @param name the name of the event, can be null
+     * @param theElementScheduling the element doing the scheduling, cannot be null
+     * @return a valid JSLEvent
+     */
+    internal fun <T> scheduleEvent(
+        theElementScheduling: ModelElement, eventAction: EventActionIfc<T>, interEventTime: Double, priority: Int,
+        message: T? = null, name: String? = null
+    ): JSLEvent<T> {
+        if (eventExecutionProcess.isCreated || eventExecutionProcess.isEnded) {
+            val sb = StringBuilder()
+            sb.append("Attempted to schedule an event when the Executive is in the created or ended state.")
+            sb.appendLine()
+            sb.append("Since the Executive has not yet been initialized this event will not execute.")
+            sb.appendLine()
+            sb.append("The event was scheduled from ModelElement : ").append(theElementScheduling.name)
+            sb.appendLine()
+            sb.append("It is likely that the user scheduled the event in a ModelElement's constructor or outside the context of the simulation running.")
+            sb.appendLine()
+            sb.append("Hint: Do not schedule initial events in a constructor.  Use the initialize() method instead.")
+            sb.appendLine()
+            sb.append("Hint: Do not schedule initial events prior to executing (running) the simulation.  Use the initialize() method instead.")
+            sb.appendLine()
+            Simulation.LOGGER.warn(sb.toString()) //TODO
+            System.out.flush()
+            throw JSLEventException(sb.toString())
+        }
+        if (interEventTime < 0.0) {
+            Simulation.LOGGER.warn("Attempted to schedule an event before the Current Time!") //TODO
+            System.out.flush()
+            throw JSLEventException("Attempted to schedule an event before the Current Time!")
+        }
+        val eventTime = currentTime + interEventTime
+        if (eventTime <= scheduledEndTime()) {
+            numEventsScheduled = numEventsScheduled + 1
+            // create the event
+            val event =
+                JSLEvent(numEventsScheduled, eventAction, eventTime, priority, message, name, theElementScheduling)
+            myEventCalendar.add(event)
+            event.scheduled = true
+            return event
+        } else {
+            val sb = StringBuilder()
+            sb.append("Attempted to schedule an event after the scheduled simulation end time: ${scheduledEndTime()}")
+            sb.appendLine()
+            sb.append("The event was scheduled from ModelElement : ").append(theElementScheduling.name)
+            sb.appendLine()
+            Simulation.LOGGER.warn(sb.toString()) //TODO
+            System.out.flush()
+            throw JSLEventException(sb.toString())
+        }
+    }
+
+    /**
+     * Schedules the ending of the executive at the provided time
+     *
+     * @param time the time of the ending event, must be &gt; 0
+     * @param theElement the associated model element
+     * @return the scheduled event
+     */
+    internal fun scheduleEndEvent(time: Double, theElement: ModelElement): JSLEvent<Nothing> {
+        require(time > 0.0) { "The time must be > 0.0" }
+        if (isEndEventScheduled()) {
+            logger.info { "Executive: Already scheduled end of replication event is being cancelled" }
+            // already scheduled end event, cancel it
+            endEvent!!.cancelled = true
+        }
+        // schedule the new time
+        logger.info { "Executive: scheduling end of replication at time: $time" }
+        endEvent = scheduleEvent<Nothing>(
+            theElement,
+            EndEventAction(), time, JSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, null,
+            "End Replication"
+        )
+        return endEvent as JSLEvent<Nothing>
+    }
+
+    private inner class EndEventAction : EventActionIfc<Nothing> {
+        override fun action(event: JSLEvent<Nothing>) {
+            val msg = "Executive: Scheduled end event occurred at time $currentTime"
+            eventExecutionProcess.stop(msg)
+        }
+
+    }
+
+    /**
      * Executes the provided event
      *
-     * @param event represents the next event to execute or null
+     * @param event represents the next event to execute
      */
-    protected open fun execute(event: JSLEvent<*>) {
+    private fun execute(event: JSLEvent<*>) {
         try {
             // the event is no longer scheduled
             event.scheduled = false
             if (!event.cancelled) {
                 // event was not cancelled
                 // update the current simulation time to the event time
-                myCurrentTime = event.time
-                myObserverState = Status.BEFORE_EVENT
+                currentTime = event.time
+                status = Status.BEFORE_EVENT
                 notifyObservers(this, event)
                 event.execute()
-                myLastExecutedEvent = event
-                myNumEventsExecuted = myNumEventsExecuted + 1
-                myObserverState = Status.AFTER_EVENT
+                lastExecutedEvent = event
+                numEventsExecuted = numEventsExecuted + 1
+                status = Status.AFTER_EVENT
                 notifyObservers(this, event)
-//TODO                    performCPhase()
+                performCPhase()
             }
         } catch (e: RuntimeException) {
             val sb = StringBuilder()
@@ -103,8 +315,17 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
             sb.appendLine()
             val sim = event.modelElement.simulation //TODO is there a better way to get the simulation?
             sb.append(sim)
-            KSL.logger.error(sb.toString())
+            Simulation.LOGGER.error(sb.toString()) //TODO
             throw e
+        }
+    }
+
+    private fun performCPhase() {
+        val ne: JSLEvent<*>? = myEventCalendar.peekNext()
+        if (ne == null) {
+            return
+        } else if (ne.time > currentTime) {
+            conditionalActionProcessor.performCPhase()
         }
     }
 
@@ -113,16 +334,16 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
      * time to 0.0. Resets the event identification counter. Unregisters all
      * actions Notifies observers of initialization
      */
-    protected open fun initializeCalendar() {
-        myEndEvent = null
-        myLastExecutedEvent = null
-        myCurrentTime = 0.0
-        myActualEndingTime = Double.NaN
+    private fun initializeCalendar() {
+        endEvent = null
+        lastExecutedEvent = null
+        currentTime = 0.0
+        endingTime = Double.NaN
         myEventCalendar.clear()
-//TODO        unregisterAllActions()
-        myNumEventsScheduled = 0
-        myNumEventsExecuted = 0
-        myObserverState = Status.INITIALIZED
+        unregisterAllActions()
+        numEventsScheduled = 0
+        numEventsExecuted = 0
+        status = Status.INITIALIZED
         notifyObservers(this, null)
     }
 
@@ -132,7 +353,7 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
      * after initializing
      *
      */
-    protected open fun beforeExecutingAnyEvents() {}
+//    protected open fun beforeExecutingAnyEvents() {}
 
     /**
      * This method is called after executing all events when ending the
@@ -140,26 +361,54 @@ open class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEve
      * ends
      *
      */
-    protected open fun afterExecution() {}
+//    protected open fun afterExecution() {}
 
-    protected inner class EventExecutionProcess(name: String?) : IterativeProcess<JSLEvent<*>>(name) {
+    internal fun unregisterAllActions() {
+        conditionalActionProcessor.unregisterAllActions()
+    }
+
+    internal fun register(action: ConditionalAction, priority: Int = ConditionalActionProcessor.DEFAULT_PRIORITY) {
+        conditionalActionProcessor.register(action, priority)
+    }
+
+    internal fun changePriority(action: ConditionalAction, priority: Int) {
+        conditionalActionProcessor.changePriority(action, priority)
+    }
+
+    internal fun unregister(action: ConditionalAction) {
+        conditionalActionProcessor.unregister(action)
+    }
+
+    var maxScans: Int
+        get() = conditionalActionProcessor.maxScans
+        set(value) {
+            conditionalActionProcessor.maxScans = value
+        }
+
+    var maxScansFlag: Boolean
+        get() = conditionalActionProcessor.maxScanFlag
+        set(value) {
+            conditionalActionProcessor.maxScanFlag = value
+        }
+
+    private inner class EventExecutionProcess(name: String?) : IterativeProcess<JSLEvent<*>>(name) {
 
         override fun initializeIterations() {
             super.initializeIterations()
             initializeCalendar()
-            beforeExecutingAnyEvents()
+//            beforeExecutingAnyEvents()
         }
 
         override fun endIterations() {
             super.endIterations()
             // record the actual ending time
-            myActualEndingTime = myCurrentTime
+            endingTime = currentTime
             // record # events scheduled during execution
-            myNumEventsScheduledDuringExecution = myNumEventsScheduled.toDouble()
+            numEventsScheduledDuringExecution = numEventsScheduled.toDouble()
             // set observer state and notify observers
-            myObserverState = Status.AFTER_EXECUTION
+            status = Status.AFTER_EXECUTION
             this@Executive.notifyObservers(this@Executive, null)
-            afterExecution()
+//            afterExecution()
         }
 
         override fun hasNextStep(): Boolean {
