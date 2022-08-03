@@ -272,9 +272,10 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
     }
 
     private inner class EndEventAction : EventActionIfc<Nothing> {
+        //TODO this inner class prevents the EventActionIfc from being defined within ModelElement
+        // the action could be in model and then call the stop method on the executive from there
         override fun action(event: JSLEvent<Nothing>) {
-            val msg = "Executive: Scheduled end event occurred at time $currentTime"
-            eventExecutionProcess.stop(msg)
+            stop("Executive: Scheduled end event occurred at time $currentTime")
         }
 
     }
