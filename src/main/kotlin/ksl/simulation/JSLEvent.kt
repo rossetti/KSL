@@ -16,7 +16,7 @@
 package ksl.simulation
 
 import jsl.modeling.elements.entity.Entity //TODO
-import jsl.simulation.ModelElement //TODO
+//import jsl.simulation.ModelElement //TODO
 import java.text.DecimalFormat
 
 /**
@@ -36,7 +36,7 @@ import java.text.DecimalFormat
  */
 class JSLEvent<out T> internal constructor(
     theId: Long,
-    theAction: EventActionIfc<T>,
+    theAction: ModelElement.EventActionIfc<T>,
     theTime: Double = 0.0,
     thePriority: Int = DEFAULT_PRIORITY,
     theMessage: T? = null,
@@ -48,7 +48,7 @@ class JSLEvent<out T> internal constructor(
         require(theTime >= 0.0) { "The event time must be >= 0.0" }
     }
 
-    private val myAction: EventActionIfc<T> = theAction
+    private val myAction: ModelElement.EventActionIfc<T> = theAction
 
     val time: Double = theTime
 
@@ -212,6 +212,11 @@ class JSLEvent<out T> internal constructor(
          * A constant for the default batch priority
          */
         const val DEFAULT_BATCH_PRIORITY = 8000
+
+        /**
+         * A constant for the default timed update priority
+         */
+        const val DEFAULT_TIMED_EVENT_PRIORITY = 3
 
     }
 }

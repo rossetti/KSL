@@ -21,8 +21,8 @@ dependencies {
 //    api(project(":KSLExamples"))
 //    api(project(":KSLExtensions"))
     
-    api(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.11")
-    api(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.11")
+    api(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
+    api(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
     api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "2.1.21")

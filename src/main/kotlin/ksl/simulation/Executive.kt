@@ -1,6 +1,6 @@
 package ksl.simulation
 
-import jsl.simulation.ModelElement //TODO
+//import jsl.simulation.ModelElement //TODO
 import jsl.simulation.Simulation //TODO only due to using logger
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
@@ -38,7 +38,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
 
     private var lastExecutedEvent: JSLEvent<*>? = null
 
-    private var endEvent: JSLEvent<Nothing>? = null
+    internal var endEvent: JSLEvent<Nothing>? = null
 
     var terminationWarningMsgOption = true
 
@@ -201,7 +201,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
      * @return a valid JSLEvent
      */
     internal fun <T> scheduleEvent(
-        theElementScheduling: ModelElement, eventAction: EventActionIfc<T>, interEventTime: Double, priority: Int,
+        theElementScheduling: ModelElement, eventAction: ModelElement.EventActionIfc<T>, interEventTime: Double, priority: Int,
         message: T? = null, name: String? = null
     ): JSLEvent<T> {
         if (eventExecutionProcess.isCreated || eventExecutionProcess.isEnded) {
@@ -248,37 +248,37 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
         }
     }
 
-    /**
-     * Schedules the ending of the executive at the provided time
-     *
-     * @param time the time of the ending event, must be &gt; 0
-     * @param theElement the associated model element
-     * @return the scheduled event
-     */
-    internal fun scheduleEndEvent(time: Double, theElement: ModelElement): JSLEvent<Nothing> {
-        require(time > 0.0) { "The time must be > 0.0" }
-        if (isEndEventScheduled()) {
-            logger.info { "Executive: Already scheduled end of replication event is being cancelled" }
-            // already scheduled end event, cancel it
-            endEvent!!.cancelled = true
-        }
-        // schedule the new time
-        logger.info { "Executive: scheduling end of replication at time: $time" }
-        endEvent = scheduleEvent(
-            theElement, EndEventAction(), time,
-            JSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, null, "End Replication"
-        )
-        return endEvent as JSLEvent<Nothing>
-    }
-
-    private inner class EndEventAction : EventActionIfc<Nothing> {
-        //TODO this inner class prevents the EventActionIfc from being defined within ModelElement
-        // the action could be in model and then call the stop method on the executive from there
-        override fun action(event: JSLEvent<Nothing>) {
-            stop("Executive: Scheduled end event occurred at time $currentTime")
-        }
-
-    }
+//    /**
+//     * Schedules the ending of the executive at the provided time
+//     *
+//     * @param time the time of the ending event, must be &gt; 0
+//     * @param theElement the associated model element
+//     * @return the scheduled event
+//     */
+//    internal fun scheduleEndEvent(time: Double, theElement: ModelElement): JSLEvent<Nothing> {
+//        require(time > 0.0) { "The time must be > 0.0" }
+//        if (isEndEventScheduled()) {
+//            logger.info { "Executive: Already scheduled end of replication event is being cancelled" }
+//            // already scheduled end event, cancel it
+//            endEvent!!.cancelled = true
+//        }
+//        // schedule the new time
+//        logger.info { "Executive: scheduling end of replication at time: $time" }
+//        endEvent = scheduleEvent(
+//            theElement, EndEventAction(), time,
+//            JSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, null, "End Replication"
+//        )
+//        return endEvent as JSLEvent<Nothing>
+//    }
+//
+//    private inner class EndEventAction : EventActionIfc<Nothing> {
+//        //TODO this inner class prevents the EventActionIfc from being defined within ModelElement
+//        // the action could be in model and then call the stop method on the executive from there
+//        override fun action(event: JSLEvent<Nothing>) {
+//            stop("Executive: Scheduled end event occurred at time $currentTime")
+//        }
+//
+//    }
 
     /**
      * Executes the provided event
@@ -313,8 +313,8 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
-            val sim = event.modelElement.simulation //TODO is there a better way to get the simulation, is it needed?
-            sb.append(sim)
+//TODO            val sim = event.modelElement.simulation //TODO is there a better way to get the simulation, is it needed?
+//TODO            sb.append(sim)
             Simulation.LOGGER.error(sb.toString()) //TODO
             throw e
         }
