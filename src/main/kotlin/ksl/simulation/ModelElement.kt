@@ -9,7 +9,29 @@ private var myCounter_: Int = 0
 
 //TODO needs to be made abstract
 open class ModelElement internal constructor(theName: String? = null) : IdentityIfc,
-    ObservableIfc<ModelElement> by Observable() {
+    ObservableIfc<ModelElement.Status> by Observable() {
+
+    /**
+     * A set of constants for indicating model element status to observers of
+     * basic model element changes
+     */
+    enum class Status {
+        BEFORE_EXPERIMENT, BEFORE_REPLICATION, INITIALIZED, MONTE_CARLO, WARMUP,
+        UPDATE, TIMED_UPDATE, REPLICATION_ENDED, AFTER_REPLICATION, AFTER_EXPERIMENT,
+        MODEL_ELEMENT_ADDED, MODEL_ELEMENT_REMOVED, REMOVED_FROM_MODEL, CONDITIONAL_ACTION_REGISTRATION
+    }
+
+    /**
+     *  A definition of default time unit conversions.  MILLISECOND = 1.0, SECOND = 1000.0,
+     *  MINUTE = 60*SECOND, HOUR = 60*MINUTE, DAY = 24*HOUR, WEEK = 7*DAY, MONTH = 30.0*DAY,
+     *  YEAR = 365*DAY
+     */
+    enum class TimeUnit(val value: Double) {
+        MILLISECOND(1.0), SECOND(1000.0), MINUTE(60.0 * SECOND.value),
+        HOUR(60.0 * MINUTE.value), DAY(24.0 * HOUR.value), WEEK(7.0 * DAY.value),
+        MONTH(30.0 * DAY.value), YEAR(365.0 * DAY.value)
+        //TODO consider conversion functions
+    }
 
     init {
         myCounter_ = myCounter_ + 1
@@ -482,6 +504,32 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             )
         }
 
+    }
+
+    /**
+     * A Comparator for comparing model elements based on getId()
+     */
+    class ModelElementComparator : Comparator<ModelElement> {
+        override fun compare(o1: ModelElement, o2: ModelElement): Int {
+            return o1.id.compareTo(o2.id)
+        }
+    }
+
+    companion object {
+        /**
+         * Used to assign unique enum constants
+         */
+        private var myEnumCounter_ = 0
+
+        val nextEnumConstant: Int
+            get() = ++myEnumCounter_
+
+        /**
+         *
+         * @return a comparator that compares based on getId()
+         */
+        val modelElementComparator: Comparator<ModelElement>
+            get() = ModelElementComparator()
     }
 
 }
