@@ -195,7 +195,80 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      *  The current simulation time
      */
     protected val time
-        get() = executive.currentTime
+        get() = executive.currentTime * model.baseTimeUnit.value //TODO check if I should multiply by base time unit
+
+    /**
+     * Returns the value of a 1 millisecond time interval in terms of the base
+     * time unit
+     *
+     * @return the value of a 1 millisecond time interval in terms of the base
+     * time unit
+     */
+    fun millisecond(): Double {
+        return TimeUnit.MILLISECOND.value / model.baseTimeUnit.value
+    }
+
+    /**
+     * Returns the value of a 1 second time interval in terms of the base time
+     * unit
+     *
+     * @return Returns the value of a 1 second time interval in terms of the
+     * base time unit
+     */
+    fun second(): Double {
+        return TimeUnit.SECOND.value / model.baseTimeUnit.value
+    }
+
+    /**
+     * Returns the value of a 1 minute time interval in terms of the base time
+     * unit. For example, if the time unit is set to hours, then minute() should
+     * return 0.0166 (TIME_UNIT_MINUTE/TIME_UNIT_HOUR)
+     *
+     *
+     * Thus, if base time unit is set to hours, then 5*minute() represents 5
+     * minutes (5.0/60) and 2*day() represents 2 days. Use these methods to
+     * convert timeUnits to the base time unit when scheduling events or
+     * defining time parameters.
+     *
+     * @return Returns the value of a 1 minute time interval in terms of the
+     * base time unit.
+     */
+    fun minute(): Double {
+        return TimeUnit.MINUTE.value / model.baseTimeUnit.value
+    }
+
+    /**
+     * Returns the value of a 1 hour time interval in terms of the base time
+     * unit
+     *
+     * @return Returns the value of a 1 hour time interval in terms of the base
+     * time unit
+     */
+    fun hour(): Double {
+        return TimeUnit.HOUR.value / model.baseTimeUnit.value
+    }
+
+    /**
+     * Returns the value of a 1 day time interval in terms of the base time unit
+     *
+     * @return Returns the value of a 1 day time interval in terms of the base
+     * time unit
+     */
+    fun day(): Double {
+        return TimeUnit.DAY.value / model.baseTimeUnit.value
+    }
+
+    /**
+     * Returns the value of a 1 week time interval in terms of the base time
+     * unit
+     *
+     * @return Returns the value of a 1 week time interval in terms of the base
+     * time unit
+     */
+    fun week(): Double {
+        return TimeUnit.WEEK.value / model.baseTimeUnit.value
+    }
+
 
     /**
      * The action listener that reacts to the warm-up event.
@@ -374,7 +447,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * each replication occurs if the model element wants initialization. It is
      * called after beforeReplication() is called
      */
-    protected open fun initialize() {}
+    protected open fun initialize() {}//TODO consider making this abstract so that elements have to implement
 
     /**
      * This method should be overridden by subclasses that need to register

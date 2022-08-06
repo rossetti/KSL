@@ -14,6 +14,8 @@ class Model internal constructor(
     internal val mySimulation: Simulation = theSimulation
     internal val myExecutive: Executive = theExecutive
 
+    var baseTimeUnit: TimeUnit = TimeUnit.MILLISECOND
+
     /**
      * A Map that holds all the model elements in the order in which they are
      * created
