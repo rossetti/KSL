@@ -351,7 +351,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      *  the current replication number
      */
-    protected val currentReplicationNumber : Int
+    protected val currentReplicationNumber: Int
         get() = simulation.currentReplicationNumber
 
     /**
@@ -489,6 +489,128 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
+     * Checks if a warm-up event is scheduled for any model element directly
+     * above this model element in the hierarchy of model elements all the way
+     * until the top Model.
+     *
+     *
+     * True means that some warm up event is scheduled in the upward chain.
+     * False means that no warm up event is scheduled in the upward chain.
+     *
+     * @return true if any warm up event is scheduled in the upward chain
+     */
+    fun isWarmUpScheduled(): Boolean {
+        // if this model element doesn’t schedule the warm up
+        // check if it’s parent does, and so on, until
+        // reaching the Model
+        if (!isWarmUpEventScheduled()) {
+            // if it has a parent check it
+            if (parent != null) {
+                return parent!!.isWarmUpScheduled()
+            } else {
+                // only Model has no parent to check
+                // stop checking
+            }
+        }
+        // current element has warm up scheduled, return that fact
+        return true
+    }
+
+    /**
+     * Find the first parent that has its own warm up event this guarantees that
+     * all elements below the found model element do not have their own warm-up
+     * event. A model element that has its own warm up event also opts out of
+     * the warm-up action. If the returned parent is the Model, then all are
+     * controlled by the model (unless they opt out). Elements can opt out and
+     * not have their own warm-up event. Thus, they have no warm up at all.
+     *
+     * Null indicates that no model element in the parent chain has a warm-up
+     * event.
+     *
+     * @return the element or null
+     */
+    fun findModelElementWithWarmUpEvent(): ModelElement? {
+        // if this model element does not schedule the warm-up
+        // check if it’s parent does, and so on, until
+        // reaching the Model
+        return if (!isWarmUpEventScheduled()) {
+            // doesn't have a warm-up event
+            if (parent != null) {
+                // check if parent exists and has a warm-up event
+                parent!!.findModelElementWithWarmUpEvent()
+            } else {
+                // parent does not exist, and there is no warm up event
+                null
+            }
+        } else { // has a warm-up event, return the model element
+            this
+        }
+    }
+
+    /**
+     * This method returns the planned time for the warm-up for this model
+     * element.
+     *
+     * @return the planned time, 0.0 means no warm-up
+     */
+    fun getWarmUpEventTime(): Double {
+        var m: ModelElement? = this
+        var time = 0.0
+        while (m != null) {
+            if (m.isWarmUpEventScheduled()) {
+                // element has its own warm up event
+                time = m.myLengthOfWarmUp
+                break
+            }
+            // does not have its own warm up event
+            if (!m.myWarmUpOption) {
+                // and doesn't listen to a parent
+                time = 0.0
+                break
+            }
+            m = m.parent // get the parent
+        }
+        return time
+    }
+
+    /**
+     * Checks if this model element or any model element directly above this
+     * model element in the hierarchy of model elements all the way until the
+     * top Model participates in the warm-up action.
+     *
+     * True means that this and every parent in the chain participates in the
+     * warm-up action. False means this element or some parent does not
+     * participate in the warm-up action
+     *
+     * @return true if this and every parent participates in the warm-up action
+     */
+    fun checkWarmUpOption(): Boolean {
+        // if this model element participates in the warm up
+        // check if it’s parent does, and so on, until
+        // reaching the Model
+        if (myWarmUpOption) {
+            // if it has a parent check it
+            if (parent != null) {
+                return parent!!.checkWarmUpOption()
+            } else {
+                // only Model has no parent to check
+                // stop checking
+            }
+        }
+        // current element does not participate, return that fact
+        return false
+    }
+
+    /**
+     * Cancels the warm up event for this model element.
+     */
+    fun cancelWarmUpEvent() {
+        if (myWarmUpEvent != null) {
+            myWarmUpEvent!!.cancelled = true
+        }
+    }
+
+    /**
      * Indicates whether the warm-up action occurred sometime during the
      * simulation. False indicates that the warm-up action has not occurred
      */
@@ -502,10 +624,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * The length of time from the start of the simulation to the warm-up event.
      */
-    protected var myLengthOfWarmUp = 0.0 // zero is no warm up
+    protected var myLengthOfWarmUp = 0.0 // zero means no warm up
         set(value) {
-            require(value > 0.0){"Warm up event time must be > 0.0"}
+            require(value >= 0.0) { "Warm up event time must be >= 0.0" }
             field = value
+            myWarmUpOption = (field == 0.0)
         }
 
     /**
@@ -529,7 +652,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     protected var myTimedUpdateInterval = 0.0
         set(value) {
-            require(value > 0.0){"Time update interval must be > 0.0"}
+            require(value > 0.0) { "Time update interval must be > 0.0" }
             field = value
         }
 
@@ -543,6 +666,15 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             false
         } else {
             myTimedUpdateEvent!!.scheduled
+        }
+    }
+
+    /**
+     * Cancels the timed update event for this model element.
+     */
+    fun cancelTimedUpdateEvent() {
+        if (myTimedUpdateEvent != null) {
+            myTimedUpdateEvent!!.cancelled = true
         }
     }
 
@@ -560,6 +692,8 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          */
         fun action(event: JSLEvent<T>)
     }
+
+    //TODO consider timed event action subclass with GetValueIfc
 
     abstract inner class EventAction<T> : EventActionIfc<T> {
 
@@ -844,7 +978,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             warmUpAction()
         }
 
-        fun schedule() : JSLEvent<Nothing> {
+        fun schedule(): JSLEvent<Nothing> {
             return schedule(myLengthOfWarmUp, myWarmUpPriority, name = this@ModelElement.name + "_WarmUp")
         }
     }
@@ -908,6 +1042,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
 
     }
+
     /**
      * This method should be overridden by subclasses that need actions
      * performed when the replication ends and prior to the calling of
@@ -1083,7 +1218,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         // remove it from the model element map
         model.removeFromModelElementMap(this)
         // no longer has a parent
- //TODO       myParentModelElement = null
+        //TODO       myParentModelElement = null
         // no longer is in the model
 //TODO        myModel = null
         // can't be in a spatial model
