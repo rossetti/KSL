@@ -19,7 +19,7 @@ package ksl.utilities.observers
  * provides a base implementation of the observer/observable pattern that
  * mitigates those flaws.  This allows observers to be added and called
  * in the order added to the component.  The basic usage of this class is to
- * have a class have an instance of ObservableComponent while implementing
+ * have a class have an instance of Observable while implementing
  * the ObservableIfc.  The notifyObservers() method can be used to notify
  * attached observers whenever necessary.
  *
@@ -29,16 +29,16 @@ class Observable<T> : ObservableIfc<T> {
 
     private val myObservers: MutableList<ObserverIfc<T>> = ArrayList()
 
-    override fun attach(observer: ObserverIfc<T>) {
+    override fun attachObserver(observer: ObserverIfc<T>) {
         require(!isAttached(observer)) { "The supplied observer is already attached" }
         myObservers.add(observer)
     }
 
-    override fun detach(observer: ObserverIfc<T>) {
+    override fun detachObserver(observer: ObserverIfc<T>) {
         myObservers.remove(observer)
     }
 
-    override fun detachAll() {
+    override fun detachAllObservers() {
         myObservers.clear()
     }
 

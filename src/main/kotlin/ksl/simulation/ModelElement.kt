@@ -1,11 +1,14 @@
 package ksl.simulation
 
-import jsl.simulation.Simulation
+import jsl.simulation.Simulation //TODO
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableIfc
+import mu.KotlinLogging
 
 private var myCounter_: Int = 0
+
+private val logger = KotlinLogging.logger {}
 
 //TODO needs to be made abstract
 open class ModelElement internal constructor(theName: String? = null) : IdentityIfc,
@@ -16,9 +19,34 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * basic model element changes
      */
     enum class Status {
-        BEFORE_EXPERIMENT, BEFORE_REPLICATION, INITIALIZED, MONTE_CARLO, WARMUP,
+        NONE, BEFORE_EXPERIMENT, BEFORE_REPLICATION, INITIALIZED, CONDITIONAL_ACTION_REGISTRATION, MONTE_CARLO, WARMUP,
         UPDATE, TIMED_UPDATE, REPLICATION_ENDED, AFTER_REPLICATION, AFTER_EXPERIMENT,
-        MODEL_ELEMENT_ADDED, MODEL_ELEMENT_REMOVED, REMOVED_FROM_MODEL, CONDITIONAL_ACTION_REGISTRATION
+        MODEL_ELEMENT_ADDED, MODEL_ELEMENT_REMOVED, REMOVED_FROM_MODEL
+    }
+
+    /**
+     *  Indicates the current status of the model element for observers of ModelElement.Status
+     */
+    var currentStatus: Status = Status.NONE
+        protected set(value) {
+            previousStatus = field
+            field = value
+            logger.trace { "ModelElement: $name changing status from previous: $previousStatus to current: $field" }
+            notifyObservers(this, field)
+        }
+
+    /**
+     *  Indicates the previous status of the model element for observers of ModelElement.Status
+     *  This allows the transition to be noted by observers
+     */
+    var previousStatus: Status = Status.NONE
+        private set
+
+    /**
+     *  Checks if current status is the supplied status
+     */
+    fun isStatus(status: Status): Boolean {
+        return status == currentStatus
     }
 
     /**
@@ -79,10 +107,36 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected var myBeforeExperimentOption = true
 
     /**
+     * Sets the before experiment option of all model elements (children)
+     * contained by this model element.
+     *
+     * @param flag True means that they participate in setup.
+     */
+    fun setBeforeExperimentOptionForModelElements(flag: Boolean) {
+        myBeforeExperimentOption = flag
+        for (m in myModelElements) {
+            m.setBeforeExperimentOptionForModelElements(flag)
+        }
+    }
+
+    /**
      * A flag to control whether the model element reacts to before
      * replication actions.
      */
     protected var myBeforeReplicationOption = true
+
+    /**
+     * Sets the before replication flag of all model elements (children)
+     * contained by this model element.
+     *
+     * @param flag True means that they participate in the default action
+     */
+    fun setBeforeReplicationOptionForModelElements(flag: Boolean) {
+        myBeforeReplicationOption = flag
+        for (m in myModelElements) {
+            m.setBeforeReplicationOptionForModelElements(flag)
+        }
+    }
 
     /**
      * A flag to control whether the model element participates in monte
@@ -91,10 +145,52 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected var myMonteCarloOption = false
 
     /**
+     * Sets the monte carlo option flag of all model elements (children)
+     * contained by this model element.
+     *
+     * @param flag True means that they participate in the default action
+     */
+    fun setMonteCarloOptionForModelElements(flag: Boolean) {
+        myMonteCarloOption = flag
+        for (m in myModelElements) {
+            m.setMonteCarloOptionForModelElements(flag)
+        }
+    }
+
+    /**
      * A flag to control whether the model element reacts to
      * initialization actions
      */
     protected var myInitializationOption = true
+
+    /**
+     * Sets the initialization option of all model elements (children) contained
+     * by this model element.
+     *
+     * @param flag True means that they participate in the default action
+     */
+    fun setInitializationOptionForModelElements(flag: Boolean) {
+        myInitializationOption = flag
+        for (m in myModelElements) {
+            m.setInitializationOptionForModelElements(flag)
+        }
+    }
+
+    /**
+     * Fills a StringBuilder carrying the model element names in the order that
+     * they will be initialized
+     *
+     * @param sb the StringBuilder to fill
+     */
+    fun initializationOrder(sb: StringBuilder) {
+        if (myModelElements.isNotEmpty()) { // I have elements, so check them
+            for (m in myModelElements) {
+                m.initializationOrder(sb)
+            }
+        }
+        sb.append(name)
+        sb.appendLine()
+    }
 
     /**
      * A flag to control whether the model element reacts to end
@@ -103,10 +199,37 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected var myReplicationEndedOption = true
 
     /**
+     * Sets the end replication option flag of all model elements (children)
+     * contained by this model element. Determines whether or not the
+     * replicationEnded() method will be called
+     *
+     * @param flag True means that they participate in the default action
+     */
+    fun setReplicationEndedOptionForModelElements(flag: Boolean) {
+        myReplicationEndedOption = flag
+        for (m in myModelElements) {
+            m.setReplicationEndedOptionForModelElements(flag)
+        }
+    }
+
+    /**
      * A flag to control whether the model element reacts to after
      * replication actions.
      */
     protected var myAfterReplicationOption = true
+
+    /**
+     * Sets the after replication flag of all model elements (children)
+     * contained by this model element.
+     *
+     * @param flag True means that they participate in the default action
+     */
+    fun setAfterReplicationOptionForModelElements(flag: Boolean) {
+        myAfterReplicationOption = flag
+        for (m in myModelElements) {
+            m.setAfterReplicationOptionForModelElements(flag)
+        }
+    }
 
     /**
      * A flag to control whether the model element reacts to after
@@ -115,16 +238,56 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected var myAfterExperimentOption = true
 
     /**
+     * Sets the after experiment option of all model elements (children)
+     * contained by this model element.
+     *
+     * @param option True means that they participate.
+     */
+    fun setAfterExperimentOptionForModelElements(option: Boolean) {
+        myAfterExperimentOption = option
+        for (m in myModelElements) {
+            m.setAfterExperimentOptionForModelElements(option)
+        }
+    }
+
+    /**
      * Specifies if this model element will be warmed up when the warmup action
      * occurs for its parent.
      */
     protected var myWarmUpOption = true
 
     /**
+     * Sets the warm up option flag of all model elements (children) contained
+     * by this model element.
+     *
+     * @param warmUpFlag True means that they participate in the default action
+     */
+    fun setWarmUpOptionForModelElements(warmUpFlag: Boolean) {
+        myWarmUpOption = warmUpFlag
+        for (m in myModelElements) {
+            m.setWarmUpOptionForModelElements(warmUpFlag)
+        }
+    }
+
+    /**
      * Specifies whether this model element participates in time update
      * event specified by its parent
      */
     protected var myTimedUpdateOption = true
+
+    /**
+     * Sets the timed update option flag of all model elements (children)
+     * contained by this model element.
+     *
+     * @param timedUpdateOption True means that they participate in the default
+     * action
+     */
+    fun setTimedUpdateOptionForModelElements(timedUpdateOption: Boolean) {
+        myTimedUpdateOption = timedUpdateOption
+        for (m in myModelElements) {
+            m.setTimedUpdateOptionForModelElements(timedUpdateOption)
+        }
+    }
 
     /**
      * A collection containing the first level children of this model element
@@ -186,10 +349,43 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         get() = model.mySimulation
 
     /**
+     *  the current replication number
+     */
+    protected val currentReplicationNumber : Int
+        get() = simulation.currentReplicationNumber
+
+    /**
      *  the executive that is executing the events
      */
     protected val executive: Executive
         get() = model.myExecutive
+
+
+    /** Gets all model elements that are contained within this model element
+     * in parent-child order within the hierarchy
+     *
+     * @param list the list to fill
+     */
+    protected fun getAllModelElements(list: MutableList<ModelElement?>) {
+        list.add(this)
+        if (myModelElements.isNotEmpty()) {
+            for (me in myModelElements) {
+                me.getAllModelElements(list)
+            }
+        }
+    }
+
+    /** A list containing the (child) model elements of only this model element
+     *
+     * @param list the list of model elements
+     */
+    protected fun getThisElementsModelElements(list: MutableList<ModelElement?>) {
+        if (!myModelElements.isEmpty()) {
+            for (me in myModelElements) {
+                list.add(me)
+            }
+        }
+    }
 
     /**
      *  The current simulation time
@@ -269,16 +465,28 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         return TimeUnit.WEEK.value / model.baseTimeUnit.value
     }
 
-
     /**
      * The action listener that reacts to the warm-up event.
      */
-    private var myWarmUpActionListener: WarmUpEventAction? = null
+    private var myWarmUpEventAction: WarmUpEventAction? = null
 
     /**
      * A reference to the warm-up event
      */
     protected var myWarmUpEvent: JSLEvent<Nothing>? = null
+
+    /**
+     * Checks if a warm-up event has been scheduled for this model element
+     *
+     * @return True means that it has been scheduled.
+     */
+    fun isWarmUpEventScheduled(): Boolean {
+        return if (myWarmUpEvent == null) {
+            false
+        } else {
+            myWarmUpEvent!!.scheduled
+        }
+    }
 
     /**
      * Indicates whether the warm-up action occurred sometime during the
@@ -295,6 +503,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * The length of time from the start of the simulation to the warm-up event.
      */
     protected var myLengthOfWarmUp = 0.0 // zero is no warm up
+        set(value) {
+            require(value > 0.0){"Warm up event time must be > 0.0"}
+            field = value
+        }
 
     /**
      * The action listener that reacts to the timed update event.
@@ -316,6 +528,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * indicating no timed update
      */
     protected var myTimedUpdateInterval = 0.0
+        set(value) {
+            require(value > 0.0){"Time update interval must be > 0.0"}
+            field = value
+        }
 
     /**
      * Checks if a timed update event has been scheduled for this model element
@@ -442,6 +658,28 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected open fun beforeExperiment() {}
 
     /**
+     * The beforeExperiment_ method allows model elements to be setup prior to
+     * the first replication within an experiment. It is called once before any
+     * replications occur within the experiment. This method ensures that each
+     * contained model element has its beforeExperiment method called and that
+     * any observers will be notified of this action
+     */
+    private fun beforeExperimentActions() {
+        myWarmUpIndicator = false
+        if (myModelElements.isNotEmpty()) {
+            for (m in myModelElements) {
+                m.beforeExperimentActions()
+            }
+        }
+
+        if (myBeforeExperimentOption) {
+            logger.info { "ModelElement: $name executing beforeExperiment()" }
+            beforeExperiment()
+            currentStatus = Status.BEFORE_EXPERIMENT
+        }
+    }
+
+    /**
      * This method should be overridden by subclasses that need actions
      * performed to initialize prior to a replication. It is called once before
      * each replication occurs if the model element wants initialization. It is
@@ -450,13 +688,60 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected open fun initialize() {}//TODO consider making this abstract so that elements have to implement
 
     /**
-     * This method should be overridden by subclasses that need to register
-     * conditional actions prior to a replication. It is called once before each
-     * replication, right after the initialize() method is called.
+     * The initialize_ method allows model elements to be initialized to a
+     * standard reactor defined state. It is called by default before each
+     * replication
      *
-     * @param e provides access to the executive
+     *
+     * This method ensures that each contained model element has its initialize
+     * method called and that any observers will be notified of this action
      */
-    protected open fun registerConditionalActions(e: jsl.simulation.Executive?) {}
+    private fun initializeActions() {
+        // first initialize any children associated carrying this model element
+        if (myModelElements.isNotEmpty()) {
+            for (m in myModelElements) {
+                m.initializeActions()
+            }
+        }
+
+        // now initialize the model element itself
+        if (myInitializationOption) {
+            logger.info { "ModelElement: $name executing initialize()" }
+            initialize()
+            currentStatus = Status.INITIALIZED
+        }
+    }
+
+    /**
+     * This method should be overridden by subclasses that need to register
+     * conditional actions prior to a replication with the executive. It is called once before each
+     * replication, right after the initialize() method is called. The user
+     * can use the executive property to access the Executive
+     */
+    protected open fun registerConditionalActions() {}
+
+    /**
+     * The registerConditionalActionsWithExecutive() method allows model elements to be
+     * register any conditional actions after initialization.
+     *
+     * It is called by default before each replication, right after the initialize() method is invoked
+     *
+     * This method ensures that each contained model element has its
+     * registerConditionalActions() method called and that any observers will be
+     * notified of this action
+     *
+     */
+    private fun registerConditionalActionsWithExecutive() {
+        // first initialize any children associated carrying this model element
+        if (myModelElements.isNotEmpty()) {
+            for (m in myModelElements) {
+                m.registerConditionalActionsWithExecutive()
+            }
+        }
+        logger.info { "ModelElement: $name executing registerConditionalActions()" }
+        registerConditionalActions()
+        currentStatus = Status.CONDITIONAL_ACTION_REGISTRATION
+    }
 
     /**
      * This method should be overridden by subclasses that need actions
@@ -467,12 +752,64 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected open fun beforeReplication() {}
 
     /**
+     * The beforeReplicationActions method is called before each replication. This
+     * method ensures that each contained model element's beforeReplication() method is called
+     * before the initialize() method occurs.
+     */
+    protected fun beforeReplicationActions() {
+        if (myLengthOfWarmUp > 0.0) {
+            // the warm up period is > 0, ==> element wants a warm-up event
+            myWarmUpEventAction = WarmUpEventAction()
+            myWarmUpEvent = myWarmUpEventAction!!.schedule()
+            myWarmUpOption = false // no longer depends on parent's warm up
+        }
+        if (myTimedUpdateInterval > 0.0) {
+            // the timed update is > 0, ==> element wants a timed update event
+            // schedule the timed update event
+            myTimedUpdateActionListener = TimedUpdateEventAction()
+            myTimedUpdateEvent = myTimedUpdateActionListener!!.schedule()
+        }
+        if (myModelElements.isNotEmpty()) {
+            for (m in myModelElements) {
+                m.beforeReplicationActions()
+            }
+        }
+        if (myBeforeReplicationOption) {
+            logger.info { "ModelElement: $name executing beforeReplication()" }
+            beforeReplication()
+            currentStatus = Status.BEFORE_REPLICATION
+        }
+    }
+
+    /**
      * This method should be overridden by subclasses that need actions
      * performed after before replication. It is called after beforeReplication
      * but prior to afterReplication() and can be used to perform pure
      * monte-carlo (non event type) simulations carrying the model element
      */
     protected open fun montecarlo() {}
+
+    /**
+     * The monte carlo_ method facilitates model elements to perform a monte
+     * carlo simulation carrying no events being called. It is called by default
+     * after beginReplication_() and initialize_().
+     *
+     *
+     * This method ensures that each contained model element has its monte carlo
+     * method called and that any observers will be notified of this action
+     */
+    private fun monteCarloActions() {
+        if (myMonteCarloOption) {
+            logger.info { "ModelElement: $name executing montecarlo()" }
+            montecarlo()
+            currentStatus = Status.MONTE_CARLO
+        }
+        if (!myModelElements.isEmpty()) {
+            for (m in myModelElements) {
+                m.monteCarloActions()
+            }
+        }
+    }
 
     /**
      * This method should be overridden by subclasses that need actions
@@ -482,56 +819,20 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected open fun warmUp() {}
 
     /**
-     * This method should be overridden by subclasses that need actions
-     * performed at each timed update event during each replication. It is
-     * called for each timed update during each replication if the model element
-     * reacts to timed update actions.
-     */
-    protected open fun timedUpdate() {}
-
-    /**
-     * This method should be overridden by subclasses that need actions
-     * performed when the replication ends and prior to the calling of
-     * afterReplication() . It is called when each replication ends and can be
-     * used to collect data from the the model element, etc.
-     */
-    protected open fun replicationEnded() {}
-
-    /**
-     * This method should be overridden by subclasses that need actions
-     * performed after each replication. It is called after replicationEnded()
-     * has been called.
-     */
-    protected open fun afterReplication() {}
-
-    /**
-     * This method should be overridden by subclasses that need actions
-     * performed after an experiment has been completed It is called after all
-     * replications are done and can be used to collect data from the the model
-     * element, etc.
-     */
-    protected open fun afterExperiment() {}
-
-    /**
-     * This method should be overridden by subclasses that need actions
-     * performed when a model element is removed from a model
-     */
-    protected open fun removedFromModel() {}
-
-    /**
      * The warmUp_ method is called once during each replication. This method
      * ensures that each contained model element that requires a warm-up action
      * will perform its actions.
      */
     private fun warmUpAction() {
         // if we get here the warm-up was scheduled, so do it
+        logger.info { "ModelElement: $name executing warmUp()" }
         warmUp()
         myWarmUpIndicator = true
-//TODO        notifyWarmUpObservers()
+        currentStatus = Status.WARMUP
         // warm up the children that need it
         if (!myModelElements.isEmpty()) {
             for (m in myModelElements) {
-                if (m.myWarmUpOption == true) {
+                if (m.myWarmUpOption) {
                     m.warmUpAction()
                 }
             }
@@ -542,22 +843,51 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         override fun action(event: JSLEvent<Nothing>) {
             warmUpAction()
         }
+
+        fun schedule() : JSLEvent<Nothing> {
+            return schedule(myLengthOfWarmUp, myWarmUpPriority, name = this@ModelElement.name + "_WarmUp")
+        }
     }
+
+    /**
+     * The update method can be called at reactor defined points to indicate
+     * that the model element has been changed in some fashion that the update status
+     * observers need notification. This method ensures that each contained
+     * model element that requires an update action will perform its actions.
+     */
+    protected fun update() {
+        logger.info { "ModelElement: $name executing update()" }
+        currentStatus = Status.UPDATE
+        if (myModelElements.isNotEmpty()) {
+            for (m in myModelElements) {
+                m.update()
+            }
+        }
+    }
+
+    /**
+     * This method should be overridden by subclasses that need actions
+     * performed at each timed update event during each replication. It is
+     * called for each timed update during each replication if the model element
+     * reacts to timed update actions.
+     */
+    protected open fun timedUpdate() {}
 
     /**
      * The timedUpdate_ method is called multiple times during each replication.
      * This method ensures that each contained model element that requires a
      * timed update action will performs its actions.
      */
-    protected fun timedUpdate_() {
+    private fun timedUpdateActions() {
         if (myTimedUpdateOption) {
+            logger.info { "ModelElement: $name executing timedUpdate()" }
             timedUpdate()
-//TODO            notifyTimedUpdateObservers()
+            currentStatus = Status.TIMED_UPDATE
         }
         if (!myModelElements.isEmpty()) {
             for (m in myModelElements) {
                 if (!m.isTimedUpdateEventScheduled()) {
-                    m.timedUpdate_()
+                    m.timedUpdateActions()
                 }
             }
         }
@@ -565,7 +895,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
     private inner class TimedUpdateEventAction : EventAction<Nothing>() {
         override fun action(event: JSLEvent<Nothing>) {
-            timedUpdate_()
+            timedUpdateActions()
             schedule()
         }
 
@@ -578,6 +908,205 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
 
     }
+    /**
+     * This method should be overridden by subclasses that need actions
+     * performed when the replication ends and prior to the calling of
+     * afterReplication() . It is called when each replication ends and can be
+     * used to collect data from the model element, etc.
+     */
+    protected open fun replicationEnded() {}
+
+    /**
+     * The replicationEnded_ method is called when a replication ends This
+     * method ensures that each contained model element that requires a end of
+     * replication action will performs its actions.
+     */
+    private fun replicationEndedActions() {
+        if (myModelElements.isNotEmpty()) {
+            for (m in myModelElements) {
+                m.replicationEndedActions()
+            }
+        }
+        if (myReplicationEndedOption) {
+            logger.info { "ModelElement: $name executing replicationEnded()" }
+            replicationEnded()
+            currentStatus = Status.REPLICATION_ENDED
+        }
+    }
+
+    /**
+     * This method should be overridden by subclasses that need actions
+     * performed after each replication. It is called after replicationEnded()
+     * has been called.
+     */
+    protected open fun afterReplication() {}
+
+    /**
+     * The afterReplication_ method is called at the end of each replication.
+     * This method ensures that each contained model element that requires a end
+     * of replication action will performs its actions.
+     */
+    private fun afterReplicationActions() {
+        if (myModelElements.isNotEmpty()) {
+            for (m in myModelElements) {
+                m.afterReplicationActions()
+            }
+        }
+        if (myAfterReplicationOption) {
+            logger.info { "ModelElement: $name executing afterReplication()" }
+            afterReplication()
+            currentStatus = Status.AFTER_REPLICATION
+        }
+    }
+
+    /**
+     * This method should be overridden by subclasses that need actions
+     * performed after an experiment has been completed It is called after all
+     * replications are done and can be used to collect data from the the model
+     * element, etc.
+     */
+    protected open fun afterExperiment() {}
+
+    /**
+     * The afterExperiment_ method is called after all replications are
+     * completed for an experiment. This method ensures that each contained
+     * model element that requires an action at the end of an experiment will
+     * perform its actions.
+     */
+    private fun afterExperimentActions() {
+        if (myModelElements.isNotEmpty()) {
+            for (m in myModelElements) {
+                m.afterExperimentActions()
+            }
+        }
+        if (myAfterExperimentOption) {
+            logger.info { "ModelElement: $name executing afterExperiment()" }
+            afterExperiment()
+            currentStatus = Status.AFTER_EXPERIMENT
+        }
+    }
+
+    /**
+     * This method should be overridden by subclasses that need actions
+     * performed when a model element is removed from a model
+     */
+    protected open fun removedFromModel() {}
+
+    /**
+     * Recursively removes this model element and the children of this model
+     * element and all their children, etc. The children will no longer have a
+     * parent and will no longer have a model.  This can only be done when
+     * the simulation that contains the model is not running.
+     *
+     * This method has very serious side-effects. After invoking this method:
+     *
+     * 1) All children of this model element will have been removed from the
+     * model.
+     * 2) This model element will be removed from its parent's model,
+     * element list and from the model. The getParentModelElement() method will
+     * return null. In other words, this model element will no longer be connected
+     * to a parent model element.
+     * 3) This model element and all its children will no longer be
+     * connected. In other words, there is no longer a parent/child relationship
+     * between this model element and its former children.
+     * 4) This model element and all of its children will no longer belong to a model.
+     * Their getModel() method will return null
+     * 5) The removed elements are no longer part of their former model's model element map
+     * 6) The name and label are set to null
+     * 7) Warm up and timed update listeners are set to null
+     * 9) Any reference to a spatial model is set to null
+     * 10) All observers of this model element are detached
+     * 11) All child model elements are removed. It will no longer have any children.
+     *
+     * Since it has been removed from the model, it and its children will no
+     * longer participate in any of the standard model element actions, e.g.
+     * initialize(), afterReplication(), etc.
+     *
+     *
+     * Notes: 1) This method removes from the list of model elements. Thus, if a
+     * client attempts to use this method, via code that is iterating the list a
+     * concurrent modification exception will occur.
+     * 2) The user is responsible for ensuring that other references to this model
+     * element are correctly handled.  If references to this model element exist within
+     * other data structures/collections then the user is responsible for appropriately
+     * addressing those references. This is especially important for any observers
+     * of the removed model element.  The observers will be notified that the model
+     * element is being removed. It is up to the observer to correctly react to
+     * the removal. If the observer is a sub-class of ModelElementObserver then
+     * implementing the removedFromModel() method can be used. If the observer is a
+     * general Observer, then use REMOVED_FROM_MODEL to check if the element is being removed.
+     */
+    fun removeFromModel() {
+        if (simulation.isRunning) {
+            val sb = StringBuilder()
+            sb.append("Attempted to remove the model element: ")
+            sb.append(name)
+            sb.append(" while the simulation was running.")
+            Simulation.LOGGER.error(sb.toString()) //TODO, try logging and an exception option
+            throw IllegalStateException(sb.toString())
+        }
+
+//		System.out.println("In " + getName() + " removeFromModel()");
+        // first remove any of the model element's children
+        while (myModelElements.isNotEmpty()) {
+            val child = myModelElements[myModelElements.size - 1]
+            child.removeFromModel()
+        }
+        logger.info { "ModelElement: $name executing removeFromModel()" }
+        // if the model element has a warm-up event, cancel it
+        if (myWarmUpEvent != null) {
+            if (myWarmUpEvent!!.scheduled) {
+                logger.info { "ModelElement: $name cancelling warmup event" }
+                myWarmUpEvent!!.cancelled = true
+            }
+            myWarmUpEvent = null
+            myWarmUpEventAction = null
+        }
+        // if the model element has a timed update event, cancel it
+        if (myTimedUpdateEvent != null) {
+            if (myTimedUpdateEvent!!.scheduled) {
+                logger.info { "ModelElement: $name cancelling timed update event" }
+                myTimedUpdateEvent!!.cancelled = true
+            }
+            myTimedUpdateEvent = null
+            myTimedUpdateActionListener = null
+        }
+
+        // allow the subclasses to provide specific removal behavior
+        removedFromModel()
+        // notify any model element observers of the removal
+        currentStatus = Status.REMOVED_FROM_MODEL
+        // need to ensure that any observers are detached
+        detachAllObservers()
+        // tell the parent to remove it, remove it
+        parent!!.removeModelElement(this)
+        // remove it from the model element map
+        model.removeFromModelElementMap(this)
+        // no longer has a parent
+ //TODO       myParentModelElement = null
+        // no longer is in the model
+//TODO        myModel = null
+        // can't be in a spatial model
+//TODO        mySpatialModel = null
+        myModelElements.clear()
+//        myModelElements = null
+//        name = null
+        label = null
+    }
+
+    /**
+     * Removes the "child" model element from this model element. The model
+     * element to be removed must not be null; otherwise, an
+     * IllegalArgumentException will be thrown.
+     *
+     * @param modelElement the model element to be removed.
+     * @return True indicates that the remove was successful.
+     */
+    private fun removeModelElement(modelElement: ModelElement): Boolean {
+        //TODO why have a 1-line method for this
+        return myModelElements.remove(modelElement)
+    }
+
 
     /**
      * A Comparator for comparing model elements based on getId()

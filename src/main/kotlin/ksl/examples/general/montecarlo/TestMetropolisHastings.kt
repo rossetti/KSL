@@ -29,7 +29,7 @@ fun main() {
     val f = Function()
     val q = PropFunction()
     val m = MetropolisHastings1D(0.0, f, q)
-    m.attach(WriteOut())
+    m.attachObserver(WriteOut())
     m.runAll(10000)
     println(m)
 }

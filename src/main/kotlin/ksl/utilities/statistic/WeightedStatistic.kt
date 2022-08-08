@@ -429,7 +429,7 @@ fun main() {
     val n = NormalRV(10.0, 2.0)
     val ws = WeightedStatistic("ws test 8")
     val saver = DoublePairArraySaver()
-    ws.attach(saver)
+    ws.attachObserver(saver)
     for (i in 1..100) {
         ws.collect(n.value, 1.0)
     }

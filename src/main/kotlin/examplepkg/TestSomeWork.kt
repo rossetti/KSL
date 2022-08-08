@@ -19,7 +19,7 @@ public fun testStatistics() {
     val sample = rv.sample(100)
     val s = Statistic()
     val saver = DoubleArraySaver()
-    s.attach(saver)
+    s.attachObserver(saver)
     for (x in sample) {
 //        s.collect(x > 8.0)
         s.collect(x)

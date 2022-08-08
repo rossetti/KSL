@@ -22,6 +22,18 @@ class Model internal constructor(
      */
     private val myModelElementMap: Map<String, ModelElement> = LinkedHashMap()
 
+    /**
+     * Removes the given model element from the Model's model element map. Any
+     * child model elements of the supplied model element are also removed from
+     * the map, until all elements below the given model element are removed.
+     *
+     * @param modelElement
+     */
+    fun removeFromModelElementMap(modelElement: ModelElement) {
+        TODO("Not implemented yet")
+        //TODO
+    }
+
     init {
         myModel = this
         myParentModelElement = null

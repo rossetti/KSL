@@ -15,8 +15,6 @@
  */
 package ksl.utilities.observers
 
-import ksl.utilities.observers.ObserverIfc
-
 /** The Java Observer/Observable implementation has a number of flaws.
  * This class represents an interface for objects that can be observed.
  * Essentially, observable objects promise the basic management of classes
@@ -29,13 +27,13 @@ interface ObservableIfc<T> {
      *
      * @param observer the observer to attach
      */
-    fun attach(observer: ObserverIfc<T>)
+    fun attachObserver(observer: ObserverIfc<T>)
 
     /** Allows the deletion (removing) of an observer from the observable
      *
      * @param observer the observer to delete
      */
-    fun detach(observer: ObserverIfc<T>)
+    fun detachObserver(observer: ObserverIfc<T>)
 
     /** Returns true if the observer is already attached
      *
@@ -47,7 +45,7 @@ interface ObservableIfc<T> {
     /** Detaches all the observers from the observable
      *
      */
-    fun detachAll()
+    fun detachAllObservers()
 
     /** Returns how many observers are currently attached to the observable
      *
