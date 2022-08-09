@@ -3,6 +3,7 @@
 package ksl.simulation
 
 import jsl.simulation.Simulation //TODO
+import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableIfc
@@ -718,11 +719,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          */
         fun schedule(
             timeToEvent: Double,
-            priority: Int = JSLEvent.DEFAULT_PRIORITY,
             message: T? = null,
+            priority: Int = JSLEvent.DEFAULT_PRIORITY,
             name: String? = null
         ): JSLEvent<T> {
-            return schedule(this, timeToEvent, priority, message, name)
+            return schedule(this, timeToEvent, message, priority, name)
         }
     }
 
@@ -737,12 +738,31 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     protected fun <T> schedule(
         eventAction: EventActionIfc<T>,
-        timeToEvent: Double,
-        priority: Int = JSLEvent.DEFAULT_PRIORITY,
+        timeToEvent: GetValueIfc,
         message: T? = null,
+        priority: Int = JSLEvent.DEFAULT_PRIORITY,
         name: String? = null
     ): JSLEvent<T> {
-        return executive.scheduleEvent(this, eventAction, timeToEvent, priority, message, name)
+        return schedule(eventAction, timeToEvent.value, message, priority, name)
+    }
+
+    /**
+     * Allows event actions to be scheduled by model elements
+     * @param eventAction the event action to schedule
+     * @param timeToEvent the time to the next action
+     * @param priority the priority of the action
+     * @param message a general object to attach to the action
+     * @param name a name to associate with the event for the action
+     * @return the scheduled event
+     */
+    protected fun <T> schedule(
+        eventAction: EventActionIfc<T>,
+        timeToEvent: Double,
+        message: T? = null,
+        priority: Int = JSLEvent.DEFAULT_PRIORITY,
+        name: String? = null
+    ): JSLEvent<T> {
+        return executive.scheduleEvent(this, eventAction, timeToEvent, message, priority, name)
     }
 
     /** Includes the model name, the id, the model element name, the parent name, and parent id
@@ -990,7 +1010,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
 
         fun schedule(): JSLEvent<Nothing> {
-            return schedule(myLengthOfWarmUp, myWarmUpPriority, name = this@ModelElement.name + "_WarmUp")
+            return schedule(myLengthOfWarmUp, null, myWarmUpPriority, name = this@ModelElement.name + "_WarmUp")
         }
     }
 
@@ -1046,8 +1066,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
         fun schedule(): JSLEvent<Nothing> {
             return schedule(
-                myTimedUpdateInterval,
-                myTimedUpdatePriority,
+                myTimedUpdateInterval, null, myTimedUpdatePriority,
                 name = this@ModelElement.name + "_TimedUpdate"
             )
         }

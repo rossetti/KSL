@@ -187,7 +187,7 @@ class Model internal constructor(
         }
 
         fun schedule(time: Double): JSLEvent<Nothing> {
-            return schedule(time, JSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, name = "End Replication")
+            return schedule(time, null, JSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, name = "End Replication")
         }
     }
 

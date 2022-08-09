@@ -201,8 +201,8 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
      * @return a valid JSLEvent
      */
     internal fun <T> scheduleEvent(
-        theElementScheduling: ModelElement, eventAction: ModelElement.EventActionIfc<T>, interEventTime: Double, priority: Int,
-        message: T? = null, name: String? = null
+        theElementScheduling: ModelElement, eventAction: ModelElement.EventActionIfc<T>, interEventTime: Double, message: T? = null,
+        priority: Int, name: String? = null
     ): JSLEvent<T> {
         if (eventExecutionProcess.isCreated || eventExecutionProcess.isEnded) {
             val sb = StringBuilder()
