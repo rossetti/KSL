@@ -1,3 +1,5 @@
+@file:Suppress("ReplaceWithOperatorAssignment")
+
 package ksl.simulation
 
 import jsl.simulation.Simulation //TODO
@@ -28,7 +30,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      *  Indicates the current status of the model element for observers of ModelElement.Status
      */
     var currentStatus: Status = Status.NONE
-        protected set(value) {
+        internal set(value) {
             previousStatus = field
             field = value
             logger.trace { "ModelElement: $name changing status from previous: $previousStatus to current: $field" }
@@ -200,7 +202,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
     /**
      * Sets the end replication option flag of all model elements (children)
-     * contained by this model element. Determines whether or not the
+     * contained by this model element. Determines whether the
      * replicationEnded() method will be called
      *
      * @param flag True means that they participate in the default action
@@ -318,7 +320,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * This method is called from the constructor of a ModelElement. The
      * constructor of a ModelElement uses the passed in parent ModelElement to
      * call this method on the parent ModelElement in order to add itself as a
-     * child element on the parent The modelElement's parent will be set to this
+     * child element on the parent. The modelElement's parent will be set to this
      * element's parent
      *
      * @param modelElement the model element to be added.
@@ -360,6 +362,15 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected val executive: Executive
         get() = model.myExecutive
 
+
+    /**
+     * Gets an iterator to the contained model elements.
+     *
+     * @return an iterator over the child elements.
+     */
+    fun getChildModelElementIterator(): Iterator<ModelElement> {//TODO could be internal?
+        return myModelElements.iterator()
+    }
 
     /** Gets all model elements that are contained within this model element
      * in parent-child order within the hierarchy
