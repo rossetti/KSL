@@ -148,11 +148,11 @@ object KSLFileUtil : KLoggable {
     }
 
     /**
-     * Creates a sub-directory within the supplied main directory.
+     * Creates a subdirectory within the supplied main directory.
      *
-     * @param mainDir a path to the directory to hold the sub-directory, must not be null
-     * @param dirName the name of the sub-directory, must not be null
-     * @return the path to the sub-directory, or mainDir, if something went wrong
+     * @param mainDir a path to the directory to hold the subdirectory, must not be null
+     * @param dirName the name of the subdirectory, must not be null
+     * @return the path to the subdirectory, or mainDir, if something went wrong
      */
     fun createSubDirectory(mainDir: Path, dirName: String): Path {
         val newDirPath = mainDir.resolve(dirName)

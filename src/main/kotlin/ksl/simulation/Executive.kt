@@ -1,6 +1,5 @@
 package ksl.simulation
 
-//import jsl.simulation.ModelElement //TODO
 import jsl.simulation.Simulation //TODO only due to using logger
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
@@ -247,38 +246,6 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             throw JSLEventException(sb.toString())
         }
     }
-
-//    /**
-//     * Schedules the ending of the executive at the provided time
-//     *
-//     * @param time the time of the ending event, must be &gt; 0
-//     * @param theElement the associated model element
-//     * @return the scheduled event
-//     */
-//    internal fun scheduleEndEvent(time: Double, theElement: ModelElement): JSLEvent<Nothing> {
-//        require(time > 0.0) { "The time must be > 0.0" }
-//        if (isEndEventScheduled()) {
-//            logger.info { "Executive: Already scheduled end of replication event is being cancelled" }
-//            // already scheduled end event, cancel it
-//            endEvent!!.cancelled = true
-//        }
-//        // schedule the new time
-//        logger.info { "Executive: scheduling end of replication at time: $time" }
-//        endEvent = scheduleEvent(
-//            theElement, EndEventAction(), time,
-//            JSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, null, "End Replication"
-//        )
-//        return endEvent as JSLEvent<Nothing>
-//    }
-//
-//    private inner class EndEventAction : EventActionIfc<Nothing> {
-//        //TODO this inner class prevents the EventActionIfc from being defined within ModelElement
-//        // the action could be in model and then call the stop method on the executive from there
-//        override fun action(event: JSLEvent<Nothing>) {
-//            stop("Executive: Scheduled end event occurred at time $currentTime")
-//        }
-//
-//    }
 
     /**
      * Executes the provided event

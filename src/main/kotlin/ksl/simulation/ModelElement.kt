@@ -1,8 +1,6 @@
 @file:Suppress("ReplaceWithOperatorAssignment")
 
 package ksl.simulation
-
-import jsl.simulation.Simulation //TODO
 import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
@@ -1207,7 +1205,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             sb.append("Attempted to remove the model element: ")
             sb.append(name)
             sb.append(" while the simulation was running.")
-            Simulation.LOGGER.error(sb.toString()) //TODO, try logging and an exception option
+            Simulation.logger.error(sb.toString()) //TODO, try logging and an exception option
             throw IllegalStateException(sb.toString())
         }
 

@@ -1,19 +1,20 @@
 package ksl.simulation
 
-import jsl.modeling.elements.entity.EntityType
-import jsl.simulation.Simulation
+//import jsl.simulation.Simulation //TODO
+import ksl.calendar.CalendarIfc
+import ksl.calendar.PriorityQueueEventCalendar
 import mu.KotlinLogging
 
 private val logger = KotlinLogging.logger {} //TODO decide if this should be KSL or not Simulation logger
 
 class Model internal constructor(
     theSimulation: Simulation,
-    theExecutive: Executive = Executive(),
+    eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
     name: String = theSimulation.name + "_Model"
 ) : ModelElement(name) {
 
     internal val mySimulation: Simulation = theSimulation
-    internal val myExecutive: Executive = theExecutive
+    internal val myExecutive: Executive = Executive(eventCalendar)
 
     var baseTimeUnit: TimeUnit = TimeUnit.MILLISECOND
 
@@ -191,12 +192,49 @@ class Model internal constructor(
         }
     }
 
+    /** Counts the number of pre-order traversals of the model element tree and
+     * labels each model element with the appropriate left and right traversal
+     * count.  Called from Simulation in ReplicationExecutionProcess.initializeIterations()
+     *
+     * @return the number of traversals in the model element hierarchy
+     */
+    private fun markPreOrderTraversalModelElementHierarchy() {
+        markPreOrderTraversalTree(0)
+    }
+
     //called from simulation, so internal
-    //TODO setUpExperiment()
-    //TODO setUpReplication()
-    //TODO runReplication()
-    //TODO closeDownReplication()
-    //TODO closeDownExperiment()
+    internal fun setUpExperiment() {
+        executive.terminationWarningMsgOption = false
+        markPreOrderTraversalModelElementHierarchy()
+        // already should have reference to simulation
+
+        TODO("setUpExperiment() not implemented yet!")
+
+    }
+
+    internal fun runReplication(){
+        simulation.incrementCurrentReplicationNumber()
+        if (simulation.maximumAllowedExecutionTimePerReplication > 0) {
+            executive.maximumAllowedExecutionTime = simulation.maximumAllowedExecutionTimePerReplication
+        }
+        executive.initialize()
+       //TODO model.setUpReplication(this@Simulation)
+        executive.executeAllEvents()
+
+        //            if (maximumAllowedExecutionTimePerReplication > 0) {
+//                executive.maximumAllowedExecutionTime = maximumAllowedExecutionTimePerReplication
+//            }
+//            executive.initialize()
+//            model.setUpReplication(this@Simulation)
+//            executive.executeAllEvents()
+//            model.afterReplication(myExperiment)
+    }
+
+    internal fun endExperiment(){
+
+        TODO("endExperiment() not implemented yet!")
+    }
+
 }
 
 fun main() {

@@ -19,8 +19,7 @@
  */
 package ksl.simulation
 
-import ksl.utilities.Identity
-import ksl.utilities.IdentityIfc
+private var myCounter_: Int = 0
 
 /**
  * This class provides the information for running a simulation experiment. An
@@ -51,29 +50,33 @@ import ksl.utilities.IdentityIfc
  * Constructs an experiment called "name"
  *
  * @param name The name of the experiment
-*/
-class Experiment (name: String? = null) : IdentityIfc by Identity(name){
+ */
+class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
+
+    override val experimentId: Int = ++myCounter_
+
+    override var experimentName: String = name
 
     /**
      * The number of replications to run for this experiment
      *
      */
-    var numberOfReplications: Int = 1
-        set(value){
+    override var numberOfReplications: Int = 1
+        set(value) {
             setNumberOfReplications(value)
         }
 
     /**
      * The current number of replications that have been run for this experiment
      */
-    var currentReplicationNumber = 0
+    override var currentReplicationNumber = 0
         private set
 
     /**
      * The specified length of each planned replication for this experiment. The
      * default is Double.POSITIVE_INFINITY.
      */
-    var lengthOfReplication = Double.POSITIVE_INFINITY
+    override var lengthOfReplication = Double.POSITIVE_INFINITY
         set(value) {
             require(value > 0.0) { "Simulation replication length must be > 0.0" }
             field = value
@@ -83,8 +86,8 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * The length of time from the start of an individual replication to the
      * warm-up event for that replication.
      */
-    var lengthOfWarmUp = 0.0 // zero is no warmup
-        set(value){
+    override var lengthOfWarmUp = 0.0 // zero is no warmup
+        set(value) {
             require(value >= 0.0) { "Warmup time cannot be less than zero" }
             field = value
         }
@@ -94,7 +97,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * should be re-initialized at the beginning of each replication. True means
      * that it will be re-initialized.
      */
-    var replicationInitializationOption: Boolean = true
+    override var replicationInitializationOption: Boolean = true
 
     /**
      * The maximum allowable execution time "wall" clock time for an individual
@@ -106,7 +109,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * exceeded the maximum time, then the process will be ended
      * (perhaps) not completing other replications.
      */
-    var maximumAllowedExecutionTimePerReplication: Long = 0 // zero means not used
+    override var maximumAllowedExecutionTimePerReplication: Long = 0 // zero means not used
         set(value) {
             require(value > 0.0) { "The maximum number of execution time (clock time) must be > 0.0" }
             field = value
@@ -125,7 +128,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * different program executions OR set this option to true prior to running
      * the experiment again within the same program invocation.
      */
-    var resetStartStreamOption: Boolean = false
+    override var resetStartStreamOption: Boolean = false
 
     /**
      * The reset next sub stream option This option indicates whether the
@@ -145,7 +148,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * of common random numbers. Each replication within the same experiment is
      * still independent.
      */
-    var advanceNextSubStreamOption: Boolean = true
+    override var advanceNextSubStreamOption: Boolean = true
 
     /**
      * Indicates whether antithetic replications should be run. The
@@ -155,7 +158,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * independent. Thus, the number of independent samples will be one-half of
      * the specified number of replications
      */
-    var antitheticOption: Boolean = false
+    override var antitheticOption: Boolean = false
         private set
 
     /**
@@ -163,8 +166,8 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * running the experiment
      *
      */
-    var numberOfStreamAdvancesPriorToRunning: Int = 0
-        set(value){
+    override var numberOfStreamAdvancesPriorToRunning: Int = 0
+        set(value) {
             require(value > 0) { "The number times to advance the stream must be > 0" }
             field = value
         }
@@ -174,19 +177,19 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * replication. The default is false
      *
      */
-    var myGCAfterRepFlag: Boolean = false
+    override var garbageCollectAfterReplicationFlag: Boolean = false
 
     /**
      * Holds values for each controllable parameter of the simulation
      * model.
      */
-    private var myControls: Map<String, Double>? = null
+    override var myControls: Map<String, Double>? = null
 
     /**
      *
      * @return true if a control map has been supplied
      */
-    fun hasControls(): Boolean {
+    override fun hasControls(): Boolean {
         return myControls != null
     }
 
@@ -194,7 +197,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      *
      * @param controlMap the controls to use, may be null to stop use of controls
      */
-    fun useControls(controlMap: Map<String, Double>) {
+    override fun useControls(controlMap: Map<String, Double>) {
         myControls = controlMap
     }
 
@@ -202,7 +205,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      *
      * @return the control map if it was set
      */
-    fun getControls(): Map<String, Double>? {
+    override fun getControls(): Map<String, Double>? {
         return myControls
     }
 
@@ -213,7 +216,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * option is true
      * @param antitheticOption controls whether antithetic replications occur
      */
-    fun setNumberOfReplications(numReps: Int, antitheticOption: Boolean = false) {
+    override fun setNumberOfReplications(numReps: Int, antitheticOption: Boolean) {
         require(numReps > 0) { "Number of replications <= 0" }
         if (antitheticOption) {
             require(numReps % 2 == 0) { "Number of replications must be even if antithetic option is on." }
@@ -228,7 +231,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      *
      * @return true if more
      */
-    fun hasMoreReplications(): Boolean {
+    override fun hasMoreReplications(): Boolean {
         return currentReplicationNumber < numberOfReplications
     }
 
@@ -238,7 +241,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      *
      * @param e the experiment to copy
      */
-    fun setExperiment(e: Experiment) {
+    override fun setExperiment(e: Experiment) {
         numberOfReplications = e.numberOfReplications
         currentReplicationNumber = e.currentReplicationNumber
         lengthOfReplication = e.lengthOfReplication
@@ -249,7 +252,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
         antitheticOption = e.antitheticOption
         numberOfStreamAdvancesPriorToRunning = e.numberOfStreamAdvancesPriorToRunning
         maximumAllowedExecutionTimePerReplication = e.maximumAllowedExecutionTimePerReplication
-        myGCAfterRepFlag = e.myGCAfterRepFlag
+        garbageCollectAfterReplicationFlag = e.garbageCollectAfterReplicationFlag
     }
 
     /**
@@ -259,7 +262,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      *
      * @return a new Experiment
      */
-    fun instance(name: String? = null): Experiment {
+    fun instance(name: String = "Experiment_${++myCounter_}"): Experiment {
         val n = Experiment(name)
         n.numberOfReplications = numberOfReplications
         n.currentReplicationNumber = currentReplicationNumber
@@ -271,17 +274,17 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
         n.antitheticOption = antitheticOption
         n.numberOfStreamAdvancesPriorToRunning = numberOfStreamAdvancesPriorToRunning
         n.maximumAllowedExecutionTimePerReplication = maximumAllowedExecutionTimePerReplication
-        n.myGCAfterRepFlag = myGCAfterRepFlag
+        n.garbageCollectAfterReplicationFlag = garbageCollectAfterReplicationFlag
         return n
     }
 
     override fun toString(): String {
         val sb = StringBuilder()
         sb.append("Experiment Name: ")
-        sb.append(name)
+        sb.append(experimentName)
         sb.appendLine()
         sb.append("Experiment ID: ")
-        sb.append(id)
+        sb.append(experimentId)
         sb.appendLine()
         sb.append("Planned number of replications: ")
         sb.append(numberOfReplications)
@@ -326,7 +329,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * Resets the current replication number to zero
      *
      */
-    internal fun resetCurrentReplicationNumber() {
+    override fun resetCurrentReplicationNumber() {
         currentReplicationNumber = 0
     }
 
@@ -334,7 +337,7 @@ class Experiment (name: String? = null) : IdentityIfc by Identity(name){
      * Increments the number of replications that has been executed
      *
      */
-    internal fun incrementCurrentReplicationNumber() {
+   override fun incrementCurrentReplicationNumber() {
         currentReplicationNumber = currentReplicationNumber + 1
     }
 
