@@ -237,11 +237,12 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
 
     /**
      * Sets all attributes of this experiment to the same values as the supplied
-     * experiment (except for id and name)
+     * experiment (except for id)
      *
      * @param e the experiment to copy
      */
     override fun setExperiment(e: Experiment) {
+        experimentName = e.experimentName
         numberOfReplications = e.numberOfReplications
         currentReplicationNumber = e.currentReplicationNumber
         lengthOfReplication = e.lengthOfReplication
@@ -262,8 +263,9 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      *
      * @return a new Experiment
      */
-    fun instance(name: String = "Experiment_${++myCounter_}"): Experiment {
-        val n = Experiment(name)
+    fun instance(): Experiment {
+        val n = Experiment()
+        n.experimentName = experimentName
         n.numberOfReplications = numberOfReplications
         n.currentReplicationNumber = currentReplicationNumber
         n.lengthOfReplication = lengthOfReplication

@@ -1,13 +1,13 @@
 package ksl.simulation
 
 import jsl.simulation.IterativeProcess
-import ksl.utilities.io.OutputDirectory
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.io.KSL
 import ksl.utilities.io.LogPrintWriter
+import ksl.utilities.io.OutputDirectory
 import mu.KLoggable
 import java.nio.file.Path
 
@@ -51,17 +51,25 @@ class Simulation(
     val out: LogPrintWriter
         get() = outputDirectory.out
 
-//    val executive: Executive = model.myExecutive //TODO not sure if needed
-
     /** A flag to control whether a warning is issued if the user does not
      * set the replication run length
      */
     var repLengthWarningMessageOption = true
 
     val isRunning: Boolean
-        get() = TODO(" not implemented yet")
+        get() = TODO(" isRunning is not implemented yet")
 
-//    val experiment: Experiment = Experiment(name + "_Experiment")
+    /**
+     *  Provides a clone/instance of the experiment information for the simulation.
+     *  This is useful to set up other experimental parameters without changing
+     *  this simulation's experimental settings.
+     */
+    val experiment: Experiment = instance()
+
+    /**
+     * Controls the execution of replications
+     */
+    private val myReplicationExecutionProcess: ReplicationExecutionProcess = ReplicationExecutionProcess()
 
     private inner class ReplicationExecutionProcess : IterativeProcess<Simulation>() {
 
@@ -94,7 +102,7 @@ class Simulation(
             super.endIterations()
         }
 
-        override fun hasNext(): Boolean {
+        public override fun hasNext(): Boolean {
             return hasMoreReplications()
         }
 
@@ -113,6 +121,71 @@ class Simulation(
             }
         }
 
+    }
+
+    /**
+     * Returns true if additional replications need to be run
+     *
+     * @return true if additional replications need to be run
+     */
+    fun hasNextReplication(): Boolean {
+        return myReplicationExecutionProcess.hasNext()
+    }
+
+    /**
+     * Initializes the simulation in preparation for running
+     */
+    fun initialize() {
+        myReplicationExecutionProcess.initialize()
+    }
+
+    /**
+     * Runs the next replication if there is one
+     */
+    fun runNextReplication() {
+        myReplicationExecutionProcess.runNext()
+    }
+
+    /** A convenience method for running a simulation
+     *
+     * @param expName the name of the experiment
+     * @param numReps the number of replications
+     * @param runLength the length of the simulation replication
+     * @param warmUp the length of the warmup period
+     */
+    fun run(numReps: Int = 1, runLength: Double, warmUp: Double = 0.0, expName: String? = null) {
+        if (expName != null){
+            experimentName = expName
+        }
+        numberOfReplications = numReps
+        lengthOfReplication = runLength
+        lengthOfWarmUp = warmUp
+        run()
+    }
+
+    /**
+     * Runs all remaining replications based on the current settings
+     */
+    fun run() {
+        myReplicationExecutionProcess.run()
+    }
+
+    /**
+     * Causes the simulation to end after the current replication is completed
+     *
+     * @param msg A message to indicate why the simulation was stopped
+     */
+    fun end(msg: String? = null) {
+        myReplicationExecutionProcess.end(msg)
+    }
+
+    /**
+     * Causes the simulation to stop the current replication and not complete any additional replications
+     *
+     * @param msg A message to indicate why the simulation was stopped
+     */
+    fun stop(msg: String?) {
+        myReplicationExecutionProcess.stop(msg)
     }
 
     companion object : KLoggable {
