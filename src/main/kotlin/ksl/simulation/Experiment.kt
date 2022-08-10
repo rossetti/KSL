@@ -51,7 +51,7 @@ private var myCounter_: Int = 0
  *
  * @param name The name of the experiment
  */
-class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
+open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
 
     override val experimentId: Int = ++myCounter_
 
@@ -70,7 +70,7 @@ class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
      * The current number of replications that have been run for this experiment
      */
     override var currentReplicationNumber = 0
-        private set
+        protected set
 
     /**
      * The specified length of each planned replication for this experiment. The
@@ -159,7 +159,7 @@ class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
      * the specified number of replications
      */
     override var antitheticOption: Boolean = false
-        private set
+        protected set
 
     /**
      * Indicates the number of times the streams should be advanced prior to
@@ -329,7 +329,7 @@ class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
      * Resets the current replication number to zero
      *
      */
-    override fun resetCurrentReplicationNumber() {
+    protected fun resetCurrentReplicationNumber() {
         currentReplicationNumber = 0
     }
 
@@ -337,7 +337,7 @@ class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
      * Increments the number of replications that has been executed
      *
      */
-   override fun incrementCurrentReplicationNumber() {
+    protected fun incrementCurrentReplicationNumber() {
         currentReplicationNumber = currentReplicationNumber + 1
     }
 

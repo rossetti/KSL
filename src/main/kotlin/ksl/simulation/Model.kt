@@ -1,11 +1,9 @@
 package ksl.simulation
 
-//import jsl.simulation.Simulation //TODO
+import jsl.controls.Controls //TODO replace with kotlin version
+import jsl.utilities.random.rvariable.RVParameterSetter //TODO replace with kotlin version
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
-import mu.KotlinLogging
-
-private val logger = KotlinLogging.logger {} //TODO decide if this should be KSL or not Simulation logger
 
 class Model internal constructor(
     theSimulation: Simulation,
@@ -24,12 +22,34 @@ class Model internal constructor(
      */
     private val myModelElementMap: MutableMap<String, ModelElement> = LinkedHashMap()
 
+    /** to hold the controls if used
+     *
+     */
+    private var myControls: Controls? = null
+
+    /**
+     * to hold the parameters of the random variables if used
+     */
+    private val myRVParameterSetter: RVParameterSetter? = null
+
     init {
         myModel = this
         myParentModelElement = null
         addToModelElementMap(this)
         addDefaultElements()
     }
+
+    //TODO getControls()
+    /**
+     *
+     * @return the controls for the model
+     */
+//    fun getControls(): Controls {
+//        if (myControls == null) {
+//            myControls = Controls(this)
+//        }
+//        return myControls
+//    }
 
     private fun addDefaultElements() {
        //TODO  myDefaultEntityType = EntityType(this, "DEFAULT_ENTITY_TYPE")
@@ -82,7 +102,7 @@ class Model internal constructor(
             sb.append("Attempted to add the model element: ")
             sb.append(modelElement.name)
             sb.append(" while the simulation was running.")
-            logger.error{sb.toString()}
+            Simulation.logger.error{sb.toString()}
             throw IllegalStateException(sb.toString())
         }
 
@@ -93,7 +113,7 @@ class Model internal constructor(
             sb.append(" has already been added to the Model.")
             sb.appendLine()
             sb.append("Every model element must have a unique name!")
-            logger.error(sb.toString())
+            Simulation.logger.error(sb.toString())
             throw IllegalArgumentException(sb.toString())
         }
 
@@ -170,16 +190,21 @@ class Model internal constructor(
      *
      * @param time the time of the ending event, must be &gt; 0
      */
-    internal fun scheduleEndEvent(time: Double) {
+    internal fun scheduleEndOfReplicationEvent(time: Double) {
         require(time > 0.0) { "The time must be > 0.0" }
         if (executive.isEndEventScheduled()) {
-            logger.info { "Model: Already scheduled end of replication event for time = ${executive.endEvent!!.time} is being cancelled" }
+            Simulation.logger.info { "Model: Already scheduled end of replication event for time = ${executive.endEvent!!.time} is being cancelled" }
             // already scheduled end event, cancel it
             executive.endEvent!!.cancelled = true
         }
         // schedule the new time
-        logger.info { "Model: scheduling end of replication at time: $time" }
-        executive.endEvent = EndEventAction().schedule(time)
+        if (time.isFinite()){
+            Simulation.logger.info { "Model: Scheduling end of replication at time: $time" }
+            executive.endEvent = EndEventAction().schedule(time)
+        } else {
+            Simulation.logger.info { "Model: Did not schedule end of replication event because time was $time"}
+        }
+
     }
 
     private inner class EndEventAction : EventAction<Nothing>() {
@@ -202,39 +227,116 @@ class Model internal constructor(
         markPreOrderTraversalTree(0)
     }
 
+    private fun setUpReplication() {
+
+        // remove any marked model elements were added during previous replication
+//        removeMarkedModelElements();
+
+        // setup warm up period
+        myLengthOfWarmUp = simulation.lengthOfWarmUp
+
+        // control streams for antithetic option
+        handleAntitheticReplications()
+
+        // do all model element beforeReplication() actions
+        beforeReplicationActions()
+
+        // schedule the end of the replication
+        scheduleEndOfReplicationEvent(simulation.lengthOfReplication)
+
+        // if necessary, initialize the model elements
+        if (simulation.replicationInitializationOption) {
+            // initialize the model and all model elements with initialize option on
+            initializeActions()
+        }
+
+        // allow model elements to register conditional actions
+        registerConditionalActionsWithExecutive()
+
+        // if monte carlo option is on, call the model element's monteCarlo() methods
+        if (myMonteCarloOption) {
+            // since monte carlo option was turned on, assume everyone wants to listen
+            setMonteCarloOptionForModelElements(true)
+            monteCarloActions()
+        }
+    }
+
+    private fun handleAntitheticReplications() {
+        // handle antithetic replications
+        if (simulation.antitheticOption) {
+            if (currentReplicationNumber % 2 == 0) {
+                // even number replication
+                // return to beginning of sub-stream
+//TODO                resetStartSubStream()
+                // turn on antithetic sampling
+//TODO                turnOnAntithetic()
+            } else  // odd number replication
+                if (currentReplicationNumber > 1) {
+                    // turn off antithetic sampling
+//TODO                    turnOffAntithetic()
+                    // advance to next sub-stream
+//TODO                    advanceToNextSubstream()
+                }
+        }
+    }
+
     //called from simulation, so internal
     internal fun setUpExperiment() {
         executive.terminationWarningMsgOption = false
         markPreOrderTraversalModelElementHierarchy()
         // already should have reference to simulation
+//TODO        advanceSubstreams(simulation.numberOfStreamAdvancesPriorToRunning)
 
-        TODO("setUpExperiment() not implemented yet!")
+        if (simulation.antitheticOption) {
+            // make sure the streams are not reset after all replications are run
+//TODO            setAllRVResetStartStreamOptions(false)
+            // make sure that streams are not advanced to next substreams after each replication
+            // antithetic option will control this (every other replication)
+//TODO            setAllRVResetNextSubStreamOptions(false)
+        } else {
+            // tell the model to use the specifications from the experiment
+//TODO            setAllRVResetStartStreamOptions(simulation.resetStartStreamOption)
+//TODO            setAllRVResetNextSubStreamOptions(simulation.advanceNextSubStreamOption)
+        }
 
+        //TODO need to apply generic control types here someday
+        if (simulation.hasControls()) {
+            val cMap: Map<String, Double>? = simulation.getControls()
+            if (cMap != null) {
+                // extract controls and apply them
+ //TODO               val k: Int = getControls().setControlsAsDoubles(cMap)
+                val k = 0 //TODO delete after fixing previous to do
+                Simulation.logger.info(
+                    "{} out of {} controls were applied to Model {} to setup the experiment.", k, cMap.size, name
+                )
+            }
+        }
+
+        // if the user has asked for the parameters, then they may have changed
+        // thus apply the possibly new parameters to set up the model
+//TODO  after converting RVParameterSetter to kotlin code
+//        if (myRVParameterSetter != null) {
+//            myRVParameterSetter.applyParameterChanges(this)
+//        }
+
+        // do all model element beforeExperiment() actions
+        beforeExperimentActions()
     }
 
     internal fun runReplication(){
-        simulation.incrementCurrentReplicationNumber()
-        if (simulation.maximumAllowedExecutionTimePerReplication > 0) {
-            executive.maximumAllowedExecutionTime = simulation.maximumAllowedExecutionTimePerReplication
+        if (mySimulation.maximumAllowedExecutionTimePerReplication > 0) {
+            executive.maximumAllowedExecutionTime = mySimulation.maximumAllowedExecutionTimePerReplication
         }
         executive.initialize()
-       //TODO model.setUpReplication(this@Simulation)
+        setUpReplication()
         executive.executeAllEvents()
-
-        //            if (maximumAllowedExecutionTimePerReplication > 0) {
-//                executive.maximumAllowedExecutionTime = maximumAllowedExecutionTimePerReplication
-//            }
-//            executive.initialize()
-//            model.setUpReplication(this@Simulation)
-//            executive.executeAllEvents()
-//            model.afterReplication(myExperiment)
+        replicationEndedActions()
+        afterReplicationActions()
     }
 
     internal fun endExperiment(){
-
-        TODO("endExperiment() not implemented yet!")
+        afterExperimentActions()
     }
-
 }
 
 fun main() {

@@ -26,31 +26,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     *  Indicates the current status of the model element for observers of ModelElement.Status
-     */
-    var currentStatus: Status = Status.NONE
-        internal set(value) {
-            previousStatus = field
-            field = value
-            logger.trace { "ModelElement: $name changing status from previous: $previousStatus to current: $field" }
-            notifyObservers(this, field)
-        }
-
-    /**
-     *  Indicates the previous status of the model element for observers of ModelElement.Status
-     *  This allows the transition to be noted by observers
-     */
-    var previousStatus: Status = Status.NONE
-        private set
-
-    /**
-     *  Checks if current status is the supplied status
-     */
-    fun isStatus(status: Status): Boolean {
-        return status == currentStatus
-    }
-
-    /**
      *  A definition of default time unit conversions.  MILLISECOND = 1.0, SECOND = 1000.0,
      *  MINUTE = 60*SECOND, HOUR = 60*MINUTE, DAY = 24*HOUR, WEEK = 7*DAY, MONTH = 30.0*DAY,
      *  YEAR = 365*DAY
@@ -70,23 +45,27 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
     override val name: String = makeName(theName)
 
-    private fun makeName(str: String?): String {
-        return if (str == null) {
-            // no name is being passed, construct a default name
-            var s = this::class.simpleName!!
-            val k = s.lastIndexOf(".")
-            if (k != -1) {
-                s = s.substring(k + 1)
-            }
-            s + "_" + id
-        } else {
-            str
-        }
-    }
-
     override var label: String? = null
         get() {
             return if (field == null) name else field
+        }
+
+    /**
+     *  Indicates the previous status of the model element for observers of ModelElement.Status
+     *  This allows the transition to be noted by observers
+     */
+    var previousStatus: Status = Status.NONE
+        private set
+
+    /**
+     *  Indicates the current status of the model element for observers of ModelElement.Status
+     */
+    var currentStatus: Status = Status.NONE
+        internal set(value) {
+            previousStatus = field
+            field = value
+            logger.trace { "ModelElement: $name changing status from previous: $previousStatus to current: $field" }
+            notifyObservers(this, field)
         }
 
     /**
@@ -108,6 +87,100 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected var myBeforeExperimentOption = true
 
     /**
+     * A flag to control whether the model element reacts to before
+     * replication actions.
+     */
+    protected var myBeforeReplicationOption = true
+
+    /**
+     * A flag to control whether the model element participates in monte
+     * carlo actions.
+     */
+    protected var myMonteCarloOption = false
+
+    /**
+     * A flag to control whether the model element reacts to
+     * initialization actions
+     */
+    protected var myInitializationOption = true
+
+    /**
+     * A flag to control whether the model element reacts to end
+     * replication actions.
+     */
+    protected var myReplicationEndedOption = true
+
+    /**
+     * A flag to control whether the model element reacts to after
+     * replication actions.
+     */
+    protected var myAfterReplicationOption = true
+
+    /**
+     * A flag to control whether the model element reacts to after
+     * experiment actions.
+     */
+    protected var myAfterExperimentOption = true
+
+    /**
+     * Specifies if this model element will be warmed up when the warmup action
+     * occurs for its parent.
+     */
+    protected var myWarmUpOption = true
+
+    /**
+     * Specifies whether this model element participates in time update
+     * event specified by its parent
+     */
+    protected var myTimedUpdateOption = true
+
+    /**
+     * A collection containing the first level children of this model element
+     */
+    protected val myModelElements: MutableList<ModelElement> = mutableListOf()
+
+    /**
+     * The parent of this model element
+     */
+    internal var myParentModelElement: ModelElement? = null
+
+    /**
+     * A reference to the overall model containing all model elements.
+     */
+    internal lateinit var myModel: Model
+
+    constructor(parent: ModelElement, name: String?) : this(name) {
+        // should not be leaking this
+        // adds the model element to the parent and also set this element's parent
+        parent.addModelElement(this)
+        // sets this element's model to the model of its parent, everyone is in the same model
+        myModel = parent.myModel
+        // tells the model to add this element to the overall model element map
+//TODO        myModel.addToModelElementMap(this)
+    }
+
+    private fun makeName(str: String?): String {
+        return if (str == null) {
+            // no name is being passed, construct a default name
+            var s = this::class.simpleName!!
+            val k = s.lastIndexOf(".")
+            if (k != -1) {
+                s = s.substring(k + 1)
+            }
+            s + "_" + id
+        } else {
+            str
+        }
+    }
+
+    /**
+     *  Checks if current status is the supplied status
+     */
+    fun isStatus(status: Status): Boolean {
+        return status == currentStatus
+    }
+
+    /**
      * Sets the before experiment option of all model elements (children)
      * contained by this model element.
      *
@@ -119,12 +192,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             m.setBeforeExperimentOptionForModelElements(flag)
         }
     }
-
-    /**
-     * A flag to control whether the model element reacts to before
-     * replication actions.
-     */
-    protected var myBeforeReplicationOption = true
 
     /**
      * Sets the before replication flag of all model elements (children)
@@ -140,12 +207,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * A flag to control whether the model element participates in monte
-     * carlo actions.
-     */
-    protected var myMonteCarloOption = false
-
-    /**
      * Sets the monte carlo option flag of all model elements (children)
      * contained by this model element.
      *
@@ -157,12 +218,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             m.setMonteCarloOptionForModelElements(flag)
         }
     }
-
-    /**
-     * A flag to control whether the model element reacts to
-     * initialization actions
-     */
-    protected var myInitializationOption = true
 
     /**
      * Sets the initialization option of all model elements (children) contained
@@ -194,70 +249,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * A flag to control whether the model element reacts to end
-     * replication actions.
-     */
-    protected var myReplicationEndedOption = true
-
-    /**
-     * Sets the end replication option flag of all model elements (children)
-     * contained by this model element. Determines whether the
-     * replicationEnded() method will be called
-     *
-     * @param flag True means that they participate in the default action
-     */
-    fun setReplicationEndedOptionForModelElements(flag: Boolean) {
-        myReplicationEndedOption = flag
-        for (m in myModelElements) {
-            m.setReplicationEndedOptionForModelElements(flag)
-        }
-    }
-
-    /**
-     * A flag to control whether the model element reacts to after
-     * replication actions.
-     */
-    protected var myAfterReplicationOption = true
-
-    /**
-     * Sets the after replication flag of all model elements (children)
-     * contained by this model element.
-     *
-     * @param flag True means that they participate in the default action
-     */
-    fun setAfterReplicationOptionForModelElements(flag: Boolean) {
-        myAfterReplicationOption = flag
-        for (m in myModelElements) {
-            m.setAfterReplicationOptionForModelElements(flag)
-        }
-    }
-
-    /**
-     * A flag to control whether the model element reacts to after
-     * experiment actions.
-     */
-    protected var myAfterExperimentOption = true
-
-    /**
-     * Sets the after experiment option of all model elements (children)
-     * contained by this model element.
-     *
-     * @param option True means that they participate.
-     */
-    fun setAfterExperimentOptionForModelElements(option: Boolean) {
-        myAfterExperimentOption = option
-        for (m in myModelElements) {
-            m.setAfterExperimentOptionForModelElements(option)
-        }
-    }
-
-    /**
-     * Specifies if this model element will be warmed up when the warmup action
-     * occurs for its parent.
-     */
-    protected var myWarmUpOption = true
-
-    /**
      * Sets the warm up option flag of all model elements (children) contained
      * by this model element.
      *
@@ -269,12 +260,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             m.setWarmUpOptionForModelElements(warmUpFlag)
         }
     }
-
-    /**
-     * Specifies whether this model element participates in time update
-     * event specified by its parent
-     */
-    protected var myTimedUpdateOption = true
 
     /**
      * Sets the timed update option flag of all model elements (children)
@@ -291,28 +276,43 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * A collection containing the first level children of this model element
+     * Sets the end replication option flag of all model elements (children)
+     * contained by this model element. Determines whether the
+     * replicationEnded() method will be called
+     *
+     * @param flag True means that they participate in the default action
      */
-    protected val myModelElements: MutableList<ModelElement> = mutableListOf()
+    fun setReplicationEndedOptionForModelElements(flag: Boolean) {
+        myReplicationEndedOption = flag
+        for (m in myModelElements) {
+            m.setReplicationEndedOptionForModelElements(flag)
+        }
+    }
 
     /**
-     * The parent of this model element
+     * Sets the after replication flag of all model elements (children)
+     * contained by this model element.
+     *
+     * @param flag True means that they participate in the default action
      */
-    internal var myParentModelElement: ModelElement? = null
+    fun setAfterReplicationOptionForModelElements(flag: Boolean) {
+        myAfterReplicationOption = flag
+        for (m in myModelElements) {
+            m.setAfterReplicationOptionForModelElements(flag)
+        }
+    }
 
     /**
-     * A reference to the overall model containing all model elements.
+     * Sets the after experiment option of all model elements (children)
+     * contained by this model element.
+     *
+     * @param option True means that they participate.
      */
-    internal lateinit var myModel: Model
-
-    constructor(parent: ModelElement, name: String?) : this(name) {
-        // should not be leaking this
-        // adds the model element to the parent and also set this element's parent
-        parent.addModelElement(this)
-        // sets this element's model to the model of its parent, everyone is in the same model
-        myModel = parent.myModel
-        // tells the model to add this element to the overall model element map
-//TODO        myModel.addToModelElementMap(this)
+    fun setAfterExperimentOptionForModelElements(option: Boolean) {
+        myAfterExperimentOption = option
+        for (m in myModelElements) {
+            m.setAfterExperimentOptionForModelElements(option)
+        }
     }
 
     /**
@@ -821,13 +821,13 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected open fun beforeExperiment() {}
 
     /**
-     * The beforeExperiment_ method allows model elements to be setup prior to
+     * The beforeExperimentActions method allows model elements to be setup prior to
      * the first replication within an experiment. It is called once before any
      * replications occur within the experiment. This method ensures that each
      * contained model element has its beforeExperiment method called and that
      * any observers will be notified of this action
      */
-    private fun beforeExperimentActions() {
+    internal fun beforeExperimentActions() {
         myWarmUpIndicator = false
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
@@ -851,7 +851,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected open fun initialize() {}//TODO consider making this abstract so that elements have to implement
 
     /**
-     * The initialize_ method allows model elements to be initialized to a
+     * The initializeActions method allows model elements to be initialized to a
      * standard reactor defined state. It is called by default before each
      * replication
      *
@@ -859,7 +859,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * This method ensures that each contained model element has its initialize
      * method called and that any observers will be notified of this action
      */
-    private fun initializeActions() {
+    internal fun initializeActions() {
         // first initialize any children associated carrying this model element
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
@@ -878,7 +878,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * This method should be overridden by subclasses that need to register
      * conditional actions prior to a replication with the executive. It is called once before each
-     * replication, right after the initialize() method is called. The user
+     * replication, right after the method initialize() is called. The user
      * can use the executive property to access the Executive
      */
     protected open fun registerConditionalActions() {}
@@ -887,14 +887,14 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * The registerConditionalActionsWithExecutive() method allows model elements to be
      * register any conditional actions after initialization.
      *
-     * It is called by default before each replication, right after the initialize() method is invoked
+     * It is called by default before each replication, right after the method initialize() is invoked
      *
      * This method ensures that each contained model element has its
      * registerConditionalActions() method called and that any observers will be
      * notified of this action
      *
      */
-    private fun registerConditionalActionsWithExecutive() {
+    internal fun registerConditionalActionsWithExecutive() {
         // first initialize any children associated carrying this model element
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
@@ -917,9 +917,9 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * The beforeReplicationActions method is called before each replication. This
      * method ensures that each contained model element's beforeReplication() method is called
-     * before the initialize() method occurs.
+     * before the method initialize() occurs.
      */
-    protected fun beforeReplicationActions() {
+    internal fun beforeReplicationActions() {
         if (myLengthOfWarmUp > 0.0) {
             // the warm up period is > 0, ==> element wants a warm-up event
             myWarmUpEventAction = WarmUpEventAction()
@@ -948,12 +948,12 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * This method should be overridden by subclasses that need actions
      * performed after before replication. It is called after beforeReplication
      * but prior to afterReplication() and can be used to perform pure
-     * monte-carlo (non event type) simulations carrying the model element
+     * monte-carlo (non-event type) simulations carrying the model element
      */
     protected open fun montecarlo() {}
 
     /**
-     * The monte carlo_ method facilitates model elements to perform a monte
+     * The monteCarloActions method facilitates model elements to perform a monte
      * carlo simulation carrying no events being called. It is called by default
      * after beginReplication_() and initialize_().
      *
@@ -961,7 +961,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * This method ensures that each contained model element has its monte carlo
      * method called and that any observers will be notified of this action
      */
-    private fun monteCarloActions() {
+    internal fun monteCarloActions() {
         if (myMonteCarloOption) {
             logger.info { "ModelElement: $name executing montecarlo()" }
             montecarlo()
@@ -976,7 +976,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
     /**
      * This method should be overridden by subclasses that need actions
-     * performed at the warm up event during each replication. It is called once
+     * performed at the warm-up event during each replication. It is called once
      * during each replication if the model element reacts to warm up actions.
      */
     protected open fun warmUp() {}
@@ -1039,7 +1039,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * The timedUpdate_ method is called multiple times during each replication.
      * This method ensures that each contained model element that requires a
-     * timed update action will performs its actions.
+     * timed update action will perform its actions.
      */
     private fun timedUpdateActions() {
         if (myTimedUpdateOption) {
@@ -1080,11 +1080,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected open fun replicationEnded() {}
 
     /**
-     * The replicationEnded_ method is called when a replication ends This
+     * The replicationEndedActions method is called when a replication ends This
      * method ensures that each contained model element that requires a end of
-     * replication action will performs its actions.
+     * replication action will perform its actions.
      */
-    private fun replicationEndedActions() {
+    internal fun replicationEndedActions() {
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 m.replicationEndedActions()
@@ -1105,11 +1105,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected open fun afterReplication() {}
 
     /**
-     * The afterReplication_ method is called at the end of each replication.
+     * The afterReplicationActions method is called at the end of each replication.
      * This method ensures that each contained model element that requires a end
-     * of replication action will performs its actions.
+     * of replication action will perform its actions.
      */
-    private fun afterReplicationActions() {
+    internal fun afterReplicationActions() {
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 m.afterReplicationActions()
@@ -1131,12 +1131,12 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected open fun afterExperiment() {}
 
     /**
-     * The afterExperiment_ method is called after all replications are
+     * The afterExperimentActions method is called after all replications are
      * completed for an experiment. This method ensures that each contained
      * model element that requires an action at the end of an experiment will
      * perform its actions.
      */
-    private fun afterExperimentActions() {
+    internal fun afterExperimentActions() {
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 m.afterExperimentActions()
@@ -1161,7 +1161,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * parent and will no longer have a model.  This can only be done when
      * the simulation that contains the model is not running.
      *
-     * This method has very serious side-effects. After invoking this method:
+     * This method has very serious side effects. After invoking this method:
      *
      * 1) All children of this model element will have been removed from the
      * model.
@@ -1195,7 +1195,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * addressing those references. This is especially important for any observers
      * of the removed model element.  The observers will be notified that the model
      * element is being removed. It is up to the observer to correctly react to
-     * the removal. If the observer is a sub-class of ModelElementObserver then
+     * the removal. If the observer is a subclass of ModelElementObserver then
      * implementing the removedFromModel() method can be used. If the observer is a
      * general Observer, then use REMOVED_FROM_MODEL to check if the element is being removed.
      */
@@ -1269,7 +1269,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         //TODO why have a 1-line method for this
         return myModelElements.remove(modelElement)
     }
-
 
     /**
      * A Comparator for comparing model elements based on getId()

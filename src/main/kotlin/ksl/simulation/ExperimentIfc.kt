@@ -166,11 +166,11 @@ interface ExperimentIfc {
      * Resets the current replication number to zero
      *
      */
-    fun resetCurrentReplicationNumber()
+//    fun resetCurrentReplicationNumber()
 
     /**
      * Increments the number of replications that has been executed
      *
      */
-    fun incrementCurrentReplicationNumber()
+//    fun incrementCurrentReplicationNumber()
 }

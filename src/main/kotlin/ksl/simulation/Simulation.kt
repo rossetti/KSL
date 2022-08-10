@@ -27,7 +27,7 @@ class Simulation(
     name: String = "Simulation_${++simCounter}",
     pathToOutputDirectory: Path = KSL.createSubDirectory(name + "_OutputDir"),
     calendar: CalendarIfc = PriorityQueueEventCalendar(),
-) : IdentityIfc by Identity(name), ExperimentIfc by Experiment(name + "_Experiment") {
+) : IdentityIfc by Identity(name), Experiment(name + "_Experiment") {
 
     /**
      *
@@ -58,6 +58,9 @@ class Simulation(
      */
     var repLengthWarningMessageOption = true
 
+    val isRunning: Boolean
+        get() = TODO(" not implemented yet")
+
 //    val experiment: Experiment = Experiment(name + "_Experiment")
 
     private inner class ReplicationExecutionProcess : IterativeProcess<Simulation>() {
@@ -70,11 +73,16 @@ class Simulation(
                 if (lengthOfReplication.isInfinite()) {
                     if (maximumAllowedExecutionTimePerReplication == 0L) {
                         val sb = StringBuilder()
-                        sb.append("Simulation: In initializeIterations()\n")
-                        sb.append("The experiment has an infinite horizon.\n")
-                        sb.append("There was no maximum real-clock execution time specified. \n")
-                        sb.append("The user is responsible for ensuring that the Executive is stopped.\n")
+                        sb.append("Simulation: In initializeIterations(), preparing to run replications:")
+                        sb.appendLine()
+                        sb.append("The experiment has an infinite horizon.")
+                        sb.appendLine()
+                        sb.append("There was no maximum real-clock execution time specified.")
+                        sb.appendLine()
+                        sb.append("The user is responsible for ensuring that the simulation is stopped.")
+                        sb.appendLine()
                         logger.warn(sb.toString())
+                        println(sb.toString())
                         System.out.flush()
                     }
                 }
@@ -82,7 +90,7 @@ class Simulation(
         }
 
         override fun endIterations() {
-            model.afterExperiment(myExperiment)
+            model.endExperiment()
             super.endIterations()
         }
 
