@@ -4,13 +4,11 @@ import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.utilities.exceptions.JSLEventException
 import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableIfc
 //import mu.KotlinLogging
 
 //private val logger = KotlinLogging.logger {} //TODO decide if this should be KSL or not Simulation logger
 
-class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) :
-    ObservableIfc<JSLEvent<*>?> by Observable() {
+class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) : Observable<JSLEvent<*>?>(){
 
     enum class Status {
         CREATED, INITIALIZED, BEFORE_EVENT, AFTER_EVENT, AFTER_EXECUTION

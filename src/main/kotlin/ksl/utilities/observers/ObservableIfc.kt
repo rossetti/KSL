@@ -53,8 +53,8 @@ interface ObservableIfc<T> {
      */
     fun countObservers(): Int
 
-    /** Notify the observers
-     * @param newValue
-     */
-    fun notifyObservers(newValue: T)
+//    /** Notify the observers
+//     * @param newValue
+//     */
+//    fun notifyObservers(newValue: T)
 }

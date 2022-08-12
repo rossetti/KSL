@@ -25,7 +25,7 @@ package ksl.utilities.observers
  *
  * @author rossetti
  */
-class Observable<T> : ObservableIfc<T> {
+open class Observable<T> : ObservableIfc<T> {
 
     private val myObservers = mutableListOf<ObserverIfc<T>>()
 
@@ -54,7 +54,7 @@ class Observable<T> : ObservableIfc<T> {
      *
      * @param newValue
      */
-    override fun notifyObservers(newValue: T) {
+    protected open fun notifyObservers(newValue: T) {
         for (o in myObservers) {
             o.onChange(newValue)
         }

@@ -17,7 +17,6 @@ package ksl.utilities.random.mcmc
 
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
@@ -31,7 +30,7 @@ import ksl.utilities.statistic.Statistic
  * @param proposalFun the proposal function
  */
 class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposalFun: ProposalFunction1DIfc) :
-    RandomIfc, ObservableIfc<Double> by Observable() {
+    RandomIfc, Observable<Double>() {
 
     private val myTargetFun: FunctionIfc = targetFun
     private val myProposalFun: ProposalFunction1DIfc = proposalFun

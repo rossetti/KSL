@@ -2,10 +2,11 @@ package ksl.utilities.statistic
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.observers.*
+import ksl.utilities.observers.DoubleEmitter
+import ksl.utilities.observers.DoubleEmitterIfc
+import ksl.utilities.observers.Observable
 
-abstract class Collector(name: String? = null) : CollectorIfc, IdentityIfc by Identity(name),
-    ObservableIfc<Double> by Observable(),
+abstract class Collector(name: String? = null) : CollectorIfc, IdentityIfc by Identity(name), Observable<Double>(),
     DoubleEmitterIfc by DoubleEmitter() {
 
     var lastValue = Double.NaN

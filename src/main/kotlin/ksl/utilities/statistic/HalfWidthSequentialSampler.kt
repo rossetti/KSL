@@ -21,7 +21,6 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.DoubleEmitter
 import ksl.utilities.observers.DoubleEmitterIfc
 import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableIfc
 import ksl.utilities.random.rvariable.NormalRV
 
 private var counter: Int = 0
@@ -32,8 +31,7 @@ private var counter: Int = 0
  *
  * @author rossetti
  */
-class HalfWidthSequentialSampler(aName: String? = null) : IdentityIfc by Identity(aName),
-    ObservableIfc<Double> by Observable(),
+class HalfWidthSequentialSampler(aName: String? = null) : IdentityIfc by Identity(aName), Observable<Double>(),
     DoubleEmitterIfc by DoubleEmitter() {
 
     private var myStatistic: Statistic = Statistic(name)

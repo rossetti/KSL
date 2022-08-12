@@ -5,10 +5,9 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.DoublePairEmitter
 import ksl.utilities.observers.DoublePairEmitterIfc
 import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableIfc
 
 abstract class WeightedCollector(name: String? = null) : WeightedCollectorIfc, IdentityIfc by Identity(name),
-    ObservableIfc<Pair<Double, Double>> by Observable(),
+    Observable<Pair<Double, Double>>(),
     DoublePairEmitterIfc by DoublePairEmitter() {
 
     var lastValue = Double.NaN

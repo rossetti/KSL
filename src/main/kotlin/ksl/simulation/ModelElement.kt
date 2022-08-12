@@ -3,14 +3,13 @@ import ksl.modeling.entity.EntityType
 import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableIfc
 import mu.KLoggable
 
 private var myCounter_: Int = 0
 
 //TODO needs to be made abstract
 open class ModelElement internal constructor(theName: String? = null) : IdentityIfc,
-    ObservableIfc<ModelElement.Status> by Observable() {
+    Observable<ModelElement.Status>() {
 
     /**
      * A set of constants for indicating model element status to observers of

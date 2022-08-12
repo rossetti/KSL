@@ -6,13 +6,12 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus.*
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableIfc
 import mu.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
 
 abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identity(name),
-    IterativeProcessIfc, ObservableIfc<T> by Observable() {
+    IterativeProcessIfc, Observable<T>() {
 
     /**
      * A reference to the created state for the iterative process A iterative

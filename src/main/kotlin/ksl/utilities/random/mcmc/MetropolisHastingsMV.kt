@@ -1,7 +1,6 @@
 package ksl.utilities.random.mcmc
 
 import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableIfc
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
@@ -22,7 +21,7 @@ open class MetropolisHastingsMV(
     theTargetFun: FunctionMVIfc,
     theProposalFun: ProposalFunctionMVIfc,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : MVSampleIfc, RNStreamChangeIfc, RNStreamControlIfc, ObservableIfc<MetropolisHastingsMV> by Observable() {
+) : MVSampleIfc, RNStreamChangeIfc, RNStreamControlIfc, Observable<MetropolisHastingsMV>() {
 
     override var rnStream: RNStreamIfc = stream
     init {
