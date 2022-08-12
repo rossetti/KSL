@@ -474,22 +474,3 @@ class Model internal constructor(
     }
 }
 
-fun main() {
-
-    val sim = Simulation()
-
-    val m = sim.model
-
-    val me = ModelElement(m, "something")// can only make because of internal
-
-    val rv = RandomVariable(m, ExponentialRV())
-
-    println(m.modelElementsAsString)
-
-    sim.lengthOfReplication = 10.0
-    sim.lengthOfWarmUp = 5.0
-    sim.numberOfReplications = 3
-    sim.run()
-
-    KSL.logger.info { "Writing to the log!" }
-}

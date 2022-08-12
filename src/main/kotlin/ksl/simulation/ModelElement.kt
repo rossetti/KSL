@@ -1,5 +1,3 @@
-@file:Suppress("ReplaceWithOperatorAssignment")
-
 package ksl.simulation
 import ksl.modeling.entity.EntityType
 import ksl.utilities.GetValueIfc
@@ -1013,6 +1011,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         if (myLengthOfWarmUp > 0.0) {
             // the warm up period is > 0, ==> element wants a warm-up event
             myWarmUpEventAction = WarmUpEventAction()
+            Simulation.logger.info { "Model: scheduling warm up event for time $myLengthOfWarmUp"}
             myWarmUpEvent = myWarmUpEventAction!!.schedule()
             myWarmUpOption = false // no longer depends on parent's warm up
         }
@@ -1020,6 +1019,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             // the timed update is > 0, ==> element wants a timed update event
             // schedule the timed update event
             myTimedUpdateActionListener = TimedUpdateEventAction()
+            Simulation.logger.info { "Model: scheduling timed update event for time $myTimedUpdateInterval"}
             myTimedUpdateEvent = myTimedUpdateActionListener!!.schedule()
         }
         if (myModelElements.isNotEmpty()) {

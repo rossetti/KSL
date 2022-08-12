@@ -28,6 +28,12 @@ class Simulation(
     calendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : IdentityIfc by Identity(name), Experiment(name + "_Experiment") {
 
+//TODO statistical batching, but move it within Model
+//TODO observers
+//TODO note that JSLDataBaseObserver is actually attached as an observer on Model
+//TODO controls and parameters
+//TODO simulation reporter
+
     /**
      *
      * @return the defined OutputDirectory for the simulation
