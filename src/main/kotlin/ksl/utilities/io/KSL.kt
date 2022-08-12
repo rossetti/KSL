@@ -18,7 +18,7 @@ object KSL : KLoggable {
      */
     private var myEnumCounter = 0
 
-    private val myOutputDir = OutputDirectory("jslOutput", "jslOutput.txt")
+    private val myOutputDir = OutputDirectory("kslOutput", "kslOutput.txt")
 
     /**
      *  Use like System.out, but it goes to a file called jslOutput.txt
@@ -64,10 +64,10 @@ object KSL : KLoggable {
         return myOutputDir.createFile(fileName)
     }
 
-    /** Makes a Path to the named sub-directory within the base directory
+    /** Makes a Path to the named subdirectory within the base directory
      *
-     * @param dirName the name of the sub-directory to create. It must not be null
-     * @return a path to the created sub-directory, or the base directory if something went wrong in the creation.
+     * @param dirName the name of the subdirectory to create. It must not be null
+     * @return a path to the created subdirectory, or the base directory if something went wrong in the creation.
      * Any problems are logged.
      */
     fun createSubDirectory(dirName: String): Path {

@@ -23,7 +23,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
 
     /**
      * A reference to the initialized state of the iterative process A iterative
-     * process is in the initialized state after the initialize() method is
+     * process is in the initialized state after the method initialize() is
      * called from a proper state.
      */
     protected val myInitializedState: Initialized = Initialized()
@@ -75,7 +75,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
             field = value
         }
 
-    override var numberStepsCompleted: Long = 0
+    override var numberStepsCompleted: Int = 0
         protected set
 
     override val isCreated: Boolean
@@ -111,9 +111,10 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
             s.append("Iterative Process: No such step exception!")
             s.appendLine()
             s.append(toString())
+            logger.error { s.toString() }
             throw NoSuchStepException(s.toString())
         }
-        logger.info { "Running a step of the iterative process: $name"}
+        logger.trace { "Running a step of the process: $name" }
         state.runNext()
     }
 
@@ -124,7 +125,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
      *
      * @return true if another step is present
      */
-    protected abstract fun hasNextStep(): Boolean
+    abstract fun hasNextStep(): Boolean
 
     /**
      * This method should return the next step to be executed in the iterative
@@ -150,7 +151,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
     }
 
     protected open fun initializeIterations() {
-        logger.info { "Initializing the iterative process: $name"}
+        logger.trace { "Initializing the process: $name" }
         stoppingMessage = null
         stopping = false
         isDone = false
@@ -162,7 +163,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
     }
 
     protected fun runAllSteps() {
-        logger.info { "Running all the steps of the iterative process: $name"}
+        logger.trace { "Running all the steps of: $name" }
         if (!isInitialized) {
             initialize()
         }
@@ -226,7 +227,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
     protected abstract fun runStep()
 
     protected open fun endIterations() {
-        logger.info { "Ending the iterations of the iterative process: $name"}
+        logger.trace { "Ending the process: $name" }
         isRunning = false
         isRunningStep = false
         isDone = true
@@ -244,6 +245,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
             sb.append(state.toString())
             sb.appendLine()
             sb.append(this@IterativeProcess.toString())
+            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 
@@ -256,6 +258,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
             sb.append(state.toString())
             sb.appendLine()
             sb.append(this@IterativeProcess.toString())
+            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 
@@ -268,6 +271,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
             sb.append(state.toString())
             sb.appendLine()
             sb.append(this@IterativeProcess.toString())
+            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 
@@ -280,6 +284,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
             sb.append(state.toString())
             sb.appendLine()
             sb.append(this@IterativeProcess.toString())
+            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 

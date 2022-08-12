@@ -179,6 +179,8 @@ jslOutput/
 jarOutputDir/
 repos/
 
+kslOutput/
+
 gradlew\.bat
 
 gradlew

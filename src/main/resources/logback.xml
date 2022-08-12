@@ -17,7 +17,7 @@
 
 <configuration>
     <!-- Stop output INFO at start -->
-    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
 
     <appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -30,7 +30,41 @@
         <file>logs/ksl.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- daily rollover -->
-            <fileNamePattern>logs/logFile.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/ksl.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- keep 2 days' worth of history capped at 30MB total size -->
+            <maxHistory>2</maxHistory>
+            <totalSizeCap>30MB</totalSizeCap>
+
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="KSL_SIM" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/kslSim.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>logs/kslSim.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- keep 2 days' worth of history capped at 30MB total size -->
+            <maxHistory>2</maxHistory>
+            <totalSizeCap>30MB</totalSizeCap>
+
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="KSL_ME" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/kslModelElement.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>logs/kslModelElement.%d{yyyy-MM-dd}.log</fileNamePattern>
 
             <!-- keep 2 days' worth of history capped at 30MB total size -->
             <maxHistory>2</maxHistory>
@@ -47,7 +81,7 @@
         <file>logs/ksl_io.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- daily rollover -->
-            <fileNamePattern>logs/logFile.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/ksl_io.%d{yyyy-MM-dd}.log</fileNamePattern>
 
             <!-- keep 2 days' worth of history capped at 30MB total size -->
             <maxHistory>2</maxHistory>
@@ -163,6 +197,14 @@
 
     <logger name="ksl.utilities.io.KSKFileUtil" level="DEBUG" additivity="false">
         <appender-ref ref="KSL_IO" />
+    </logger>
+
+    <logger name="ksl.simulation.Simulation" level="INFO" additivity="false">
+        <appender-ref ref="KSL_SIM" />
+    </logger>
+
+    <logger name="ksl.simulation.ModelElement" level="DEBUG" additivity="false">
+        <appender-ref ref="KSL_ME" />
     </logger>
 
     <logger name="org.jooq" level="WARN" additivity="false">

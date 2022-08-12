@@ -19,6 +19,15 @@ interface ExperimentIfc {
     var numberOfReplications: Int
 
     /**
+     * Sets the desired number of replications for the experiment
+     *
+     * @param numReps must be &gt; 0, and even (divisible by 2) if antithetic
+     * option is true
+     * @param antitheticOption controls whether antithetic replications occur
+     */
+    fun numberOfReplications(numReps: Int, antitheticOption: Boolean)
+
+    /**
      * The current number of replications that have been run for this experiment
      */
     val currentReplicationNumber: Int
@@ -136,15 +145,6 @@ interface ExperimentIfc {
      * @return the control map if it was set
      */
     fun getControls(): Map<String, Double>?
-
-    /**
-     * Sets the desired number of replications for the experiment
-     *
-     * @param numReps must be &gt; 0, and even (divisible by 2) if antithetic
-     * option is true
-     * @param antitheticOption controls whether antithetic replications occur
-     */
-    fun setNumberOfReplications(numReps: Int, antitheticOption: Boolean = false)
 
     /**
      * Checks if the current number of replications that have been executed is

@@ -33,7 +33,7 @@ class PriorityQueueEventCalendar : CalendarIfc {
         return myEventSet.poll() as JSLEvent<*>
     }
 
-    override fun peekNext(): JSLEvent<*> {
+    override fun peekNext(): JSLEvent<*>? {
         return myEventSet.peek()
     }
 

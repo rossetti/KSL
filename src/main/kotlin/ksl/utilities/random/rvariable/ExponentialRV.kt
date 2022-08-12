@@ -21,7 +21,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  * Exponential(mean) random variable
  * @param mean must be greater than 0.0
  */
-class ExponentialRV(val mean: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name:String? = null) :
+class ExponentialRV(val mean: Double = 1.0, stream: RNStreamIfc = KSLRandom.nextRNStream(), name:String? = null) :
     ParameterizedRV(stream, name) {
 
     /**

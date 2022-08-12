@@ -57,13 +57,16 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
 
     override var experimentName: String = name
 
+    private var myDesiredReplications: Int = 1
+
     /**
      * The number of replications to run for this experiment
      *
      */
-    override var numberOfReplications: Int = 1
+    override var numberOfReplications: Int
+        get() = myDesiredReplications
         set(value) {
-            setNumberOfReplications(value)
+            numberOfReplications(value, false)
         }
 
     /**
@@ -216,13 +219,13 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      * option is true
      * @param antitheticOption controls whether antithetic replications occur
      */
-    override fun setNumberOfReplications(numReps: Int, antitheticOption: Boolean) {
+    override fun numberOfReplications(numReps: Int, antitheticOption: Boolean)  {
         require(numReps > 0) { "Number of replications <= 0" }
         if (antitheticOption) {
             require(numReps % 2 == 0) { "Number of replications must be even if antithetic option is on." }
             this.antitheticOption = true
         }
-        numberOfReplications = numReps
+        myDesiredReplications = numReps
     }
 
     /**

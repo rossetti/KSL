@@ -103,7 +103,7 @@ interface IterativeProcessIfc {
      *
      * @return the number of steps completed
      */
-    val numberStepsCompleted: Long
+    val numberStepsCompleted: Int
 
     /**
      * Checks if the iterative process is in the created state. If the

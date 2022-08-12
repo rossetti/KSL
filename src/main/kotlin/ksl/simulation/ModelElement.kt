@@ -1,15 +1,14 @@
 @file:Suppress("ReplaceWithOperatorAssignment")
 
 package ksl.simulation
+import ksl.modeling.entity.EntityType
 import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableIfc
-import mu.KotlinLogging
+import mu.KLoggable
 
 private var myCounter_: Int = 0
-
-private val logger = KotlinLogging.logger {}
 
 //TODO needs to be made abstract
 open class ModelElement internal constructor(theName: String? = null) : IdentityIfc,
@@ -149,6 +148,40 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     internal lateinit var myModel: Model
 
+    /**
+     *  the parent of this model element
+     */
+    protected val parent
+        get() = myParentModelElement
+
+    /**
+     * the model that contains this element
+     */
+    protected val model
+        get() = myModel
+
+    /**
+     *  the simulation that is running the model
+     */
+    protected val simulation: Simulation
+        get() = model.mySimulation
+
+    /**
+     *  the current replication number
+     */
+    protected val currentReplicationNumber: Int
+        get() = simulation.currentReplicationNumber
+
+    /**
+     *  the executive that is executing the events
+     */
+    protected val executive: Executive
+        get() = model.myExecutive
+
+    //TODO revisit myDefaultEntityType when working on process modeling
+    protected val defaultEntityType: EntityType
+        get() = model.myDefaultEntityType
+
     constructor(parent: ModelElement, name: String?) : this(name) {
         // should not be leaking this
         // adds the model element to the parent and also set this element's parent
@@ -156,7 +189,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         // sets this element's model to the model of its parent, everyone is in the same model
         myModel = parent.myModel
         // tells the model to add this element to the overall model element map
-//TODO        myModel.addToModelElementMap(this)
+        myModel.addToModelElementMap(this)
     }
 
     private fun makeName(str: String?): String {
@@ -170,6 +203,94 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             s + "_" + id
         } else {
             str
+        }
+    }
+
+    /**
+     * Returns a string representation of the model element and its child model
+     * elements. Useful for realizing the model element hierarchy.
+     *
+     * &lt;type&gt; getClass().getSimpleName() &lt;\type&gt;
+     * &lt;name&gt; getName() &lt;\name&gt; child elements here, etc.
+     * &lt;/modelelement&gt;
+     *
+     * @return the model element as a string
+     */
+    val modelElementsAsString: String
+        get() {
+            val sb = StringBuilder()
+            getModelElementsAsString(sb)
+            return sb.toString()
+        }
+
+    /**
+     * Fills up the supplied StringBuilder carrying a string representation of
+     * the
+     * model element and its child model elements Useful for realizing the model
+     * element hierarchy.
+     *
+     * &lt;modelelement&gt;
+     * &lt;type&gt; getClass().getSimpleName() &lt;\type&gt;
+     * &lt;name&gt; getName() &lt;\name&gt;
+     * child elements here, etc.
+     * &lt;/modelelement&gt;
+     *
+     * @param sb will hold the model element as a StringBuilder
+     */
+    fun getModelElementsAsString(sb: StringBuilder) {
+        getModelElementsAsString(sb, 0)
+    }
+
+    /**
+     * Fills up the supplied StringBuilder carrying a string representation of
+     * the
+     * model element and its child model elements Useful for realizing the model
+     * element hierarchy.
+     *
+     * &lt;modelelement&gt;
+     * &lt;type&gt; getClass().getSimpleName() &lt;\type&gt;
+     * &lt;name&gt; getName() &lt;\name&gt; child elements here, etc.
+     * &lt;/modelelement&gt;
+     *
+     * @param sb to hold the model element as a string
+     * @param n  The starting level of indentation for the model elements
+     */
+    fun getModelElementsAsString(sb: StringBuilder, n: Int) {
+        indent(sb, n)
+        sb.append("<modelelement>")
+        sb.appendLine()
+        indent(sb, n + 1)
+        sb.append("<type>")
+        sb.append(javaClass.simpleName)
+        sb.append("</type>")
+        sb.appendLine()
+        indent(sb, n + 1)
+        sb.append("<name>")
+        sb.append(name)
+        sb.append("</name>")
+        sb.appendLine()
+        indent(sb, n + 1)
+        sb.append("<id>")
+        sb.append(id)
+        sb.append("</id>")
+        sb.appendLine()
+        for (m in myModelElements) {
+            m.getModelElementsAsString(sb, n + 1)
+        }
+        indent(sb, n)
+        sb.append("</modelelement>")
+        sb.appendLine()
+    }
+
+    /**
+     * Add spaces representing the level of indention
+     *
+     * @param sb holds the stuff to be indented
+     * @param n  level of indentation
+     */
+    protected fun indent(sb: StringBuilder, n: Int) {
+        for (i in 1..n) {
+            sb.append("  ")
         }
     }
 
@@ -330,37 +451,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         // set its parent to this element
         modelElement.myParentModelElement = this
     }
-
-    /**
-     *  the parent of this model element
-     */
-    protected val parent
-        get() = myParentModelElement
-
-    /**
-     * the model that contains this element
-     */
-    protected val model
-        get() = myModel
-
-    /**
-     *  the simulation that is running the model
-     */
-    protected val simulation: Simulation
-        get() = model.mySimulation
-
-    /**
-     *  the current replication number
-     */
-    protected val currentReplicationNumber: Int
-        get() = simulation.currentReplicationNumber
-
-    /**
-     *  the executive that is executing the events
-     */
-    protected val executive: Executive
-        get() = model.myExecutive
-
 
     /**
      * Gets an iterator to the contained model elements.
@@ -836,7 +926,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
 
         if (myBeforeExperimentOption) {
-            logger.info { "ModelElement: $name executing beforeExperiment()" }
+            logger.trace { "ModelElement: $name executing beforeExperiment()" }
             beforeExperiment()
             currentStatus = Status.BEFORE_EXPERIMENT
         }
@@ -869,7 +959,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
         // now initialize the model element itself
         if (myInitializationOption) {
-            logger.info { "ModelElement: $name executing initialize()" }
+            logger.trace { "ModelElement: $name executing initialize()" }
             initialize()
             currentStatus = Status.INITIALIZED
         }
@@ -901,7 +991,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
                 m.registerConditionalActionsWithExecutive()
             }
         }
-        logger.info { "ModelElement: $name executing registerConditionalActions()" }
+        logger.trace { "ModelElement: $name executing registerConditionalActions()" }
         registerConditionalActions()
         currentStatus = Status.CONDITIONAL_ACTION_REGISTRATION
     }
@@ -938,7 +1028,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             }
         }
         if (myBeforeReplicationOption) {
-            logger.info { "ModelElement: $name executing beforeReplication()" }
+            logger.trace { "ModelElement: $name executing beforeReplication()" }
             beforeReplication()
             currentStatus = Status.BEFORE_REPLICATION
         }
@@ -963,7 +1053,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     internal fun monteCarloActions() {
         if (myMonteCarloOption) {
-            logger.info { "ModelElement: $name executing montecarlo()" }
+            logger.trace { "ModelElement: $name executing montecarlo()" }
             montecarlo()
             currentStatus = Status.MONTE_CARLO
         }
@@ -988,7 +1078,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     private fun warmUpAction() {
         // if we get here the warm-up was scheduled, so do it
-        logger.info { "ModelElement: $name executing warmUp()" }
+        logger.trace { "ModelElement: $name executing warmUp()" }
         warmUp()
         myWarmUpIndicator = true
         currentStatus = Status.WARMUP
@@ -1019,7 +1109,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * model element that requires an update action will perform its actions.
      */
     protected fun update() {
-        logger.info { "ModelElement: $name executing update()" }
+        logger.trace { "ModelElement: $name executing update()" }
         currentStatus = Status.UPDATE
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
@@ -1043,7 +1133,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     private fun timedUpdateActions() {
         if (myTimedUpdateOption) {
-            logger.info { "ModelElement: $name executing timedUpdate()" }
+            logger.trace { "ModelElement: $name executing timedUpdate()" }
             timedUpdate()
             currentStatus = Status.TIMED_UPDATE
         }
@@ -1091,7 +1181,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             }
         }
         if (myReplicationEndedOption) {
-            logger.info { "ModelElement: $name executing replicationEnded()" }
+            logger.trace { "ModelElement: $name executing replicationEnded()" }
             replicationEnded()
             currentStatus = Status.REPLICATION_ENDED
         }
@@ -1116,7 +1206,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             }
         }
         if (myAfterReplicationOption) {
-            logger.info { "ModelElement: $name executing afterReplication()" }
+            logger.trace { "ModelElement: $name executing afterReplication()" }
             afterReplication()
             currentStatus = Status.AFTER_REPLICATION
         }
@@ -1143,7 +1233,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             }
         }
         if (myAfterExperimentOption) {
-            logger.info { "ModelElement: $name executing afterExperiment()" }
+            logger.trace { "ModelElement: $name executing afterExperiment()" }
             afterExperiment()
             currentStatus = Status.AFTER_EXPERIMENT
         }
@@ -1205,7 +1295,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             sb.append("Attempted to remove the model element: ")
             sb.append(name)
             sb.append(" while the simulation was running.")
-            Simulation.logger.error(sb.toString()) //TODO, try logging and an exception option
+            Simulation.logger.error(sb.toString())
             throw IllegalStateException(sb.toString())
         }
 
@@ -1215,11 +1305,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             val child = myModelElements[myModelElements.size - 1]
             child.removeFromModel()
         }
-        logger.info { "ModelElement: $name executing removeFromModel()" }
+        Simulation.logger.info { "ModelElement: $name executing removeFromModel()" }
         // if the model element has a warm-up event, cancel it
         if (myWarmUpEvent != null) {
             if (myWarmUpEvent!!.scheduled) {
-                logger.info { "ModelElement: $name cancelling warmup event" }
+                Simulation.logger.info { "ModelElement: $name cancelling warmup event" }
                 myWarmUpEvent!!.cancelled = true
             }
             myWarmUpEvent = null
@@ -1228,7 +1318,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         // if the model element has a timed update event, cancel it
         if (myTimedUpdateEvent != null) {
             if (myTimedUpdateEvent!!.scheduled) {
-                logger.info { "ModelElement: $name cancelling timed update event" }
+                Simulation.logger.info { "ModelElement: $name cancelling timed update event" }
                 myTimedUpdateEvent!!.cancelled = true
             }
             myTimedUpdateEvent = null
@@ -1279,7 +1369,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
     }
 
-    companion object {
+    companion object : KLoggable {
         /**
          * Used to assign unique enum constants
          */
@@ -1294,6 +1384,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          */
         val modelElementComparator: Comparator<ModelElement>
             get() = ModelElementComparator()
+
+        /**
+         * A global logger for logging
+         */
+        override val logger = logger()
     }
 
 }
