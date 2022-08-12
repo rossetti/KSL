@@ -38,4 +38,6 @@ fun main() {
     sim.run()
 
     KSL.logger.info { "Writing to the log!" }
+
+    println(sim)
 }

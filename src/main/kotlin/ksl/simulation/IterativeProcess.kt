@@ -1,10 +1,10 @@
 package ksl.simulation
 
-import ksl.utilities.exceptions.IllegalStateException
-import ksl.utilities.exceptions.NoSuchStepException
 import ksl.simulation.IterativeProcessIfc.EndingStatus.*
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
+import ksl.utilities.exceptions.IllegalStateException
+import ksl.utilities.exceptions.NoSuchStepException
 import ksl.utilities.observers.Observable
 import mu.KotlinLogging
 
@@ -232,6 +232,49 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
         isDone = true
         endExecutionTime = System.nanoTime()
         state = myEndedState
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.append("Iterative Process Name: ")
+        sb.append(name)
+        sb.appendLine()
+        sb.append("Beginning Execution Time: ")
+        sb.append(beginExecutionTime)
+        sb.appendLine()
+        sb.append("End Execution Time: ")
+        sb.append(endExecutionTime)
+        sb.appendLine()
+        sb.append("Elapsed Execution Time (seconds): ")
+        sb.append(elapsedExecutionTime / 1e-9)
+        sb.appendLine()
+        sb.append("Max Allowed Execution Time: ")
+        if (maximumAllowedExecutionTime > 0) {
+            sb.append(maximumAllowedExecutionTime)
+            sb.append(" nanoseconds")
+            sb.appendLine()
+        } else {
+            sb.append("Not Specified")
+        }
+        sb.appendLine()
+        sb.append("Done Flag: ")
+        sb.append(isDone)
+        sb.appendLine()
+        sb.append("Has Next: ")
+        sb.append(hasNextStep())
+        sb.appendLine()
+        sb.append("Current State: ")
+        sb.append(state)
+        sb.appendLine()
+        sb.append("Ending Status Indicator: ")
+        sb.append(endingStatus)
+        sb.appendLine()
+        if (stoppingMessage != null) {
+            sb.append("Stopping Message: ")
+            sb.append(stoppingMessage)
+            sb.appendLine()
+        }
+        return sb.toString()
     }
 
     open inner class IterativeState(private val name: String) {

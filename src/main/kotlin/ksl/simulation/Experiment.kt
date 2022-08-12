@@ -254,8 +254,12 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         resetStartStreamOption = e.resetStartStreamOption
         advanceNextSubStreamOption = e.advanceNextSubStreamOption
         antitheticOption = e.antitheticOption
-        numberOfStreamAdvancesPriorToRunning = e.numberOfStreamAdvancesPriorToRunning
-        maximumAllowedExecutionTimePerReplication = e.maximumAllowedExecutionTimePerReplication
+        if (e.numberOfStreamAdvancesPriorToRunning > 0){
+            numberOfStreamAdvancesPriorToRunning = e.numberOfStreamAdvancesPriorToRunning
+        }
+        if (e.maximumAllowedExecutionTimePerReplication > 0){
+            maximumAllowedExecutionTimePerReplication = e.maximumAllowedExecutionTimePerReplication
+        }
         garbageCollectAfterReplicationFlag = e.garbageCollectAfterReplicationFlag
     }
 
@@ -277,8 +281,12 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         n.resetStartStreamOption = resetStartStreamOption
         n.advanceNextSubStreamOption = advanceNextSubStreamOption
         n.antitheticOption = antitheticOption
-        n.numberOfStreamAdvancesPriorToRunning = numberOfStreamAdvancesPriorToRunning
-        n.maximumAllowedExecutionTimePerReplication = maximumAllowedExecutionTimePerReplication
+        if (numberOfStreamAdvancesPriorToRunning > 0){
+            n.numberOfStreamAdvancesPriorToRunning = numberOfStreamAdvancesPriorToRunning
+        }
+        if (maximumAllowedExecutionTimePerReplication > 0){
+            n.maximumAllowedExecutionTimePerReplication = maximumAllowedExecutionTimePerReplication
+        }
         n.garbageCollectAfterReplicationFlag = garbageCollectAfterReplicationFlag
         return n
     }

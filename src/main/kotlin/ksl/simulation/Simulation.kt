@@ -323,6 +323,22 @@ class Simulation(
         myReplicationExecutionProcess.stop(msg)
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.append("Simulation Name: ")
+        sb.append(name)
+        sb.appendLine()
+        sb.append(myReplicationExecutionProcess)
+        sb.appendLine()
+        sb.append(super.toString())
+        sb.appendLine()
+        sb.append("Model Name: ")
+        sb.append(model.name)
+        sb.appendLine()
+        sb.appendLine()
+        sb.append(model.myExecutive)
+        return sb.toString()
+    }
     companion object : KLoggable {
         /**
          * A global logger for logging

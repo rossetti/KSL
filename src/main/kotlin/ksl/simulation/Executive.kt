@@ -167,7 +167,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
                 sb.appendLine()
                 sb.append("The user is responsible for ensuring that the Executive is stopped.")
                 sb.appendLine()
-                Simulation.logger.warn(sb.toString()) //TODO
+                Simulation.logger.warn(sb.toString())
                 System.out.flush()
             }
         }
@@ -214,12 +214,12 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
             sb.append("Hint: Do not schedule initial events prior to executing (running) the simulation.  Use the initialize() method instead.")
             sb.appendLine()
-            Simulation.logger.warn(sb.toString()) //TODO
+            Simulation.logger.warn(sb.toString())
             System.out.flush()
             throw JSLEventException(sb.toString())
         }
         if (interEventTime < 0.0) {
-            Simulation.logger.warn("Attempted to schedule an event before the Current Time!") //TODO
+            Simulation.logger.warn("Attempted to schedule an event before the Current Time!")
             System.out.flush()
             throw JSLEventException("Attempted to schedule an event before the Current Time!")
         }
@@ -238,7 +238,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
             sb.append("The event was scheduled from ModelElement : ").append(theElementScheduling.name)
             sb.appendLine()
-            Simulation.logger.warn(sb.toString()) //TODO
+            Simulation.logger.warn(sb.toString())
             System.out.flush()
             throw JSLEventException(sb.toString())
         }
@@ -277,9 +277,10 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
-//TODO            val sim = event.modelElement.simulation //TODO is there a better way to get the simulation, is it needed?
-//TODO            sb.append(sim)
-            Simulation.logger.error(sb.toString()) //TODO
+            val sim = event.modelElement.myModel.mySimulation //TODO is there a better way to get the simulation, is it needed?
+            sb.append(sim)
+            Simulation.logger.error(sb.toString())
+            System.out.flush()
             throw e
         }
     }
@@ -339,6 +340,31 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             conditionalActionProcessor.maxScanFlag = value
         }
 
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.append("Executive: ")
+        sb.appendLine()
+        sb.append("Number of events scheduled: ")
+        sb.append(numEventsScheduled)
+        sb.appendLine()
+        sb.append("Number of events scheduled during execution: ")
+        sb.append(numEventsScheduledDuringExecution)
+        sb.appendLine()
+        sb.append("Number of events executed: ")
+        sb.append(numEventsExecuted)
+        sb.appendLine()
+        sb.append("Scheduled end time: ")
+        sb.append(scheduledEndTime())
+        sb.appendLine()
+        sb.append("Actual Ending time: ")
+        sb.append(endingTime)
+        sb.appendLine()
+        sb.append("Current time: ")
+        sb.append(currentTime)
+        sb.appendLine()
+        sb.append(eventExecutionProcess)
+        return sb.toString()
+    }
     private inner class EventExecutionProcess(name: String?) : IterativeProcess<JSLEvent<*>>(name) {
 
         override fun initializeIterations() {
