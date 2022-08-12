@@ -27,7 +27,7 @@ package ksl.utilities.observers
  */
 class Observable<T> : ObservableIfc<T> {
 
-    private val myObservers: MutableList<ObserverIfc<T>> = ArrayList()
+    private val myObservers = mutableListOf<ObserverIfc<T>>()
 
     override fun attachObserver(observer: ObserverIfc<T>) {
         require(!isAttached(observer)) { "The supplied observer is already attached" }
@@ -52,12 +52,20 @@ class Observable<T> : ObservableIfc<T> {
 
     /** Notify the observers
      *
-     * @param theObserved
      * @param newValue
      */
-    override fun notifyObservers(theObserved: ObservableIfc<T>, newValue: T?) {
+    override fun notifyObservers(newValue: T) {
         for (o in myObservers) {
-            o.update(theObserved, newValue)
+            o.onChange(newValue)
         }
     }
+}
+
+// Extension function so we don't need to instantiate IObserver
+fun <T> Observable<T>.observe(block: (T?) -> Unit) {
+    attachObserver(object : ObserverIfc<T> {
+        override fun onChange(newValue: T) {
+            block(newValue)
+        }
+    })
 }

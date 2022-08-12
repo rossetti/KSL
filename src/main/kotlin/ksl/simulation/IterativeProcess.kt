@@ -54,7 +54,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
         protected set(value) {
             logger.trace { "current state = $field, transitioning to state = $value" }
             field = value
-            notifyObservers(this, myCurrentStep)
+            myCurrentStep?.let { notifyObservers(it) }
         }
 
     override var endingStatus: IterativeProcessIfc.EndingStatus = UNFINISHED

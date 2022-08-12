@@ -15,7 +15,6 @@
  */
 package ksl.utilities.statistic
 
-import ksl.utilities.observers.ObservableIfc
 import ksl.utilities.observers.ObserverIfc
 import java.io.PrintWriter
 
@@ -88,10 +87,8 @@ class DoubleArraySaver : ObserverIfc<Double> {
         myData[saveCount - 1] = x
     }
 
-    override fun update(theObserved: ObservableIfc<Double>, newValue: Double?) {
-        if (newValue != null) {
-            save(newValue)
-        }
+    override fun onChange(newValue: Double) {
+        save(newValue)
     }
 
     /** Writes out the saved data to a file.

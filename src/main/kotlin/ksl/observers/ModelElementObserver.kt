@@ -1,19 +1,40 @@
 package ksl.observers
 
 import ksl.simulation.ModelElement
+import ksl.simulation.ModelElement.Status.*
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.observers.ObservableIfc
 import ksl.utilities.observers.ObserverIfc
 
-open class ModelElementObserver(observed: ModelElement, name: String?) : IdentityIfc by Identity(name),
+/**
+ *  Base class for reacting to status changes that occur on model elements.
+ */
+open class ModelElementObserver(observed: ModelElement, name: String? = null) : IdentityIfc by Identity(name),
     ObserverIfc<ModelElement.Status> {
 
     protected val observedModelElement: ModelElement = observed
 
-    override fun update(theObserved: ObservableIfc<ModelElement.Status>, newValue: ModelElement.Status?) {
-
+    override fun onChange(newValue: ModelElement.Status) {
+        when(newValue){
+            NONE -> nothing()
+            BEFORE_EXPERIMENT -> beforeExperiment()
+            BEFORE_REPLICATION -> beforeReplication()
+            INITIALIZED -> initialize()
+            CONDITIONAL_ACTION_REGISTRATION -> conditionalActionRegistered()
+            MONTE_CARLO -> montecarlo()
+            WARMUP ->  warmUp()
+            UPDATE -> update()
+            TIMED_UPDATE -> timedUpdate()
+            REPLICATION_ENDED -> replicationEnded()
+            AFTER_REPLICATION -> afterReplication()
+            AFTER_EXPERIMENT -> afterExperiment()
+            MODEL_ELEMENT_ADDED -> elementAdded()
+            MODEL_ELEMENT_REMOVED -> elementRemoved()
+            REMOVED_FROM_MODEL -> removedFromModel()
+        }
     }
+
+    protected open fun nothing(){}
 
     protected open fun beforeExperiment() {
     }
@@ -21,6 +42,8 @@ open class ModelElementObserver(observed: ModelElement, name: String?) : Identit
     protected open fun beforeReplication() {}
 
     protected open fun initialize() {}
+
+    protected open fun conditionalActionRegistered(){}
 
     protected open fun montecarlo() {}
 
@@ -37,5 +60,12 @@ open class ModelElementObserver(observed: ModelElement, name: String?) : Identit
     protected open fun afterExperiment() {}
 
     protected open fun removedFromModel() {
+    }
+
+    protected open fun elementAdded() {
+    }
+
+    protected open fun elementRemoved(){
+
     }
 }

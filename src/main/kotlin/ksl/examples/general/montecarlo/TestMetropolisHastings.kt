@@ -54,8 +54,7 @@ class PropFunction : ProposalFunction1DIfc {
 
 class WriteOut : ObserverIfc<Double> {
     var printWriter = KSL.createPrintWriter("MHOut.txt")
-    override fun update(theObserved: ObservableIfc<Double>, newValue: Double?) {
-        val m = theObserved as MetropolisHastings1D
-        printWriter.println(m.currentX)
+    override fun onChange(newValue: Double) {
+        printWriter.println(newValue)
     }
 }

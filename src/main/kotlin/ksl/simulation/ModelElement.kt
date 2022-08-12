@@ -62,7 +62,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             previousStatus = field
             field = value
             logger.trace { "ModelElement: $name changing status from previous: $previousStatus to current: $field" }
-            notifyObservers(this, field)
+            notifyObservers(field)
         }
 
     /**

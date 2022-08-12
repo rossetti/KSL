@@ -29,7 +29,7 @@ abstract class WeightedCollector(name: String? = null) : WeightedCollectorIfc, I
     override fun collect(obs: Double, weight: Double) {
         lastValue = obs
         lastWeight = weight
-        notifyObservers(this, Pair(lastValue, lastWeight))
+        notifyObservers(Pair(lastValue, lastWeight))
         emitter.emit(Pair(lastValue, lastWeight))
     }
 

@@ -19,7 +19,7 @@ abstract class Collector(name: String? = null) : CollectorIfc, IdentityIfc by Id
 
     override fun collect(obs: Double) {
         lastValue = obs
-        notifyObservers(this, lastValue)
+        notifyObservers(lastValue)
         emitter.emit(lastValue)
     }
 

@@ -74,10 +74,8 @@ class DoublePairArraySaver : ObserverIfc<Pair<Double, Double>> {
         myData[saveCount - 1][1] = second
     }
 
-    override fun update(theObserved: ObservableIfc<Pair<Double, Double>>, newValue: Pair<Double, Double>?) {
-        if (newValue != null) {
-            save(newValue.first, newValue.second)
-        }
+    override fun onChange(newValue: Pair<Double, Double>) {
+        save(newValue.first, newValue.second)
     }
 
     /** Writes out the saved data to a file.

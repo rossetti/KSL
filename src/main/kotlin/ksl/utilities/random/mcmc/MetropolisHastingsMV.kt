@@ -156,7 +156,7 @@ open class MetropolisHastingsMV(
         for (i in currentX.indices) {
             myObservedStatistics[0].collect(currentX[i])
         }
-        notifyObservers(this, this)
+        notifyObservers(this)
         return currentX
     }
 

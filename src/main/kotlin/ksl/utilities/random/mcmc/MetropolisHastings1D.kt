@@ -192,7 +192,7 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
             myAcceptanceStat.collect(0.0)
         }
         myObservedStat.collect(currentX)
-        notifyObservers(this, currentX)
+        notifyObservers(currentX)
         return currentX
     }
 

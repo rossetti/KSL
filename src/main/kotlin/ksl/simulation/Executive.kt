@@ -1,14 +1,13 @@
 package ksl.simulation
 
-import jsl.simulation.Simulation //TODO only due to using logger
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.utilities.exceptions.JSLEventException
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableIfc
-import mu.KotlinLogging
+//import mu.KotlinLogging
 
-private val logger = KotlinLogging.logger {} //TODO decide if this should be KSL or not Simulation logger
+//private val logger = KotlinLogging.logger {} //TODO decide if this should be KSL or not Simulation logger
 
 class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) :
     ObservableIfc<JSLEvent<*>?> by Observable() {
@@ -170,7 +169,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
                 sb.appendLine()
                 sb.append("The user is responsible for ensuring that the Executive is stopped.")
                 sb.appendLine()
-                Simulation.LOGGER.warn(sb.toString()) //TODO
+                Simulation.logger.warn(sb.toString()) //TODO
                 System.out.flush()
             }
         }
@@ -217,12 +216,12 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
             sb.append("Hint: Do not schedule initial events prior to executing (running) the simulation.  Use the initialize() method instead.")
             sb.appendLine()
-            Simulation.LOGGER.warn(sb.toString()) //TODO
+            Simulation.logger.warn(sb.toString()) //TODO
             System.out.flush()
             throw JSLEventException(sb.toString())
         }
         if (interEventTime < 0.0) {
-            Simulation.LOGGER.warn("Attempted to schedule an event before the Current Time!") //TODO
+            Simulation.logger.warn("Attempted to schedule an event before the Current Time!") //TODO
             System.out.flush()
             throw JSLEventException("Attempted to schedule an event before the Current Time!")
         }
@@ -241,7 +240,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
             sb.append("The event was scheduled from ModelElement : ").append(theElementScheduling.name)
             sb.appendLine()
-            Simulation.LOGGER.warn(sb.toString()) //TODO
+            Simulation.logger.warn(sb.toString()) //TODO
             System.out.flush()
             throw JSLEventException(sb.toString())
         }
@@ -261,12 +260,12 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
                 // update the current simulation time to the event time
                 currentTime = event.time
                 status = Status.BEFORE_EVENT
-                notifyObservers(this, event)
+                notifyObservers(event)
                 event.execute()
                 lastExecutedEvent = event
                 numEventsExecuted = numEventsExecuted + 1
                 status = Status.AFTER_EVENT
-                notifyObservers(this, event)
+                notifyObservers(event)
                 performCPhase()
             }
         } catch (e: RuntimeException) {
@@ -282,7 +281,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
 //TODO            val sim = event.modelElement.simulation //TODO is there a better way to get the simulation, is it needed?
 //TODO            sb.append(sim)
-            Simulation.LOGGER.error(sb.toString()) //TODO
+            Simulation.logger.error(sb.toString()) //TODO
             throw e
         }
     }
@@ -311,7 +310,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
         numEventsScheduled = 0
         numEventsExecuted = 0
         status = Status.INITIALIZED
-        notifyObservers(this, null)
+        notifyObservers(null)
     }
 
     internal fun unregisterAllActions() {
@@ -357,7 +356,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             numEventsScheduledDuringExecution = numEventsScheduled.toDouble()
             // set observer state and notify observers
             status = Status.AFTER_EXECUTION
-            this@Executive.notifyObservers(this@Executive, null)
+            this@Executive.notifyObservers(null)
         }
 
         override fun hasNextStep(): Boolean {

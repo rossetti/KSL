@@ -71,7 +71,7 @@ class HalfWidthSequentialSampler(aName: String? = null) : IdentityIfc by Identit
         maxIterations = maxIter
         do {
             val x = v.value()
-            notifyObservers(this, x)
+            notifyObservers(x)
             myStatistic.collect(x)
             if (myStatistic.count > 1) {
                 if (hasConverged(dhw)) {

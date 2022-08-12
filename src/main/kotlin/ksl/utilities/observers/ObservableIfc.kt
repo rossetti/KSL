@@ -54,9 +54,7 @@ interface ObservableIfc<T> {
     fun countObservers(): Int
 
     /** Notify the observers
-     *
-     * @param theObserved
      * @param newValue
      */
-    fun notifyObservers(theObserved: ObservableIfc<T>, newValue: T?)
+    fun notifyObservers(newValue: T)
 }

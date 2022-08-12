@@ -23,8 +23,7 @@ package ksl.utilities.observers
 interface ObserverIfc<T> {
     /** This method is called when the observable needs observing
      *
-     * @param theObserved the thing observed
      * @param newValue the value to be observed from the thing that was observed
      */
-    fun update(theObserved: ObservableIfc<T>, newValue: T?)
+    fun onChange(newValue: T)
 }
