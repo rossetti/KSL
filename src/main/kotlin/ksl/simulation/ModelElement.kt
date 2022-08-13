@@ -1,5 +1,11 @@
 package ksl.simulation
+
+import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.entity.EntityType
+import ksl.modeling.variable.Counter
+import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.Variable
 import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
@@ -10,6 +16,11 @@ private var myCounter_: Int = 0
 //TODO needs to be made abstract
 open class ModelElement internal constructor(theName: String? = null) : IdentityIfc,
     Observable<ModelElement.Status>() {
+    //TODO spatial model stuff
+    //TODO creating QObjects
+    //TODO creating entities
+    //TODO change parent model element method, was in JSL, can/should it be in KSL
+    //TODO Request DSL from JSL ModelElement
 
     /**
      * A set of constants for indicating model element status to observers of
@@ -67,68 +78,77 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * the left traversal count for pre-order traversal of the model element tree
      */
-    var myLeftCount = 0
+    var leftTraversalCount = 0
         protected set
 
     /**
      * the right traversal count for pre-order traversal of the model element tree
      */
-    var myRightCount = 0
+    var rightTraversalCount = 0
         protected set
 
     /**
      * A flag to control whether the model element reacts to before
      * experiment actions.
      */
-    protected var myBeforeExperimentOption = true
+    var beforeExperimentOption = true
 
     /**
      * A flag to control whether the model element reacts to before
      * replication actions.
      */
-    protected var myBeforeReplicationOption = true
+    var beforeReplicationOption = true
 
     /**
      * A flag to control whether the model element participates in monte
      * carlo actions.
      */
-    protected var myMonteCarloOption = false
+    var monteCarloOption = false
 
     /**
      * A flag to control whether the model element reacts to
      * initialization actions
      */
-    protected var myInitializationOption = true
+    var initializationOption = true
 
     /**
      * A flag to control whether the model element reacts to end
      * replication actions.
      */
-    protected var myReplicationEndedOption = true
+    var replicationEndedOption = true
 
     /**
      * A flag to control whether the model element reacts to after
      * replication actions.
      */
-    protected var myAfterReplicationOption = true
+    var afterReplicationOption = true
 
     /**
      * A flag to control whether the model element reacts to after
      * experiment actions.
      */
-    protected var myAfterExperimentOption = true
+    var afterExperimentOption = true
 
     /**
      * Specifies if this model element will be warmed up when the warmup action
      * occurs for its parent.
+     * The warm-up flag  indicates whether this model element
+     * will be warmed up when its parent warm up event/action occurs. The
+     * default value for all model elements is true. A value of true implies
+     * that the model element allows its parent's warm up event to call the warm-up
+     * action. A value of false implies that the model element does not allow
+     * its parent's warm up event to call the warm-up action. False does not
+     * necessarily mean that the model element will not be warmed up. It may,
+     * through the use of the lengthOfWarmUp property, have its own warm up
+     * event and action.
      */
-    protected var myWarmUpOption = true
+    var warmUpOption = true
 
     /**
      * Specifies whether this model element participates in time update
      * event specified by its parent
      */
-    protected var myTimedUpdateOption = true
+    var timedUpdateOption = true
 
     /**
      * A collection containing the first level children of this model element
@@ -179,6 +199,92 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected val defaultEntityType: EntityType
         get() = model.myDefaultEntityType
 
+    /**
+     * The action listener that reacts to the warm-up event.
+     */
+    private var myWarmUpEventAction: WarmUpEventAction? = null
+
+    /**
+     * A reference to the warm-up event
+     */
+    protected var warmUpEvent: JSLEvent<Nothing>? = null
+
+    /**
+     * Indicates whether the warm-up action occurred sometime during the
+     * simulation. False indicates that the warm-up action has not occurred
+     */
+    var warmUpIndicator = false
+        protected set
+
+    /**
+     * Specifies the priority of this model element's warm up event.
+     */
+    var warmUpPriority = JSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY
+
+    /**
+     * The length of time from the start of the simulation to the warm-up event.
+     * Sets the length of the warm-up for this model element.
+     * <p>
+     * Setting the length of the warm up to 0.0 will set the warm-up option flag
+     * to true.
+     * <p>
+     * This is based on the assumption that a zero length warm up implies that
+     * the model element's parent warm up event will take care of the warm-up
+     * action. If this is not the case, then setting the warmUpOption to false after
+     * setting the length of the warm up to 0.0, will cause the model element to
+     * not have a warmup.
+     * <p>
+     * In general, there is not a need to set the length of the warm up to zero
+     * unless the reactor is resetting the value after explicitly specifying it
+     * for a replication. The default value of the warm-up length is zero. A zero
+     * length warm up will not cause a separate event to be scheduled. The
+     * default warm up flag option starts as true, which implies that the model
+     * element lets its parent's warm up event take care of the warm-up action.
+     * <p>
+     * Setting the length of the warm-up &gt; 0.0, will set the warm-up option
+     * flag to false.
+     * <p>
+     * Prior to each replication the specified warm-up length will be checked to
+     * see if it is greater than zero. if the length of the warm-up is greater
+     * than zero, it is checked to see if it is less than the simulation run
+     * length. If so, it is assumed that the model element wants its own warm up
+     * event scheduled. It is also assumed that the model element does not
+     * depend on its parent for a warm-up action. The warm-up option flag will
+     * be set to false and a separate warm up event will be scheduled for the
+     * model element.
+     */
+    var lengthOfWarmUp = 0.0 // zero means no warm up
+        set(value) {
+            require(value >= 0.0) { "Warm up event time must be >= 0.0" }
+            field = value
+            warmUpOption = (field == 0.0)
+        }
+
+    /**
+     * The action listener that reacts to the timed update event.
+     */
+    private var myTimedUpdateActionListener: TimedUpdateEventAction? = null
+
+    /**
+     * A reference to the TimedUpdate event.
+     */
+    protected var timedUpdateEvent: JSLEvent<Nothing>? = null
+
+    /**
+     * Specifies the havingPriority of this model element's timed update event.
+     */
+    var timedUpdatePriority = JSLEvent.DEFAULT_TIMED_EVENT_PRIORITY
+
+    /**
+     * The time interval between TimedUpdate events. The default is zero,
+     * indicating no timed update
+     */
+    var timedUpdateInterval = 0.0
+        set(value) {
+            require(value > 0.0) { "Time update interval must be > 0.0" }
+            field = value
+        }
+
     constructor(parent: ModelElement, name: String?) : this(name) {
         // should not be leaking this
         // adds the model element to the parent and also set this element's parent
@@ -221,22 +327,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
 
     /**
-     * Fills up the supplied StringBuilder carrying a string representation of
-     * the
-     * model element and its child model elements Useful for realizing the model
-     * element hierarchy.
-     *
-     * &lt;modelelement&gt;
-     * &lt;type&gt; getClass().getSimpleName() &lt;\type&gt;
-     * &lt;name&gt; getName() &lt;\name&gt;
-     * child elements here, etc.
-     * &lt;/modelelement&gt;
-     *
-     * @param sb will hold the model element as a StringBuilder
+     *  The current simulation time
      */
-    fun getModelElementsAsString(sb: StringBuilder) {
-        getModelElementsAsString(sb, 0)
-    }
+    protected val time
+        get() = executive.currentTime * model.baseTimeUnit.value //TODO check if I should multiply by base time unit
 
     /**
      * Fills up the supplied StringBuilder carrying a string representation of
@@ -252,7 +346,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param sb to hold the model element as a string
      * @param n  The starting level of indentation for the model elements
      */
-    fun getModelElementsAsString(sb: StringBuilder, n: Int) {
+    fun getModelElementsAsString(sb: StringBuilder, n: Int = 0) {
         indent(sb, n)
         sb.append("<modelelement>")
         sb.appendLine()
@@ -305,7 +399,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param flag True means that they participate in setup.
      */
     fun setBeforeExperimentOptionForModelElements(flag: Boolean) {
-        myBeforeExperimentOption = flag
+        beforeExperimentOption = flag
         for (m in myModelElements) {
             m.setBeforeExperimentOptionForModelElements(flag)
         }
@@ -318,7 +412,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param flag True means that they participate in the default action
      */
     fun setBeforeReplicationOptionForModelElements(flag: Boolean) {
-        myBeforeReplicationOption = flag
+        beforeReplicationOption = flag
         for (m in myModelElements) {
             m.setBeforeReplicationOptionForModelElements(flag)
         }
@@ -331,7 +425,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param flag True means that they participate in the default action
      */
     fun setMonteCarloOptionForModelElements(flag: Boolean) {
-        myMonteCarloOption = flag
+        monteCarloOption = flag
         for (m in myModelElements) {
             m.setMonteCarloOptionForModelElements(flag)
         }
@@ -344,7 +438,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param flag True means that they participate in the default action
      */
     fun setInitializationOptionForModelElements(flag: Boolean) {
-        myInitializationOption = flag
+        initializationOption = flag
         for (m in myModelElements) {
             m.setInitializationOptionForModelElements(flag)
         }
@@ -373,7 +467,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param warmUpFlag True means that they participate in the default action
      */
     fun setWarmUpOptionForModelElements(warmUpFlag: Boolean) {
-        myWarmUpOption = warmUpFlag
+        warmUpOption = warmUpFlag
         for (m in myModelElements) {
             m.setWarmUpOptionForModelElements(warmUpFlag)
         }
@@ -387,7 +481,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * action
      */
     fun setTimedUpdateOptionForModelElements(timedUpdateOption: Boolean) {
-        myTimedUpdateOption = timedUpdateOption
+        this.timedUpdateOption = timedUpdateOption
         for (m in myModelElements) {
             m.setTimedUpdateOptionForModelElements(timedUpdateOption)
         }
@@ -401,7 +495,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param flag True means that they participate in the default action
      */
     fun setReplicationEndedOptionForModelElements(flag: Boolean) {
-        myReplicationEndedOption = flag
+        replicationEndedOption = flag
         for (m in myModelElements) {
             m.setReplicationEndedOptionForModelElements(flag)
         }
@@ -414,7 +508,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param flag True means that they participate in the default action
      */
     fun setAfterReplicationOptionForModelElements(flag: Boolean) {
-        myAfterReplicationOption = flag
+        afterReplicationOption = flag
         for (m in myModelElements) {
             m.setAfterReplicationOptionForModelElements(flag)
         }
@@ -427,7 +521,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param option True means that they participate.
      */
     fun setAfterExperimentOptionForModelElements(option: Boolean) {
-        myAfterExperimentOption = option
+        afterExperimentOption = option
         for (m in myModelElements) {
             m.setAfterExperimentOptionForModelElements(option)
         }
@@ -454,9 +548,17 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      *
      * @return an iterator over the child elements.
      */
-    fun getChildModelElementIterator(): Iterator<ModelElement> {//TODO could be internal?
+    internal fun getChildModelElementIterator(): Iterator<ModelElement> {
         return myModelElements.iterator()
     }
+
+    /**
+     * Gets the number of model elements contained by this model elements.
+     *
+     * @return a count of the number of child elements.
+     */
+    val numberOfModelElements: Int
+        get() =  myModelElements.size
 
     /** Gets all model elements that are contained within this model element
      * in parent-child order within the hierarchy
@@ -485,10 +587,157 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     *  The current simulation time
+     * Fills up the provided collection carrying all the response variables
+     * that are contained by any model elements within this model element. In other
+     * words, any response variables that are in the model element hierarchy
+     * below this model element.
+     *
+     * @param c The collection to be filled.
      */
-    protected val time
-        get() = executive.currentTime * model.baseTimeUnit.value //TODO check if I should multiply by base time unit
+    protected fun getAllResponseVariables(c: MutableCollection<Response>) {
+        if (!myModelElements.isEmpty()) { // I have elements, so check them
+            for (m in myModelElements) {
+                m.getAllResponseVariables(c)
+            }
+        }
+
+        // check if I'm a response variable, if so add me
+        if (this is Response) {
+            c.add(this as Response)
+        }
+    }
+
+    /**
+     * Fills up the provided collection carrying the response variables that are
+     * contained only by this model element
+     *
+     * @param c The collection to be filled.
+     */
+    protected fun getThisElementsResponseVariables(c: MutableCollection<Response>) {
+        if (myModelElements.isNotEmpty()) { // I have elements, so check them
+            for (m in myModelElements) {
+                if (m is Response) {
+                    c.add(m as Response)
+                }
+            }
+        }
+    }
+
+    /**
+     * Fills up the provided collection carrying all of the Counters that are
+     * contained by any model elements within this model element. In other
+     * words, any Counters that are in the model element hierarchy below this
+     * model element.
+     *
+     * @param c The collection to be filled.
+     */
+    protected fun getAllCounters(c: MutableCollection<Counter>) {
+        if (myModelElements.isNotEmpty()) { // I have elements, so check them
+            for (m in myModelElements) {
+                m.getAllCounters(c)
+            }
+        }
+
+        // check if I'm a Counter, if so add me
+        if (this is Counter) {
+            c.add(this)
+        }
+    }
+
+    /**
+     * Fills up the provided collection carrying the Counters that are contained
+     * only by this model element
+     *
+     * @param c The collection to be filled.
+     */
+    protected fun getThisElementsCounters(c: MutableCollection<Counter>) {
+        if (myModelElements.isNotEmpty()) { // I have elements, so check them
+            for (m in myModelElements) {
+                if (m is Counter) {
+                    c.add(m)
+                }
+            }
+        }
+    }
+
+    /**
+     * Fills up the provided collection carrying all of the RandomElementIfc and
+     * subclasses of RandomElementIfc that are contained by any model elements
+     * within this model element. In other words, any RandomElementIfc that are
+     * in the model element hierarchy below this model element.
+     *
+     * @param c The collection to be filled.
+     */
+    protected fun getAllRandomElements(c: MutableCollection<RandomElementIfc>) {
+        if (myModelElements.isNotEmpty()) { // I have elements, so check them
+            for (m in myModelElements) {
+                m.getAllRandomElements(c)
+            }
+        }
+
+        //	check if I'm a random variable, if so add me
+        if (this is RandomElementIfc) {
+            c.add(this as RandomElementIfc)
+        }
+    }
+
+    /**
+     * Fills up the provided collection carrying only the random variables
+     * associated carrying this element
+     *
+     * @param c The collection to be filled.
+     */
+    protected fun getThisElementsRandomVariables(c: MutableCollection<RandomVariable>) {
+        if (myModelElements.isNotEmpty()) { // I have elements, so check them
+            for (m in myModelElements) {
+                if (m is RandomVariable) {
+                    c.add(m)
+                }
+            }
+        }
+    }
+
+    /**
+     * Fills up the provided collection carrying only the variables associated
+     * carrying
+     * this element
+     *
+     * @param c The collection to be filled.
+     */
+    protected fun getThisElementsVariables(c: MutableCollection<Variable>) {
+        if (myModelElements.isNotEmpty()) { // I have elements, so check them
+            for (m in myModelElements) {
+                if (m is Variable) {
+                    if (Variable::class == m::class) {
+                        c.add(this as Variable)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Fills up the provided collection carrying all the variables that are
+     * contained by any model elements within this model element. In other
+     * words, any variables that are in the model element hierarchy below this
+     * model element.
+     *
+     * @param c The collection to be filled.
+     */
+    protected fun getAllVariables(c: MutableCollection<Variable?>) {
+        if (myModelElements.isNotEmpty()) { // I have elements, so check them
+            for (m in myModelElements) {
+                m.getAllVariables(c)
+            }
+        }
+
+        //	check if I'm a variable, if so add me
+        if (this is Variable) {
+            if (Variable::class == this::class) {
+                c.add(this)
+            }
+        }
+    }
 
     /**
      * Returns the value of a 1 millisecond time interval in terms of the base
@@ -563,25 +812,15 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * The action listener that reacts to the warm-up event.
-     */
-    private var myWarmUpEventAction: WarmUpEventAction? = null
-
-    /**
-     * A reference to the warm-up event
-     */
-    protected var myWarmUpEvent: JSLEvent<Nothing>? = null
-
-    /**
      * Checks if a warm-up event has been scheduled for this model element
      *
      * @return True means that it has been scheduled.
      */
     fun isWarmUpEventScheduled(): Boolean {
-        return if (myWarmUpEvent == null) {
+        return if (warmUpEvent == null) {
             false
         } else {
-            myWarmUpEvent!!.scheduled
+            warmUpEvent!!.scheduled
         }
     }
 
@@ -656,11 +895,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         while (m != null) {
             if (m.isWarmUpEventScheduled()) {
                 // element has its own warm up event
-                time = m.myLengthOfWarmUp
+                time = m.lengthOfWarmUp
                 break
             }
             // does not have its own warm up event
-            if (!m.myWarmUpOption) {
+            if (!m.warmUpOption) {
                 // and doesn't listen to a parent
                 time = 0.0
                 break
@@ -685,7 +924,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         // if this model element participates in the warm up
         // check if it’s parent does, and so on, until
         // reaching the Model
-        if (myWarmUpOption) {
+        if (warmUpOption) {
             // if it has a parent check it
             if (parent != null) {
                 return parent!!.checkWarmUpOption()
@@ -702,56 +941,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * Cancels the warm up event for this model element.
      */
     fun cancelWarmUpEvent() {
-        if (myWarmUpEvent != null) {
-            myWarmUpEvent!!.cancelled = true
+        if (warmUpEvent != null) {
+            warmUpEvent!!.cancelled = true
         }
     }
-
-    /**
-     * Indicates whether the warm-up action occurred sometime during the
-     * simulation. False indicates that the warm-up action has not occurred
-     */
-    protected var myWarmUpIndicator = false
-
-    /**
-     * Specifies the priority of this model element's warm up event.
-     */
-    protected var myWarmUpPriority = JSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY
-
-    /**
-     * The length of time from the start of the simulation to the warm-up event.
-     */
-    protected var myLengthOfWarmUp = 0.0 // zero means no warm up
-        set(value) {
-            require(value >= 0.0) { "Warm up event time must be >= 0.0" }
-            field = value
-            myWarmUpOption = (field == 0.0)
-        }
-
-    /**
-     * The action listener that reacts to the timed update event.
-     */
-    private var myTimedUpdateActionListener: TimedUpdateEventAction? = null
-
-    /**
-     * A reference to the TimedUpdate event.
-     */
-    protected var myTimedUpdateEvent: JSLEvent<Nothing>? = null
-
-    /**
-     * Specifies the havingPriority of this model element's timed update event.
-     */
-    protected var myTimedUpdatePriority = JSLEvent.DEFAULT_TIMED_EVENT_PRIORITY
-
-    /**
-     * The time interval between TimedUpdate events. The default is zero,
-     * indicating no timed update
-     */
-    protected var myTimedUpdateInterval = 0.0
-        set(value) {
-            require(value > 0.0) { "Time update interval must be > 0.0" }
-            field = value
-        }
 
     /**
      * Checks if a timed update event has been scheduled for this model element
@@ -759,10 +952,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @return True means that it has been scheduled.
      */
     fun isTimedUpdateEventScheduled(): Boolean {
-        return if (myTimedUpdateEvent == null) {
+        return if (timedUpdateEvent == null) {
             false
         } else {
-            myTimedUpdateEvent!!.scheduled
+            timedUpdateEvent!!.scheduled
         }
     }
 
@@ -770,8 +963,8 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * Cancels the timed update event for this model element.
      */
     fun cancelTimedUpdateEvent() {
-        if (myTimedUpdateEvent != null) {
-            myTimedUpdateEvent!!.cancelled = true
+        if (timedUpdateEvent != null) {
+            timedUpdateEvent!!.cancelled = true
         }
     }
 
@@ -850,6 +1043,218 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         return executive.scheduleEvent(this, eventAction, timeToEvent, message, priority, name)
     }
 
+    /**
+     * Creates an EventScheduler which can be used to create and schedule events
+     * on the simulation calendar reactingWith a fluency pattern.
+     *
+     * @param <T>    if the event has a message, this is the type
+     * @param action the action to be invoked at the event time
+     * @return the builder of the event
+     * */
+    protected fun <T> schedule(action: EventActionIfc<T>): EventBuilderIfc<T> {
+        return EventScheduler<T>(action)
+    }
+
+    interface EventBuilderIfc<T> {
+        /**
+         * An object of type T that is attached to the event
+         *
+         * @param message the message to attach
+         * @return the builder
+         */
+        fun withMessage(message: T): EventBuilderIfc<T>
+
+        /**
+         * Sets the scheduling priority of the event, lower is faster
+         *
+         * @param priority the priority
+         * @return the builder
+         */
+        fun havingPriority(priority: Int): EventBuilderIfc<T>
+
+        /**
+         * Sets the name of the event being built
+         *
+         * @param name the name of the event
+         * @return the builder
+         */
+        fun name(name: String?): EventBuilderIfc<T>
+
+        /**
+         * Causes the event that is being built to be scheduled at the current
+         * simulation time (no time offset)
+         *
+         * @return the event that was scheduled
+         */
+        fun now(): JSLEvent<T>
+
+        /**
+         * Sets the time of the event being built to current time +
+         * value.getValue()
+         *
+         * @param value an object that can compute the time via getValue()
+         * @return the builder
+         */
+        fun after(value: GetValueIfc): TimeUnitIfc<T> //would have liked to use the word "in"
+
+        /**
+         * Sets the time of the event being built to current time + time
+         *
+         * @param time the time until the event should occur
+         * @return the builder
+         */
+        fun after(time: Double): TimeUnitIfc<T>
+    }
+
+    /**
+     * Uses the builder pattern to create and schedule the event and the action
+     * associated carrying the event
+     *
+     * @param <T> the type associated carrying the messages on the event */
+    protected inner class EventScheduler<T>(action: EventActionIfc<T>) : EventBuilderIfc<T>, TimeUnitIfc<T> {
+        private var time = 0.0
+        private var name: String? = null
+        private var message: T? = null
+        private var priority: Int
+        private val action: EventActionIfc<T>
+
+        init {
+            priority = JSLEvent.DEFAULT_PRIORITY
+            this.action = action
+        }
+
+        override fun now(): JSLEvent<T> {
+            return after(0.0).units()
+        }
+
+        override fun after(value: GetValueIfc): TimeUnitIfc<T> {
+            return after(value.value)
+        }
+
+        override fun after(time: Double): TimeUnitIfc<T> {
+            this.time = time
+            return this
+        }
+
+        override fun name(name: String?): EventBuilderIfc<T> {
+            this.name = name
+            return this
+        }
+
+        override fun withMessage(message: T): EventBuilderIfc<T> {
+            this.message = message
+            return this
+        }
+
+        override fun havingPriority(priority: Int): EventBuilderIfc<T> {
+            this.priority = priority
+            return this
+        }
+
+        override fun days(): JSLEvent<T> {
+            time = time * this@ModelElement.day()
+            return units()
+        }
+
+        override fun minutes(): JSLEvent<T> {
+            time = time * this@ModelElement.minute()
+            return units()
+        }
+
+        override fun hours(): JSLEvent<T> {
+            time = time * this@ModelElement.hour()
+            return units()
+        }
+
+        override fun seconds(): JSLEvent<T> {
+            time = time * this@ModelElement.second()
+            return units()
+        }
+
+        override fun weeks(): JSLEvent<T> {
+            time = time * this@ModelElement.week()
+            return units()
+        }
+
+        override fun milliseconds(): JSLEvent<T> {
+            time = time * this@ModelElement.millisecond()
+            return units()
+        }
+
+        override fun units(): JSLEvent<T> {
+            return schedule<T>(action, time, message, priority, name)
+        }
+    }
+
+    /**
+     * A Tagging interface to force builder to specify time timeUnits after
+     * calling the in() method.
+     *
+     * Converts the time within EventScheduler to timeUnits for scheduling the
+     * event. Ensures that the event has the appropriate time timeUnits.
+     *
+     * @param <T> the type for the thing that the event might hold as a message
+     * @author rossetti
+     * */
+    interface TimeUnitIfc<T> {
+        /**
+         * Creates and schedules the event associated carrying the model
+         * interpreting the event time in days
+         *
+         * @return the event that was scheduled
+         */
+        fun days(): JSLEvent<T>
+
+        /**
+         * Creates and schedules the event associated carrying the model
+         * interpreting the event time in minutes
+         *
+         * @return the event that was scheduled
+         */
+        fun minutes(): JSLEvent<T>
+
+        /**
+         * Creates and schedules the event associated carrying the model
+         * interpreting the event time in hours
+         *
+         * @return the event that was scheduled
+         */
+        fun hours(): JSLEvent<T>
+
+        /**
+         * Creates and schedules the event associated carrying the model
+         * interpreting the event time in seconds
+         *
+         * @return the event that was scheduled
+         */
+        fun seconds(): JSLEvent<T>
+
+        /**
+         * Creates and schedules the event associated carrying the model
+         * interpreting the event time in weeks
+         *
+         * @return the event that was scheduled
+         */
+        fun weeks(): JSLEvent<T>
+
+        /**
+         * Creates and schedules the event associated carrying the model
+         * interpreting the event time in milliseconds
+         *
+         * @return the event that was scheduled
+         */
+        fun milliseconds(): JSLEvent<T>
+
+        /**
+         * Creates and schedules the event reactingWith the base time timeUnits
+         * associated
+         * carrying the model
+         *
+         * @return the event that was scheduled
+         */
+        fun units(): JSLEvent<T>
+    }
+
     /** Includes the model name, the id, the model element name, the parent name, and parent id
      *
      * @return a string representing the model element
@@ -889,13 +1294,13 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     internal fun markPreOrderTraversalTree(count: Int): Int {
         var c = count
         c = c + 1
-        myLeftCount = c
+        leftTraversalCount = c
         for (m in myModelElements) {
             c = m.markPreOrderTraversalTree(c)
         }
         // reached end of children or no children
         c = c + 1
-        myRightCount = c
+        rightTraversalCount = c
         return c
     }
 
@@ -915,14 +1320,14 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * any observers will be notified of this action
      */
     internal fun beforeExperimentActions() {
-        myWarmUpIndicator = false
+        warmUpIndicator = false
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 m.beforeExperimentActions()
             }
         }
 
-        if (myBeforeExperimentOption) {
+        if (beforeExperimentOption) {
             logger.trace { "ModelElement: $name executing beforeExperiment()" }
             beforeExperiment()
             currentStatus = Status.BEFORE_EXPERIMENT
@@ -955,7 +1360,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
 
         // now initialize the model element itself
-        if (myInitializationOption) {
+        if (initializationOption) {
             logger.trace { "ModelElement: $name executing initialize()" }
             initialize()
             currentStatus = Status.INITIALIZED
@@ -1007,26 +1412,26 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * before the method initialize() occurs.
      */
     internal fun beforeReplicationActions() {
-        if (myLengthOfWarmUp > 0.0) {
+        if (lengthOfWarmUp > 0.0) {
             // the warm up period is > 0, ==> element wants a warm-up event
             myWarmUpEventAction = WarmUpEventAction()
-            Simulation.logger.info { "Model: scheduling warm up event for time $myLengthOfWarmUp"}
-            myWarmUpEvent = myWarmUpEventAction!!.schedule()
-            myWarmUpOption = false // no longer depends on parent's warm up
+            Simulation.logger.info { "Model: scheduling warm up event for time $lengthOfWarmUp" }
+            warmUpEvent = myWarmUpEventAction!!.schedule()
+            warmUpOption = false // no longer depends on parent's warm up
         }
-        if (myTimedUpdateInterval > 0.0) {
+        if (timedUpdateInterval > 0.0) {
             // the timed update is > 0, ==> element wants a timed update event
             // schedule the timed update event
             myTimedUpdateActionListener = TimedUpdateEventAction()
-            Simulation.logger.info { "Model: scheduling timed update event for time $myTimedUpdateInterval"}
-            myTimedUpdateEvent = myTimedUpdateActionListener!!.schedule()
+            Simulation.logger.info { "Model: scheduling timed update event for time $timedUpdateInterval" }
+            timedUpdateEvent = myTimedUpdateActionListener!!.schedule()
         }
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 m.beforeReplicationActions()
             }
         }
-        if (myBeforeReplicationOption) {
+        if (beforeReplicationOption) {
             logger.trace { "ModelElement: $name executing beforeReplication()" }
             beforeReplication()
             currentStatus = Status.BEFORE_REPLICATION
@@ -1051,7 +1456,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * method called and that any observers will be notified of this action
      */
     internal fun monteCarloActions() {
-        if (myMonteCarloOption) {
+        if (monteCarloOption) {
             logger.trace { "ModelElement: $name executing montecarlo()" }
             montecarlo()
             currentStatus = Status.MONTE_CARLO
@@ -1079,12 +1484,12 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         // if we get here the warm-up was scheduled, so do it
         logger.trace { "ModelElement: $name executing warmUp()" }
         warmUp()
-        myWarmUpIndicator = true
+        warmUpIndicator = true
         currentStatus = Status.WARMUP
         // warm up the children that need it
         if (!myModelElements.isEmpty()) {
             for (m in myModelElements) {
-                if (m.myWarmUpOption) {
+                if (m.warmUpOption) {
                     m.warmUpAction()
                 }
             }
@@ -1097,7 +1502,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
 
         fun schedule(): JSLEvent<Nothing> {
-            return schedule(myLengthOfWarmUp, null, myWarmUpPriority, name = this@ModelElement.name + "_WarmUp")
+            return schedule(lengthOfWarmUp, null, warmUpPriority, name = this@ModelElement.name + "_WarmUp")
         }
     }
 
@@ -1131,7 +1536,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * timed update action will perform its actions.
      */
     private fun timedUpdateActions() {
-        if (myTimedUpdateOption) {
+        if (timedUpdateOption) {
             logger.trace { "ModelElement: $name executing timedUpdate()" }
             timedUpdate()
             currentStatus = Status.TIMED_UPDATE
@@ -1153,7 +1558,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
         fun schedule(): JSLEvent<Nothing> {
             return schedule(
-                myTimedUpdateInterval, null, myTimedUpdatePriority,
+                timedUpdateInterval, null, timedUpdatePriority,
                 name = this@ModelElement.name + "_TimedUpdate"
             )
         }
@@ -1179,7 +1584,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
                 m.replicationEndedActions()
             }
         }
-        if (myReplicationEndedOption) {
+        if (replicationEndedOption) {
             logger.trace { "ModelElement: $name executing replicationEnded()" }
             replicationEnded()
             currentStatus = Status.REPLICATION_ENDED
@@ -1204,7 +1609,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
                 m.afterReplicationActions()
             }
         }
-        if (myAfterReplicationOption) {
+        if (afterReplicationOption) {
             logger.trace { "ModelElement: $name executing afterReplication()" }
             afterReplication()
             currentStatus = Status.AFTER_REPLICATION
@@ -1231,7 +1636,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
                 m.afterExperimentActions()
             }
         }
-        if (myAfterExperimentOption) {
+        if (afterExperimentOption) {
             logger.trace { "ModelElement: $name executing afterExperiment()" }
             afterExperiment()
             currentStatus = Status.AFTER_EXPERIMENT
@@ -1306,21 +1711,21 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
         Simulation.logger.info { "ModelElement: $name executing removeFromModel()" }
         // if the model element has a warm-up event, cancel it
-        if (myWarmUpEvent != null) {
-            if (myWarmUpEvent!!.scheduled) {
+        if (warmUpEvent != null) {
+            if (warmUpEvent!!.scheduled) {
                 Simulation.logger.info { "ModelElement: $name cancelling warmup event" }
-                myWarmUpEvent!!.cancelled = true
+                warmUpEvent!!.cancelled = true
             }
-            myWarmUpEvent = null
+            warmUpEvent = null
             myWarmUpEventAction = null
         }
         // if the model element has a timed update event, cancel it
-        if (myTimedUpdateEvent != null) {
-            if (myTimedUpdateEvent!!.scheduled) {
+        if (timedUpdateEvent != null) {
+            if (timedUpdateEvent!!.scheduled) {
                 Simulation.logger.info { "ModelElement: $name cancelling timed update event" }
-                myTimedUpdateEvent!!.cancelled = true
+                timedUpdateEvent!!.cancelled = true
             }
-            myTimedUpdateEvent = null
+            timedUpdateEvent = null
             myTimedUpdateActionListener = null
         }
 

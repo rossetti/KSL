@@ -7,11 +7,8 @@ import ksl.controls.Controls
 import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.entity.EntityType
 import ksl.modeling.variable.Counter
-import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.Variable
-import ksl.utilities.io.KSL
-import ksl.utilities.random.rvariable.ExponentialRV
 
 class Model internal constructor(
     theSimulation: Simulation,
@@ -325,7 +322,7 @@ class Model internal constructor(
 //        removeMarkedModelElements();
 
         // setup warm up period
-        myLengthOfWarmUp = simulation.lengthOfWarmUp
+        lengthOfWarmUp = simulation.lengthOfWarmUp
 
         // control streams for antithetic option
         handleAntitheticReplications()
@@ -349,7 +346,7 @@ class Model internal constructor(
         registerConditionalActionsWithExecutive()
 
         // if monte carlo option is on, call the model element's monteCarlo() methods
-        if (myMonteCarloOption) {
+        if (monteCarloOption) {
             // since monte carlo option was turned on, assume everyone wants to listen
             setMonteCarloOptionForModelElements(true)
             Simulation.logger.info { "Model: executing monteCarloActions() actions for model elements"}

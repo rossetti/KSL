@@ -110,7 +110,7 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
     var initialRandomSourceChangeWarning = true
 
     init {
-        myWarmUpOption = false
+        warmUpOption = false
     }
 
     override fun sample(): Double {
