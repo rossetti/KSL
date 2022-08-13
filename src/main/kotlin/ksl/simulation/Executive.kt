@@ -4,9 +4,6 @@ import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.utilities.exceptions.JSLEventException
 import ksl.utilities.observers.Observable
-//import mu.KotlinLogging
-
-//private val logger = KotlinLogging.logger {} //TODO decide if this should be KSL or not Simulation logger
 
 class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) : Observable<JSLEvent<*>?>(){
 
@@ -277,7 +274,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
-            val sim = event.modelElement.myModel.mySimulation //TODO is there a better way to get the simulation, is it needed?
+            val sim = event.modelElement.myModel.mySimulation
             sb.append(sim)
             Simulation.logger.error(sb.toString())
             System.out.flush()
