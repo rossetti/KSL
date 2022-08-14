@@ -6,6 +6,7 @@ import kotlin.coroutines.*
 
 // just place holders
 //class Entity {} // entities are supposed to experience processes
+// maybe need an EntityType class that is a model element, it knows how to create and track its entities, process its entities
 class Resource {} // entities may use resources during their processes, must have some kind of queueing
 class Task {} // a task is what the entity asks resources to do during the process
 class Signal {} // represents a signal to hold a process for, must have some kind of queue
@@ -118,6 +119,10 @@ internal open class ProcessContinuation : Continuation<Unit> {
     within a model element a process builder should be used
  */
 
+fun main(){
+
+    val p = ProcessCoroutine()// does not make a coroutine, yet
+}
 internal class ProcessCoroutine : ProcessScope, ProcessContinuation() {
     lateinit var continuation : Continuation<Unit>
 
@@ -131,10 +136,10 @@ internal class ProcessCoroutine : ProcessScope, ProcessContinuation() {
         //TODO("Not yet implemented")
     }
 
-//    override suspend fun halt() {
-//       // return suspendCoroutineUninterceptedOrReturn { cont -> COROUTINE_SUSPENDED }
+//    suspend fun halt() {
+//       return suspendCoroutineUninterceptedOrReturn { cont -> COROUTINE_SUSPENDED }
 //
-//        TODO("Not yet implemented")
+////        TODO("Not yet implemented")
 //    }
 
     override suspend fun suspend() {
@@ -143,7 +148,7 @@ internal class ProcessCoroutine : ProcessScope, ProcessContinuation() {
             COROUTINE_SUSPENDED }
     }
 
-//    override suspend fun halt() = suspendCoroutineUninterceptedOrReturn {
+//    suspend fun halt() = suspendCoroutineUninterceptedOrReturn {
 //        cont: Continuation<Unit> -> COROUTINE_SUSPENDED
 //    }
 
@@ -164,6 +169,7 @@ internal class ProcessCoroutine : ProcessScope, ProcessContinuation() {
         // if time = 0 don't delay, just return
         // if time > 0, then schedule a resume after the delay, and then suspend
         // need to think about what happens if the event associated with this delay is cancelled
+        // probably needs to return the event
         TODO("Not yet implemented")
     }
 
