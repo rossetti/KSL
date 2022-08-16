@@ -183,10 +183,14 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected val simulation: Simulation
         get() = model.mySimulation
 
+    val modelName = model.name
+    val simulationName = simulation.name
+    val experimentName = simulation.experimentName
+
     /**
      *  the current replication number
      */
-    protected val currentReplicationNumber: Int
+    val currentReplicationNumber: Int
         get() = simulation.currentReplicationNumber
 
     /**
@@ -624,7 +628,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * Fills up the provided collection carrying all of the Counters that are
+     * Fills up the provided collection carrying all the Counters that are
      * contained by any model elements within this model element. In other
      * words, any Counters that are in the model element hierarchy below this
      * model element.
@@ -661,7 +665,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * Fills up the provided collection carrying all of the RandomElementIfc and
+     * Fills up the provided collection carrying all the RandomElementIfc and
      * subclasses of RandomElementIfc that are contained by any model elements
      * within this model element. In other words, any RandomElementIfc that are
      * in the model element hierarchy below this model element.
@@ -751,10 +755,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * Returns the value of a 1 second time interval in terms of the base time
+     * Returns the value of a 1-second time interval in terms of the base time
      * unit
      *
-     * @return Returns the value of a 1 second time interval in terms of the
+     * @return Returns the value of a 1-second time interval in terms of the
      * base time unit
      */
     fun second(): Double {
@@ -762,7 +766,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * Returns the value of a 1 minute time interval in terms of the base time
+     * Returns the value of a 1-minute time interval in terms of the base time
      * unit. For example, if the time unit is set to hours, then minute() should
      * return 0.0166 (TIME_UNIT_MINUTE/TIME_UNIT_HOUR)
      *
@@ -772,7 +776,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * convert timeUnits to the base time unit when scheduling events or
      * defining time parameters.
      *
-     * @return Returns the value of a 1 minute time interval in terms of the
+     * @return Returns the value of a 1-minute time interval in terms of the
      * base time unit.
      */
     fun minute(): Double {
@@ -780,10 +784,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * Returns the value of a 1 hour time interval in terms of the base time
+     * Returns the value of a 1-hour time interval in terms of the base time
      * unit
      *
-     * @return Returns the value of a 1 hour time interval in terms of the base
+     * @return Returns the value of a 1-hour time interval in terms of the base
      * time unit
      */
     fun hour(): Double {
@@ -791,9 +795,9 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * Returns the value of a 1 day time interval in terms of the base time unit
+     * Returns the value of a 1-day time interval in terms of the base time unit
      *
-     * @return Returns the value of a 1 day time interval in terms of the base
+     * @return Returns the value of a 1-day time interval in terms of the base
      * time unit
      */
     fun day(): Double {
@@ -801,10 +805,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * Returns the value of a 1 week time interval in terms of the base time
+     * Returns the value of a 1-week time interval in terms of the base time
      * unit
      *
-     * @return Returns the value of a 1 week time interval in terms of the base
+     * @return Returns the value of a 1-week time interval in terms of the base
      * time unit
      */
     fun week(): Double {
@@ -836,7 +840,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @return true if any warm up event is scheduled in the upward chain
      */
     fun isWarmUpScheduled(): Boolean {
-        // if this model element doesn’t schedule the warm up
+        // if this model element does not schedule the warm-up
         // check if it’s parent does, and so on, until
         // reaching the Model
         if (!isWarmUpEventScheduled()) {
@@ -921,7 +925,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @return true if this and every parent participates in the warm-up action
      */
     fun checkWarmUpOption(): Boolean {
-        // if this model element participates in the warm up
+        // if this model element participates in the warm-up
         // check if it’s parent does, and so on, until
         // reaching the Model
         if (warmUpOption) {
@@ -938,7 +942,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * Cancels the warm up event for this model element.
+     * Cancels the warm-up event for this model element.
      */
     fun cancelWarmUpEvent() {
         if (warmUpEvent != null) {

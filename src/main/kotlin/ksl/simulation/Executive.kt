@@ -296,7 +296,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
      * time to 0.0. Resets the event identification counter. Unregisters all
      * actions Notifies observers of initialization
      */
-    private fun initializeCalendar() {
+    internal fun initializeCalendar() {
         endEvent = null
         lastExecutedEvent = null
         currentTime = 0.0

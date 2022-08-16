@@ -32,7 +32,7 @@ import kotlin.math.*
  * Use sample() or getValue() to get a new random value and use getPreviousValue() to get the last sampled value.
  *
  *
- * The preferred approach to creating random variables is to sub-class RVariable.
+ * The preferred approach to creating random variables is to subclass RVariable.
  */
 interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, DoubleEmitterIfc {
 

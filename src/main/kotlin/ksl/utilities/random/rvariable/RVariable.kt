@@ -37,14 +37,14 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
      */
-    var previous: Double = Double.NaN
+    final override var previous: Double = Double.NaN
         private set
 
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
      * @return the last randomly generated value, same as using property previous
      */
-    final override fun previous(): Double = previous
+//    fun previous(): Double = previous
 
     /** Makes a new instance.  False allows the new instance to keep using
      * the same underlying source of random numbers.

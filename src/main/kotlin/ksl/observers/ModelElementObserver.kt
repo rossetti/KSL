@@ -9,10 +9,10 @@ import ksl.utilities.observers.ObserverIfc
 /**
  *  Base class for reacting to status changes that occur on model elements.
  */
-open class ModelElementObserver(observed: ModelElement, name: String? = null) : IdentityIfc by Identity(name),
+open class ModelElementObserver<T: ModelElement>(observed: T, name: String? = null) : IdentityIfc by Identity(name),
     ObserverIfc<ModelElement.Status> {
 
-    protected val observedModelElement: ModelElement = observed
+    protected val observedModelElement: T = observed
 
     override fun onChange(newValue: ModelElement.Status) {
         when(newValue){

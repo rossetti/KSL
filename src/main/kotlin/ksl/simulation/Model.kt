@@ -408,6 +408,8 @@ class Model internal constructor(
     //called from simulation, so internal
     internal fun setUpExperiment() {
         Simulation.logger.info { "Model: Setting up experiment ${simulation.experimentName} for simulation ${simulation.name}"}
+        executive.initializeCalendar()
+        Simulation.logger.info { "Model: The executive was initialized prior to any experiments. Current time = $time"}
         executive.terminationWarningMsgOption = false
         markPreOrderTraversalModelElementHierarchy()
         // already should have reference to simulation
@@ -455,10 +457,12 @@ class Model internal constructor(
         }
         Simulation.logger.info { "Model: Initializing the executive"}
         executive.initialize()
+        Simulation.logger.info { "Model: The executive was initialized prior to the replication. Current time = $time"}
         Simulation.logger.info { "Model: setting up the replications for model elements"}
         setUpReplication()
         Simulation.logger.info { "Model: executing the events"}
         executive.executeAllEvents()
+        Simulation.logger.info { "Model: The executive finished executing events. Current time = $time"}
         Simulation.logger.info { "Model: performing end of replication actions for model elements"}
         replicationEndedActions()
         Simulation.logger.info { "Model: performing after replication actions for model elements"}
