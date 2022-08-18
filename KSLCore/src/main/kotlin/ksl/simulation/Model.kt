@@ -68,6 +68,12 @@ class Model internal constructor(
         myDefaultEntityType = EntityType(this, "DEFAULT_ENTITY_TYPE")
     }
 
+    override fun removedFromModel() {
+        //TODO think of better exception name or try to prevent this some other way
+        throw IllegalStateException("The model cannot remove itself from itself!")
+ //       super.removedFromModel()
+    }
+
     /**
      * Causes RandomElementIfc that have been added to the model to immediately
      * turn on their antithetic generating streams.

@@ -1521,7 +1521,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * observers need notification. This method ensures that each contained
      * model element that requires an update action will perform its actions.
      */
-    protected fun update() {
+    protected fun update() {// protected so that subclasses can call this at points that require updates
         logger.trace { "ModelElement: $name executing update()" }
         currentStatus = Status.UPDATE
         if (myModelElements.isNotEmpty()) {
@@ -1702,7 +1702,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * implementing the removedFromModel() method can be used. If the observer is a
      * general Observer, then use REMOVED_FROM_MODEL to check if the element is being removed.
      */
-    fun removeFromModel() {
+    fun removeFromModel() {//TODO make internal or protected and allow Model to take in model element to be removed
         if (simulation.isRunning) {
             val sb = StringBuilder()
             sb.append("Attempted to remove the model element: ")

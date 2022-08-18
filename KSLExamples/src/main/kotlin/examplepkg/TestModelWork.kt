@@ -17,6 +17,8 @@ fun main() {
 
     val m = sim.model
 
+    m.replicationEndedOption
+
     val me = ModelElement(m, "something")// can only make because of internal
 
     // it is interesting that the rv is actually usable outside the model
