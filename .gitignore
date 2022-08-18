@@ -210,35 +210,35 @@ testoutput/
 \.idea/
 
 <<<<<<< HEAD
-JSLTesting/gradle/wrapper/
+KSLTesting/gradle/wrapper/
 
-JSLExtensions/gradle/wrapper/
+KSLExtensions/gradle/wrapper/
 
-JSLCore/gradle/wrapper/
+KSLCore/gradle/wrapper/
 
-JSLExampleProject/gradle/wrapper/
+KSLExampleProject/gradle/wrapper/
 
-JSLExamples/gradle/wrapper/
+KSLExamples/gradle/wrapper/
 =======
-JSLCore/gradle/wrapper/gradle-wrapper.jar
+KSLCore/gradle/wrapper/gradle-wrapper.jar
 
-JSLCore/gradle/wrapper/gradle-wrapper.properties
+KSLCore/gradle/wrapper/gradle-wrapper.properties
 
-JSLExamples/gradle/wrapper/gradle-wrapper.jar
+KSLExamples/gradle/wrapper/gradle-wrapper.jar
 
-JSLExamples/gradle/wrapper/gradle-wrapper.properties
+KSLExamples/gradle/wrapper/gradle-wrapper.properties
 
-JSLExtensions/gradle/wrapper/gradle-wrapper.jar
+KSLExtensions/gradle/wrapper/gradle-wrapper.jar
 
-JSLExtensions/gradle/wrapper/gradle-wrapper.properties
+KSLExtensions/gradle/wrapper/gradle-wrapper.properties
 
-JSLTesting/gradle/wrapper/gradle-wrapper.jar
+KSLTesting/gradle/wrapper/gradle-wrapper.jar
 
-JSLTesting/gradle/wrapper/gradle-wrapper.properties
+KSLTesting/gradle/wrapper/gradle-wrapper.properties
 
-JSLExampleProject/gradle/wrapper/gradle-wrapper.jar
+KSLExampleProject/gradle/wrapper/gradle-wrapper.jar
 
-JSLExampleProject/gradle/wrapper/gradle-wrapper.properties
+KSLExampleProject/gradle/wrapper/gradle-wrapper.properties
 >>>>>>> develop
 
 dbExamples/
@@ -246,12 +246,18 @@ JSLKotlin/gradle/wrapper/gradle-wrapper.jar
 JSLKotlin/gradle/wrapper/gradle-wrapper.properties
 *.iml
 *.iml
-JSLCore/:JSLCore.iml
-JSLExamples/:JSLExamples.iml
-JSLExtensions/:JSLExtensions.iml
+KSLCore/:KSLCore.iml
+KSLExamples/:KSLExamples.iml
+KSLExtensions/:KSLExtensions.iml
 
-JSLCore/out
-JSLExtensions/out
-JSLKotlin/out
-JSLExamples/out
-JSLExampleProject/out
+KSLCore/out
+KSLExtensions/out
+KSLKotlin/out
+KSLExamples/out
+KSLExampleProject/out
+
+KSLCore/build
+KSLExtensions/build
+KSLKotlin/build
+KSLExamples/build
+KSLExampleProject/buil
