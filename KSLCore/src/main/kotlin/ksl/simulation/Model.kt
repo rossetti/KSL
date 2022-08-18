@@ -15,6 +15,7 @@ class Model internal constructor(
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
     name: String = theSimulation.name + "_Model"
 ) : ModelElement(name) {
+//TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
 
     internal val mySimulation: Simulation = theSimulation
     internal val myExecutive: Executive = Executive(eventCalendar)
