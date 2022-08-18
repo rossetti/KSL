@@ -183,9 +183,14 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     protected val simulation: Simulation
         get() = model.mySimulation
 
-    val modelName = model.name
-    val simulationName = simulation.name
-    val experimentName = simulation.experimentName
+    val modelName
+        get() = model.name
+
+    val simulationName
+        get() = simulation.name
+
+    val experimentName
+        get() = simulation.experimentName
 
     /**
      *  the current replication number
