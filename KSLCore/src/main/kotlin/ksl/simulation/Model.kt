@@ -69,10 +69,54 @@ class Model internal constructor(
         myDefaultEntityType = EntityType(this, "DEFAULT_ENTITY_TYPE")
     }
 
-    override fun removedFromModel() {
-        //TODO think of better exception name or try to prevent this some other way
-        throw IllegalStateException("The model cannot remove itself from itself!")
- //       super.removedFromModel()
+    /**
+     *  Causes the specified model element to be removed from the model regardless of
+     *  its location within the model hierarchy. Any model elements attached to the
+     *  supplied model element will also be removed.
+     *
+     * Recursively removes the model element and the children of the model
+     * element and all their children, etc. The children will no longer have a
+     * parent and will no longer have a model.  This can only be done when
+     * the simulation that contains the model is not running.
+     *
+     * This method has very serious side effects. After invoking this method:
+     *
+     * 1) All children of the model element will have been removed from the
+     * model.
+     * 2) The model element will be removed from its parent's model,
+     * element list and from the model. The getParentModelElement() method will
+     * return null. In other words, the model element will no longer be connected
+     * to a parent model element.
+     * 3) The model element and all its children will no longer be
+     * connected. In other words, there is no longer a parent/child relationship
+     * between the model element and its former children.
+     * 4) This model element and all of its children will no longer belong to a model.
+     * 5) The removed elements are no longer part of their former model's model element map
+     * 6) Warm up and timed update listeners are set to null
+     * 7) Any reference to a spatial model is set to null
+     * 8) All observers of the model element are detached
+     * 9) All child model elements are removed. It will no longer have any children.
+     *
+     * Since it has been removed from the model, it and its children will no
+     * longer participate in any of the standard model element actions, e.g.
+     * initialize(), afterReplication(), etc.
+     *
+     *
+     * Notes: 1) This method removes from the list of model elements. Thus, if a
+     * client attempts to use this method, via code that is iterating the list a
+     * concurrent modification exception will occur.
+     * 2) The user is responsible for ensuring that other references to the model
+     * element are correctly handled.  If references to the model element exist within
+     * other data structures/collections then the user is responsible for appropriately
+     * addressing those references. This is especially important for any observers
+     * of the removed model element.  The observers will be notified that the model
+     * element is being removed. It is up to the observer to correctly react to
+     * the removal. If the observer is a subclass of ModelElementObserver then
+     * implementing the removedFromModel() method can be used. If the observer is a
+     * general Observer, then use REMOVED_FROM_MODEL to check if the element is being removed.
+     */
+    fun removeFromModel(element: ModelElement){
+        element.removeFromModel()
     }
 
     /**
