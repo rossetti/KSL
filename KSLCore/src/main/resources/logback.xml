@@ -199,7 +199,7 @@
         <appender-ref ref="KSL_IO" />
     </logger>
 
-    <logger name="ksl.simulation.Simulation" level="INFO" additivity="false">
+    <logger name="ksl.simulation.Model" level="INFO" additivity="false">
         <appender-ref ref="KSL_SIM" />
     </logger>
 

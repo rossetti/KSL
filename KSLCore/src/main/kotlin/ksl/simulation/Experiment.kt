@@ -89,7 +89,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      * The length of time from the start of an individual replication to the
      * warm-up event for that replication.
      */
-    override var lengthOfWarmUp = 0.0 // zero is no warmup
+    override var lengthOfReplicationWarmUp = 0.0 // zero is no warmup
         set(value) {
             require(value >= 0.0) { "Warmup time cannot be less than zero" }
             field = value
@@ -186,30 +186,14 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      * Holds values for each controllable parameter of the simulation
      * model.
      */
-    override var myControls: Map<String, Double>? = null
+    override var experimentalControls: Map<String, Double>? = null
 
     /**
      *
      * @return true if a control map has been supplied
      */
-    override fun hasControls(): Boolean {
-        return myControls != null
-    }
-
-    /** Indicates that the experiment should be run with these control values.
-     *
-     * @param controlMap the controls to use, may be null to stop use of controls
-     */
-    override fun useControls(controlMap: Map<String, Double>) {
-        myControls = controlMap
-    }
-
-    /**
-     *
-     * @return the control map if it was set
-     */
-    override fun getControls(): Map<String, Double>? {
-        return myControls
+    override fun hasExperimentalControls(): Boolean {
+        return experimentalControls != null
     }
 
     /**
@@ -249,7 +233,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         numberOfReplications = e.numberOfReplications
         currentReplicationNumber = e.currentReplicationNumber
         lengthOfReplication = e.lengthOfReplication
-        lengthOfWarmUp = e.lengthOfWarmUp
+        lengthOfReplicationWarmUp = e.lengthOfReplicationWarmUp
         replicationInitializationOption = e.replicationInitializationOption
         resetStartStreamOption = e.resetStartStreamOption
         advanceNextSubStreamOption = e.advanceNextSubStreamOption
@@ -276,7 +260,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         n.numberOfReplications = numberOfReplications
         n.currentReplicationNumber = currentReplicationNumber
         n.lengthOfReplication = lengthOfReplication
-        n.lengthOfWarmUp = lengthOfWarmUp
+        n.lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
         n.replicationInitializationOption = replicationInitializationOption
         n.resetStartStreamOption = resetStartStreamOption
         n.advanceNextSubStreamOption = advanceNextSubStreamOption
@@ -321,7 +305,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         sb.append(lengthOfReplication)
         sb.appendLine()
         sb.append("Warm up time period for replication: ")
-        sb.append(lengthOfWarmUp)
+        sb.append(lengthOfReplicationWarmUp)
         sb.appendLine()
         val et = maximumAllowedExecutionTimePerReplication
         if (et == 0L) {
@@ -342,7 +326,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      * Resets the current replication number to zero
      *
      */
-    protected fun resetCurrentReplicationNumber() {
+    internal fun resetCurrentReplicationNumber() {
         currentReplicationNumber = 0
     }
 
@@ -350,7 +334,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      * Increments the number of replications that has been executed
      *
      */
-    protected fun incrementCurrentReplicationNumber() {
+    internal fun incrementCurrentReplicationNumber() {
         currentReplicationNumber = currentReplicationNumber + 1
     }
 

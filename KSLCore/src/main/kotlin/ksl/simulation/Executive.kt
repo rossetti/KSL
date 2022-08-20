@@ -164,7 +164,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
                 sb.appendLine()
                 sb.append("The user is responsible for ensuring that the Executive is stopped.")
                 sb.appendLine()
-                Simulation.logger.warn(sb.toString())
+                Model.logger.warn(sb.toString())
                 System.out.flush()
             }
         }
@@ -211,12 +211,12 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
             sb.append("Hint: Do not schedule initial events prior to executing (running) the simulation.  Use the initialize() method instead.")
             sb.appendLine()
-            Simulation.logger.warn(sb.toString())
+            Model.logger.warn(sb.toString())
             System.out.flush()
             throw JSLEventException(sb.toString())
         }
         if (interEventTime < 0.0) {
-            Simulation.logger.warn("Attempted to schedule an event before the Current Time!")
+            Model.logger.warn("Attempted to schedule an event before the Current Time!")
             System.out.flush()
             throw JSLEventException("Attempted to schedule an event before the Current Time!")
         }
@@ -235,7 +235,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
             sb.append("The event was scheduled from ModelElement : ").append(theElementScheduling.name)
             sb.appendLine()
-            Simulation.logger.warn(sb.toString())
+            Model.logger.warn(sb.toString())
             System.out.flush()
             throw JSLEventException(sb.toString())
         }
@@ -274,9 +274,9 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
-            val sim = event.modelElement.myModel.mySimulation
-            sb.append(sim)
-            Simulation.logger.error(sb.toString())
+
+            sb.append(event.modelElement.myModel)
+            Model.logger.error(sb.toString())
             System.out.flush()
             throw e
         }

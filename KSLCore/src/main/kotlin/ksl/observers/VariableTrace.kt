@@ -60,20 +60,20 @@ class VariableTrace(
         printWriter.print(",")
         printWriter.print(v.previous)
         printWriter.print(",")
-        if (myRepNum != v.currentReplicationNumber.toDouble()) {
+        if (myRepNum != model.currentReplicationNumber.toDouble()) {
             myRepCount = 0
         }
         myRepCount++
-        myRepNum = v.currentReplicationNumber.toDouble()
+        myRepNum = model.currentReplicationNumber.toDouble()
         printWriter.print(myRepNum)
         printWriter.print(",")
         printWriter.print(myRepCount)
         printWriter.print(",")
-        printWriter.print(v.simulationName)
+        printWriter.print(model.simulationName)
         printWriter.print(",")
-        printWriter.print(v.modelName)
+        printWriter.print(model.name)
         printWriter.print(",")
-        printWriter.print(v.experimentName)
+        printWriter.print(model.experimentName)
         printWriter.println()
     }
 }

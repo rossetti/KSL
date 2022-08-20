@@ -42,7 +42,7 @@ interface ExperimentIfc {
      * The length of time from the start of an individual replication to the
      * warm-up event for that replication.
      */
-    var lengthOfWarmUp: Double
+    var lengthOfReplicationWarmUp: Double
 
     /**
      * A flag to indicate whether each replication within the experiment
@@ -126,25 +126,13 @@ interface ExperimentIfc {
      * Holds values for each controllable parameter of the simulation
      * model.
      */
-    var myControls: Map<String, Double>?
+    var experimentalControls: Map<String, Double>?
 
     /**
      *
      * @return true if a control map has been supplied
      */
-    fun hasControls(): Boolean
-
-    /** Indicates that the experiment should be run with these control values.
-     *
-     * @param controlMap the controls to use, may be null to stop use of controls
-     */
-    fun useControls(controlMap: Map<String, Double>)
-
-    /**
-     *
-     * @return the control map if it was set
-     */
-    fun getControls(): Map<String, Double>?
+    fun hasExperimentalControls(): Boolean
 
     /**
      * Checks if the current number of replications that have been executed is
@@ -156,21 +144,10 @@ interface ExperimentIfc {
 
     /**
      * Sets all attributes of this experiment to the same values as the supplied
-     * experiment (except for id and name)
+     * experiment (except for id)
      *
      * @param e the experiment to copy
      */
     fun setExperiment(e: Experiment)
 
-    /**
-     * Resets the current replication number to zero
-     *
-     */
-//    fun resetCurrentReplicationNumber()
-
-    /**
-     * Increments the number of replications that has been executed
-     *
-     */
-//    fun incrementCurrentReplicationNumber()
 }

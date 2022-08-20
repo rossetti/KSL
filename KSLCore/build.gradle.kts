@@ -28,6 +28,7 @@ dependencies {
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
     api(group = "ch.qos.logback", name = "logback-core", version = "1.2.10")
 
+    api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
     implementation("org.junit.jupiter:junit-jupiter:5.7.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.10")

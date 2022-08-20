@@ -1,8 +1,8 @@
 package ksl.modeling.variable
 
 import ksl.modeling.elements.RandomElementIfc
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.simulation.Simulation
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
 
@@ -44,7 +44,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  * <p>
  * Changing the initial random source between experiments (simulation runs) is very common.  For example, to set up an experiment
  * that has different random characteristics the client can and should change the initial source of randomness
- * (either by mutating the initial random source or by supplying a reference to a different initial random source.
+ * (either by mutating the initial random source or by supplying a reference to a different initial random source).
  *
  * To facilitate the synchronization of random number streams, the underlying random number stream will automatically
  * be advanced to its next sub-stream after each replication.  This occurs by default unless the resetNextSubStreamOption
@@ -74,9 +74,9 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
      */
     var initialRandomSource: RandomIfc = rSource
         set(value) {
-            if (simulation.isRunning){
+            if (model.isRunning){
                 if (initialRandomSourceChangeWarning){
-                    Simulation.logger.warn {"Changed the initial random source of $name during replication $currentReplicationNumber."}
+                    Model.logger.warn {"Changed the initial random source of $name during replication ${model.currentReplicationNumber}."}
                 }
             }
             field = value
@@ -145,7 +145,7 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
             // make sure that the random source is the same
             // as the initial random source for the next replication
             randomSource = initialRandomSource
-            Simulation.logger.info {"The random source of $name was changed back to the initial random source after replication $currentReplicationNumber."}
+            Model.logger.info {"The random source of $name was changed back to the initial random source after replication ${model.currentReplicationNumber}."}
         }
         if (resetNextSubStreamOption) {
             advanceToNextSubStream()

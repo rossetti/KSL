@@ -1,5 +1,6 @@
 package ksl.observers
 
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.simulation.ModelElement.Status.*
 import ksl.utilities.Identity
@@ -13,6 +14,7 @@ open class ModelElementObserver<T: ModelElement>(observed: T, name: String? = nu
     ObserverIfc<ModelElement.Status> {
 
     protected val observedModelElement: T = observed
+    protected val model: Model = observedModelElement.myModel
 
     override fun onChange(newValue: ModelElement.Status) {
         when(newValue){

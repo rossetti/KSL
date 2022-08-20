@@ -1,6 +1,7 @@
 package ksl.simulation
 
 import jsl.utilities.random.rvariable.RVParameterSetter//TODO
+import kotlinx.datetime.Clock
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.controls.Controls
@@ -9,17 +10,51 @@ import ksl.modeling.entity.EntityType
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.Variable
+import ksl.utilities.io.KSL
+import ksl.utilities.io.LogPrintWriter
+import ksl.utilities.io.OutputDirectory
+import mu.KLoggable
+import java.nio.file.Path
+import java.time.Instant
+
+private var modelCounter: Int = 0
 
 class Model internal constructor(
-    theSimulation: Simulation,
+    name: String = "Model_${++modelCounter}",
+    pathToOutputDirectory: Path = KSL.createSubDirectory(name + "_OutputDir"),
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
-    name: String = theSimulation.name + "_Model"
-) : ModelElement(name) {
+) : ModelElement(name), ExperimentIfc {
 //TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
+//TODO statistical batching, but move it within Model
+//TODO observers
+//TODO note that JSLDataBaseObserver is actually attached as an observer on Model
+//TODO controls and parameters
+//TODO simulation reporter
+    /**
+     *
+     * @return the defined OutputDirectory for the simulation
+     */
+    val outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
 
-    internal val mySimulation: Simulation = theSimulation
+    /**
+     *
+     * @return the pre-defined default text output file for the simulation
+     */
+    val out: LogPrintWriter
+        get() = outputDirectory.out
+
     internal val myExecutive: Executive = Executive(eventCalendar)
+    internal val myExperiment: Experiment = Experiment()
 
+
+    /** A flag to control whether a warning is issued if the user does not
+     * set the replication run length
+     */
+    var repLengthWarningMessageOption = true
+
+    /**
+     *  The base time units for the simulation model. By default, this is 1.0.
+     */
     var baseTimeUnit: TimeUnit = TimeUnit.MILLISECOND
 
     private var myResponseVariables: MutableList<Response> = ArrayList()
@@ -55,6 +90,11 @@ class Model internal constructor(
      */
     private val myRVParameterSetter: RVParameterSetter? = null
 
+    /**
+     * Controls the execution of replications
+     */
+    private val myReplicationProcess: ReplicationProcess = ReplicationProcess("Model: Replication Process")
+
     internal lateinit var myDefaultEntityType: EntityType
 
     init {
@@ -63,6 +103,128 @@ class Model internal constructor(
         addToModelElementMap(this)
         addDefaultElements()
     }
+
+    /**
+     * A flag to indicate whether the simulation is done A simulation can be done if:
+     * 1) it ran all of its replications 2) it was ended by a
+     * client prior to completing all of its replications 3) it ended because it
+     * exceeded its maximum allowable execution time before completing all of
+     * its replications. 4) its end condition was satisfied
+     *
+     */
+    val isDone: Boolean
+        get() = myReplicationProcess.isDone
+
+    /**
+     * Returns if the elapsed execution time exceeds the maximum time allowed.
+     * Only true if the maximum was set and elapsed time is greater than or
+     * equal to maximumAllowedExecutionTime
+     */
+    val isExecutionTimeExceeded: Boolean
+        get() = myReplicationProcess.isExecutionTimeExceeded
+
+    /**
+     * Returns system time in nanoseconds that the simulation started
+     */
+    val beginExecutionTime: Long
+        get() = myReplicationProcess.beginExecutionTime
+
+    /**
+     * Gets the clock time in nanoseconds since the simulation was
+     * initialized
+     */
+    val elapsedExecutionTime: Long
+        get() = myReplicationProcess.elapsedExecutionTime
+
+    /**
+     * Returns system time in nanoseconds that the simulation ended
+     */
+    val endExecutionTime: Long
+        get() = myReplicationProcess.endExecutionTime
+
+    /**
+     * The maximum allotted (suggested) execution (real) clock for the
+     * entire iterative process in nanoseconds. This is a suggested time because the execution
+     * time requirement is only checked after the completion of an individual
+     * step After it is discovered that cumulative time for executing the step
+     * has exceeded the maximum time, then the iterative process will be ended
+     * (perhaps) not completing other steps.
+     */
+    var maximumAllowedExecutionTime: Long
+        get() = myReplicationProcess.maximumAllowedExecutionTime
+        set(value) {
+            myReplicationProcess.maximumAllowedExecutionTime = value
+        }
+
+    /**
+     * Returns the replications completed since the simulation was
+     * last initialized
+     *
+     * @return the number of replications completed
+     */
+    val numberReplicationsCompleted: Int
+        get() = myReplicationProcess.numberStepsCompleted
+
+    /**
+     * Checks if the simulation is in the created state. If the
+     * simulation is in the created execution state this method will return true
+     *
+     * @return true if in the created state
+     */
+    val isCreated: Boolean
+        get() = myReplicationProcess.isCreated
+
+    /**
+     * Checks if the simulation is in the initialized state After the
+     * simulation has been initialized this method will return true
+     *
+     * @return true if initialized
+     */
+    val isInitialized: Boolean
+        get() = myReplicationProcess.isInitialized
+
+    /**
+     * A simulation is running if it has been told to run (i.e.
+     * run() or runNextReplication()) but has not yet been told to end().
+     *
+     */
+    val isRunning: Boolean
+        get() = myReplicationProcess.isRunning
+
+    /**
+     * Checks if the simulation is in the completed step state After the
+     * simulation has successfully completed a replication this property will be true
+     */
+    val isReplicationCompleted: Boolean
+        get() = myReplicationProcess.isStepCompleted
+
+    /**
+     * Checks if the simulation is in the ended state. After the simulation has been ended this property will return true
+     */
+    val isEnded: Boolean
+        get() = myReplicationProcess.isEnded
+
+    /**
+     * The simulation may end by a variety of means, this  checks
+     * if the simulation ended because it ran all of its replications, true if all completed
+     */
+    val allReplicationsCompleted: Boolean
+        get() = myReplicationProcess.allStepsCompleted
+
+    /**
+     * The simulation may end by a variety of means, this method checks
+     * if the simulation ended because it was stopped, true if it was stopped via stop()
+     */
+    val stoppedByCondition: Boolean
+        get() = myReplicationProcess.stoppedByCondition
+
+    /**
+     * The simulation may end by a variety of means, this method checks
+     * if the simulation ended but was unfinished, not all replications were completed.
+     */
+    val isUnfinished: Boolean
+        get() = myReplicationProcess.isUnfinished
+
 
     //TODO revisit myDefaultEntityType when working on process modeling
     private fun addDefaultElements() {
@@ -115,7 +277,7 @@ class Model internal constructor(
      * implementing the removedFromModel() method can be used. If the observer is a
      * general Observer, then use REMOVED_FROM_MODEL to check if the element is being removed.
      */
-    fun removeFromModel(element: ModelElement){
+    fun removeFromModel(element: ModelElement) {
         element.removeFromModel()
     }
 
@@ -238,12 +400,12 @@ class Model internal constructor(
 
     internal fun addToModelElementMap(modelElement: ModelElement) {
 
-        if (mySimulation.isRunning) {
+        if (isRunning) {
             val sb = StringBuilder()
             sb.append("Attempted to add the model element: ")
             sb.append(modelElement.name)
             sb.append(" while the simulation was running.")
-            Simulation.logger.error { sb.toString() }
+            logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 
@@ -254,12 +416,12 @@ class Model internal constructor(
             sb.append(" has already been added to the Model.")
             sb.appendLine()
             sb.append("Every model element must have a unique name!")
-            Simulation.logger.error(sb.toString())
+            logger.error(sb.toString())
             throw IllegalArgumentException(sb.toString())
         }
 
         myModelElementMap[modelElement.name] = modelElement
-        logger.trace { "Model: Added model element ${modelElement.name} to the model with parent ${modelElement.myParentModelElement?.name}" }
+        logger.trace { "Added model element ${modelElement.name} to the model with parent ${modelElement.myParentModelElement?.name}" }
 
         if (modelElement is Response) {
             myResponseVariables.add(modelElement)
@@ -333,23 +495,23 @@ class Model internal constructor(
     internal fun scheduleEndOfReplicationEvent(time: Double) {
         require(time > 0.0) { "The time must be > 0.0" }
         if (executive.isEndEventScheduled()) {
-            Simulation.logger.info { "Model: Already scheduled end of replication event for time = ${executive.endEvent!!.time} is being cancelled" }
+            logger.info { "Already scheduled end of replication event for time = ${executive.endEvent!!.time} is being cancelled" }
             // already scheduled end event, cancel it
             executive.endEvent!!.cancelled = true
         }
         // schedule the new time
         if (time.isFinite()) {
-            Simulation.logger.info { "Model: Scheduling end of replication at time: $time" }
+            logger.info { "Scheduling end of replication at time: $time" }
             executive.endEvent = EndEventAction().schedule(time)
         } else {
-            Simulation.logger.info { "Model: Did not schedule end of replication event because time was $time" }
+            logger.info { "Did not schedule end of replication event because time was $time" }
         }
 
     }
 
     private inner class EndEventAction : EventAction<Nothing>() {
         override fun action(event: JSLEvent<Nothing>) {
-            executive.stop("Executive: Scheduled end event occurred at time $time")
+            executive.stop("Scheduled end event occurred at time $time")
         }
 
         fun schedule(time: Double): JSLEvent<Nothing> {
@@ -373,42 +535,42 @@ class Model internal constructor(
 //        removeMarkedModelElements();
 
         // setup warm up period
-        lengthOfWarmUp = simulation.lengthOfWarmUp
+        lengthOfWarmUp = lengthOfReplicationWarmUp
 
         // control streams for antithetic option
         handleAntitheticReplications()
 
         // do all model element beforeReplication() actions
-        Simulation.logger.info { "Model: executing before replication actions for model elements"}
+        logger.info { "Executing before replication actions for model elements" }
         beforeReplicationActions()
 
         // schedule the end of the replication
-        scheduleEndOfReplicationEvent(simulation.lengthOfReplication)
+        scheduleEndOfReplicationEvent(lengthOfReplication)
 
         // if necessary, initialize the model elements
-        if (simulation.replicationInitializationOption) {
+        if (replicationInitializationOption) {
             // initialize the model and all model elements with initialize option on
-            Simulation.logger.info { "Model: executing initialize() actions for model elements"}
+            logger.info { "Executing initialize() actions for model elements" }
             initializeActions()
         }
 
         // allow model elements to register conditional actions
-        Simulation.logger.info { "Model: registering conditional actions for model elements"}
+        logger.info { "Registering conditional actions for model elements" }
         registerConditionalActionsWithExecutive()
 
         // if monte carlo option is on, call the model element's monteCarlo() methods
         if (monteCarloOption) {
             // since monte carlo option was turned on, assume everyone wants to listen
             setMonteCarloOptionForModelElements(true)
-            Simulation.logger.info { "Model: executing monteCarloActions() actions for model elements"}
+            logger.info { "Executing monteCarloActions() actions for model elements" }
             monteCarloActions()
         }
     }
 
     private fun handleAntitheticReplications() {
         // handle antithetic replications
-        if (simulation.antitheticOption) {
-            Simulation.logger.info { "Model: executing handleAntitheticReplications() setup"}
+        if (antitheticOption) {
+            logger.info { "Executing handleAntitheticReplications() setup" }
             if (currentReplicationNumber % 2 == 0) {
                 // even number replication
                 // return to beginning of sub-stream
@@ -458,36 +620,34 @@ class Model internal constructor(
 
     //called from simulation, so internal
     internal fun setUpExperiment() {
-        Simulation.logger.info { "Model: Setting up experiment ${simulation.experimentName} for simulation ${simulation.name}"}
+        logger.info { "Setting up experiment $experimentName for the simulation." }
         executive.initializeCalendar()
-        Simulation.logger.info { "Model: The executive was initialized prior to any experiments. Current time = $time"}
+        logger.info { "The executive was initialized prior to any experiments. Current time = $time" }
         executive.terminationWarningMsgOption = false
         markPreOrderTraversalModelElementHierarchy()
         // already should have reference to simulation
-        advanceSubStreams(simulation.numberOfStreamAdvancesPriorToRunning)
+        advanceSubStreams(numberOfStreamAdvancesPriorToRunning)
 
-        if (simulation.antitheticOption) {
+        if (antitheticOption) {
             // make sure the streams are not reset after all replications are run
             setAllRVResetStartStreamOptions(false)
-            // make sure that streams are not advanced to next substreams after each replication
+            // make sure that streams are not advanced to next sub-streams after each replication
             // antithetic option will control this (every other replication)
             setAllRVResetNextSubStreamOptions(false)
         } else {
             // tell the model to use the specifications from the experiment
-            setAllRVResetStartStreamOptions(simulation.resetStartStreamOption)
-            setAllRVResetNextSubStreamOptions(simulation.advanceNextSubStreamOption)
+            setAllRVResetStartStreamOptions(resetStartStreamOption)
+            setAllRVResetNextSubStreamOptions(advanceNextSubStreamOption)
         }
 
         //TODO need to apply generic control types here someday
 
-        if (simulation.hasControls()) {
-            val cMap: Map<String, Double>? = simulation.getControls()
+        if (hasExperimentalControls()) {
+            val cMap: Map<String, Double>? = experimentalControls
             if (cMap != null) {
                 // extract controls and apply them
                 val k: Int = getControls().setControlsAsDoubles(cMap)
-                Simulation.logger.info(
-                    "{} out of {} controls were applied to Model {} to setup the experiment.", k, cMap.size, name
-                )
+                logger.info("{} out of {} controls were applied to Model {} to setup the experiment.", k, cMap.size, name)
             }
         }
 
@@ -503,26 +663,274 @@ class Model internal constructor(
     }
 
     internal fun runReplication() {
-        if (mySimulation.maximumAllowedExecutionTimePerReplication > 0) {
-            executive.maximumAllowedExecutionTime = mySimulation.maximumAllowedExecutionTimePerReplication
+        if (maximumAllowedExecutionTimePerReplication > 0) {
+            executive.maximumAllowedExecutionTime = maximumAllowedExecutionTimePerReplication
         }
-        Simulation.logger.info { "Model: Initializing the executive"}
+        logger.info { "Initializing the executive" }
         executive.initialize()
-        Simulation.logger.info { "Model: The executive was initialized prior to the replication. Current time = $time"}
-        Simulation.logger.info { "Model: setting up the replications for model elements"}
+        logger.info { "The executive was initialized prior to the replication. Current time = $time" }
+        logger.info { "Setting up the replications for model elements" }
         setUpReplication()
-        Simulation.logger.info { "Model: executing the events"}
+        logger.info { "Executing the events" }
         executive.executeAllEvents()
-        Simulation.logger.info { "Model: The executive finished executing events. Current time = $time"}
-        Simulation.logger.info { "Model: performing end of replication actions for model elements"}
+        logger.info { "The executive finished executing events. Current time = $time" }
+        logger.info { "Performing end of replication actions for model elements" }
         replicationEndedActions()
-        Simulation.logger.info { "Model: performing after replication actions for model elements"}
+        logger.info { "Performing after replication actions for model elements" }
         afterReplicationActions()
     }
 
     internal fun endExperiment() {
-        Simulation.logger.info { "Model: performing after experiment actions for model elements"}
+        logger.info { "Performing after experiment actions for model elements" }
         afterExperimentActions()
+    }
+
+
+    private inner class ReplicationProcess(name: String?) : IterativeProcess<ReplicationProcess>(name) {
+
+        override fun initializeIterations() {
+            super.initializeIterations()
+            myExperiment.resetCurrentReplicationNumber()
+            setUpExperiment()
+            if (repLengthWarningMessageOption) {
+                if (lengthOfReplication.isInfinite()) {
+                    if (maximumAllowedExecutionTimePerReplication == 0L) {
+                        val sb = StringBuilder()
+                        sb.append("Simulation: In initializeIterations(), preparing to run replications:")
+                        sb.appendLine()
+                        sb.append("The experiment has an infinite horizon.")
+                        sb.appendLine()
+                        sb.append("There was no maximum real-clock execution time specified.")
+                        sb.appendLine()
+                        sb.append("The user is responsible for ensuring that the replication is stopped.")
+                        sb.appendLine()
+                        logger.warn(sb.toString())
+                        println(sb.toString())
+                        System.out.flush()
+                    }
+                }
+            }
+        }
+
+        override fun endIterations() {
+            endExperiment()
+            super.endIterations()
+        }
+
+        override fun hasNextStep(): Boolean {
+            return hasMoreReplications()
+        }
+
+        override fun nextStep(): ReplicationProcess? {
+            return if (!hasNextStep()) {
+                null
+            } else this
+        }
+
+        override fun runStep() {
+            myCurrentStep = nextStep()
+//            logger.info { "Simulation $name Running replication $currentReplicationNumber of $numberOfReplications replications" }
+            myExperiment.incrementCurrentReplicationNumber()
+            logger.info { "Running replication $currentReplicationNumber of $numberOfReplications replications" }
+            model.runReplication()
+            logger.info { "Ended replication $currentReplicationNumber of $numberOfReplications replications" }
+            if (garbageCollectAfterReplicationFlag) {
+                System.gc()
+            }
+        }
+
+    }
+
+    var simulationName: String = name
+        private set
+
+    override val experimentId: Int
+        get() = myExperiment.experimentId
+
+    override var experimentName: String
+        get() = myExperiment.experimentName
+        set(value) {myExperiment.experimentName = value}
+
+    override var numberOfReplications: Int
+        get() = myExperiment.numberOfReplications
+        set(value) {
+            myExperiment.numberOfReplications = value
+        }
+
+    override fun numberOfReplications(numReps: Int, antitheticOption: Boolean) {
+        myExperiment.numberOfReplications(numReps, antitheticOption)
+    }
+
+    override var lengthOfReplication: Double
+        get() = myExperiment.lengthOfReplication
+        set(value) {
+            myExperiment.lengthOfReplication = value
+        }
+
+    override var lengthOfReplicationWarmUp: Double
+        get() = myExperiment.lengthOfReplicationWarmUp
+        set(value) {myExperiment.lengthOfReplicationWarmUp = value}
+
+    override var replicationInitializationOption: Boolean
+        get() = myExperiment.replicationInitializationOption
+        set(value) {
+            myExperiment.replicationInitializationOption = value
+        }
+
+    override var maximumAllowedExecutionTimePerReplication: Long
+        get() = myExperiment.maximumAllowedExecutionTimePerReplication
+        set(value) {
+            myExperiment.maximumAllowedExecutionTimePerReplication = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = myExperiment.resetStartStreamOption
+        set(value) {
+            myExperiment.resetStartStreamOption = value
+        }
+
+    override var advanceNextSubStreamOption: Boolean
+        get() = myExperiment.advanceNextSubStreamOption
+        set(value) {
+            myExperiment.advanceNextSubStreamOption = value
+        }
+
+    override val antitheticOption: Boolean
+        get() = myExperiment.antitheticOption
+
+    override var numberOfStreamAdvancesPriorToRunning: Int
+        get() = myExperiment.numberOfStreamAdvancesPriorToRunning
+        set(value) {
+            myExperiment.numberOfStreamAdvancesPriorToRunning = value
+        }
+
+    override var garbageCollectAfterReplicationFlag: Boolean
+        get() = myExperiment.garbageCollectAfterReplicationFlag
+        set(value) {
+            myExperiment.garbageCollectAfterReplicationFlag = value
+        }
+
+    override var experimentalControls: Map<String, Double>?
+        get() = myExperiment.experimentalControls
+        set(value) {
+            myExperiment.experimentalControls = value
+        }
+
+    override val currentReplicationNumber
+        get() = myExperiment.currentReplicationNumber
+
+    override fun hasExperimentalControls() = myExperiment.hasExperimentalControls()
+
+    override fun hasMoreReplications() = myExperiment.hasMoreReplications()
+
+    override fun setExperiment(e: Experiment) = myExperiment.setExperiment(e)
+
+    /**
+     * Returns true if additional replications need to be run
+     *
+     * @return true if additional replications need to be run
+     */
+    fun hasNextReplication(): Boolean {
+        return myReplicationProcess.hasNextStep()
+    }
+
+    /**
+     * Initializes the simulation in preparation for running
+     */
+    fun initializeReplications() {
+        logger.info {"Simulation: $name Initializing the replications ..."}
+        myReplicationProcess.initialize()
+    }
+
+    /**
+     * Runs the next replication if there is one
+     */
+    fun runNextReplication() {
+        myReplicationProcess.runNext()
+    }
+
+    /** A convenience method for running a simulation
+     *
+     * @param expName the name of the experiment
+     * @param numReps the number of replications
+     * @param runLength the length of the simulation replication
+     * @param warmUp the length of the warmup period
+     */
+    fun simulate(numReps: Int = 1, runLength: Double, warmUp: Double = 0.0, expName: String? = null) {
+        if (expName != null) {
+            experimentName = expName
+        }
+        numberOfReplications = numReps
+        lengthOfReplication = runLength
+        lengthOfWarmUp = warmUp
+        simulate()
+    }
+
+    /**
+     * Runs all remaining replications based on the current settings
+     */
+    fun simulate() {
+        logger.info {"$name simulating all $numberOfReplications replications of length $lengthOfReplication with warm up $lengthOfReplicationWarmUp ..." }
+        val instantNow = Clock.System.now()
+        simulationName = name + "_" + instantNow
+        myReplicationProcess.run()
+        logger.info {"$name completed $numberOfReplications replications." }
+
+    }
+
+    /**
+     * Causes the simulation to end after the current replication is completed
+     *
+     * @param msg A message to indicate why the simulation was stopped
+     */
+    fun endSimulation(msg: String? = null) {
+        logger.info {"Simulation $name ending ... completed $numberReplicationsCompleted of $numberOfReplications" }
+        myReplicationProcess.end(msg)
+    }
+
+    /**
+     * Causes the simulation to stop the current replication and not complete any additional replications
+     *
+     * @param msg A message to indicate why the simulation was stopped
+     */
+    fun stopSimulation(msg: String?) {
+        logger.info {"Simulation $name stopping ... with message $msg" }
+        myReplicationProcess.stop(msg)
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.append("Model Name: ")
+        sb.append(name)
+        sb.appendLine()
+        sb.append(myReplicationProcess)
+        sb.appendLine()
+        sb.append(myExperiment.toString())
+        sb.appendLine()
+        sb.append(myExecutive)
+        return sb.toString()
+    }
+
+    companion object : KLoggable {
+        /**
+         * Used to assign unique enum constants
+         */
+        private var myEnumCounter_ = 0
+
+        val nextEnumConstant: Int
+            get() = ++myEnumCounter_
+
+        /**
+         *
+         * @return a comparator that compares based on getId()
+         */
+        val modelElementComparator: Comparator<ModelElement>
+            get() = ModelElementComparator()
+
+        /**
+         * A global logger for logging
+         */
+        override val logger = logger()
     }
 }
 

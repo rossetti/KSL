@@ -1,7 +1,7 @@
 package ksl.modeling.variable
 
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.simulation.Simulation
 import ksl.utilities.Interval
 
 /**
@@ -45,8 +45,8 @@ open class Variable(
     override var initialValue: Double = theInitialValue
         set(value) {
             require(limits.contains(value)) { "The initial value, $value must be within the specified limits: $limits" }
-            if (simulation.isRunning) {
-                Simulation.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
+            if (model.isRunning) {
+                Model.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
             }
             field = value
         }

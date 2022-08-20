@@ -178,25 +178,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         get() = myModel
 
     /**
-     *  the simulation that is running the model
-     */
-    protected val simulation: Simulation
-        get() = model.mySimulation
-
-    val modelName
-        get() = model.name
-
-    val simulationName
-        get() = simulation.name
-
-    val experimentName
-        get() = simulation.experimentName
-
-    /**
      *  the current replication number
      */
-    val currentReplicationNumber: Int
-        get() = simulation.currentReplicationNumber
+//    val currentReplicationNumber: Int
+//        get() = model.currentReplicationNumber
 
     /**
      *  the executive that is executing the events
@@ -220,7 +205,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
     /**
      * Indicates whether the warm-up action occurred sometime during the
-     * simulation. False indicates that the warm-up action has not occurred
+     * simulation for this model element. False indicates that the warm-up action has not occurred
      */
     var warmUpIndicator = false
         protected set
@@ -388,7 +373,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param sb holds the stuff to be indented
      * @param n  level of indentation
      */
-    protected fun indent(sb: StringBuilder, n: Int) {
+    private fun indent(sb: StringBuilder, n: Int) {
         for (i in 1..n) {
             sb.append("  ")
         }
@@ -470,7 +455,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     /**
-     * Sets the warm up option flag of all model elements (children) contained
+     * Sets the warm-up option flag of all model elements (children) contained
      * by this model element.
      *
      * @param warmUpFlag True means that they participate in the default action
@@ -564,7 +549,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * Gets the number of model elements contained by this model elements.
      *
-     * @return a count of the number of child elements.
+     * @return a count of the number of direct child elements.
      */
     val numberOfModelElements: Int
         get() =  myModelElements.size
@@ -588,7 +573,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param list the list of model elements
      */
     protected fun getThisElementsModelElements(list: MutableList<ModelElement?>) {
-        if (!myModelElements.isEmpty()) {
+        if (myModelElements.isNotEmpty()) {
             for (me in myModelElements) {
                 list.add(me)
             }
@@ -604,7 +589,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param c The collection to be filled.
      */
     protected fun getAllResponseVariables(c: MutableCollection<Response>) {
-        if (!myModelElements.isEmpty()) { // I have elements, so check them
+        if (myModelElements.isNotEmpty()) { // I have elements, so check them
             for (m in myModelElements) {
                 m.getAllResponseVariables(c)
             }
@@ -612,7 +597,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
         // check if I'm a response variable, if so add me
         if (this is Response) {
-            c.add(this as Response)
+            c.add(this)
         }
     }
 
@@ -626,7 +611,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         if (myModelElements.isNotEmpty()) { // I have elements, so check them
             for (m in myModelElements) {
                 if (m is Response) {
-                    c.add(m as Response)
+                    c.add(m)
                 }
             }
         }
@@ -844,14 +829,14 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      *
      * @return true if any warm up event is scheduled in the upward chain
      */
-    fun isWarmUpScheduled(): Boolean {
+    fun isAnyWarmUpEventScheduled(): Boolean {
         // if this model element does not schedule the warm-up
         // check if it’s parent does, and so on, until
         // reaching the Model
         if (!isWarmUpEventScheduled()) {
             // if it has a parent check it
             if (parent != null) {
-                return parent!!.isWarmUpScheduled()
+                return parent!!.isAnyWarmUpEventScheduled()
             } else {
                 // only Model has no parent to check
                 // stop checking
@@ -994,7 +979,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
     //TODO consider timed event action subclass with GetValueIfc
 
-    abstract inner class EventAction<T> : EventActionIfc<T> {
+    protected abstract inner class EventAction<T> : EventActionIfc<T> {
 
         /**
          * Allows event actions to more conveniently schedule themselves
@@ -1061,10 +1046,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @return the builder of the event
      * */
     protected fun <T> schedule(action: EventActionIfc<T>): EventBuilderIfc<T> {
-        return EventScheduler<T>(action)
+        return EventScheduler(action)
     }
 
-    interface EventBuilderIfc<T> {
+    protected interface EventBuilderIfc<T> {
         /**
          * An object of type T that is attached to the event
          *
@@ -1191,7 +1176,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         }
 
         override fun units(): JSLEvent<T> {
-            return schedule<T>(action, time, message, priority, name)
+            return schedule(action, time, message, priority, name)
         }
     }
 
@@ -1205,7 +1190,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @param <T> the type for the thing that the event might hold as a message
      * @author rossetti
      * */
-    interface TimeUnitIfc<T> {
+    protected interface TimeUnitIfc<T> {
         /**
          * Creates and schedules the event associated carrying the model
          * interpreting the event time in days
@@ -1424,7 +1409,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         if (lengthOfWarmUp > 0.0) {
             // the warm up period is > 0, ==> element wants a warm-up event
             myWarmUpEventAction = WarmUpEventAction()
-            Simulation.logger.info { "Model: scheduling warm up event for time $lengthOfWarmUp" }
+            Model.logger.info { "$name scheduling warm up event for time $lengthOfWarmUp" }
             warmUpEvent = myWarmUpEventAction!!.schedule()
             warmUpOption = false // no longer depends on parent's warm up
         }
@@ -1432,7 +1417,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             // the timed update is > 0, ==> element wants a timed update event
             // schedule the timed update event
             myTimedUpdateActionListener = TimedUpdateEventAction()
-            Simulation.logger.info { "Model: scheduling timed update event for time $timedUpdateInterval" }
+            Model.logger.info { "$name scheduling timed update event for time $timedUpdateInterval" }
             timedUpdateEvent = myTimedUpdateActionListener!!.schedule()
         }
         if (myModelElements.isNotEmpty()) {
@@ -1441,7 +1426,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             }
         }
         if (beforeReplicationOption) {
-            logger.trace { "ModelElement: $name executing beforeReplication()" }
+            logger.trace { "$name executing beforeReplication()" }
             beforeReplication()
             currentStatus = Status.BEFORE_REPLICATION
         }
@@ -1466,11 +1451,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     internal fun monteCarloActions() {
         if (monteCarloOption) {
-            logger.trace { "ModelElement: $name executing montecarlo()" }
+            logger.trace { "$name executing montecarlo()" }
             montecarlo()
             currentStatus = Status.MONTE_CARLO
         }
-        if (!myModelElements.isEmpty()) {
+        if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 m.monteCarloActions()
             }
@@ -1491,12 +1476,15 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     private fun warmUpAction() {
         // if we get here the warm-up was scheduled, so do it
-        logger.trace { "ModelElement: $name executing warmUp()" }
+        if (this == model){
+            Model.logger.info{"Executing the warm up action for the model at time $time"}
+        }
+        logger.trace { "$name executing warmUp()" }
         warmUp()
         warmUpIndicator = true
         currentStatus = Status.WARMUP
         // warm up the children that need it
-        if (!myModelElements.isEmpty()) {
+        if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 if (m.warmUpOption) {
                     m.warmUpAction()
@@ -1522,7 +1510,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * model element that requires an update action will perform its actions.
      */
     protected fun update() {// protected so that subclasses can call this at points that require updates
-        logger.trace { "ModelElement: $name executing update()" }
+        logger.trace { "$name executing update()" }
         currentStatus = Status.UPDATE
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
@@ -1546,11 +1534,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     private fun timedUpdateActions() {
         if (timedUpdateOption) {
-            logger.trace { "ModelElement: $name executing timedUpdate()" }
+            logger.trace { "$name executing timedUpdate()" }
             timedUpdate()
             currentStatus = Status.TIMED_UPDATE
         }
-        if (!myModelElements.isEmpty()) {
+        if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 if (!m.isTimedUpdateEventScheduled()) {
                     m.timedUpdateActions()
@@ -1584,7 +1572,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
     /**
      * The replicationEndedActions method is called when a replication ends This
-     * method ensures that each contained model element that requires a end of
+     * method ensures that each contained model element that requires an end of
      * replication action will perform its actions.
      */
     internal fun replicationEndedActions() {
@@ -1594,7 +1582,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             }
         }
         if (replicationEndedOption) {
-            logger.trace { "ModelElement: $name executing replicationEnded()" }
+            logger.trace { "$name executing replicationEnded()" }
             replicationEnded()
             currentStatus = Status.REPLICATION_ENDED
         }
@@ -1609,7 +1597,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
     /**
      * The afterReplicationActions method is called at the end of each replication.
-     * This method ensures that each contained model element that requires a end
+     * This method ensures that each contained model element that requires an end
      * of replication action will perform its actions.
      */
     internal fun afterReplicationActions() {
@@ -1619,7 +1607,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             }
         }
         if (afterReplicationOption) {
-            logger.trace { "ModelElement: $name executing afterReplication()" }
+            logger.trace { "$name executing afterReplication()" }
             afterReplication()
             currentStatus = Status.AFTER_REPLICATION
         }
@@ -1628,7 +1616,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * This method should be overridden by subclasses that need actions
      * performed after an experiment has been completed It is called after all
-     * replications are done and can be used to collect data from the the model
+     * replications are done and can be used to collect data from the model
      * element, etc.
      */
     protected open fun afterExperiment() {}
@@ -1646,7 +1634,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             }
         }
         if (afterExperimentOption) {
-            logger.trace { "ModelElement: $name executing afterExperiment()" }
+            logger.trace { "$name executing afterExperiment()" }
             afterExperiment()
             currentStatus = Status.AFTER_EXPERIMENT
         }
@@ -1703,26 +1691,27 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * general Observer, then use REMOVED_FROM_MODEL to check if the element is being removed.
      */
     internal fun removeFromModel() {
-        if (simulation.isRunning) {
+        if (model.isRunning) {
             val sb = StringBuilder()
             sb.append("Attempted to remove the model element: ")
             sb.append(name)
             sb.append(" while the simulation was running.")
-            Simulation.logger.error(sb.toString())
+            Model.logger.error(sb.toString())
             throw IllegalStateException(sb.toString())
         }
 
 //		System.out.println("In " + getName() + " removeFromModel()");
         // first remove any of the model element's children
+
         while (myModelElements.isNotEmpty()) {
             val child = myModelElements[myModelElements.size - 1]
             child.removeFromModel()
         }
-        Simulation.logger.info { "ModelElement: $name executing removeFromModel()" }
+        logger.info { "ModelElement: $name executing removeFromModel()" }
         // if the model element has a warm-up event, cancel it
         if (warmUpEvent != null) {
             if (warmUpEvent!!.scheduled) {
-                Simulation.logger.info { "ModelElement: $name cancelling warmup event" }
+                logger.info { "ModelElement: $name cancelling warmup event" }
                 warmUpEvent!!.cancelled = true
             }
             warmUpEvent = null
@@ -1731,7 +1720,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         // if the model element has a timed update event, cancel it
         if (timedUpdateEvent != null) {
             if (timedUpdateEvent!!.scheduled) {
-                Simulation.logger.info { "ModelElement: $name cancelling timed update event" }
+                logger.info { "ModelElement: $name cancelling timed update event" }
                 timedUpdateEvent!!.cancelled = true
             }
             timedUpdateEvent = null
@@ -1783,23 +1772,9 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     companion object : KLoggable {
-        /**
-         * Used to assign unique enum constants
-         */
-        private var myEnumCounter_ = 0
-
-        val nextEnumConstant: Int
-            get() = ++myEnumCounter_
 
         /**
-         *
-         * @return a comparator that compares based on getId()
-         */
-        val modelElementComparator: Comparator<ModelElement>
-            get() = ModelElementComparator()
-
-        /**
-         * A global logger for logging
+         * A global logger for logging of model elements
          */
         override val logger = logger()
     }
