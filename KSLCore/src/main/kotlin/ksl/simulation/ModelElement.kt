@@ -51,6 +51,19 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     override val id: Int = myCounter_
 
     override val name: String = makeName(theName)
+    private fun makeName(str: String?): String {
+        return if (str == null) {
+            // no name is being passed, construct a default name
+            var s = this::class.simpleName!!
+            val k = s.lastIndexOf(".")
+            if (k != -1) {
+                s = s.substring(k + 1)
+            }
+            s + "_" + id
+        } else {
+            str
+        }
+    }
 
     override var label: String? = null
         get() {
@@ -178,12 +191,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         get() = myModel
 
     /**
-     *  the current replication number
-     */
-//    val currentReplicationNumber: Int
-//        get() = model.currentReplicationNumber
-
-    /**
      *  the executive that is executing the events
      */
     protected val executive: Executive
@@ -287,20 +294,6 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         myModel = parent.myModel
         // tells the model to add this element to the overall model element map
         myModel.addToModelElementMap(this)
-    }
-
-    private fun makeName(str: String?): String {
-        return if (str == null) {
-            // no name is being passed, construct a default name
-            var s = this::class.simpleName!!
-            val k = s.lastIndexOf(".")
-            if (k != -1) {
-                s = s.substring(k + 1)
-            }
-            s + "_" + id
-        } else {
-            str
-        }
     }
 
     /**

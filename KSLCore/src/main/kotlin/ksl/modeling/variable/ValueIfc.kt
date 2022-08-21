@@ -36,6 +36,8 @@ interface PreviousTimeOfChangeIfc {
     val previousTimeOfChange: Double
 }
 
-interface TimeWeightedIfc : WeightIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc
+interface ResponseIfc: ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc
+
+interface TimeWeightedIfc : ResponseIfc, WeightIfc, InitialValueIfc
 
 interface VariableIfc : ValueIfc, PreviousValueIfc, InitialValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc
