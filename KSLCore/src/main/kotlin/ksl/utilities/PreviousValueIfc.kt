@@ -24,7 +24,7 @@ interface PreviousValueIfc {
      * The previous value from the sequence of values
      * a double representing the last value in the sequence
      */
-    val previous: Double
+    val previousValue: Double
 
     /**
      * Gets the previous value from the sequence of values

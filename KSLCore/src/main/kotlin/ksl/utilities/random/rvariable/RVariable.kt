@@ -37,7 +37,7 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
      */
-    final override var previous: Double = Double.NaN
+    final override var previousValue: Double = Double.NaN
         private set
 
     /** The last (previous) randomly generated value. This value does not
@@ -69,7 +69,7 @@ abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: S
 
     final override fun sample(): Double {
         val x = generate()
-        previous = x
+        previousValue = x
         emitter.emit(x)
         return x
     }

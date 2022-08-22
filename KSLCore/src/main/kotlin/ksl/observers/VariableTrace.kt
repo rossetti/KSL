@@ -58,7 +58,7 @@ class VariableTrace(
         printWriter.print(",")
         printWriter.print(v.previousTimeOfChange)
         printWriter.print(",")
-        printWriter.print(v.previous)
+        printWriter.print(v.previousValue)
         printWriter.print(",")
         if (myRepNum != model.currentReplicationNumber.toDouble()) {
             myRepCount = 0

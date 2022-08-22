@@ -11,7 +11,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
 import mu.KLoggable
 
-private var myCounter_: Int = 0
+private var elementCounter: Int = 0
 
 //TODO needs to be made abstract
 open class ModelElement internal constructor(theName: String? = null) : IdentityIfc,
@@ -45,10 +45,10 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     init {
-        myCounter_ = myCounter_ + 1
+        elementCounter = elementCounter + 1
     }
 
-    override val id: Int = myCounter_
+    override val id: Int = elementCounter
 
     override val name: String = makeName(theName)
     private fun makeName(str: String?): String {

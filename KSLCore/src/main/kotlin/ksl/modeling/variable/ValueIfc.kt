@@ -11,7 +11,7 @@ import ksl.utilities.PreviousValueIfc
  *  General property for getting and setting a value
  */
 interface ValueIfc {
-    var value: Double
+    val value: Double
 }
 
 /**
@@ -36,8 +36,10 @@ interface PreviousTimeOfChangeIfc {
     val previousTimeOfChange: Double
 }
 
-interface ResponseIfc: ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc
+interface ResponseIfc: ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc, DefaultReportingOptionIfc
 
 interface TimeWeightedIfc : ResponseIfc, WeightIfc, InitialValueIfc
+
+interface CounterIfc: ResponseIfc, InitialValueIfc, AcrossReplicationStatisticIfc
 
 interface VariableIfc : ValueIfc, PreviousValueIfc, InitialValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc

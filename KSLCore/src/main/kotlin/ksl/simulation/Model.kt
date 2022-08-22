@@ -15,15 +15,14 @@ import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
 import mu.KLoggable
 import java.nio.file.Path
-import java.time.Instant
 
-private var modelCounter: Int = 0
+private var simCounter: Int = 0
 
 class Model internal constructor(
-    name: String = "Model_${++modelCounter}",
-    pathToOutputDirectory: Path = KSL.createSubDirectory(name + "_OutputDir"),
+    simulationName: String = "Simulation${++simCounter}",
+    pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName + "_OutputDir"),
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
-) : ModelElement(name), ExperimentIfc {
+) : ModelElement("MainModel"), ExperimentIfc {
 //TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
 //TODO statistical batching, but move it within Model
 //TODO observers
@@ -741,7 +740,7 @@ class Model internal constructor(
 
     }
 
-    var simulationName: String = name
+    var simulationName: String = simulationName
         private set
 
     override val experimentId: Int
@@ -838,7 +837,7 @@ class Model internal constructor(
      * Initializes the simulation in preparation for running
      */
     fun initializeReplications() {
-        logger.info {"Simulation: $name Initializing the replications ..."}
+        logger.info {"$name Initializing the replications ..."}
         myReplicationProcess.initialize()
     }
 
@@ -870,12 +869,17 @@ class Model internal constructor(
      * Runs all remaining replications based on the current settings
      */
     fun simulate() {
+        val startTime = Clock.System.now()
+        logger.info {"Starting the simulation for $simulationName at time $startTime"}
         logger.info {"$name simulating all $numberOfReplications replications of length $lengthOfReplication with warm up $lengthOfReplicationWarmUp ..." }
-        val instantNow = Clock.System.now()
-        simulationName = name + "_" + instantNow
-        myReplicationProcess.run()
-        logger.info {"$name completed $numberOfReplications replications." }
 
+//        simulationName = name + "_" + instantNow
+        myReplicationProcess.run()
+        val endTime = Clock.System.now()
+        logger.info {"$name completed $numberOfReplications replications." }
+        logger.info {"Ended the simulation for $simulationName at $endTime"}
+        val elapsedTime = endTime - startTime
+        logger.info {"Total time for $simulationName = $elapsedTime"}
     }
 
     /**
@@ -884,7 +888,7 @@ class Model internal constructor(
      * @param msg A message to indicate why the simulation was stopped
      */
     fun endSimulation(msg: String? = null) {
-        logger.info {"Simulation $name ending ... completed $numberReplicationsCompleted of $numberOfReplications" }
+        logger.info {"$name ending ... completed $numberReplicationsCompleted of $numberOfReplications" }
         myReplicationProcess.end(msg)
     }
 
@@ -894,14 +898,14 @@ class Model internal constructor(
      * @param msg A message to indicate why the simulation was stopped
      */
     fun stopSimulation(msg: String?) {
-        logger.info {"Simulation $name stopping ... with message $msg" }
+        logger.info {"$name stopping ... with message $msg" }
         myReplicationProcess.stop(msg)
     }
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.append("Model Name: ")
-        sb.append(name)
+        sb.append("Name: ")
+        sb.append(simulationName)
         sb.appendLine()
         sb.append(myReplicationProcess)
         sb.appendLine()

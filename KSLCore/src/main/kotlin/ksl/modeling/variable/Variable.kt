@@ -52,17 +52,18 @@ open class Variable(
         }
 
     private var myValue: Double = theInitialValue
+
     override var value: Double
         get() = myValue
         set(newValue) = assignValue(newValue)
 
     protected fun assignValue(newValue: Double){
         require(limits.contains(newValue)) { "The value $newValue must be within the specified limits : $limits" }
-        previous = myValue // remember the previous value
+        previousValue = myValue // remember the previous value
         previousTimeOfChange = timeOfChange // remember the previous change time
         myValue = newValue// remember the new value
         timeOfChange = time
-        //TODO notify observers
+        notifyObservers(Status.UPDATE)
     }
 
     /**
@@ -77,19 +78,20 @@ open class Variable(
         require(limits.contains(value)) { "The initial value, $value must be within the specified limits: $limits" }
         myValue = value
         timeOfChange = 0.0
-        previous = myValue
+        previousValue = myValue
         previousTimeOfChange = timeOfChange
     }
 
     /**
      *  The previous value, before the current value changed
      */
-    override var previous: Double = theInitialValue //TODO should start at Double.NaN
+    override var previousValue: Double = theInitialValue
         protected set
 
-    override var timeOfChange: Double = 0.0 //TODO should start at Double.NaN
+    override var timeOfChange: Double = 0.0
         protected set
-    override var previousTimeOfChange: Double = 0.0 //TODO should start at Double.NaN
+
+    override var previousTimeOfChange: Double = 0.0
         protected set
 
     override fun beforeExperiment() {
@@ -112,7 +114,7 @@ open class Variable(
         sb.append(previousTimeOfChange)
         sb.append("\t")
         sb.append("Previous value = ")
-        sb.append(previous)
+        sb.append(previousValue)
         sb.appendLine()
         sb.append("Current time = ")
         sb.append(timeOfChange)
