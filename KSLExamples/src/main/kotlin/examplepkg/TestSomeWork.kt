@@ -44,7 +44,7 @@ public fun testSomeThings() {
     for (i in 1..10) {
         println(rv.value)
     }
-    println(rv.previous)
+    println(rv.previousValue)
 
     val xs = rv.sample(20)
 

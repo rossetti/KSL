@@ -20,7 +20,7 @@ import kotlin.time.Duration
 
 private var simCounter: Int = 0
 
-class Model internal constructor(
+class Model(
     simulationName: String = "Simulation${++simCounter}",
     pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName + "_OutputDir"),
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
@@ -648,7 +648,12 @@ class Model internal constructor(
             if (cMap != null) {
                 // extract controls and apply them
                 val k: Int = getControls().setControlsAsDoubles(cMap)
-                logger.info("{} out of {} controls were applied to Model {} to setup the experiment.", k, cMap.size, name)
+                logger.info(
+                    "{} out of {} controls were applied to Model {} to setup the experiment.",
+                    k,
+                    cMap.size,
+                    name
+                )
             }
         }
 
@@ -691,9 +696,9 @@ class Model internal constructor(
 
         override fun initializeIterations() {
             super.initializeIterations()
-            logger.info {"Starting the simulation for $simulationName"}
-            logger.info {"$name simulating all $numberOfReplications replications of length $lengthOfReplication with warm up $lengthOfReplicationWarmUp ..." }
-            logger.info {"$name Initializing the replications ..."}
+            logger.info { "Starting the simulation for $simulationName" }
+            logger.info { "$name simulating all $numberOfReplications replications of length $lengthOfReplication with warm up $lengthOfReplicationWarmUp ..." }
+            logger.info { "$name Initializing the replications ..." }
             myExperiment.resetCurrentReplicationNumber()
             setUpExperiment()
             if (repLengthWarningMessageOption) {
@@ -718,8 +723,8 @@ class Model internal constructor(
 
         override fun endIterations() {
             endExperiment()
-            logger.info {"$name completed $numberOfReplications replications out of $numberOfReplications." }
-            logger.info {"Ended the simulation for $simulationName"}
+            logger.info { "$name completed $numberOfReplications replications out of $numberOfReplications." }
+            logger.info { "Ended the simulation for $simulationName" }
             super.endIterations()
         }
 
@@ -754,7 +759,9 @@ class Model internal constructor(
 
     override var experimentName: String
         get() = myExperiment.experimentName
-        set(value) {myExperiment.experimentName = value}
+        set(value) {
+            myExperiment.experimentName = value
+        }
 
     override var numberOfReplications: Int
         get() = myExperiment.numberOfReplications
@@ -774,7 +781,9 @@ class Model internal constructor(
 
     override var lengthOfReplicationWarmUp: Double
         get() = myExperiment.lengthOfReplicationWarmUp
-        set(value) {myExperiment.lengthOfReplicationWarmUp = value}
+        set(value) {
+            myExperiment.lengthOfReplicationWarmUp = value
+        }
 
     override var replicationInitializationOption: Boolean
         get() = myExperiment.replicationInitializationOption
