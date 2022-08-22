@@ -4,6 +4,7 @@ import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.utilities.exceptions.JSLEventException
 import ksl.utilities.observers.Observable
+import kotlin.time.Duration
 
 class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) : Observable<JSLEvent<*>?>(){
 
@@ -85,7 +86,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
     fun willTerminate(): Boolean {
         var flag = true
         if (!isEndEventScheduled()) {
-            if (maximumAllowedExecutionTime == 0L) {
+            if (maximumAllowedExecutionTime == Duration.ZERO) {
                 flag = false
             }
         }

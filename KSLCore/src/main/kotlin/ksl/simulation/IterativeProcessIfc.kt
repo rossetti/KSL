@@ -15,6 +15,9 @@
  */
 package ksl.simulation
 
+import kotlinx.datetime.Instant
+import kotlin.time.Duration
+
 /**
  *
  * @author rossetti
@@ -56,14 +59,12 @@ interface IterativeProcessIfc {
     val isExecutionTimeExceeded: Boolean
         get() = endingStatus == EndingStatus.EXCEEDED_EXECUTION_TIME
 
-    //TODO use Duration and new time API, eventually
-
     /**
      * Returns system time in nanoseconds that the iterative process started
      *
      * @return the number as a long
      */
-    val beginExecutionTime: Long
+    val beginExecutionTime: Instant
 
     /**
      * Gets the clock time in nanoseconds since the iterative process was
@@ -71,21 +72,15 @@ interface IterativeProcessIfc {
      *
      * @return a long representing the elapsed time
      */
-    val elapsedExecutionTime: Long
-        get() {
-            return if (beginExecutionTime > 0) {
-                (System.nanoTime() - beginExecutionTime)
-            } else {
-                0
-            }
-        }
+    val elapsedExecutionTime: Duration
+        get() = endExecutionTime - beginExecutionTime
 
     /**
      * Returns system time in nanoseconds that the iterative process ended
      *
      * @return the number as a long
      */
-    val endExecutionTime: Long
+    val endExecutionTime: Instant
 
     /**
      * The maximum allotted (suggested) execution (real) clock for the
@@ -95,7 +90,7 @@ interface IterativeProcessIfc {
      * has exceeded the maximum time, then the iterative process will be ended
      * (perhaps) not completing other steps.
      */
-    var maximumAllowedExecutionTime: Long
+    var maximumAllowedExecutionTime: Duration
 
     /**
      * Returns the number of steps completed since the iterative process was

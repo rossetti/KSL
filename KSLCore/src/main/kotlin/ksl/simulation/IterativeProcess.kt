@@ -1,5 +1,7 @@
 package ksl.simulation
 
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import ksl.simulation.IterativeProcessIfc.EndingStatus.*
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
@@ -7,6 +9,7 @@ import ksl.utilities.exceptions.IllegalStateException
 import ksl.utilities.exceptions.NoSuchStepException
 import ksl.utilities.observers.Observable
 import mu.KotlinLogging
+import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
@@ -62,15 +65,15 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
     override var isDone: Boolean = false
         protected set
 
-    override var beginExecutionTime: Long = -1
+    override lateinit var beginExecutionTime: Instant
         protected set
 
-    override var endExecutionTime: Long = -1
+    override lateinit var endExecutionTime: Instant
         protected set
 
-    override var maximumAllowedExecutionTime: Long = 0
+    override var maximumAllowedExecutionTime: Duration = Duration.ZERO
         set(value) {
-            require(value > 0) { "The maximum allowed execution time must be > 0" }
+            require(value > Duration.ZERO) { "The maximum allowed execution time must be > 0" }
             field = value
         }
 
@@ -157,7 +160,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
         isRunningStep = false
         isRunning = false
         numberStepsCompleted = 0
-        beginExecutionTime = System.nanoTime()
+        beginExecutionTime = Clock.System.now()
         state = myInitializedState
     }
 
@@ -230,7 +233,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
         isRunning = false
         isRunningStep = false
         isDone = true
-        endExecutionTime = System.nanoTime()
+        endExecutionTime = Clock.System.now()
         state = myEndedState
     }
 
@@ -245,13 +248,12 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
         sb.append("End Execution Time: ")
         sb.append(endExecutionTime)
         sb.appendLine()
-        sb.append("Elapsed Execution Time (seconds): ")
-        sb.append(elapsedExecutionTime / 1e-9)
+        sb.append("Elapsed Execution Time: ")
+        sb.append(elapsedExecutionTime)
         sb.appendLine()
         sb.append("Max Allowed Execution Time: ")
-        if (maximumAllowedExecutionTime > 0) {
+        if (maximumAllowedExecutionTime > Duration.ZERO) {
             sb.append(maximumAllowedExecutionTime)
-            sb.append(" nanoseconds")
             sb.appendLine()
         } else {
             sb.append("Not Specified")

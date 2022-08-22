@@ -2,6 +2,7 @@ package ksl.simulation
 
 import jsl.utilities.random.rvariable.RVParameterSetter//TODO
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.controls.Controls
@@ -15,6 +16,7 @@ import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
 import mu.KLoggable
 import java.nio.file.Path
+import kotlin.time.Duration
 
 private var simCounter: Int = 0
 
@@ -125,20 +127,20 @@ class Model internal constructor(
     /**
      * Returns system time in nanoseconds that the simulation started
      */
-    val beginExecutionTime: Long
+    val beginExecutionTime: Instant
         get() = myReplicationProcess.beginExecutionTime
 
     /**
      * Gets the clock time in nanoseconds since the simulation was
      * initialized
      */
-    val elapsedExecutionTime: Long
+    val elapsedExecutionTime: Duration
         get() = myReplicationProcess.elapsedExecutionTime
 
     /**
      * Returns system time in nanoseconds that the simulation ended
      */
-    val endExecutionTime: Long
+    val endExecutionTime: Instant
         get() = myReplicationProcess.endExecutionTime
 
     /**
@@ -149,7 +151,7 @@ class Model internal constructor(
      * has exceeded the maximum time, then the iterative process will be ended
      * (perhaps) not completing other steps.
      */
-    var maximumAllowedExecutionTime: Long
+    var maximumAllowedExecutionTime: Duration
         get() = myReplicationProcess.maximumAllowedExecutionTime
         set(value) {
             myReplicationProcess.maximumAllowedExecutionTime = value
@@ -662,7 +664,7 @@ class Model internal constructor(
     }
 
     internal fun runReplication() {
-        if (maximumAllowedExecutionTimePerReplication > 0) {
+        if (maximumAllowedExecutionTimePerReplication > Duration.ZERO) {
             executive.maximumAllowedExecutionTime = maximumAllowedExecutionTimePerReplication
         }
         logger.info { "Initializing the executive" }
@@ -689,11 +691,14 @@ class Model internal constructor(
 
         override fun initializeIterations() {
             super.initializeIterations()
+            logger.info {"Starting the simulation for $simulationName"}
+            logger.info {"$name simulating all $numberOfReplications replications of length $lengthOfReplication with warm up $lengthOfReplicationWarmUp ..." }
+            logger.info {"$name Initializing the replications ..."}
             myExperiment.resetCurrentReplicationNumber()
             setUpExperiment()
             if (repLengthWarningMessageOption) {
                 if (lengthOfReplication.isInfinite()) {
-                    if (maximumAllowedExecutionTimePerReplication == 0L) {
+                    if (maximumAllowedExecutionTimePerReplication == Duration.ZERO) {
                         val sb = StringBuilder()
                         sb.append("Simulation: In initializeIterations(), preparing to run replications:")
                         sb.appendLine()
@@ -713,6 +718,8 @@ class Model internal constructor(
 
         override fun endIterations() {
             endExperiment()
+            logger.info {"$name completed $numberOfReplications replications out of $numberOfReplications." }
+            logger.info {"Ended the simulation for $simulationName"}
             super.endIterations()
         }
 
@@ -728,7 +735,6 @@ class Model internal constructor(
 
         override fun runStep() {
             myCurrentStep = nextStep()
-//            logger.info { "Simulation $name Running replication $currentReplicationNumber of $numberOfReplications replications" }
             myExperiment.incrementCurrentReplicationNumber()
             logger.info { "Running replication $currentReplicationNumber of $numberOfReplications replications" }
             model.runReplication()
@@ -776,7 +782,7 @@ class Model internal constructor(
             myExperiment.replicationInitializationOption = value
         }
 
-    override var maximumAllowedExecutionTimePerReplication: Long
+    override var maximumAllowedExecutionTimePerReplication: Duration
         get() = myExperiment.maximumAllowedExecutionTimePerReplication
         set(value) {
             myExperiment.maximumAllowedExecutionTimePerReplication = value
@@ -837,7 +843,6 @@ class Model internal constructor(
      * Initializes the simulation in preparation for running
      */
     fun initializeReplications() {
-        logger.info {"$name Initializing the replications ..."}
         myReplicationProcess.initialize()
     }
 
@@ -869,17 +874,7 @@ class Model internal constructor(
      * Runs all remaining replications based on the current settings
      */
     fun simulate() {
-        val startTime = Clock.System.now()
-        logger.info {"Starting the simulation for $simulationName at time $startTime"}
-        logger.info {"$name simulating all $numberOfReplications replications of length $lengthOfReplication with warm up $lengthOfReplicationWarmUp ..." }
-
-//        simulationName = name + "_" + instantNow
         myReplicationProcess.run()
-        val endTime = Clock.System.now()
-        logger.info {"$name completed $numberOfReplications replications." }
-        logger.info {"Ended the simulation for $simulationName at $endTime"}
-        val elapsedTime = endTime - startTime
-        logger.info {"Total time for $simulationName = $elapsedTime"}
     }
 
     /**
@@ -888,7 +883,6 @@ class Model internal constructor(
      * @param msg A message to indicate why the simulation was stopped
      */
     fun endSimulation(msg: String? = null) {
-        logger.info {"$name ending ... completed $numberReplicationsCompleted of $numberOfReplications" }
         myReplicationProcess.end(msg)
     }
 
@@ -898,7 +892,6 @@ class Model internal constructor(
      * @param msg A message to indicate why the simulation was stopped
      */
     fun stopSimulation(msg: String?) {
-        logger.info {"$name stopping ... with message $msg" }
         myReplicationProcess.stop(msg)
     }
 

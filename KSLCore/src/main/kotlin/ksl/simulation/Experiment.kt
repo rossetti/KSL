@@ -19,6 +19,8 @@
  */
 package ksl.simulation
 
+import kotlin.time.Duration
+
 private var myCounter_: Int = 0
 
 /**
@@ -112,9 +114,9 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      * exceeded the maximum time, then the process will be ended
      * (perhaps) not completing other replications.
      */
-    override var maximumAllowedExecutionTimePerReplication: Long = 0 // zero means not used
+    override var maximumAllowedExecutionTimePerReplication: Duration = Duration.ZERO// zero means not used
         set(value) {
-            require(value > 0.0) { "The maximum number of execution time (clock time) must be > 0.0" }
+            require(value > Duration.ZERO) { "The maximum number of execution time (clock time) must be > 0.0" }
             field = value
         }
 
@@ -241,7 +243,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         if (e.numberOfStreamAdvancesPriorToRunning > 0){
             numberOfStreamAdvancesPriorToRunning = e.numberOfStreamAdvancesPriorToRunning
         }
-        if (e.maximumAllowedExecutionTimePerReplication > 0){
+        if (e.maximumAllowedExecutionTimePerReplication > Duration.ZERO){
             maximumAllowedExecutionTimePerReplication = e.maximumAllowedExecutionTimePerReplication
         }
         garbageCollectAfterReplicationFlag = e.garbageCollectAfterReplicationFlag
@@ -268,7 +270,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         if (numberOfStreamAdvancesPriorToRunning > 0){
             n.numberOfStreamAdvancesPriorToRunning = numberOfStreamAdvancesPriorToRunning
         }
-        if (maximumAllowedExecutionTimePerReplication > 0){
+        if (maximumAllowedExecutionTimePerReplication > Duration.ZERO){
             n.maximumAllowedExecutionTimePerReplication = maximumAllowedExecutionTimePerReplication
         }
         n.garbageCollectAfterReplicationFlag = garbageCollectAfterReplicationFlag
@@ -308,7 +310,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         sb.append(lengthOfReplicationWarmUp)
         sb.appendLine()
         val et = maximumAllowedExecutionTimePerReplication
-        if (et == 0L) {
+        if (et == Duration.ZERO) {
             sb.append("Maximum allowed replication execution time not specified.")
         } else {
             sb.append("Maximum allowed replication execution time: ")

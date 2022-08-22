@@ -1,5 +1,7 @@
 package ksl.simulation
 
+import kotlin.time.Duration
+
 interface ExperimentIfc {
 
     /**
@@ -61,7 +63,7 @@ interface ExperimentIfc {
      * exceeded the maximum time, then the process will be ended
      * (perhaps) not completing other replications.
      */
-    var maximumAllowedExecutionTimePerReplication: Long
+    var maximumAllowedExecutionTimePerReplication: Duration
 
     /**
      * The reset start stream option This option indicates whether the
