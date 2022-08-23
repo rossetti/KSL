@@ -1,7 +1,6 @@
 package ksl.simulation
 
 import jsl.utilities.random.rvariable.RVParameterSetter//TODO
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
@@ -58,17 +57,23 @@ class Model(
      */
     var baseTimeUnit: TimeUnit = TimeUnit.MILLISECOND
 
-    private var myResponseVariables: MutableList<Response> = ArrayList()
+    private var myResponses: MutableList<Response> = ArrayList()
+    val responses: List<Response>
+        get() = myResponses
 
     /**
      * A list of all the Counters within the model
      */
     private var myCounters: MutableList<Counter> = ArrayList()
+    val counters: List<Counter>
+        get() = myCounters
 
     /**
      * A list of all the Variables within the model
      */
     private var myVariables: MutableList<Variable> = ArrayList()
+    val variables: List<Variable>
+        get() = myVariables
 
     /**
      * A list of all random elements within the model
@@ -374,7 +379,7 @@ class Model(
             //	remove the associated model element from the map, if there
             myModelElementMap.remove(modelElement.name)
             if (modelElement is Response) {
-                myResponseVariables.remove(modelElement)
+                myResponses.remove(modelElement)
             }
             if (modelElement is Counter) {
                 myCounters.remove(modelElement)
@@ -425,7 +430,7 @@ class Model(
         logger.trace { "Added model element ${modelElement.name} to the model with parent ${modelElement.myParentModelElement?.name}" }
 
         if (modelElement is Response) {
-            myResponseVariables.add(modelElement)
+            myResponses.add(modelElement)
         }
 
         if (modelElement is Counter) {
