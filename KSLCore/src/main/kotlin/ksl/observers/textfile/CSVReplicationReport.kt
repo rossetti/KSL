@@ -28,13 +28,15 @@ import java.nio.file.Path
  * then the header from WeightedStatistic.csvStatisticHeader
  *
  * Captures all Response, TWResponse variables, and Counters
- * @param pathToFile the path to the file
+ * @param model the model for which to create the report
+ * @param reportName the name of the report
+ * @param directoryPath the path to the directory that will contain the report
  */
 class CSVReplicationReport(
     model: Model,
-    pathToFile: Path = model.outputDirectory.outDir,
-    name: String? = KSLFileUtil.removeLastFileExtension(pathToFile.fileName.toString())
-) : CSVReport(model, pathToFile, name) {
+    reportName: String = model.name + "_CSVReplicationReport",
+    directoryPath: Path = model.outputDirectory.outDir,
+) : CSVReport(model, reportName, directoryPath) {
     /**
      * @return The number of times afterReplication was called
      */

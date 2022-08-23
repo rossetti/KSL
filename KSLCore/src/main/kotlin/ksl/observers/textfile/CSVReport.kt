@@ -20,17 +20,18 @@ import ksl.simulation.Model
 import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
 import java.nio.file.Path
-import java.util.*
 
 /**
- *
+ * @param model the model for which to create the report
+ * @param reportName the name of the report
+ * @param directoryPath the path to the directory that will contain the report
  */
 abstract class CSVReport(
     model: Model,
-    pathToFile: Path = model.outputDirectory.outDir,
-    name: String? = KSLFileUtil.removeLastFileExtension(pathToFile.fileName.toString())
+    reportName: String = model.name + "_CSVReport",
+    directoryPath: Path = model.outputDirectory.outDir,
 ) :
-    ModelElementObserver<Model>(model, name) {
+    ModelElementObserver<Model>(model, reportName) {
     var quoteChar = '"'
     var headerFlag = false
     var lineWidth = 300
@@ -38,10 +39,12 @@ abstract class CSVReport(
     protected val myWriter: PrintWriter
 
     init {
-        var path = pathToFile
+        var path = directoryPath
         if (!KSLFileUtil.hasCSVExtension(path)) {
             // need to add csv extension
-            path = path.resolve(".csv")
+            path = path.resolve("$reportName.csv")
+        } else {
+            path = path.resolve(reportName)
         }
         myWriter = KSLFileUtil.createPrintWriter(path)
     }

@@ -16,7 +16,6 @@
 package ksl.observers.textfile
 
 import ksl.simulation.Model
-import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
 
@@ -27,16 +26,18 @@ import java.nio.file.Path
  * then the header from StatisticIfc.csvStatisticHeader
  *
  * Captures all Response, TWResponse variables, and Counters
- * @param pathToFile the path to the file
+ * @param model the model for which to create the report
+ * @param reportName the name of the report
+ * @param directoryPath the path to the directory that will contain the report
  */
 class CSVExperimentReport(
     model: Model,
-    pathToFile: Path = model.outputDirectory.outDir,
-    name: String? = KSLFileUtil.removeLastFileExtension(pathToFile.fileName.toString())
-) : CSVReport(model, pathToFile, name) {
+    reportName: String = model.name + "_CSVExperimentReport",
+    directoryPath: Path = model.outputDirectory.outDir,
+) : CSVReport(model, reportName, directoryPath) {
 
     override fun writeHeader() {
-        if (headerFlag == true) {
+        if (headerFlag) {
             return
         }
         headerFlag = true

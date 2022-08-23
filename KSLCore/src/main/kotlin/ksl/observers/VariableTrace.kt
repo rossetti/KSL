@@ -8,7 +8,7 @@ import java.nio.file.Path
 
 class VariableTrace(
     variable: Variable,
-    pathToFile: Path = KSL.outDir.resolve(variable.name + "_Trace.csv"),
+    pathToFile: Path = variable.myModel.outputDirectory.outDir.resolve(variable.name + "_Trace.csv"),
     header: Boolean = true
 ) :
     ModelElementObserver<Variable>(variable) {
