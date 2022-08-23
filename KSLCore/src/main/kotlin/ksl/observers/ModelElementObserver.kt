@@ -8,13 +8,18 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.ObserverIfc
 
 /**
- *  Base class for reacting to status changes that occur on model elements.
+ *  Base class for reacting to status changes that occur on model elements.  This observer is meant to observe
+ *  1 and only 1 model element.
  */
 open class ModelElementObserver<T: ModelElement>(observed: T, name: String? = null) : IdentityIfc by Identity(name),
     ObserverIfc<ModelElement.Status> {
 
     protected val observedModelElement: T = observed
     protected val model: Model = observedModelElement.myModel
+
+    init {
+        observedModelElement.attachObserver(this)// yes it is a leaking this, SO WHAT!
+    }
 
     override fun onChange(newValue: ModelElement.Status) {
         when(newValue){

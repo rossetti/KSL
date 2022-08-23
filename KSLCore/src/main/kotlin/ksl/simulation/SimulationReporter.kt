@@ -484,42 +484,13 @@ class SimulationReporter(theModel: Model) {
         val path = model.outputDirectory.outDir.resolve(fName)
         return writeAcrossReplicationSummaryStatistics(path)
     }
-    /**
-     * Attaches a CSVReplicationReport to the model to record within replication
-     * statistics to a file
-     *
-     * @param name the report file name
-     */
-    /**
-     * Attaches a CSVReplicationReport to the model to record within replication
-     * statistics to a file
-     *
-     */
-    @JvmOverloads
-    fun turnOnReplicationCSVStatisticReporting(name: String? = null) {
-        var name = name
-        if (myCSVRepReport != null) {
-            model.deleteObserver(myCSVRepReport)
-        }
-        if (name == null) {
-            name = simulation.name + "_ReplicationReport.csv"
-        }
-        // path inside jslOutput with simulation's name on it
-        val dirPath = simulation.outputDirectory.outDir
-        // now need path to csv replication report results
-        val filePath = dirPath.resolve(name)
-        myCSVRepReport = CSVReplicationReport(filePath)
-        model.addObserver(myCSVRepReport)
-    }
 
     /**
-     * Detaches a CSVReplicationReport from the model
+     * Detaches a CSVReplicationReport from the model. You cannot reattach it
      *
      */
     fun turnOffReplicationCSVStatisticReporting() {
-        if (myCSVRepReport != null) {
-            model.deleteObserver(myCSVRepReport)
-        }
+        model.detachObserver(myCSVRepReport)
     }
 
     /**
@@ -733,42 +704,13 @@ class SimulationReporter(theModel: Model) {
         }
         return builders
     }
-    /**
-     * Attaches a CSVExperimentReport to the model to record across replication
-     * statistics to a file
-     *
-     * @param name the file name of the report
-     */
-    /**
-     * Attaches a CSVExperimentReport to the model to record across replication
-     * statistics to a file
-     *
-     */
-    @JvmOverloads
-    fun turnOnAcrossReplicationCSVStatisticReporting(name: String? = null) {
-        var name = name
-        if (myCSVExpReport != null) {
-            model.deleteObserver(myCSVExpReport)
-        }
-        if (name == null) {
-            name = simulation.name + "_CSVExperimentReport.csv"
-        }
-        // path inside jslOutput with simulation's name on it
-        val dirPath = simulation.outputDirectory.outDir
-        // now need path to csv replication report results
-        val filePath = dirPath.resolve(name)
-        myCSVExpReport = CSVExperimentReport(filePath)
-        model.addObserver(myCSVExpReport)
-    }
 
     /**
-     * Detaches a CSVExperimentReport from the model
+     * Detaches a CSVExperimentReport from the model. You cannot reattach it.
      *
      */
     fun turnOffAcrossReplicationStatisticReporting() {
-        if (myCSVExpReport != null) {
-            model.deleteObserver(myCSVExpReport)
-        }
+        model.detachObserver(myCSVExpReport)
     }
 
     /**
@@ -777,94 +719,41 @@ class SimulationReporter(theModel: Model) {
      */
     val acrossReplicationStatisticReporter: StatisticReporter
         get() {
-            val list = acrossReplicationStatisticsList
+            val list = acrossReplicationStatisticsList.toMutableList()
             return StatisticReporter(list)
         }
-    //    /**
-    //     *  Prints a half-width summary report for the across replication statistics to
-    //     *  System.out
-    //     */
-    //    public final void printAcrossReplicationHalfWidthSummaryReport(){
-    //        PrintWriter printWriter = new PrintWriter(System.out);
-    //        writeAcrossReplicationHalfWidthSummaryReport(printWriter);
-    //    }
-    //
-    //    /** Writes a half-width summary report for the across replication statistics
-    //     *
-    //     * @param out the writer to write to
-    //     */
-    //    public final void writeAcrossReplicationHalfWidthSummaryReport(PrintWriter out){
-    //        List<StatisticAccessorIfc> list = getAcrossReplicationStatisticsList();
-    //        StatisticReporter statisticReporter = new StatisticReporter(list);
-    //        StringBuilder report = statisticReporter.getHalfWidthSummaryReport();
-    //        out.println(report.toString());
-    //        out.flush();
-    //    }
+
     /**
      * @return a StringBuilder with the Half-Width Summary Report and 95 percent confidence
      */
     val halfWidthSummaryReport: StringBuilder
-        get() = getHalfWidthSummaryReport(null, 0.95)
-
-    /**
-     * @param confLevel the confidence level of the report
-     * @return a StringBuilder with the Half-Width Summary Report
-     */
-    fun getHalfWidthSummaryReport(confLevel: Double): StringBuilder {
-        return getHalfWidthSummaryReport(null, confLevel)
-    }
+        get() = getHalfWidthSummaryReport()
 
     /**
      * @param title     the title
      * @param confLevel the confidence level
      * @return a StringBuilder representation of the half-width summary report
      */
-    fun getHalfWidthSummaryReport(title: String?, confLevel: Double): StringBuilder {
-        val list = acrossReplicationStatisticsList
+    fun getHalfWidthSummaryReport(title: String? = null, confLevel: Double = 0.95): StringBuilder {
+        val list = acrossReplicationStatisticsList.toMutableList()
         val sr = StatisticReporter(list)
         return sr.halfWidthSummaryReport(title, confLevel)
     }
 
     /**
-     * Prints the default half-width summary report to the console
-     */
-    fun printHalfWidthSummaryReport() {
-        writeHalfWidthSummaryReport(PrintWriter(System.out), null, 0.95)
-    }
-
-    /**
-     * @param confLevel the confidence level of the report
-     */
-    fun printHalfWidthSummaryReport(confLevel: Double) {
-        writeHalfWidthSummaryReport(PrintWriter(System.out), null, confLevel)
-    }
-
-    /**
      * @param title     the title of the report
      * @param confLevel the confidence level of the report
      */
-    fun printHalfWidthSummaryReport(title: String?, confLevel: Double) {
+    fun printHalfWidthSummaryReport(title: String? = null, confLevel: Double = 0.95) {
         writeHalfWidthSummaryReport(PrintWriter(System.out), title, confLevel)
     }
 
     /**
      * @param out       the place to write to
-     * @param confLevel the confidence level of the report
-     */
-    fun writeHalfWidthSummaryReport(out: PrintWriter?, confLevel: Double) {
-        writeHalfWidthSummaryReport(out, null, confLevel)
-    }
-    /**
-     * @param out       the place to write to
      * @param title     the title of the report
      * @param confLevel the confidence level of the report
      */
-    /**
-     * @param out the place to write to
-     */
-    @JvmOverloads
-    fun writeHalfWidthSummaryReport(out: PrintWriter?, title: String? = null, confLevel: Double = 0.95) {
-        requireNotNull(out) { "The PrintWriter was null" }
+    fun writeHalfWidthSummaryReport(out: PrintWriter = PrintWriter(System.out), title: String? = null, confLevel: Double = 0.95) {
         out.print(getHalfWidthSummaryReport(title, confLevel).toString())
         out.flush()
     }

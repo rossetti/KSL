@@ -1,6 +1,7 @@
 package ksl.simulation
 
-import jsl.utilities.random.rvariable.RVParameterSetter//TODO
+import jsl.utilities.random.rvariable.RVParameterSetter
+import jsl.utilities.statistic.StatisticAccessorIfc
 import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
@@ -13,6 +14,7 @@ import ksl.modeling.variable.Variable
 import ksl.utilities.io.KSL
 import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
+import ksl.utilities.statistic.StatisticIfc
 import mu.KLoggable
 import java.nio.file.Path
 import kotlin.time.Duration
@@ -920,6 +922,29 @@ class Model(
         sb.appendLine()
         sb.append(myExecutive)
         return sb.toString()
+    }
+
+    /**
+     * The responses as a list of StatisticIfc
+     *
+     * @return a list of response variables and counters
+     */
+    val listOfAcrossReplicationStatistics: List<StatisticIfc>
+        get() {
+        val stats: MutableList<StatisticIfc> = ArrayList()
+        for (r in myResponses) {
+            val stat = r.acrossReplicationStatistic
+            if (r.defaultReportingOption) {
+                stats.add(stat)
+            }
+        }
+        for (c in myCounters) {
+            val stat = c.acrossReplicationStatistic
+            if (c.defaultReportingOption) {
+                stats.add(stat)
+            }
+        }
+        return stats
     }
 
     companion object : KLoggable {
