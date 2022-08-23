@@ -25,10 +25,10 @@ import java.nio.file.Path
 /** Represents a comma separated value file for replication data
  *
  * SimName, ModelName, ExpName, RepNum, ResponseType, ResponseID, ResponseName, ..
- * then the header from WeightedStatistic.getCSVStatisticHeader()
+ * then the header from WeightedStatistic.csvStatisticHeader
  *
- * Captures all ResponseVariables, TimeWeighted variables, and Counters
- * @param pathToFile the path to the file, must not be null
+ * Captures all Response, TWResponse variables, and Counters
+ * @param pathToFile the path to the file
  */
 class CSVReplicationReport(
     model: Model,

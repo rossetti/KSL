@@ -24,10 +24,10 @@ import java.nio.file.Path
  * replication data)
  *
  * SimName, ModelName, ExpName, RepNum, ResponseType, ResponseID, ResponseName, ..
- * then the header from StatisticAccessorIfc.getCSVStatisticHeader()
+ * then the header from StatisticIfc.csvStatisticHeader
  *
- * Captures all ResponseVariables, TimeWeighted variables, and Counters
- * @param pathToFile the path to the file, must not be null
+ * Captures all Response, TWResponse variables, and Counters
+ * @param pathToFile the path to the file
  */
 class CSVExperimentReport(
     model: Model,
