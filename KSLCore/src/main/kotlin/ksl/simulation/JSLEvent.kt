@@ -59,7 +59,7 @@ class JSLEvent<out T> internal constructor(
     var name: String? = theName
         get() {
             return if (field == null) {
-                "Event_{$id}"
+                "Event_$id"
             } else {
                 field
             }
@@ -108,10 +108,11 @@ class JSLEvent<out T> internal constructor(
      */
     override fun toString(): String {
         val sb = StringBuilder()
-        val df = DecimalFormat("0.####E0")
-        sb.append(df.format(time))
-        sb.append(" > Event = ")
+        val df = DecimalFormat("####.####E0")
+        sb.append("Event = ")
         sb.append(name)
+        sb.append(" : ")
+        sb.append(" time = ").append(df.format(time))
         sb.append(" : ")
         sb.append("ID = ")
         sb.append(id)

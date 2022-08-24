@@ -67,10 +67,10 @@ interface IterativeProcessIfc {
     val beginExecutionTime: Instant
 
     /**
-     * Gets the clock time in nanoseconds since the iterative process was
+     * Gets the clock time as a Duration since the iterative process was
      * initialized
      *
-     * @return a long representing the elapsed time
+     * @return a Duration representing the elapsed time
      */
     val elapsedExecutionTime: Duration
         get() = endExecutionTime - beginExecutionTime

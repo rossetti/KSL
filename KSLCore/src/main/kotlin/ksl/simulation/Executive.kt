@@ -231,14 +231,11 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             event.scheduled = true
             return event
         } else {
+            val event = JSLEvent(-99, eventAction, eventTime, priority, message, name, theElementScheduling)
             val sb = StringBuilder()
-            sb.append("Attempted to schedule an event after the scheduled simulation end time: ${scheduledEndTime()}")
-            sb.appendLine()
-            sb.append("The event was scheduled from ModelElement : ").append(theElementScheduling.name)
-            sb.appendLine()
-            Model.logger.warn(sb.toString())
-            System.out.flush()
-            throw JSLEventException(sb.toString())
+            sb.append("Attempted to schedule an event, $event, after the scheduled simulation end time: ${scheduledEndTime()} the event was not scheduled and will not execute")
+            Model.logger.trace(sb.toString())
+            return event
         }
     }
 

@@ -1,7 +1,6 @@
 package ksl.simulation
 
 import jsl.utilities.random.rvariable.RVParameterSetter
-import jsl.utilities.statistic.StatisticAccessorIfc
 import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar

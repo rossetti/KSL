@@ -65,10 +65,10 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
     override var isDone: Boolean = false
         protected set
 
-    override lateinit var beginExecutionTime: Instant
+    override var beginExecutionTime: Instant = Instant.DISTANT_PAST
         protected set
 
-    override lateinit var endExecutionTime: Instant
+    override var endExecutionTime: Instant = Instant.DISTANT_FUTURE
         protected set
 
     override var maximumAllowedExecutionTime: Duration = Duration.ZERO
