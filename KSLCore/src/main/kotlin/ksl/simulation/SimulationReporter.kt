@@ -31,15 +31,14 @@ import java.util.*
 /**
  * This class facilitates simulation output reporting. There are two main
  * reporting functions: within replication statistics and across replication
- * statistics.
+ * statistics.  The class automatically reports within replication and across
+ * replication statistics to comma separated value files by attaching
+ * observers to the model.  If you do not want this automated output, then
+ * you should use the appropriate turnOffXXX methods.
  *
- * To collect within replication statistics you must use
- * turnOnReplicationCSVStatisticalReporting() before running the simulation.
- * This needs to be done before the simulation is run because the statistics are
- * collected after each replication is completed. This method attaches a
- * CSVReplicationReport to the model for collection purposes. If the simulation
+ * This class attaches a CSVReplicationReport to the model for collection purposes. If the simulation
  * is run multiple times, then statistical data continues to be observed by the
- * CSVReplicationReport. Thus, data across many experiments can be captured in
+ * CSVReplicationReport, unless it is turned off. Thus, data across many experiments can be captured in
  * this manner. This produces a comma separated value file containing all end of
  * replication statistical summaries for every counter and response variable in
  * the model.
@@ -47,13 +46,10 @@ import java.util.*
  * There are a number of options available if you want to capture across
  * replication statistics.
  *
- * 1) turnOnAcrossReplicationCSVStatisticReporting() - This should be done
- * before running the simulation. It uses a CSVExperimentReport to observe a
- * model. This produces a comma separated value file containing all across
- * replication statistical summaries for every counter and response variable in
- * the model.
+ * The class uses a CSVExperimentReport to observe the model. This produces a comma separated value file containing all across
+ * replication statistical summaries for every counter and response variable in the model.
  *
- * 2) Use any of the writeAcrossReplicationX() methods. These methods
+ * Use any of the writeAcrossReplicationX() methods. These methods
  * will write across replication summary statistics to files, standard output,
  * LaTeX, CSV, etc.
  *
@@ -89,66 +85,65 @@ class SimulationReporter(theModel: Model) {
      *
      * @return the string builder
      */
-    val acrossReplicationCSVStatistics: StringBuilder
-        get() {
-            val sb = StringBuilder()
-            var header = true
-            if (responses.isNotEmpty()) {
-                for (r in responses) {
-                    val stat = r.acrossReplicationStatistic
-                    if (header) {
-                        header = false
-                        sb.append("SimName, ModelName, ExpName, ResponseType, ResponseID, ResponseName,")
-                        sb.append(stat.csvStatisticHeader)
-                        sb.appendLine()
-                    }
-                    if (r.defaultReportingOption) {
-                        sb.append(model.simulationName)
-                        sb.append(",")
-                        sb.append(model.name)
-                        sb.append(",")
-                        sb.append(model.experimentName)
-                        sb.append(",")
-                        sb.append(r::class.simpleName)
-                        sb.append(",")
-                        sb.append(r.id)
-                        sb.append(",")
-                        sb.append(r.name)
-                        sb.append(",")
-                        sb.append(stat.csvStatistic)
-                        sb.appendLine()
-                    }
+    fun acrossReplicationCSVStatistics(): StringBuilder {
+        val sb = StringBuilder()
+        var header = true
+        if (responses.isNotEmpty()) {
+            for (r in responses) {
+                val stat = r.acrossReplicationStatistic
+                if (header) {
+                    header = false
+                    sb.append("SimName, ModelName, ExpName, ResponseType, ResponseID, ResponseName,")
+                    sb.append(stat.csvStatisticHeader)
+                    sb.appendLine()
+                }
+                if (r.defaultReportingOption) {
+                    sb.append(model.simulationName)
+                    sb.append(",")
+                    sb.append(model.name)
+                    sb.append(",")
+                    sb.append(model.experimentName)
+                    sb.append(",")
+                    sb.append(r::class.simpleName)
+                    sb.append(",")
+                    sb.append(r.id)
+                    sb.append(",")
+                    sb.append(r.name)
+                    sb.append(",")
+                    sb.append(stat.csvStatistic)
+                    sb.appendLine()
                 }
             }
-            if (counters.isNotEmpty()) {
-                for (c in counters) {
-                    val stat = c.acrossReplicationStatistic
-                    if (header) {
-                        header = false
-                        sb.append("SimName, ModelName, ExpName, ResponseType, ResponseID, ResponseName,")
-                        sb.append(stat.csvStatisticHeader)
-                        sb.appendLine()
-                    }
-                    if (c.defaultReportingOption) {
-                        sb.append(model.simulationName)
-                        sb.append(",")
-                        sb.append(model.name)
-                        sb.append(",")
-                        sb.append(model.experimentName)
-                        sb.append(",")
-                        sb.append(c::class.simpleName)
-                        sb.append(",")
-                        sb.append(c.id)
-                        sb.append(",")
-                        sb.append(c.name)
-                        sb.append(",")
-                        sb.append(stat.csvStatistic)
-                        sb.appendLine()
-                    }
-                }
-            }
-            return sb
         }
+        if (counters.isNotEmpty()) {
+            for (c in counters) {
+                val stat = c.acrossReplicationStatistic
+                if (header) {
+                    header = false
+                    sb.append("SimName, ModelName, ExpName, ResponseType, ResponseID, ResponseName,")
+                    sb.append(stat.csvStatisticHeader)
+                    sb.appendLine()
+                }
+                if (c.defaultReportingOption) {
+                    sb.append(model.simulationName)
+                    sb.append(",")
+                    sb.append(model.name)
+                    sb.append(",")
+                    sb.append(model.experimentName)
+                    sb.append(",")
+                    sb.append(c::class.simpleName)
+                    sb.append(",")
+                    sb.append(c.id)
+                    sb.append(",")
+                    sb.append(c.name)
+                    sb.append(",")
+                    sb.append(stat.csvStatistic)
+                    sb.appendLine()
+                }
+            }
+        }
+        return sb
+    }
 
     /**
      * Writes the across replication statistics to the supplied PrintWriter as
@@ -293,24 +288,11 @@ class SimulationReporter(theModel: Model) {
     }
 
     /**
-     * Returns a StringBuilder with across replication statistics
-     *
-     * @return the StringBuilder
-     */
-    val acrossReplicationStatistics: StringBuilder
-        get() {
-            val sb = StringBuilder()
-            getAcrossReplicationStatistics(sb)
-            return sb
-        }
-
-    /**
      * Gets the across replication statistics as a list
      *
      * @return a list filled with the across replication statistics
      */
-    val acrossReplicationStatisticsList: List<StatisticIfc>
-        get() {
+    fun acrossReplicationStatisticsList(): List<StatisticIfc> {
             val list: MutableList<StatisticIfc> = ArrayList()
             fillAcrossReplicationStatistics(list)
             return list
@@ -321,16 +303,16 @@ class SimulationReporter(theModel: Model) {
      * @param list the list to fill
      */
     fun fillAcrossReplicationStatistics(list: MutableList<StatisticIfc>) {
-        fillResponseVariableReplicationStatistics(list)
+        fillResponseReplicationStatistics(list)
         fillCounterAcrossReplicationStatistics(list)
     }
 
     /** Fills the list with across replication statistics from the response
-     * variables (ResponseVariable and TimeWeighted).
+     * variables (Response and TWResponse).
      *
      * @param list the list to fill
      */
-    fun fillResponseVariableReplicationStatistics(list: MutableList<StatisticIfc>) {
+    fun fillResponseReplicationStatistics(list: MutableList<StatisticIfc>) {
         for (r in responses) {
             val stat = r.acrossReplicationStatistic
             if (r.defaultReportingOption) {
@@ -358,7 +340,7 @@ class SimulationReporter(theModel: Model) {
      *
      * @param sb the StringBuilder to fill
      */
-    fun getAcrossReplicationStatistics(sb: StringBuilder) {
+    fun acrossReplicationStatistics(sb: StringBuilder = StringBuilder()) : StringBuilder {
         sb.append(Date())
         sb.append(System.lineSeparator())
         sb.append("Simulation Results for Model:")
@@ -381,6 +363,7 @@ class SimulationReporter(theModel: Model) {
                 sb.appendLine()
             }
         }
+        return sb
     }
 
     /**
@@ -399,18 +382,17 @@ class SimulationReporter(theModel: Model) {
      * @return the PrintWriter
      */
     fun writeAcrossReplicationCSVStatistics(pathToFile: Path): PrintWriter {
-        Objects.requireNonNull(pathToFile, "The path to the file was null")
         val out = KSLFileUtil.createPrintWriter(pathToFile)
         writeAcrossReplicationCSVStatistics(out)
         return out
     }
 
     /**
-     * Creates a PrintWriter with the supplied name in directory jslOutput and
+     * Creates a PrintWriter with the supplied name in default output directory for the simulation
      * writes out the across replication statistics
      *
      * @param fName the file name
-     * @return the PrintWriter
+     * @return the PrintWriter so that additional information can be written to the file
      */
     fun writeAcrossReplicationCSVStatistics(fName: String = model.simulationName + "_AcrossRepCSVStatistics.csv"): PrintWriter {
         val path = model.outputDirectory.outDir.resolve(fName)
@@ -422,7 +404,7 @@ class SimulationReporter(theModel: Model) {
      * to the file. Full means all detailed statistical quantities for every statistic.
      *
      * @param pathToFile the path to the file
-     * @return the PrintWriter
+     * @return the PrintWriter so that additional information can be written to the file
      */
     fun writeFullAcrossReplicationStatistics(pathToFile: Path): PrintWriter {
         val out = KSLFileUtil.createPrintWriter(pathToFile)
@@ -431,13 +413,13 @@ class SimulationReporter(theModel: Model) {
     }
 
     /**
-     * Creates a PrintWriter with the supplied name in directory jslOutput and
+     * Creates a PrintWriter with the supplied name in the default output directory for the model
      * writes out the across replication statistics.
      *
      * Full means all statistical quantities are printed for every statistic
      *
      * @param fName the file name
-     * @return the PrintWriter
+     * @return the PrintWriter so that additional information can be written to the file
      */
     fun writeFullAcrossReplicationStatistics(fName: String = model.simulationName + "_FullAcrossRepStatistics.txt"): PrintWriter {
         val path = model.outputDirectory.outDir.resolve(fName)
@@ -502,7 +484,7 @@ class SimulationReporter(theModel: Model) {
      * @param out the PrintWriter to write to
      */
     fun writeAcrossReplicationSummaryStatisticsAsLaTeX(out: PrintWriter) {
-        out.print(acrossReplicationStatisticsAsLaTeXDocument)
+        out.print(acrossReplicationStatisticsAsLaTeXDocument())
         out.flush()
     }
 
@@ -549,21 +531,13 @@ class SimulationReporter(theModel: Model) {
     }
 
     /**
-     * List of StringBuilder representing LaTeX tables max 60 rows
-     *
-     * @return the tables as StringBuilders
-     */
-    val acrossReplicationStatisticsAsLaTeXTables: List<StringBuilder>
-        get() = getAcrossReplicationStatisticsAsLaTeXTables(60)
-
-    /**
      * List of StringBuilder representing LaTeX tables
      *
      * @param maxRows the maximum number of rows
      * @return the tables as StringBuilders
      */
-    fun getAcrossReplicationStatisticsAsLaTeXTables(maxRows: Int): List<StringBuilder> {
-        val list = getAcrossReplicationStatisticsAsLaTeXTabular(maxRows)
+    fun acrossReplicationStatisticsAsLaTeXTables(maxRows: Int = 60): List<StringBuilder> {
+        val list = acrossReplicationStatisticsAsLaTeXTabular(maxRows)
         val hline = "\\hline"
         val caption = """
              \caption{Across Replication Statistics for ${model.simulationName}} 
@@ -596,25 +570,16 @@ class SimulationReporter(theModel: Model) {
 
     /**
      * Returns a StringBuilder representation of the across replication
-     * statistics as a LaTeX document with max number of rows = 60
-     *
-     * @return the tables as StringBuilders
-     */
-    val acrossReplicationStatisticsAsLaTeXDocument: StringBuilder
-        get() = getAcrossReplicationStatisticsAsLaTeXDocument(60)
-
-    /**
-     * Returns a StringBuilder representation of the across replication
      * statistics as a LaTeX document
      *
      * @param maxRows maximum number of rows in each table
      * @return the StringBuilder
      */
-    fun getAcrossReplicationStatisticsAsLaTeXDocument(maxRows: Int): StringBuilder {
+    fun acrossReplicationStatisticsAsLaTeXDocument(maxRows: Int = 60): StringBuilder {
         val docClass = "\\documentclass[11pt]{article} \n"
         val beginDoc = "\\begin{document} \n"
         val endDoc = "\\end{document} \n"
-        val list = getAcrossReplicationStatisticsAsLaTeXTables(maxRows)
+        val list = acrossReplicationStatisticsAsLaTeXTables(maxRows)
         val sb = StringBuilder()
         sb.append(docClass)
         sb.append(beginDoc)
@@ -628,18 +593,6 @@ class SimulationReporter(theModel: Model) {
     /**
      * Gets shortened across replication statistics for response variables as a
      * LaTeX tabular. Each StringBuilder in the list represents a tabular with a
-     * maximum number of 60 rows
-     *
-     * Response Name Average Std. Dev.
-     *
-     * @return a List of StringBuilders
-     */
-    val acrossReplicationStatisticsAsLaTeXTabular: List<StringBuilder>
-        get() = getAcrossReplicationStatisticsAsLaTeXTabular(60)
-
-    /**
-     * Gets shortened across replication statistics for response variables as a
-     * LaTeX tabular. Each StringBuilder in the list represents a tabular with a
      * maximum number of rows
      *
      * Response Name Average Std. Dev.
@@ -647,7 +600,7 @@ class SimulationReporter(theModel: Model) {
      * @param maxRows maximum number of rows in each tabular
      * @return a List of StringBuilders
      */
-    fun getAcrossReplicationStatisticsAsLaTeXTabular(maxRows: Int): List<StringBuilder> {
+    fun acrossReplicationStatisticsAsLaTeXTabular(maxRows: Int = 60): List<StringBuilder> {
         val builders: MutableList<StringBuilder> = ArrayList()
         val stats = model.listOfAcrossReplicationStatistics
         if (!stats.isEmpty()) {
@@ -717,25 +670,18 @@ class SimulationReporter(theModel: Model) {
      *
      * @return a StatisticReporter holding the across replication statistics for reporting
      */
-    val acrossReplicationStatisticReporter: StatisticReporter
-        get() {
-            val list = acrossReplicationStatisticsList.toMutableList()
-            return StatisticReporter(list)
-        }
-
-    /**
-     * @return a StringBuilder with the Half-Width Summary Report and 95 percent confidence
-     */
-    val halfWidthSummaryReport: StringBuilder
-        get() = getHalfWidthSummaryReport()
+    fun acrossReplicationStatisticReporter(): StatisticReporter {
+        val list = acrossReplicationStatisticsList().toMutableList()
+        return StatisticReporter(list)
+    }
 
     /**
      * @param title     the title
      * @param confLevel the confidence level
      * @return a StringBuilder representation of the half-width summary report
      */
-    fun getHalfWidthSummaryReport(title: String? = null, confLevel: Double = 0.95): StringBuilder {
-        val list = acrossReplicationStatisticsList.toMutableList()
+    fun halfWidthSummaryReport(title: String? = null, confLevel: Double = 0.95): StringBuilder {
+        val list = acrossReplicationStatisticsList().toMutableList()
         val sr = StatisticReporter(list)
         return sr.halfWidthSummaryReport(title, confLevel)
     }
@@ -753,8 +699,12 @@ class SimulationReporter(theModel: Model) {
      * @param title     the title of the report
      * @param confLevel the confidence level of the report
      */
-    fun writeHalfWidthSummaryReport(out: PrintWriter = PrintWriter(System.out), title: String? = null, confLevel: Double = 0.95) {
-        out.print(getHalfWidthSummaryReport(title, confLevel).toString())
+    fun writeHalfWidthSummaryReport(
+        out: PrintWriter = PrintWriter(System.out),
+        title: String? = null,
+        confLevel: Double = 0.95
+    ) {
+        out.print(halfWidthSummaryReport(title, confLevel).toString())
         out.flush()
     }
 }
