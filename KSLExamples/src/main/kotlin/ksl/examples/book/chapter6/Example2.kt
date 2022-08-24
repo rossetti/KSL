@@ -4,7 +4,7 @@ import ksl.simulation.Model
 
 /**
  * This example illustrates the simulation of a Poisson process
- * using the JSL Simulation class and a constructed ModelElement
+ * using the KSL Model class and a constructed ModelElement
  * (SimplePoissonProcess).
  */
 fun main() {
