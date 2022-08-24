@@ -58,7 +58,7 @@ class TWResponse(
         myValue = newValue
         timeOfChange = time
         myWithinReplicationStatistic.collect(previousValue, weight)
-        notifyObservers(Status.UPDATE)
+        notifyModelElementObservers(Status.UPDATE)
         if (countStopLimit > 0) {
             if (myWithinReplicationStatistic.count >= countStopLimit) {
                 executive.stop("Stopped because observation limit $countStopLimit was reached for $name")

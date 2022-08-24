@@ -6,16 +6,15 @@ import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.Variable
+import ksl.observers.ModelElementObserver
 import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
-import ksl.utilities.observers.Observable
 import mu.KLoggable
 
 private var elementCounter: Int = 0
 
 //TODO needs to be made abstract
-open class ModelElement internal constructor(theName: String? = null) : IdentityIfc,
-    Observable<ModelElement.Status>() {
+open class ModelElement internal constructor(theName: String? = null) : IdentityIfc {
     //TODO spatial model stuff
     //TODO creating QObjects
     //TODO creating entities
@@ -47,6 +46,8 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     init {
         elementCounter = elementCounter + 1
     }
+
+    private val modelElementObservers = mutableListOf<ModelElementObserver>()
 
     override val id: Int = elementCounter
 
@@ -85,7 +86,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             previousStatus = field
             field = value
             logger.trace { "ModelElement: $name changing status from previous: $previousStatus to current: $field" }
-            notifyObservers(field)
+            notifyModelElementObservers(field)
         }
 
     /**
@@ -187,7 +188,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * the model that contains this element
      */
-    protected val model
+    val model
         get() = myModel
 
     /**
@@ -1725,7 +1726,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         // notify any model element observers of the removal
         currentStatus = Status.REMOVED_FROM_MODEL
         // need to ensure that any observers are detached
-        detachAllObservers()
+        detachAllModelElementObservers()
         // tell the parent to remove it, remove it
         parent!!.removeModelElement(this)
         // remove it from the model element map
@@ -1772,4 +1773,37 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         override val logger = logger()
     }
 
+    internal fun attachModelElementObserver(observer: ModelElementObserver) {
+        require(!isModelElementObserverAttached(observer)) { "The supplied observer is already attached" }
+        modelElementObservers.add(observer)
+    }
+
+    internal fun detachModelElementObserver(observer: ModelElementObserver) {
+        modelElementObservers.remove(observer)
+    }
+
+    fun detachAllModelElementObservers() {
+        for(observer in modelElementObservers){
+            observer.detach()
+        }
+        modelElementObservers.clear()
+    }
+
+    fun isModelElementObserverAttached(observer: ModelElementObserver): Boolean {
+        return modelElementObservers.contains(observer)
+    }
+
+    fun countModelElementObservers(): Int {
+        return modelElementObservers.size
+    }
+
+    /** Notify the observers
+     *
+     * @param newValue
+     */
+    protected fun notifyModelElementObservers(newValue: ModelElement.Status) {
+        for (o in modelElementObservers) {
+            o.onChange(newValue)
+        }
+    }
 }

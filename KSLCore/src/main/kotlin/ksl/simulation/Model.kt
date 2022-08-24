@@ -38,6 +38,8 @@ class Model(
      */
     val outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
 
+    var autoPrintSummaryReport: Boolean = true
+
     /**
      *
      * @return the pre-defined default text output file for the simulation
@@ -111,6 +113,8 @@ class Model(
         addToModelElementMap(this)
         addDefaultElements()
     }
+
+    val simulationReporter: SimulationReporter = SimulationReporter(this)
 
     /**
      * A flag to indicate whether the simulation is done A simulation can be done if:
@@ -891,6 +895,12 @@ class Model(
      */
     fun simulate() {
         myReplicationProcess.run()
+        if (autoPrintSummaryReport){
+            println()
+            println(this)
+            println()
+            simulationReporter.printHalfWidthSummaryReport()
+        }
     }
 
     /**
@@ -920,7 +930,7 @@ class Model(
         sb.appendLine()
         sb.append(myExperiment.toString())
         sb.appendLine()
-        sb.append(myExecutive)
+//        sb.append(myExecutive)
         return sb.toString()
     }
 

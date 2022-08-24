@@ -8,28 +8,43 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.ObserverIfc
 
 /**
- *  Base class for reacting to status changes that occur on model elements.  This observer is meant to observe
- *  1 and only 1 model element.
+ *  Base class for reacting to status changes that occur on a model element.  This observer is meant to observe
+ *  1 and only 1 model element.  However, a model element may have many observers.
  */
-open class ModelElementObserver<T: ModelElement>(observed: T, name: String? = null) : IdentityIfc by Identity(name),
-    ObserverIfc<ModelElement.Status> {
+abstract class ModelElementObserver(name: String? = null) : IdentityIfc by Identity(name) {
 
-    protected val observedModelElement: T = observed
-    protected val model: Model = observedModelElement.myModel
+    protected var observedModelElement: ModelElement? = null
 
-    init {
-        observedModelElement.attachObserver(this)// yes it is a leaking this, SO WHAT!
+    val isAttached: Boolean
+        get() = observedModelElement != null
+
+    val isNotAttached: Boolean
+        get() = !isAttached
+
+    fun attach(observed: ModelElement) {
+        if (isNotAttached) {
+            observedModelElement = observed
+            observed.attachModelElementObserver(this)
+        } else {
+            require(observedModelElement == observed) { "Attempted to attach to ${observed.name} when already attached to ${observedModelElement!!.name}" }
+        }
     }
 
-    override fun onChange(newValue: ModelElement.Status) {
-        when(newValue){
+    fun detach() {
+        require(isAttached) { "Attempted to detach a model element observer that was not attached." }
+        observedModelElement!!.detachModelElementObserver(this)
+        observedModelElement = null
+    }
+
+    internal fun onChange(newValue: ModelElement.Status) {
+        when (newValue) {
             NONE -> nothing()
             BEFORE_EXPERIMENT -> beforeExperiment()
             BEFORE_REPLICATION -> beforeReplication()
             INITIALIZED -> initialize()
             CONDITIONAL_ACTION_REGISTRATION -> conditionalActionRegistered()
             MONTE_CARLO -> montecarlo()
-            WARMUP ->  warmUp()
+            WARMUP -> warmUp()
             UPDATE -> update()
             TIMED_UPDATE -> timedUpdate()
             REPLICATION_ENDED -> replicationEnded()
@@ -41,7 +56,7 @@ open class ModelElementObserver<T: ModelElement>(observed: T, name: String? = nu
         }
     }
 
-    protected open fun nothing(){}
+    protected open fun nothing() {}
 
     protected open fun beforeExperiment() {
     }
@@ -50,7 +65,7 @@ open class ModelElementObserver<T: ModelElement>(observed: T, name: String? = nu
 
     protected open fun initialize() {}
 
-    protected open fun conditionalActionRegistered(){}
+    protected open fun conditionalActionRegistered() {}
 
     protected open fun montecarlo() {}
 
@@ -72,7 +87,6 @@ open class ModelElementObserver<T: ModelElement>(observed: T, name: String? = nu
     protected open fun elementAdded() {
     }
 
-    protected open fun elementRemoved(){
-
+    protected open fun elementRemoved() {
     }
 }

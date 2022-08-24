@@ -1,27 +1,28 @@
 package ksl.observers
 
 import ksl.modeling.variable.Variable
-import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
 import java.nio.file.Path
 
 class VariableTrace(
-    variable: Variable,
-    pathToFile: Path = variable.myModel.outputDirectory.outDir.resolve(variable.name + "_Trace.csv"),
+    theVariable: Variable,
+    pathToFile: Path = theVariable.myModel.outputDirectory.outDir.resolve(theVariable.name + "_Trace.csv"),
     header: Boolean = true
 ) :
-    ModelElementObserver<Variable>(variable) {
+    ModelElementObserver(theVariable.name) {
 
     private val printWriter: PrintWriter = KSLFileUtil.createPrintWriter(pathToFile)
     private var count: Int = 0
     private var myRepCount: Int = 0
     private var myRepNum = 0.0
+    private val variable = theVariable
     
     init {
         if (header){
             writeHeader()
         }
+        attach(variable)
     }
 
     private fun writeHeader() {
@@ -48,17 +49,17 @@ class VariableTrace(
     }
 
     override fun update() {
-        val v = observedModelElement
+        val model = variable.model
         count++
         printWriter.print(count)
         printWriter.print(",")
-        printWriter.print(v.timeOfChange)
+        printWriter.print(variable.timeOfChange)
         printWriter.print(",")
-        printWriter.print(v.value)
+        printWriter.print(variable.value)
         printWriter.print(",")
-        printWriter.print(v.previousTimeOfChange)
+        printWriter.print(variable.previousTimeOfChange)
         printWriter.print(",")
-        printWriter.print(v.previousValue)
+        printWriter.print(variable.previousValue)
         printWriter.print(",")
         if (myRepNum != model.currentReplicationNumber.toDouble()) {
             myRepCount = 0

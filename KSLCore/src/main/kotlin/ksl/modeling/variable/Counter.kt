@@ -98,7 +98,7 @@ open class Counter(
         previousTimeOfChange = timeOfChange
         myValue = newValue
         timeOfChange = time
-        notifyObservers(Status.UPDATE)
+        notifyModelElementObservers(Status.UPDATE)
         if (countStopLimit > 0) {
             if (myValue >= countStopLimit) {
                 executive.stop("Stopped because counter limit $countStopLimit was reached for $name")

@@ -63,7 +63,7 @@ open class Variable(
         previousTimeOfChange = timeOfChange // remember the previous change time
         myValue = newValue// remember the new value
         timeOfChange = time
-        notifyObservers(Status.UPDATE)
+        notifyModelElementObservers(Status.UPDATE)
     }
 
     /**

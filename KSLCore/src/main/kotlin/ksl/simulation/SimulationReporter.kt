@@ -468,11 +468,21 @@ class SimulationReporter(theModel: Model) {
     }
 
     /**
-     * Detaches a CSVReplicationReport from the model. You cannot reattach it
+     * Attaches the CSVReplicationReport to the model if not attached
+     *
+     */
+    fun turnOnReplicationCSVStatisticReporting() {
+        if (myCSVRepReport.isNotAttached){
+            myCSVRepReport.attach(model)
+        }
+    }
+
+    /**
+     * Detaches the CSVReplicationReport from the model.
      *
      */
     fun turnOffReplicationCSVStatisticReporting() {
-        model.detachObserver(myCSVRepReport)
+        myCSVRepReport.detach()
     }
 
     /**
@@ -659,11 +669,21 @@ class SimulationReporter(theModel: Model) {
     }
 
     /**
-     * Detaches a CSVExperimentReport from the model. You cannot reattach it.
+     * Attaches the CSVExperimentReport to the model if not attached.
+     *
+     */
+    fun turnOnAcrossReplicationStatisticReporting(){
+        if (myCSVExpReport.isNotAttached){
+            myCSVExpReport.attach(model)
+        }
+    }
+
+    /**
+     * Detaches the CSVExperimentReport from the model.
      *
      */
     fun turnOffAcrossReplicationStatisticReporting() {
-        model.detachObserver(myCSVExpReport)
+        myCSVExpReport.detach()
     }
 
     /**

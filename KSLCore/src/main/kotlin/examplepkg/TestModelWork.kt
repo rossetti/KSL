@@ -37,5 +37,4 @@ fun main() {
 
     KSL.logger.info { "Writing to the log!" }
 
-    println(m)
 }

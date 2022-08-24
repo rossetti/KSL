@@ -22,16 +22,16 @@ import java.io.PrintWriter
 import java.nio.file.Path
 
 /**
- * @param model the model for which to create the report
+ * @param theModel the model for which to create the report
  * @param reportName the name of the report
  * @param directoryPath the path to the directory that will contain the report
  */
 abstract class CSVReport(
-    model: Model,
-    reportName: String = model.name + "_CSVReport",
-    directoryPath: Path = model.outputDirectory.outDir,
+    theModel: Model,
+    reportName: String = theModel.name + "_CSVReport",
+    directoryPath: Path = theModel.outputDirectory.outDir,
 ) :
-    ModelElementObserver<Model>(model, reportName) {
+    ModelElementObserver(reportName) {
     var quoteChar = '"'
     var headerFlag = false
     var lineWidth = 300
@@ -47,7 +47,10 @@ abstract class CSVReport(
             path = path.resolve(reportName)
         }
         myWriter = KSLFileUtil.createPrintWriter(path)
+        attach(theModel)
     }
+
+    protected val model = theModel
 
     fun close() {
         myWriter.close()
