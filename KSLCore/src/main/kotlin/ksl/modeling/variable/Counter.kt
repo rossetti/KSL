@@ -12,7 +12,7 @@ open class Counter(
     name: String?
 ) : ModelElement(parent, name), CounterIfc {
 //TODO need to implement resetting of counters and warmup reset!
-    
+
     var timeOfWarmUp: Double = 0.0
         protected set
 
@@ -161,5 +161,30 @@ open class Counter(
     override fun afterReplication() {
         super.afterReplication()
         myAcrossReplicationStatistic.value = value
+    }
+
+    /**
+     * Resets the counter to the supplied value and clears the counter limit
+     * flag If timed updates are on, then count since the last timed update will
+     * be set to the supplied value.
+     *
+     * @param value, must be &lt; getCounterLimit() and &gt;=0
+     * @param notifyUpdateObservers If true, any update observers will be
+     * notified otherwise they will not be notified
+     */
+    fun resetCounter(value: Double, notifyUpdateObservers: Boolean) {
+        require(value >= 0) { "The counter's value must be >= 0" }
+        //TODO I don't think this works because I am using 0 to indicate no limit
+        // could set the value 0 but countStopLimit could be 0 to indicate no limit
+        require(value < countStopLimit) { "The counter's value must be < the supplied limit = $countStopLimit" }
+        previousValue = value
+        previousTimeOfChange = time
+        myValue = value
+        timeOfChange = previousTimeOfChange
+        myCountLimitFlag = false
+        myCountAtPreviousTimedUpdate = value
+        if (notifyUpdateObservers) {
+            notifyModelElementObservers(Status.UPDATE)
+        }
     }
 }
