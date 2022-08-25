@@ -55,12 +55,19 @@ import java.util.*
  *
  * @author rossetti
  */
-class SimulationReporter(theModel: Model) {
+class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
 
     private val model: Model = theModel
     private val experiment: ExperimentIfc = theModel.myExperiment
-    private val myCSVRepReport: CSVReplicationReport = CSVReplicationReport(theModel)
-    private val myCSVExpReport: CSVExperimentReport = CSVExperimentReport(theModel)
+    private lateinit var myCSVRepReport: CSVReplicationReport
+    private lateinit var myCSVExpReport: CSVExperimentReport
+
+    init {
+        if (autoCSVReports){
+            myCSVRepReport = CSVReplicationReport(theModel)
+            myCSVExpReport = CSVExperimentReport(theModel)
+        }
+    }
 
     /**
      * A convenience method for subclasses. Gets the response variables from
@@ -468,10 +475,14 @@ class SimulationReporter(theModel: Model) {
     }
 
     /**
-     * Attaches the CSVReplicationReport to the model if not attached
+     * Attaches the CSVReplicationReport to the model if not attached.
+     * If you turn on the reporting, you need to do it before running the simulation.
      *
      */
     fun turnOnReplicationCSVStatisticReporting() {
+        if (!this::myCSVRepReport.isInitialized){
+            myCSVRepReport = CSVReplicationReport(model)
+        }
         if (myCSVRepReport.isNotAttached){
             myCSVRepReport.attach(model)
         }
@@ -482,6 +493,9 @@ class SimulationReporter(theModel: Model) {
      *
      */
     fun turnOffReplicationCSVStatisticReporting() {
+        if (!this::myCSVRepReport.isInitialized){
+            return
+        }
         myCSVRepReport.detach()
     }
 
@@ -548,7 +562,6 @@ class SimulationReporter(theModel: Model) {
      */
     fun acrossReplicationStatisticsAsLaTeXTables(maxRows: Int = 60): List<StringBuilder> {
         val list = acrossReplicationStatisticsAsLaTeXTabular(maxRows)
-        val hline = "\\hline"
         val caption = """
              \caption{Across Replication Statistics for ${model.simulationName}} 
              
@@ -673,6 +686,9 @@ class SimulationReporter(theModel: Model) {
      *
      */
     fun turnOnAcrossReplicationStatisticReporting(){
+        if (!this::myCSVExpReport.isInitialized){
+            myCSVExpReport = CSVExperimentReport(model)
+        }
         if (myCSVExpReport.isNotAttached){
             myCSVExpReport.attach(model)
         }
@@ -683,6 +699,9 @@ class SimulationReporter(theModel: Model) {
      *
      */
     fun turnOffAcrossReplicationStatisticReporting() {
+        if (!this::myCSVExpReport.isInitialized){
+            return
+        }
         myCSVExpReport.detach()
     }
 

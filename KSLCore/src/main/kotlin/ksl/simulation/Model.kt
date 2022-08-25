@@ -23,6 +23,7 @@ private var simCounter: Int = 0
 class Model(
     simulationName: String = "Simulation${++simCounter}",
     pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName + "_OutputDir"),
+    autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement("MainModel"), ExperimentIfc {
 //TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
@@ -30,7 +31,6 @@ class Model(
 //TODO observers
 //TODO note that JSLDataBaseObserver is actually attached as an observer on Model
 //TODO controls and parameters
-//TODO simulation reporter
     /**
      *
      * @return the defined OutputDirectory for the simulation
@@ -113,7 +113,20 @@ class Model(
         addDefaultElements()
     }
 
-    val simulationReporter: SimulationReporter = SimulationReporter(this)
+    val simulationReporter: SimulationReporter = SimulationReporter(this, autoCSVReports)
+
+    /**
+     * Tells the simulation reporter to capture statistical output for within replication
+     * and across replication responses to comma separated value files. If you do not
+     * want both turned on, or you want to control the reporting more directly then use the property
+     * simulationReporter.  Turning on the reporting only effects the next simulation run. So,
+     * turn on the reporting before you simulate.  If you want the reporting all the time, then
+     * just supply the autoCSVReports option as true when you create the model.
+     */
+    fun turnOnCSVStatisticalReports(){
+        simulationReporter.turnOnReplicationCSVStatisticReporting()
+        simulationReporter.turnOnAcrossReplicationStatisticReporting()
+    }
 
     /**
      * A flag to indicate whether the simulation is done A simulation can be done if:
