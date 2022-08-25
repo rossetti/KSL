@@ -1,5 +1,7 @@
 package ksl.examples.book.chapter6
 
+import ksl.modeling.variable.Response
+import ksl.observers.ResponseTrace
 import ksl.simulation.Model
 import ksl.utilities.random.rvariable.ExponentialRV
 
@@ -20,6 +22,12 @@ fun main() {
     val dtp = DriveThroughPharmacy(model, 1)
     dtp.setTimeBtwArrivalRandomSource(ExponentialRV(6.0, 1))
     dtp.setServiceTimeRandomSource(ExponentialRV(3.0, 2))
+
+    val v = model.getResponse("# in System")
+    if (v != null){
+        val trace = ResponseTrace(v)
+    }
+
     model.simulate()
 //    sim.simulationReporter.printHalfWidthSummaryReport()
     //TODO results do not match JSL model, twresponse slightly off, counter very off

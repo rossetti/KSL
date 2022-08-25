@@ -384,6 +384,49 @@ class Model(
     }
 
     /**
+     * Returns the response  associated with the name or null if named
+     * element is not in the model. Note that this will also return ANY
+     * instances of subclasses of Response (i.e. including TWResponse)
+     *
+     * @param name The name of the Response model element
+     *
+     * @return the associated Response, may be null if provided name
+     * does not exist in the model
+     */
+    fun getResponse(name: String): Response? {
+        if (!myModelElementMap.containsKey(name)) {
+            return null
+        }
+        val v = myModelElementMap[name]
+        return if (v is Response) {
+            v
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Returns the counter associated with the name or null if named
+     * element is not in the model.
+     *
+     * @param name The name of the Counter model element
+     *
+     * @return the associated Counter, may be null if provided name
+     * does not exist in the model
+     */
+    fun getCounter(name: String): Counter? {
+        if (!myModelElementMap.containsKey(name)) {
+            return null
+        }
+        val v = myModelElementMap[name]
+        return if (v is Counter) {
+            v
+        } else {
+            null
+        }
+    }
+
+    /**
      * Removes the given model element from the Model's model element map. Any
      * child model elements of the supplied model element are also removed from
      * the map, until all elements below the given model element are removed.

@@ -1,22 +1,25 @@
 package ksl.observers
 
-import ksl.modeling.variable.Variable
+import ksl.modeling.variable.Response
 import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
 import java.nio.file.Path
 
-class VariableTrace(
-    theVariable: Variable,
-    pathToFile: Path = theVariable.myModel.outputDirectory.outDir.resolve(theVariable.name + "_Trace.csv"),
+class ResponseTrace(
+    theResponse: Response,
+    pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace.csv"),
     header: Boolean = true
 ) :
-    ModelElementObserver(theVariable.name) {
+    ModelElementObserver(theResponse.name) {
 
     private val printWriter: PrintWriter = KSLFileUtil.createPrintWriter(pathToFile)
-    private var count: Int = 0
-    private var myRepCount: Int = 0
+    private var count: Double = 0.0
+    private var myRepObservationCount: Int = 0
     private var myRepNum = 0.0
-    private val variable = theVariable
+    private val variable = theResponse
+    var maxNumReplications: Int = Int.MAX_VALUE
+    var maxNumObsPerReplication: Long = Long.MAX_VALUE
+    var maxNumObservations: Double = Double.MAX_VALUE
     
     init {
         if (header){
@@ -36,6 +39,8 @@ class VariableTrace(
         printWriter.print(",")
         printWriter.print("x(t(n-1))")
         printWriter.print(",")
+        printWriter.print("w")
+        printWriter.print(",")
         printWriter.print("r")
         printWriter.print(",")
         printWriter.print("nr")
@@ -51,6 +56,20 @@ class VariableTrace(
     override fun update() {
         val model = variable.model
         count++
+        if (count >= maxNumObservations){
+            return
+        }
+        if (myRepNum != model.currentReplicationNumber.toDouble()) {
+            myRepObservationCount = 0
+        }
+        myRepObservationCount++
+        if (myRepObservationCount >= maxNumObsPerReplication){
+            return
+        }
+        myRepNum = model.currentReplicationNumber.toDouble()
+        if (myRepNum > maxNumReplications){
+            return
+        }
         printWriter.print(count)
         printWriter.print(",")
         printWriter.print(variable.timeOfChange)
@@ -61,14 +80,11 @@ class VariableTrace(
         printWriter.print(",")
         printWriter.print(variable.previousValue)
         printWriter.print(",")
-        if (myRepNum != model.currentReplicationNumber.toDouble()) {
-            myRepCount = 0
-        }
-        myRepCount++
-        myRepNum = model.currentReplicationNumber.toDouble()
+        printWriter.print(variable.timeOfChange - variable.previousTimeOfChange)
+        printWriter.print(",")
         printWriter.print(myRepNum)
         printWriter.print(",")
-        printWriter.print(myRepCount)
+        printWriter.print(myRepObservationCount)
         printWriter.print(",")
         printWriter.print(model.simulationName)
         printWriter.print(",")

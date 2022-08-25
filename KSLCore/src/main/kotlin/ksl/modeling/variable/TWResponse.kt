@@ -11,7 +11,6 @@ class TWResponse(
     theInitialCountLimit: Long = 0,
     name: String? = null
 ) : Response(parent, theLimits, theInitialCountLimit, name), TimeWeightedIfc {
-    //TODO check warm up and trace variable changes
     init {
         require(limits.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $limits" }
     }
@@ -133,7 +132,7 @@ class TWResponse(
         // this is so at least two changes are recorded on the variable
         // to properly account for variables that have zero area throughout the replication
         // make it think that it changed at the warm-up time to the same value
-        //timeOfChange = time//TODO not sure if needed, is in JSL
+        timeOfChange = time
         value = value
     }
 
