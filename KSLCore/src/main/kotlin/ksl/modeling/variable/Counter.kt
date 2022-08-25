@@ -11,7 +11,8 @@ open class Counter(
     theInitialCountLimit: Long = 0,
     name: String?
 ) : ModelElement(parent, name), CounterIfc {
-
+//TODO need to implement resetting of counters and warmup reset!
+    
     var timeOfWarmUp: Double = 0.0
         protected set
 
@@ -159,6 +160,6 @@ open class Counter(
 
     override fun afterReplication() {
         super.afterReplication()
-        myAcrossReplicationStatistic.value = myValue
+        myAcrossReplicationStatistic.value = value
     }
 }

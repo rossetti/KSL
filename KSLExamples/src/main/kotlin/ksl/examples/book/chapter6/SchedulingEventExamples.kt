@@ -19,21 +19,20 @@
  */
 package ksl.examples.book.chapter6
 
-import ksl.simulation.JSLEvent
+import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
 /**
+ *  This example illustrates how to create a simulation model,
+ *  attach a new model element, set the run length, and
+ *  run the simulation. The example use the SchedulingEventExamples
+ *  class to show how actions are used to implement events.
  * @author rossetti
  */
 class SchedulingEventExamples (parent: ModelElement, name: String? = null) :
     ModelElement(parent, name) {
-    private val myEventActionOne: EventActionOne
-    private val myEventActionTwo: EventActionTwo
-
-    init {
-        myEventActionOne = EventActionOne()
-        myEventActionTwo = EventActionTwo()
-    }
+    private val myEventActionOne: EventActionOne = EventActionOne()
+    private val myEventActionTwo: EventActionTwo = EventActionTwo()
 
     override fun initialize() {
         // schedule a type 1 event at time 10.0
@@ -43,14 +42,13 @@ class SchedulingEventExamples (parent: ModelElement, name: String? = null) :
     }
 
     private inner class EventActionOne : EventAction<Nothing>() {
-        override fun action(event: JSLEvent<Nothing>) {
+        override fun action(event: KSLEvent<Nothing>) {
             println("EventActionOne at time : $time")
         }
     }
 
     private inner class EventActionTwo : EventAction<Nothing>() {
-        override fun action(event: JSLEvent<Nothing>) {
-            //TODO why is Object needed?
+        override fun action(event: KSLEvent<Nothing>) {
             println("EventActionTwo at time : $time")
             // schedule a type 1 event for time t + 15
             schedule(myEventActionOne, 15.0)

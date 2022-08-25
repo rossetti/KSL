@@ -254,10 +254,10 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      * be set to false and a separate warm up event will be scheduled for the
      * model element.
      */
-    var lengthOfWarmUp = 0.0 // zero means no warm up
-        set(value) {
-            require(value >= 0.0) { "Warm up event time must be >= 0.0" }
-            field = value
+    protected var individualElementWarmUpLength = 0.0 // zero means no warm up
+        protected set(warmUpTime){
+            require(warmUpTime >= 0.0) { "Individual element warm up event time must be >= 0.0" }
+            field = warmUpTime
             warmUpOption = (field == 0.0)
         }
 
@@ -882,7 +882,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         while (m != null) {
             if (m.isWarmUpEventScheduled()) {
                 // element has its own warm up event
-                time = m.lengthOfWarmUp
+                time = m.individualElementWarmUpLength
                 break
             }
             // does not have its own warm up event
@@ -1420,10 +1420,10 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      * before the method initialize() occurs.
      */
     internal fun beforeReplicationActions() {
-        if (lengthOfWarmUp > 0.0) {
+        if (individualElementWarmUpLength > 0.0) {
             // the warm up period is > 0, ==> element wants a warm-up event
             myWarmUpEventAction = WarmUpEventAction()
-            Model.logger.info { "$name scheduling warm up event for time $lengthOfWarmUp" }
+            Model.logger.info { "$name scheduling warm up event for time $individualElementWarmUpLength" }
             warmUpEvent = myWarmUpEventAction!!.schedule()
             warmUpOption = false // no longer depends on parent's warm up
         }
@@ -1513,7 +1513,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         }
 
         fun schedule(): KSLEvent<Nothing> {
-            return schedule(lengthOfWarmUp, null, warmUpPriority, name = this@ModelElement.name + "_WarmUp")
+            return schedule(individualElementWarmUpLength, null, warmUpPriority, name = this@ModelElement.name + "_WarmUp")
         }
     }
 

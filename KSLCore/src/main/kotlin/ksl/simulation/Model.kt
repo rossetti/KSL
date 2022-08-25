@@ -249,7 +249,6 @@ class Model(
     val isUnfinished: Boolean
         get() = myReplicationProcess.isUnfinished
 
-
     //TODO revisit myDefaultEntityType when working on process modeling
     private fun addDefaultElements() {
         myDefaultEntityType = EntityType(this, "DEFAULT_ENTITY_TYPE")
@@ -558,8 +557,8 @@ class Model(
         // remove any marked model elements were added during previous replication
 //        removeMarkedModelElements();
 
-        // setup warm up period
-        lengthOfWarmUp = lengthOfReplicationWarmUp
+        // setup warm up period for the model
+        individualElementWarmUpLength = lengthOfReplicationWarmUp
 
         // control streams for antithetic option
         handleAntitheticReplications()
@@ -898,7 +897,7 @@ class Model(
         }
         numberOfReplications = numReps
         lengthOfReplication = runLength
-        lengthOfWarmUp = warmUp
+        lengthOfReplicationWarmUp = warmUp
         simulate()
     }
 

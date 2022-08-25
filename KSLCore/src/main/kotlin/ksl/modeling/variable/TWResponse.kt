@@ -11,6 +11,7 @@ class TWResponse(
     theInitialCountLimit: Long = 0,
     name: String? = null
 ) : Response(parent, theLimits, theInitialCountLimit, name), TimeWeightedIfc {
+    //TODO check warm up and trace variable changes
     init {
         require(limits.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $limits" }
     }
