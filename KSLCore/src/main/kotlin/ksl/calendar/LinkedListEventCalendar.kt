@@ -15,7 +15,7 @@
  */
 package ksl.calendar
 
-import ksl.simulation.JSLEvent
+import ksl.simulation.KSLEvent
 import java.util.*
 
 /** LinkedListEventCalendar is a concrete implementation of the CalendarIfc for use with the Scheduler
@@ -23,9 +23,9 @@ import java.util.*
  *
  */
 class LinkedListEventCalendar : CalendarIfc {
-    private val myEventSet: MutableList<JSLEvent<*>> = LinkedList()
+    private val myEventSet: MutableList<KSLEvent<*>> = LinkedList()
 
-    override fun add(event: JSLEvent<*>) {
+    override fun add(event: KSLEvent<*>) {
 
         // nothing in calendar, just add it, and return
         if (myEventSet.isEmpty()) {
@@ -40,7 +40,7 @@ class LinkedListEventCalendar : CalendarIfc {
         }
 
         // now iterate through the list
-        val i: ListIterator<JSLEvent<*>> = myEventSet.listIterator()
+        val i: ListIterator<KSLEvent<*>> = myEventSet.listIterator()
         while (i.hasNext()) {
             if (event.compareTo(i.next()) < 0) {
                 // next() move the iterator forward, if it is < what was returned by next(), then it
@@ -51,11 +51,11 @@ class LinkedListEventCalendar : CalendarIfc {
         }
     }
 
-    override fun nextEvent(): JSLEvent<*>? {
+    override fun nextEvent(): KSLEvent<*>? {
         return if (!isEmpty) myEventSet.removeAt(0) else null
     }
 
-    override fun peekNext(): JSLEvent<*>? {
+    override fun peekNext(): KSLEvent<*>? {
         return if (!isEmpty) myEventSet[0] else null
     }
 

@@ -15,8 +15,7 @@
 */
 package ksl.simulation
 
-import jsl.modeling.elements.entity.Entity //TODO
-//import jsl.simulation.ModelElement //TODO
+import ksl.process.Entity
 import java.text.DecimalFormat
 
 /**
@@ -34,7 +33,7 @@ import java.text.DecimalFormat
  * @param theModelElement the model element that scheduled the event
  * @param <T> the type associated with the (optional) message sent with the event
  */
-class JSLEvent<out T> internal constructor(
+class KSLEvent<out T> internal constructor(
     theId: Long,
     theAction: ModelElement.EventActionIfc<T>,
     theTime: Double = 0.0,
@@ -42,7 +41,7 @@ class JSLEvent<out T> internal constructor(
     theMessage: T? = null,
     theName: String? = null,
     theModelElement: ModelElement
-) : Comparable<JSLEvent<*>> {
+) : Comparable<KSLEvent<*>> {
 
     init {
         require(theTime >= 0.0) { "The event time must be >= 0.0" }
@@ -156,7 +155,7 @@ class JSLEvent<out T> internal constructor(
      * @return Returns a negative integer, zero, or a positive integer if this
      * object is less than, equal to, or greater than the specified object.
      */
-    override operator fun compareTo(other: JSLEvent<*>): Int {
+    override operator fun compareTo(other: KSLEvent<*>): Int {
         // compare time first
         if (time < other.time) {
             return -1

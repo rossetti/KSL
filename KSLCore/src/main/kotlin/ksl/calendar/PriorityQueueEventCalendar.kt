@@ -15,7 +15,7 @@
  */
 package ksl.calendar
 
-import ksl.simulation.JSLEvent
+import ksl.simulation.KSLEvent
 import java.util.*
 
 /**
@@ -23,17 +23,17 @@ import java.util.*
  * underlying events.
  */
 class PriorityQueueEventCalendar : CalendarIfc {
-    private val myEventSet: PriorityQueue<JSLEvent<*>> = PriorityQueue()
+    private val myEventSet: PriorityQueue<KSLEvent<*>> = PriorityQueue()
 
-    override fun add(event: JSLEvent<*>) {
+    override fun add(event: KSLEvent<*>) {
         myEventSet.add(event)
     }
 
-    override fun nextEvent(): JSLEvent<*> {
-        return myEventSet.poll() as JSLEvent<*>
+    override fun nextEvent(): KSLEvent<*> {
+        return myEventSet.poll() as KSLEvent<*>
     }
 
-    override fun peekNext(): JSLEvent<*>? {
+    override fun peekNext(): KSLEvent<*>? {
         return myEventSet.peek()
     }
 

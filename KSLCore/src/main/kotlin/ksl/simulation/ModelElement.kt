@@ -13,8 +13,7 @@ import mu.KLoggable
 
 private var elementCounter: Int = 0
 
-//TODO needs to be made abstract
-open class ModelElement internal constructor(theName: String? = null) : IdentityIfc {
+abstract class ModelElement internal constructor(theName: String? = null) : IdentityIfc {
     //TODO spatial model stuff
     //TODO creating QObjects
     //TODO creating entities
@@ -209,7 +208,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * A reference to the warm-up event
      */
-    protected var warmUpEvent: JSLEvent<Nothing>? = null
+    protected var warmUpEvent: KSLEvent<Nothing>? = null
 
     /**
      * Indicates whether the warm-up action occurred sometime during the
@@ -221,7 +220,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * Specifies the priority of this model element's warm up event.
      */
-    var warmUpPriority = JSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY
+    var warmUpPriority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY
 
     /**
      * The length of time from the start of the simulation to the warm-up event.
@@ -270,12 +269,12 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     /**
      * A reference to the TimedUpdate event.
      */
-    protected var timedUpdateEvent: JSLEvent<Nothing>? = null
+    protected var timedUpdateEvent: KSLEvent<Nothing>? = null
 
     /**
      * Specifies the havingPriority of this model element's timed update event.
      */
-    var timedUpdatePriority = JSLEvent.DEFAULT_TIMED_EVENT_PRIORITY
+    var timedUpdatePriority = KSLEvent.DEFAULT_TIMED_EVENT_PRIORITY
 
     /**
      * The time interval between TimedUpdate events. The default is zero,
@@ -546,7 +545,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      * @return a count of the number of direct child elements.
      */
     val numberOfModelElements: Int
-        get() =  myModelElements.size
+        get() = myModelElements.size
 
     /** Gets all model elements that are contained within this model element
      * in parent-child order within the hierarchy
@@ -958,21 +957,25 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
 
     /** An interface used to implement the actions associated with
      * event logic within the simulation.
-     * @param <T> the type associated with the JSLEvent's message property
      *
      * Implementor's of this interface should define a class that has concrete
-     * specification for the type T.
+     * specification for the type T.  If the event message is not used, then
+     * specify the type as Nothing.
+     *
+     * @param <T> the type associated with the KSLEvent's message property
      */
     fun interface EventActionIfc<T> {
         /** This must be implemented by any objects that want to supply event
          * logic.  This is essentially the "event routine".
          * @param event The event that triggered this action.
          */
-        fun action(event: JSLEvent<T>)
+        fun action(event: KSLEvent<T>)
     }
 
-    //TODO consider timed event action subclass with GetValueIfc
-
+    /**
+     * A convenience base class for creating event actions associated with the model element.
+     * The class has the ability to schedule its action.
+     */
     protected abstract inner class EventAction<T> : EventActionIfc<T> {
 
         /**
@@ -986,10 +989,27 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         fun schedule(
             timeToEvent: Double,
             message: T? = null,
-            priority: Int = JSLEvent.DEFAULT_PRIORITY,
+            priority: Int = KSLEvent.DEFAULT_PRIORITY,
             name: String? = null
-        ): JSLEvent<T> {
+        ): KSLEvent<T> {
             return schedule(this, timeToEvent, message, priority, name)
+        }
+    }
+
+    /**
+     * A convenience base class for creating event actions associated with the model element.
+     * The class has the ability to schedule its action according to a repeating
+     * time between events.
+     */
+    protected abstract inner class TimedEventAction<T>(theTimeBtwEvents: GetValueIfc) : EventAction<T>() {
+        protected var timeBetweenEvents: GetValueIfc = theTimeBtwEvents
+
+        fun schedule(
+            message: T? = null,
+            priority: Int = KSLEvent.DEFAULT_PRIORITY,
+            name: String? = null
+        ): KSLEvent<T> {
+            return schedule(timeBetweenEvents.value, message, priority, name)
         }
     }
 
@@ -1006,9 +1026,9 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         eventAction: EventActionIfc<T>,
         timeToEvent: GetValueIfc,
         message: T? = null,
-        priority: Int = JSLEvent.DEFAULT_PRIORITY,
+        priority: Int = KSLEvent.DEFAULT_PRIORITY,
         name: String? = null
-    ): JSLEvent<T> {
+    ): KSLEvent<T> {
         return schedule(eventAction, timeToEvent.value, message, priority, name)
     }
 
@@ -1025,9 +1045,9 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         eventAction: EventActionIfc<T>,
         timeToEvent: Double,
         message: T? = null,
-        priority: Int = JSLEvent.DEFAULT_PRIORITY,
+        priority: Int = KSLEvent.DEFAULT_PRIORITY,
         name: String? = null
-    ): JSLEvent<T> {
+    ): KSLEvent<T> {
         return executive.scheduleEvent(this, eventAction, timeToEvent, message, priority, name)
     }
 
@@ -1074,7 +1094,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          *
          * @return the event that was scheduled
          */
-        fun now(): JSLEvent<T>
+        fun now(): KSLEvent<T>
 
         /**
          * Sets the time of the event being built to current time +
@@ -1107,11 +1127,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
         private val action: EventActionIfc<T>
 
         init {
-            priority = JSLEvent.DEFAULT_PRIORITY
+            priority = KSLEvent.DEFAULT_PRIORITY
             this.action = action
         }
 
-        override fun now(): JSLEvent<T> {
+        override fun now(): KSLEvent<T> {
             return after(0.0).units()
         }
 
@@ -1139,37 +1159,37 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
             return this
         }
 
-        override fun days(): JSLEvent<T> {
+        override fun days(): KSLEvent<T> {
             time = time * this@ModelElement.day()
             return units()
         }
 
-        override fun minutes(): JSLEvent<T> {
+        override fun minutes(): KSLEvent<T> {
             time = time * this@ModelElement.minute()
             return units()
         }
 
-        override fun hours(): JSLEvent<T> {
+        override fun hours(): KSLEvent<T> {
             time = time * this@ModelElement.hour()
             return units()
         }
 
-        override fun seconds(): JSLEvent<T> {
+        override fun seconds(): KSLEvent<T> {
             time = time * this@ModelElement.second()
             return units()
         }
 
-        override fun weeks(): JSLEvent<T> {
+        override fun weeks(): KSLEvent<T> {
             time = time * this@ModelElement.week()
             return units()
         }
 
-        override fun milliseconds(): JSLEvent<T> {
+        override fun milliseconds(): KSLEvent<T> {
             time = time * this@ModelElement.millisecond()
             return units()
         }
 
-        override fun units(): JSLEvent<T> {
+        override fun units(): KSLEvent<T> {
             return schedule(action, time, message, priority, name)
         }
     }
@@ -1191,7 +1211,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          *
          * @return the event that was scheduled
          */
-        fun days(): JSLEvent<T>
+        fun days(): KSLEvent<T>
 
         /**
          * Creates and schedules the event associated carrying the model
@@ -1199,7 +1219,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          *
          * @return the event that was scheduled
          */
-        fun minutes(): JSLEvent<T>
+        fun minutes(): KSLEvent<T>
 
         /**
          * Creates and schedules the event associated carrying the model
@@ -1207,7 +1227,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          *
          * @return the event that was scheduled
          */
-        fun hours(): JSLEvent<T>
+        fun hours(): KSLEvent<T>
 
         /**
          * Creates and schedules the event associated carrying the model
@@ -1215,7 +1235,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          *
          * @return the event that was scheduled
          */
-        fun seconds(): JSLEvent<T>
+        fun seconds(): KSLEvent<T>
 
         /**
          * Creates and schedules the event associated carrying the model
@@ -1223,7 +1243,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          *
          * @return the event that was scheduled
          */
-        fun weeks(): JSLEvent<T>
+        fun weeks(): KSLEvent<T>
 
         /**
          * Creates and schedules the event associated carrying the model
@@ -1231,7 +1251,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          *
          * @return the event that was scheduled
          */
-        fun milliseconds(): JSLEvent<T>
+        fun milliseconds(): KSLEvent<T>
 
         /**
          * Creates and schedules the event reactingWith the base time timeUnits
@@ -1240,7 +1260,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
          *
          * @return the event that was scheduled
          */
-        fun units(): JSLEvent<T>
+        fun units(): KSLEvent<T>
     }
 
     /** Includes the model name, the id, the model element name, the parent name, and parent id
@@ -1470,8 +1490,8 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
      */
     private fun warmUpAction() {
         // if we get here the warm-up was scheduled, so do it
-        if (this == model){
-            Model.logger.info{"Executing the warm up action for the model at time $time"}
+        if (this == model) {
+            Model.logger.info { "Executing the warm up action for the model at time $time" }
         }
         logger.trace { "$name executing warmUp()" }
         warmUp()
@@ -1488,11 +1508,11 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     private inner class WarmUpEventAction : EventAction<Nothing>() {
-        override fun action(event: JSLEvent<Nothing>) {
+        override fun action(event: KSLEvent<Nothing>) {
             warmUpAction()
         }
 
-        fun schedule(): JSLEvent<Nothing> {
+        fun schedule(): KSLEvent<Nothing> {
             return schedule(lengthOfWarmUp, null, warmUpPriority, name = this@ModelElement.name + "_WarmUp")
         }
     }
@@ -1542,12 +1562,12 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     private inner class TimedUpdateEventAction : EventAction<Nothing>() {
-        override fun action(event: JSLEvent<Nothing>) {
+        override fun action(event: KSLEvent<Nothing>) {
             timedUpdateActions()
             schedule()
         }
 
-        fun schedule(): JSLEvent<Nothing> {
+        fun schedule(): KSLEvent<Nothing> {
             return schedule(
                 timedUpdateInterval, null, timedUpdatePriority,
                 name = this@ModelElement.name + "_TimedUpdate"
@@ -1783,7 +1803,7 @@ open class ModelElement internal constructor(theName: String? = null) : Identity
     }
 
     fun detachAllModelElementObservers() {
-        for(observer in modelElementObservers){
+        for (observer in modelElementObservers) {
             observer.detach()
         }
         modelElementObservers.clear()

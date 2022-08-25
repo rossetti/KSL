@@ -1,7 +1,7 @@
 package ksl.process
 
 import kotlin.coroutines.intrinsics.*
-import ksl.simulation.JSLEvent
+import ksl.simulation.KSLEvent
 import kotlin.coroutines.*
 
 // just place holders
@@ -24,7 +24,7 @@ interface ProcessScope {
      *  Lower priority goes first.
      *  @return JSLEvent the event used to schedule the activation
      */
-    fun activate(atTime: Double = 0.0, priority: Int = JSLEvent.DEFAULT_PRIORITY) : JSLEvent<Entity>
+    fun activate(atTime: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) : KSLEvent<Entity>
 // maybe activate should take in a process and not be in this scope?
 
     /**
@@ -46,7 +46,7 @@ interface ProcessScope {
      *  @param priority a priority indicator to inform ordering when there is more than one process waiting for
      *  the same signal
      */
-    suspend fun waitFor(signal: Signal, priority: Int = JSLEvent.DEFAULT_PRIORITY)
+    suspend fun waitFor(signal: Signal, priority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
      *  Requests a number of units of the indicated resource.
@@ -64,7 +64,7 @@ interface ProcessScope {
      */
     suspend fun seize( resource: Resource, numRequested: Int = 1,
                         taskTime: Double = Double.POSITIVE_INFINITY,
-                        priority: Int = JSLEvent.DEFAULT_PRIORITY) : Task
+                        priority: Int = KSLEvent.DEFAULT_PRIORITY) : Task
 
     /**
      *  Causes the process to delay (suspend execution) for the specified amount of time.
@@ -74,7 +74,7 @@ interface ProcessScope {
      *  @param priority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
      */
-    suspend fun delay(time: Double, priority: Int = JSLEvent.DEFAULT_PRIORITY)
+    suspend fun delay(time: Double, priority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
      *  Releases a number of units of the indicated resource.
@@ -301,7 +301,7 @@ private class SequenceBuilderIterator<T> : SequenceScope<T>(), Iterator<T>, Cont
 internal class ProcessCoroutine : ProcessScope, ProcessContinuation() {
     var continuation : Continuation<Unit>? = null //set with suspending
 
-    override fun activate(atTime: Double, priority: Int): JSLEvent<Entity> {
+    override fun activate(atTime: Double, priority: Int): KSLEvent<Entity> {
         TODO("Not yet implemented")
     }
 

@@ -15,7 +15,7 @@
  */
 package ksl.calendar
 
-import ksl.simulation.JSLEvent
+import ksl.simulation.KSLEvent
 
 /** This class provides an event calendar by using a skew heap to hold the underlying events.
  */
@@ -23,23 +23,23 @@ class SkewHeapEventCalendar: CalendarIfc {
     private var myRoot: BinaryNode? = null
     private var myNumEvents = 0
 
-    override fun add(event: JSLEvent<*>) {
+    override fun add(event: KSLEvent<*>) {
         myRoot = merge(myRoot, BinaryNode(event))
         myNumEvents++
     }
 
-    override fun nextEvent(): JSLEvent<*>? {
+    override fun nextEvent(): KSLEvent<*>? {
         return if (!isEmpty) {
-            val e = myRoot!!.value as JSLEvent<*>?
+            val e = myRoot!!.value as KSLEvent<*>?
             myRoot = merge(myRoot!!.leftChild, myRoot!!.rightChild)
             myNumEvents--
             e
         } else null
     }
 
-    override fun peekNext(): JSLEvent<*>? {
+    override fun peekNext(): KSLEvent<*>? {
         return if (!isEmpty) {
-            val e = myRoot!!.value as JSLEvent<*>?
+            val e = myRoot!!.value as KSLEvent<*>?
             e
         } else null
     }
@@ -63,8 +63,8 @@ class SkewHeapEventCalendar: CalendarIfc {
     private fun merge(left: BinaryNode?, right: BinaryNode?): BinaryNode? {
         if (left == null) return right
         if (right == null) return left
-        val leftValue = left.value as JSLEvent<*>
-        val rightValue = right.value as JSLEvent<*>
+        val leftValue = left.value as KSLEvent<*>
+        val rightValue = right.value as KSLEvent<*>
         return if (leftValue.compareTo(rightValue) < 0) {
             val swap = left.leftChild
             left.leftChild = merge(left.rightChild, right)

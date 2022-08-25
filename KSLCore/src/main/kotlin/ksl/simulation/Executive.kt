@@ -6,7 +6,7 @@ import ksl.utilities.exceptions.JSLEventException
 import ksl.utilities.observers.Observable
 import kotlin.time.Duration
 
-class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) : Observable<JSLEvent<*>?>(){
+class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) : Observable<KSLEvent<*>?>(){
 
     enum class Status {
         CREATED, INITIALIZED, BEFORE_EVENT, AFTER_EVENT, AFTER_EXECUTION
@@ -30,9 +30,9 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
     var endingTime: Double = Double.NaN
         private set
 
-    private var lastExecutedEvent: JSLEvent<*>? = null
+    private var lastExecutedEvent: KSLEvent<*>? = null
 
-    internal var endEvent: JSLEvent<Nothing>? = null
+    internal var endEvent: KSLEvent<Nothing>? = null
 
     var terminationWarningMsgOption = true
 
@@ -197,7 +197,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
     internal fun <T> scheduleEvent(
         theElementScheduling: ModelElement, eventAction: ModelElement.EventActionIfc<T>, interEventTime: Double, message: T? = null,
         priority: Int, name: String? = null
-    ): JSLEvent<T> {
+    ): KSLEvent<T> {
         if (eventExecutionProcess.isCreated || eventExecutionProcess.isEnded) {
             val sb = StringBuilder()
             sb.append("Attempted to schedule an event when the Executive is in the created or ended state.")
@@ -226,12 +226,12 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             numEventsScheduled = numEventsScheduled + 1
             // create the event
             val event =
-                JSLEvent(numEventsScheduled, eventAction, eventTime, priority, message, name, theElementScheduling)
+                KSLEvent(numEventsScheduled, eventAction, eventTime, priority, message, name, theElementScheduling)
             myEventCalendar.add(event)
             event.scheduled = true
             return event
         } else {
-            val event = JSLEvent(-99, eventAction, eventTime, priority, message, name, theElementScheduling)
+            val event = KSLEvent(-99, eventAction, eventTime, priority, message, name, theElementScheduling)
             val sb = StringBuilder()
             sb.append("Attempted to schedule an event, $event, after the scheduled simulation end time: ${scheduledEndTime()} the event was not scheduled and will not execute")
             Model.logger.trace(sb.toString())
@@ -244,7 +244,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
      *
      * @param event represents the next event to execute
      */
-    private fun execute(event: JSLEvent<*>) {
+    private fun execute(event: KSLEvent<*>) {
         try {
             // the event is no longer scheduled
             event.scheduled = false
@@ -281,7 +281,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
     }
 
     private fun performCPhase() {
-        val ne: JSLEvent<*>? = myEventCalendar.peekNext()
+        val ne: KSLEvent<*>? = myEventCalendar.peekNext()
         if (ne == null) {
             return
         } else if (ne.time > currentTime) {
@@ -360,7 +360,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
         sb.append(eventExecutionProcess)
         return sb.toString()
     }
-    private inner class EventExecutionProcess(name: String?) : IterativeProcess<JSLEvent<*>>(name) {
+    private inner class EventExecutionProcess(name: String?) : IterativeProcess<KSLEvent<*>>(name) {
 
         override fun initializeIterations() {
             super.initializeIterations()
@@ -382,7 +382,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             return hasNextEvent()
         }
 
-        override fun nextStep(): JSLEvent<*>? {
+        override fun nextStep(): KSLEvent<*>? {
             return myEventCalendar.nextEvent()
         }
 

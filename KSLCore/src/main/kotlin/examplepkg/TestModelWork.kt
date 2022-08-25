@@ -15,8 +15,6 @@ fun main() {
 
     val m = Model()
 
-    val me = ModelElement(m, "something")// can only make because of internal
-
     // it is interesting that the rv is actually usable outside the model
     val rv = RandomVariable(m, ExponentialRV())
 

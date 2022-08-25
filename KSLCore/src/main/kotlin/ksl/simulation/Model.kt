@@ -534,12 +534,12 @@ class Model(
     }
 
     private inner class EndEventAction : EventAction<Nothing>() {
-        override fun action(event: JSLEvent<Nothing>) {
+        override fun action(event: KSLEvent<Nothing>) {
             executive.stop("Scheduled end event occurred at time $time")
         }
 
-        fun schedule(time: Double): JSLEvent<Nothing> {
-            return schedule(time, null, JSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, name = "End Replication")
+        fun schedule(time: Double): KSLEvent<Nothing> {
+            return schedule(time, null, KSLEvent.DEFAULT_END_REPLICATION_EVENT_PRIORITY, name = "End Replication")
         }
     }
 

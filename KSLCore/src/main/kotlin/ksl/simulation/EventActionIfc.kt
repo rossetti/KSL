@@ -30,7 +30,7 @@ fun interface EventActionIfc<in T> {
      * logic.  This is essentially the "event routine".
      * @param event The event that triggered this action.
      */
-    fun action(event: JSLEvent<T>)
+    fun action(event: KSLEvent<T>)
 }
 //TODO change to Action<T>
 //typealias EventAction<T> = (JSLEvent<T>) -> Unit

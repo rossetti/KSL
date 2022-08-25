@@ -15,7 +15,7 @@
  */
 package ksl.calendar
 
-import ksl.simulation.JSLEvent
+import ksl.simulation.KSLEvent
 
 /**
  * The interface defines behavior for holding, adding and retrieving JSLEvents.
@@ -30,7 +30,7 @@ interface CalendarIfc {
      *
      * @param event The JSLEvent to be added to the calendar
      */
-    fun add(event: JSLEvent<*>)
+    fun add(event: KSLEvent<*>)
 
     /**
      * Returns the next JSLEvent to be executed. The event is removed from
@@ -38,14 +38,14 @@ interface CalendarIfc {
      *
      * @return The JSLEvent to be executed next
      */
-    fun nextEvent(): JSLEvent<*>?
+    fun nextEvent(): KSLEvent<*>?
 
     /**
      * Peeks at the next event without removing it
      *
      * @return
      */
-    fun peekNext(): JSLEvent<*>?
+    fun peekNext(): KSLEvent<*>?
 
     /**
      * Checks to see if the calendar is empty
@@ -76,7 +76,7 @@ interface CalendarIfc {
      *
      * @param event The JSLEvent to be canceled
      */
-    fun cancel(event: JSLEvent<*>){
+    fun cancel(event: KSLEvent<*>){
         event.cancelled = true;
     }
 

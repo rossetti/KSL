@@ -15,28 +15,28 @@
  */
 package ksl.calendar
 
-import ksl.simulation.JSLEvent
+import ksl.simulation.KSLEvent
 import java.util.*
 
 /** This class provides an event calendar by using a tree set to hold the underlying events.
  */
 class TreeSetEventCalendar : CalendarIfc {
-    private val myEventSet: SortedSet<JSLEvent<*>> = TreeSet()
+    private val myEventSet: SortedSet<KSLEvent<*>> = TreeSet()
 
-    override fun add(event: JSLEvent<*>) {
+    override fun add(event: KSLEvent<*>) {
         myEventSet.add(event)
     }
 
-    override fun nextEvent(): JSLEvent<*>? {
+    override fun nextEvent(): KSLEvent<*>? {
         return if (!isEmpty) {
-            val e = myEventSet.first() as JSLEvent<*>
+            val e = myEventSet.first() as KSLEvent<*>
             myEventSet.remove(e)
             e
         } else null
     }
 
-    override fun peekNext(): JSLEvent<*>? {
-        return if (!isEmpty) myEventSet.first() as JSLEvent<*> else null
+    override fun peekNext(): KSLEvent<*>? {
+        return if (!isEmpty) myEventSet.first() as KSLEvent<*> else null
     }
 
     override val isEmpty: Boolean
