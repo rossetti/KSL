@@ -13,9 +13,9 @@ import ksl.utilities.random.rvariable.ExponentialRV
  */
 fun main() {
     val model = Model("Drive Through Pharmacy")
-    model.numberOfReplications = 30
-    model.lengthOfReplication = 20000.0
-    model.lengthOfReplicationWarmUp = 5000.0
+    model.numberOfReplications = 2
+    model.lengthOfReplication = 20.0
+    model.lengthOfReplicationWarmUp = 5.0
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacy(model, 1)
     dtp.setTimeBtwArrivalRandomSource(ExponentialRV(6.0, 1))
