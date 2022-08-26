@@ -1,6 +1,5 @@
 package ksl.utilities.distributions
 
-import jsl.utilities.distributions.IncompleteBetaFunctionFraction
 import ksl.utilities.Interval
 import ksl.utilities.exceptions.KSLTooManyIterationsException
 import ksl.utilities.math.FunctionIfc

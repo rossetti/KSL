@@ -17,8 +17,8 @@ repositories {
 dependencies {
 
     //TODO probably not needed any more, test it
-    api(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
-    api(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
+//    api(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
+//    api(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
     api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "2.1.21")
@@ -34,6 +34,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.10")
 
     testImplementation(kotlin("test"))
+    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
+    testImplementation(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
     implementation(kotlin("stdlib-jdk8"))
 }
 

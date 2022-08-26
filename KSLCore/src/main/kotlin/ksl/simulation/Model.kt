@@ -1,6 +1,6 @@
 package ksl.simulation
 
-import jsl.utilities.random.rvariable.RVParameterSetter
+//TODO import jsl.utilities.random.rvariable.RVParameterSetter
 import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
@@ -97,7 +97,7 @@ class Model(
     /**
      * to hold the parameters of the random variables if used
      */
-    private val myRVParameterSetter: RVParameterSetter? = null
+//TODO    private val myRVParameterSetter: RVParameterSetter? = null
 
     /**
      * Controls the execution of replications

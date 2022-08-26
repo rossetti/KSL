@@ -15,7 +15,6 @@
  */
 package ksl.utilities.statistic
 
-import jsl.utilities.statistic.StateFrequency
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.DEmpiricalCDF
