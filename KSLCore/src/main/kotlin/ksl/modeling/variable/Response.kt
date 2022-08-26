@@ -16,6 +16,7 @@ open class Response(
     theInitialCountLimit: Long = 0,
     name: String?
 ) : ModelElement(parent, name), ResponseIfc, ResponseStatisticsIfc {
+    //TODO timed update stuff
 
     val limits: Interval = theLimits
 

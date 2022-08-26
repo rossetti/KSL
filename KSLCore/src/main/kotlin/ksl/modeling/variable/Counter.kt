@@ -11,7 +11,7 @@ open class Counter(
     theInitialValue: Double = 0.0,
     theInitialCounterLimit: Double = Double.POSITIVE_INFINITY,
 ) : ModelElement(parent, name), CounterIfc {
-//TODO need to implement resetting of counters and warmup reset!
+//TODO timed update stuff
 
     private val counterActions: MutableList<CounterActionIfc> = mutableListOf()
 
