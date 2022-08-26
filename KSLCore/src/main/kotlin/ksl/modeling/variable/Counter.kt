@@ -7,11 +7,13 @@ import ksl.utilities.statistic.StatisticIfc
 
 open class Counter(
     parent: ModelElement,
+    name: String? = null,
     theInitialValue: Double = 0.0,
-    theInitialCountLimit: Long = 0,
-    name: String?
+    theInitialCounterLimit: Double = Double.POSITIVE_INFINITY,
 ) : ModelElement(parent, name), CounterIfc {
 //TODO need to implement resetting of counters and warmup reset!
+
+    private val counterActions: MutableList<CounterActionIfc> = mutableListOf()
 
     var timeOfWarmUp: Double = 0.0
         protected set
@@ -20,19 +22,19 @@ open class Counter(
         protected set
 
     init {
-        require(theInitialValue >= 0) { "The initial value $theInitialValue must be >= 0" }
-        require(theInitialCountLimit >= 0) { "The initial count limit value $theInitialCountLimit must be >= 0" }
+        require(theInitialValue >= 0.0) { "The initial value $theInitialValue must be >= 0" }
+        require(theInitialCounterLimit >= 0.0) { "The initial count limit value $theInitialCounterLimit must be >= 0" }
     }
 
     /**
      * Sets the initial value of the count limit. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next replication.
      */
-    var initialCountLimit: Long = theInitialCountLimit
+    var initialCounterLimit: Double = theInitialCounterLimit
         set(value) {
-            require(value >= 0) { "The initial count stop limit, when set, must be >= 0" }
+            require(value >= 0) { "The initial counter stop limit, when set, must be >= 0" }
             if (model.isRunning) {
-                Model.logger.info { "The user set the initial count stop limit during the replication. The next replication will use a different initial value" }
+                Model.logger.info { "The user set the initial counter stop limit during the replication. The next replication will use a different initial value" }
             }
             field = value
         }
@@ -40,27 +42,29 @@ open class Counter(
     /**
      * Indicates the count when the simulation should stop. Zero indicates no limit.
      */
-    var countStopLimit: Long = theInitialCountLimit
+    var counterStopLimit: Double = theInitialCounterLimit
         set(limit) {
-            require(limit >= 0) { "The count stop limit, when set, must be >= 0" }
-            if (limit < field){
-                // making limit smaller than current value
-                if (model.isRunning){
-                    Model.logger.info {"The count stop limit was reduced to $limit from $field for $name during the replication"}
-                    if (limit == 0L){
-                        Model.logger.warn {"Turning off a specified count limit may cause the replication to not stop."}
-                    } else { // new value could be smaller than current counter limit
-                        if (myValue >= limit) {
-                            Model.logger.info {"The current counter value is >= to new counter stop limit. Causing the simulation to stop."}
-                            executive.stop("Stopped because counter limit $countStopLimit was reached for $name")
-                        }
+            require(limit >= 0) { "The counter stop limit, when set, must be >= 0" }
+            if (model.isRunning) {
+                if (limit < field) {
+                    Model.logger.info { "The counter stop limit was reduced to $limit from $field for $name during the replication" }
+                } else if (limit > field) {
+                    Model.logger.info { "The counter stop limit was increased to $limit from $field for $name during the replication" }
+                    if (limit.isInfinite()) {
+                        Model.logger.warn { "Setting the counter stop limit to infinity during the replication may cause the replication to not stop." }
                     }
                 }
             }
             field = limit
+            if (model.isRunning) {
+                if (myValue >= limit) {
+                    notifyCounterActions()
+                }
+            }
         }
 
-
+    val isLimitReached: Boolean
+        get() = myValue >= counterStopLimit
 
     /**
      * Sets the initial value of the variable. Only relevant prior to each
@@ -82,6 +86,8 @@ open class Counter(
         get() = myValue
         protected set(newValue) = assignValue(newValue)
 
+    private var stoppingAction: StoppingAction? = null
+
     /**
      * Increments the value of the variable by the amount supplied. Throws an
      * IllegalArgumentException if the value is negative.
@@ -93,22 +99,41 @@ open class Counter(
         value = value + increase
     }
 
-    protected open fun assignValue(newValue: Double){
+    fun addCounterAction(action: CounterActionIfc) {
+        counterActions.add(action)
+    }
+
+    fun removeCounterAction(action: CounterActionIfc) {
+        counterActions.remove(action)
+    }
+
+    fun addStoppingAction(){
+        if (stoppingAction == null){
+            stoppingAction = StoppingAction()
+            addCounterAction(stoppingAction!!)
+        }
+    }
+
+    protected fun notifyCounterActions() {
+        for (a in counterActions) {
+            a.action(this)
+        }
+    }
+
+    protected open fun assignValue(newValue: Double) {
         require(newValue >= 0) { "The value $newValue was not >= 0" }
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue
         timeOfChange = time
         notifyModelElementObservers(Status.UPDATE)
-        if (countStopLimit > 0) {
-            if (myValue >= countStopLimit) {
-                executive.stop("Stopped because counter limit $countStopLimit was reached for $name")
-            }
+        if (myValue >= counterStopLimit) {
+            notifyCounterActions()
         }
     }
 
     /**
-     * Assigns the value of the variable to the supplied value. Ensures that
+     * Assigns the value of the counter to the supplied value. Ensures that
      * time of change is 0.0 and previous value and previous time of
      * change are the same as the current value and current time without
      * notifying any update observers
@@ -116,12 +141,13 @@ open class Counter(
      * @param value the initial value to assign
      */
     protected fun assignInitialValue(value: Double) {
-        require(value >= 0) { "The initial value $value must be >= 0" }
+        require(value >= 0.0) { "The initial value $value must be >= 0" }
+        require(value < initialCounterLimit) {"The initial value, $value, of the counter must be < the initial counter limit, $initialCounterLimit"}
         myValue = value
         timeOfChange = 0.0
         previousValue = myValue
         previousTimeOfChange = timeOfChange
-        countStopLimit = initialCountLimit
+        counterStopLimit = initialCounterLimit
     }
 
     /**
@@ -145,17 +171,31 @@ open class Counter(
 
     override fun beforeExperiment() {
         super.beforeExperiment()
+        lastTimedUpdate= 0.0
+        timeOfWarmUp = 0.0
         assignInitialValue(initialValue)
+        myAcrossReplicationStatistic.reset()
     }
 
     override fun beforeReplication() {
         super.beforeReplication()
+        lastTimedUpdate= 0.0
+        timeOfWarmUp = 0.0
         assignInitialValue(initialValue)
     }
 
     override fun initialize() {
         super.initialize()
+        lastTimedUpdate= 0.0
+        timeOfWarmUp = 0.0
+        resetCounter(initialValue, false)
         assignInitialValue(initialValue)
+    }
+
+    override fun warmUp() {
+        super.warmUp()
+        timeOfWarmUp = time
+        resetCounter(0.0, false)
     }
 
     override fun afterReplication() {
@@ -164,27 +204,28 @@ open class Counter(
     }
 
     /**
-     * Resets the counter to the supplied value and clears the counter limit
-     * flag If timed updates are on, then count since the last timed update will
-     * be set to the supplied value.
+     * Resets the counter to the supplied value.
      *
-     * @param value, must be &lt; getCounterLimit() and &gt;=0
+     * @param value, must be &lt; counterLimit and &gt;=0
      * @param notifyUpdateObservers If true, any update observers will be
      * notified otherwise they will not be notified
      */
     fun resetCounter(value: Double, notifyUpdateObservers: Boolean) {
         require(value >= 0) { "The counter's value must be >= 0" }
-        //TODO I don't think this works because I am using 0 to indicate no limit
-        // could set the value 0 but countStopLimit could be 0 to indicate no limit
-        require(value < countStopLimit) { "The counter's value must be < the supplied limit = $countStopLimit" }
+        require(value < counterStopLimit) { "The counter's value, $value must be < the counter limit = $counterStopLimit" }
         previousValue = value
         previousTimeOfChange = time
         myValue = value
         timeOfChange = previousTimeOfChange
-        myCountLimitFlag = false
-        myCountAtPreviousTimedUpdate = value
+//TODO        myCountAtPreviousTimedUpdate = value
         if (notifyUpdateObservers) {
             notifyModelElementObservers(Status.UPDATE)
+        }
+    }
+
+    private inner class StoppingAction : CounterActionIfc {
+        override fun action(counter: Counter) {
+            executive.stop("Stopped because counter limit $counterStopLimit was reached for $name")
         }
     }
 }
