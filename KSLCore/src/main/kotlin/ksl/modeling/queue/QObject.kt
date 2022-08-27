@@ -36,10 +36,10 @@ private var qObjCounter: Long = 0
  * Creates an QObject with the given name and the creation time set to the
  * supplied value
  *
- * @param creationTime the time created
- * @param name The name of the QObject
+ * @param theCreateTime the time created
+ * @param aName The name of the QObject
 */
-class QObject (theCreateTime: Double, aName: String? = null) : NameIfc, Comparable<QObject> {
+open class QObject(theCreateTime: Double, aName: String? = null) : NameIfc, Comparable<QObject> {
     init{
         require(theCreateTime >= 0.0) {"The creation time must be >= 0.0"}
         qObjCounter++
@@ -59,140 +59,12 @@ class QObject (theCreateTime: Double, aName: String? = null) : NameIfc, Comparab
     /**
      * A state representing that the QObject was created
      */
-    private var createTime = theCreateTime
+    val createTime = theCreateTime
 
     /**
      * A state representing when the QObject was queued
      */
-    private var myQueuedState: State = State(name = "{$name}_State")
-
-    /**
-     * A priority for use in queueing
-     */
-    private var myPriority = 1
-
-    /**
-     * The current queue that the QObject is in, null if not in a queue
-     */
-    private var myQueue: Queue? = null
-
-    /**
-     * A reference to an object that can be attached to the QObject when queued
-     */
-    var attachedObject: Any? = null
-
-    /**
-     * can be used to time stamp the qObject
-     */
-    protected var myTimeStamp = 0.0
-
-    /**
-     * Causes the QObject to look like new, gets a new name, number, priority is
-     * reset to 1, states are initialized, and starts in created state. As if
-     * newly, created. Useful if reusing QObjects
-     *
-     * @param time used to set the creation time of the QObject
-     * @param name the name
-     */
-//    protected fun initialize(time: Double, name: String?) {
-//        require(time >= 0) { "The creation time must be > 0.0" }
-//        qObjCounter = qObjCounter + 1
-//        myId = qObjCounter
-//        this.name = name
-//        myPriority = 1
-//        queue = null
-//        myAttachedObject = null
-//        myValue = null
-//        myCreationTime = time
-//        if (myQueuedState == null) {
-//            myQueuedState = State(name = this.name + "Queued")
-//        } else {
-//            myQueuedState.initialize()
-//        }
-//    }
-    /**
-     * Returns the value determined by the object supplied from setValue(). The
-     * object returned may be null
-     *
-     * @return an implementation of GetValueIfc or null
-     */
-    /**
-     * Allows for a generic value to be held by the QObject whose value will be
-     * return by getValue() It can be null, in which case, getValue() will
-     * return null
-     *
-     * @param value the value object
-     */
-    var valueObject: GetValueIfc? = null
-
-    override fun toString(): String {
-        return "ID= $id, name= $name"
-    }
-
-    /**
-     * Gets the queueing priority associated with this QObject
-     *
-     * @return The priority as an int
-     */
-    /**
-     * Sets the priority to the supplied value If the QObject is queued, the
-     * queue's changePriority() method is called (possibly causing a reordering
-     * of the queue) which may cause significant reordering overhead otherwise
-     * the priority is directly changed Changing this value only changes how the
-     * QObjects are compared and may or may not change how they are ordered in
-     * the queue, depending on the queue discipline used
-     *
-     * @param priority An integer representing the priority of the QObject
-     */
-    var priority: Int
-        get() = myPriority
-        set(priority) {
-            if (isQueued) {
-                myQueue.changePriority(this, priority)
-            } else {
-                setPriority_(priority)
-            }
-        }
-    /**
-     * Returns the queue that the QObject was last enqueued within
-     *
-     * @return The Queue, or null if no queue
-     */
-    /**
-     * Sets the queue that the QObject is enqueued
-     *
-     * @param queue The Queue that the object is enqueued
-     */
-    var queue: Queue?
-        get() = myQueue
-        protected set(queue) {
-            myQueue = queue
-        }
-
-    /**
-     * Gets the time the QObject was LAST enqueued
-     *
-     * @return A double representing the time the QObject was enqueued
-     */
-    val timeEnteredQueue: Double
-        get() = myQueuedState.timeStateEntered
-
-    /**
-     * Gets the time the QObject LAST exited a queue
-     *
-     * @return A double representing the time the QObject last exited a QObject
-     */
-    val timeExitedQueue: Double
-        get() = myQueuedState.timeStateExited
-
-    /**
-     * Gets the time the QObject spent in the Queue based on the LAST time
-     * dequeued
-     *
-     * @return the most recent time spend in a queue
-     */
-    val timeInQueue: Double
-        get() = myQueuedState.totalTimeInState
+    private val myQueuedState: State = State(name = "{$name}_State")
 
     /**
      * This method can be used to get direct access to the State that represents
@@ -206,24 +78,79 @@ class QObject (theCreateTime: Double, aName: String? = null) : NameIfc, Comparab
         get() = myQueuedState  //TODO clone it
 
     /**
+     * Sets the priority to the supplied value If the QObject is queued, the
+     * queue's changePriority() method is called (possibly causing a reordering
+     * of the queue) which may cause significant reordering overhead otherwise
+     * the priority is directly changed Changing this value only changes how the
+     * QObjects are compared and may or may not change how they are ordered in
+     * the queue, depending on the queue discipline used
+     */
+    var priority: Int = 1
+        set(value) {
+            field = value // always make the change
+            if (isQueued) {
+                //change the priority here
+                // then just tell the queue that there was a change that needs handling
+                //myQueue.priorityChanged(this)
+                queue?.priorityChanged(this)
+            }
+        }
+
+    /**
+     * The current queue that the QObject is in, null if not in a queue
+     */
+    var queue: Queue? = null //TODO why do I need the type parameter and why can't it be T: QObject
+        internal set
+
+    /**
+     * A reference to an object that can be attached to the QObject when queued
+     */
+    var attachedObject: Any? = null
+
+    /**
+     * can be used to time stamp the qObject
+     */
+    var timeStamp: Double = theCreateTime
+        set(value) {
+            require(value >= 0.0) { "The time stamp was less than 0.0" }
+            field = value
+        }
+
+    /**
+     * Allows for a generic value to be held by the QObject
+     */
+    var valueObject: GetValueIfc? = null
+
+    override fun toString(): String {
+        return "ID= $id, name= $name"
+    }
+
+    /**
+     * The time that the QObject was LAST enqueued
+     */
+    val timeEnteredQueue: Double
+        get() = myQueuedState.timeStateEntered
+
+    /**
+     *  The time that the QObject LAST exited a queue
+     */
+    val timeExitedQueue: Double
+        get() = myQueuedState.timeStateExited
+
+    /**
+     * The time that the QObject spent in the Queue based on the LAST time dequeued
+     */
+    val timeInQueue: Double
+        get() = myQueuedState.totalTimeInState
+
+    /**
      * Checks if the QObject is queued
-     *
-     * @return true if it is queued
      */
     val isQueued: Boolean
         get() = myQueuedState.isEntered
 
-    /**
-     * Used to make the QObject not have any references, e.g. to a Queue and to
-     * an Object that was queued
-     *
-     *
-     */
-    protected fun setNulls() {
-        attachedObject = null
-        valueObject = null
-        queue = null
-    }
+    val isNotQueued: Boolean
+        get() = !isQueued
 
     /**
      * Causes all references of objects from this QObject to be set to null.
@@ -233,7 +160,9 @@ class QObject (theCreateTime: Double, aName: String? = null) : NameIfc, Comparab
      *
      */
     fun nullify() {
-        setNulls()
+        attachedObject = null
+        valueObject = null
+        queue = null
     }
 
     /**
@@ -244,47 +173,33 @@ class QObject (theCreateTime: Double, aName: String? = null) : NameIfc, Comparab
      * @param priority the priority
      * @param obj an object to attach
      */
-    protected fun enterQueue(queue: Queue, time: Double, priority: Int, obj: Any?) {
-        check(!myQueuedState.isEntered) { "The QObject was already queued!" }
+    internal fun <T:QObject> enterQueue (queue: Queue<T>, time: Double, priority: Int, obj: Any?) {
+        //TODO why do I need the type parameter and why can't it be T: QObject
+        check(isNotQueued) { "The QObject was already queued!" }
         myQueuedState.enter(time)
         this.queue = queue
-        setPriority_(priority)
+        this.priority = priority
         attachedObject = obj
     }
 
     /**
-     * Indicates that the QObject exited the queue
+     * Used by Queue to indicate that the QObject exited the queue
      *
      * @param time The time QObject exited the queue
      */
-    protected fun exitQueue(time: Double) {
-        check(myQueuedState.isEntered) { "The QObject was not in a queue!" }
+    internal fun exitQueue(time: Double) {
+        check(isQueued) { "The QObject was not in a queue!" }
         myQueuedState.exit(time)
         queue = null
     }
 
-    /**
-     * Sets the queueing priority for this QObject Changing the priority while
-     * the object is in a queue has no effect on the ordering of the queue. This
-     * priority is only used to determine the ordering in the queue when the
-     * item enters the queue.
-     *
-     * @param priority lower priority implies earlier ranking in the queue
-     */
-    protected fun setPriority_(priority: Int) {
-        myPriority = priority
-    }
-
-    //  ===========================================
-    //        Comparable Interface
-    //  ===========================================
     /**
      * Returns a negative integer, zero, or a positive integer if this object is
      * less than, equal to, or greater than the specified object.
      *
      *
      * Throws ClassCastException if the specified object's type prevents it from
-     * begin compared to this object.
+     * being compared to this object.
      *
      *
      * Throws RuntimeException if the id's of the objects are the same, but the
@@ -299,34 +214,33 @@ class QObject (theCreateTime: Double, aName: String? = null) : NameIfc, Comparab
      * object is less than, equal to, or greater than the specified object.
      */
     override operator fun compareTo(other: QObject): Int {
-        val qObj = other
 
         // compare the priorities
-        if (myPriority < qObj.priority) {
+        if (priority < other.priority) {
             return -1
         }
-        if (myPriority > qObj.priority) {
+        if (priority > other.priority) {
             return 1
         }
 
         // priorities are equal, compare time stamps
-        if (timeEnteredQueue < qObj.timeEnteredQueue) {
+        if (timeEnteredQueue < other.timeEnteredQueue) {
             return -1
         }
-        if (timeEnteredQueue > qObj.timeEnteredQueue) {
+        if (timeEnteredQueue > other.timeEnteredQueue) {
             return 1
         }
 
         // time stamps are equal, compare ids
-        if (id < qObj.id) // lower id, implies created earlier
+        if (id < other.id) // lower id, implies created earlier
         {
             return -1
         }
-        if (id > qObj.id) {
+        if (id > other.id) {
             return 1
         }
 
-        // if the id's are equal then the object references must be equal
+        // if the ids are equal then the object references must be equal
         // if this is not the case there is a problem
         return if (this == other) {
             0
@@ -334,16 +248,5 @@ class QObject (theCreateTime: Double, aName: String? = null) : NameIfc, Comparab
             throw RuntimeException("Id's were equal, but references were not, in QObject compareTo")
         }
     }
-    /**
-     * @return Returns the TimeStamp.
-     */
-    /**
-     * @param timeStamp The timeStamp to set.
-     */
-    var timeStamp: Double
-        get() = myTimeStamp
-        set(timeStamp) {
-            require(timeStamp >= 0.0) { "The time stamp was less than 0.0" }
-            myTimeStamp = timeStamp
-        }
+
 }
