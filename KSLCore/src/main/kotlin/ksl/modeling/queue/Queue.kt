@@ -656,8 +656,9 @@ class Queue<T : QObject>(
         }
     }
 
-    internal fun priorityChanged(qObject: T) {
-        myDiscipline.priorityChanged(qObject)
+    internal fun priorityChanged() {
+        //TODO capture the qObject?
+        myDiscipline.priorityChanged()
     }
 
     abstract inner class QueueDiscipline {
@@ -695,10 +696,8 @@ class Queue<T : QObject>(
         /**
          * The supplied QObject has had its priority changed. This
          * method is called to allow the queue to be re-ordered.
-         *
-         * @param qObject the QObject
          */
-        internal abstract fun priorityChanged(qObject: T)
+        internal abstract fun priorityChanged()
 
     }
 
@@ -722,7 +721,7 @@ class Queue<T : QObject>(
         override fun switchDiscipline() {
         }
 
-        override fun priorityChanged(qObject: T) {
+        override fun priorityChanged() {
         }
     }
 
@@ -746,7 +745,7 @@ class Queue<T : QObject>(
         override fun switchDiscipline() {
         }
 
-        override fun priorityChanged(qObject: T) {
+        override fun priorityChanged() {
         }
     }
 
@@ -800,7 +799,7 @@ class Queue<T : QObject>(
             myList.sort()
         }
 
-        override fun priorityChanged(qObject: T) {
+        override fun priorityChanged() {
             myList.sort()
         }
 
@@ -837,7 +836,7 @@ class Queue<T : QObject>(
         override fun switchDiscipline() {
         }
 
-        override fun priorityChanged(qObject: T) {
+        override fun priorityChanged() {
         }
     }
 }

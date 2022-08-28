@@ -92,14 +92,14 @@ open class QObject(theCreateTime: Double, aName: String? = null) : NameIfc, Comp
                 //change the priority here
                 // then just tell the queue that there was a change that needs handling
                 //myQueue.priorityChanged(this)
-                queue?.priorityChanged(this)
+                queue?.priorityChanged()
             }
         }
 
     /**
      * The current queue that the QObject is in, null if not in a queue
      */
-    var queue: Queue? = null //TODO why do I need the type parameter and why can't it be T: QObject
+    var queue: Queue<*>? = null //TODO why do I need the type parameter and why can't it be T: QObject
         internal set
 
     /**
@@ -177,7 +177,7 @@ open class QObject(theCreateTime: Double, aName: String? = null) : NameIfc, Comp
         //TODO why do I need the type parameter and why can't it be T: QObject
         check(isNotQueued) { "The QObject was already queued!" }
         myQueuedState.enter(time)
-        this.queue = queue
+        this.queue = queue //TODO
         this.priority = priority
         attachedObject = obj
     }
