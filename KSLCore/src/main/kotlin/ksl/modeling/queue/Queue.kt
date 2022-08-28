@@ -17,6 +17,8 @@ package ksl.modeling.queue
 
 import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.UniformRV
@@ -66,6 +68,9 @@ class Queue<T : QObject>(
      * The list of items in the queue.
      */
     protected val myList: MutableList<T> = mutableListOf()
+
+    protected val myNumInQ: TWResponse = TWResponse(this, name = "${name}:NumInQ")
+    protected val myTimeInQ: Response = Response(this, name="${name}:TimeInQ")
 
     /**
      *  The initial queue discipline. The initial discipline indicates
@@ -161,8 +166,8 @@ class Queue<T : QObject>(
      *
      * @return a unmodifiable view of the underlying list for the Queue
      */
-    val unmodifiableList: List<T>
-        get() = Collections.unmodifiableList(myList)//TODO
+    val immutableList: List<T>
+        get() = myList.toList()
 
     /**
      * Adds the supplied listener to this queue
@@ -185,38 +190,38 @@ class Queue<T : QObject>(
         return myQueueListeners.remove(listener)
     }
 
-    /**
-     * Places the QObject in the queue, uses the priority associated with the QObject, which is 1 by default
-     * Automatically, updates the number in queue response variable.
-     *
-     * @param queueingObject the QObject to enqueue
-     */
-    fun enqueue(queueingObject: T) {
-        enqueue(queueingObject, queueingObject.priority, queueingObject.attachedObject)
-    }
-
-    /**
-     * Places the QObject in the queue, uses the priority associated with the QObject, which is 1 by default
-     * Automatically, updates the number in queue response variable.
-     * @param <S> The type of the object being attached to the QObject
-     * @param queueingObject the sub-type of QObject to enqueue
-     * @param obj an Object to be "wrapped" and queued while the QObject is in the queue
-    </S> */
-    fun <S> enqueue(queueingObject: T, obj: S) {
-        enqueue(queueingObject, queueingObject.priority, obj)
-    }
-
-    /**
-     * Places the QObject in the queue, with the default priority of 1
-     * Automatically, updates the number in queue response variable.
-     *
-     * @param queueingObject the QObject to enqueue
-     * @param priority the priority for ordering the object, lower has more
-     * priority
-     */
-    fun enqueue(queueingObject: T, priority: Int) {
-        enqueue(queueingObject, priority, queueingObject.attachedObject)
-    }
+//    /**
+//     * Places the QObject in the queue, uses the priority associated with the QObject, which is 1 by default
+//     * Automatically, updates the number in queue response variable.
+//     *
+//     * @param queueingObject the QObject to enqueue
+//     */
+//    fun enqueue(queueingObject: T) {
+//        enqueue(queueingObject, queueingObject.priority, queueingObject.attachedObject)
+//    }
+//
+//    /**
+//     * Places the QObject in the queue, uses the priority associated with the QObject, which is 1 by default
+//     * Automatically, updates the number in queue response variable.
+//     * @param <S> The type of the object being attached to the QObject
+//     * @param queueingObject the sub-type of QObject to enqueue
+//     * @param obj an Object to be "wrapped" and queued while the QObject is in the queue
+//    </S> */
+//    fun <S> enqueue(queueingObject: T, obj: S) {
+//        enqueue(queueingObject, queueingObject.priority, obj)
+//    }
+//
+//    /**
+//     * Places the QObject in the queue, with the default priority of 1
+//     * Automatically, updates the number in queue response variable.
+//     *
+//     * @param queueingObject the QObject to enqueue
+//     * @param priority the priority for ordering the object, lower has more
+//     * priority
+//     */
+//    fun enqueue(queueingObject: T, priority: Int) {
+//        enqueue(queueingObject, priority, queueingObject.attachedObject)
+//    }
 
     /**
      * Places the QObject in the queue, with the specified priority
@@ -226,12 +231,21 @@ class Queue<T : QObject>(
      * @param qObject - the QObject to enqueue
      * @param priority - the priority for ordering the object, lower has more priority
      * @param obj an Object to be "wrapped" and queued while the QObject is queued </S> */
-    fun <S> enqueue(qObject: T, priority: Int, obj: S) {
+    fun enqueue(qObject: T, priority: Int = qObject.priority, obj: Any? = qObject.attachedObject) {
         qObject.enterQueue(this, time, priority, obj)
         myDiscipline.add(qObject)
         status = Status.ENQUEUED
+        myNumInQ.increment()
         notifyQueueListeners(qObject)
     }
+
+//    fun <S> enqueue(qObject: T, priority: Int = qObject.priority, obj: S = qObject.attachedObject) {
+//        qObject.enterQueue(this, time, priority, obj)
+//        myDiscipline.add(qObject)
+//        status = Status.ENQUEUED
+//        myNumInQ.increment()
+//        notifyQueueListeners(qObject)
+//    }
 
     /**
      * Returns a reference to the QObject representing the item that is next to
@@ -262,6 +276,8 @@ class Queue<T : QObject>(
         if (qObj != null) {
             qObj.exitQueue(time)
             status = Status.DEQUEUED
+            myNumInQ.decrement()
+            myTimeInQ.value = time - qObj.timeEnteredQueue
             notifyQueueListeners(qObj)
         }
         return qObj
@@ -384,9 +400,11 @@ class Queue<T : QObject>(
         return if (myList.remove(qObj)) {
             if (waitStats) {
                 status = Status.DEQUEUED
+                myTimeInQ.value = time - qObj.timeEnteredQueue
             } else {
                 status = Status.IGNORE
             }
+            myNumInQ.decrement()
             qObj.exitQueue(time)
             notifyQueueListeners(qObj)
             true
@@ -416,9 +434,11 @@ class Queue<T : QObject>(
         val qObj = myList.removeAt(index)
         if (waitStats) {
             status = Status.DEQUEUED
+            myTimeInQ.value = time - qObj.timeEnteredQueue
         } else {
             status = Status.IGNORE
         }
+        myNumInQ.decrement()
         qObj.exitQueue(time)
         notifyQueueListeners(qObj)
         return qObj
@@ -561,6 +581,7 @@ class Queue<T : QObject>(
         }
         myList.clear()
         status = Status.IGNORE
+        myNumInQ.value = 0.0
         notifyQueueListeners(null)
     }
 

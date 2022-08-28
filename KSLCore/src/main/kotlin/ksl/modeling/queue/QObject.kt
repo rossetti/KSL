@@ -75,7 +75,7 @@ open class QObject(theCreateTime: Double, aName: String? = null) : NameIfc, Comp
      * @return Returns the QueuedState.
      */
     val queuedState: StateAccessorIfc
-        get() = myQueuedState  //TODO clone it
+        get() = myQueuedState  //provides limited access to the state information
 
     /**
      * Sets the priority to the supplied value If the QObject is queued, the
@@ -92,14 +92,14 @@ open class QObject(theCreateTime: Double, aName: String? = null) : NameIfc, Comp
                 //change the priority here
                 // then just tell the queue that there was a change that needs handling
                 //myQueue.priorityChanged(this)
-                queue?.priorityChanged()
+                queue?.priorityChanged()//removed qObject argument which needed type info but could not supply it
             }
         }
 
     /**
      * The current queue that the QObject is in, null if not in a queue
      */
-    var queue: Queue<*>? = null //TODO why do I need the type parameter and why can't it be T: QObject
+    var queue: Queue<*>? = null //why can't it be T: QObject
         internal set
 
     /**
@@ -174,10 +174,9 @@ open class QObject(theCreateTime: Double, aName: String? = null) : NameIfc, Comp
      * @param obj an object to attach
      */
     internal fun <T:QObject> enterQueue (queue: Queue<T>, time: Double, priority: Int, obj: Any?) {
-        //TODO why do I need the type parameter and why can't it be T: QObject
         check(isNotQueued) { "The QObject was already queued!" }
         myQueuedState.enter(time)
-        this.queue = queue //TODO
+        this.queue = queue
         this.priority = priority
         attachedObject = obj
     }
