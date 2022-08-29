@@ -13,7 +13,7 @@ open class Counter(
 ) : ModelElement(parent, name), CounterIfc {
 //TODO timed update stuff
 
-    private val counterActions: MutableList<CounterActionIfc> = mutableListOf()
+    private val counterActions: MutableList<CountActionIfc> = mutableListOf()
 
     var timeOfWarmUp: Double = 0.0
         protected set
@@ -58,7 +58,7 @@ open class Counter(
             field = limit
             if (model.isRunning) {
                 if (myValue >= limit) {
-                    notifyCounterActions()
+                    notifyCountLimitActions()
                 }
             }
         }
@@ -99,22 +99,23 @@ open class Counter(
         value = value + increase
     }
 
-    fun addCounterAction(action: CounterActionIfc) {
+    fun addCountLimitAction(action: CountActionIfc) {
         counterActions.add(action)
     }
 
-    fun removeCounterAction(action: CounterActionIfc) {
+    fun removeCountLimitAction(action: CountActionIfc) {
         counterActions.remove(action)
     }
 
-    fun addStoppingAction(){
+    fun addCountLimitStoppingAction() : CountActionIfc{
         if (stoppingAction == null){
             stoppingAction = StoppingAction()
-            addCounterAction(stoppingAction!!)
+            addCountLimitAction(stoppingAction!!)
         }
+        return stoppingAction!!
     }
 
-    protected fun notifyCounterActions() {
+    protected fun notifyCountLimitActions() {
         for (a in counterActions) {
             a.action(this)
         }
@@ -128,7 +129,7 @@ open class Counter(
         timeOfChange = time
         notifyModelElementObservers(Status.UPDATE)
         if (myValue >= counterStopLimit) {
-            notifyCounterActions()
+            notifyCountLimitActions()
         }
     }
 
@@ -162,7 +163,7 @@ open class Counter(
     override var previousTimeOfChange: Double = 0.0
         protected set
 
-    protected val myAcrossReplicationStatistic: Statistic = Statistic(name!!)
+    protected val myAcrossReplicationStatistic: Statistic = Statistic(this.name)
 
     override val acrossReplicationStatistic: StatisticIfc
         get() = myAcrossReplicationStatistic.instance()
@@ -223,8 +224,8 @@ open class Counter(
         }
     }
 
-    private inner class StoppingAction : CounterActionIfc {
-        override fun action(counter: Counter) {
+    private inner class StoppingAction : CountActionIfc {
+        override fun action(responseIfc: ResponseIfc) {
             executive.stop("Stopped because counter limit $counterStopLimit was reached for $name")
         }
     }

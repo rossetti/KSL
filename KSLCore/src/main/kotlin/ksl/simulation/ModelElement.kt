@@ -50,7 +50,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
 
     override val id: Int = elementCounter
 
-    override val name: String = makeName(theName)
+    final override val name: String = makeName(theName)
     private fun makeName(str: String?): String {
         return if (str == null) {
             // no name is being passed, construct a default name

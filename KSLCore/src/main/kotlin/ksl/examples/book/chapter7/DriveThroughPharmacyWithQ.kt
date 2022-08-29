@@ -52,9 +52,9 @@ class DriveThroughPharmacyWithQ(
     private var myArrivalRS: RandomIfc = ad
     private var myServiceRV: RandomVariable = RandomVariable(this, sd)
     private var myArrivalRV: RandomVariable = RandomVariable(parent, ad)
-    private val myNumBusy: TWResponse = TWResponse(this, 0.0, name = "NumBusy")
-    private val myNS: TWResponse = TWResponse(this, 0.0, name = "# in System")
-    private val mySysTime: Response = Response(this, name ="System Time")
+    private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
+    private val myNS: TWResponse = TWResponse(this, "# in System")
+    private val mySysTime: Response = Response(this, "System Time")
     private val myArrivalEventAction: ArrivalEventAction = ArrivalEventAction()
     private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
     private val myNumCustomers: Counter = Counter(this, "Num Served")

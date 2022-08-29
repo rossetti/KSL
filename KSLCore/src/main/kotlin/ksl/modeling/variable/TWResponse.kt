@@ -6,11 +6,11 @@ import ksl.utilities.Interval
 
 class TWResponse(
     parent: ModelElement,
+    name: String? = null,
     theInitialValue: Double = 0.0,
     theLimits: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
-    theInitialCountLimit: Long = 0,
-    name: String? = null
-) : Response(parent, theLimits, theInitialCountLimit, name), TimeWeightedIfc {
+    theInitialCountLimit: Double = Double.POSITIVE_INFINITY,
+) : Response(parent, name, theLimits, theInitialCountLimit), TimeWeightedIfc {
     //TODO timed update stuff
 
     init {

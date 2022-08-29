@@ -12,11 +12,13 @@ import ksl.utilities.statistic.WeightedStatisticIfc
 // should be observable
 open class Response(
     parent: ModelElement,
+    name: String? = null,
     theLimits: Interval = Interval(),
-    theInitialCountLimit: Long = 0,
-    name: String?
+    theInitialCountLimit: Double = Double.POSITIVE_INFINITY,
 ) : ModelElement(parent, name), ResponseIfc, ResponseStatisticsIfc {
     //TODO timed update stuff
+    private val counterActions: MutableList<CountActionIfc> = mutableListOf()
+    private var stoppingAction: StoppingAction? = null
 
     val limits: Interval = theLimits
 
@@ -35,7 +37,7 @@ open class Response(
      * replication. Changing during a replication has no effect until the next
      * replication.
      */
-    var initialCountLimit: Long = theInitialCountLimit
+    var initialCountLimit: Double = theInitialCountLimit
         set(value) {
             require(value >= 0) { "The initial count stop limit, when set, must be >= 0" }
             if (model.isRunning) {
@@ -48,24 +50,25 @@ open class Response(
      * indicates the count when the simulation should stop
      * zero indicates no limit
      */
-    var countStopLimit: Long = theInitialCountLimit
+    var countStopLimit: Double = theInitialCountLimit
         set(limit) {
             require(limit >= 0) { "The count stop limit, when set, must be >= 0" }
-            if (limit < field){
-                // making limit smaller than current value
-                if (model.isRunning){
-                    Model.logger.info {"The count stop limit was reduced to $limit from $field for $name during the replication"}
-                    if (limit == 0L){
-                        Model.logger.warn {"Turning off a specified count limit may cause the replication to not stop."}
-                    } else { // new value could be smaller than current counter limit
-                        if (myValue >= limit) {
-                            Model.logger.info {"The current counter value is >= to new counter stop limit. Causing the simulation to stop."}
-                            executive.stop("Stopped because counter limit $countStopLimit was reached for $name")
-                        }
+            if (model.isRunning) {
+                if (limit < field) {
+                    Model.logger.info { "The count stop limit was reduced to $limit from $field for $name during the replication" }
+                } else if (limit > field) {
+                    Model.logger.info { "The count stop limit was increased to $limit from $field for $name during the replication" }
+                    if (limit.isInfinite()) {
+                        Model.logger.warn { "Setting the count stop limit to infinity during the replication may cause the replication to not stop." }
                     }
                 }
             }
             field = limit
+            if (model.isRunning) {
+                if (myValue >= limit) {
+                    notifyCountLimitActions()
+                }
+            }
         }
 
     protected var myValue: Double = Double.NaN
@@ -82,10 +85,8 @@ open class Response(
         timeOfChange = time
         myWithinReplicationStatistic.value = myValue
         notifyModelElementObservers(Status.UPDATE)
-        if (countStopLimit > 0) {
-            if (myWithinReplicationStatistic.count >= countStopLimit) {
-                executive.stop("Stopped because observation limit $countStopLimit was reached for $name")
-            }
+        if (myValue >= countStopLimit) {
+            notifyCountLimitActions()
         }
     }
 
@@ -98,12 +99,12 @@ open class Response(
     override var previousTimeOfChange: Double = Double.NaN
         protected set
 
-    protected val myAcrossReplicationStatistic: Statistic = Statistic(name!!)
+    protected val myAcrossReplicationStatistic: Statistic = Statistic(this.name)
 
     override val acrossReplicationStatistic: StatisticIfc
         get() = myAcrossReplicationStatistic.instance()
 
-    protected val myWithinReplicationStatistic: WeightedStatistic = WeightedStatistic(name!!)
+    protected val myWithinReplicationStatistic: WeightedStatistic = WeightedStatistic(this.name)
 
     override val withinReplicationStatistic: WeightedStatisticIfc
         get() = myWithinReplicationStatistic.instance()
@@ -149,5 +150,33 @@ open class Response(
     override fun afterReplication() {
         super.afterReplication()
         myAcrossReplicationStatistic.value = myWithinReplicationStatistic.average()
+    }
+
+    fun addCountLimitAction(action: CountActionIfc) {
+        counterActions.add(action)
+    }
+
+    fun removeCountLimitAction(action: CountActionIfc) {
+        counterActions.remove(action)
+    }
+
+    fun addCountLimitStoppingAction() : CountActionIfc{
+        if (stoppingAction == null){
+            stoppingAction = StoppingAction()
+            addCountLimitAction(stoppingAction!!)
+        }
+        return stoppingAction!!
+    }
+
+    protected fun notifyCountLimitActions() {
+        for (a in counterActions) {
+            a.action(this)
+        }
+    }
+
+    private inner class StoppingAction : CountActionIfc {
+        override fun action(response: ResponseIfc) {
+            executive.stop("Stopped because counter limit $countStopLimit was reached for $name")
+        }
     }
 }

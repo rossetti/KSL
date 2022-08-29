@@ -50,9 +50,9 @@ class DriveThroughPharmacy(
 
     private val myServiceRV: RandomVariable = RandomVariable(this, serviceTime, "Service RV")
     private val myArrivalRV: RandomVariable = RandomVariable(this, timeBtwArrivals, "Arrival RV")
-    private val myQ: TWResponse = TWResponse(this, 0.0, name = "PharmacyQ")
-    private val myNumBusy: TWResponse = TWResponse(this, 0.0, name = "NumBusy")
-    private val myNS: TWResponse = TWResponse(this, 0.0, name = "# in System")
+    private val myQ: TWResponse = TWResponse(this, "PharmacyQ")
+    private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
+    private val myNS: TWResponse = TWResponse(this, "# in System")
     private val myNumCustomers: Counter = Counter(this, name = "Num Served")
     private val myArrivalEventAction: ArrivalEventAction = ArrivalEventAction()
     private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
