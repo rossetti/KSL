@@ -197,8 +197,8 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         get() = model.myExecutive
 
     //TODO revisit myDefaultEntityType when working on process modeling
-    protected val defaultEntityType: EntityType
-        get() = model.myDefaultEntityType
+//    protected val defaultEntityType: EntityType
+//        get() = model.myDefaultEntityType
 
     /**
      * The action listener that reacts to the warm-up event.

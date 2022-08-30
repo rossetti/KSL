@@ -104,7 +104,7 @@ class Model(
      */
     private val myReplicationProcess: ReplicationProcess = ReplicationProcess("Model: Replication Process")
 
-    internal lateinit var myDefaultEntityType: EntityType
+//    internal lateinit var myDefaultEntityType: EntityType
 
     init {
         myModel = this
@@ -251,7 +251,7 @@ class Model(
 
     //TODO revisit myDefaultEntityType when working on process modeling
     private fun addDefaultElements() {
-        myDefaultEntityType = EntityType(this, "DEFAULT_ENTITY_TYPE")
+//        myDefaultEntityType = EntityType(this, "DEFAULT_ENTITY_TYPE")
     }
 
     /**
