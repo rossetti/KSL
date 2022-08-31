@@ -6,7 +6,6 @@ import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.controls.Controls
 import ksl.modeling.elements.RandomElementIfc
-import ksl.modeling.entity.EntityType
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.Variable

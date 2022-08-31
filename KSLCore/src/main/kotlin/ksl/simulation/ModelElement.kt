@@ -1,7 +1,6 @@
 package ksl.simulation
 
 import ksl.modeling.elements.RandomElementIfc
-import ksl.modeling.entity.EntityType
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
@@ -1513,7 +1512,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         }
 
         fun schedule(): KSLEvent<Nothing> {
-            return schedule(individualElementWarmUpLength, null, warmUpPriority, name = this@ModelElement.name + "_WarmUp")
+            return schedule(individualElementWarmUpLength, null, warmUpPriority, name = "${name}_WarmUp")
         }
     }
 
@@ -1570,7 +1569,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         fun schedule(): KSLEvent<Nothing> {
             return schedule(
                 timedUpdateInterval, null, timedUpdatePriority,
-                name = this@ModelElement.name + "_TimedUpdate"
+                name = "${name}_TimedUpdate"
             )
         }
 

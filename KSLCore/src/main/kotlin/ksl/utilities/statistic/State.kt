@@ -202,9 +202,7 @@ open class State(
         totalTimeInState = 0.0
         numberOfTimesEntered = 0.0
         numberOfTimesExited = 0.0
-        if (sojournTimeStatistic != null) {
-            sojournTimeStatistic!!.reset()
-        }
+        resetSojournTimeStatistics()
     }
 
     /**
@@ -219,7 +217,7 @@ open class State(
     /**
      * Resets the counters for the number of times a state
      * was entered, exited, and the total time spent in the state
-     * This does not effect whether or the state has been entered,
+     * This does not affect whether or the state has been entered,
      * the time it was last entered, or the time it was last exited.
      * To reset those quantities and the state counters use initialize()
      */

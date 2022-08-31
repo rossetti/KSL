@@ -30,7 +30,7 @@ import ksl.utilities.random.rvariable.UniformRV
  * @param name the name of the estimator
  * @param thresholds the thresholds
  */
-class ExceedanceEstimator(name: String?, thresholds: DoubleArray = doubleArrayOf(1.0)) : Collector(name) {
+class ExceedanceEstimator(thresholds: DoubleArray = doubleArrayOf(1.0), name: String? = null) : Collector(name) {
 
     /**
      * The thresholds for the exceedance estimates
@@ -51,7 +51,7 @@ class ExceedanceEstimator(name: String?, thresholds: DoubleArray = doubleArrayOf
 
     val numThresholds = myThresholds.size
 
-    constructor(vararg thresholds: Double) : this(null, thresholds)
+    constructor(vararg thresholds: Double) : this(thresholds, null)
 
     override fun collect(obs: Double) {
         super.collect(obs)

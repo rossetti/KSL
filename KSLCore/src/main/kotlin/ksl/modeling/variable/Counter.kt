@@ -225,7 +225,7 @@ open class Counter(
     }
 
     private inner class StoppingAction : CountActionIfc {
-        override fun action(responseIfc: ResponseIfc) {
+        override fun action(response: ResponseIfc) {
             executive.stop("Stopped because counter limit $counterStopLimit was reached for $name")
         }
     }

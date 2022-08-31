@@ -15,7 +15,7 @@
 */
 package ksl.simulation
 
-import ksl.process.Entity
+import ksl.process.Entity //TODO the other kind of Entity is needed
 import java.text.DecimalFormat
 
 /**
