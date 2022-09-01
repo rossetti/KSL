@@ -11,7 +11,25 @@ import ksl.utilities.statistic.DoubleArraySaver
 import ksl.utilities.statistic.Statistic
 
 fun main() {
-    testStatistics()
+//    testStatistics()
+    testSequence()
+}
+
+
+val seq: Sequence<Int> = sequence<Int> {
+    println("Generating first")
+    yield(1)
+    println("Generating second")
+    yield(2)
+    println("Generating third")
+    yield(3)
+    println("Done")
+}
+
+fun testSequence() {
+    for (num in seq) {
+        println("The next number is $num")
+    }
 }
 
 public fun testStatistics() {
