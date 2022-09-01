@@ -42,7 +42,7 @@ interface ProcessScope {
      *  @param priority a priority indicator to inform ordering when there is more than one process waiting for
      *  the same signal
      */
-    suspend fun waitFor(signal: Signal, priority: Int = KSLEvent.DEFAULT_PRIORITY)
+//    suspend fun waitFor(signal: Signal, priority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
      *  Requests a number of units of the indicated resource.
@@ -77,7 +77,7 @@ interface ProcessScope {
      *   The default is 1 unit. Cannot be more than the number of units
      *  @param resource the resource from which the units are being requested
      */
-    suspend fun release(resource: Resource, numReleased: Int = 1) //TODO I don't think it needs to be a suspending function
+     fun release(resource: Resource, numReleased: Int = 1) //TODO I don't think it needs to be a suspending function
 
 }
 
@@ -120,12 +120,12 @@ internal class ProcessCoroutine : ProcessScope, ProcessContinuation() {
             COROUTINE_SUSPENDED }
     }
 
-    override suspend fun waitFor(signal: Signal, priority: Int) {
-        // if signal is on/true then just return
-        // if signal is off/false then suspend
-        // need to register with the signal before suspending
-        TODO("Not yet implemented")
-    }
+//    override suspend fun waitFor(signal: Signal, priority: Int) {
+//        // if signal is on/true then just return
+//        // if signal is off/false then suspend
+//        // need to register with the signal before suspending
+//        TODO("Not yet implemented")
+//    }
 
     override suspend fun seize(resource: Resource, numRequested: Int, priority: Int): Allocation {
         // if the request/task has been allocated then just return
@@ -145,7 +145,7 @@ internal class ProcessCoroutine : ProcessScope, ProcessContinuation() {
     //TODO consider scheduleResumeAfterDelay()
     // https://github.com/Kotlin/kotlinx.coroutines/blob/3cb61fc44bec51f85abde11f83bc5f556e5e313a/kotlinx-coroutines-core/common/src/Delay.kt
 
-    override suspend fun release(resource: Resource, numReleased: Int) {
+    override fun release(resource: Resource, numReleased: Int) {
         // this is not really a suspending function
         TODO("Not yet implemented")
     }

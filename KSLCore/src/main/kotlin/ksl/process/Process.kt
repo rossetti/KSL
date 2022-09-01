@@ -147,7 +147,7 @@ of the interface Sequence by defining a function declaration with equals that ca
 Sequence and passing in a lambda expression that calls the iterator function that uses the suspending function parameter
 "block" to create an Iterator
  */
-public fun <T> sequence(block: suspend SequenceScope<T>.() -> Unit): Sequence<T> = Sequence { iterator(block) }
+public fun <T> sequence(block: suspend SequenceScope<T>.() -> Unit): Sequence<T> = Sequence ({ iterator(block) })
 
 public fun <T> iterator(block: suspend SequenceScope<T>.() -> Unit): Iterator<T> {
     val iterator = SequenceBuilderIterator<T>()
@@ -286,7 +286,7 @@ private class SequenceBuilderIterator<T> : SequenceScope<T>(), Iterator<T>, Cont
         }
     }
 
-    // Completion continuation implementation
+    // Completion continuation implementation for Continuation<Unit>
     override fun resumeWith(result: Result<Unit>) {
         result.getOrThrow() // just rethrow exception if it is there
         state = State_Done
