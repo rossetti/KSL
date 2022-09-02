@@ -21,9 +21,8 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
     // maybe the process builder is an inner class to Entity and can only be used there to defined process
     // routines
 
-    open inner class Entity(aName: String? = null) : QObject(time, aName), ProcessScope, Continuation<Unit> {
+    open inner class Entity(aName: String? = null) : QObject(time, aName) {
 
-        var continuation: Continuation<Unit>? = null //set with suspending
         val entityType = this@EntityType
 
         //TODO need to track whether entity is suspended or not
@@ -68,6 +67,11 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
         }
 
+        /** Indicates to the entity that it has received an allocation from a resource
+         *  This internal method is called from the Resource class.
+         *
+         * @param allocation the allocation created by the resource for the entity
+         */
         internal fun allocate(allocation: Allocation) {
             if (!resourceAllocations.contains(allocation.resource)) {
                 resourceAllocations[allocation.resource] = mutableListOf()
@@ -76,6 +80,12 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             //TODO the entity has been given resources, we should schedule it to resume at the current time
         }
 
+        /**
+         * This internal method is called from the Resource class, when the allocation is
+         * released on the resource.
+         *
+         * @param allocation the allocation to be removed (deallocated) from the entity
+         */
         internal fun deallocate(allocation: Allocation) {
             resourceAllocations[allocation.resource]!!.remove(allocation)
             if (resourceAllocations[allocation.resource]!!.isEmpty()) {
@@ -83,51 +93,74 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
         }
 
-        override suspend fun suspend() {
-            // whenever suspended this creates a new continuation, which must be captured for resumption
-            return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
-                continuation = cont
-                COROUTINE_SUSPENDED }
-//            TODO("Not yet implemented")
+        // need a function to enable the creation of process routines
+        // need to have some function that uses createCoroutineUnintercepted()
+
+        protected inner class ProcessRoutine : ProcessIfc, Continuation<Unit> {//TODO maybe private or protected
+            private var continuation : Continuation<Unit>? = null //set with suspending
+            val entity: Entity = this@Entity // to facility which entity is in the process routine
+
+            override fun resume() {
+                // what to do if the process is not suspended
+                continuation?.resume(Unit)
+                //TODO("Not yet implemented")
+            }
+
+            override suspend fun suspend() {
+                // whenever suspended this creates a new continuation, which must be captured for resumption
+                return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
+                    continuation = cont
+                    COROUTINE_SUSPENDED }
+            }
+
+//    override suspend fun waitFor(signal: Signal, priority: Int) {
+//        // if signal is on/true then just return
+//        // if signal is off/false then suspend
+//        // need to register with the signal before suspending
+//        TODO("Not yet implemented")
+//    }
+
+            override suspend fun seize(resource: Resource, numRequested: Int, priority: Int): Allocation {
+                // if the request/task has been allocated then just return
+                // otherwise suspend
+                TODO("Not yet implemented")
+            }
+
+            override suspend fun delay(time: Double, priority: Int) {
+                // if time < 0 throw error
+                // if time = 0 don't delay, just return
+                // if time > 0, then schedule a resume after the delay, and then suspend
+                // need to think about what happens if the event associated with this delay is cancelled
+                // probably needs to return the event
+                TODO("Not yet implemented")
+            }
+
+            //TODO consider scheduleResumeAfterDelay()
+            // https://github.com/Kotlin/kotlinx.coroutines/blob/3cb61fc44bec51f85abde11f83bc5f556e5e313a/kotlinx-coroutines-core/common/src/Delay.kt
+
+            override fun release(allocation: Allocation) {
+                // this is not really a suspending function
+                TODO("Not yet implemented")
+            }
+
+            override val context: CoroutineContext get() = EmptyCoroutineContext
+
+            override fun resumeWith(result: Result<Unit>) {
+                //not sure what to do with this
+                println("before result.getOrThrow()")
+                result.getOrThrow()
+                println("after result.getOrThrow()")
+            }
         }
 
-        override fun resume() {
-            //TODO what to do if the process is not suspended
-            continuation?.resume(Unit)
-            //TODO("Not yet implemented")
+        protected fun testSomething() : ProcessRoutine {
+            val coroutine = ProcessRoutine()
+
+            return coroutine
         }
-
-//        override suspend fun waitFor(signal: Signal, priority: Int) {
-//            TODO("Not yet implemented")
-//        }
-
-        override suspend fun seize(resource: Resource, numRequested: Int, priority: Int): Allocation {
-            TODO("Not yet implemented")
-        }
-
-        override suspend fun delay(time: Double, priority: Int) {
-            TODO("Not yet implemented")
-        }
-
-        override fun release(allocation: Allocation) {
-            TODO("Not yet implemented")
-        }
-
-        override val context: CoroutineContext
-            get() = EmptyCoroutineContext
-
-        override fun resumeWith(result: Result<Unit>) {
-            //TODO not sure what to do with this
-//            println("before result.getOrThrow()")
-            result.getOrThrow()
-//            println("after result.getOrThrow()")
-        }
-
     }
 
-    inner class TestEntity : Entity("test") {
-        suspend fun someProcess(){
-            this.suspend()//TODO this is allowing me to call these but do I really want that
-        }
+    protected inner class TestEntity : Entity("test") {
+
     }
 }

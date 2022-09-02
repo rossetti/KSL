@@ -8,7 +8,7 @@ import kotlin.coroutines.*
 class Signal {} // represents a signal to hold a process for, must have some kind of queue
 
 @RestrictsSuspension
-interface ProcessScope {
+interface ProcessIfc {
 
 //    /**
 //     *  Activates the process. Causes the process to be scheduled to start at the present time or some time
@@ -31,7 +31,7 @@ interface ProcessScope {
     /**
      *  Resumes the process after it was halted (suspended).
      */
-    fun resume() //TODO I don't think it needs to be a suspending function
+    fun resume()
 
     /**
      *  Causes the process to halt, waiting for the signal to be on.  If the signal if off, when the process
@@ -70,14 +70,11 @@ interface ProcessScope {
     suspend fun delay(time: Double, priority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
-     *  Releases a number of units of the indicated resource.
+     *  Releases the allocation of the resource
      *
-     *
-     *  @param numReleased the number of units of the resource needed for the request.
-     *   The default is 1 unit. Cannot be more than the number of units
-     *  @param resource the resource from which the units are being requested
+     *  @param allocation represents an allocation of so many units of a resource to an entity
      */
-     fun release(allocation: Allocation) //TODO I don't think it needs to be a suspending function
+     fun release(allocation: Allocation)
 
 }
 
@@ -104,7 +101,7 @@ internal open class ProcessContinuation : Continuation<Unit> {
  */
 
 
-internal class ProcessCoroutine : ProcessScope, ProcessContinuation() {
+internal class ProcessCoroutine : ProcessIfc, ProcessContinuation() {
     var continuation : Continuation<Unit>? = null //set with suspending
 
     override fun resume() {

@@ -9,12 +9,90 @@ import ksl.utilities.random.rvariable.DUniformRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.DoubleArraySaver
 import ksl.utilities.statistic.Statistic
+import kotlin.coroutines.intrinsics.*
+import kotlin.coroutines.*
 
 fun main() {
 //    testStatistics()
-    testSequence()
+//    testSequence()
+
+    val gen = anotherGenerator(10)
+    println(gen.next(Unit)) // 10
+    println(gen.next(Unit)) // 11
 }
 
+// note that the 'this' of the generate lambda is the GeneratorBuilder that has the scope limited
+// to only the yield functions
+// the another generator function returns a Generator and I do not see any launch or other coroutine functions
+// to call it.
+// need to think about start coroutine versus create coroutine
+
+fun anotherGenerator(i: Int): Generator<Int, Unit> = generate<Int, Unit> {
+    yield(i + 1)
+    yield(i + 2)
+    yield(i + 3)
+}
+
+
+interface Generator<out T, in R> {
+    fun next(param: R): T? // returns `null` when generator is over
+}
+
+@RestrictsSuspension
+interface GeneratorBuilder<in T, R> {
+    suspend fun yield(value: T): R
+    suspend fun yieldAll(generator: Generator<T, R>, param: R)
+}
+
+fun <T, R> generate(block: suspend GeneratorBuilder<T, R>.(R) -> Unit): Generator<T, R> {
+    val coroutine = GeneratorCoroutine<T, R>()
+    val initial: suspend (R) -> Unit = { result -> block(coroutine, result) }
+    coroutine.nextStep = { param -> initial.startCoroutine(param, coroutine) }
+    return coroutine
+}
+
+// Generator coroutine implementation class
+internal class GeneratorCoroutine<T, R>: Generator<T, R>, GeneratorBuilder<T, R>, Continuation<Unit> {
+    lateinit var nextStep: (R) -> Unit
+    private var lastValue: T? = null
+    private var lastException: Throwable? = null
+
+    // Generator<T, R> implementation
+
+    override fun next(param: R): T? {
+        nextStep(param)
+        lastException?.let { throw it }
+        return lastValue
+    }
+
+    // GeneratorBuilder<T, R> implementation
+
+    override suspend fun yield(value: T): R = suspendCoroutineUninterceptedOrReturn { cont ->
+        lastValue = value
+        nextStep = { param -> cont.resume(param) }
+        COROUTINE_SUSPENDED
+    }
+
+    override suspend fun yieldAll(generator: Generator<T, R>, param: R): Unit = suspendCoroutineUninterceptedOrReturn sc@ { cont ->
+        lastValue = generator.next(param)
+        if (lastValue == null) return@sc Unit // delegated coroutine does not generate anything -- resume
+        nextStep = { param ->
+            lastValue = generator.next(param)
+            if (lastValue == null) cont.resume(Unit) // resume when delegate is over
+        }
+        COROUTINE_SUSPENDED
+    }
+
+    // Continuation<Unit> implementation
+
+    override val context: CoroutineContext get() = EmptyCoroutineContext
+
+    override fun resumeWith(result: Result<Unit>) {
+        result
+            .onSuccess { lastValue = null }
+            .onFailure { lastException = it }
+    }
+}
 
 val seq: Sequence<Int> = sequence<Int> {
     println("Generating first")
