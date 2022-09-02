@@ -77,7 +77,7 @@ interface ProcessScope {
      *   The default is 1 unit. Cannot be more than the number of units
      *  @param resource the resource from which the units are being requested
      */
-     fun release(resource: Resource, numReleased: Int = 1) //TODO I don't think it needs to be a suspending function
+     fun release(allocation: Allocation) //TODO I don't think it needs to be a suspending function
 
 }
 
@@ -145,7 +145,7 @@ internal class ProcessCoroutine : ProcessScope, ProcessContinuation() {
     //TODO consider scheduleResumeAfterDelay()
     // https://github.com/Kotlin/kotlinx.coroutines/blob/3cb61fc44bec51f85abde11f83bc5f556e5e313a/kotlinx-coroutines-core/common/src/Delay.kt
 
-    override fun release(resource: Resource, numReleased: Int) {
+    override fun release(allocation: Allocation) {
         // this is not really a suspending function
         TODO("Not yet implemented")
     }

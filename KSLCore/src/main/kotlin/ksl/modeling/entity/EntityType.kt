@@ -109,7 +109,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             TODO("Not yet implemented")
         }
 
-        override fun release(resource: Resource, numReleased: Int) {
+        override fun release(allocation: Allocation) {
             TODO("Not yet implemented")
         }
 
