@@ -241,10 +241,6 @@ class Resource(
         allocation.amount = 0
     }
 
-    protected inner class Request {
-
-    }
-
     protected inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
         State(name = aName, useStatistic = stateStatistics) {
         //TODO need to track states: idle, busy, failed, inactive

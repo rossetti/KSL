@@ -1,13 +1,12 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.QObject
+import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
-import kotlin.coroutines.resume
 
 open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent, name) {
     //TODO need to implement
@@ -20,6 +19,8 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
     //TODO issue of multiple inheritance and process, maybe implement ProcessIfc and delegate to ProcessCoroutine
     // maybe the process builder is an inner class to Entity and can only be used there to defined process
     // routines
+
+
 
     open inner class Entity(aName: String? = null) : QObject(time, aName) {
 
@@ -93,17 +94,40 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
         }
 
-        // need a function to enable the creation of process routines
-        // need to have some function that uses createCoroutineUnintercepted()
+        /**
+         *  This function is used to define via a builder a process for the entity.
+         *
+         *  Creates the coroutine and immediately suspends it.  To start executing
+         *  the created coroutine invoke resume(Unit) on the returned Continuation.
+         *  This is the purpose of activate()
+         */
+        protected fun process(block: suspend ProcessBuilder.() -> Unit): Process {
+            val coroutine = ProcessCoroutine()
+            coroutine.continuation = block.createCoroutineUnintercepted(receiver = coroutine, completion = coroutine)
+            return coroutine
+        }
 
-        protected inner class ProcessRoutine : ProcessIfc, Continuation<Unit> {//TODO maybe private or protected
-            private var continuation : Continuation<Unit>? = null //set with suspending
+        /**
+         *  When an entity enters a time delayed state, this property captures the event associated
+         *  with the delay action
+         */
+        protected var delayEvent: KSLEvent<Nothing>? = null
+
+        protected inner class ProcessCoroutine : ProcessBuilder, Process, Continuation<Unit> {//TODO maybe private or protected
+            var continuation : Continuation<Unit>? = null //set with suspending
             val entity: Entity = this@Entity // to facility which entity is in the process routine
+            private val delayAction = DelayAction()
+
+            override fun activate() {
+                println("In activate within ProcessCoroutine")
+                //TODO set the entity state and coroutine state
+                resume()
+            }
 
             override fun resume() {
+                //TODO need to capture state of entity and of coroutine
                 // what to do if the process is not suspended
                 continuation?.resume(Unit)
-                //TODO("Not yet implemented")
             }
 
             override suspend fun suspend() {
@@ -126,19 +150,20 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 TODO("Not yet implemented")
             }
 
-            override suspend fun delay(time: Double, priority: Int) {
-                // if time < 0 throw error
-                // if time = 0 don't delay, just return
-                // if time > 0, then schedule a resume after the delay, and then suspend
-                // need to think about what happens if the event associated with this delay is cancelled
-                // probably needs to return the event
-                TODO("Not yet implemented")
+            override suspend fun delay(delayDuration: Double, delayPriority: Int) {
+                require(delayDuration >= 0.0) {"The duration of the delay must be >= 0.0"}
+                require(delayDuration.isFinite()) {"The duration of the delay must be finite (cannot be infinite)"}
+                if (delayDuration == 0.0){
+                    return
+                }
+                // capture the event for possible cancellation
+                delayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
+                //TODO set entity state and coroutine state
+                suspend()
             }
 
-            //TODO consider scheduleResumeAfterDelay()
-            // https://github.com/Kotlin/kotlinx.coroutines/blob/3cb61fc44bec51f85abde11f83bc5f556e5e313a/kotlinx-coroutines-core/common/src/Delay.kt
-
             override fun release(allocation: Allocation) {
+                allocation.resource.deallocate(allocation)
                 // this is not really a suspending function
                 TODO("Not yet implemented")
             }
@@ -151,16 +176,30 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 result.getOrThrow()
                 println("after result.getOrThrow()")
             }
+
+            protected inner class DelayAction: EventAction<Nothing>() {
+                override fun action(event: KSLEvent<Nothing>) {
+                    resume()
+                }
+
+            }
+
         }
 
-        protected fun testSomething() : ProcessRoutine {
-            val coroutine = ProcessRoutine()
+        // need to capture start and end and dispose of the entity correctly
+        // wrap the call to the process in another hidden method??
+        protected fun activate(process: Process, activationTime: Double, priority: Int) : KSLEvent<Process> {
+            return activationAction.schedule(activationTime, process, priority)
+        }
 
-            return coroutine
+        private val activationAction: ActivateAction = ActivateAction()
+
+        private inner class ActivateAction: EventAction<Process>() {
+            override fun action(event: KSLEvent<Process>) {
+                event.message?.activate()
+            }
+
         }
     }
 
-    protected inner class TestEntity : Entity("test") {
-
-    }
 }
