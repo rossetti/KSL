@@ -17,13 +17,28 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
     //TODO need to automatically dispose of entity at end of processes and check if it still has allocations
     // it is an error to dispose of an entity that has allocations
 
-    //TODO issue of multiple inheritance and process, maybe implement ProcessIfc and delegate to ProcessCoroutine
-    // maybe the process builder is an inner class to Entity and can only be used there to defined process
-    // routines
-
-
 
     open inner class Entity(aName: String? = null) : QObject(time, aName) {
+        private val myCreatedState = CreatedState()
+        private val myScheduledState = ScheduledState()
+        private val myConditionDelayedState = ConditionDelayedState()
+        private val myDormantState = DormantState()
+        private val myActiveState = ActiveState()
+        private val myDisposedState = DisposedState()
+        private var state : EntityState = myCreatedState
+        //TODO methods to check state
+
+        /**
+         *  When an entity enters a time delayed state, this property captures the event associated
+         *  with the delay action
+         */
+        private var myDelayEvent: KSLEvent<Nothing>? = null //TODO make private but allow fun to cancel
+
+        /**
+         *  Used to invoke activation of a process
+         */
+        private val myActivationAction: ActivateAction = ActivateAction()
+        private var myCurrentProcess: Process? = null // track the currently executing process
 
         val entityType = this@EntityType
 
@@ -52,6 +67,9 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 resourceAllocations[resource]!!.size
             }
         }
+
+        val hasAllocations: Boolean
+            get() = resourceAllocations.isNotEmpty()
 
         /**
          * Computes the total number of units of the specified resource that are allocated
@@ -108,12 +126,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             return coroutine
         }
 
-        /**
-         *  When an entity enters a time delayed state, this property captures the event associated
-         *  with the delay action
-         */
-        protected var delayEvent: KSLEvent<Nothing>? = null
-
         protected inner class ProcessCoroutine : ProcessBuilder, Process, Continuation<Unit> {//TODO maybe private or protected
             var continuation : Continuation<Unit>? = null //set with suspending
             val entity: Entity = this@Entity // to facility which entity is in the process routine
@@ -158,7 +170,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                     return
                 }
                 // capture the event for possible cancellation
-                delayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
+                myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
                 //TODO set entity state and coroutine state
                 suspend()
             }
@@ -188,10 +200,10 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         // need to capture start and end and dispose of the entity correctly
         // wrap the call to the process in another hidden method??
         protected fun activate(process: Process, activationTime: Double, priority: Int) : KSLEvent<Process> {
-            return activationAction.schedule(activationTime, process, priority)
+            //TODO maybe pass the entity and save the current process in a field
+            // an entity can only be in 1 process at a time
+            return myActivationAction.schedule(activationTime, process, priority)
         }
-
-        private val activationAction: ActivateAction = ActivateAction()
 
         private inner class ActivateAction: EventAction<Process>() {
             override fun action(event: KSLEvent<Process>) {
@@ -199,15 +211,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
 
         }
-
-        private val myCreatedState = CreatedState()
-        private val myScheduledState = ScheduledState()
-        private val myConditionDelayedState = ConditionDelayedState()
-        private val myDormantState = DormantState()
-        private val myActiveState = ActiveState()
-        private val myDisposedState = DisposedState()
-
-        private var state : EntityState = myCreatedState
 
         private open inner class EntityState(val name: String){
             open fun create(){
