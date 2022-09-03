@@ -3,6 +3,7 @@ package ksl.modeling.entity
 import ksl.modeling.queue.QObject
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.exceptions.IllegalStateException
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
@@ -164,8 +165,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
             override fun release(allocation: Allocation) {
                 allocation.resource.deallocate(allocation)
-                // this is not really a suspending function
-                TODO("Not yet implemented")
             }
 
             override val context: CoroutineContext get() = EmptyCoroutineContext
@@ -200,6 +199,106 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
 
         }
+
+        private val myCreatedState = CreatedState()
+        private val myScheduledState = ScheduledState()
+        private val myConditionDelayedState = ConditionDelayedState()
+        private val myDormantState = DormantState()
+        private val myActiveState = ActiveState()
+        private val myDisposedState = DisposedState()
+
+        private var state : EntityState = myCreatedState
+
+        private open inner class EntityState(val name: String){
+            open fun create(){
+                errorMessage("create entity")
+            }
+
+            open fun active(){
+                errorMessage("activate entity")
+            }
+
+            open fun scheduled(){
+                errorMessage("time delay entity")
+            }
+
+            open fun conditionDelay(){
+                errorMessage("condition delay entity")
+            }
+
+            open fun dormant(){
+                errorMessage("make dormant entity")
+            }
+
+            open fun dispose(){
+                errorMessage("dispose entity")
+            }
+
+            private fun errorMessage(routineName: String){
+                val sb = StringBuilder()
+                sb.appendLine()
+                sb.append("Tried to $routineName ")
+                sb.append(name)
+                sb.append(" from an illegal state: ")
+                sb.append(state.toString())
+                sb.appendLine()
+                sb.append(this@EntityState.toString())
+//TODO                ksl.simulation.logger.error { sb.toString() }
+                throw IllegalStateException(sb.toString())
+            }
+
+            override fun toString(): String {
+                return name
+            }
+        }
+
+        private inner class CreatedState: EntityState("Created") {
+
+            override fun scheduled() {
+                state = myScheduledState
+            }
+        }
+
+        private inner class ActiveState: EntityState("Active") {
+
+            override fun scheduled() {
+                state = myScheduledState
+            }
+
+            override fun conditionDelay() {
+                state = myConditionDelayedState
+            }
+
+            override fun dormant() {
+                state = myDormantState
+            }
+
+            override fun dispose() {
+                state = myDisposedState
+            }
+        }
+
+        private inner class ScheduledState: EntityState("Scheduled") {
+            override fun active() {
+                state = myActiveState
+            }
+        }
+
+        private inner class ConditionDelayedState: EntityState("ConditionDelayed") {
+            override fun active() {
+                state = myActiveState
+            }
+        }
+
+        private inner class DormantState: EntityState("Dormant") {
+            override fun active() {
+                state = myActiveState
+            }
+        }
+
+        private inner class DisposedState : EntityState("Disposed")
+
+
     }
 
 }
