@@ -12,6 +12,10 @@ interface Process {
     fun activate()
 }
 
+interface ProcessResumer {
+    fun resume(entity: EntityType.Entity)
+}
+
 @RestrictsSuspension
 interface ProcessBuilder {
 
@@ -29,14 +33,17 @@ interface ProcessBuilder {
 // maybe activate should take in a process and not be in this scope?
 
     /**
-     *  Suspends the execution of the process
+     *  Suspends the execution of the process.  Since the process cannot resume itself, the client
+     *  must provide an object that will resume the process.
+     *
+     *  @param resumer something that knows how to resume the process after it is suspended
      */
-    suspend fun suspend()
+    suspend fun suspend(resumer: ProcessResumer)
 
     /**
      *  Resumes the process after it was halted (suspended).
      */
-    fun resume()
+    fun resume() //TODO need to remove this
 
     /**
      *  Causes the process to halt, waiting for the signal to be on.  If the signal if off, when the process
@@ -47,7 +54,7 @@ interface ProcessBuilder {
      *  @param priority a priority indicator to inform ordering when there is more than one process waiting for
      *  the same signal
      */
-//    suspend fun waitFor(signal: Signal, priority: Int = KSLEvent.DEFAULT_PRIORITY)
+    suspend fun waitFor(signal: Signal, priority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
      *  Requests a number of units of the indicated resource.

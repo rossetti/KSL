@@ -3,7 +3,9 @@ package ksl.modeling.entity
 import ksl.modeling.queue.QObject
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.GetValueIfc
 import ksl.utilities.exceptions.IllegalStateException
+import java.util.Scanner
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
@@ -19,6 +21,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
 
     open inner class Entity(aName: String? = null) : QObject(time, aName) {
+        val entityType = this@EntityType
         private val myCreatedState = CreatedState()
         private val myScheduledState = ScheduledState()
         private val myConditionDelayedState = ConditionDelayedState()
@@ -26,23 +29,33 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         private val myActiveState = ActiveState()
         private val myDisposedState = DisposedState()
         private var state : EntityState = myCreatedState
-        //TODO methods to check state
+
+        val isCreated: Boolean
+            get() = state == myCreatedState
+        val isTimeDelayed: Boolean
+            get() = state == myScheduledState
+        val isConditionDelayed : Boolean
+            get() = state == myConditionDelayedState
+        val isDormant: Boolean
+            get() = state == myDormantState
+        val isActive: Boolean
+            get() = state == myActiveState
+        val isDisposed: Boolean
+            get() = state == myDisposedState
+        //TODO need to track whether entity is suspended or not
+        //TODO need a way to track if entity is running a process or not
 
         /**
          *  When an entity enters a time delayed state, this property captures the event associated
          *  with the delay action
          */
-        private var myDelayEvent: KSLEvent<Nothing>? = null //TODO make private but allow fun to cancel
+        private var myDelayEvent: KSLEvent<Nothing>? = null //TODO add fun to cancel
 
         /**
          *  Used to invoke activation of a process
          */
         private val myActivationAction: ActivateAction = ActivateAction()
         private var myCurrentProcess: Process? = null // track the currently executing process
-
-        val entityType = this@EntityType
-
-        //TODO need to track whether entity is suspended or not
 
         /**  An entity can be using 0 or more resources.
          *  The key to this map represents the resources that are allocated to this entity.
@@ -126,36 +139,95 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             return coroutine
         }
 
+        /**
+         *  Activates the process. Causes the process to be scheduled to start at the present time or some time
+         *  into the future. This schedules an event
+         *
+         *  @param activationTime the time into the future at which the process should be activated (started) for
+         *  the supplied entity
+         *  @param priority used to indicate priority of activation if there are activations at the same time.
+         *  Lower priority goes first.
+         *  @return KSLEvent the event used to schedule the activation
+         */
+        protected fun activate(process: Process, activationTime: GetValueIfc, priority: Int = KSLEvent.DEFAULT_PRIORITY): KSLEvent<Process>{
+            return activate(process, activationTime.value, priority)
+        }
+
+        /**
+         *  Activates the process. Causes the process to be scheduled to start at the present time or some time
+         *  into the future. This schedules an event
+         *
+         *  @param activationTime the time into the future at which the process should be activated (started) for
+         *  the supplied entity
+         *  @param priority used to indicate priority of activation if there are activations at the same time.
+         *  Lower priority goes first.
+         *  @return KSLEvent the event used to schedule the activation
+         */
+        protected fun activate(process: Process, activationTime: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) : KSLEvent<Process> {
+            //TODO maybe pass the entity and save the current process in a field, update state
+            // need to prevent call to process's activate until after the scheduled event occurs
+            // an entity can only be in 1 process at a time
+            return myActivationAction.schedule(activationTime, process, priority)
+        }
+
+        private inner class ActivateAction: EventAction<Process>() {
+            override fun action(event: KSLEvent<Process>) {
+                runProcess(this@Entity, event.message!!)
+            }
+
+        }
+
+        // need a way to resume a suspended process
+
+        protected fun resumeProcess(){
+            // entity must be in a process and it must be suspended
+            // how to resume it
+
+        }
+
+        private fun runProcess(entity: Entity, process: Process) {
+            //TODO
+            // check if already in a process that is running
+           process.activate() // must ensure that this can only be called from here
+            // determine what to do next, if nothing then dispose of entity
+
+        }
+
         protected inner class ProcessCoroutine : ProcessBuilder, Process, Continuation<Unit> {//TODO maybe private or protected
-            var continuation : Continuation<Unit>? = null //set with suspending
+        var continuation : Continuation<Unit>? = null //set with suspending
             val entity: Entity = this@Entity // to facility which entity is in the process routine
+            var resumer: ProcessResumer? = null
             private val delayAction = DelayAction()
+            val selfResumer: ProcessResumer = SelfResumer()
 
             override fun activate() {
                 println("In activate within ProcessCoroutine")
                 //TODO set the entity state and coroutine state
+                // capture stuff so that entity can resume
                 resume()
             }
 
-            override fun resume() {
+            override fun resume() { // maybe protected or internal so that only entity can call it and can be called by this instance
                 //TODO need to capture state of entity and of coroutine
                 // what to do if the process is not suspended
                 continuation?.resume(Unit)
             }
 
-            override suspend fun suspend() {
+            override suspend fun suspend(resumer: ProcessResumer) {
                 // whenever suspended this creates a new continuation, which must be captured for resumption
+                //TODO need to capture the state of the entity
+                this.resumer = resumer
                 return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
                     continuation = cont
                     COROUTINE_SUSPENDED }
             }
 
-//    override suspend fun waitFor(signal: Signal, priority: Int) {
-//        // if signal is on/true then just return
-//        // if signal is off/false then suspend
-//        // need to register with the signal before suspending
-//        TODO("Not yet implemented")
-//    }
+            override suspend fun waitFor(signal: Signal, priority: Int) {
+                // if signal is on/true then just return
+                // if signal is off/false then suspend
+                // need to register with the signal before suspending
+                TODO("Not yet implemented")
+            }
 
             override suspend fun seize(resource: Resource, numRequested: Int, priority: Int): Allocation {
                 // if the request/task has been allocated then just return
@@ -172,7 +244,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 // capture the event for possible cancellation
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
                 //TODO set entity state and coroutine state
-                suspend()
+                suspend(selfResumer)
             }
 
             override fun release(allocation: Allocation) {
@@ -190,24 +262,16 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
             protected inner class DelayAction: EventAction<Nothing>() {
                 override fun action(event: KSLEvent<Nothing>) {
-                    resume()
+                    selfResumer.resume(entity)
                 }
 
             }
 
-        }
-
-        // need to capture start and end and dispose of the entity correctly
-        // wrap the call to the process in another hidden method??
-        protected fun activate(process: Process, activationTime: Double, priority: Int) : KSLEvent<Process> {
-            //TODO maybe pass the entity and save the current process in a field
-            // an entity can only be in 1 process at a time
-            return myActivationAction.schedule(activationTime, process, priority)
-        }
-
-        private inner class ActivateAction: EventAction<Process>() {
-            override fun action(event: KSLEvent<Process>) {
-                event.message?.activate()
+            private inner class SelfResumer: ProcessResumer {
+                override fun resume(entity: Entity) {
+                    //TODO capture state?
+                    continuation?.resume(Unit)
+                }
             }
 
         }
@@ -300,7 +364,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         }
 
         private inner class DisposedState : EntityState("Disposed")
-
 
     }
 
