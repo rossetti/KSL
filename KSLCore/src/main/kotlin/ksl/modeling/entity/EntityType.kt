@@ -16,8 +16,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
 //TODO need careful method to create and start entity in processes
 
-    //TODO need to automatically dispose of entity at end of processes and check if it still has allocations
-    // it is an error to dispose of an entity that has allocations
 
 
     open inner class Entity(aName: String? = null) : QObject(time, aName) {
@@ -28,13 +26,13 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         private val myDormantState = DormantState()
         private val myActiveState = ActiveState()
         private val myDisposedState = DisposedState()
-        private var state : EntityState = myCreatedState
+        private var state: EntityState = myCreatedState
 
         val isCreated: Boolean
             get() = state == myCreatedState
         val isTimeDelayed: Boolean
             get() = state == myScheduledState
-        val isConditionDelayed : Boolean
+        val isConditionDelayed: Boolean
             get() = state == myConditionDelayedState
         val isDormant: Boolean
             get() = state == myDormantState
@@ -149,7 +147,11 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
          *  Lower priority goes first.
          *  @return KSLEvent the event used to schedule the activation
          */
-        protected fun activate(process: Process, activationTime: GetValueIfc, priority: Int = KSLEvent.DEFAULT_PRIORITY): KSLEvent<Process>{
+        protected fun activate(
+            process: Process,
+            activationTime: GetValueIfc,
+            priority: Int = KSLEvent.DEFAULT_PRIORITY
+        ): KSLEvent<Process> {
             return activate(process, activationTime.value, priority)
         }
 
@@ -163,14 +165,18 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
          *  Lower priority goes first.
          *  @return KSLEvent the event used to schedule the activation
          */
-        protected fun activate(process: Process, activationTime: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) : KSLEvent<Process> {
+        protected fun activate(
+            process: Process,
+            activationTime: Double = 0.0,
+            priority: Int = KSLEvent.DEFAULT_PRIORITY
+        ): KSLEvent<Process> {
             //TODO maybe pass the entity and save the current process in a field, update state
             // need to prevent call to process's activate until after the scheduled event occurs
             // an entity can only be in 1 process at a time
             return myActivationAction.schedule(activationTime, process, priority)
         }
 
-        private inner class ActivateAction: EventAction<Process>() {
+        private inner class ActivateAction : EventAction<Process>() {
             override fun action(event: KSLEvent<Process>) {
                 runProcess(this@Entity, event.message!!)
             }
@@ -179,22 +185,27 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
         // need a way to resume a suspended process
 
-        protected fun resumeProcess(){
+        protected fun resumeProcess() {
             // entity must be in a process and it must be suspended
             // how to resume it
 
         }
 
+        //TODO need to automatically dispose of entity at end of processes and check if it still has allocations
+        // it is an error to dispose of an entity that has allocations
+
         private fun runProcess(entity: Entity, process: Process) {
             //TODO
             // check if already in a process that is running
-           process.activate() // must ensure that this can only be called from here
+            process.activate() // must ensure that this can only be called from here
             // determine what to do next, if nothing then dispose of entity
 
         }
 
-        protected inner class ProcessCoroutine : ProcessBuilder, Process, Continuation<Unit> {//TODO maybe private or protected
-        var continuation : Continuation<Unit>? = null //set with suspending
+        protected inner class ProcessCoroutine : ProcessBuilder, Process, Continuation<Unit> {
+            //TODO maybe private or protected
+            var continuation: Continuation<Unit>? = null //set with suspending
+
             val entity: Entity = this@Entity // to facility which entity is in the process routine
             var resumer: ProcessResumer? = null
             private val delayAction = DelayAction()
@@ -219,7 +230,8 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 this.resumer = resumer
                 return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
                     continuation = cont
-                    COROUTINE_SUSPENDED }
+                    COROUTINE_SUSPENDED
+                }
             }
 
             override suspend fun waitFor(signal: Signal, priority: Int) {
@@ -236,9 +248,9 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
 
             override suspend fun delay(delayDuration: Double, delayPriority: Int) {
-                require(delayDuration >= 0.0) {"The duration of the delay must be >= 0.0"}
-                require(delayDuration.isFinite()) {"The duration of the delay must be finite (cannot be infinite)"}
-                if (delayDuration == 0.0){
+                require(delayDuration >= 0.0) { "The duration of the delay must be >= 0.0" }
+                require(delayDuration.isFinite()) { "The duration of the delay must be finite (cannot be infinite)" }
+                if (delayDuration == 0.0) {//TODO maybe just allow a zero delay to go on the calendar
                     return
                 }
                 // capture the event for possible cancellation
@@ -260,48 +272,50 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 println("after result.getOrThrow()")
             }
 
-            protected inner class DelayAction: EventAction<Nothing>() {
+            protected inner class DelayAction : EventAction<Nothing>() {
                 override fun action(event: KSLEvent<Nothing>) {
                     selfResumer.resume(entity)
                 }
 
             }
 
-            private inner class SelfResumer: ProcessResumer {
+            private inner class SelfResumer : ProcessResumer {
                 override fun resume(entity: Entity) {
                     //TODO capture state?
                     continuation?.resume(Unit)
                 }
             }
 
+            
+
         }
 
-        private open inner class EntityState(val name: String){
-            open fun create(){
+        private open inner class EntityState(val name: String) {
+            open fun create() {
                 errorMessage("create entity")
             }
 
-            open fun active(){
+            open fun active() {
                 errorMessage("activate entity")
             }
 
-            open fun scheduled(){
+            open fun scheduled() {
                 errorMessage("time delay entity")
             }
 
-            open fun conditionDelay(){
+            open fun conditionDelay() {
                 errorMessage("condition delay entity")
             }
 
-            open fun dormant(){
+            open fun dormant() {
                 errorMessage("make dormant entity")
             }
 
-            open fun dispose(){
+            open fun dispose() {
                 errorMessage("dispose entity")
             }
 
-            private fun errorMessage(routineName: String){
+            private fun errorMessage(routineName: String) {
                 val sb = StringBuilder()
                 sb.appendLine()
                 sb.append("Tried to $routineName ")
@@ -319,14 +333,14 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
         }
 
-        private inner class CreatedState: EntityState("Created") {
+        private inner class CreatedState : EntityState("Created") {
 
             override fun scheduled() {
                 state = myScheduledState
             }
         }
 
-        private inner class ActiveState: EntityState("Active") {
+        private inner class ActiveState : EntityState("Active") {
 
             override fun scheduled() {
                 state = myScheduledState
@@ -345,19 +359,19 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
         }
 
-        private inner class ScheduledState: EntityState("Scheduled") {
+        private inner class ScheduledState : EntityState("Scheduled") {
             override fun active() {
                 state = myActiveState
             }
         }
 
-        private inner class ConditionDelayedState: EntityState("ConditionDelayed") {
+        private inner class ConditionDelayedState : EntityState("ConditionDelayed") {
             override fun active() {
                 state = myActiveState
             }
         }
 
-        private inner class DormantState: EntityState("Dormant") {
+        private inner class DormantState : EntityState("Dormant") {
             override fun active() {
                 state = myActiveState
             }
