@@ -1,6 +1,5 @@
 package ksl.modeling.entity
 
-import kotlin.coroutines.intrinsics.*
 import ksl.simulation.KSLEvent
 import ksl.utilities.GetValueIfc
 import kotlin.coroutines.*
@@ -8,8 +7,15 @@ import kotlin.coroutines.*
 // just placeholders
 class Signal {} // represents a signal to hold a process for, must have some kind of queue
 
-interface Process {
-    fun activate()
+interface KSLProcess {
+    val id: Int
+//    val name: String
+    val isCreated: Boolean
+    val isSuspended: Boolean
+    val isTerminated: Boolean
+    val isCompleted: Boolean
+    val isRunning: Boolean
+    val isActivated: Boolean
 }
 
 interface ProcessResumer {
@@ -17,7 +23,7 @@ interface ProcessResumer {
 }
 
 @RestrictsSuspension
-interface ProcessBuilder {
+interface KSLProcessBuilder {
 
 //    /**
 //     *  Activates the process. Causes the process to be scheduled to start at the present time or some time
