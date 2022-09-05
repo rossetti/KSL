@@ -287,10 +287,15 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
 
             override fun resumeWith(result: Result<Unit>) {
+                // Resumes the execution of the corresponding coroutine passing a successful or failed result
+                // as the return value of the last suspension point.
+
                 //TODO not sure what to do with this
                 println("before result.getOrThrow()")
                 result.getOrThrow()
+                state.complete()
                 println("after result.getOrThrow()")
+                afterProcess(entity, this)
             }
 
             private inner class DelayAction : EventAction<Nothing>() {
@@ -500,9 +505,8 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
     // it is an error to dispose of an entity that has allocations
 
     private fun afterProcess(entity: Entity, process: KSLProcess) {
-        TODO(" continued here")
-        logger.trace { "time = $time : entity ${entity.id} completed process = $id" }
-        println("time = $time : entity ${entity.id} completed process = $id")
+        logger.trace { "time = $time : entity ${entity.id} completed process = ${process.id}" }
+        println("time = $time : entity ${entity.id} completed process = ${process.id}")
     }
 
     companion object : KLoggable {
