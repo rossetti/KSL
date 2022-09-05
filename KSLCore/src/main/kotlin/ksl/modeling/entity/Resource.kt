@@ -239,6 +239,20 @@ class Resource(
         allocation.entity.deallocate(allocation)
         // deallocate the allocation, so it can't be used again
         allocation.amount = 0
+        // need to check the queue
+        if (waitingQ.isNotEmpty){
+            val entity = waitingQ.removeNext()
+            // resume the entity's process
+            entity!!.resumeProcess()
+        }
+    }
+
+    internal fun enqueue(entity: EntityType.Entity, priority: Int = entity.priority){
+        waitingQ.enqueue(entity, priority)
+    }
+
+    internal fun dequeue(entity: EntityType.Entity){
+        waitingQ.remove(entity)
     }
 
     protected inner class ResourceState(aName: String, stateStatistics: Boolean = false) :

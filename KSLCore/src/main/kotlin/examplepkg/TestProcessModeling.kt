@@ -9,14 +9,20 @@ class TestProcessModeling(parent: ModelElement) : EntityType(parent, null) {
 
     private inner class Customer: Entity() {
         val someProcess : KSLProcess = process {
+            println("\t time = $time before the first delay in ${this@Customer}")
             delay(10.0)
+            println("\t time = $time after the first delay in ${this@Customer}")
+            println("\t time = $time before the second delay in ${this@Customer}")
             delay(20.0)
+            println("\t time = $time after the second delay in ${this@Customer}")
         }
     }
 
     override fun initialize() {
         val e = Customer()
         activate(e.someProcess)
+        val c = Customer()
+        activate(c.someProcess, 1.0)
     }
 }
 

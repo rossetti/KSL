@@ -16,7 +16,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
 //TODO need careful method to create and start entity in processes
 
-
     open inner class Entity(aName: String? = null) : QObject(time, aName) {
         private var processCounter = 0
         val entityType = this@EntityType
@@ -49,15 +48,10 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
          */
         private var myDelayEvent: KSLEvent<Nothing>? = null //TODO add fun to cancel
 
-        /**
-         *  Used to invoke activation of a process
-         */
-//        private val myActivationAction: ActivateAction = ActivateAction()
-
-        private var myCurrentProcess: KSLProcess? = null // track the currently executing process
+        private var myCurrentProcess: ProcessCoroutine? = null // track the currently executing process
         val hasCurrentProcess: Boolean
             get() = myCurrentProcess != null
-        private var myPendingProcess: KSLProcess? = null // if a process has been scheduled to activate
+        private var myPendingProcess: ProcessCoroutine? = null // if a process has been scheduled to activate
         val hasPendingProcess: Boolean
             get() = myPendingProcess != null
 
@@ -114,7 +108,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 resourceAllocations[allocation.resource] = mutableListOf()
             }
             resourceAllocations[allocation.resource]!!.add(allocation)
-            //TODO the entity has been given resources, we should schedule it to resume at the current time
         }
 
         /**
@@ -143,81 +136,19 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             return coroutine
         }
 
-//        /**
-//         *  Activates the process. Causes the process to be scheduled to start at the present time or some time
-//         *  into the future. This schedules an event
-//         *
-//         *  @param activationTime the time into the future at which the process should be activated (started) for
-//         *  the supplied entity
-//         *  @param priority used to indicate priority of activation if there are activations at the same time.
-//         *  Lower priority goes first.
-//         *  @return KSLEvent the event used to schedule the activation
-//         */
-//        internal fun activate(
-//            process: KSLProcess,
-//            activationTime: GetValueIfc,
-//            priority: Int = KSLEvent.DEFAULT_PRIORITY
-//        ): KSLEvent<KSLProcess> {
-//            return activate(process, activationTime.value, priority)
-//        }
-
-//        /**
-//         *  Activates the process. Causes the process to be scheduled to start at the present time or some time
-//         *  into the future. This schedules an event
-//         *
-//         *  @param activationTime the time into the future at which the process should be activated (started) for
-//         *  the supplied entity
-//         *  @param priority used to indicate priority of activation if there are activations at the same time.
-//         *  Lower priority goes first.
-//         *  @return KSLEvent the event used to schedule the activation
-//         */
-//        internal fun activate(
-//            process: KSLProcess,
-//            activationTime: Double = 0.0,
-//            priority: Int = KSLEvent.DEFAULT_PRIORITY
-//        ): KSLEvent<KSLProcess> {
-//            check(!hasPendingProcess) { "The process cannot be activated for the entity because the entity already has a pending process" }
-//            check(!hasCurrentProcess) { "The process cannot be activated for the entity because the entity is already running a process" }
-//            myPendingProcess = process
-//            logger.trace {"time = $time : entity $id scheduled to start process"}
-//            println("time = $time : entity $id scheduled to start process")
-//            return myActivationAction.schedule(activationTime, process, priority)
-//        }
-//
-//        private inner class ActivateAction : EventAction<KSLProcess>() {
-//            override fun action(event: KSLEvent<KSLProcess>) {
-//                runProcess(this@Entity, event.message!!)
-//            }
-//        }
-
-        //TODO need to automatically dispose of entity at end of processes and check if it still has allocations
-        // it is an error to dispose of an entity that has allocations
-
-        private fun runProcess(entity: Entity, process: KSLProcess) {
-            myPendingProcess = null
-            //TODO
-            val c = process as ProcessCoroutine
-            logger.trace { "time = $time : entity $id starting process" }
-            println("time = $time : entity $id starting process")
-            c.run() //this can only be called from here
-            // determine what to do next, if nothing then dispose of entity
-
-        }
-
-        // need a way to resume a suspended process
-
-        protected fun resumeProcess() {
+        fun resumeProcess() {
             // entity must be in a process and it must be suspended
-            // how to resume it
+            if (myCurrentProcess != null){
+                //TODO how to resume it, maybe schedule a resumption at the current time?
+                myCurrentProcess!!.resume()
+            }
 
         }
-
 
         internal inner class ProcessCoroutine : KSLProcessBuilder, KSLProcess, Continuation<Unit> {
-            override val id = processCounter++
-
-            //TODO maybe private or protected
-            var continuation: Continuation<Unit>? = null //set with suspending
+            override val id = (++processCounter)
+            //TODO name for process
+            internal var continuation: Continuation<Unit>? = null //set with suspending
             override val context: CoroutineContext get() = EmptyCoroutineContext
 
             override var isActivated: Boolean = false
@@ -249,6 +180,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
              *  Used to invoke activation of a process
              */
             private val myActivationAction: ActivateAction = ActivateAction()
+            private val mySeizeAction: SeizeAction = SeizeAction()
 
             /**
              *  Activates the process. Causes the process to be scheduled to start at the present time or some time
@@ -267,27 +199,29 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 check(!hasPendingProcess) { "The process cannot be activated for the entity because the entity already has a pending process" }
                 check(!hasCurrentProcess) { "The process cannot be activated for the entity because the entity is already running a process" }
                 myPendingProcess = this
-                logger.trace { "time = $time : entity $id scheduled to start process" }
-                println("time = $time : entity $id scheduled to start process")
+                logger.trace { "time = $time : entity ${entity.id} scheduled to start process = $id at time ${time + activationTime}" }
+                println("time = $time : entity ${entity.id} scheduled to start process = $id at time ${time + activationTime}")
                 return myActivationAction.schedule(activationTime, this, priority)
             }
 
             private inner class ActivateAction : EventAction<KSLProcess>() {
                 override fun action(event: KSLEvent<KSLProcess>) {
-                    runProcess(this@Entity, event.message!!)
+                    runProcess()
                 }
             }
 
+            /**
+             * This method is called when the entity's process is activated for the
+             * first time.
+             */
             private fun runProcess() {
                 myPendingProcess = null
-                //TODO
-                logger.trace { "time = $time : entity $id starting process" }
-                println("time = $time : entity $id starting process")
-                run() //this can only be called from here
+                logger.trace { "time = $time : entity ${entity.id} running process" }
+                println("time = $time : entity ${entity.id} running process")
+                run() //this returns when the first suspension point of the process occurs
+                println("right after the run() in runProcess()")
+                //TODO after the process runs it ends up here
                 // determine what to do next, if nothing then dispose of entity
-
-                //TODO call back out to entity or entity type?
-
             }
 
             internal fun run() {
@@ -297,15 +231,15 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             //TODO need to manage entity state specifications within these methods
 
             override fun resume() {
-                logger.trace { "time = $time : entity $id resumed ..." }
-                println("time = $time : entity $id resumed ...")
+                logger.trace { "time = $time : entity ${entity.id} resumed ..." }
+                println("time = $time : entity ${entity.id} resumed ...")
                 //TODO maybe protected or internal so that only entity can call it and can be called by this instance
                 state.resume()
             }
 
             override suspend fun suspend(resumer: ProcessResumer) {
-                logger.trace { "time = $time : entity $id suspended ..." }
-                println("time = $time : entity $id suspended ...")
+                logger.trace { "time = $time : entity ${entity.id} suspended ..." }
+                println("\t time = $time : entity ${entity.id} suspended ...")
                 state.suspend(resumer)
                 return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
                     continuation = cont
@@ -321,11 +255,16 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
 
             override suspend fun seize(resource: Resource, numRequested: Int, priority: Int): Allocation {
-                logger.trace { "time = $time : entity $id seizing ${numRequested} units of ${resource.name}" }
-
-                // if the request/task has been allocated then just return
-                // otherwise suspend
-                TODO("Not yet implemented")
+                logger.trace { "time = $time : entity ${entity.id} seizing $numRequested units of ${resource.name}" }
+                resource.enqueue(entity)
+                mySeizeAction.schedule(0.0, priority = priority)
+                suspend(selfResumer)
+                if (numRequested > resource.numAvailableUnits){
+                    // entity is already in the queue waiting for the resource, just suspend
+                    suspend(selfResumer) //TODO how to resume
+                }
+                resource.dequeue(entity)
+                return resource.allocate(entity, numRequested)
             }
 
             override suspend fun delay(delayDuration: Double, delayPriority: Int) {
@@ -336,14 +275,14 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 }
                 // capture the event for possible cancellation
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
-                logger.trace { "time = $time : entity $id delaying for $delayDuration, suspending..." }
-                println("time = $time : entity $id delaying for $delayDuration, suspending...")
+                logger.trace { "time = $time : entity ${entity.id} delaying for $delayDuration, suspending..." }
+                println("\t time = $time : entity ${entity.id} delaying for $delayDuration, suspending...")
                 //TODO set entity state
                 suspend(selfResumer)
             }
 
             override fun release(allocation: Allocation) {
-                logger.trace { "time = $time : entity $id releasing ${allocation.amount} units of ${allocation.resource.name}" }
+                logger.trace { "time = $time : entity ${entity.id} releasing ${allocation.amount} units of ${allocation.resource.name}" }
                 allocation.resource.deallocate(allocation)
             }
 
@@ -354,8 +293,15 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
             private inner class DelayAction : EventAction<Nothing>() {
                 override fun action(event: KSLEvent<Nothing>) {
-                    logger.trace { "time = $time : entity $id exiting delay, resuming ..." }
-                    println("time = $time : entity $id exiting delay, resuming ...")
+                    logger.trace { "time = $time : entity ${entity.id} exiting delay, resuming ..." }
+                    println("time = $time : entity ${entity.id} exiting delay, resuming ...")
+                    selfResumer.resume(entity)
+                }
+
+            }
+
+            private inner class SeizeAction : EventAction<Nothing>() {
+                override fun action(event: KSLEvent<Nothing>) {
                     selfResumer.resume(entity)
                 }
 
@@ -408,7 +354,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                     myCurrentProcess = this@ProcessCoroutine
                     isActivated = true
                     state = running
-                    continuation?.resume(Unit)
+                    continuation?.resume(Unit) // this starts the coroutine for the first time
                 }
             }
 
@@ -545,6 +491,15 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
     ): KSLEvent<KSLProcess> {
         val c = process as Entity.ProcessCoroutine
         return c.activate(activationTime, priority)
+    }
+
+    //TODO need to automatically dispose of entity at end of processes and check if it still has allocations
+    // it is an error to dispose of an entity that has allocations
+
+    private fun afterProcess(entity: Entity, process: KSLProcess) {
+        TODO(" continued here")
+        logger.trace { "time = $time : entity ${entity.id} completed process = $id" }
+        println("time = $time : entity ${entity.id} completed process = $id")
     }
 
     companion object : KLoggable {
