@@ -288,7 +288,9 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
             override fun resumeWith(result: Result<Unit>) {
                 //TODO not sure what to do with this
+                println("before result.getOrThrow()")
                 result.getOrThrow()
+                println("after result.getOrThrow()")
             }
 
             private inner class DelayAction : EventAction<Nothing>() {
@@ -354,7 +356,8 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                     myCurrentProcess = this@ProcessCoroutine
                     isActivated = true
                     state = running
-                    continuation?.resume(Unit) // this starts the coroutine for the first time
+                    // this starts the coroutine for the first time, because I used createCoroutineUnintercepted()
+                    continuation?.resume(Unit)
                 }
             }
 
