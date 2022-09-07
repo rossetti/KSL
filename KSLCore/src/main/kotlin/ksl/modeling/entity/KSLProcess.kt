@@ -9,7 +9,7 @@ class Signal {} // represents a signal to hold a process for, must have some kin
 
 interface KSLProcess {
     val id: Int
-//    val name: String
+    val name: String
     val isCreated: Boolean
     val isSuspended: Boolean
     val isTerminated: Boolean
@@ -25,26 +25,13 @@ interface ProcessResumer {
 @RestrictsSuspension
 interface KSLProcessBuilder {
 
-//    /**
-//     *  Activates the process. Causes the process to be scheduled to start at the present time or some time
-//     *  into the future. This schedules an event
-//     *
-//     *  @param atTime the time into the future at which the process should be activated (started) for
-//     *  the supplied entity
-//     *  @param priority used to indicate priority of activation if there are activations at the same time.
-//     *  Lower priority goes first.
-//     *  @return JSLEvent the event used to schedule the activation
-//     */
-//    fun activate(atTime: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) : KSLEvent<Entity>
-// maybe activate should take in a process and not be in this scope?
-
     /**
      *  Suspends the execution of the process.  Since the process cannot resume itself, the client
      *  must provide an object that will resume the process.
      *
      *  @param resumer something that knows how to resume the process after it is suspended
      */
-    suspend fun suspend(resumer: ProcessResumer)
+    suspend fun suspend(resumer: ProcessResumer) //TODO
 
     /**
      *  Resumes the process after it was halted (suspended).
@@ -65,7 +52,7 @@ interface KSLProcessBuilder {
     /**
      *  Requests a number of units of the indicated resource.
      *
-     *  @param numRequested the number of units of the resource needed for the request.
+     *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
      *  @param priority the priority of the request. This is meant to inform any allocation mechanism for
@@ -74,7 +61,7 @@ interface KSLProcessBuilder {
      *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
      *  all requested units of the resource have been allocated.
      */
-    suspend fun seize( resource: Resource, numRequested: Int = 1,
+    suspend fun seize( resource: Resource, amountNeeded: Int = 1,
                         priority: Int = KSLEvent.DEFAULT_PRIORITY) : Allocation
 
     /**
@@ -103,6 +90,19 @@ interface KSLProcessBuilder {
      *  @param allocation represents an allocation of so many units of a resource to an entity
      */
      fun release(allocation: Allocation)
+
+    /**
+     *  Releases ANY(ALL) allocations related to the resource that are allocated
+     *  to the entity currently executing this process
+     *
+     *  @param resource the resource to release
+     */
+    fun release(resource: Resource)
+
+    /**
+     *  Releases ALL the resources that the entity has currently allocated to it
+     */
+    fun releaseAllResources()
 
 }
 

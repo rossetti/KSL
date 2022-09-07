@@ -41,7 +41,7 @@ import java.util.function.Predicate
  * @param discipline The queuing discipline to be followed
  * @param <T> queues must hold sub-types of QObject
  */
-class Queue<T : QObject>(
+open class Queue<T : QObject>(
     parent: ModelElement,
     name: String? = null,
     discipline: Discipline = Discipline.FIFO
