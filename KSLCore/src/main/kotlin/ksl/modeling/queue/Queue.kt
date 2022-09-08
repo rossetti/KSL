@@ -517,6 +517,19 @@ open class Queue<T : QObject>(
     }
 
     /**
+     * Returns the QObject at the supplied index in the queue.
+     *
+     * Throws an IndexOutOfBoundsException if the specified index is out of
+     * range (index &lt; 0 || index &gt;= size()).
+     *
+     * @param index the index to inspect
+     * @return The QObject at index in the queue
+     */
+    operator fun get(index: Int) : T {
+        return myList[index]
+    }
+
+    /**
      * Removes from this queue all the elements that are contained in the
      * specified collection The collection should contain references to objects
      * of type QObject that had been enqueued in this queue; otherwise, nothing

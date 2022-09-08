@@ -4,9 +4,6 @@ import ksl.simulation.KSLEvent
 import ksl.utilities.GetValueIfc
 import kotlin.coroutines.*
 
-// just placeholders
-class Signal {} // represents a signal to hold a process for, must have some kind of queue
-
 interface KSLProcess {
     val id: Int
     val name: String
@@ -46,8 +43,21 @@ interface KSLProcessBuilder {
      *  @param signal a general on/off indicator for controlling the process
      *  @param priority a priority indicator to inform ordering when there is more than one process waiting for
      *  the same signal
+     *  @param waitStats Indicates whether waiting time statistics should be
+     * collected on the removed item, true means collect statistics
      */
-    suspend fun waitFor(signal: Signal, priority: Int = KSLEvent.DEFAULT_PRIORITY)
+    suspend fun waitFor(signal: Signal, priority: Int = KSLEvent.DEFAULT_PRIORITY, waitStats: Boolean = true)
+
+    /**
+     *  Causes the process to hold indefinitely within the supplied queue.  Some other process or event
+     *  is responsible for removing the entities and causing them to proceed with their processes
+     *  NOTE:  The entity is not signaled to resume its process unless you signal it.  The
+     *  entity cannot remove itself.  Some other construct must do the removal and resumption.
+     *  
+     *  @param queue a queue to hold the waiting entities
+     *  @param priority a priority for the queue discipline if needed
+     */
+    suspend fun hold(queue: HoldQueue, priority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
      *  Requests a number of units of the indicated resource.

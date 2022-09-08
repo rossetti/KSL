@@ -34,6 +34,7 @@ class TestProcessModeling(parent: ModelElement) : EntityType(parent, null) {
 
         val t = Customer()
         activate(t.seizeTest)
+        activate(c.seizeTest, 1.0)
     }
 }
 

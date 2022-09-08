@@ -993,6 +993,15 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         ): KSLEvent<T> {
             return schedule(this, timeToEvent, message, priority, name)
         }
+
+        fun schedule(
+            timeToEvent: GetValueIfc,
+            message: T? = null,
+            priority: Int = KSLEvent.DEFAULT_PRIORITY,
+            name: String? = null
+        ): KSLEvent<T> {
+            return schedule(timeToEvent.value, message, priority, name)
+        }
     }
 
     /**

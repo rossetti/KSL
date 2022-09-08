@@ -137,11 +137,10 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
          */
         private fun releaseResource(resource: Resource){
             if (isUsing(resource)){
-                val allocations = resourceAllocations[resource]
-                for(allocation in allocations!!){//TODO concurrent modification error here
-
-                    //TODO i'm iterating this list and the deallocate method will try to remove the thing
-                    resource.deallocate(allocation)
+                val allocations: MutableList<Allocation>? = resourceAllocations[resource]
+                val copies = ArrayList(allocations!!)
+                for(copy in copies){
+                    resource.deallocate(copy)
                 }
             }
         }
@@ -246,7 +245,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 myPendingProcess = this
                 entity.state.schedule()
                 logger.trace { "time = $time : entity ${entity.id} scheduled to start process $this at time ${time + activationTime}" }
-                println("time = $time : entity ${entity.id} scheduled to start process $this at time ${time + activationTime}")
                 return myActivationAction.schedule(activationTime, this, priority)
             }
 
@@ -263,11 +261,9 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             private fun runProcess() {
                 myPendingProcess = null
                 logger.trace { "time = $time : entity ${entity.id} activating and running process, ($this)" }
-                println("time = $time : entity ${entity.id} activating and running process, ($this)")
                 entity.state.activate()
                 run() //this returns when the first suspension point of the process occurs
                 logger.trace { "time = $time : entity ${entity.id} has hit the first suspension point of process, ($this)" }
-                println("time = $time : entity ${entity.id} has hit the first suspension point of process, ($this)")
             }
 
             internal fun run() {
@@ -278,14 +274,12 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
             override fun resume() {
                 logger.trace { "time = $time : entity ${entity.id} resumed process, ($this) ..." }
-                println("time = $time : entity ${entity.id} resumed process, ($this) ...")
                 //TODO maybe protected or internal so that only entity can call it and can be called by this instance
                 state.resume()
             }
 
             override suspend fun suspend(resumer: ProcessResumer) {
                 logger.trace { "time = $time : entity ${entity.id} suspended process, ($this) ..." }
-                println("\t time = $time : entity ${entity.id} suspended process, ($this) ...")
                 state.suspend(resumer)
                 return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
                     continuation = cont
@@ -293,11 +287,21 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 }
             }
 
-            override suspend fun waitFor(signal: Signal, priority: Int) {
-                // if signal is on/true then just return
-                // if signal is off/false then suspend
-                // need to register with the signal before suspending
-                TODO("Not yet implemented")
+            override suspend fun waitFor(signal: Signal, priority: Int, waitStats: Boolean) {
+                logger.trace { "time = $time : entity ${entity.id} waiting for ${signal.name} in process, ($this)" }
+                entity.state.waitForSignal()
+                signal.hold(entity, priority)
+                suspend(selfResumer)
+                signal.release(entity, waitStats)
+                entity.state.activate()
+                logger.trace { "time = $time : entity ${entity.id} released from ${signal.name} in process, ($this)" }
+            }
+
+            override suspend fun hold(queue: HoldQueue, priority: Int) {
+                entity.state.holdInQueue()
+                queue.enqueue(entity, priority)
+                suspend(selfResumer)
+                entity.state.activate()
             }
 
             override suspend fun seize(resource: Resource, amountNeeded: Int, priority: Int): Allocation {
@@ -315,6 +319,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                     entity.state.activate()
                 }
                 resource.dequeue(entity)
+                logger.trace { "time = $time : entity ${entity.id} allocated $amountNeeded units of ${resource.name} in process, ($this)" }
                 return resource.allocate(entity, amountNeeded)
             }
 
@@ -328,7 +333,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
                 entity.state.schedule()
                 logger.trace { "time = $time : entity ${entity.id} delaying for $delayDuration, suspending process, ($this) ..." }
-                println("\t time = $time : entity ${entity.id} delaying for $delayDuration, suspending process, ($this) ...")
                 suspend(selfResumer)
                 entity.state.activate()
             }
@@ -354,10 +358,8 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 // as the return value of the last suspension point.
 
                 //TODO need to capture failed processes and exceptions correctly
-                println("before result.getOrThrow()")
                 result.getOrThrow()
                 state.complete()
-                println("after result.getOrThrow()")
                 afterProcess(entity, this)
             }
 
@@ -368,7 +370,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             private inner class DelayAction : EventAction<Nothing>() {
                 override fun action(event: KSLEvent<Nothing>) {
                     logger.trace { "time = $time : entity ${entity.id} exiting delay, resuming process, (${this@ProcessCoroutine}) ..." }
-                    println("time = $time : entity ${entity.id} exiting delay, resuming process, (${this@ProcessCoroutine}) ...")
                     selfResumer.resume(entity)
                 }
 
@@ -592,7 +593,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
     private fun afterProcess(entity: Entity, process: KSLProcess) {
         logger.trace { "time = $time : entity ${entity.id} completed process = $process" }
-        println("time = $time : entity ${entity.id} completed process = $process")
     }
 
     companion object : KLoggable {
