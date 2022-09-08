@@ -36,11 +36,11 @@ interface KSLProcessBuilder {
     fun resume() //TODO need to remove this
 
     /**
-     *  Causes the process to halt, waiting for the signal to be on.  If the signal if off, when the process
-     *  executes this method, it should halt until the signal becomes on. If the signal is on, when the process
-     *  executes this method, the process simply continues executing.
+     *  Causes the process to halt, waiting for the signal to be announced.  Some other process/event
+     *  is necessary to cause the signal. The entities stop waiting for the signal and resume their
+     *  processes when signaled.
      *
-     *  @param signal a general on/off indicator for controlling the process
+     *  @param signal a general indicator for controlling the process
      *  @param priority a priority indicator to inform ordering when there is more than one process waiting for
      *  the same signal
      *  @param waitStats Indicates whether waiting time statistics should be
@@ -53,7 +53,7 @@ interface KSLProcessBuilder {
      *  is responsible for removing the entities and causing them to proceed with their processes
      *  NOTE:  The entity is not signaled to resume its process unless you signal it.  The
      *  entity cannot remove itself.  Some other construct must do the removal and resumption.
-     *  
+     *
      *  @param queue a queue to hold the waiting entities
      *  @param priority a priority for the queue discipline if needed
      */

@@ -40,7 +40,7 @@ class Signal(
 
     fun signalAll(resumePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
         for (entity in holdQueue) {
-            entity.resumeProcess(resumePriority)
+            signal(entity, resumePriority)
         }
     }
 
