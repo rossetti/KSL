@@ -32,7 +32,7 @@ class Resource(
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
-    private val waitingQ: Queue<EntityType.Entity> = Queue(this, "${name}:Q", discipline)
+    private val waitingQ: HoldQueue = HoldQueue(this, "${name}:Q", discipline)
 
     /** A resource can be allocated to 0 or more entities.
      *  An entity that is using a resource can have more than 1 allocation of the resource.

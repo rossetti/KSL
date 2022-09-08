@@ -216,9 +216,9 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
             val entity: Entity = this@Entity // to facility which entity is in the process routine
 
-            var resumer: ProcessResumer? = null
+            var resumer: ProcessResumer? = null         //TODO need to rethink this resumption strategy
             private val delayAction = DelayAction()
-            val selfResumer: ProcessResumer = SelfResumer()
+            val selfResumer: ProcessResumer = SelfResumer()  //TODO need to rethink this resumption strategy
 
             /**
              *  Used to invoke activation of a process

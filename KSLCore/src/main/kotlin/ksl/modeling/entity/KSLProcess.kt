@@ -44,7 +44,7 @@ interface KSLProcessBuilder {
      *  @param priority a priority indicator to inform ordering when there is more than one process waiting for
      *  the same signal
      *  @param waitStats Indicates whether waiting time statistics should be
-     * collected on the removed item, true means collect statistics
+     * collected on waiting items, true means collect statistics
      */
     suspend fun waitFor(signal: Signal, priority: Int = KSLEvent.DEFAULT_PRIORITY, waitStats: Boolean = true)
 
@@ -115,75 +115,3 @@ interface KSLProcessBuilder {
     fun releaseAllResources()
 
 }
-
-//
-//internal open class ProcessContinuation : Continuation<Unit> {
-//    override val context: CoroutineContext get() = EmptyCoroutineContext
-//
-//    override fun resumeWith(result: Result<Unit>) {
-//        //not sure what to do with this
-//        println("before result.getOrThrow()")
-//        result.getOrThrow()
-//        println("after result.getOrThrow()")
-//    }
-//}
-//
-//// need to be able to just create the coroutine
-///* issues:
-//    how to schedule events
-//    how to capture/resume the continuation
-//    clearly a process can only have one suspension point "suspended" at time
-//    maybe a Process should be a model element that uses a ProcessCoroutine and
-//    delegates the suspend/resume work to it
-//    maybe we should just start with the basic suspend/resume primitive
-//    within a model element a process builder should be used
-// */
-//
-//
-//internal class ProcessCoroutine : ProcessBuilder, ProcessContinuation() {
-//    var continuation : Continuation<Unit>? = null //set with suspending
-//
-//    override fun resume() {
-//        // what to do if the process is not suspended
-//        continuation?.resume(Unit)
-//        //TODO("Not yet implemented")
-//    }
-//
-//    override suspend fun suspend() {
-//        // whenever suspended this creates a new continuation, which must be captured for resumption
-//        return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
-//            continuation = cont
-//            COROUTINE_SUSPENDED }
-//    }
-//
-////    override suspend fun waitFor(signal: Signal, priority: Int) {
-////        // if signal is on/true then just return
-////        // if signal is off/false then suspend
-////        // need to register with the signal before suspending
-////        TODO("Not yet implemented")
-////    }
-//
-//    override suspend fun seize(resource: Resource, numRequested: Int, priority: Int): Allocation {
-//        // if the request/task has been allocated then just return
-//        // otherwise suspend
-//        TODO("Not yet implemented")
-//    }
-//
-//    override suspend fun delay(time: Double, priority: Int) {
-//        // if time < 0 throw error
-//        // if time = 0 don't delay, just return
-//        // if time > 0, then schedule a resume after the delay, and then suspend
-//        // need to think about what happens if the event associated with this delay is cancelled
-//        // probably needs to return the event
-//        TODO("Not yet implemented")
-//    }
-//
-//    //TODO consider scheduleResumeAfterDelay()
-//    // https://github.com/Kotlin/kotlinx.coroutines/blob/3cb61fc44bec51f85abde11f83bc5f556e5e313a/kotlinx-coroutines-core/common/src/Delay.kt
-//
-//    override fun release(allocation: Allocation) {
-//        // this is not really a suspending function
-//        TODO("Not yet implemented")
-//    }
-//
-//}

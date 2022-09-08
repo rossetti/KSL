@@ -691,7 +691,6 @@ open class Queue<T : QObject>(
     }
 
     internal fun priorityChanged() {
-        //TODO capture the qObject?
         myDiscipline.priorityChanged()
     }
 
