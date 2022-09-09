@@ -41,12 +41,12 @@ interface KSLProcessBuilder {
      *  processes when signaled.
      *
      *  @param signal a general indicator for controlling the process
-     *  @param priority a priority indicator to inform ordering when there is more than one process waiting for
+     *  @param waitPriority a priority indicator to inform ordering when there is more than one process waiting for
      *  the same signal
      *  @param waitStats Indicates whether waiting time statistics should be
      * collected on waiting items, true means collect statistics
      */
-    suspend fun waitFor(signal: Signal, priority: Int = KSLEvent.DEFAULT_PRIORITY, waitStats: Boolean = true)
+    suspend fun waitFor(signal: Signal, waitPriority: Int = KSLEvent.DEFAULT_PRIORITY, waitStats: Boolean = true)
 
     /**
      *  Causes the process to hold indefinitely within the supplied queue.  Some other process or event
@@ -65,14 +65,14 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param priority the priority of the request. This is meant to inform any allocation mechanism for
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
      *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
      *  all requested units of the resource have been allocated.
      */
-    suspend fun seize( resource: Resource, amountNeeded: Int = 1,
-                        priority: Int = KSLEvent.DEFAULT_PRIORITY) : Allocation
+    suspend fun seize(resource: Resource, amountNeeded: Int = 1,
+                      seizePriority: Int = KSLEvent.DEFAULT_PRIORITY) : Allocation
 
     /**
      *  Causes the process to delay (suspend execution) for the specified amount of time.

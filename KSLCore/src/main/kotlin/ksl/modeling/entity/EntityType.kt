@@ -287,10 +287,10 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 }
             }
 
-            override suspend fun waitFor(signal: Signal, priority: Int, waitStats: Boolean) {
+            override suspend fun waitFor(signal: Signal, waitPriority: Int, waitStats: Boolean) {
                 logger.trace { "time = $time : entity ${entity.id} waiting for ${signal.name} in process, ($this)" }
                 entity.state.waitForSignal()
-                signal.hold(entity, priority)
+                signal.hold(entity, waitPriority)
                 suspend(selfResumer)
                 signal.release(entity, waitStats)
                 entity.state.activate()
@@ -304,11 +304,11 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 entity.state.activate()
             }
 
-            override suspend fun seize(resource: Resource, amountNeeded: Int, priority: Int): Allocation {
+            override suspend fun seize(resource: Resource, amountNeeded: Int, seizePriority: Int): Allocation {
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
                 resource.enqueue(entity)
                 entity.state.schedule()
-                mySeizeAction.schedule(0.0, priority = priority)
+                mySeizeAction.schedule(0.0, priority = seizePriority)
                 suspend(selfResumer)
                 entity.state.activate()
                 if (amountNeeded > resource.numAvailableUnits){
