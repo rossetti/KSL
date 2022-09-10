@@ -1,7 +1,5 @@
 package examplepkg
 
-import ksl.process.ProcessContinuation
-import ksl.process.ProcessCoroutine
 import java.time.Instant
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
@@ -32,14 +30,6 @@ fun main(){
         }
     }
     //c.resume(Unit)
-
-    var p = ProcessContinuation()
-
-    p.resume(Unit)
-
-    var pc = ProcessCoroutine()
-
-   // pc.halt()
 
 
 }

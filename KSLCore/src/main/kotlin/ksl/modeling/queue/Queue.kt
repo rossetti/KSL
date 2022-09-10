@@ -70,7 +70,7 @@ open class Queue<T : QObject>(
     protected val myList: MutableList<T> = mutableListOf()
 
     protected val myNumInQ: TWResponse = TWResponse(this, name = "${name}:NumInQ")
-    protected val myTimeInQ: Response = Response(this, name="${name}:TimeInQ")
+    protected val myTimeInQ: Response = Response(this, name = "${name}:TimeInQ")
 
     /**
      *  The initial queue discipline. The initial discipline indicates
@@ -100,17 +100,17 @@ open class Queue<T : QObject>(
      */
     var currentDiscipline: Discipline = discipline
         set(value) {
-          if (field != value){
-              // actual change
-              myDiscipline = when (value) {
-                  Discipline.FIFO -> FIFODiscipline()
-                  Discipline.LIFO -> LIFODiscipline()
-                  Discipline.RANDOM -> RandomDiscipline()
-                  Discipline.RANKED -> RankedDiscipline()
-              }
-              myDiscipline.switchDiscipline()
-              field = value
-          }
+            if (field != value) {
+                // actual change
+                myDiscipline = when (value) {
+                    Discipline.FIFO -> FIFODiscipline()
+                    Discipline.LIFO -> LIFODiscipline()
+                    Discipline.RANDOM -> RandomDiscipline()
+                    Discipline.RANKED -> RankedDiscipline()
+                }
+                myDiscipline.switchDiscipline()
+                field = value
+            }
         }
 
     /**
@@ -525,7 +525,7 @@ open class Queue<T : QObject>(
      * @param index the index to inspect
      * @return The QObject at index in the queue
      */
-    operator fun get(index: Int) : T {
+    operator fun get(index: Int): T {
         return myList[index]
     }
 
@@ -573,6 +573,27 @@ open class Queue<T : QObject>(
         while (c.hasNext()) {
             val qo = c.next()
             removedFlag = remove(qo, statFlag)
+        }
+        return removedFlag
+    }
+
+    /**
+     * Removes from this queue all the elements.
+     *
+     * Automatically, updates the number in queue variable If statFlag is true
+     * it automatically collects time in queue statistics on removed items
+     *
+     * @param c The iterator over the collection containing the QObject's to
+     * remove
+     * @param statFlag true means collect statistics, false means do not
+     * @return true if the queue changed as a result of the call
+     */
+    fun removeAll(statFlag: Boolean = true): Boolean {
+        var removedFlag = false
+        while (isNotEmpty) {
+            val qObj = peekNext()
+            remove(qObj!!, statFlag)
+            removedFlag = true
         }
         return removedFlag
     }

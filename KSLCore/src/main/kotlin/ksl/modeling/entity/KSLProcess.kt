@@ -4,6 +4,11 @@ import ksl.simulation.KSLEvent
 import ksl.utilities.GetValueIfc
 import kotlin.coroutines.*
 
+/**
+ * Used to exit (terminate) a currently executing ProcessCoroutine.
+ */
+class ProcessTerminatedException (m: String = "Process Terminated!") : RuntimeException(m)
+
 interface KSLProcess {
     val id: Int
     val name: String

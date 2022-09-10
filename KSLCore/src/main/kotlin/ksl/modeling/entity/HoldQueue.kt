@@ -23,5 +23,12 @@ class HoldQueue(
         remove(entity, waitStats)
         entity.resumeProcess(resumePriority)
     }
+
+    fun removeAllAndResume(resumePriority: Int = KSLEvent.DEFAULT_PRIORITY, waitStats: Boolean = true) {
+        while (isNotEmpty) {
+            val entity = peekNext()
+            removeAndResume(entity!!, resumePriority, waitStats)
+        }
+    }
     //TODO need to work on removing suspended items after a replication
 }
