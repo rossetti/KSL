@@ -18,6 +18,7 @@ interface KSLProcess {
     val isCompleted: Boolean
     val isRunning: Boolean
     val isActivated: Boolean
+    val entity: EntityType.Entity
 }
 
 interface ProcessResumer {

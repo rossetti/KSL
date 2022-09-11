@@ -13,11 +13,10 @@ import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 
 open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent, name) {
+
+    private val suspendedEntities = mutableSetOf<Entity>()
     //TODO need to implement entity sequence specification and statistics
     // consider ProcessStep(KSLProcess, timeToStart)
-    private val suspendedEntities = mutableSetOf<Entity>()
-    //TODO need to make special class for holding processes, the processes all need to
-    // come from the same entity.
     protected val defaultProcessSequence = mutableListOf<KSLProcess>()
 
     fun <T : Entity> startProcessSequence(
@@ -26,9 +25,9 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         priority: Int = KSLEvent.DEFAULT_PRIORITY,
         sequence: MutableList<KSLProcess> = defaultProcessSequence
     ) {
-        entity.processSequence = defaultProcessSequence.listIterator()
-        if (entity.processSequence.hasNext()) {
-            activate(entity.processSequence.next())
+        entity.processSequence = defaultProcessSequence
+        if (entity.processSequenceIterator.hasNext()) {
+            activate(entity.processSequenceIterator.next())
         }
     }
 
@@ -76,7 +75,17 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
     }
 
     open inner class Entity(aName: String? = null) : QObject(time, aName) {
-        var processSequence: ListIterator<KSLProcess> = emptyList<KSLProcess>().listIterator()
+        var processSequenceIterator: ListIterator<KSLProcess> = emptyList<KSLProcess>().listIterator()
+            private set
+        var processSequence: List<KSLProcess> = emptyList()
+            set(list) {
+                for(process in list){
+                    require(process.entity == this){"The process $process does not belong to entity $this in entity type $entityType"}
+                }
+                field = list
+                processSequenceIterator = field.listIterator()
+            }
+
         private var processCounter = 0
         val entityType = this@EntityType
         private val myCreatedState = CreatedState()
@@ -327,7 +336,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             override val isRunning: Boolean
                 get() = state == running
 
-            val entity: Entity = this@Entity // to facilitate which entity is in the process routine
+            override val entity: Entity = this@Entity // to facilitate which entity is in the process routine
 
             var resumer: ProcessResumer? = null         //TODO need to rethink this resumption strategy
             private val delayAction = DelayAction()
@@ -599,10 +608,10 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
             logger.trace { "time = $time : entity ${id} completed process = $completedProcess" }
             completedProcess(completedProcess)
-            if (processSequence.hasNext()) {
+            if (processSequenceIterator.hasNext()) {
                 // tell the entity type to start the next process
                 previousProcess = completedProcess
-                nextProcess = processSequence.next()
+                nextProcess = processSequenceIterator.next()
                 logger.trace { "time = $time : entity ${id} to start process = $nextProcess!! next" }
                 startNextProcess(this)
             } else {
