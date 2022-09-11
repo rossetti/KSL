@@ -16,6 +16,8 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
     //TODO need to implement entity sequence specification and statistics
     // consider ProcessStep(KSLProcess, timeToStart)
     private val suspendedEntities = mutableSetOf<Entity>()
+    //TODO need to make special class for holding processes, the processes all need to
+    // come from the same entity.
     protected val defaultProcessSequence = mutableListOf<KSLProcess>()
 
     fun <T : Entity> startProcessSequence(
