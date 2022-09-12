@@ -21,7 +21,7 @@ interface KSLProcess {
     val entity: EntityType.Entity
 }
 
-interface ProcessResumer {
+interface ProcessResumer {  //TODO need to remove
     fun resume(entity: EntityType.Entity)
 }
 
