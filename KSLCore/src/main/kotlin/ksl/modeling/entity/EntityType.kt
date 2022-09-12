@@ -99,11 +99,11 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 for(process in list){
                     require(process.entity == this){"The process $process does not belong to entity $this in entity type $entityType"}
                 }
+                useProcessSequence = list.isNotEmpty()
                 field = list
                 processSequenceIterator = field.listIterator()
-                useProcessSequence = true
             }
-        
+
         /**
          *  Controls whether the entity goes through the function dispose() of its containing EntityType.
          *  The default is true.
