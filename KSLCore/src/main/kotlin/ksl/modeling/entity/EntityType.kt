@@ -63,7 +63,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         }
     }
 
-    protected fun dispose(entity: Entity) {
+    protected fun dispose(entity: Entity) { //TODO should this be in Entity and in EntityType?
 
     }
 
