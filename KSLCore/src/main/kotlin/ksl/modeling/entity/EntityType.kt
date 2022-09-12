@@ -661,6 +661,14 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 state.terminate()
             }
 
+            override suspend fun suspend(suspensionObserver: SuspensionObserver) {
+                logger.trace { "time = $time : entity ${entity.id} suspended process, ($this) using suspension observe, ${suspensionObserver.name}" }
+                suspensionObserver.attach(entity)
+                suspend(selfResumer)
+                suspensionObserver.detach(entity)
+                logger.trace { "time = $time : entity ${entity.id} suspended process, ($this) resumed by suspension observe, ${suspensionObserver.name}" }
+            }
+
             //TODO consider wrapping this inside an 'internal' method so that logic can be invoked after suspension
             // to check if process was terminated during suspension, then act accordingly
             override suspend fun suspend(resumer: ProcessResumer) {
@@ -713,9 +721,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             override suspend fun delay(delayDuration: Double, delayPriority: Int) {
                 require(delayDuration >= 0.0) { "The duration of the delay must be >= 0.0 in process, ($this)" }
                 require(delayDuration.isFinite()) { "The duration of the delay must be finite (cannot be infinite) in process, ($this)" }
-//                if (delayDuration == 0.0) {// maybe just allow a zero delay to go on the calendar
-//                    return
-//                }
                 // capture the event for possible cancellation
                 entity.state.schedule()
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority)

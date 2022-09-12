@@ -25,8 +25,34 @@ interface ProcessResumer {
     fun resume(entity: EntityType.Entity)
 }
 
+/**
+ *  Because an entity that is executing a process cannot resume itself
+ *  after suspending itself, we need a mechanism to allow the entity
+ *  to register itself before suspending.
+ *
+ *  Allows entities to suspend themselves by providing a callback mechanism
+ *  to allow the entity to register (attach) itself before suspending, with
+ *  the assurance that the SuspensionObserver will (eventually) tell the entity
+ *  to resume.
+ */
+interface SuspensionObserver {
+
+    val name: String
+
+    fun attach(entity: EntityType.Entity)
+    fun detach(entity: EntityType.Entity)
+}
+
 @RestrictsSuspension
 interface KSLProcessBuilder {
+
+    /**
+     *  Suspends the execution of the process.  Since the process cannot resume itself, the client
+     *  must provide an object that will resume the process.
+     *
+     * @param suspensionObserver the thing that promises to resume the process
+     */
+    suspend fun suspend(suspensionObserver: SuspensionObserver)
 
     /**
      *  Suspends the execution of the process.  Since the process cannot resume itself, the client
