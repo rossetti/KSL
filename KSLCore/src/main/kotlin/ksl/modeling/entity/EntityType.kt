@@ -154,8 +154,16 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         val currentProcessName: String?
             get() = myCurrentProcess?.name
         private var myPendingProcess: ProcessCoroutine? = null // if a process has been scheduled to activate
+
+        /**
+         *  True if a process has been scheduled to activate
+         */
         val hasPendingProcess: Boolean
             get() = myPendingProcess != null
+
+        /**
+         *  If not null, the name of the process scheduled to activate
+         */
         val pendingProcessName: String?
             get() = myPendingProcess?.name
 
@@ -325,15 +333,225 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
         }
 
+        protected open fun startNextProcess() {
+            if (nextProcess != null){
+                activate(nextProcess!!)
+            }
+        }
+
         /**
-         *  Can be used by subclasses to perform some logic when the
-         *  current process is completed, but before deciding to execute
-         *  the next process (if there is one).
+         *  Subclasses can override this method and provide logic for the supplied
+         *  process that will be executed right before the process runs to is first suspension point.
+         *  For example, this method could be used to make assignments to the entity before
+         *  the entity starts running the process. By default, this method does nothing.
+         *
+         *  @param process  This is actually the pending process. The process that will run next but has not
+         *  started running
          */
-        open fun completedProcess(completedProcess: KSLProcess) {
+        protected open fun beforeRunningProcess(process: KSLProcess){
 
         }
 
+        /**
+         *  Can be used by subclasses to perform some logic when (after) the
+         *  current process is completed, but before deciding to execute
+         *  the next process (if there is one). By default, this method does nothing.
+         *
+         *  @param completedProcess  This is actually the process that just completed.
+         */
+        protected open fun afterRunningProcess(completedProcess: KSLProcess) {
+
+        }
+
+        /** This method is called from ProcessCoroutine to clean up the entity when
+         *  the process has successfully completed (run through its last coroutine suspension point or returned).
+         *
+         *  Need to automatically dispose of entity at end of processes and check if it still has allocations.
+         * It is an error to dispose of an entity that has allocations. Disposing an entity is not the same as ending a process.
+         * An entity that has no more processes to execute cannot end its last process with allocations.
+         */
+        private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
+            logger.trace { "time = $time : entity ${id} completed process = $completedProcess" }
+            afterRunningProcess(completedProcess)
+            if (processSequenceIterator.hasNext()) {
+                // tell the entity type to start the next process
+                previousProcess = completedProcess
+                nextProcess = processSequenceIterator.next()
+                logger.trace { "time = $time : entity ${id} to start process = $nextProcess!! next" }
+                startNextProcess(this)
+            } else {
+                // no next process to run, entity must not have any allocations
+                if (hasAllocations) {
+                    val msg = StringBuilder()
+                    msg.append("time = $time : entity ${id} had allocations when ending a process with no next process!")
+                    msg.appendLine()
+                    msg.append(allocationsAsString())
+                    logger.error { msg.toString() }
+                    throw IllegalStateException(msg.toString())
+                }
+                // okay to dispose of the entity
+                if (autoDispose){
+                    logger.trace { "time = $time : entity ${id} is being disposed by $name" }
+                    dispose(this)
+                }
+            }
+        }
+
+        /** This method is called from ProcessCoroutine to clean up the entity when
+         *  the process has been terminated.
+         *
+         *  If the entity is executing a process and the process is suspended, then
+         *  the process routine is terminated. This causes the currently suspended
+         *  process to exit, essentially with an error condition.  No further
+         *  processing within the process will execute. The process ends (is terminated).
+         *  All resources that the entity has allocated will be deallocated.  If the entity was
+         *  waiting in a queue, the entity is removed from the queue and no statistics
+         *  are collected on its queueing.  If the entity is experiencing a delay,
+         *  then the event associated with the delay is cancelled.
+         *
+         *  If the entity has additional processes in
+         *  its process sequence they are not automatically executed. If the user
+         *  requires specific behavior to occur for the entity after termination, then
+         *  the user should override the Entity's handleTerminatedProcess() function to
+         *  supply specific logic.
+         */
+        private fun afterTerminatedProcessCompletion(completedProcess: KSLProcess) {
+            if (hasAllocations) {
+                logger.trace { "time = $time Process $completedProcess was terminated for Entity $this releasing all resources." }
+                releaseAllResources()
+            }
+            if (isQueued) {
+                //remove it from its queue with no stats
+                @Suppress("UNCHECKED_CAST")
+                // since this is an entity, it must be in a HoldQueue which must hold EntityType.Entity
+                val q = queue!! as Queue<EntityType.Entity>
+                q.remove(this, false)
+                logger.trace { "time = $time Process $completedProcess was terminated for Entity $this removed from queue ${q.name} ." }
+            } else if (isScheduled) {
+                if (myDelayEvent != null) {
+                    if (myDelayEvent!!.scheduled) {
+                        logger.trace { "time = $time Process $completedProcess was terminated for Entity $this delay event was cancelled." }
+                        myDelayEvent?.cancelled = true
+                    }
+                }
+            }
+        }
+
+        protected open fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
+
+        }
+
+        private abstract inner class EntityState(val name: String) {
+            open fun create() {
+                errorMessage("create entity")
+            }
+
+            open fun activate() {
+                errorMessage("activate the entity")
+            }
+
+            open fun schedule() {
+                errorMessage("schedule the entity")
+            }
+
+            open fun waitForSignal() {
+                errorMessage("wait for signal the entity")
+            }
+
+            open fun holdInQueue() {
+                errorMessage("hold in queue the entity")
+            }
+
+            open fun waitForResource() {
+                errorMessage("wait for resource the entity")
+            }
+
+            open fun processEnded() {
+                errorMessage("complete the entity")
+            }
+
+            private fun errorMessage(message: String) {
+                val sb = StringBuilder()
+                sb.appendLine()
+                sb.append("Tried to $message ")
+                sb.append(name)
+                sb.append(" from an illegal state: ")
+                sb.append(state.toString())
+                sb.appendLine()
+                sb.append(this@Entity.toString())
+                logger.error { sb.toString() }
+                throw IllegalStateException(sb.toString())
+            }
+
+            override fun toString(): String {
+                return name
+            }
+        }
+
+        private inner class CreatedState : EntityState("Created") {
+
+            override fun schedule() {
+                state = myScheduledState
+            }
+        }
+
+        private inner class ProcessEndedState : EntityState("ProcessEnded") {
+
+            override fun schedule() {
+                state = myScheduledState
+            }
+        }
+
+        private inner class Active : EntityState("Active") {
+
+            override fun schedule() {
+                state = myScheduledState
+            }
+
+            override fun waitForSignal() {
+                state = myWaitingForSignalState
+            }
+
+            override fun holdInQueue() {
+                state = myInHoldQueueState
+            }
+
+            override fun waitForResource() {
+                state = myWaitingForResourceState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
+        }
+
+        private inner class Scheduled : EntityState("Scheduled") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        private inner class WaitingForSignal : EntityState("WaitingForSignal") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        private inner class InHoldQueue : EntityState("InHoldQueue") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        private inner class WaitingForResource : EntityState("WaitingForResource") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        /**
+         *  The main implementation of the coroutine magic.
+         */
         internal inner class ProcessCoroutine(processName: String? = null) : KSLProcessBuilder, KSLProcess,
             Continuation<Unit> {
             override val id = (++processCounter)
@@ -396,6 +614,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
             private inner class ActivateAction : EventAction<KSLProcess>() {
                 override fun action(event: KSLEvent<KSLProcess>) {
+                    beforeRunningProcess(myPendingProcess!!)
                     runProcess()
                 }
             }
@@ -623,188 +842,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             private inner class Terminated : ProcessState("Terminated")
 
             private inner class Completed : ProcessState("Completed")
-        }
-
-        /** Need to automatically dispose of entity at end of processes and check if it still has allocations.
-         * It is an error to dispose of an entity that has allocations. Disposing an entity is not the same as ending a process.
-         * An entity that has no more processes to execute cannot end its last process with allocations.
-         */
-        private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
-            logger.trace { "time = $time : entity ${id} completed process = $completedProcess" }
-            completedProcess(completedProcess)
-            if (processSequenceIterator.hasNext()) {
-                // tell the entity type to start the next process
-                previousProcess = completedProcess
-                nextProcess = processSequenceIterator.next()
-                logger.trace { "time = $time : entity ${id} to start process = $nextProcess!! next" }
-                startNextProcess(this)
-            } else {
-                // no next process to run, entity must not have any allocations
-                if (hasAllocations) {
-                    val msg = StringBuilder()
-                    msg.append("time = $time : entity ${id} had allocations when ending a process with no next process!")
-                    msg.appendLine()
-                    msg.append(allocationsAsString())
-                    logger.error { msg.toString() }
-                    throw IllegalStateException(msg.toString())
-                }
-                // okay to dispose of the entity
-                if (autoDispose){
-                    logger.trace { "time = $time : entity ${id} is being disposed by $name" }
-                    dispose(this)
-                }
-            }
-        }
-
-
-        /**
-         *  If the entity is executing a process and the process is suspended, then
-         *  the process routine is terminated. This causes the currently suspended
-         *  process to exit, essentially with an error condition.  No further
-         *  processing within the process will execute. The process ends (is terminated).
-         *  All resources that the entity has allocated will be deallocated.  If the entity was
-         *  waiting in a queue, the entity is removed from the queue and no statistics
-         *  are collected on its queueing.  If the entity is experiencing a delay,
-         *  then the event associated with the delay is cancelled.
-         *
-         *  If the entity has additional processes in
-         *  its process sequence they are not automatically executed. If the user
-         *  requires specific behavior to occur for the entity after termination, then
-         *  the user should override the Entity's handleTerminatedProcess() function to
-         *  supply specific logic.
-         */
-        private fun afterTerminatedProcessCompletion(completedProcess: KSLProcess) {
-            if (hasAllocations) {
-                logger.trace { "time = $time Process $completedProcess was terminated for Entity $this releasing all resources." }
-                releaseAllResources()
-            }
-            if (isQueued) {
-                //remove it from its queue with no stats
-                @Suppress("UNCHECKED_CAST")
-                // since this is an entity, it must be in a HoldQueue which must hold EntityType.Entity
-                val q = queue!! as Queue<EntityType.Entity>
-                q.remove(this, false)
-                logger.trace { "time = $time Process $completedProcess was terminated for Entity $this removed from queue ${q.name} ." }
-            } else if (isScheduled) {
-                if (myDelayEvent != null) {
-                    if (myDelayEvent!!.scheduled) {
-                        logger.trace { "time = $time Process $completedProcess was terminated for Entity $this delay event was cancelled." }
-                        myDelayEvent?.cancelled = true
-                    }
-                }
-            }
-        }
-
-        protected open fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
-
-        }
-
-        private abstract inner class EntityState(val name: String) {
-            open fun create() {
-                errorMessage("create entity")
-            }
-
-            open fun activate() {
-                errorMessage("activate the entity")
-            }
-
-            open fun schedule() {
-                errorMessage("schedule the entity")
-            }
-
-            open fun waitForSignal() {
-                errorMessage("wait for signal the entity")
-            }
-
-            open fun holdInQueue() {
-                errorMessage("hold in queue the entity")
-            }
-
-            open fun waitForResource() {
-                errorMessage("wait for resource the entity")
-            }
-
-            open fun processEnded() {
-                errorMessage("complete the entity")
-            }
-
-            private fun errorMessage(message: String) {
-                val sb = StringBuilder()
-                sb.appendLine()
-                sb.append("Tried to $message ")
-                sb.append(name)
-                sb.append(" from an illegal state: ")
-                sb.append(state.toString())
-                sb.appendLine()
-                sb.append(this@Entity.toString())
-                logger.error { sb.toString() }
-                throw IllegalStateException(sb.toString())
-            }
-
-            override fun toString(): String {
-                return name
-            }
-        }
-
-        private inner class CreatedState : EntityState("Created") {
-
-            override fun schedule() {
-                state = myScheduledState
-            }
-        }
-
-        private inner class ProcessEndedState : EntityState("ProcessEnded") {
-
-            override fun schedule() {
-                state = myScheduledState
-            }
-        }
-
-        private inner class Active : EntityState("Active") {
-
-            override fun schedule() {
-                state = myScheduledState
-            }
-
-            override fun waitForSignal() {
-                state = myWaitingForSignalState
-            }
-
-            override fun holdInQueue() {
-                state = myInHoldQueueState
-            }
-
-            override fun waitForResource() {
-                state = myWaitingForResourceState
-            }
-
-            override fun processEnded() {
-                state = myProcessEndedState
-            }
-        }
-
-        private inner class Scheduled : EntityState("Scheduled") {
-            override fun activate() {
-                state = myActiveState
-            }
-        }
-
-        private inner class WaitingForSignal : EntityState("WaitingForSignal") {
-            override fun activate() {
-                state = myActiveState
-            }
-        }
-
-        private inner class InHoldQueue : EntityState("InHoldQueue") {
-            override fun activate() {
-                state = myActiveState
-            }
-        }
-
-        private inner class WaitingForResource : EntityState("WaitingForResource") {
-            override fun activate() {
-                state = myActiveState
-            }
         }
 
     }
