@@ -57,17 +57,19 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         return c.activate(activationTime, priority)
     }
 
-    protected fun startNextProcess(entity: Entity) {
-        if (entity.nextProcess != null){  //TODO should be in Entity
-            activate(entity.nextProcess!!)
-        }
+    /**
+     *  This method is called when the entity has been activated, run at least
+     *  one process and has no further processes to run.  Subclasses can
+     *  override this method to provide logic after all processes have been
+     *  completed by the entity. By default, nothing happens.
+     *
+     *  @param entity  The entity that just completed all of its processes
+     */
+    protected open fun dispose(entity: Entity) {
+
     }
 
-    protected fun dispose(entity: Entity) { //TODO should this be in Entity and in EntityType?
-
-    }
-
-    override fun afterReplication() {
+    final override fun afterReplication() {
         for (entity in suspendedEntities) {
             entity.terminateProcess()
         }
@@ -167,8 +169,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         val pendingProcessName: String?
             get() = myPendingProcess?.name
 
-        var nextProcess: KSLProcess? = null
-            private set
         var previousProcess: KSLProcess? = null
             private set
 
@@ -330,13 +330,6 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                     myCurrentProcess!!.resume()
                 }
             }
-
-        }
-
-        protected open fun startNextProcess() {
-            if (nextProcess != null){
-                activate(nextProcess!!)
-            }
         }
 
         /**
@@ -363,6 +356,34 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
         }
 
+        /**
+         *  If the useProcessSequence property is true, this method automatically uses
+         *  the current processSequenceIterator. If the iterator has a next element it is
+         *  returned, else null is returned. Subclasses may override this implementation
+         *  to provide a more general approach to determining the next process to run.
+         *  @param completedProcess the process just completed
+         *  @return the next process to activate or null if none to activate
+         */
+        protected open fun determineNextProcess(completedProcess: KSLProcess) : KSLProcess? {
+            if (useProcessSequence){
+                if (processSequenceIterator.hasNext()) {
+                    return processSequenceIterator.next()
+                }
+            }
+            return null
+        }
+
+        /**
+         *  This function is called if there are no more processes to run for the entity
+         *  after successfully completing a process.  This method provides subclasses
+         *  the ability to release any allocations or do clean up before the entity is
+         *  passed to its EntityType for handling.  By default, this method does nothing.
+         *  @param completedProcess the process just completed
+         */
+        protected open fun dispose(completedProcess: KSLProcess){
+
+        }
+
         /** This method is called from ProcessCoroutine to clean up the entity when
          *  the process has successfully completed (run through its last coroutine suspension point or returned).
          *
@@ -371,19 +392,19 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
          * An entity that has no more processes to execute cannot end its last process with allocations.
          */
         private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
-            logger.trace { "time = $time : entity ${id} completed process = $completedProcess" }
+            logger.trace { "time = $time : entity $id completed process = $completedProcess" }
             afterRunningProcess(completedProcess)
-            if (processSequenceIterator.hasNext()) {
-                // tell the entity type to start the next process
+            val np = determineNextProcess(completedProcess)
+            if (np != null){
                 previousProcess = completedProcess
-                nextProcess = processSequenceIterator.next()
-                logger.trace { "time = $time : entity ${id} to start process = $nextProcess!! next" }
-                startNextProcess(this)
+                logger.trace { "time = $time : entity $id to activate process = $np next" }
+                activate(np)
             } else {
                 // no next process to run, entity must not have any allocations
+                dispose(completedProcess)
                 if (hasAllocations) {
                     val msg = StringBuilder()
-                    msg.append("time = $time : entity ${id} had allocations when ending a process with no next process!")
+                    msg.append("time = $time : entity $id had allocations when ending process $completedProcess with no next process!")
                     msg.appendLine()
                     msg.append(allocationsAsString())
                     logger.error { msg.toString() }
@@ -391,7 +412,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 }
                 // okay to dispose of the entity
                 if (autoDispose){
-                    logger.trace { "time = $time : entity ${id} is being disposed by $name" }
+                    logger.trace { "time = $time : entity $id is being disposed by ${entityType.name}"}
                     dispose(this)
                 }
             }
