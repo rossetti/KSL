@@ -58,7 +58,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
     }
 
     protected fun startNextProcess(entity: Entity) {
-        if (entity.nextProcess != null){
+        if (entity.nextProcess != null){  //TODO should be in Entity
             activate(entity.nextProcess!!)
         }
     }
@@ -75,8 +75,25 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
     }
 
     open inner class Entity(aName: String? = null) : QObject(time, aName) {
+
+        /**
+         *  Controls whether the entity uses an assigned process sequence via the processSequence property
+         *  at the end of successfully completing a process to determine the next process to experience.
+         *  The default is true.
+         */
+        var useProcessSequence = true
+
+        /**
+         *  An iterator over the entity's current process sequence.  If a process sequence is supplied
+         *  and the property useProcessSequence is true then the iterator is used to determine the
+         *  next process for the entity to execute.
+         */
         var processSequenceIterator: ListIterator<KSLProcess> = emptyList<KSLProcess>().listIterator()
             private set
+
+        /**
+         *  Provides a list of processes for the entity to follow before being disposed
+         */
         var processSequence: List<KSLProcess> = emptyList()
             set(list) {
                 for(process in list){
@@ -84,7 +101,14 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 }
                 field = list
                 processSequenceIterator = field.listIterator()
+                useProcessSequence = true
             }
+        
+        /**
+         *  Controls whether the entity goes through the function dispose() of its containing EntityType.
+         *  The default is true.
+         */
+        var autoDispose = true
 
         private var processCounter = 0
         val entityType = this@EntityType
@@ -625,8 +649,10 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                     throw IllegalStateException(msg.toString())
                 }
                 // okay to dispose of the entity
-                logger.trace { "time = $time : entity ${id} is being disposed by $name" }
-                dispose(this)
+                if (autoDispose){
+                    logger.trace { "time = $time : entity ${id} is being disposed by $name" }
+                    dispose(this)
+                }
             }
         }
 
