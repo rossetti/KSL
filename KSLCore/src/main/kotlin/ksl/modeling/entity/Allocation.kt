@@ -7,20 +7,42 @@ package ksl.modeling.entity
  *  resource result in multiple allocations (when filled).  An allocation is not created until
  *  the requested amount is available.
  */
-class Allocation(val entity: EntityType.Entity, val resource: Resource, theAmount: Int = 1) {
+class Allocation(val entity: EntityType.Entity, val resource: Resource, theAmount: Int = 1, allocationName: String? = null) {
     init {
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
     }
 
+    /**
+     *  The time that the allocation was allocated to its resource
+     */
+    val timeAllocated: Double = resource.time
+    var timeDeallocated: Double = Double.NaN
+        internal set
+
+    /**
+     *  An optional name for the allocation
+     */
+    var name : String? = allocationName
+        private set
+
+    /**
+     *  The amount of the allocation representing the units allocated of the resource
+     */
     var amount: Int = theAmount
         internal set(value) {
             require(value >= 0) { "The amount allocated must be >= 0" }
             field = value
         }
 
+    /**
+     *  True if the allocation is currently allocated to a resource
+     */
     val isAllocated: Boolean
         get() = amount > 0
 
+    /**
+     *  True if no units are allocated
+     */
     val isDeallocated: Boolean
         get() = !isAllocated
 

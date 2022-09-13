@@ -315,7 +315,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
     /**
      *  The current simulation time
      */
-    protected val time
+    val time
         get() = executive.currentTime * model.baseTimeUnit.value //TODO check if I should multiply by base time unit
 
     /**

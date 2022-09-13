@@ -227,7 +227,6 @@ open class Queue<T : QObject>(
      * Places the QObject in the queue, with the specified priority
      * Automatically, updates the number in queue response variable.
      *
-     * @param <S> The type of the object being attached to the QObject
      * @param qObject - the QObject to enqueue
      * @param priority - the priority for ordering the object, lower has more priority
      * @param obj an Object to be "wrapped" and queued while the QObject is queued </S> */

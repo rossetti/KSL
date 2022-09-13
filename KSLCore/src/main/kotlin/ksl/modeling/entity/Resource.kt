@@ -194,19 +194,20 @@ class Resource(
      * available at the time of this call.
      *
      * @param entity the entity that is requesting the units
-     * @param amountRequested that amount to allocate, must be greater than or equal to 1
+     * @param amountNeeded that amount to allocate, must be greater than or equal to 1
+     * @param allocationName an optional name for the allocation
      * @return an allocation representing that the units have been allocated to the entity. The reference
      * to this allocation is necessary in order to deallocate the allocated units.
      */
-    fun allocate(entity: EntityType.Entity, amountRequested: Int = 1): Allocation {
-        require(amountRequested >= 1) { "The amount to allocate must be >= 1" }
-        check(numAvailableUnits >= amountRequested) { "The amount requested, $amountRequested must be <= the number of units available, $numAvailableUnits" }
-        val allocation = Allocation(entity, this, amountRequested)
+    fun allocate(entity: EntityType.Entity, amountNeeded: Int = 1, allocationName: String? = null): Allocation {
+        require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
+        check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
+        val allocation = Allocation(entity, this, amountNeeded, allocationName)
         if (!entityAllocations.contains(entity)) {
             entityAllocations[entity] = mutableListOf()
         }
         entityAllocations[entity]?.add(allocation)
-        myNumBusy.increment(amountRequested.toDouble())
+        myNumBusy.increment(amountNeeded.toDouble())
         // must be busy, because an allocation occurred
         myState.exit(time)
         myState = myBusyState
@@ -239,6 +240,7 @@ class Resource(
         allocation.entity.deallocate(allocation)
         // deallocate the allocation, so it can't be used again
         allocation.amount = 0
+        allocation.timeDeallocated = time
         // need to check the queue
         if (waitingQ.isNotEmpty){
             val entity = waitingQ.removeNext()

@@ -21,10 +21,6 @@ interface KSLProcess {
     val entity: EntityType.Entity
 }
 
-interface ProcessResumer {  //TODO need to remove
-    fun resume(entity: EntityType.Entity)
-}
-
 /**
  *  Because an entity that is executing a process cannot resume itself
  *  after suspending itself, we need a mechanism to allow the entity
@@ -51,21 +47,10 @@ interface KSLProcessBuilder {
      *  must provide an object that will resume the process.
      *
      * @param suspensionObserver the thing that promises to resume the process
+     * @param suspensionName a name for the suspension point. Can be used to determine which suspension point
+     * the entity is in when there are multiple suspension points.
      */
-    suspend fun suspend(suspensionObserver: SuspensionObserver)
-
-    /**
-     *  Suspends the execution of the process.  Since the process cannot resume itself, the client
-     *  must provide an object that will resume the process.
-     *
-     *  @param resumer something that knows how to resume the process after it is suspended
-     */
-    suspend fun suspend(resumer: ProcessResumer) //TODO
-
-    /**
-     *  Resumes the process after it was halted (suspended).
-     */
-    fun resume() //TODO need to remove this
+    suspend fun suspend(suspensionObserver: SuspensionObserver, suspensionName: String?)
 
     /**
      *  Causes the process to halt, waiting for the signal to be announced.  Some other process/event
@@ -77,8 +62,10 @@ interface KSLProcessBuilder {
      *  the same signal
      *  @param waitStats Indicates whether waiting time statistics should be
      * collected on waiting items, true means collect statistics
+     *  @param waitForName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
+     *   are more than one waitFor suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun waitFor(signal: Signal, waitPriority: Int = KSLEvent.DEFAULT_PRIORITY, waitStats: Boolean = true)
+    suspend fun waitFor(signal: Signal, waitPriority: Int = KSLEvent.DEFAULT_PRIORITY, waitStats: Boolean = true, waitForName: String? = null)
 
     /**
      *  Causes the process to hold indefinitely within the supplied queue.  Some other process or event
@@ -88,8 +75,10 @@ interface KSLProcessBuilder {
      *
      *  @param queue a queue to hold the waiting entities
      *  @param priority a priority for the queue discipline if needed
+     *  @param holdName the name of the hold. can be used to identify which hold the entity is experiencing if there
+     *   are more than one hold suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun hold(queue: HoldQueue, priority: Int = KSLEvent.DEFAULT_PRIORITY)
+    suspend fun hold(queue: HoldQueue, priority: Int = KSLEvent.DEFAULT_PRIORITY, holdName: String? = null)
 
     /**
      *  Requests a number of units of the indicated resource.
@@ -99,12 +88,14 @@ interface KSLProcessBuilder {
      *  @param resource the resource from which the units are being requested.
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
+     *  @param seizeName the name of the seize suspension point. can be used to identify which seize the entity is experiencing if there
+     *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
      *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
      *  all requested units of the resource have been allocated.
      */
     suspend fun seize(resource: Resource, amountNeeded: Int = 1,
-                      seizePriority: Int = KSLEvent.DEFAULT_PRIORITY) : Allocation
+                      seizePriority: Int = KSLEvent.DEFAULT_PRIORITY, seizeName: String? = null) : Allocation
 
     /**
      *  Causes the process to delay (suspend execution) for the specified amount of time.
@@ -113,17 +104,21 @@ interface KSLProcessBuilder {
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
+     *  @param delayName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay within the process. The user is responsible for uniqueness.
      */
-    suspend fun delay(delayDuration: Double, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY)
+    suspend fun delay(delayDuration: Double, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY, delayName: String? = null)
 
     /**
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
+     *  @param delayName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay within the process. The user is responsible for uniqueness.
      */
-    suspend fun delay(delayDuration: GetValueIfc, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY) {
-        delay(delayDuration.value, delayPriority)
+    suspend fun delay(delayDuration: GetValueIfc, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY, delayName: String? = null) {
+        delay(delayDuration.value, delayPriority, delayName)
     }
 
     /**
