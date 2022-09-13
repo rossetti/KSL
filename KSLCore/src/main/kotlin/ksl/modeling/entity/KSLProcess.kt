@@ -105,7 +105,7 @@ interface KSLProcessBuilder {
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
      *  @param delayName the name of the delay. can be used to identify which delay the entity is experiencing if there
-     *   are more than one delay within the process. The user is responsible for uniqueness.
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun delay(delayDuration: Double, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY, delayName: String? = null)
 
@@ -115,7 +115,7 @@ interface KSLProcessBuilder {
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
      *  @param delayName the name of the delay. can be used to identify which delay the entity is experiencing if there
-     *   are more than one delay within the process. The user is responsible for uniqueness.
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun delay(delayDuration: GetValueIfc, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY, delayName: String? = null) {
         delay(delayDuration.value, delayPriority, delayName)
