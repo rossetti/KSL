@@ -704,7 +704,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             private inner class ActivateAction : EventAction<KSLProcess>() {
                 override fun action(event: KSLEvent<KSLProcess>) {
                     beforeRunningProcess(myPendingProcess!!)
-                    runProcess()
+                    activateProcess()
                 }
             }
 
@@ -712,13 +712,16 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
              * This method is called when the entity's current process is activated for the
              * first time.
              */
-            private fun runProcess() {
+            private fun activateProcess() {
                 myPendingProcess = null
                 logger.trace { "time = $time : entity ${entity.id} activating and running process, ($this)" }
-                entity.state.activate()
-                state.run()
+                entity.state.activate()// was scheduled, now entity is active for running
+                state.start() // this is the coroutine state, can only start process (coroutine) from the created state
+                // The coroutine is told to resume its continuation. Thus, it runs until its first suspension point.
                 logger.trace { "time = $time : entity ${entity.id} has hit the first suspension point of process, ($this)" }
             }
+
+            //TODO consider a separate start() function to allow starting of sub-processes
 
             internal fun resume() {
                 state.resume()
@@ -859,8 +862,8 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
 
             private abstract inner class ProcessState(val processStateName: String) {
 
-                open fun run() {
-                    errorMessage("run process")
+                open fun start() {
+                    errorMessage("start process")
                 }
 
                 open fun suspend() {
@@ -894,7 +897,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             }
 
             private inner class Created : ProcessState("Created") {
-                override fun run() {
+                override fun start() {
                     myCurrentProcess = this@ProcessCoroutine
                     isActivated = true
                     state = running
