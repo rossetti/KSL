@@ -732,7 +732,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
             //TODO how to run a sub-process from within another process (coroutine)?
             // what happens if the subProcess is placed within a loop? i.e. called more than once
             private fun runSubProcess(subProcess: KSLProcess){
-                // check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
+                //TODO check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
                 val p = subProcess as ProcessCoroutine
                 if (p.isCreated){
                     // must start it
