@@ -7,7 +7,7 @@ package ksl.modeling.entity
  *  resource result in multiple allocations (when filled).  An allocation is not created until
  *  the requested amount is available.
  */
-class Allocation(val entity: EntityType.Entity, val resource: Resource, theAmount: Int = 1, allocationName: String? = null) {
+class Allocation(val entity: ProcessModel.Entity, val resource: Resource, theAmount: Int = 1, allocationName: String? = null) {
     init {
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
     }

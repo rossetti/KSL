@@ -13,10 +13,10 @@ class HoldQueue(
     name: String? = null,
     discipline: Discipline = Discipline.FIFO
 ) :
-    Queue<EntityType.Entity>(parent, name, discipline) {
+    Queue<ProcessModel.Entity>(parent, name, discipline) {
 
     fun removeAndResume(
-        entity: EntityType.Entity,
+        entity: ProcessModel.Entity,
         resumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         waitStats: Boolean = true
     ) {

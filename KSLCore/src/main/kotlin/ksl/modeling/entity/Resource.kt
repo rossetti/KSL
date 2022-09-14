@@ -39,7 +39,7 @@ class Resource(
      *  The key to this map represents the entities that are using the resource.
      *  The element of this map represents the list of allocations allocated to the entity.
      */
-    private val entityAllocations: MutableMap<EntityType.Entity, MutableList<Allocation>> = mutableMapOf()
+    private val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
 
     var initialCapacity = theInitialCapacity
         set(value) {
@@ -144,14 +144,14 @@ class Resource(
     /**
      *  Checks if the entity is using (has allocated units) of resource.
      */
-    fun isUsing(entity: EntityType.Entity): Boolean {
+    fun isUsing(entity: ProcessModel.Entity): Boolean {
         return entityAllocations.contains(entity)
     }
 
     /**
      *  Computes the number of different allocations of the resource held by the entity.
      */
-    fun numberOfAllocations(entity: EntityType.Entity): Int {
+    fun numberOfAllocations(entity: ProcessModel.Entity): Int {
         return if (!isUsing(entity)) {
             0
         } else {
@@ -163,7 +163,7 @@ class Resource(
      * Computes the total number of units of the specified resource that are allocated
      * to the entity.
      */
-    fun totalAmountAllocated(entity: EntityType.Entity): Int {
+    fun totalAmountAllocated(entity: ProcessModel.Entity): Int {
         if (!isUsing(entity)) {
             return 0
         } else {
@@ -199,7 +199,7 @@ class Resource(
      * @return an allocation representing that the units have been allocated to the entity. The reference
      * to this allocation is necessary in order to deallocate the allocated units.
      */
-    fun allocate(entity: EntityType.Entity, amountNeeded: Int = 1, allocationName: String? = null): Allocation {
+    fun allocate(entity: ProcessModel.Entity, amountNeeded: Int = 1, allocationName: String? = null): Allocation {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
         check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
         val allocation = Allocation(entity, this, amountNeeded, allocationName)
@@ -249,11 +249,11 @@ class Resource(
         }
     }
 
-    internal fun enqueue(entity: EntityType.Entity, priority: Int = entity.priority){
+    internal fun enqueue(entity: ProcessModel.Entity, priority: Int = entity.priority){
         waitingQ.enqueue(entity, priority)
     }
 
-    internal fun dequeue(entity: EntityType.Entity){
+    internal fun dequeue(entity: ProcessModel.Entity){
         waitingQ.remove(entity)
     }
 

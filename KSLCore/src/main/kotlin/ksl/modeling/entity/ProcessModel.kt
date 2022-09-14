@@ -12,10 +12,10 @@ import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 
-open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent, name) {
+open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(parent, name) {
 
     private val suspendedEntities = mutableSetOf<Entity>()
-    //TODO need to implement statistics?
+
     protected val defaultProcessSequence = mutableListOf<KSLProcess>()
 
     /** Cause the entity to start the process sequence in the order specified by the sequence.
@@ -26,7 +26,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
      * @param activationTime the time to start the first process in the sequence
      * @param priority the priority associated with the event to start the first process
      * @param sequence the sequence to follow, by default this is defaultProcessSequence
-     * @return the schedule activation event or null if there were no processes to start.
+     * @return the scheduled activation event or null if there were no processes to start.
      */
     fun <T : Entity> startProcessSequence(
         entity: T,
@@ -49,7 +49,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
      * @param activationTime the time to start the first process in the sequence
      * @param priority the priority associated with the event to start the first process
      * @param sequence the sequence to follow, by default this is defaultProcessSequence
-     * @return the schedule activation event or null if there were no processes to start.
+     * @return the scheduled activation event or null if there were no processes to start.
      */
     fun <T : Entity> startProcessSequence(
         entity: T,
@@ -143,7 +143,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         var processSequence: List<KSLProcess> = emptyList()
             set(list) {
                 for(process in list){
-                    require(process.entity == this){"The process $process does not belong to entity $this in entity type $entityType"}
+                    require(process.entity == this){"The process $process does not belong to entity $this in entity type $processModel"}
                 }
                 useProcessSequence = list.isNotEmpty()
                 field = list
@@ -157,7 +157,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
         var autoDispose = true
 
         private var processCounter = 0
-        val entityType = this@EntityType
+        val processModel = this@ProcessModel
         private val myCreatedState = CreatedState()
         private val myScheduledState = Scheduled()
         private val myWaitingForSignalState = WaitingForSignal()
@@ -473,7 +473,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 }
                 // okay to dispose of the entity
                 if (autoDispose){
-                    logger.trace { "time = $time : entity $id is being disposed by ${entityType.name}"}
+                    logger.trace { "time = $time : entity $id is being disposed by ${processModel.name}"}
                     dispose(this)
                 }
             }
@@ -506,7 +506,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 //remove it from its queue with no stats
                 @Suppress("UNCHECKED_CAST")
                 // since this is an entity, it must be in a HoldQueue which must hold EntityType.Entity
-                val q = queue!! as Queue<EntityType.Entity>
+                val q = queue!! as Queue<ProcessModel.Entity>
                 q.remove(this, false)
                 logger.trace { "time = $time Process $completedProcess was terminated for Entity $this removed from queue ${q.name} ." }
             } else if (isScheduled) {

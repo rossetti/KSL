@@ -1,7 +1,6 @@
 package examplepkg
 
-import ksl.examples.book.chapter6.SchedulingEventExamples
-import ksl.modeling.entity.EntityType
+import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.Resource
@@ -9,7 +8,7 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
-class TestProcessModeling(parent: ModelElement) : EntityType(parent, null) {
+class TestProcessModeling(parent: ModelElement) : ProcessModel(parent, null) {
 
     val resource: Resource = Resource(this, "test resource")
 

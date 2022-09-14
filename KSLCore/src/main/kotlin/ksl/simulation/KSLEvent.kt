@@ -15,7 +15,7 @@
 */
 package ksl.simulation
 
-import ksl.modeling.entity.EntityType.Entity //TODO not sure if this is needed anymore, why should event have an entity?
+import ksl.modeling.entity.ProcessModel.Entity //TODO not sure if this is needed anymore, why should event have an entity?
 import java.text.DecimalFormat
 
 /**

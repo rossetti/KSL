@@ -24,7 +24,7 @@ class Signal(
     /**
      *  Used within the process implementation to hold the entities
      */
-    internal fun hold(entity: EntityType.Entity, queuePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
+    internal fun hold(entity: ProcessModel.Entity, queuePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
         holdQueue.enqueue(entity, queuePriority)
     }
 
@@ -33,7 +33,7 @@ class Signal(
      *  @param entity the entity to signal
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
-    fun signal(entity: EntityType.Entity, resumePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
+    fun signal(entity: ProcessModel.Entity, resumePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
         entity.resumeProcess(resumePriority)
     }
 
@@ -79,7 +79,7 @@ class Signal(
     /**
      *  Used by the entity to call back and remove itself after the signal
      */
-    internal fun release(entity: EntityType.Entity, waitStats: Boolean = true) {
+    internal fun release(entity: ProcessModel.Entity, waitStats: Boolean = true) {
         holdQueue.remove(entity, waitStats)
     }
 }

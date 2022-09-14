@@ -18,7 +18,7 @@ interface KSLProcess {
     val isCompleted: Boolean
     val isRunning: Boolean
     val isActivated: Boolean
-    val entity: EntityType.Entity
+    val entity: ProcessModel.Entity
 }
 
 /**
@@ -35,8 +35,8 @@ interface SuspensionObserver {
 
     val name: String
 
-    fun attach(entity: EntityType.Entity)
-    fun detach(entity: EntityType.Entity)
+    fun attach(entity: ProcessModel.Entity)
+    fun detach(entity: ProcessModel.Entity)
 }
 
 @RestrictsSuspension

@@ -1,6 +1,6 @@
 package examplepkg
 
-import ksl.modeling.entity.EntityType
+import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.Resource
 import ksl.modeling.variable.RandomVariable
@@ -11,7 +11,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
-class SimpleProcessQ(parent: ModelElement) : EntityType(parent, null) {
+class SimpleProcessQ(parent: ModelElement) : ProcessModel(parent, null) {
     //TODO ideas to allow exposure interfaces to change basic properties?
     private val worker: Resource = Resource(this, "worker")
     private val tba = RandomVariable(this, ExponentialRV(6.0, 1))
