@@ -716,12 +716,28 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 myPendingProcess = null
                 logger.trace { "time = $time : entity ${entity.id} activating and running process, ($this)" }
                 entity.state.activate()// was scheduled, now entity is active for running
+                start() // starts the coroutine from the created state
+            }
+
+            /**
+             *  Must be called only when coroutine is in its created state. Causes the coroutine to
+             *  resume its continuation and run until its first suspension point.
+             */
+            private fun start(){
                 state.start() // this is the coroutine state, can only start process (coroutine) from the created state
                 // The coroutine is told to resume its continuation. Thus, it runs until its first suspension point.
                 logger.trace { "time = $time : entity ${entity.id} has hit the first suspension point of process, ($this)" }
             }
 
             //TODO consider a separate start() function to allow starting of sub-processes
+            private fun runSubProcess(subProcess: KSLProcess){
+                // check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
+                val p = subProcess as ProcessCoroutine
+                if (p.isCreated){
+                    // must start it
+                    p.start() // coroutine run until its first suspension point
+                }
+            }
 
             internal fun resume() {
                 state.resume()
