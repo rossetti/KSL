@@ -729,7 +729,8 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                 logger.trace { "time = $time : entity ${entity.id} has hit the first suspension point of process, ($this)" }
             }
 
-            //TODO consider a separate start() function to allow starting of sub-processes
+            //TODO how to run a sub-process from within another process (coroutine)?
+            // what happens if the subProcess is placed within a loop? i.e. called more than once
             private fun runSubProcess(subProcess: KSLProcess){
                 // check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
                 val p = subProcess as ProcessCoroutine
@@ -737,6 +738,7 @@ open class EntityType(parent: ModelElement, name: String?) : ModelElement(parent
                     // must start it
                     p.start() // coroutine run until its first suspension point
                 }
+                TODO("not fully implemented/tested 9-14-2022")
             }
 
             internal fun resume() {
