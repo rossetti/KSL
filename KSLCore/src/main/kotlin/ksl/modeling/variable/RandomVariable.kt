@@ -26,7 +26,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  *   accessing information after the model has been executed. Changes or use during a model
  *   run is readily available through the general interface presented by RandomVariable.
  *
- *   The naming convention "CIfc" is used to denote controllable interface.
+ *   The naming convention "CIfc" is used to denote controlled interface.
  *
  */
 interface RandomVariableCIfc {
