@@ -22,11 +22,14 @@ import ksl.utilities.random.rng.RNStreamIfc
  *   controlled changes without fully exposing the private variable.  The implementer of the
  *   model element that contains the private random variable does not have to write additional
  *   functions to control the random variable and can use this strategy to expose what is needed.
+ *   This is most relevant to setting up the model elements prior to running the model or
+ *   accessing information after the model has been executed. Changes or use during a model
+ *   run is readily available through the general interface presented by RandomVariable.
  *
- *   The naming convention "PIfc" is used to denote public interface.
+ *   The naming convention "CIfc" is used to denote controllable interface.
  *
  */
-interface RandomVariablePIfc {
+interface RandomVariableCIfc {
     var resetNextSubStreamOption: Boolean
     var resetStartStreamOption: Boolean
 
@@ -100,7 +103,7 @@ interface RandomVariablePIfc {
  * is set to false.
  */
 class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = null) : ModelElement(parent, name),
-    RandomIfc, RandomElementIfc, RandomVariablePIfc {
+    RandomIfc, RandomElementIfc, RandomVariableCIfc {
 
     //TODO there is no capturing of the response implemented like in the JSL
 
