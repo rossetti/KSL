@@ -15,7 +15,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  *  For example:
  *
  *   private val myTBA = RandomVariable(this, ExponentialRV(6.0, 1))
- *   val tba: RandomVariablePIfc
+ *   val tba: RandomVariableCIfc
  *      get() = myTBA
  *
  *   Then users of the public property can change the initial random source and do other
