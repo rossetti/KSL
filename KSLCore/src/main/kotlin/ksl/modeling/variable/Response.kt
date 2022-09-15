@@ -8,6 +8,46 @@ import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.statistic.WeightedStatistic
 import ksl.utilities.statistic.WeightedStatisticIfc
 
+/**
+ *  While Response instances should in general be declared as private within model
+ *  elements, this interface provides the modeler the ability to declare a public property
+ *  that returns an instance with limited ability to change and use the underlying Response,
+ *  prior to running the model.
+ *
+ *  For example:
+ *
+ *   private val myR = Response(this, "something cool")
+ *   val response: ResponseCIfc
+ *      get() = myR
+ *
+ *   Then users of the public property can change the response and do other
+ *   controlled changes without fully exposing the private variable.  The implementer of the
+ *   model element that contains the private response does not have to write additional
+ *   functions to control the response and can use this strategy to expose what is needed.
+ *   This is most relevant to setting up the model elements prior to running the model or
+ *   accessing information after the model has been executed. Changes or use during a model
+ *   run is readily available through the general interface presented by Response.
+ *
+ *   The naming convention "CIfc" is used to denote controlled interface.
+ *
+ */
+interface ResponseCIfc {
+    val limits: Interval
+
+    /**
+     * Sets the initial value of the count limit. Only relevant prior to each
+     * replication. Changing during a replication has no effect until the next
+     * replication.
+     */
+    var initialCountLimit: Double
+    val acrossReplicationStatistic: StatisticIfc
+    val withinReplicationStatistic: WeightedStatisticIfc
+    var defaultReportingOption: Boolean
+    fun addCountLimitAction(action: CountActionIfc)
+    fun removeCountLimitAction(action: CountActionIfc)
+    fun addCountLimitStoppingAction() : CountActionIfc
+}
+
 // not subclassing from Variable, Response does not have an initial value, but does have limits
 // should be observable
 open class Response(
@@ -15,12 +55,12 @@ open class Response(
     name: String? = null,
     theLimits: Interval = Interval(),
     theInitialCountLimit: Double = Double.POSITIVE_INFINITY,
-) : ModelElement(parent, name), ResponseIfc, ResponseStatisticsIfc {
+) : ModelElement(parent, name), ResponseIfc, ResponseStatisticsIfc, ResponseCIfc {
     //TODO timed update stuff
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
     private var stoppingAction: StoppingAction? = null
 
-    val limits: Interval = theLimits
+    override val limits: Interval = theLimits
 
     var timeOfWarmUp: Double = 0.0
         protected set
@@ -37,7 +77,7 @@ open class Response(
      * replication. Changing during a replication has no effect until the next
      * replication.
      */
-    var initialCountLimit: Double = theInitialCountLimit
+    override var initialCountLimit: Double = theInitialCountLimit
         set(value) {
             require(value >= 0) { "The initial count stop limit, when set, must be >= 0" }
             if (model.isRunning) {
@@ -152,15 +192,15 @@ open class Response(
         myAcrossReplicationStatistic.value = myWithinReplicationStatistic.average()
     }
 
-    fun addCountLimitAction(action: CountActionIfc) {
+    override fun addCountLimitAction(action: CountActionIfc) {
         counterActions.add(action)
     }
 
-    fun removeCountLimitAction(action: CountActionIfc) {
+    override fun removeCountLimitAction(action: CountActionIfc) {
         counterActions.remove(action)
     }
 
-    fun addCountLimitStoppingAction() : CountActionIfc{
+    override fun addCountLimitStoppingAction() : CountActionIfc{
         if (stoppingAction == null){
             stoppingAction = StoppingAction()
             addCountLimitAction(stoppingAction!!)

@@ -5,12 +5,55 @@ import ksl.simulation.ModelElement
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
+/**
+ *  While Counter instances should in general be declared as private within model
+ *  elements, this interface provides the modeler the ability to declare a public property
+ *  that returns an instance with limited ability to change and use the underlying Counter,
+ *  prior to running the model.
+ *
+ *  For example:
+ *
+ *   private val myC = Counter(this, "something cool")
+ *   val counter: CounterCIfc
+ *      get() = myC
+ *
+ *   Then users of the public property can change the response and do other
+ *   controlled changes without fully exposing the private variable.  The implementer of the
+ *   model element that contains the private counter does not have to write additional
+ *   functions to control the counter and can use this strategy to expose what is needed.
+ *   This is most relevant to setting up the model elements prior to running the model or
+ *   accessing information after the model has been executed. Changes or use during a model
+ *   run is readily available through the general interface presented by Counter.
+ *
+ *   The naming convention "CIfc" is used to denote controlled interface.
+ *
+ */
+interface CounterCIfc {
+    /**
+     * Sets the initial value of the count limit. Only relevant prior to each
+     * replication. Changing during a replication has no effect until the next replication.
+     */
+    var initialCounterLimit: Double
+
+    /**
+     * Sets the initial value of the variable. Only relevant prior to each
+     * replication. Changing during a replication has no effect until the next
+     * replication.
+     */
+    var initialValue: Double
+    val acrossReplicationStatistic: StatisticIfc
+    var defaultReportingOption: Boolean
+    fun addCountLimitAction(action: CountActionIfc)
+    fun removeCountLimitAction(action: CountActionIfc)
+    fun addCountLimitStoppingAction() : CountActionIfc
+}
+
 open class Counter(
     parent: ModelElement,
     name: String? = null,
     theInitialValue: Double = 0.0,
     theInitialCounterLimit: Double = Double.POSITIVE_INFINITY,
-) : ModelElement(parent, name), CounterIfc {
+) : ModelElement(parent, name), CounterIfc, CounterCIfc {
 //TODO timed update stuff
 
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
@@ -30,7 +73,7 @@ open class Counter(
      * Sets the initial value of the count limit. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next replication.
      */
-    var initialCounterLimit: Double = theInitialCounterLimit
+    override var initialCounterLimit: Double = theInitialCounterLimit
         set(value) {
             require(value >= 0) { "The initial counter stop limit, when set, must be >= 0" }
             if (model.isRunning) {
@@ -99,15 +142,15 @@ open class Counter(
         value = value + increase
     }
 
-    fun addCountLimitAction(action: CountActionIfc) {
+    override fun addCountLimitAction(action: CountActionIfc) {
         counterActions.add(action)
     }
 
-    fun removeCountLimitAction(action: CountActionIfc) {
+    override fun removeCountLimitAction(action: CountActionIfc) {
         counterActions.remove(action)
     }
 
-    fun addCountLimitStoppingAction() : CountActionIfc{
+    override fun addCountLimitStoppingAction() : CountActionIfc{
         if (stoppingAction == null){
             stoppingAction = StoppingAction()
             addCountLimitAction(stoppingAction!!)

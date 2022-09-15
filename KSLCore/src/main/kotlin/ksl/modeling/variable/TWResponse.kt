@@ -4,13 +4,25 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Interval
 
+/**
+ *  @see ResponseCIfc
+ */
+interface TWResponseCIfc : ResponseCIfc {
+    /**
+     * Sets the initial value of the variable. Only relevant prior to each
+     * replication. Changing during a replication has no effect until the next
+     * replication.
+     */
+    var initialValue: Double
+}
+
 class TWResponse(
     parent: ModelElement,
     name: String? = null,
     theInitialValue: Double = 0.0,
     theLimits: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
     theInitialCountLimit: Double = Double.POSITIVE_INFINITY,
-) : Response(parent, name, theLimits, theInitialCountLimit), TimeWeightedIfc {
+) : Response(parent, name, theLimits, theInitialCountLimit), TimeWeightedIfc, TWResponseCIfc {
     //TODO timed update stuff
 
     init {
