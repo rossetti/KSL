@@ -15,7 +15,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  *  For example:
  *
  *   private val myTBA = RandomVariable(this, ExponentialRV(6.0, 1))
- *   val tba: RandomVariableIfc
+ *   val tba: RandomVariablePIfc
  *      get() = myTBA
  *
  *   Then users of the public property can change the initial random source and do other
@@ -23,8 +23,10 @@ import ksl.utilities.random.rng.RNStreamIfc
  *   model element that contains the private random variable does not have to write additional
  *   functions to control the random variable and can use this strategy to expose what is needed.
  *
+ *   The naming convention "PIfc" is used to denote public interface.
+ *
  */
-interface RandomVariableIfc {
+interface RandomVariablePIfc {
     var resetNextSubStreamOption: Boolean
     var resetStartStreamOption: Boolean
 
@@ -98,7 +100,7 @@ interface RandomVariableIfc {
  * is set to false.
  */
 class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = null) : ModelElement(parent, name),
-    RandomIfc, RandomElementIfc, RandomVariableIfc {
+    RandomIfc, RandomElementIfc, RandomVariablePIfc {
 
     //TODO there is no capturing of the response implemented like in the JSL
 
