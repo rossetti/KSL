@@ -81,7 +81,7 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
         return Interval(lowerLimit, upperLimit)
     }
 
-    fun asRange() = lowerLimit..upperLimit
+    fun asRange(): ClosedFloatingPointRange<Double> = lowerLimit..upperLimit
 
     override fun toString(): String {
         return "[$lowerLimit, $upperLimit]"

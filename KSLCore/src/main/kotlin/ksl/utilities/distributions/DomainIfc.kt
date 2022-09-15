@@ -7,6 +7,6 @@ import ksl.utilities.Interval
  *  The interval may be infinite
  */
 fun interface DomainIfc {
-
+//TODO use kotlin ranges
     fun domain(): Interval
 }

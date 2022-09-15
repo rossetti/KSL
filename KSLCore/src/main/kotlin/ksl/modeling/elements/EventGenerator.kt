@@ -16,6 +16,7 @@
 package ksl.modeling.elements
 
 import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -69,7 +70,7 @@ import ksl.utilities.random.rvariable.ConstantRV
  * default is Double.POSITIVE_INFINITY.
  * @param name the name of the generator
  */
-open class EventGenerator(
+class EventGenerator(
     parent: ModelElement,
     theAction: GeneratorActionIfc,
     theTimeUntilTheFirstEvent: RandomIfc = ConstantRV.ZERO,
@@ -78,6 +79,17 @@ open class EventGenerator(
     theTimeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
     name: String? = null
 ) : ModelElement(parent, name), EventGeneratorIfc {
+    init {
+        require(theMaxNumberOfEvents >= 0) { "The maximum number of events to generate was < 0!" }
+        if (theMaxNumberOfEvents == Long.MAX_VALUE) {
+            if (theTimeBtwEvents is ConstantRV) {
+                //TODO ranges will make this easier to check
+                require(theTimeBtwEvents.value != 0.0) { "Maximum number of events is $theMaxNumberOfEvents and time between events is 0.0" }
+            }
+        }
+        require(theTimeOfTheLastEvent >= 0) { "The time of the last event was < 0!" }
+        //TODO need to implement ranges so that time until first can be checked
+    }
 
     /**
      * The action for the events for generation
@@ -94,13 +106,17 @@ open class EventGenerator(
      * Holds the random source for the time until first event. Used to
      * initialize the generator at the beginning of each replication
      */
-    private var myInitialTimeUntilFirstEvent: RandomIfc = theTimeUntilTheFirstEvent
+//    private var myInitialTimeUntilFirstEvent: RandomIfc = theTimeUntilTheFirstEvent
 
     /**
      * A RandomVariable that uses the time until first random source
      */
-    private var myTimeUntilFirstEventRV: RandomVariable = RandomVariable(this, myInitialTimeUntilFirstEvent,
-        "$name:TimeUntilFirstRV")
+    private val myTimeUntilFirstEventRV: RandomVariable = RandomVariable(
+        this, theTimeUntilTheFirstEvent,
+        "$name:TimeUntilFirstRV"
+    )
+    override val initialTimeUntilFirstEvent: RandomVariableCIfc
+        get() = myTimeUntilFirstEventRV
 
     /**
      * Holds the random source for the time between events. Used to initialize
@@ -112,53 +128,49 @@ open class EventGenerator(
      * Used to initialize the maximum number of events at the beginning of each
      * replication
      */
-    private var myInitialMaxNumEvents: Long = 0
+    private var myInitialMaxNumEvents: Long = theMaxNumberOfEvents
 
     /**
      * A random variable for the time between events
      */
-    private var myTimeBtwEventsRV: RandomVariable = null
+    private val myTimeBtwEventsRV: RandomVariable =
+        RandomVariable(this, myInitialTimeBtwEvents, "$name:TimeBtwEventsRV")
 
     /**
      * Used to set the ending time when the generator is initialized
      */
-    private var myInitialEndingTime = 0.0
+    private var myInitialEndingTime = theTimeOfTheLastEvent
 
     /**
      * The time to stop generating for the current replication
      */
-    private var myEndingTime = 0.0
+    private var myEndingTime = theTimeOfTheLastEvent
 
 
     /**
      * The number of events to generate for the current replication
      */
-    private var myMaxNumEvents: Long = 0
+    private var myMaxNumEvents: Long = theMaxNumberOfEvents
 
     /**
      * The number of events currently generated during the replication
      */
-    private var myEventCount: Long
+    private var myEventCount: Long = 0
 
     /**
      * Whether the generator is done generating
      */
-    private var myDoneFlag: Boolean
+    private var myDoneFlag: Boolean = false
 
     /**
      * Whether the generator has been suspended
      */
-    private var mySuspendedFlag: Boolean
+    private var mySuspendedFlag: Boolean = false
 
     /**
      * The next event to be executed for the generator
      */
-    private var myNextEvent: KSLEvent<Nothing>?
-
-    /**
-     * Handles the actions for the event
-     */
-    private var myGenerateListener: GeneratorActionIfc? = null
+    private var myNextEvent: KSLEvent<Nothing>? = null
 
     /**
      * This flag controls whether the generator starts automatically when
@@ -168,12 +180,10 @@ open class EventGenerator(
      */
     override var startOnInitializeFlag = true
 
-    private val myEventHandler: EventHandler
+    private val myEventHandler: EventHandler = EventHandler()
 
     /**
      * indicates whether the generator has been started (turned on)
-     *
-     *
      */
     override var isGeneratorStarted = false
         private set
@@ -193,15 +203,8 @@ open class EventGenerator(
     override val initialTimeBtwEvents: RandomIfc
         get() = TODO("Not yet implemented")
 
-    override var initialTimeUntilFirstEvent: RandomIfc?
-        get() = myInitialTimeUntilFirstEvent
-        set(timeUntilFirst) {
-            requireNotNull(timeUntilFirst) { "The time until first RandomIfc was null!" }
-            myInitialTimeUntilFirstEvent = timeUntilFirst
-        }
-
     // now set the time to turn off
-    override var endingTime: Double
+    override var endingTime: Double  //TODO do not need separate private field
         get() = myEndingTime
         set(endingTime) {
             require(endingTime >= 0) { "The ending time was < 0.0!" }
@@ -212,83 +215,32 @@ open class EventGenerator(
                 myEndingTime = endingTime
             }
         }
-    override var initialEndingTime: Double
+    override var initialEndingTime: Double //TODO do not need separate private field
         get() = myInitialEndingTime
         set(endingTime) {
             require(endingTime >= 0) { "The time until last was < 0.0!" }
             myInitialEndingTime = endingTime
         }
-    override val numberOfEventsGenerated: Long
+    override val numberOfEventsGenerated: Long //TODO do not need separate private field, use private set
         get() = myEventCount
 
-    /**
-     * Creates an EventGenerator that uses the supplied
-     * EventGeneratorActionIfc to react to the events.
-     *
-     * @param parent the parent model element
-     * @param listener This listener supplies the "event" logic for reacting to
-     * the generated event.
-     * @param timeUntilFirst A RandomIfc object that supplies the time until the
-     * first event.
-     * @param timeUntilNext A RandomIfc object that supplies the time between
-     * events. Must not be a RandomIfc that always returns 0.0, if the maximum
-     * number of generations is infinite (Long.MAX_VALUE)
-     * @param maxNum A long that supplies the maximum number of events to
-     * generate. Each time an event is to be scheduled the maximum number of
-     * events is checked. If the maximum has been reached, then the generator is
-     * turned off. The default is Long.MAX_VALUE. This parameter cannot be
-     * Long.MAX_VALUE when the time until next always returns a value of 0.0
-     * @param timeUntilLast A double that supplies a time to stop generating
-     * events. When the generator is created, this variable is used to set the
-     * ending time of the generator. Each time an event is to be scheduled the
-     * ending time is checked. If the time of the next event is past this time,
-     * then the generator is turned off and the event won't be scheduled. The
-     * default is Double.POSITIVE_INFINITY.
-     * @param name The name of the generator.
-     */
-    init {
-        var timeUntilFirst: RandomIfc? = theTimeUntilTheFirstEvent
-        var timeUntilNext: RandomIfc? = theTimeBtwEvents
-        myEventHandler = EventHandler()
-        setAfterReplicationOption(false)
-        generatorAction = theAction
-        myDoneFlag = false
-        mySuspendedFlag = false
-        myEventCount = 0
-        myNextEvent = null
-        if (timeUntilFirst == null) {
-            timeUntilFirst = ConstantRV.ZERO
-        }
-        initialTimeUntilFirstEvent = timeUntilFirst
-        myTimeUntilFirstEventRV = RandomVariable(this, timeUntilFirst, getName() + ":TimeUntilFirstRV")
-        if (timeUntilNext == null) {
-            timeUntilNext = ConstantRV.POSITIVE_INFINITY
-        }
-        setInitialTimeBetweenEventsAndMaxNumEvents(timeUntilNext, theMaxNumberOfEvents)
-        setTimeBetweenEvents(myInitialTimeBtwEvents, myInitialMaxNumEvents)
-        initialEndingTime = theTimeOfTheLastEvent
-
-        // set ending time based on the value to be used for each replication
-        // setEndingTime(myInitialEndingTime);
-    }
-
     interface ActionStepIfc {
-        fun action(action: GeneratorActionIfc?): TimeBetweenEventsStepIfc?
+        fun action(action: GeneratorActionIfc): TimeBetweenEventsStepIfc
     }
 
     interface TimeBetweenEventsStepIfc {
-        fun timeBetweenEvents(timeBtwEvents: RandomIfc?): BuildStepIfc?
+        fun timeBetweenEvents(timeBtwEvents: RandomIfc): BuildStepIfc
     }
 
     interface BuildStepIfc {
-        fun timeUntilFirst(timeUntilFirst: RandomIfc?): BuildStepIfc?
-        fun maxNumberOfEvents(maxNum: Long): BuildStepIfc?
-        fun name(name: String?): BuildStepIfc?
-        fun timeUntilLastEvent(timeUntilLastEvent: Double): BuildStepIfc?
-        fun build(): EventGenerator?
+        fun timeUntilFirst(timeUntilFirst: RandomIfc): BuildStepIfc
+        fun maxNumberOfEvents(maxNum: Long): BuildStepIfc
+        fun name(name: String?): BuildStepIfc
+        fun timeUntilLastEvent(timeUntilLastEvent: Double): BuildStepIfc
+        fun build(): EventGenerator
     }
 
-    protected class EventGeneratorBuilder(parent: ModelElement) : ActionStepIfc, TimeBetweenEventsStepIfc,
+    private class EventGeneratorBuilder(parent: ModelElement) : ActionStepIfc, TimeBetweenEventsStepIfc,
         BuildStepIfc {
         private val parent: ModelElement
         private var action: GeneratorActionIfc? = null
@@ -302,20 +254,17 @@ open class EventGenerator(
             this.parent = parent
         }
 
-        override fun action(action: GeneratorActionIfc?): TimeBetweenEventsStepIfc {
-            requireNotNull(action) { "The action must not be null." }
+        override fun action(action: GeneratorActionIfc): TimeBetweenEventsStepIfc {
             this.action = action
             return this
         }
 
-        override fun timeUntilFirst(timeUntilFirst: RandomIfc?): BuildStepIfc {
-            requireNotNull(timeUntilFirst) { "The time until the first event must not be null." }
+        override fun timeUntilFirst(timeUntilFirst: RandomIfc): BuildStepIfc {
             this.timeUntilFirst = timeUntilFirst
             return this
         }
 
-        override fun timeBetweenEvents(timeBtwEvents: RandomIfc?): BuildStepIfc {
-            requireNotNull(timeBtwEvents) { "The time between events must not be null." }
+        override fun timeBetweenEvents(timeBtwEvents: RandomIfc): BuildStepIfc {
             this.timeBtwEvents = timeBtwEvents
             return this
         }
@@ -338,10 +287,7 @@ open class EventGenerator(
         }
 
         override fun build(): EventGenerator {
-            return EventGenerator(
-                parent, action, timeUntilFirst,
-                timeBtwEvents, maxNum, timeUntilLastEvent, name
-            )
+            return EventGenerator(parent, action!!, timeUntilFirst, timeBtwEvents!!, maxNum, timeUntilLastEvent, name)
         }
     }
 
@@ -447,11 +393,14 @@ open class EventGenerator(
         }
     }
 
-    override fun setInitialTimeBetweenEventsAndMaxNumEvents(initialTimeBtwEvents: RandomIfc, initialMaxNumEvents: Long) {
+    override fun setInitialTimeBetweenEventsAndMaxNumEvents(
+        initialTimeBtwEvents: RandomIfc,
+        initialMaxNumEvents: Long
+    ) {
         require(initialMaxNumEvents >= 0) { "The maximum number of events to generate was < 0!" }
         if (initialMaxNumEvents == Long.MAX_VALUE) {
             if (initialTimeBtwEvents is ConstantRV) {
-                require(initialTimeBtwEvents.value != 0.0) { "Maximum number of actions is infinite and time between actions is 0.0" }
+                require(initialTimeBtwEvents.value != 0.0) { "Maximum number of events is infinite and time between events is 0.0" }
             }
         }
         myInitialMaxNumEvents = initialMaxNumEvents
@@ -479,20 +428,11 @@ open class EventGenerator(
     }
 
     /**
-     * This method should be overridden by subclasses that do not supply an
-     * EventGeneratorActionIfc to model the action that occur when the event
-     * happens.
-     *
-     * @param event the event associated with the generations
-     */
-    protected fun generate(event: KSLEvent<Nothing>) {}
-
-    /**
      * Schedules the first event at current time + r.getValue()
      *
      * @param r the time to the first event
      */
-    protected fun scheduleFirstEvent(r: GetValueIfc) {
+    private fun scheduleFirstEvent(r: GetValueIfc) {
         scheduleFirstEvent(r.value)
     }
 
@@ -501,7 +441,7 @@ open class EventGenerator(
      *
      * @param t the time to the first event
      */
-    protected fun scheduleFirstEvent(t: Double) {
+    private fun scheduleFirstEvent(t: Double) {
         if (t + time > endingTime) {
             turnOffGenerator()
         }
@@ -516,33 +456,29 @@ open class EventGenerator(
      * greater than the maximum number of actions. If so, the generator is told
      * to shut down.
      */
-    protected fun incrementNumberOfEvents() {
+    private fun incrementNumberOfEvents() { //TODO
         myEventCount++
         if (myEventCount > myMaxNumEvents) {
             turnOffGenerator()
         }
     }
 
-    protected fun removedFromModel() {
-        super.removedFromModel()
-        myInitialTimeUntilFirstEvent = null
-        myTimeUntilFirstEventRV = null
-        myInitialTimeBtwEvents = null
-        myTimeBtwEventsRV = null
-        myNextEvent = null
-        myGenerateListener = null
-    }
+    //TODO
+//    protected fun removedFromModel() {
+//        super.removedFromModel()
+//        myInitialTimeUntilFirstEvent = null
+//        myTimeUntilFirstEventRV = null
+//        myInitialTimeBtwEvents = null
+//        myTimeBtwEventsRV = null
+//        myNextEvent = null
+//        myGenerateListener = null
+//    }
 
     private inner class EventHandler : EventAction<Nothing>() {
-        override fun action(event:KSLEvent<Nothing>) {
+        override fun action(event: KSLEvent<Nothing>) {
             incrementNumberOfEvents()
             if (!myDoneFlag) {
-                if (myGenerateListener != null) {
-                    myGenerateListener!!.generate(this@EventGenerator, event)
-                } else {
-                    generate(event)
-                }
-
+                generatorAction.generate(this@EventGenerator)
                 // get the time until next event
                 val t: Double = myTimeBtwEventsRV.value
                 // check if it is past end time
@@ -550,8 +486,7 @@ open class EventGenerator(
                     turnOffGenerator()
                 }
                 if (!isSuspended) {
-                    if (!myDoneFlag) // I'm not done generating, schedule the next event
-                    {
+                    if (!myDoneFlag) {// I'm not done generating, schedule the next event
                         schedule(t, priority = eventPriority)
                     }
                 }

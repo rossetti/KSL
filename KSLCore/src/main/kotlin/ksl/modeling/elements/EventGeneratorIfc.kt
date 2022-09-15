@@ -15,6 +15,7 @@
  */
 package ksl.modeling.elements
 
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.utilities.random.RandomIfc
 
 /** An interface to define how event generators operate.  The primary
@@ -135,7 +136,7 @@ interface EventGeneratorIfc {
      * 0.0, if the current setting of the maximum number of events is infinite
      * (Long.MAX_VALUE)
      */
-    val timeBetweenEvents: RandomIfc
+    val timeBetweenEvents: RandomIfc //TODO should be stream control
 
     /**
      * Sets the time between events and the maximum number of events for the
@@ -150,7 +151,7 @@ interface EventGeneratorIfc {
      * @param timeBtwEvents the time between events
      * @param maxNumEvents the maximum number of events
      */
-    fun setTimeBetweenEvents(timeBtwEvents: RandomIfc, maxNumEvents: Long)
+    fun setTimeBetweenEvents(timeBtwEvents: RandomIfc, maxNumEvents: Long = Long.MAX_VALUE)
 
     /**
      * Sets the time between events and the maximum number of events to be used
@@ -163,16 +164,16 @@ interface EventGeneratorIfc {
      */
     fun setInitialTimeBetweenEventsAndMaxNumEvents(
         initialTimeBtwEvents: RandomIfc,
-        initialMaxNumEvents: Long
+        initialMaxNumEvents: Long = Long.MAX_VALUE
     )
 
     /**
-     * Sets the RandomIfc representing the time until the first event that is
+     * Controls the random variable representing the time until the first event that is
      * used at the beginning of each replication to generate the time until the
      * first event. This change becomes effective at the beginning of the next
      * replication to execute
      */
-    var initialTimeUntilFirstEvent: RandomIfc
+    val initialTimeUntilFirstEvent: RandomVariableCIfc
 
     /**
      * Controls the ending time for generating events for the current replication. A
@@ -180,7 +181,7 @@ interface EventGeneratorIfc {
      * in an ending time that is less than the current time, the generator will
      * be turned off
      */
-    var endingTime: Double
+    val endingTime: Double
 
     /**
      * This value is used to set the ending time for generating actions for each
@@ -201,7 +202,7 @@ interface EventGeneratorIfc {
      * of 0.0 if the maximum number of events is infinite (Long.MAX_VALUE). Uses
      * the current value for initial time between events
      */
-    var initialMaximumNumberOfEvents: Long
+    val initialMaximumNumberOfEvents: Long
 
     /**
      * Sets the time between events and the maximum number of events to be used
@@ -210,7 +211,7 @@ interface EventGeneratorIfc {
      * current value, which by default is Long.Max_Value
      *
      */
-    val initialTimeBtwEvents: RandomIfc
+    val initialTimeBtwEvents: RandomIfc //TODO should be stream control
 
     /**
      *
