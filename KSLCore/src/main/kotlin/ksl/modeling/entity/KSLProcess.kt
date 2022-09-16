@@ -7,7 +7,7 @@ import kotlin.coroutines.*
 /**
  * Used to exit (terminate) a currently executing ProcessCoroutine.
  */
-class ProcessTerminatedException (m: String = "Process Terminated!") : RuntimeException(m)
+class ProcessTerminatedException(m: String = "Process Terminated!") : RuntimeException(m)
 
 interface KSLProcess {
     val id: Int
@@ -65,7 +65,12 @@ interface KSLProcessBuilder {
      *  @param waitForName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
      *   are more than one waitFor suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun waitFor(signal: Signal, waitPriority: Int = KSLEvent.DEFAULT_PRIORITY, waitStats: Boolean = true, waitForName: String? = null)
+    suspend fun waitFor(
+        signal: Signal,
+        waitPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        waitStats: Boolean = true,
+        waitForName: String? = null
+    )
 
     /**
      *  Causes the process to hold indefinitely within the supplied queue.  Some other process or event
@@ -94,8 +99,62 @@ interface KSLProcessBuilder {
      *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
      *  all requested units of the resource have been allocated.
      */
-    suspend fun seize(resource: Resource, amountNeeded: Int = 1,
-                      seizePriority: Int = KSLEvent.DEFAULT_PRIORITY, seizeName: String? = null) : Allocation
+    suspend fun seize(
+        resource: Resource, amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY, seizeName: String? = null
+    ): Allocation
+
+    /**
+     *  Uses the resource with the amount of units for the delay and then releases it.
+     *  Equivalent to: seize(), delay(), release()
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resource the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+     *  must be finite.
+     *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time.
+     */
+    suspend fun use(
+        resource: Resource,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayDuration: Double,
+        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ) {
+        val a = seize(resource, amountNeeded, seizePriority)
+        delay(delayDuration, delayPriority)
+        release(a)
+    }
+
+    /**
+     *  Uses the resource with the amount of units for the delay and then releases it.
+     *  Equivalent to: seize(), delay(), release()
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resource the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+     *  must be finite.
+     *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time.
+     */
+    suspend fun use(
+        resource: Resource,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayDuration: GetValueIfc,
+        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ) {
+        val a = seize(resource, amountNeeded, seizePriority)
+        delay(delayDuration, delayPriority)
+        release(a)
+    }
 
     /**
      *  Causes the process to delay (suspend execution) for the specified amount of time.
@@ -117,7 +176,11 @@ interface KSLProcessBuilder {
      *  @param delayName the name of the delay. can be used to identify which delay the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun delay(delayDuration: GetValueIfc, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY, delayName: String? = null) {
+    suspend fun delay(
+        delayDuration: GetValueIfc,
+        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayName: String? = null
+    ) {
         delay(delayDuration.value, delayPriority, delayName)
     }
 
@@ -126,7 +189,7 @@ interface KSLProcessBuilder {
      *
      *  @param allocation represents an allocation of so many units of a resource to an entity
      */
-     fun release(allocation: Allocation)
+    fun release(allocation: Allocation)
 
     /**
      *  Releases ANY(ALL) allocations related to the resource that are allocated
