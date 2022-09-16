@@ -106,7 +106,7 @@ class EventGenerator(
      * Holds the random source for the time until first event. Used to
      * initialize the generator at the beginning of each replication
      */
-//    private var myInitialTimeUntilFirstEvent: RandomIfc = theTimeUntilTheFirstEvent
+    private var myInitialTimeUntilFirstEvent: RandomIfc = theTimeUntilTheFirstEvent
 
     /**
      * A RandomVariable that uses the time until first random source
@@ -139,18 +139,37 @@ class EventGenerator(
     /**
      * Used to set the ending time when the generator is initialized
      */
-    private var myInitialEndingTime = theTimeOfTheLastEvent
+//    private var myInitialEndingTime = theTimeOfTheLastEvent
 
     /**
      * The time to stop generating for the current replication
      */
-    private var myEndingTime = theTimeOfTheLastEvent
-
+//    private var myEndingTime = theTimeOfTheLastEvent
 
     /**
-     * The number of events to generate for the current replication
+     * The time to stop generating for the current replication
      */
-    private var myMaxNumEvents: Long = theMaxNumberOfEvents
+    override var endingTime: Double = theTimeOfTheLastEvent
+        set(value) {
+            require(value >= 0) { "The ending time was < 0.0!" }
+            if (value < time) {
+                turnOffGenerator()
+            } else {// now set the time to turn off
+                field = value
+            }
+        }
+
+    /**
+     * Used to set the ending time when the generator is initialized
+     * at the start of each replication.
+     */
+    override var initialEndingTime: Double = theTimeOfTheLastEvent
+        set(value) {
+            require(value >= 0) { "The time until last was < 0.0!" }
+            field = value
+        }
+
+
 
     /**
      * The number of events currently generated during the replication
@@ -189,38 +208,20 @@ class EventGenerator(
         private set
 
 
-    var initialTimeBetweenEvents: RandomIfc?
+    override var initialTimeBtwEvents: RandomIfc
         get() = myInitialTimeBtwEvents
         set(timeBtwEvents) {
             setInitialTimeBetweenEventsAndMaxNumEvents(timeBtwEvents, myInitialMaxNumEvents)
         }
+
     override var initialMaximumNumberOfEvents: Long
         get() = myInitialMaxNumEvents
         set(maxNumEvents) {
             setInitialTimeBetweenEventsAndMaxNumEvents(myInitialTimeBtwEvents, maxNumEvents)
         }
 
-    override val initialTimeBtwEvents: RandomIfc
-        get() = TODO("Not yet implemented")
-
     // now set the time to turn off
-    override var endingTime: Double  //TODO do not need separate private field
-        get() = myEndingTime
-        set(endingTime) {
-            require(endingTime >= 0) { "The ending time was < 0.0!" }
-            if (endingTime < time) {
-                turnOffGenerator()
-            } else  // now set the time to turn off
-            {
-                myEndingTime = endingTime
-            }
-        }
-    override var initialEndingTime: Double //TODO do not need separate private field
-        get() = myInitialEndingTime
-        set(endingTime) {
-            require(endingTime >= 0) { "The time until last was < 0.0!" }
-            myInitialEndingTime = endingTime
-        }
+
     override val numberOfEventsGenerated: Long //TODO do not need separate private field, use private set
         get() = myEventCount
 
@@ -366,11 +367,19 @@ class EventGenerator(
     override val isGeneratorDone: Boolean
         get() = myDoneFlag
 
-    override var maximumNumberOfEvents: Long
-        get() = myMaxNumEvents
+
+    private var myMaxNumEvents: Long = theMaxNumberOfEvents
+    /**
+     * The number of events to generate for the current replication
+     */
+    override var maximumNumberOfEvents: Long = theMaxNumberOfEvents
         set(maxNum) {
             setTimeBetweenEvents(myTimeBtwEventsRV.randomSource, maxNum)
         }
+
+    /**
+     * The time between events for the current replication
+     */
     override var timeBetweenEvents: RandomIfc
         get() = myTimeBtwEventsRV.randomSource
         set(timeUntilNext) {
@@ -414,7 +423,7 @@ class EventGenerator(
         myEventCount = 0
         myNextEvent = null
         // set ending time based on the value to be used for each replication
-        endingTime = myInitialEndingTime
+        endingTime = initialEndingTime
         // set the time until first event based on the value to be used for each replication
         myTimeUntilFirstEventRV.randomSource = myInitialTimeUntilFirstEvent
 
