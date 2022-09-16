@@ -170,11 +170,6 @@ class EventGenerator(
         }
 
     /**
-     * Whether the generator has been suspended
-     */
-    private var mySuspendedFlag: Boolean = false
-
-    /**
      * The next event to be executed for the generator
      */
     private var myNextEvent: KSLEvent<Nothing>? = null
@@ -285,10 +280,10 @@ class EventGenerator(
 
 
     override fun turnOnGenerator(t: Double) {
-        if (mySuspendedFlag) {
+        if (isSuspended) {
             return
         }
-        if (myDoneFlag) {
+        if (isDone) {
             return
         }
         if (myMaxNumEvents == 0L) {
@@ -309,7 +304,7 @@ class EventGenerator(
     }
 
     override fun turnOffGenerator() {
-        myDoneFlag = true
+        isDone = true
         isGeneratorStarted = false
         if (myNextEvent != null) {
             if (myNextEvent!!.scheduled) {
@@ -328,7 +323,7 @@ class EventGenerator(
         }
 
     override fun suspend() {
-        mySuspendedFlag = true
+        isSuspended = true
         if (myNextEvent != null) {
             if (myNextEvent!!.scheduled) {
                 myNextEvent!!.cancelled = true
@@ -336,19 +331,22 @@ class EventGenerator(
         }
     }
 
-    override val isSuspended: Boolean
-        get() = mySuspendedFlag
+    /**
+     * Whether the generator has been suspended
+     */
+    override var isSuspended: Boolean = false
+        private set
 
     override fun resume() {
         if (isSuspended) {
-            mySuspendedFlag = false
+            isSuspended = false
             // get the time until next event
             val t: Double = myTimeBtwEventsRV.value
             // check if it is past end time
             if (t + time > endingTime) {
                 turnOffGenerator()
             }
-            if (!myDoneFlag) {
+            if (!isDone) {
                 // I'm not done generating, schedule the event
                 myNextEvent = myEventHandler.schedule(t, priority = eventPriority)
             }
@@ -358,10 +356,8 @@ class EventGenerator(
     /**
      * Whether the generator is done generating
      */
-    private var myDoneFlag: Boolean = false
-    override val isDone: Boolean
-        get() = myDoneFlag
-
+    override var isDone: Boolean = false
+        private set
 
     private var myMaxNumEvents: Long = theMaxNumberOfEvents
     /**
@@ -412,9 +408,9 @@ class EventGenerator(
     }
 
     override fun initialize() {
-        myDoneFlag = false
+        isDone = false
         isGeneratorStarted = false
-        mySuspendedFlag = false
+        isSuspended = false
         eventCount = 0
         myNextEvent = null
         // set ending time based on the value to be used for each replication
@@ -449,7 +445,7 @@ class EventGenerator(
         if (t + time > endingTime) {
             turnOffGenerator()
         }
-        if (!myDoneFlag) {
+        if (!isDone) {
             // I'm not done generating, schedule the first event
             myNextEvent = myEventHandler.schedule(t, priority = eventPriority)
         }
@@ -481,7 +477,7 @@ class EventGenerator(
     private inner class EventHandler : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
             incrementNumberOfEvents()
-            if (!myDoneFlag) {
+            if (!isDone) {
                 generatorAction.generate(this@EventGenerator)
                 // get the time until next event
                 val t: Double = myTimeBtwEventsRV.value
@@ -490,7 +486,7 @@ class EventGenerator(
                     turnOffGenerator()
                 }
                 if (!isSuspended) {
-                    if (!myDoneFlag) {// I'm not done generating, schedule the next event
+                    if (!isDone) {// I'm not done generating, schedule the next event
                         schedule(t, priority = eventPriority)
                     }
                 }
