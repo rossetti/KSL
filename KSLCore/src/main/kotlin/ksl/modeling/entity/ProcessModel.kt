@@ -23,6 +23,8 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
     // the process to be created. Thus, we need an instance of T to be able
     // to fill the entity sequence
 
+    //TODO define a default process for each entity
+
     protected inner class EntityGenerator<T : Entity>(
         private val entityCreator: () -> T,
         theTimeUntilTheFirstEntity: RandomIfc = ConstantRV.ZERO,
