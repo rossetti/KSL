@@ -77,12 +77,9 @@ interface EventGeneratorIfc {
     fun turnOffGenerator()
 
     /**
-     * This flag indicates whether the generator will automatically start
-     * at the beginning of a replication when initialized. By default, this
-     * option is true.
-     * true if the generator has been started (turned on) either
+     * This flag indicates whether the generator has started
      */
-    val isGeneratorStarted: Boolean
+    val isStarted: Boolean
 
     /**
      * Sets the flag that indicates whether the generator will
@@ -90,7 +87,7 @@ interface EventGeneratorIfc {
      *
      * true indicates automatic start
      */
-    var startOnInitializeFlag: Boolean
+    var startOnInitializeOption: Boolean
 
     /**
      * Suspends the generation of events and cancels the next scheduled event
@@ -106,8 +103,7 @@ interface EventGeneratorIfc {
     val isSuspended: Boolean
 
     /**
-     * Resume the generation of events according to the time between event
-     * distribution.
+     * Resume the generation of events according to the time between event distribution.
      */
     fun resume()
 
@@ -120,13 +116,10 @@ interface EventGeneratorIfc {
     val isDone: Boolean
 
     /**
-     * Gets the maximum number of actions for the generator. This is set by the
-     * supplied maxNum upon creation of the generator. This implies that it will
-     * be the same for every simulation replication.
-     *
-     *A long representing the maximum number of actions for the
+     * A long representing the maximum number of events for the
      * generator. Sets the maximum number of events for the generator. Must not be infinite
-     * (Long.MAX_VALUE) if the current time between events is 0.0
+     * (Long.MAX_VALUE) if the current time between events is 0.0.  This only
+     * controls the current replication.
      *
      */
     val maximumNumberOfEvents: Long
@@ -134,7 +127,7 @@ interface EventGeneratorIfc {
     /**
      * Controls the time between event random source. Must not always evaluate to
      * 0.0, if the current setting of the maximum number of events is infinite
-     * (Long.MAX_VALUE)
+     * (Long.MAX_VALUE).  This is only for the current replication.
      */
     val timeBetweenEvents: RandomIfc //TODO should be stream control
 

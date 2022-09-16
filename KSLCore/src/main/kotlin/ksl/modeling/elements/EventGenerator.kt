@@ -180,14 +180,14 @@ class EventGenerator(
      * true. If it is changed then it remains at the set value until changed
      * again.
      */
-    override var startOnInitializeFlag = true
+    override var startOnInitializeOption = true
 
     private val myEventHandler: EventHandler = EventHandler()
 
     /**
      * indicates whether the generator has been started (turned on)
      */
-    override var isGeneratorStarted = false
+    override var isStarted = false
         private set
 
 
@@ -295,7 +295,7 @@ class EventGenerator(
         if (myNextEvent != null) {
             return
         }
-        isGeneratorStarted = true
+        isStarted = true
         scheduleFirstEvent(t)
     }
 
@@ -305,7 +305,7 @@ class EventGenerator(
 
     override fun turnOffGenerator() {
         isDone = true
-        isGeneratorStarted = false
+        isStarted = false
         if (myNextEvent != null) {
             if (myNextEvent!!.scheduled) {
                 myNextEvent!!.cancelled = true
@@ -409,7 +409,7 @@ class EventGenerator(
 
     override fun initialize() {
         isDone = false
-        isGeneratorStarted = false
+        isStarted = false
         isSuspended = false
         eventCount = 0
         myNextEvent = null
@@ -420,7 +420,7 @@ class EventGenerator(
 
         //set the time between events, maximum number of events based on the values to be used for each replication
         setTimeBetweenEvents(myInitialTimeBtwEvents, myInitialMaxNumEvents)
-        if (startOnInitializeFlag) {
+        if (startOnInitializeOption) {
             if (myMaxNumEvents > 0) {
                 scheduleFirstEvent(myTimeUntilFirstEventRV)
             }
