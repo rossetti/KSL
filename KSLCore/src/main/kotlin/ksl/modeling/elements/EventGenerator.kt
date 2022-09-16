@@ -169,18 +169,6 @@ class EventGenerator(
             field = value
         }
 
-
-
-    /**
-     * The number of events currently generated during the replication
-     */
-    private var myEventCount: Long = 0
-
-    /**
-     * Whether the generator is done generating
-     */
-    private var myDoneFlag: Boolean = false
-
     /**
      * Whether the generator has been suspended
      */
@@ -222,8 +210,11 @@ class EventGenerator(
 
     // now set the time to turn off
 
-    override val numberOfEventsGenerated: Long //TODO do not need separate private field, use private set
-        get() = myEventCount
+    /**
+     * The number of events currently generated during the replication
+     */
+    override var eventCount: Long = 0
+        private set
 
     interface ActionStepIfc {
         fun action(action: GeneratorActionIfc): TimeBetweenEventsStepIfc
@@ -303,7 +294,7 @@ class EventGenerator(
         if (myMaxNumEvents == 0L) {
             return
         }
-        if (myEventCount >= myMaxNumEvents) {
+        if (eventCount >= myMaxNumEvents) {
             return
         }
         if (myNextEvent != null) {
@@ -364,7 +355,11 @@ class EventGenerator(
         }
     }
 
-    override val isGeneratorDone: Boolean
+    /**
+     * Whether the generator is done generating
+     */
+    private var myDoneFlag: Boolean = false
+    override val isDone: Boolean
         get() = myDoneFlag
 
 
@@ -397,7 +392,7 @@ class EventGenerator(
         myMaxNumEvents = maxNumEvents
         myTimeBtwEventsRV.randomSource = timeBtwEvents
         // if number of events is >= desired number of events, turn off the generator
-        if (myEventCount >= maxNumEvents) {
+        if (eventCount >= maxNumEvents) {
             turnOffGenerator()
         }
     }
@@ -420,7 +415,7 @@ class EventGenerator(
         myDoneFlag = false
         isGeneratorStarted = false
         mySuspendedFlag = false
-        myEventCount = 0
+        eventCount = 0
         myNextEvent = null
         // set ending time based on the value to be used for each replication
         endingTime = initialEndingTime
@@ -466,8 +461,8 @@ class EventGenerator(
      * to shut down.
      */
     private fun incrementNumberOfEvents() { //TODO
-        myEventCount++
-        if (myEventCount > myMaxNumEvents) {
+        eventCount++
+        if (eventCount > myMaxNumEvents) {
             turnOffGenerator()
         }
     }
