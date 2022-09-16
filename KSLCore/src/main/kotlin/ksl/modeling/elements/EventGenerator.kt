@@ -70,9 +70,9 @@ import ksl.utilities.random.rvariable.ConstantRV
  * default is Double.POSITIVE_INFINITY.
  * @param name the name of the generator
  */
-class EventGenerator(
+open class EventGenerator(
     parent: ModelElement,
-    theAction: GeneratorActionIfc,
+    theAction: GeneratorActionIfc?,
     theTimeUntilTheFirstEvent: RandomIfc = ConstantRV.ZERO,
     theTimeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
     theMaxNumberOfEvents: Long = Long.MAX_VALUE,
@@ -94,7 +94,7 @@ class EventGenerator(
     /**
      * The action for the events for generation
      */
-    private val generatorAction: GeneratorActionIfc = theAction
+    private val generatorAction: GeneratorActionIfc? = theAction
 
     /**
      * Determines the priority of the event generator's events The default is
@@ -188,7 +188,7 @@ class EventGenerator(
      * indicates whether the generator has been started (turned on)
      */
     override var isStarted = false
-        private set
+        protected set
 
 
     override var initialTimeBtwEvents: RandomIfc
@@ -209,7 +209,7 @@ class EventGenerator(
      * The number of events currently generated during the replication
      */
     override var eventCount: Long = 0
-        private set
+        protected set
 
     interface ActionStepIfc {
         fun action(action: GeneratorActionIfc): TimeBetweenEventsStepIfc
@@ -335,7 +335,7 @@ class EventGenerator(
      * Whether the generator has been suspended
      */
     override var isSuspended: Boolean = false
-        private set
+        protected set
 
     override fun resume() {
         if (isSuspended) {
@@ -357,7 +357,7 @@ class EventGenerator(
      * Whether the generator is done generating
      */
     override var isDone: Boolean = false
-        private set
+        protected set
 
     private var myMaxNumEvents: Long = theMaxNumberOfEvents
     /**
@@ -478,7 +478,11 @@ class EventGenerator(
         override fun action(event: KSLEvent<Nothing>) {
             incrementNumberOfEvents()
             if (!isDone) {
-                generatorAction.generate(this@EventGenerator)
+                if (generatorAction != null){
+                    generatorAction.generate(this@EventGenerator)
+                } else {
+                    generate()
+                }
                 // get the time until next event
                 val t: Double = myTimeBtwEventsRV.value
                 // check if it is past end time
@@ -492,6 +496,10 @@ class EventGenerator(
                 }
             }
         }
+    }
+
+    protected open fun generate(){
+        TODO("subclasses of EventGenerator should override generate() if no GeneratorActionIfc action is supplied ")
     }
 
     companion object {

@@ -1,11 +1,14 @@
 package ksl.modeling.entity
 
+import ksl.modeling.elements.EventGenerator
 import ksl.modeling.queue.QObject
 import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.exceptions.IllegalStateException
+import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.ConstantRV
 import mu.KLoggable
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
@@ -16,7 +19,28 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
 
     private val suspendedEntities = mutableSetOf<Entity>()
 
-    protected val defaultProcessSequence = mutableListOf<KSLProcess>()
+    //TODO will not work because an instance of the entity must exist for
+    // the process to be created. Thus, we need an instance of T to be able
+    // to fill the entity sequence
+
+    protected inner class EntityGenerator<T : Entity>(
+        private val entityCreator: () -> T,
+        theTimeUntilTheFirstEntity: RandomIfc = ConstantRV.ZERO,
+        theTimeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
+        theMaxNumberOfEvents: Long = Long.MAX_VALUE,
+        theTimeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
+        var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY - 1,
+        name: String? = null
+    ) : EventGenerator(
+        this@ProcessModel, null, theTimeUntilTheFirstEntity,
+        theTimeBtwEvents, theMaxNumberOfEvents, theTimeOfTheLastEvent, name
+    ){
+        override fun generate(){
+            val entity = entityCreator()
+            startProcessSequence(entity, time, activationPriority)
+        }
+
+    }
 
     /** Cause the entity to start the process sequence in the order specified by the sequence.
      *  The activation of the first process is governed by an event that is scheduled
@@ -25,16 +49,14 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
      * @param entity the entity to start the sequence
      * @param activationTime the time to start the first process in the sequence
      * @param priority the priority associated with the event to start the first process
-     * @param sequence the sequence to follow, by default this is defaultProcessSequence
      * @return the scheduled activation event or null if there were no processes to start.
      */
     fun <T : Entity> startProcessSequence(
         entity: T,
         activationTime: Double = 0.0,
         priority: Int = KSLEvent.DEFAULT_PRIORITY,
-        sequence: MutableList<KSLProcess> = defaultProcessSequence
-    ) : KSLEvent<KSLProcess>?  {
-        entity.processSequence = defaultProcessSequence
+    ): KSLEvent<KSLProcess>? {
+        //TODO warn for empty sequence
         if (entity.processSequenceIterator.hasNext()) {
             return activate(entity.processSequenceIterator.next())
         }
@@ -48,16 +70,14 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
      * @param entity the entity to start the sequence
      * @param activationTime the time to start the first process in the sequence
      * @param priority the priority associated with the event to start the first process
-     * @param sequence the sequence to follow, by default this is defaultProcessSequence
      * @return the scheduled activation event or null if there were no processes to start.
      */
     fun <T : Entity> startProcessSequence(
         entity: T,
         activationTime: GetValueIfc,
         priority: Int = KSLEvent.DEFAULT_PRIORITY,
-        sequence: MutableList<KSLProcess> = defaultProcessSequence
-    ) : KSLEvent<KSLProcess>? {
-        return startProcessSequence(entity, activationTime.value, priority, sequence)
+    ): KSLEvent<KSLProcess>? {
+        return startProcessSequence(entity, activationTime.value, priority)
     }
 
     /** Cause the entity to start the process.
@@ -142,8 +162,8 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          */
         var processSequence: List<KSLProcess> = emptyList()
             set(list) {
-                for(process in list){
-                    require(process.entity == this){"The process $process does not belong to entity $this in entity type $processModel"}
+                for (process in list) {
+                    require(process.entity == this) { "The process $process does not belong to entity $this in entity type $processModel" }
                 }
                 useProcessSequence = list.isNotEmpty()
                 field = list
@@ -199,7 +219,8 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          *  When an entity enters a time delayed state, this property captures the event associated
          *  with the delay action
          */
-        private var myDelayEvent: KSLEvent<Nothing>? = null //TODO add functionality to allow cancellation, this will involve interrupting the delay
+        private var myDelayEvent: KSLEvent<Nothing>? =
+            null //TODO add functionality to allow cancellation, this will involve interrupting the delay
         private val myResumeAction = ResumeAction()
 
         private var myCurrentProcess: ProcessCoroutine? = null // track the currently executing process
@@ -217,7 +238,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          */
         val hasPendingProcess: Boolean
             get() = myPendingProcess != null
-        val pendingProcess : KSLProcess?
+        val pendingProcess: KSLProcess?
             get() = myPendingProcess
 
         /**
@@ -402,7 +423,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          *  @param process  This is actually the pending process. The process that will run next but has not
          *  started running
          */
-        protected open fun beforeRunningProcess(process: KSLProcess){
+        protected open fun beforeRunningProcess(process: KSLProcess) {
 
         }
 
@@ -425,8 +446,8 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          *  @param completedProcess the process just completed
          *  @return the next process to activate or null if none to activate
          */
-        protected open fun determineNextProcess(completedProcess: KSLProcess) : KSLProcess? {
-            if (useProcessSequence){
+        protected open fun determineNextProcess(completedProcess: KSLProcess): KSLProcess? {
+            if (useProcessSequence) {
                 if (processSequenceIterator.hasNext()) {
                     return processSequenceIterator.next()
                 }
@@ -441,7 +462,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          *  passed to its EntityType for handling.  By default, this method does nothing.
          *  @param completedProcess the process just completed
          */
-        protected open fun dispose(completedProcess: KSLProcess){
+        protected open fun dispose(completedProcess: KSLProcess) {
 
         }
 
@@ -456,7 +477,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
             logger.trace { "time = $time : entity $id completed process = $completedProcess" }
             afterRunningProcess(completedProcess)
             val np = determineNextProcess(completedProcess)
-            if (np != null){
+            if (np != null) {
                 previousProcess = completedProcess
                 logger.trace { "time = $time : entity $id to activate process = $np next" }
                 activate(np)
@@ -472,8 +493,8 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
                     throw IllegalStateException(msg.toString())
                 }
                 // okay to dispose of the entity
-                if (autoDispose){
-                    logger.trace { "time = $time : entity $id is being disposed by ${processModel.name}"}
+                if (autoDispose) {
+                    logger.trace { "time = $time : entity $id is being disposed by ${processModel.name}" }
                     dispose(this)
                 }
             }
@@ -723,7 +744,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
              *  Must be called only when coroutine is in its created state. Causes the coroutine to
              *  resume its continuation and run until its first suspension point.
              */
-            private fun start(){
+            private fun start() {
                 state.start() // this is the coroutine state, can only start process (coroutine) from the created state
                 // The coroutine is told to resume its continuation. Thus, it runs until its first suspension point.
                 logger.trace { "time = $time : entity ${entity.id} has hit the first suspension point of process, ($this)" }
@@ -731,10 +752,10 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
 
             //TODO how to run a sub-process from within another process (coroutine)?
             // what happens if the subProcess is placed within a loop? i.e. called more than once
-            private fun runSubProcess(subProcess: KSLProcess){
+            private fun runSubProcess(subProcess: KSLProcess) {
                 //TODO check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
                 val p = subProcess as ProcessCoroutine
-                if (p.isCreated){
+                if (p.isCreated) {
                     // must start it
                     p.start() // coroutine run until its first suspension point
                 }
@@ -792,7 +813,12 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
                 logger.trace { "time = $time : entity ${entity.id} exited ${queue.name} in process, ($this)" }
             }
 
-            override suspend fun seize(resource: Resource, amountNeeded: Int, seizePriority: Int, seizeName: String?): Allocation {
+            override suspend fun seize(
+                resource: Resource,
+                amountNeeded: Int,
+                seizePriority: Int,
+                seizeName: String?
+            ): Allocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
                 currentSeize = seizeName
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }

@@ -11,13 +11,14 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
-class SimpleProcessQ(parent: ModelElement) : ProcessModel(parent, null) {
-    //TODO ideas to allow exposure interfaces to change basic properties?
+class EntityGeneratorTest(parent: ModelElement) : ProcessModel(parent, null) {
+
     private val worker: Resource = Resource(this, "worker")
     private val tba = RandomVariable(this, ExponentialRV(6.0, 1))
     private val st = RandomVariable(this, ExponentialRV(3.0, 2))
     private val wip = TWResponse(this, "${name}:WIP")
     private val tip = Response(this, "${name}:TimeInSystem")
+
     private val arrivals = Arrivals()
 
     private inner class Customer: Entity() {
@@ -29,6 +30,9 @@ class SimpleProcessQ(parent: ModelElement) : ProcessModel(parent, null) {
             release(a)
             tip.value = time - timeStamp
             wip.decrement()
+        }
+        init{
+            processSequence = mutableListOf(mm1)
         }
     }
 
@@ -48,7 +52,7 @@ class SimpleProcessQ(parent: ModelElement) : ProcessModel(parent, null) {
 
 fun main(){
     val m = Model()
-    val test = SimpleProcessQ(m)
+    val test = EntityGeneratorTest(m)
     m.numberOfReplications = 30
     m.lengthOfReplication = 20000.0
     m.lengthOfReplicationWarmUp = 5000.0
