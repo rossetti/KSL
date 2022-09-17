@@ -916,6 +916,8 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
             }
 
             override fun resumeWith(result: Result<Unit>) {
+                //TODO need to check if SUB or MAIN process type
+                // SUB must resume their MAIN
                 // Resumes the execution of the corresponding coroutine passing a successful or failed result
                 // as the return value of the last suspension point.
                 logger.trace { "time = $time The coroutine process ${this@ProcessCoroutine} completed with result = $result" }
