@@ -112,7 +112,7 @@ open class EventGenerator(
      * A RandomVariable that uses the time until first random source
      */
     private val myTimeUntilFirstEventRV: RandomVariable = RandomVariable(
-        this, theTimeUntilTheFirstEvent,
+        this, myInitialTimeUntilFirstEvent,
         "$name:TimeUntilFirstRV"
     )
     override val initialTimeUntilFirstEvent: RandomVariableCIfc
@@ -135,16 +135,6 @@ open class EventGenerator(
      */
     private val myTimeBtwEventsRV: RandomVariable =
         RandomVariable(this, myInitialTimeBtwEvents, "$name:TimeBtwEventsRV")
-
-    /**
-     * Used to set the ending time when the generator is initialized
-     */
-//    private var myInitialEndingTime = theTimeOfTheLastEvent
-
-    /**
-     * The time to stop generating for the current replication
-     */
-//    private var myEndingTime = theTimeOfTheLastEvent
 
     /**
      * The time to stop generating for the current replication
@@ -456,7 +446,7 @@ open class EventGenerator(
      * greater than the maximum number of actions. If so, the generator is told
      * to shut down.
      */
-    private fun incrementNumberOfEvents() { //TODO
+    private fun incrementNumberOfEvents() {
         eventCount++
         if (eventCount > myMaxNumEvents) {
             turnOffGenerator()

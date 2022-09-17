@@ -18,8 +18,8 @@ class EntityGeneratorTest(parent: ModelElement) : ProcessModel(parent, null) {
     private val st = RandomVariable(this, ExponentialRV(3.0, 2))
     private val wip = TWResponse(this, "${name}:WIP")
     private val tip = Response(this, "${name}:TimeInSystem")
-
-    private val arrivals = Arrivals()
+    private val generator = EntityGenerator(::Customer, tba, tba)
+//    private val arrivals = Arrivals()
 
     private inner class Customer: Entity() {
         val mm1: KSLProcess = process("MM1"){
@@ -31,30 +31,33 @@ class EntityGeneratorTest(parent: ModelElement) : ProcessModel(parent, null) {
             tip.value = time - timeStamp
             wip.decrement()
         }
-        init{
-            processSequence = mutableListOf(mm1)
-        }
     }
 
     override fun initialize() {
-        arrivals.schedule(tba)
+//        arrivals.schedule(tba)
     }
 
-    private inner class Arrivals: EventAction<Nothing>(){
-        override fun action(event: KSLEvent<Nothing>) {
-            val c = Customer()
-            activate(c.mm1)
-            schedule(tba)
-        }
-    }
+//    private inner class Arrivals: EventAction<Nothing>(){
+//        override fun action(event: KSLEvent<Nothing>) {
+//            val c = Customer()
+////            println(c.processSequence)
+////            activate(c.mm1)
+//            startProcessSequence(c)
+//            schedule(tba)
+//        }
+//    }
 
 }
 
 fun main(){
+    //TODO minor statistical difference with SimpleProcessQ output
     val m = Model()
     val test = EntityGeneratorTest(m)
     m.numberOfReplications = 30
     m.lengthOfReplication = 20000.0
     m.lengthOfReplicationWarmUp = 5000.0
+//    m.numberOfReplications = 1
+//    m.lengthOfReplication = 20.0
+//    m.lengthOfReplicationWarmUp = 5.0
     m.simulate()
 }

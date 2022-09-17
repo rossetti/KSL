@@ -15,50 +15,72 @@ import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 
+/**
+ * A process model facilitates the modeling of entities experiencing processes via the
+ * process view of simulation. A ProcessModel has inner classes (Entity, EntityGenerator, etc.)
+ * that can be used to describe entities and the processes that they experience. The key class
+ * is Entity, which has a function process() that uses a builder to describe the entity's
+ * process in the form of a coroutine.  An entity can have many processes described that it
+ * may follow based on different modeling logic. A process model facilitates the running
+ * of a sequence of processes that are stored in an entity's processSequence property.
+ * An entity can experience only one process at a time. After completing the process,
+ * the entity will try to use its sequence to run the next process (if available). Individual
+ * processes can be activated for specific entities.
+ *
+ * @param parent the parent model element
+ * @param name an optional name for the process model
+ */
 open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(parent, name) {
 
     private val suspendedEntities = mutableSetOf<Entity>()
 
-    //TODO will not work because an instance of the entity must exist for
-    // the process to be created. Thus, we need an instance of T to be able
-    // to fill the entity sequence
-
-    //TODO define a default process for each entity
-
+    /**
+     * @param entityCreator the thing that creates the entities of the particular type. Typically,
+     * a reference to the constructor of the class
+     * @param theTimeUntilTheFirstEntity the time until the first entity creation
+     * @param theTimeBtwEvents the time between entity creation
+     * @param theMaxNumberOfEvents the maximum number of entities to create
+     * @param theTimeOfTheLastEvent the time of the last entity creation
+     * @param name a name for the generator
+     */
     protected inner class EntityGenerator<T : Entity>(
         private val entityCreator: () -> T,
         theTimeUntilTheFirstEntity: RandomIfc = ConstantRV.ZERO,
         theTimeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
         theMaxNumberOfEvents: Long = Long.MAX_VALUE,
         theTimeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
-        var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY - 1,
+        var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,
         name: String? = null
     ) : EventGenerator(
         this@ProcessModel, null, theTimeUntilTheFirstEntity,
         theTimeBtwEvents, theMaxNumberOfEvents, theTimeOfTheLastEvent, name
-    ){
-        override fun generate(){
+    ) {
+        override fun generate() {
             val entity = entityCreator()
-            startProcessSequence(entity, time, activationPriority)
+            startProcessSequence(entity, priority = activationPriority)
         }
 
     }
 
     /** Cause the entity to start the process sequence in the order specified by the sequence.
      *  The activation of the first process is governed by an event that is scheduled
-     *  to occur at the specified activation time.
+     *  to occur based on the time until activation parameter.
      *
      * @param entity the entity to start the sequence
-     * @param activationTime the time to start the first process in the sequence
+     * @param timeUntilActivation the time until the first process in the sequence activates
      * @param priority the priority associated with the event to start the first process
      * @return the scheduled activation event or null if there were no processes to start.
      */
     fun <T : Entity> startProcessSequence(
         entity: T,
-        activationTime: Double = 0.0,
+        timeUntilActivation: Double = 0.0,
         priority: Int = KSLEvent.DEFAULT_PRIORITY,
     ): KSLEvent<KSLProcess>? {
-        //TODO warn for empty sequence
+        if (entity.processSequence.isEmpty()) {
+            logger.warn { "Attempted to start an empty sequence for entity: $entity" }
+        }
+        entity.useProcessSequence = true
+        entity.processSequenceIterator = entity.processSequence.listIterator()
         if (entity.processSequenceIterator.hasNext()) {
             return activate(entity.processSequenceIterator.next())
         }
@@ -70,16 +92,16 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
      *  to occur at the specified activation time.
      *
      * @param entity the entity to start the sequence
-     * @param activationTime the time to start the first process in the sequence
+     * @param timeUnitActivation the time until the start of the first process in the sequence
      * @param priority the priority associated with the event to start the first process
      * @return the scheduled activation event or null if there were no processes to start.
      */
     fun <T : Entity> startProcessSequence(
         entity: T,
-        activationTime: GetValueIfc,
+        timeUnitActivation: GetValueIfc,
         priority: Int = KSLEvent.DEFAULT_PRIORITY,
     ): KSLEvent<KSLProcess>? {
-        return startProcessSequence(entity, activationTime.value, priority)
+        return startProcessSequence(entity, timeUnitActivation.value, priority)
     }
 
     /** Cause the entity to start the process.
@@ -87,16 +109,16 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
      *  to occur at the specified activation time.
      *
      * @param process the process to start for an entity
-     * @param activationTime the time to start the first process in the sequence
-     * @param priority the priority associated with the event to start the first process
-     * @return the schedule activation event
+     * @param timeUntilActivation the time until the start of the process
+     * @param priority the priority associated with the event to start the process
+     * @return the scheduled activation event
      */
     fun activate(
         process: KSLProcess,
-        activationTime: GetValueIfc,
+        timeUntilActivation: GetValueIfc,
         priority: Int = KSLEvent.DEFAULT_PRIORITY
     ): KSLEvent<KSLProcess> {
-        return activate(process, activationTime.value, priority)
+        return activate(process, timeUntilActivation.value, priority)
     }
 
     /** Cause the entity to start the process.
@@ -104,17 +126,17 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
      *  to occur at the specified activation time.
      *
      * @param process the process to start for an entity
-     * @param activationTime the time to start the first process in the sequence
-     * @param priority the priority associated with the event to start the first process
-     * @return the schedule activation event
+     * @param timeUntilActivation the time until the start the process
+     * @param priority the priority associated with the event to start the process
+     * @return the scheduled activation event
      */
     fun activate(
         process: KSLProcess,
-        activationTime: Double = 0.0,
+        timeUntilActivation: Double = 0.0,
         priority: Int = KSLEvent.DEFAULT_PRIORITY
     ): KSLEvent<KSLProcess> {
         val c = process as Entity.ProcessCoroutine
-        return c.activate(activationTime, priority)
+        return c.activate(timeUntilActivation, priority)
     }
 
     /**
@@ -138,7 +160,8 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
 
     /** An entity is something that can experience processes and as such may wait in queue. It is a
      * subclass of QObject.  The general approach is to use the process() function to define
-     * a process that a subclass of Entity can follow.  Entity instances may use
+     * a process that a subclass of Entity can follow.  Entity instances may use resources, signals,
+     * hold queues, etc. as shared mutable state.  Entities may follow a process sequence if defined.
      *
      * @param aName an optional name for the entity
      */
@@ -149,7 +172,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          *  at the end of successfully completing a process to determine the next process to experience.
          *  The default is true.
          */
-        var useProcessSequence = true
+        var useProcessSequence = false
 
         /**
          *  An iterator over the entity's current process sequence.  If a process sequence is supplied
@@ -157,23 +180,21 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          *  next process for the entity to execute.
          */
         var processSequenceIterator: ListIterator<KSLProcess> = emptyList<KSLProcess>().listIterator()
-            private set
+            internal set
 
         /**
          *  Provides a list of processes for the entity to follow before being disposed
          */
-        var processSequence: List<KSLProcess> = emptyList()
+        var processSequence: MutableList<KSLProcess> = mutableListOf()
             set(list) {
                 for (process in list) {
                     require(process.entity == this) { "The process $process does not belong to entity $this in entity type $processModel" }
                 }
-                useProcessSequence = list.isNotEmpty()
                 field = list
-                processSequenceIterator = field.listIterator()
             }
 
         /**
-         *  Controls whether the entity goes through the function dispose() of its containing EntityType.
+         *  Controls whether the entity goes through the function dispose() of its containing ProcessModel.
          *  The default is true.
          */
         var autoDispose = true
@@ -221,8 +242,8 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          *  When an entity enters a time delayed state, this property captures the event associated
          *  with the delay action
          */
-        private var myDelayEvent: KSLEvent<Nothing>? =
-            null //TODO add functionality to allow cancellation, this will involve interrupting the delay
+        private var myDelayEvent: KSLEvent<Nothing>? = null
+        //TODO add functionality to allow cancellation, this will involve interrupting the delay
         private val myResumeAction = ResumeAction()
 
         private var myCurrentProcess: ProcessCoroutine? = null // track the currently executing process
@@ -365,10 +386,25 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
          *  This function is used to define via a builder for a process for the entity.
          *
          *  Creates the coroutine and immediately suspends it.  To start executing
-         *  the created coroutine use the method activate().
+         *  the created coroutine use the methods for activating processes.
+         *
+         *  Note that by default, a process defined by this function, will automatically be
+         *  added to the entity's processSequence.  If you do not want a defined process to
+         *  be part of the entity's process sequence, then supply false for the addToSequence
+         *  argument.
+         *
+         *  @param processName the name of the process
+         *  @param addToSequence whether to add the process to the entity's default process sequence
          */
-        protected fun process(processName: String? = null, block: suspend KSLProcessBuilder.() -> Unit): KSLProcess {
+        protected fun process(
+            processName: String? = null,
+            addToSequence: Boolean = true,
+            block: suspend KSLProcessBuilder.() -> Unit
+        ): KSLProcess {
             val coroutine = ProcessCoroutine(processName)
+            if (addToSequence) {
+                processSequence.add(coroutine)
+            }
             coroutine.continuation = block.createCoroutineUnintercepted(receiver = coroutine, completion = coroutine)
             return coroutine
         }
