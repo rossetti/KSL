@@ -98,6 +98,7 @@ class Model(
 
 //TODO private val myRVParameterSetter: RVParameterSetter? = null
 
+    //TODO default stream?
     internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
 
     /**
