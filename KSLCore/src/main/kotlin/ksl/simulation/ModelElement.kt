@@ -1,10 +1,7 @@
 package ksl.simulation
 
 import ksl.modeling.elements.RandomElementIfc
-import ksl.modeling.variable.Counter
-import ksl.modeling.variable.RandomVariable
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.Variable
+import ksl.modeling.variable.*
 import ksl.observers.ModelElementObserver
 import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
@@ -188,6 +185,12 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      */
     val model
         get() = myModel
+
+    /**
+     *  A global uniform random number source
+     */
+    protected val defaultUniformRV: RandomVariable
+        get() = myModel.myDefaultUniformRV
 
     /**
      *  the executive that is executing the events

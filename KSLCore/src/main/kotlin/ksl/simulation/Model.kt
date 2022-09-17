@@ -6,12 +6,11 @@ import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.controls.Controls
 import ksl.modeling.elements.RandomElementIfc
-import ksl.modeling.variable.Counter
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.Variable
+import ksl.modeling.variable.*
 import ksl.utilities.io.KSL
 import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
+import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
 import mu.KLoggable
 import java.nio.file.Path
@@ -96,7 +95,10 @@ class Model(
     /**
      * to hold the parameters of the random variables if used
      */
-//TODO    private val myRVParameterSetter: RVParameterSetter? = null
+
+//TODO private val myRVParameterSetter: RVParameterSetter? = null
+
+    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
 
     /**
      * Controls the execution of replications

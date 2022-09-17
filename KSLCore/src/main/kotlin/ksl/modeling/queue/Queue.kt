@@ -674,13 +674,12 @@ open class Queue<T : QObject>(
     }
 
     /**
-     * If the Queue uses randomness, this method will return a RandomElementIfc
-     * that can be used to control the randomness according to the returned
-     * interface.
-     *
-     * @return an Optional containing a RandomElementIfc or null
+     * If the Queue uses randomness, this controls it. By default, it uses
+     * the model's global source of uniform random variates.
+     * //TODO this does not consider initial random source protocol
+     * if the user decides to change it, replications may not be replications
      */
-    val randomness: RandomElementIfc = RandomVariable(this, UniformRV(), name = "${name}:QRandomness")
+    var randomness: RandomVariable = defaultUniformRV
 
     private inner class QueueListIterator : ListIterator<T> {
         protected var myIterator: ListIterator<T> = myList.listIterator()
