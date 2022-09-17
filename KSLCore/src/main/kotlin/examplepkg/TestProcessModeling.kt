@@ -1,9 +1,6 @@
 package examplepkg
 
-import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.HoldQueue
-import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.Resource
+import ksl.modeling.entity.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -25,12 +22,16 @@ class TestProcessModeling(parent: ModelElement) : ProcessModel(parent, null) {
             println("time = $time before the second delay in ${this@Customer}")
             delay(20.0)
             println("time = $time after the second delay in ${this@Customer}")
+            runSubProcess(seizeTest)
+            println("time = $time back in main process")
         }
 
-        val seizeTest: KSLProcess = process("test seize"){
+        val seizeTest: KSLProcess = process("test seize", processType = ProcessType.SUB){
+            println("time = $time in seize process")
             val a  = seize(resource)
             delay(10.0)
             release(a)
+            println("time = $time completed seize process")
         }
     }
 

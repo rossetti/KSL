@@ -401,9 +401,11 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
         protected fun process(
             processName: String? = null,
             addToSequence: Boolean = true,
+            processType: ProcessType = ProcessType.MAIN,
             block: suspend KSLProcessBuilder.() -> Unit
         ): KSLProcess {
-            val coroutine = ProcessCoroutine(processName)
+            val coroutine = ProcessCoroutine(processName, processType)
+            println("in process() function: $coroutine")
             if (addToSequence) {
                 processSequence.add(coroutine)
             }
@@ -704,8 +706,9 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
         /**
          *  The main implementation of the coroutine magic.
          */
-        internal inner class ProcessCoroutine(processName: String? = null) : KSLProcessBuilder, KSLProcess,
+        internal inner class ProcessCoroutine(processName: String? = null, type: ProcessType = ProcessType.MAIN) : KSLProcessBuilder, KSLProcess,
             Continuation<Unit> {
+            override val processType = type
             override val id = (++processCounter)
             override val name: String = processName ?: ("PROCESS_$id")
             internal var continuation: Continuation<Unit>? = null //set with suspending function
@@ -792,14 +795,14 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
 
             //TODO how to run a sub-process from within another process (coroutine)?
             // what happens if the subProcess is placed within a loop? i.e. called more than once
-            private fun runSubProcess(subProcess: KSLProcess) {
-                //TODO check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
+            override fun runSubProcess(subProcess: KSLProcess) {
+                require(subProcess.processType == ProcessType.SUB){"The process $subProcess is not a sub-process and cannot be run directly."}
                 val p = subProcess as ProcessCoroutine
                 if (p.isCreated) {
                     // must start it
                     p.start() // coroutine run until its first suspension point
                 }
-                TODO("not fully implemented/tested 9-14-2022")
+//                TODO("not fully implemented/tested 9-14-2022")
             }
 
             internal fun resume() {
@@ -927,7 +930,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
             }
 
             override fun toString(): String {
-                return "Process(id=$id, name='$name', state = ${state.processStateName})"
+                return "Process(id=$id, name='$name', state = ${state.processStateName}, type = $processType)"
             }
 
             private inner class DelayAction : EventAction<Nothing>() {

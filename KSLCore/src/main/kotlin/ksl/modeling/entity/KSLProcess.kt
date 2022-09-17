@@ -9,6 +9,10 @@ import kotlin.coroutines.*
  */
 class ProcessTerminatedException(m: String = "Process Terminated!") : RuntimeException(m)
 
+enum class ProcessType {
+    MAIN, SUB
+}
+
 interface KSLProcess {
     val id: Int
     val name: String
@@ -19,6 +23,7 @@ interface KSLProcess {
     val isRunning: Boolean
     val isActivated: Boolean
     val entity: ProcessModel.Entity
+    val processType: ProcessType
 }
 
 /**
@@ -204,4 +209,5 @@ interface KSLProcessBuilder {
      */
     fun releaseAllResources()
 
+    fun runSubProcess(subProcess: KSLProcess)
 }
