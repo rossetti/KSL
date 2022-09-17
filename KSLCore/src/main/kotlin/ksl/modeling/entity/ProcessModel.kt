@@ -82,6 +82,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
         entity.useProcessSequence = true
         entity.processSequenceIterator = entity.processSequence.listIterator()
         if (entity.processSequenceIterator.hasNext()) {
+            //TODO could attache the entity to the event
             return activate(entity.processSequenceIterator.next())
         }
         return null
@@ -136,6 +137,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
         priority: Int = KSLEvent.DEFAULT_PRIORITY
     ): KSLEvent<KSLProcess> {
         val c = process as Entity.ProcessCoroutine
+        //TODO could attache the entity to the event
         return c.activate(timeUntilActivation, priority)
     }
 
@@ -884,6 +886,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
                 // capture the event for possible cancellation
                 entity.state.schedule()
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
+                //TODO could attach the entity to the event
                 logger.trace { "time = $time : entity ${entity.id} delaying for $delayDuration, suspending process, ($this) ..." }
                 suspend()
                 entity.state.activate()
