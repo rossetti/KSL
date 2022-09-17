@@ -21,6 +21,9 @@ package ksl.utilities.random.rng
  * @author rossetti
  */
 interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, GetAntitheticStreamIfc {
+
+    val id: Int
+
     /**
      * Returns a (pseudo)random number from the discrete uniform distribution
      * over the integers {i, i + 1, . . . , j }, using this stream. Calls randU01 once.
