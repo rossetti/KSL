@@ -802,6 +802,10 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
                     // must start it
                     p.start() // coroutine run until its first suspension point
                 }
+                //TODO the sub-process automatically returns, we should suspend the main process
+                // until the sub-process completes, so sub-processes when they complete must resume their main process
+                // need to remember the main process in the coroutine
+                
 //                TODO("not fully implemented/tested 9-14-2022")
             }
 
