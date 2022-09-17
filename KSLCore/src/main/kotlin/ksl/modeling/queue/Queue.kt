@@ -680,7 +680,7 @@ open class Queue<T : QObject>(
      *
      * @return an Optional containing a RandomElementIfc or null
      */
-    val randomness: RandomElementIfc = RandomVariable(this, UniformRV())
+    val randomness: RandomElementIfc = RandomVariable(this, UniformRV(), name = "${name}:QRandomness")
 
     private inner class QueueListIterator : ListIterator<T> {
         protected var myIterator: ListIterator<T> = myList.listIterator()
