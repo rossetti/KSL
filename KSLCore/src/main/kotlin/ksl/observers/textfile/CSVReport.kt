@@ -17,6 +17,7 @@ package ksl.observers.textfile
 
 import ksl.observers.ModelElementObserver
 import ksl.simulation.Model
+import ksl.simulation.ModelElement
 import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
 import java.nio.file.Path
@@ -37,6 +38,7 @@ abstract class CSVReport(
     var lineWidth = 300
     protected val myLine: StringBuilder = StringBuilder(lineWidth)
     protected val myWriter: PrintWriter
+    protected val model = theModel
 
     init {
         var path = directoryPath
@@ -47,10 +49,8 @@ abstract class CSVReport(
             path = path.resolve(reportName)
         }
         myWriter = KSLFileUtil.createPrintWriter(path)
-        attach(theModel)
+        model.attachModelElementObserver(this)
     }
-
-    protected val model = theModel
 
     fun close() {
         myWriter.close()
@@ -58,7 +58,7 @@ abstract class CSVReport(
 
     protected abstract fun writeHeader()
 
-    override fun beforeExperiment() {
+    override fun beforeExperiment(modelElement: ModelElement) {
         // write header
         writeHeader()
     }

@@ -1,6 +1,7 @@
 package ksl.observers
 
 import ksl.modeling.variable.Response
+import ksl.simulation.ModelElement
 import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
 import java.nio.file.Path
@@ -25,7 +26,7 @@ class ResponseTrace(
         if (header){
             writeHeader()
         }
-        attach(variable)
+        variable.attachModelElementObserver(this)
     }
 
     private fun writeHeader() {
@@ -53,7 +54,7 @@ class ResponseTrace(
         printWriter.println()
     }
 
-    override fun update() {
+    override fun update(modelElement: ModelElement) {
         val model = variable.model
         count++
         if (count >= maxNumObservations){

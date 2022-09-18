@@ -18,6 +18,7 @@ package ksl.observers.textfile
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
 import ksl.simulation.Model
+import ksl.simulation.ModelElement
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.statistic.WeightedStatistic
 import java.nio.file.Path
@@ -43,8 +44,8 @@ class CSVReplicationReport(
     var replicationCount = 0
         protected set
 
-    override fun beforeExperiment() {
-        super.beforeExperiment()
+    override fun beforeExperiment(modelElement: ModelElement) {
+        super.beforeExperiment(modelElement)
         replicationCount = 0
     }
 
@@ -105,7 +106,7 @@ class CSVReplicationReport(
         myWriter.println()
     }
 
-    override fun afterReplication() {
+    override fun afterReplication(modelElement: ModelElement) {
         replicationCount++
         val rvs = model.responses
         for (rv in rvs) {

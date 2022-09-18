@@ -483,8 +483,8 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
         if (!this::myCSVRepReport.isInitialized){
             myCSVRepReport = CSVReplicationReport(model)
         }
-        if (myCSVRepReport.isNotAttached){
-            myCSVRepReport.attach(model)
+        if (!model.isModelElementObserverAttached(myCSVRepReport)){
+            model.attachModelElementObserver(myCSVRepReport)
         }
     }
 
@@ -496,7 +496,7 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
         if (!this::myCSVRepReport.isInitialized){
             return
         }
-        myCSVRepReport.detach()
+        model.detachModelElementObserver(myCSVRepReport)
     }
 
     /**
@@ -689,8 +689,8 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
         if (!this::myCSVExpReport.isInitialized){
             myCSVExpReport = CSVExperimentReport(model)
         }
-        if (myCSVExpReport.isNotAttached){
-            myCSVExpReport.attach(model)
+        if (!model.isModelElementObserverAttached(myCSVExpReport)){
+            model.attachModelElementObserver(myCSVExpReport)
         }
     }
 
@@ -702,7 +702,7 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
         if (!this::myCSVExpReport.isInitialized){
             return
         }
-        myCSVExpReport.detach()
+        model.detachModelElementObserver(myCSVExpReport)
     }
 
     /**

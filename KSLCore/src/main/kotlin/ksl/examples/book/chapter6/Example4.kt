@@ -14,7 +14,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
  * between arrivals and the service time distribution.
  */
 fun main() {
-    val model = Model("Drive Through Pharmacy")
+    val model = Model("Drive Through Pharmacy", autoCSVReports = true)
     model.numberOfReplications = 30
     model.lengthOfReplication = 20000.0
     model.lengthOfReplicationWarmUp = 5000.0

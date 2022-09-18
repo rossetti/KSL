@@ -16,6 +16,7 @@
 package ksl.observers.textfile
 
 import ksl.simulation.Model
+import ksl.simulation.ModelElement
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
 
@@ -52,7 +53,7 @@ class CSVExperimentReport(
         myWriter.println()
     }
 
-    override fun afterExperiment() {
+    override fun afterExperiment(modelElement: ModelElement) {
         for (rv in model.responses) {
             if (rv.defaultReportingOption) {
                 myWriter.print(model.simulationName)

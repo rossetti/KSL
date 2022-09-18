@@ -1804,19 +1804,16 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         override val logger = logger()
     }
 
-    internal fun attachModelElementObserver(observer: ModelElementObserver) {
+    fun attachModelElementObserver(observer: ModelElementObserver) {
         require(!isModelElementObserverAttached(observer)) { "The supplied observer is already attached" }
         modelElementObservers.add(observer)
     }
 
-    internal fun detachModelElementObserver(observer: ModelElementObserver) {
+    fun detachModelElementObserver(observer: ModelElementObserver) {
         modelElementObservers.remove(observer)
     }
 
     fun detachAllModelElementObservers() {
-        for (observer in modelElementObservers) {
-            observer.detach()
-        }
         modelElementObservers.clear()
     }
 
@@ -1834,7 +1831,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      */
     protected fun notifyModelElementObservers(newValue: ModelElement.Status) {
         for (o in modelElementObservers) {
-            o.onChange(newValue)
+            o.onChange(this, newValue)
         }
     }
 }

@@ -13,80 +13,80 @@ import ksl.utilities.observers.ObserverIfc
  */
 abstract class ModelElementObserver(name: String? = null) : IdentityIfc by Identity(name) {
 
-    protected var observedModelElement: ModelElement? = null
+//    protected var observedModelElement: ModelElement? = null
+//
+//    val isAttached: Boolean
+//        get() = observedModelElement != null
+//
+//    val isNotAttached: Boolean
+//        get() = !isAttached
+//
+//    fun attach(observed: ModelElement) {
+//        if (isNotAttached) {
+//            observedModelElement = observed
+//            observed.attachModelElementObserver(this)
+//        } else {
+//            require(observedModelElement == observed) { "Attempted to attach to ${observed.name} when already attached to ${observedModelElement!!.name}" }
+//        }
+//    }
+//
+//    fun detach() {
+//        require(isAttached) { "Attempted to detach a model element observer that was not attached." }
+//        observedModelElement!!.detachModelElementObserver(this)
+//        observedModelElement = null
+//    }
 
-    val isAttached: Boolean
-        get() = observedModelElement != null
-
-    val isNotAttached: Boolean
-        get() = !isAttached
-
-    fun attach(observed: ModelElement) {
-        if (isNotAttached) {
-            observedModelElement = observed
-            observed.attachModelElementObserver(this)
-        } else {
-            require(observedModelElement == observed) { "Attempted to attach to ${observed.name} when already attached to ${observedModelElement!!.name}" }
-        }
-    }
-
-    fun detach() {
-        require(isAttached) { "Attempted to detach a model element observer that was not attached." }
-        observedModelElement!!.detachModelElementObserver(this)
-        observedModelElement = null
-    }
-
-    internal fun onChange(newValue: ModelElement.Status) {
+    internal fun onChange(modelElement: ModelElement, newValue: ModelElement.Status) {
         when (newValue) {
-            NONE -> nothing()
-            BEFORE_EXPERIMENT -> beforeExperiment()
-            BEFORE_REPLICATION -> beforeReplication()
-            INITIALIZED -> initialize()
-            CONDITIONAL_ACTION_REGISTRATION -> conditionalActionRegistered()
-            MONTE_CARLO -> montecarlo()
-            WARMUP -> warmUp()
-            UPDATE -> update()
-            TIMED_UPDATE -> timedUpdate()
-            REPLICATION_ENDED -> replicationEnded()
-            AFTER_REPLICATION -> afterReplication()
-            AFTER_EXPERIMENT -> afterExperiment()
-            MODEL_ELEMENT_ADDED -> elementAdded()
-            MODEL_ELEMENT_REMOVED -> elementRemoved()
-            REMOVED_FROM_MODEL -> removedFromModel()
+            NONE -> nothing(modelElement)
+            BEFORE_EXPERIMENT -> beforeExperiment(modelElement)
+            BEFORE_REPLICATION -> beforeReplication(modelElement)
+            INITIALIZED -> initialize(modelElement)
+            CONDITIONAL_ACTION_REGISTRATION -> conditionalActionRegistered(modelElement)
+            MONTE_CARLO -> montecarlo(modelElement)
+            WARMUP -> warmUp(modelElement)
+            UPDATE -> update(modelElement)
+            TIMED_UPDATE -> timedUpdate(modelElement)
+            REPLICATION_ENDED -> replicationEnded(modelElement)
+            AFTER_REPLICATION -> afterReplication(modelElement)
+            AFTER_EXPERIMENT -> afterExperiment(modelElement)
+            MODEL_ELEMENT_ADDED -> elementAdded(modelElement)
+            MODEL_ELEMENT_REMOVED -> elementRemoved(modelElement)
+            REMOVED_FROM_MODEL -> removedFromModel(modelElement)
         }
     }
 
-    protected open fun nothing() {}
+    protected open fun nothing(modelElement: ModelElement) {}
 
-    protected open fun beforeExperiment() {
+    protected open fun beforeExperiment(modelElement: ModelElement) {
     }
 
-    protected open fun beforeReplication() {}
+    protected open fun beforeReplication(modelElement: ModelElement) {}
 
-    protected open fun initialize() {}
+    protected open fun initialize(modelElement: ModelElement) {}
 
-    protected open fun conditionalActionRegistered() {}
+    protected open fun conditionalActionRegistered(modelElement: ModelElement) {}
 
-    protected open fun montecarlo() {}
+    protected open fun montecarlo(modelElement: ModelElement) {}
 
-    protected open fun replicationEnded() {}
+    protected open fun replicationEnded(modelElement: ModelElement) {}
 
-    protected open fun afterReplication() {}
+    protected open fun afterReplication(modelElement: ModelElement) {}
 
-    protected open fun update() {}
+    protected open fun update(modelElement: ModelElement) {}
 
-    protected open fun warmUp() {}
+    protected open fun warmUp(modelElement: ModelElement) {}
 
-    protected open fun timedUpdate() {}
+    protected open fun timedUpdate(modelElement: ModelElement) {}
 
-    protected open fun afterExperiment() {}
+    protected open fun afterExperiment(modelElement: ModelElement) {}
 
-    protected open fun removedFromModel() {
+    protected open fun removedFromModel(modelElement: ModelElement) {
     }
 
-    protected open fun elementAdded() {
+    protected open fun elementAdded(modelElement: ModelElement) {
     }
 
-    protected open fun elementRemoved() {
+    protected open fun elementRemoved(modelElement: ModelElement) {
     }
 }
