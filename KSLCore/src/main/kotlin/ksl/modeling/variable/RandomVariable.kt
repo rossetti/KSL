@@ -5,6 +5,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProvider
 
 /**
  *  While RandomVariable instances should in general be declared as private within model
@@ -212,4 +213,10 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
         return sb.toString()
     }
 
+    override fun toString(): String {
+        return super.toString() + " with stream ${randomSource.rnStream.id}"
+    }
+    init {
+        RNStreamProvider.logger.trace { "Initialized RandomVariable: $this" }
+    }
 }

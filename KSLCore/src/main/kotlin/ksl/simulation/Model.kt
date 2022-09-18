@@ -98,15 +98,10 @@ class Model(
 
 //TODO private val myRVParameterSetter: RVParameterSetter? = null
 
-    //TODO default stream?
-    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
-
     /**
      * Controls the execution of replications
      */
     private val myReplicationProcess: ReplicationProcess = ReplicationProcess("Model: Replication Process")
-
-//    internal lateinit var myDefaultEntityType: EntityType
 
     init {
         myModel = this
@@ -114,6 +109,9 @@ class Model(
         addToModelElementMap(this)
         addDefaultElements()
     }
+
+    //TODO default stream?
+    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
 
     val simulationReporter: SimulationReporter = SimulationReporter(this, autoCSVReports)
 
