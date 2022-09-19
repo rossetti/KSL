@@ -34,8 +34,8 @@ import ksl.utilities.random.rvariable.ExponentialRV
  */
 class DriveThroughPharmacy(
     parent: ModelElement, numPharmacists: Int = 1,
-    timeBtwArrivals: RandomIfc = ExponentialRV(1.0),
-    serviceTime: RandomIfc = ExponentialRV(0.5),
+    timeBtwArrivals: RandomIfc = ExponentialRV(1.0, 1),
+    serviceTime: RandomIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) : ModelElement(parent, name) {
     init {

@@ -10,6 +10,7 @@ import ksl.modeling.variable.*
 import ksl.utilities.io.KSL
 import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
+import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
 import mu.KLoggable

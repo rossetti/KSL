@@ -187,6 +187,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         s.myNum = myNum
         s.mySumXX = mySumXX
         s.myMoments = myMoments.copyOf()
+        s.lastValue = lastValue
         return s
     }
 

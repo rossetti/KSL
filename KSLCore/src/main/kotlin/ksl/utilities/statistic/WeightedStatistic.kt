@@ -139,7 +139,7 @@ class WeightedStatistic(name: String? = null) : WeightedCollector(name), Weighte
     }
 
     /**
-     * Creates a instance of Statistic that is a copy of this Statistic All
+     * Creates an instance of Statistic that is a copy of this Statistic All
      * internal state is the same except for the id of the returned Statistic
      *
      * @return a new instance based on the current state of this instance
@@ -155,6 +155,8 @@ class WeightedStatistic(name: String? = null) : WeightedCollector(name), Weighte
         s.myValue = myValue
         s.myWeight = myWeight
         s.uwsum = uwsum
+        s.lastWeight = lastWeight
+        s.lastValue = lastValue
         return s
     }
 

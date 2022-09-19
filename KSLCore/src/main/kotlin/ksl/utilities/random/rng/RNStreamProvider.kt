@@ -38,7 +38,7 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
             logger.warn("The number of streams made is now = {}", myStreams.size)
             logger.warn("Increase the stream warning limit if you don't want to see this message")
         }
-        logger.trace { "Provided stream ${stream.id}, stream ${lastRNStreamNumber()} of ${myStreams.size} streams" }
+        logger.info { "Provided stream ${stream.id}, stream ${lastRNStreamNumber()} of ${myStreams.size} streams" }
         return stream
     }
 

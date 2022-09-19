@@ -13,29 +13,6 @@ import ksl.utilities.observers.ObserverIfc
  */
 abstract class ModelElementObserver(name: String? = null) : IdentityIfc by Identity(name) {
 
-//    protected var observedModelElement: ModelElement? = null
-//
-//    val isAttached: Boolean
-//        get() = observedModelElement != null
-//
-//    val isNotAttached: Boolean
-//        get() = !isAttached
-//
-//    fun attach(observed: ModelElement) {
-//        if (isNotAttached) {
-//            observedModelElement = observed
-//            observed.attachModelElementObserver(this)
-//        } else {
-//            require(observedModelElement == observed) { "Attempted to attach to ${observed.name} when already attached to ${observedModelElement!!.name}" }
-//        }
-//    }
-//
-//    fun detach() {
-//        require(isAttached) { "Attempted to detach a model element observer that was not attached." }
-//        observedModelElement!!.detachModelElementObserver(this)
-//        observedModelElement = null
-//    }
-
     internal fun onChange(modelElement: ModelElement, newValue: ModelElement.Status) {
         when (newValue) {
             NONE -> nothing(modelElement)

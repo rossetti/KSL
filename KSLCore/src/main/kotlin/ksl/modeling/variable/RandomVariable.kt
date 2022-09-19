@@ -217,6 +217,6 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
         return super.toString() + " with stream ${randomSource.rnStream.id}"
     }
     init {
-        RNStreamProvider.logger.trace { "Initialized RandomVariable: $this" }
+        RNStreamProvider.logger.info { "Initialized RandomVariable: $this" }
     }
 }
