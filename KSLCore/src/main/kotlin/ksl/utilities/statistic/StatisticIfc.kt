@@ -15,13 +15,15 @@
  */
 package ksl.utilities.statistic
 
+import ksl.modeling.variable.LastValueIfc
+import ksl.modeling.variable.ValueIfc
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
 
 /**
  * The StatisticIfc interface presents a read-only view of a Statistic
  */
-interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc {
+interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc, ValueIfc {
     /**
      * Gets the name of the Statistic
      *
@@ -50,7 +52,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc {
      *
      * @return A double representing the last observations
      */
-    val lastValue: Double
+//    val lastValue: Double
 
     /**
      * Gets the kurtosis of the data
@@ -351,6 +353,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc {
             val stats = asArray
             for (i in stats.indices) {
                 if (stats[i].isMissing()) {
+                    println("$name has missing $i")
                     sb.append("")
                 } else {
                     sb.append(stats[i])

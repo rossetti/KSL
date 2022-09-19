@@ -10,7 +10,7 @@ abstract class WeightedCollector(name: String? = null) : WeightedCollectorIfc, I
     Observable<Pair<Double, Double>>(),
     DoublePairEmitterIfc by DoublePairEmitter() {
 
-    var lastValue = Double.NaN
+    override var lastValue = Double.NaN
         protected set
 
     var lastWeight = Double.NaN

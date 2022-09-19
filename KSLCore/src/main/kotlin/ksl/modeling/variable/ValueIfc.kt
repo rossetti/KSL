@@ -14,6 +14,10 @@ interface ValueIfc {
     val value: Double
 }
 
+interface LastValueIfc {
+    val lastValue: Double
+}
+
 /**
  *  General property for getting (and setting) an initial value
  */

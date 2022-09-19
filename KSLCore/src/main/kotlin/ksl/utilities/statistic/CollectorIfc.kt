@@ -15,6 +15,8 @@
  */
 package ksl.utilities.statistic
 
+import ksl.modeling.variable.LastValueIfc
+import ksl.modeling.variable.ValueIfc
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rvariable.toDouble
 
@@ -26,12 +28,12 @@ import ksl.utilities.random.rvariable.toDouble
  *
  * @author rossetti
  */
-interface CollectorIfc {
+interface CollectorIfc : LastValueIfc, ValueIfc {
 
     /**
      * The last value collected
      */
-    var value: Double
+//    var value: Double
 
     /**
      * Collects on the values returned by the supplied GetValueIfc
