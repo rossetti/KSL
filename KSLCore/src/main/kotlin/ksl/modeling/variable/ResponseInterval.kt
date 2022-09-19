@@ -59,18 +59,18 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
         this.label = label
     }
 
-    /**
-     * Need to ensure that start event happens after schedule start
-     * and after warm up event
-     */
-    //public final int START_EVENT_PRIORITY = 15;
-    val START_EVENT_PRIORITY: Int = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1
+    companion object {
+        /**
+         * Need to ensure that start event happens after schedule start
+         * and after warm up event
+         */
+        const val START_EVENT_PRIORITY: Int = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY + 1
 
-    /**
-     * Need to ensure that end event happens before schedule end
-     */
-    //public final int END_EVENT_PRIORITY = 5;
-    val END_EVENT_PRIORITY = START_EVENT_PRIORITY - 5
+        /**
+         * Need to ensure that end event happens before schedule end
+         */
+        const val END_EVENT_PRIORITY = START_EVENT_PRIORITY - 5
+    }
 
     /**
      * The action that represents the start of the interval
@@ -108,11 +108,7 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
      * underlying response is removed from the model
      */
     private val myObserver: ResponseObserver = ResponseObserver()
-    /**
-     * When the interval was last started
-     *
-     * @return When the interval was last started
-     */
+
     /**
      * Intervals may be repeated. The represents the time that the interval last
      * started in time;
@@ -120,22 +116,15 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
      */
     var timeLastStarted: Double = 0.0
         private set
-    /**
-     * When the interval was last ended
-     *
-     * @return When the interval was last ended
-     */
+
     /**
      * Intervals may be repeated. The represents the time that the interval last
-     * started in time;
+     * ended in time;
      *
      */
     var timeLastEnded: Double = 0.0
         private set
-    /**
-     *
-     * @return true if the interval has been scheduled
-     */
+
     /**
      * Indicates if the interval has been scheduled
      */
@@ -159,7 +148,7 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
     /**
      * The time that the interval should start
      */
-    protected var myStartTime: Double = Double.NEGATIVE_INFINITY
+    private var myStartTime: Double = Double.NEGATIVE_INFINITY
 
     /**
      * The  repeat flag controls whether the interval will
@@ -170,15 +159,10 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
 
     private var myResponseSchedule: ResponseSchedule? = null
 
-    /**
-     *
-     * @return the time to start the interval
-     */
+
     /**
      * Specifies when the interval is to start. If negative, then the interval
-     * will not be started
-     *
-     * @param startTime must not be infinite
+     * will not be started must not be infinite
      */
     var startTime: Double
         get() = myStartTime
@@ -200,33 +184,21 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
      * interval. By default, interval empty statistics are not collected.
      *
      * @param theResponse the response to collect interval statistics on
-     * @return a ResponseVariable for the interval
-     */
-    fun addResponseToInterval(theResponse: Response): Response {
-        return addResponseToInterval(theResponse, false)
-    }
-
-    /**
-     * Adds a ResponseVariable to the interval for data collection over the
-     * interval
-     *
-     * @param theResponse the response to collect interval statistics on
      * @param intervalEmptyStatOption true means include statistics on whether
      * the interval is empty when observed
-     * @return a ResponseVariable for the interval
+     * @return a Response for the interval
      */
     fun addResponseToInterval(
         theResponse: Response,
-        intervalEmptyStatOption: Boolean
+        intervalEmptyStatOption: Boolean = false
     ): Response {
         require(!myResponses.containsKey(theResponse)) { "The supplied response was already added." }
         val rv = Response(this, "${theResponse.name}:IntervalAvg:$label")
-        val data = IntervalData()
+        val data = IntervalData(rv)
         if (theResponse is TWResponse) {
             val rv2 = Response(this, "${theResponse.name}:ValueAtStart:$label")
             data.myValueAtStart = rv2
         }
-        data.myResponse = rv
         if (intervalEmptyStatOption) {
             val rv3 = Response(this, "${theResponse.name}:$label:P(Empty)")
             data.myEmptyResponse = rv3
@@ -240,13 +212,12 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
      * Adds a Counter to the interval for data collection over the interval
      *
      * @param theCounter the counter to collect interval statistics on
-     * @return a ResponseVariable for the interval
+     * @return a Response for the interval
      */
     fun addCounterToInterval(theCounter: Counter): Response {
         require(!myCounters.containsKey(theCounter)) { "The supplied counter was already added." }
         val rv = Response(this, "${theCounter.name}:$label")
-        val data = IntervalData()
-        data.myResponse = rv
+        val data = IntervalData(rv)
         myCounters[theCounter] = data
         theCounter.attachModelElementObserver(myObserver)
         return rv
@@ -254,8 +225,6 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
 
 
     override fun initialize() {
-        //System.out.println("In ResponseInterval: initialize()");
-        //System.out.println("getStartTime() = " + getStartTime());
         super.initialize()
         if (startTime >= 0.0) {
             scheduleInterval(startTime)
@@ -281,10 +250,7 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
      *
      * @param startTime the time to start the interval
      */
-    protected fun scheduleInterval(startTime: Double) {
-        //System.out.println("In ResponseInterval: scheduleInterval()");
-        //System.out.println(" > Interval: " + getStringLabel());
-        //System.out.println(" > scheduling interval to start at " + (getTime() + startTime));
+    private fun scheduleInterval(startTime: Double) {
         check(!isScheduled) { "Attempted to schedule an already scheduled interval" }
         isScheduled = true
         myStartEvent = myStartAction.schedule(startTime, priority = START_EVENT_PRIORITY)
@@ -340,7 +306,6 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
         sb.append(", ")
         sb.append("#Counters: ")
         sb.append(myCounters.size)
-        //        sb.append(System.lineSeparator());
         return sb.toString()
     }
 
@@ -348,8 +313,8 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
      * Represents data collected at the start of an interval for use at the end
      * of the interval
      */
-    internal inner class IntervalData {
-        var myResponse: Response? = null
+    internal inner class IntervalData(response: Response) {
+        val myResponse: Response = response
         var myEmptyResponse: Response? = null
         var myValueAtStart: Response? = null
         var mySumAtStart = 0.0
@@ -366,9 +331,6 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
 
     private inner class StartIntervalAction : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
-            //System.out.println("In StartIntervalAction: action()");
-            //System.out.println("Interval:" + getStringLabel());
-            //System.out.println(getTime() + " > capturing response data at start of interval");
             for ((key, data) in myResponses) {
                 timeLastStarted = time
                 val w: WeightedStatisticIfc = key.withinReplicationStatistic
@@ -382,16 +344,12 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
             for ((key, data) in myCounters) {
                 data.myTotalAtStart = key.value
             }
-            //System.out.println(getTime() + " > scheduling interval to end at " + (getTime() + getDuration()));
             myEndEvent = myEndAction.schedule(duration, priority = END_EVENT_PRIORITY)
         }
     }
 
     private inner class EndIntervalAction : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
-            //System.out.println("In EndIntervalAction: action()");
-            //System.out.println("Interval:" + getStringLabel());
-            //System.out.println(getTime() + " > capturing response data at end of interval");
             for ((key, data) in myResponses) {
                 timeLastEnded = time
                 val w: WeightedStatisticIfc = key.withinReplicationStatistic
@@ -403,30 +361,18 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
                 }
                 if (denom != 0.0) {
                     val avg = sum / denom
-                    data.myResponse!!.value = avg
+                    data.myResponse.value = avg
                 }
             }
             for ((key, data) in myCounters) {
                 val intervalCount: Double = key.value - data.myTotalAtStart
-                data.myResponse!!.value = intervalCount
+                data.myResponse.value = intervalCount
             }
             if (myResponseSchedule != null) {
                 myResponseSchedule!!.responseIntervalEnded(this@ResponseInterval)
             } else {
                 // not on a schedule, check if it can repeat
                 if (repeatFlag) {
-//                    for (Map.Entry<ResponseVariable, IntervalData> entry : myResponses.entrySet()) {
-//                        ResponseVariable key = entry.getKey();
-//                        IntervalData data = entry.getValue();
-//                        WeightedStatisticIfc w = key.getWithinReplicationStatistic();
-//                        double sum = w.getWeightedSum() - data.mySumAtStart;
-//                        double denom = w.getSumOfWeights() - data.mySumOfWeightsAtStart;
-//                        if (denom != 0.0) {
-//                            double avg = sum / denom;
-//                            data.myResponse.setValue(avg);
-//                            System.out.printf("%f> name = %s, value = %f %n", getTime(), entry.getKey().getName(), avg);
-//                        }
-//                    }
                     isScheduled = false
                     scheduleInterval(0.0) // schedule it to start again, right now
                 }
@@ -435,17 +381,17 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
     }
 
     private inner class ResponseObserver : ModelElementObserver() {
-        protected fun removedFromModel(m: ModelElement?, arg: Any?) {
+        override fun removedFromModel(modelElement: ModelElement) {
             // m is the model element that is being monitored that is
             // being removed from the model.
             // first remove the monitored object from the maps
             // then remove the associated response from the model
-            if (m is Counter) {
-                val data = myCounters.remove(m as Counter?)
-                data!!.myResponse!!.removeFromModel()
-            } else if (m is Response) {
-                val data = myResponses.remove(m as Response?)
-                data!!.myResponse!!.removeFromModel()
+            if (modelElement is Counter) {
+                val data = myCounters.remove(modelElement)
+                data!!.myResponse.removeFromModel()
+            } else if (modelElement is Response) {
+                val data = myResponses.remove(modelElement)
+                data!!.myResponse.removeFromModel()
             }
         }
     }
