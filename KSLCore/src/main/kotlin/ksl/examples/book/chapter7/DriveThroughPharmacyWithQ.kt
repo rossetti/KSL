@@ -59,7 +59,8 @@ class DriveThroughPharmacyWithQ(
     private val myWaitingQ: Queue<QObject> = Queue(this, "PharmacyQ")
     private val myTotal: AggregateTWResponse = AggregateTWResponse(this, "aggregate # in system")
     private val mySysTimeHistogram: ResponseHistogram = ResponseHistogram(mySysTime, theBreakPointMinDataSize = 200)
-    val systemTimeHistogram : HistogramIfc
+    private val mySTGT3: IndicatorResponse = IndicatorResponse({ x -> x > 4.0 }, mySysTime, "SysTime>4.0")
+    val systemTimeHistogram: HistogramIfc
         get() = mySysTimeHistogram.histogram
 
     init {
