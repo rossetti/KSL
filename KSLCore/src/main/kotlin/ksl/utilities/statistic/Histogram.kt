@@ -28,15 +28,12 @@ import kotlin.math.pow
  * of the bins, b0, b1, b2, ..., bk, where there are k+1 break points, and k bins.
  * b0 may be Double.NEGATIVE_INFINITY and bk may be Double.POSITIVE_INFINITY.
  *
- *
  * If only one break point is supplied, then the bins are automatically defined as:
  * (Double.NEGATIVE_INFINITY, b0] and (b0, Double.POSITIVE_INFINITY).
- *
  *
  * If two break points are provided, then there is one bin: [b0, b1), any values
  * less than b0 will be counted as underflow and any values [b1, +infinity) will
  * be counted as overflow.
- *
  *
  * If k+1 break points are provided then the bins are defined as:
  * [b0,b1), [b1,b2), [b2,b3), ..., [bk-1,bk) and
@@ -45,16 +42,13 @@ import kotlin.math.pow
  * be no underflow. Similarly, if bk equals Double.POSITIVE_INFINITY there can be no
  * overflow.
  *
- *
- * The break points do not have to define equally sized bins. Static methods within HistogramBIfc
+ * The break points do not have to define equally sized bins. Static methods within companion object
  * are provided to create equal width bins and to create histograms with common
  * characteristics.
- *
  *
  * If any presented value is Double.NaN, then the value is counted as missing
  * and the observation is not tallied towards the total number of observations. Underflow and
  * overflow counts also do not count towards the total number of observations.
- *
  *
  * Statistics are also automatically collected on the collected observations. The statistics
  * do not include missing, underflow, and overflow observations. Statistics are only computed
@@ -307,28 +301,28 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
     override fun toString(): String {
         val sb = StringBuilder()
         sb.append("Histogram: ").append(name)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("-------------------------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Number of bins = ").append(numberBins)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("First bin starts at = ").append(firstBinLowerLimit)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Last bin ends at = ").append(lastBinUpperLimit)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Under flow count = ").append(underFlowCount)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Over flow count = ").append(overFlowCount)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         val n = count
         sb.append("Total bin count = ").append(n)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Total count = ").append(totalCount)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("-------------------------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append(String.format("%3s %-12s %-5s %-5s %-5s %-6s", "Bin", "Range", "Count", "CumTot", "Frac", "CumFrac"))
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         //        sb.append("Bin \t Range \t Count \t\t tc \t\t p \t\t cp\n");
         var ct = 0.0
         for (bin in myBins) {
@@ -338,14 +332,20 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             sb.append(s)
         }
         sb.append("-------------------------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Statistics on data collected within bins:")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("-------------------------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append(myStatistic)
         sb.append("-------------------------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
+//        sb.append("Recommended break points based on all observed data")
+//        sb.appendLine()
+//        val bp = recommendBreakPoints(this)
+//        sb.append(bp.contentToString())
+//        sb.appendLine()
+//        sb.append("-------------------------------------")
         return sb.toString()
     }
 
@@ -471,6 +471,16 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             }
             // 2 or more observations
             val statistic = Statistic(observations)
+            return recommendBreakPoints(statistic)
+        }
+
+        fun recommendBreakPoints(statistic: StatisticIfc) : DoubleArray {
+            if (statistic.count == 1.0){
+                val b = DoubleArray(1)
+                b[0] = floor(statistic.average)
+                return b
+            }
+            // 2 or more observations
             val LL = statistic.min
             val UL = statistic.max
             if (KSLMath.equal(LL, UL)) {

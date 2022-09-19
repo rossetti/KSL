@@ -24,6 +24,7 @@ import ksl.simulation.ModelElement
 import ksl.simulation.SimulationReporter
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.statistic.HistogramIfc
 
 
 /**
@@ -57,6 +58,9 @@ class DriveThroughPharmacyWithQ(
     private val myNumCustomers: Counter = Counter(this, "Num Served")
     private val myWaitingQ: Queue<QObject> = Queue(this, "PharmacyQ")
     private val myTotal: AggregateTWResponse = AggregateTWResponse(this, "aggregate # in system")
+    private val mySysTimeHistogram: ResponseHistogram = ResponseHistogram(mySysTime, theBreakPointMinDataSize = 200)
+    val systemTimeHistogram : HistogramIfc
+        get() = mySysTimeHistogram.histogram
 
     init {
         myTotal.observe(myWaitingQ.numInQ)
@@ -143,4 +147,6 @@ fun main() {
     sim.simulate()
     val reporter: SimulationReporter = sim.simulationReporter
     reporter.printAcrossReplicationSummaryStatistics()
+
+    println(dtp.systemTimeHistogram)
 }

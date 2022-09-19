@@ -53,6 +53,15 @@ class AggregateTWResponse(parent: ModelElement, name : String? = null) : TWRespo
         }
     }
 
+    /**
+     *  Causes all the responses to be observed
+     */
+    fun observeAll(responses: Collection<TWResponse>){
+        for(response in responses){
+            observe(response)
+        }
+    }
+
     /** The response will stop being observed by the aggregate.
      *
      * @param response the response to stop observing
@@ -70,6 +79,16 @@ class AggregateTWResponse(parent: ModelElement, name : String? = null) : TWRespo
      */
     fun remove(response: TWResponseCIfc){
         if (response is TWResponse){
+            remove(response)
+        }
+    }
+
+    /**
+     *  Causes all the responses to stop being observed
+     *  @param responses the responses to stop observing
+     */
+    fun removeAll(responses: Collection<TWResponse>){
+        for(response in responses){
             remove(response)
         }
     }

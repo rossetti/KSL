@@ -48,6 +48,15 @@ class WeightedResponse(parent: ModelElement, name : String? = null) : Response(p
         }
     }
 
+    /**
+     *  Causes all the responses to be observed
+     */
+    fun observeAll(responses: Collection<Response>){
+        for(response in responses){
+            observe(response)
+        }
+    }
+
     /** The response will stop being observed by the weighted response.
      *
      * @param response the response to stop observing
@@ -65,6 +74,16 @@ class WeightedResponse(parent: ModelElement, name : String? = null) : Response(p
      */
     fun remove(response: ResponseCIfc){
         if (response is Response){
+            remove(response)
+        }
+    }
+
+    /**
+     *  Causes all the responses to stop being observed
+     *  @param responses the responses to stop observing
+     */
+    fun removeAll(responses: Collection<Response>){
+        for(response in responses){
             remove(response)
         }
     }
