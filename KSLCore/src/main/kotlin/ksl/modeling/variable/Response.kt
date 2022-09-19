@@ -31,7 +31,7 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  *   The naming convention "CIfc" is used to denote controlled interface.
  *
  */
-interface ResponseCIfc {
+interface ResponseCIfc : ResponseIfc {
     val limits: Interval
 
     /**
@@ -42,7 +42,7 @@ interface ResponseCIfc {
     var initialCountLimit: Double
     val acrossReplicationStatistic: StatisticIfc
     val withinReplicationStatistic: WeightedStatisticIfc
-    var defaultReportingOption: Boolean
+
     fun addCountLimitAction(action: CountActionIfc)
     fun removeCountLimitAction(action: CountActionIfc)
     fun addCountLimitStoppingAction() : CountActionIfc

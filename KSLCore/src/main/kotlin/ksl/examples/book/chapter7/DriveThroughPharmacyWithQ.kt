@@ -17,10 +17,7 @@ package ksl.examples.book.chapter7
 
 import ksl.modeling.queue.QObject
 import ksl.modeling.queue.Queue
-import ksl.modeling.variable.Counter
-import ksl.modeling.variable.RandomVariable
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -42,8 +39,8 @@ import ksl.utilities.random.rvariable.ExponentialRV
 class DriveThroughPharmacyWithQ(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0),
-    sd: RandomIfc = ExponentialRV(0.5)
+    ad: RandomIfc = ExponentialRV(1.0, 1),
+    sd: RandomIfc = ExponentialRV(0.5, 2)
 ) :
     ModelElement(parent, name = null) {
 
@@ -59,6 +56,12 @@ class DriveThroughPharmacyWithQ(
     private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
     private val myNumCustomers: Counter = Counter(this, "Num Served")
     private val myWaitingQ: Queue<QObject> = Queue(this, "PharmacyQ")
+    private val myTotal: AggregateTWResponse = AggregateTWResponse(this, "aggregate # in system")
+
+    init {
+        myTotal.observe(myWaitingQ.numInQ)
+        myTotal.observe(myNumBusy)
+    }
 
     val systemTimeResponse: Response
         get() = mySysTime

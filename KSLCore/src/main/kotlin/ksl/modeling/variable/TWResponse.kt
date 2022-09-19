@@ -16,7 +16,7 @@ interface TWResponseCIfc : ResponseCIfc {
     var initialValue: Double
 }
 
-class TWResponse(
+open class TWResponse(
     parent: ModelElement,
     name: String? = null,
     theInitialValue: Double = 0.0,

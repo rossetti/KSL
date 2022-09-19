@@ -15,6 +15,7 @@
  */
 package ksl.examples.book.chapter6
 
+import ksl.modeling.variable.AggregateTWResponse
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.TWResponse
@@ -54,8 +55,14 @@ class DriveThroughPharmacy(
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
     private val myNS: TWResponse = TWResponse(this, "# in System")
     private val myNumCustomers: Counter = Counter(this, name = "Num Served")
+    private val myTotal: AggregateTWResponse = AggregateTWResponse(this, "aggregate # in system")
     private val myArrivalEventAction: ArrivalEventAction = ArrivalEventAction()
     private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
+
+    init {
+        myTotal.observe(myQ)
+        myTotal.observe(myNumBusy)
+    }
 
 
     fun setServiceTimeRandomSource(serviceTime: RandomIfc) {

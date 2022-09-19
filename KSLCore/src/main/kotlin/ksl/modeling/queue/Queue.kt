@@ -16,9 +16,7 @@
 package ksl.modeling.queue
 
 import ksl.modeling.elements.RandomElementIfc
-import ksl.modeling.variable.RandomVariable
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.UniformRV
@@ -70,7 +68,12 @@ open class Queue<T : QObject>(
     protected val myList: MutableList<T> = mutableListOf()
 
     protected val myNumInQ: TWResponse = TWResponse(this, name = "${name}:NumInQ")
+    val numInQ : TWResponseCIfc
+        get() = myNumInQ
+
     protected val myTimeInQ: Response = Response(this, name = "${name}:TimeInQ")
+    val timeInQ : ResponseCIfc
+        get() = myTimeInQ
 
     /**
      *  The initial queue discipline. The initial discipline indicates
