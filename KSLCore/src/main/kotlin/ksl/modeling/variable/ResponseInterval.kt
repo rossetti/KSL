@@ -51,11 +51,15 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  *
  * @author rossetti
  */
-class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
-    ModelElement(parent, label) {
+class ResponseInterval(
+    parent: ModelElement,
+    theDuration: Double,
+    label: String?,
+    aResponseSchedule: ResponseSchedule? = null
+) : ModelElement(parent, label) {
     init {
-        require(duration.isFinite()) { "The duration must be finite." }
-        require(duration > 0) { "The duration must be > 0." }
+        require(theDuration.isFinite()) { "The duration must be finite." }
+        require(theDuration > 0) { "The duration must be > 0." }
         this.label = label
     }
 
@@ -110,6 +114,11 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
     private val myObserver: ResponseObserver = ResponseObserver()
 
     /**
+     *  If the interval is associated with a schedule, this will be set
+     */
+    private var responseSchedule: ResponseSchedule? = aResponseSchedule
+
+    /**
      * Intervals may be repeated. The represents the time that the interval last
      * started in time;
      *
@@ -131,53 +140,28 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
     var isScheduled: Boolean = false
         private set
 
-
-    /**
-     * The duration of the interval
-     */
-    private var myDuration = duration
-
-    var duration: Double
-        get() = myDuration
-        private set(duration) {
-            require(duration.isFinite()) { "The duration must be finite." }
-            require(duration > 0) { "The duration must be > 0." }
-            myDuration = duration
+    var duration: Double = theDuration
+        private set(value) {
+            require(value.isFinite()) { "The duration must be finite." }
+            require(value > 0) { "The duration must be > 0." }
+            field = value
         }
-
-    /**
-     * The time that the interval should start
-     */
-    private var myStartTime: Double = Double.NEGATIVE_INFINITY
-
-    /**
-     * The  repeat flag controls whether the interval will
-     * repeat after its duration has elapsed.  The default is
-     * false.
-     */
-    var repeatFlag = false
-
-    private var myResponseSchedule: ResponseSchedule? = null
-
 
     /**
      * Specifies when the interval is to start. If negative, then the interval
      * will not be started must not be infinite
      */
-    var startTime: Double
-        get() = myStartTime
-        set(startTime) {
-            require(!startTime.isInfinite()) { "The start time cannot be infinity" }
-            myStartTime = startTime
+    var startTime: Double = Double.NEGATIVE_INFINITY
+        set(value) {
+            require(value.isFinite()) { "The start time cannot be infinity" }
+            field = value
         }
 
     /**
-     *
-     * @param schedule the response schedule that the interval is on
+     * The repeat flag controls whether the interval will repeat after its duration has elapsed.
+     * The default is false.
      */
-    protected fun setResponseSchedule(schedule: ResponseSchedule) {
-        myResponseSchedule = schedule
-    }
+    var repeatFlag = false
 
     /**
      * Adds a ResponseVariable to the interval for data collection over the
@@ -232,7 +216,6 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
     }
 
     override fun afterReplication() {
-        //System.out.println("In ResponseInterval: afterReplication()");
         super.afterReplication()
         timeLastStarted = 0.0
         timeLastEnded = 0.0
@@ -250,15 +233,14 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
      *
      * @param startTime the time to start the interval
      */
-    private fun scheduleInterval(startTime: Double) {
+    internal fun scheduleInterval(startTime: Double) {
         check(!isScheduled) { "Attempted to schedule an already scheduled interval" }
         isScheduled = true
         myStartEvent = myStartAction.schedule(startTime, priority = START_EVENT_PRIORITY)
     }
 
     /**
-     * Cancels the scheduling of the interval. Any statistical collection will
-     * not occur.
+     * Cancels the scheduling of the interval. Any statistical collection will not occur.
      */
     fun cancelInterval() {
         isScheduled = false
@@ -353,7 +335,7 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
             for ((key, data) in myResponses) {
                 timeLastEnded = time
                 val w: WeightedStatisticIfc = key.withinReplicationStatistic
-                val sum: Double = w.weightedSum- data.mySumAtStart
+                val sum: Double = w.weightedSum - data.mySumAtStart
                 val denom: Double = w.sumOfWeights - data.mySumOfWeightsAtStart
                 val numObs: Double = w.count - data.myNumObsAtStart
                 if (data.myEmptyResponse != null) {
@@ -368,8 +350,8 @@ class ResponseInterval(parent: ModelElement, duration: Double, label: String?) :
                 val intervalCount: Double = key.value - data.myTotalAtStart
                 data.myResponse.value = intervalCount
             }
-            if (myResponseSchedule != null) {
-                myResponseSchedule!!.responseIntervalEnded(this@ResponseInterval)
+            if (responseSchedule != null) {
+                responseSchedule!!.responseIntervalEnded(this@ResponseInterval)
             } else {
                 // not on a schedule, check if it can repeat
                 if (repeatFlag) {
