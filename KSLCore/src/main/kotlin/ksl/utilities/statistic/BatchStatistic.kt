@@ -17,6 +17,99 @@ package ksl.utilities.statistic
 
 import ksl.utilities.random.rvariable.ExponentialRV
 
+interface BatchStatisticIfc : StatisticIfc {
+    /**
+     * The minimum number of observations per batch
+     */
+    val minBatchSize: Int
+
+    /**
+     * The minimum number of batches required
+     */
+    val minNumBatches: Int
+
+    /**
+     * The multiple of the minimum number of batches that determines the maximum
+     * number of batches e.g. if the min. number of batches is 20 and the max
+     * number batches multiple is 2, then we can have at most 40 batches
+     */
+    val minNumBatchesMultiple: Int
+
+    /**
+     * The maximum number of batches as determined by the max num batches
+     * multiple
+     */
+    val maxNumBatches: Int
+
+    /**
+     * the number of batches
+     */
+    val numBatches: Int
+
+    /**
+     * the number of times re-batching has occurred
+     */
+    val numRebatches: Int
+
+    /**
+     * the size of the current batch
+     */
+    val currentBatchSize: Int
+
+    /**
+     *
+     * @return the amount of data that did not fit into a full batch
+     */
+    val amountLeftUnbatched: Double
+
+    /**
+     * Gets the total number of observations observed
+     *
+     * @return a double representing the total number of observations
+     */
+    val totalNumberOfObservations: Double
+
+    /** Takes the current batch means and batches them into the specified
+     * number of batches.  This does not change the current batch means
+     *
+     * @param numBatches the number of batches, must be greater that zero, and less than or equal to
+     * the current number of batches
+     * @return the array of new batch means
+     */
+    fun reformBatches(numBatches: Int): DoubleArray
+
+    /**
+     * Returns a copy of the StatisticIfc that is tabulating the
+     * current batch
+     *
+     * @return a reference to the StatisticIfc that is tabulating the
+     * current batch
+     */
+    val currentBatchStatistic: StatisticIfc
+
+    /**
+     * Checks if the supplied value falls within getAverage() +/- getHalfWidth()
+     *
+     * @param mean the mean to check
+     * @return true if the supplied value falls within getAverage() +/-
+     * getHalfWidth()
+     */
+    fun checkMean(mean: Double): Boolean
+
+    /**
+     *  Returns a copy of the BatchStatistic
+     */
+    fun instance(): BatchStatistic
+
+    /**
+     * Returns a copy of the batch means array. Zero index is the
+     * first batch mean
+     *
+     * @return An array holding the batch means
+     */
+    val batchMeans: DoubleArray
+}
+
 /**
  * This class automates the batching of observations that may be dependent. It
  * computes the batch means of the batches and reports statistics across the
@@ -58,7 +151,7 @@ class BatchStatistic constructor(
     theMinNumBatchesMultiple: Int = MAX_BATCH_MULTIPLE,
     theName: String? = null,
     values: DoubleArray? = null
-) : AbstractStatistic(theName) {
+) : AbstractStatistic(theName), BatchStatisticIfc {
     init {
         require(theMinNumBatches > 1) { "Number of batches must be >= 2" }
         require(theMinBatchSize > 1) { "Batch size must be >= 2" }
@@ -68,25 +161,25 @@ class BatchStatistic constructor(
     /**
      * The minimum number of observations per batch
      */
-    val minBatchSize: Int = theMinBatchSize
+    override val minBatchSize: Int = theMinBatchSize
 
     /**
      * The minimum number of batches required
      */
-    val minNumBatches: Int = theMinNumBatches
+    override val minNumBatches: Int = theMinNumBatches
 
     /**
      * The multiple of the minimum number of batches that determines the maximum
      * number of batches e.g. if the min. number of batches is 20 and the max
      * number batches multiple is 2, then we can have at most 40 batches
      */
-    val minNumBatchesMultiple: Int = theMinNumBatchesMultiple
+    override val minNumBatchesMultiple: Int = theMinNumBatchesMultiple
 
     /**
      * The maximum number of batches as determined by the max num batches
      * multiple
      */
-    val maxNumBatches: Int = minNumBatches * minNumBatchesMultiple
+    override val maxNumBatches: Int = minNumBatches * minNumBatchesMultiple
 
     /**
      * holds the batch means
@@ -96,19 +189,19 @@ class BatchStatistic constructor(
     /**
      * the number of batches
      */
-    var numBatches = 0
+    override var numBatches = 0
         private set
 
     /**
      * the number of times re-batching has occurred
      */
-    var numRebatches = 0
+    override var numRebatches = 0
         private set
 
     /**
      * the size of the current batch
      */
-    var currentBatchSize: Int = theMinBatchSize
+    override var currentBatchSize: Int = theMinBatchSize
         private set
 
     /**
@@ -164,7 +257,7 @@ class BatchStatistic constructor(
      * @return true if the supplied value falls within getAverage() +/-
      * getHalfWidth()
      */
-    fun checkMean(mean: Double): Boolean {
+    override fun checkMean(mean: Double): Boolean {
         return myBMStatistic.checkMean(mean)
     }
 
@@ -225,10 +318,10 @@ class BatchStatistic constructor(
      * the current number of batches
      * @return the array of new batch means
      */
-    fun reformBatches(numBatches: Int): DoubleArray {
+    override fun reformBatches(numBatches: Int): DoubleArray {
         require(numBatches > 0) { "Number of requested batches must be >= 1" }
         require(numBatches <= count) { "Number of requested batches must be <= the current number of batches" }
-        return batchMeans(batchMeanArrayCopy, numBatches)
+        return batchMeans(batchMeans, numBatches)
     }
 
     /**
@@ -237,7 +330,7 @@ class BatchStatistic constructor(
      *
      * @return An array holding the batch means
      */
-    val batchMeanArrayCopy: DoubleArray
+    override val batchMeans: DoubleArray
         get() {
             // only copy the actual batch means
             val nbm = DoubleArray(numBatches)
@@ -333,7 +426,7 @@ class BatchStatistic constructor(
      *
      * @return the amount of data that did not fit into a full batch
      */
-    val amountLeftUnbatched: Double
+    override val amountLeftUnbatched: Double
         get() = myStatistic.count
 
     /**
@@ -341,7 +434,7 @@ class BatchStatistic constructor(
      *
      * @return a double representing the total number of observations
      */
-    val totalNumberOfObservations: Double
+    override val totalNumberOfObservations: Double
         get() = myTotNumObs
 
     /**
@@ -351,8 +444,12 @@ class BatchStatistic constructor(
      * @return a reference to the StatisticIfc that is tabulating the
      * current batch
      */
-    val currentBatchStatistic: StatisticIfc
+    override val currentBatchStatistic: StatisticIfc
         get() = myStatistic.instance()
+
+    override fun instance(): BatchStatistic {
+        return BatchStatistic.instance(this)
+    }
 
     companion object {
         /**
@@ -459,7 +556,7 @@ fun main(){
     }
     println(bm)
 
-    val bma = bm.batchMeanArrayCopy
+    val bma = bm.batchMeans
     var i = 0
     for (x in bma) {
         println("bm($i) = $x")
