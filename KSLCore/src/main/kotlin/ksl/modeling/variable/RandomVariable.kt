@@ -49,7 +49,7 @@ interface RandomVariableCIfc {
      * same initial state.  It is recommended that this be used only prior to executing experiments.
      */
     var initialRandomSource: RandomIfc
-    
+
     var rnStream: RNStreamIfc
 
     /**
