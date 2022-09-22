@@ -10,7 +10,7 @@ import ksl.modeling.variable.*
 import ksl.utilities.io.KSL
 import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
-import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
 import mu.KLoggable
@@ -48,6 +48,7 @@ class Model(
     internal val myExecutive: Executive = Executive(eventCalendar)
     internal val myExperiment: Experiment = Experiment()
 
+    private val myStreams: MutableSet<RNStreamIfc> = mutableSetOf()
 
     /** A flag to control whether a warning is issued if the user does not
      * set the replication run length
@@ -80,7 +81,7 @@ class Model(
     /**
      * A list of all random elements within the model
      */
-    private var myRandomElements: MutableList<RandomElementIfc> = ArrayList()
+//    private var myRandomElements: MutableList<RandomElementIfc> = ArrayList() //TODO will not be needed with new stream control
 
     /**
      * A Map that holds all the model elements in the order in which they are
@@ -104,6 +105,9 @@ class Model(
      */
     private val myReplicationProcess: ReplicationProcess = ReplicationProcess("Model: Replication Process")
 
+    //TODO default stream?
+    internal lateinit var myDefaultUniformRV : RandomVariable
+
     init {
         myModel = this
         myParentModelElement = null
@@ -112,9 +116,23 @@ class Model(
     }
 
     //TODO default stream?
-    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
+//    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
 
     val simulationReporter: SimulationReporter = SimulationReporter(this, autoCSVReports)
+
+    /**
+     * @param stream the stream that the model will manage
+     */
+    fun addStream(stream: RNStreamIfc){
+        myStreams.add(stream)
+    }
+
+    /**
+     * @param stream the stream that the model will no longer manage
+     */
+    fun removeStream(stream: RNStreamIfc){
+        myStreams.remove(stream)
+    }
 
     /**
      * Tells the simulation reporter to capture statistical output for within replication
@@ -253,6 +271,7 @@ class Model(
     //TODO revisit myDefaultEntityType when working on process modeling
     private fun addDefaultElements() {
 //        myDefaultEntityType = EntityType(this, "DEFAULT_ENTITY_TYPE")
+        myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
     }
 
     /**
@@ -305,28 +324,30 @@ class Model(
         element.removeFromModel()
     }
 
+    //TODO update API method names to better reflect stream control
+
     /**
-     * Causes RandomElementIfc that have been added to the model to immediately
+     * Causes random number streams that have been added to the model to immediately
      * turn on their antithetic generating streams.
      */
     fun turnOnAntithetic() {
-        for (rv in myRandomElements) {
-            rv.antithetic = true
+        for (rs in myStreams) {
+            rs.antithetic = true
         }
     }
 
     /**
-     * Causes RandomElementIfc that have been added to the model to immediately
+     * Causes random number streams that have been added to the model to immediately
      * turn off their antithetic generating streams.
      */
     fun turnOffAntithetic() {
-        for (rv in myRandomElements) {
-            rv.antithetic = false
+        for (rs in myStreams) {
+            rs.antithetic = false
         }
     }
 
     /**
-     * Advances the streams of all RandomElementIfc n times. If n &lt;= 0, no
+     * Advances the streams, held by the model, n times. If n &lt;= 0, no
      * advancing occurs
      *
      * @param n the number of times to advance
@@ -341,35 +362,38 @@ class Model(
     }
 
     /**
-     * Causes RandomElementIfc that have been added to the model to immediately
-     * advance their random number streams to the next sub-stream in their
-     * stream.
+     * Causes random number streams that have been added to the model to immediately
+     * advance their random number sequence to the next sub-stream if the stream
+     * permits advancement via the advanceToNextSubStreamOption.
      */
     fun advanceToNextSubStream() {
-        for (rv in myRandomElements) {
-            rv.advanceToNextSubStream()
+        for (rs in myStreams) {
+            if (rs.advanceToNextSubStreamOption){
+                rs.advanceToNextSubStream()
+            }
         }
     }
 
     /**
-     * Causes RandomElementIfc that have been added to the model to immediately
-     * reset their random number streams to the beginning of their starting
-     * stream.
+     * Causes random number streams that have been added to the model to immediately
+     * reset their random number sequence to the beginning of their starting stream
+     * if the stream permits resetting via the resetStartStreamOption
      */
     fun resetStartStream() {
-        for (rv in myRandomElements) {
-            rv.resetStartStream()
+        for (rs in myStreams) {
+            if (rs.resetStartStreamOption){
+                rs.resetStartStream()
+            }
         }
     }
 
     /**
-     * Causes RandomElementIfc that have been added to the model to immediately
-     * reset their random number streams to the beginning of their current sub
-     * stream.
+     * Causes random number streams that have been added to the model to immediately
+     * reset their random number sequence to the beginning of their current sub-stream.
      */
     fun resetStartSubStream() {
-        for (rv in myRandomElements) {
-            rv.resetStartSubStream()
+        for (rs in myStreams) {
+            rs.resetStartSubStream()
         }
     }
 
@@ -446,7 +470,8 @@ class Model(
                 myCounters.remove(modelElement)
             }
             if (modelElement is RandomElementIfc) {
-                myRandomElements.remove(modelElement as RandomElementIfc)
+                removeStream(modelElement.rnStream)
+//                myRandomElements.remove(modelElement as RandomElementIfc)
             }
             if (modelElement is Variable) {
                 if (Variable::class == modelElement::class) {//TODO not 100% sure if only super type is removed
@@ -499,7 +524,8 @@ class Model(
         }
 
         if (modelElement is RandomElementIfc) {
-            myRandomElements.add(modelElement as RandomElementIfc)
+            addStream(modelElement.rnStream)
+//            myRandomElements.add(modelElement as RandomElementIfc)
         }
 
         if (modelElement is Variable) {
@@ -663,14 +689,14 @@ class Model(
      *
      * @param option The option, true means to reset prior to each experiment
      */
-    private fun setAllRVResetStartStreamOptions(option: Boolean) {
-        for (rv in myRandomElements) {
-            rv.resetStartStreamOption = option
+    private fun setAllResetStartStreamOptions(option: Boolean) {
+        for (rs in myStreams) {
+            rs.resetStartStreamOption = option
         }
     }
 
     /**
-     * Sets the reset next sub stream option for all RandomElementIfc in the
+     * Sets the advance to next sub stream option for all RandomElementIfc in the
      * model to the supplied value, true is the default behavior. True implies
      * that the sub-streams will be advanced at the end of the replication. This
      * method is used by an experiment prior to beforeExperimentActions() being called
@@ -679,9 +705,9 @@ class Model(
      *
      * @param option The option, true means to reset prior to each replication
      */
-    private fun setAllRVResetNextSubStreamOptions(option: Boolean) {
-        for (rv in myRandomElements) {
-            rv.advanceToNextSubStreamOption = option
+    private fun setAllAdvanceToNextSubStreamOptions(option: Boolean) {
+        for (rs in myStreams) {
+            rs.advanceToNextSubStreamOption = option
         }
     }
 
@@ -697,14 +723,14 @@ class Model(
 
         if (antitheticOption) {
             // make sure the streams are not reset after all replications are run
-            setAllRVResetStartStreamOptions(false)
+            setAllResetStartStreamOptions(false)
             // make sure that streams are not advanced to next sub-streams after each replication
             // antithetic option will control this (every other replication)
-            setAllRVResetNextSubStreamOptions(false)
+            setAllAdvanceToNextSubStreamOptions(false)
         } else {
             // tell the model to use the specifications from the experiment
-            setAllRVResetStartStreamOptions(resetStartStreamOption)
-            setAllRVResetNextSubStreamOptions(advanceNextSubStreamOption)
+            setAllResetStartStreamOptions(resetStartStreamOption)
+            setAllAdvanceToNextSubStreamOptions(advanceNextSubStreamOption)
         }
 
         //TODO need to apply generic control types here someday
@@ -731,6 +757,7 @@ class Model(
 //        }
 
         // do all model element beforeExperiment() actions
+        resetStartStream()
         beforeExperimentActions()
     }
 
@@ -749,6 +776,7 @@ class Model(
         logger.info { "Performing end of replication actions for model elements" }
         replicationEndedActions()
         logger.info { "Performing after replication actions for model elements" }
+        advanceToNextSubStream()
         afterReplicationActions()
     }
 

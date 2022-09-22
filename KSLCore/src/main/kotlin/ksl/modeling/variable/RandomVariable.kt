@@ -130,6 +130,7 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
                 }
             }
             field = value
+            model.addStream(field.rnStream)
         }
 
     /**
@@ -171,10 +172,6 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
      */
     override var initialRandomSourceChangeWarning = true
 
-    init {
-        warmUpOption = false
-    }
-
     override fun sample(): Double {
         return randomSource.sample()
     }
@@ -184,20 +181,19 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
     }
 
     /**
-     * before any replications reset the underlying random number generator to the
-     * starting stream
+     * before any replications make sure that the random source is using the initial random source
      */
     override fun beforeExperiment() {
         super.beforeExperiment()
         randomSource = initialRandomSource
-        if (resetStartStreamOption) {
-            resetStartStream()
-        }
+//        if (resetStartStreamOption) {
+//            resetStartStream()
+//        }
     }
 
     /**
-     * after each replication reset the underlying random number generator to the next
-     * sub-stream
+     * after each replication check if random source changed during the replication and
+     * if so, provide information to the user
      */
     override fun afterReplication() {
         super.afterReplication()
@@ -209,9 +205,9 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
             randomSource = initialRandomSource
             Model.logger.info { "The random source of $name was changed back to the initial random source after replication ${model.currentReplicationNumber}." }
         }
-        if (advanceToNextSubStreamOption) {
-            advanceToNextSubStream()
-        }
+//        if (advanceToNextSubStreamOption) {
+//            advanceToNextSubStream()
+//        }
     }
 
     override fun asString(): String {
@@ -226,6 +222,8 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
     }
 
     init {
+        warmUpOption = false
         RNStreamProvider.logger.info { "Initialized RandomVariable: $this" }
     }
+
 }
