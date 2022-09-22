@@ -3,6 +3,7 @@ package examplepkg
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.Resource
+import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
@@ -11,15 +12,15 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
-class EntityGeneratorTest(parent: ModelElement) : ProcessModel(parent) {
+class EntityGeneratorTest(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val worker: Resource = Resource(this, "worker")
-    private val tba = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
+    private val tba = ExponentialRV(6.0, 1)
     private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
-    private val wip = TWResponse(this, "${name}:WIP")
-    private val tip = Response(this, "${name}:TimeInSystem")
+    private val wip = TWResponse(this, "${this.name}:WIP")
+    private val tip = Response(this, "${this.name}:TimeInSystem")
     private val generator = EntityGenerator(::Customer, tba, tba)
-//    private val arrivals = Arrivals()
+    private val counter = Counter(this, "${this.name}:NumServed" )
 
     private inner class Customer: Entity() {
         val mm1: KSLProcess = process("MM1"){
@@ -30,23 +31,9 @@ class EntityGeneratorTest(parent: ModelElement) : ProcessModel(parent) {
             release(a)
             tip.value = time - timeStamp
             wip.decrement()
+            counter.increment()
         }
     }
-
-    override fun initialize() {
-//        arrivals.schedule(tba)
-    }
-
-//    private inner class Arrivals: EventAction<Nothing>(){
-//        override fun action(event: KSLEvent<Nothing>) {
-//            val c = Customer()
-////            println(c.processSequence)
-////            activate(c.mm1)
-//            startProcessSequence(c)
-//            schedule(tba)
-//        }
-//    }
-
 }
 
 fun main(){
