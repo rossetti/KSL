@@ -1829,7 +1829,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      *
      * @param newValue
      */
-    protected fun notifyModelElementObservers(newValue: ModelElement.Status) {
+    protected fun notifyModelElementObservers(newValue: Status) {
         for (o in modelElementObservers) {
             o.onChange(this, newValue)
         }

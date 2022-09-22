@@ -81,7 +81,7 @@ class Model(
     /**
      * A list of all random elements within the model
      */
-//    private var myRandomElements: MutableList<RandomElementIfc> = ArrayList() //TODO will not be needed with new stream control
+    private var myRandomElements: MutableList<RandomElementIfc> = ArrayList() //TODO will not be needed with new stream control
 
     /**
      * A Map that holds all the model elements in the order in which they are
@@ -105,9 +105,6 @@ class Model(
      */
     private val myReplicationProcess: ReplicationProcess = ReplicationProcess("Model: Replication Process")
 
-    //TODO default stream?
-    internal lateinit var myDefaultUniformRV : RandomVariable
-
     init {
         myModel = this
         myParentModelElement = null
@@ -116,21 +113,21 @@ class Model(
     }
 
     //TODO default stream?
-//    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
+    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
 
     val simulationReporter: SimulationReporter = SimulationReporter(this, autoCSVReports)
 
     /**
      * @param stream the stream that the model will manage
      */
-    fun addStream(stream: RNStreamIfc){
+    fun addStream(stream: RNStreamIfc) {
         myStreams.add(stream)
     }
 
     /**
      * @param stream the stream that the model will no longer manage
      */
-    fun removeStream(stream: RNStreamIfc){
+    fun removeStream(stream: RNStreamIfc) {
         myStreams.remove(stream)
     }
 
@@ -142,7 +139,7 @@ class Model(
      * turn on the reporting before you simulate.  If you want the reporting all the time, then
      * just supply the autoCSVReports option as true when you create the model.
      */
-    fun turnOnCSVStatisticalReports(){
+    fun turnOnCSVStatisticalReports() {
         simulationReporter.turnOnReplicationCSVStatisticReporting()
         simulationReporter.turnOnAcrossReplicationStatisticReporting()
     }
@@ -268,10 +265,8 @@ class Model(
     val isUnfinished: Boolean
         get() = myReplicationProcess.isUnfinished
 
-    //TODO revisit myDefaultEntityType when working on process modeling
     private fun addDefaultElements() {
-//        myDefaultEntityType = EntityType(this, "DEFAULT_ENTITY_TYPE")
-        myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
+
     }
 
     /**
@@ -368,7 +363,7 @@ class Model(
      */
     fun advanceToNextSubStream() {
         for (rs in myStreams) {
-            if (rs.advanceToNextSubStreamOption){
+            if (rs.advanceToNextSubStreamOption) {
                 rs.advanceToNextSubStream()
             }
         }
@@ -381,7 +376,7 @@ class Model(
      */
     fun resetStartStream() {
         for (rs in myStreams) {
-            if (rs.resetStartStreamOption){
+            if (rs.resetStartStreamOption) {
                 rs.resetStartStream()
             }
         }
@@ -470,8 +465,7 @@ class Model(
                 myCounters.remove(modelElement)
             }
             if (modelElement is RandomElementIfc) {
-                removeStream(modelElement.rnStream)
-//                myRandomElements.remove(modelElement as RandomElementIfc)
+                myRandomElements.remove(modelElement as RandomElementIfc)
             }
             if (modelElement is Variable) {
                 if (Variable::class == modelElement::class) {//TODO not 100% sure if only super type is removed
@@ -494,9 +488,9 @@ class Model(
 
         if (isRunning) {
             val sb = StringBuilder()
-            sb.append("Attempted to add the model element: ")
+            sb.append("Attempted to add a ${modelElement::class.simpleName} : name = ")
             sb.append(modelElement.name)
-            sb.append(" while the simulation was running.")
+            sb.append(", while the simulation was running.")
             logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
@@ -524,8 +518,7 @@ class Model(
         }
 
         if (modelElement is RandomElementIfc) {
-            addStream(modelElement.rnStream)
-//            myRandomElements.add(modelElement as RandomElementIfc)
+            myRandomElements.add(modelElement as RandomElementIfc)
         }
 
         if (modelElement is Variable) {
@@ -757,7 +750,10 @@ class Model(
 //        }
 
         // do all model element beforeExperiment() actions
-        resetStartStream()
+        if (resetStartStreamOption){
+            logger.info { "Resetting random number streams to the beginning of their starting stream." }
+            resetStartStream() //TODO
+        }
         beforeExperimentActions()
     }
 
@@ -775,8 +771,11 @@ class Model(
         logger.info { "The executive finished executing events. Current time = $time" }
         logger.info { "Performing end of replication actions for model elements" }
         replicationEndedActions()
+        if (advanceNextSubStreamOption){
+            logger.info { "Advancing random number streams to the next sub-stream" }
+            advanceToNextSubStream()
+        }
         logger.info { "Performing after replication actions for model elements" }
-        advanceToNextSubStream()
         afterReplicationActions()
     }
 
@@ -784,7 +783,6 @@ class Model(
         logger.info { "Performing after experiment actions for model elements" }
         afterExperimentActions()
     }
-
 
     private inner class ReplicationProcess(name: String?) : IterativeProcess<ReplicationProcess>(name) {
 
@@ -978,12 +976,16 @@ class Model(
      */
     fun simulate() {
         myReplicationProcess.run()
-        if (autoPrintSummaryReport){
-            println()
-            println(this)
-            println()
-            simulationReporter.printHalfWidthSummaryReport()
+        if (autoPrintSummaryReport) {
+            print()
         }
+    }
+
+    fun print(){
+        println()
+        println(this)
+        println()
+        simulationReporter.printHalfWidthSummaryReport()
     }
 
     /**
@@ -1024,21 +1026,21 @@ class Model(
      */
     val listOfAcrossReplicationStatistics: List<StatisticIfc>
         get() {
-        val stats: MutableList<StatisticIfc> = ArrayList()
-        for (r in myResponses) {
-            val stat = r.acrossReplicationStatistic
-            if (r.defaultReportingOption) {
-                stats.add(stat)
+            val stats: MutableList<StatisticIfc> = ArrayList()
+            for (r in myResponses) {
+                val stat = r.acrossReplicationStatistic
+                if (r.defaultReportingOption) {
+                    stats.add(stat)
+                }
             }
-        }
-        for (c in myCounters) {
-            val stat = c.acrossReplicationStatistic
-            if (c.defaultReportingOption) {
-                stats.add(stat)
+            for (c in myCounters) {
+                val stat = c.acrossReplicationStatistic
+                if (c.defaultReportingOption) {
+                    stats.add(stat)
+                }
             }
+            return stats
         }
-        return stats
-    }
 
     companion object : KLoggable {
         /**

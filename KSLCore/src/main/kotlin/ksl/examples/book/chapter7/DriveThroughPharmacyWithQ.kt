@@ -146,8 +146,9 @@ fun main() {
     dtp.setArrivalRS(ExponentialRV(6.0, 1))
     dtp.setServiceRS(ExponentialRV(3.0, 2))
     sim.simulate()
-    val reporter: SimulationReporter = sim.simulationReporter
-    reporter.printAcrossReplicationSummaryStatistics()
+    sim.print()
+//    val reporter: SimulationReporter = sim.simulationReporter
+//    reporter.printAcrossReplicationSummaryStatistics()
 
     println(dtp.systemTimeHistogram)
 }

@@ -53,4 +53,5 @@ fun main(){
     m.lengthOfReplication = 20000.0
     m.lengthOfReplicationWarmUp = 5000.0
     m.simulate()
+    m.print()
 }

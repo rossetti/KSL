@@ -194,7 +194,7 @@ class RNStreamFactory {
         /**
          * Describes the stream (for writing the state, error messages, etc.).
          */
-        override val name: String = sName ?: (javaClass.simpleName + "_" + id)
+        override val name: String = sName ?: (this::class.simpleName + "_" + id)
 
         override var label: String? = null
 
@@ -213,7 +213,7 @@ class RNStreamFactory {
             get() = 1.0 - previousU
 
         // The arrays Cg, Bg and Ig contain the current state,
-        // the starting point of the current substream,
+        // the starting point of the current sub-stream,
         // and the starting point of the stream, respectively.
         private var Cg0 = 0.0
         private var Cg1 = 0.0
@@ -241,6 +241,7 @@ class RNStreamFactory {
         override fun resetStartStream() {
             for (i in 0..5) Bg[i] = Ig[i]
             resetStartSubStream()
+            RNStreamProvider.logger.trace{"Resetting $this to its starting stream."}
         }
 
         override fun resetStartSubStream() {
@@ -255,12 +256,13 @@ class RNStreamFactory {
         override fun advanceToNextSubStream() {
             multMatVect(Bg, A1p76, m1, A2p76, m2)
             resetStartSubStream()
+            RNStreamProvider.logger.trace{"Advancing $this to its next sub-stream."}
         }
 
         /**
-         * Returns the seed for the start of the substream
+         * Returns the seed for the start of the sub-stream
          *
-         * @return the seed for the start of the substream
+         * @return the seed for the start of the sub-stream
          */
         fun startingSubStreamSeed(): LongArray {
             val seed = LongArray(6)
@@ -333,6 +335,10 @@ class RNStreamFactory {
             val s = instance(name)
             s.antithetic = !s.antithetic
             return s
+        }
+
+        override fun toString(): String {
+            return "RNStream(id=$id, name='$name', label=$label, antithetic=$antithetic)"
         }
 
     }

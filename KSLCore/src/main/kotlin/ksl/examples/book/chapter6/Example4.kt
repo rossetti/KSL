@@ -23,4 +23,5 @@ fun main() {
     dtp.setTimeBtwArrivalRandomSource(ExponentialRV(6.0, 1))
     dtp.setServiceTimeRandomSource(ExponentialRV(3.0, 2))
     model.simulate()
+    model.print()
 }

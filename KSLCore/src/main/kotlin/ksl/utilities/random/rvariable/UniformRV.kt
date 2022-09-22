@@ -34,7 +34,7 @@ class UniformRV (
         require(min < max) { "Lower limit must be < upper limit. lower limit = $min upper limit = $max" }
     }
 
-    constructor(min: Double, max: Double, streamNum: Int) : this(min, max, KSLRandom.rnStream(streamNum))
+    constructor(min: Double = 0.0, max: Double = 1.0, streamNum: Int) : this(min, max, KSLRandom.rnStream(streamNum))
 
     override fun instance(stream: RNStreamIfc): UniformRV {
         return UniformRV(min, max, stream)

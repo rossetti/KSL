@@ -14,20 +14,25 @@ import mu.KotlinLogging
  * The default stream if not set is the first stream.
  */
 class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
+    init {
+        require(defaultStreamNum > 0) {
+            "The default stream number must be > 0!"
+        }
+    }
 
     var streamNumberWarningLimit = 5000
+        set(value) {
+            require(value > 0) { "The stream number warning limit must be at least 1" }
+            field = value
+        }
 
     private val myStreamFactory: RNStreamFactory = RNStreamFactory()
 
     private val myStreams: MutableList<RNStreamIfc> = ArrayList()
 
-    override val defaultStreamNumber: Int
+    override val defaultStreamNumber: Int = defaultStreamNum
 
     init {
-        require(defaultStreamNum > 0) {
-            "The default stream number must be > 0!"
-        }
-        defaultStreamNumber = defaultStreamNum
         defaultRNStream()
     }
 
