@@ -288,7 +288,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             field = value
         }
 
-    constructor(parent: ModelElement, name: String?) : this(name) {
+    constructor(parent: ModelElement, name: String? = null) : this(name) {
         // should not be leaking this
         // adds the model element to the parent and also set this element's parent
         parent.addModelElement(this)

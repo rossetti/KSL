@@ -11,11 +11,11 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
-class EntityGeneratorTest(parent: ModelElement) : ProcessModel(parent, null) {
+class EntityGeneratorTest(parent: ModelElement) : ProcessModel(parent) {
 
     private val worker: Resource = Resource(this, "worker")
-    private val tba = RandomVariable(this, ExponentialRV(6.0, 1))
-    private val st = RandomVariable(this, ExponentialRV(3.0, 2))
+    private val tba = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
+    private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
     private val wip = TWResponse(this, "${name}:WIP")
     private val tip = Response(this, "${name}:TimeInSystem")
     private val generator = EntityGenerator(::Customer, tba, tba)
@@ -50,7 +50,6 @@ class EntityGeneratorTest(parent: ModelElement) : ProcessModel(parent, null) {
 }
 
 fun main(){
-    //TODO minor statistical difference with SimpleProcessQ output
     val m = Model()
     val test = EntityGeneratorTest(m)
     m.numberOfReplications = 30
@@ -60,4 +59,5 @@ fun main(){
 //    m.lengthOfReplication = 20.0
 //    m.lengthOfReplicationWarmUp = 5.0
     m.simulate()
+    m.print()
 }

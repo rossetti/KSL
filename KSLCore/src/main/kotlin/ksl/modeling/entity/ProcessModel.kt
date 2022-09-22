@@ -30,7 +30,7 @@ import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
  * @param parent the parent model element
  * @param name an optional name for the process model
  */
-open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(parent, name) {
+open class ProcessModel(parent: ModelElement, name: String? = null) : ModelElement(parent, name) {
 
     private val suspendedEntities = mutableSetOf<Entity>()
 
@@ -41,7 +41,7 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
      * @param theTimeBtwEvents the time between entity creation
      * @param theMaxNumberOfEvents the maximum number of entities to create
      * @param theTimeOfTheLastEvent the time of the last entity creation
-     * @param name a name for the generator
+     * @param theName a name for the generator
      */
     protected inner class EntityGenerator<T : Entity>(
         private val entityCreator: () -> T,
@@ -50,10 +50,10 @@ open class ProcessModel(parent: ModelElement, name: String?) : ModelElement(pare
         theMaxNumberOfEvents: Long = Long.MAX_VALUE,
         theTimeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
         var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,
-        name: String? = null
+        theName: String? = null
     ) : EventGenerator(
         this@ProcessModel, null, theTimeUntilTheFirstEntity,
-        theTimeBtwEvents, theMaxNumberOfEvents, theTimeOfTheLastEvent, name
+        theTimeBtwEvents, theMaxNumberOfEvents, theTimeOfTheLastEvent, theName
     ) {
         override fun generate() {
             val entity = entityCreator()

@@ -225,7 +225,7 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
         warmUpOption = false
         //TODO this needs to be in random elements also
         model.addStream(initialRandomSource.rnStream)
-        RNStreamProvider.logger.info { "Initialized RandomVariable(id = $id, name = $name) with stream id = ${randomSource.rnStream.id}" }
+        RNStreamProvider.logger.info { "Initialized RandomVariable(id = $id, name = ${this.name}) with stream id = ${randomSource.rnStream.id}" }
     }
 
 }

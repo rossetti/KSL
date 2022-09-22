@@ -68,7 +68,7 @@ import ksl.utilities.random.rvariable.ConstantRV
  * ending time is checked. If the time of the next event is past this time,
  * then the generator is turned off and the event won't be scheduled. The
  * default is Double.POSITIVE_INFINITY.
- * @param name the name of the generator
+ * @param theName the name of the generator
  */
 open class EventGenerator(
     parent: ModelElement,
@@ -77,8 +77,8 @@ open class EventGenerator(
     theTimeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
     theMaxNumberOfEvents: Long = Long.MAX_VALUE,
     theTimeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
-    name: String? = null
-) : ModelElement(parent, name), EventGeneratorIfc {
+    theName: String? = null
+) : ModelElement(parent, theName), EventGeneratorIfc {
     init {
         require(theMaxNumberOfEvents >= 0) { "The maximum number of events to generate was < 0!" }
         if (theMaxNumberOfEvents == Long.MAX_VALUE) {
