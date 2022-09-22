@@ -21,6 +21,18 @@ class MVIndependentMarginals(
      */
     private var myRNStream: RNStreamIfc = stream
 
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
     private val myRVs: MutableList<RVariableIfc> = ArrayList()
 
     init {

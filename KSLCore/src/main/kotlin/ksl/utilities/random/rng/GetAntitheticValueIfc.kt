@@ -20,9 +20,8 @@ package ksl.utilities.random.rng
  * @author rossetti
  */
 interface GetAntitheticValueIfc {
-    /** Returns the antithetic value of the previous value
-     *
-     * @return the antithetic value of the previous value
+    /**
+     * Returns the antithetic value of the previous value
      */
     val antitheticValue: Double
 }

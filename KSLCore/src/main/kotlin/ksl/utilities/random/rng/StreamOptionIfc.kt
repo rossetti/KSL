@@ -13,7 +13,7 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package ksl.simulation
+package ksl.utilities.random.rng
 
 /**
  *
@@ -22,16 +22,14 @@ package ksl.simulation
 interface StreamOptionIfc {
 
     /**
-     * Sets/Gets the current reset next sub-stream option true means, that it is set
-     * to jump to the next sub-stream after each replication
-     *
+     *  If true, the stream will automatically participate in having its
+     *  stream advanced to the next sub-stream via stream managers
      */
-    var resetNextSubStreamOption: Boolean
+    var advanceToNextSubStreamOption: Boolean
 
     /**
-     * Sets/Gets the reset start stream option, true means that it will be reset to
-     * the starting stream
-     *
+     *  If true, the stream will automatically participate in having its
+     *  stream reset to its start stream via stream managers
      */
     var resetStartStreamOption: Boolean
 }

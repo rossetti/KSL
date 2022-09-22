@@ -15,7 +15,7 @@
  */
 package ksl.modeling.elements
 
-import ksl.simulation.StreamOptionIfc
+import ksl.utilities.random.rng.StreamOptionIfc
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 

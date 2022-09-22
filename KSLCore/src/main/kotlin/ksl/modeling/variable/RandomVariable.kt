@@ -6,6 +6,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.rng.StreamOptionIfc
 
 /**
  *  While RandomVariable instances should in general be declared as private within model
@@ -30,9 +31,7 @@ import ksl.utilities.random.rng.RNStreamProvider
  *   The naming convention "CIfc" is used to denote controlled interface.
  *
  */
-interface RandomVariableCIfc {
-    var resetNextSubStreamOption: Boolean
-    var resetStartStreamOption: Boolean
+interface RandomVariableCIfc : StreamOptionIfc {
 
     /**
      * RandomIfc provides a reference to the underlying source of randomness
@@ -109,10 +108,6 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
 
     //TODO there is no capturing of the response implemented like in the JSL
 
-    override var resetNextSubStreamOption: Boolean = true
-
-    override var resetStartStreamOption: Boolean = true
-
     /**
      * RandomIfc provides a reference to the underlying source of randomness
      * to initialize each replication.
@@ -129,9 +124,9 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
      */
     override var initialRandomSource: RandomIfc = rSource
         set(value) {
-            if (model.isRunning){
-                if (initialRandomSourceChangeWarning){
-                    Model.logger.warn {"Changed the initial random source of $name during replication ${model.currentReplicationNumber}."}
+            if (model.isRunning) {
+                if (initialRandomSourceChangeWarning) {
+                    Model.logger.warn { "Changed the initial random source of $name during replication ${model.currentReplicationNumber}." }
                 }
             }
             field = value
@@ -156,6 +151,18 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
         get() = randomSource.rnStream
         set(value) {
             randomSource.rnStream = value
+        }
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = initialRandomSource.advanceToNextSubStreamOption
+        set(value) {
+            initialRandomSource.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = initialRandomSource.resetStartStreamOption
+        set(value) {
+            initialRandomSource.resetStartStreamOption = value
         }
 
     /**
@@ -200,9 +207,9 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
             // make sure that the random source is the same
             // as the initial random source for the next replication
             randomSource = initialRandomSource
-            Model.logger.info {"The random source of $name was changed back to the initial random source after replication ${model.currentReplicationNumber}."}
+            Model.logger.info { "The random source of $name was changed back to the initial random source after replication ${model.currentReplicationNumber}." }
         }
-        if (resetNextSubStreamOption) {
+        if (advanceToNextSubStreamOption) {
             advanceToNextSubStream()
         }
     }
@@ -217,6 +224,7 @@ class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = n
     override fun toString(): String {
         return super.toString() + " with stream ${randomSource.rnStream.id}"
     }
+
     init {
         RNStreamProvider.logger.info { "Initialized RandomVariable: $this" }
     }

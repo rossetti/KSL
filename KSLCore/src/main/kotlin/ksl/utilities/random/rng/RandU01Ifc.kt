@@ -26,8 +26,6 @@ interface RandU01Ifc : GetAntitheticValueIfc {
 
     /**
      * The previous U(0,1) generated (returned) by randU01()
-     *
-     * @return previous U(0,1) generated (returned) by randU01()
      */
     val previousU: Double
 

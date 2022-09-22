@@ -36,7 +36,7 @@ class Model(
      */
     val outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
 
-    var autoPrintSummaryReport: Boolean = true
+    var autoPrintSummaryReport: Boolean = false
 
     /**
      *
@@ -681,7 +681,7 @@ class Model(
      */
     private fun setAllRVResetNextSubStreamOptions(option: Boolean) {
         for (rv in myRandomElements) {
-            rv.resetNextSubStreamOption = option
+            rv.advanceToNextSubStreamOption = option
         }
     }
 

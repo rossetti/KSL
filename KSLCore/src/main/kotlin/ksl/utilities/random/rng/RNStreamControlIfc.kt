@@ -19,7 +19,8 @@ package ksl.utilities.random.rng
  * Controls the movement through a pseudo-random number stream
  *
  */
-interface RNStreamControlIfc {
+interface RNStreamControlIfc : StreamOptionIfc {
+
     /**
      * The resetStartStream method will position the RNG at the beginning of its
      * stream. This is the same location in the stream as assigned when the RNG

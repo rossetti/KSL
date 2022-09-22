@@ -31,6 +31,18 @@ open class MetropolisHastingsMV(
         {"The initial array must have the same dimension as the multi-variate target and proposal functions"}
     }
 
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
     override val dimension: Int = theInitialX.size
     private val targetFun = theTargetFun
     private val proposalFun = theProposalFun

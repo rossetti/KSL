@@ -20,6 +20,18 @@ import ksl.utilities.random.rng.RNStreamControlIfc
 
 interface RElementIfc<T> : RNStreamControlIfc, RNStreamChangeIfc {
 
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
     /** Returns an element randomly selected from the list
      *
      * @return a randomly selected element from the list
