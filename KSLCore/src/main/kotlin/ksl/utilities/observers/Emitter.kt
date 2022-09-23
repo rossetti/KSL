@@ -6,8 +6,12 @@ package ksl.utilities.observers
 class Emitter<TType> {
     class Connection
     private val callbacks = mutableMapOf<Connection, (TType) -> Unit>()
+    var emissionsOn = true
 
     fun emit(newValue: TType) {
+        if (!emissionsOn){
+            return
+        }
         for(cb in callbacks) {
             cb.value(newValue)
         }

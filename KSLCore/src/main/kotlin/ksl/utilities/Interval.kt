@@ -13,10 +13,7 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-/*
- * Created on Nov 4, 2006
- *
- */
+
 package ksl.utilities
 
 /** Can be used to represent confidence intervals.  Intervals between two real
@@ -107,4 +104,16 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
         return contains(interval.lowerLimit) && contains(interval.upperLimit)
     }
 
+}
+
+fun ClosedFloatingPointRange<Double>.asInterval() : Interval {
+    return Interval(start, endInclusive)
+}
+
+fun IntRange.asInterval(): Interval {
+    return Interval(start.toDouble(), endInclusive.toDouble())
+}
+
+fun LongRange.asInterval(): Interval {
+    return Interval(start.toDouble(), endInclusive.toDouble())
 }

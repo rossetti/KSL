@@ -3,6 +3,8 @@ package ksl.modeling.variable
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Interval
+import ksl.utilities.observers.DoublePairEmitter
+import ksl.utilities.observers.DoublePairEmitterIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.statistic.WeightedStatistic
@@ -32,6 +34,15 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  *
  */
 interface ResponseCIfc : ResponseIfc {
+    /**
+     *  If true, the response will emit pairs Pair(time, value) every time
+     *  a new value is assigned
+     */
+    val emissionsOn: Boolean
+
+    /**
+     *  The legal limits for the response
+     */
     val limits: Interval
 
     /**
@@ -40,11 +51,30 @@ interface ResponseCIfc : ResponseIfc {
      * replication.
      */
     var initialCountLimit: Double
+
+    /**
+     *  The across replication statistics for the response
+     */
     val acrossReplicationStatistic: StatisticIfc
+
+    /**
+     *  The within replication statistics associated with the response
+     */
     val withinReplicationStatistic: WeightedStatisticIfc
 
+    /**
+     *  Add an action that will occur when the count limit is achieved
+     */
     fun addCountLimitAction(action: CountActionIfc)
+
+    /**
+     *  Remove an action associated with a count limit
+     */
     fun removeCountLimitAction(action: CountActionIfc)
+
+    /**
+     *  Adds an action that will stop the replication when the count limit is reached.
+     */
     fun addCountLimitStoppingAction() : CountActionIfc
 }
 
@@ -55,8 +85,10 @@ open class Response(
     name: String? = null,
     theLimits: Interval = Interval(),
     theInitialCountLimit: Double = Double.POSITIVE_INFINITY,
-) : ModelElement(parent, name), ResponseIfc, ResponseStatisticsIfc, ResponseCIfc {
-    //TODO timed update stuff
+) : ModelElement(parent, name), ResponseIfc, ResponseStatisticsIfc, ResponseCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
+
+    override var emissionsOn: Boolean = false
+
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
     private var stoppingAction: StoppingAction? = null
 
@@ -125,6 +157,9 @@ open class Response(
         timeOfChange = time
         myWithinReplicationStatistic.value = myValue
         notifyModelElementObservers(Status.UPDATE)
+        if (emissionsOn){
+            emitter.emit(Pair(timeOfChange, myValue))
+        }
         if (myValue >= countStopLimit) {
             notifyCountLimitActions()
         }
