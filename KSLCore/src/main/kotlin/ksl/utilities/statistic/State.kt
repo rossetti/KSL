@@ -50,7 +50,7 @@ open class State(
      * time spent in the state. The default is false
      */
     var sojournTimeCollectionFlag = useStatistic
-        protected set(value) {
+         set(value) {
             if (value) {
                 if (sojournTimeStatistic == null) {
                     sojournTimeStatistic = Statistic("$name:SojournTime")

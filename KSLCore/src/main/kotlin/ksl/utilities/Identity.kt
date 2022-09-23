@@ -52,7 +52,8 @@ open class Identity(aName: String? = null) : IdentityIfc, NameIfc {
     override val id: Int = ++IDCounter
 
     override val name: String = aName ?: ("ID_$id")
-    override var label: String? = null
+
+    override var label: String? = name
 
     override fun toString(): String {
         return "Identity(id=$id, name=$name, label=$label)"
