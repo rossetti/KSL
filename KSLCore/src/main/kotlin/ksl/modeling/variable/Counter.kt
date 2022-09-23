@@ -2,6 +2,8 @@ package ksl.modeling.variable
 
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.observers.DoublePairEmitter
+import ksl.utilities.observers.DoublePairEmitterIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
@@ -29,6 +31,13 @@ import ksl.utilities.statistic.StatisticIfc
  *
  */
 interface CounterCIfc {
+
+    /**
+     *  If true, the response will emit pairs Pair(time, value) every time
+     *  a new value is assigned
+     */
+    val emissionsOn: Boolean
+
     /**
      * Sets the initial value of the count limit. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next replication.
@@ -45,7 +54,7 @@ interface CounterCIfc {
     var defaultReportingOption: Boolean
     fun addCountLimitAction(action: CountActionIfc)
     fun removeCountLimitAction(action: CountActionIfc)
-    fun addCountLimitStoppingAction() : CountActionIfc
+    fun addCountLimitStoppingAction(): CountActionIfc
 }
 
 open class Counter(
@@ -53,9 +62,9 @@ open class Counter(
     name: String? = null,
     theInitialValue: Double = 0.0,
     theInitialCounterLimit: Double = Double.POSITIVE_INFINITY,
-) : ModelElement(parent, name), CounterIfc, CounterCIfc {
-//TODO timed update stuff
-
+) : ModelElement(parent, name), CounterIfc, CounterCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
+    //TODO timed update stuff
+    override var emissionsOn: Boolean = false
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
 
     var timeOfWarmUp: Double = 0.0
@@ -150,8 +159,8 @@ open class Counter(
         counterActions.remove(action)
     }
 
-    override fun addCountLimitStoppingAction() : CountActionIfc{
-        if (stoppingAction == null){
+    override fun addCountLimitStoppingAction(): CountActionIfc {
+        if (stoppingAction == null) {
             stoppingAction = StoppingAction()
             addCountLimitAction(stoppingAction!!)
         }
@@ -171,6 +180,9 @@ open class Counter(
         myValue = newValue
         timeOfChange = time
         notifyModelElementObservers(Status.UPDATE)
+        if (emissionsOn){
+            emitter.emit(Pair(timeOfChange, myValue))
+        }
         if (myValue >= counterStopLimit) {
             notifyCountLimitActions()
         }
@@ -186,7 +198,7 @@ open class Counter(
      */
     protected fun assignInitialValue(value: Double) {
         require(value >= 0.0) { "The initial value $value must be >= 0" }
-        require(value < initialCounterLimit) {"The initial value, $value, of the counter must be < the initial counter limit, $initialCounterLimit"}
+        require(value < initialCounterLimit) { "The initial value, $value, of the counter must be < the initial counter limit, $initialCounterLimit" }
         myValue = value
         timeOfChange = 0.0
         previousValue = myValue
@@ -215,7 +227,7 @@ open class Counter(
 
     override fun beforeExperiment() {
         super.beforeExperiment()
-        lastTimedUpdate= 0.0
+        lastTimedUpdate = 0.0
         timeOfWarmUp = 0.0
         assignInitialValue(initialValue)
         myAcrossReplicationStatistic.reset()
@@ -223,14 +235,14 @@ open class Counter(
 
     override fun beforeReplication() {
         super.beforeReplication()
-        lastTimedUpdate= 0.0
+        lastTimedUpdate = 0.0
         timeOfWarmUp = 0.0
         assignInitialValue(initialValue)
     }
 
     override fun initialize() {
         super.initialize()
-        lastTimedUpdate= 0.0
+        lastTimedUpdate = 0.0
         timeOfWarmUp = 0.0
         resetCounter(initialValue, false)
         assignInitialValue(initialValue)
