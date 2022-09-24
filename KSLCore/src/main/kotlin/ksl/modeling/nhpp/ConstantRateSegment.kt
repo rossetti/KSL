@@ -24,92 +24,68 @@ package ksl.modeling.nhpp
  */
 class ConstantRateSegment(crLower: Double, tLower: Double, duration: Double, rate: Double) : RateSegmentIfc {
     init {
-        setInterval(tLower, duration)
-        setRate(crLower, rate)
+        require(tLower >= 0.0) { "The lower time limit must be >= 0" }
+        require(duration > 0.0) { "The duration must be > 0" }
+        require(crLower >= 0.0) { "The lower rate limit must be >= 0" }
+        require(rate >= 0.0) { "The rate must be > 0" }
+        require(rate < Double.POSITIVE_INFINITY) { "The rate must be < infinity" }
     }
-    /**the rate for the interval
-     *
-     */
-    override var rateAtLowerTimeLimit = 0.0
-        protected set
 
-    /** the width of the interval on the cumulative rate scale (crWidth = crUL - crLL)
+    /** the lower limit of the interval on the timescale
      *
      */
-    protected var crWidth = 0.0
+    override val timeRangeLowerLimit = tLower
+
+    /** the width of the interval on the timescale (tWidth = tUL - tLL)
+     *
+     */
+    override val timeRangeWidth = duration
+
+    /** the upper limit of the interval on the timescale
+     *
+     */
+    override val timeRangeUpperLimit
+        get() = timeRangeLowerLimit + timeRangeWidth
+
+    /**
+     * the rate for the interval
+     *
+     */
+    override val rateAtLowerTimeLimit = rate
 
     /** the lower limit of the interval on cumulative rate scale
      *
      */
-    protected var crLL = 0.0
+    override val cumulativeRateLowerLimit = crLower
 
     /** the upper limit of the interval on the cumulative rate scale
      *
      */
-    protected var crUL = 0.0
+    override val cumulativeRateUpperLimit
+        get() = cumulativeRateLowerLimit + rateAtLowerTimeLimit * timeRangeWidth
 
-    /** the width of the interval on the time scale (tWidth = tUL - tLL)
+    /** the width of the interval on the cumulative rate scale (crWidth = crUL - crLL)
      *
      */
-    protected var tWidth = 0.0
+    override val cumulativeRateIntervalWidth
+        get() = cumulativeRateUpperLimit - cumulativeRateLowerLimit
 
-    /** the lower limit of the interval on the time scale
-     *
-     */
-    protected var tLL = 0.0
-
-    /** the upper limit of the interval on the time scale
-     *
-     */
-    protected var tUL = 0.0
-
-    override fun newInstance(): ConstantRateSegment {
-        return ConstantRateSegment(crLL, tLL, tWidth, rateAtLowerTimeLimit)
-    }
-
-    override fun contains(time: Double): Boolean {
-        return tLL <= time && time < tUL
-    }
-
-    /**
-     *
-     * @param tLower the lower time limit of the interval, must be &gt; = 0
-     * @param duration the duration of the interval, must be &gt; 0
-     */
-    fun setInterval(tLower: Double, duration: Double) {
-        require(tLower >= 0.0) { "The lower time limit must be >= 0" }
-        require(duration > 0.0) { "The duration must be > 0" }
-        tLL = tLower
-        tUL = tLL + duration
-        tWidth = duration
-    }
-
-    /**
-     * @param crLower represents the cumulative rate at the beginning of the segment, must be &gt;=0
-     * @param rate represents the rate for the time segment, must be 0 &lt; rate &lt; = infinity
-     */
-    fun setRate(crLower: Double, rate: Double) {
-        require(crLower >= 0.0) { "The lower rate limit must be >= 0" }
-        require(rate >= 0.0) { "The rate must be > 0" }
-        require(rate < Double.POSITIVE_INFINITY) { "The rate must be < infinity" }
-        crLL = crLower
-        rateAtLowerTimeLimit = rate
-        crUL = crLL + rate * tWidth
-        crWidth = crUL - crLL
+    override fun instance(): ConstantRateSegment {
+        return ConstantRateSegment(cumulativeRateLowerLimit, timeRangeLowerLimit, timeRangeWidth, rateAtLowerTimeLimit)
     }
 
     /** Returns the rate for the interval
      *
      * @return the rate
      */
-    fun getRate(): Double {
+    fun rate(): Double {
         return rateAtLowerTimeLimit
     }
 
     /** Gets the rate for the time within the interval
      *
      */
-    override fun getRate(time: Double): Double {
+    override fun rate(time: Double): Double {
         return rateAtLowerTimeLimit
     }
 
@@ -120,57 +96,16 @@ class ConstantRateSegment(crLower: Double, tLower: Double, duration: Double, rat
     override val rateAtUpperTimeLimit: Double
         get() = Double.NaN
 
-    /** The lower time limit
-     *
-     * @return The lower time limit
-     */
-    override val timeRangeLowerLimit: Double
-        get() = tLL
-
-    /** The upper time limit
-     *
-     * @return The upper time limit
-     */
-    override val upperTimeLimit: Double
-        get() =  tUL
-
-    /** The width of the interval
-     *
-     * @return The width of the interval
-     */
-    override val timeWidth: Double
-        get() = tWidth
-
-    /** The lower limit on the cumulative rate axis
-     *
-     * @return The lower limit on the cumulative rate axis
-     */
-    override val cumulativeRateRangeLowerLimit: Double
-        get() = crLL
-
-    /** The upper limit on the cumulative rate axis
-     *
-     * @return The upper limit on the cumulative rate axis
-     */
-    override val cumulativeRateUpperLimit: Double
-        get() = crUL
-
-    /** The cumulative rate interval width
-     *
-     * @return The cumulative rate interval width
-     */
-    override val cumulativeRateIntervalWidth: Double
-        get() = crWidth
-
     /** Returns the value of the cumulative rate function for the interval
      * given a value of time within that interval
      *
      * @param time the time to be evaluated
      * @return cumulative rate at time t
      */
-    override fun getCumulativeRate(time: Double): Double {
-        val t = time - tLL
-        return crLL + rateAtLowerTimeLimit * t
+    override fun cumulativeRate(time: Double): Double {
+        require(contains(time)) { "The time $time was not in [$timeRangeLowerLimit, $timeRangeUpperLimit)" }
+        val t = time - timeRangeLowerLimit
+        return cumulativeRateLowerLimit + rateAtLowerTimeLimit * t
     }
 
     /** Returns the inverse of the cumulative rate function given the interval
@@ -179,12 +114,12 @@ class ConstantRateSegment(crLower: Double, tLower: Double, duration: Double, rat
      * @param cumRate the rate to be evaluated
      * @return the inverse at the rate
      */
-    override fun getInverseCumulativeRate(cumRate: Double): Double {
+    override fun inverseCumulativeRate(cumRate: Double): Double {
         if (rateAtLowerTimeLimit == 0.0) {
             return Double.NaN
         }
-        val t = cumRate - crLL
-        return tLL + t / rateAtLowerTimeLimit
+        val t = cumRate - cumulativeRateLowerLimit
+        return timeRangeLowerLimit + t / rateAtLowerTimeLimit
     }
 
     override fun toString(): String {
@@ -192,18 +127,18 @@ class ConstantRateSegment(crLower: Double, tLower: Double, duration: Double, rat
         sb.append("rate = ")
         sb.append(rateAtLowerTimeLimit)
         sb.append(" [")
-        sb.append(tLL)
+        sb.append(timeRangeLowerLimit)
         sb.append(",")
-        sb.append(tUL)
+        sb.append(timeRangeUpperLimit)
         sb.append(") width = ")
-        sb.append(tWidth)
+        sb.append(timeRangeWidth)
         sb.append(" [")
-        sb.append(crLL)
+        sb.append(cumulativeRateLowerLimit)
         sb.append(",")
-        sb.append(crUL)
+        sb.append(cumulativeRateUpperLimit)
         sb.append("] cr width = ")
-        sb.append(crWidth)
-        sb.append("\n")
+        sb.append(cumulativeRateIntervalWidth)
+        sb.appendLine()
         return sb.toString()
     }
 }

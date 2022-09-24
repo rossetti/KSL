@@ -15,8 +15,6 @@
  */
 package ksl.modeling.nhpp
 
-import ksl.modeling.nhpp.RateFunctionIfc
-
 /** Models a cumulative rate function for the non-homogeneous Poisson Process
  * @author rossetti
  */
@@ -27,7 +25,7 @@ interface CumulativeRateFunctionIfc : RateFunctionIfc {
      * @param time the time to evaluate
      * @return Gets the cumulative rate from time 0 to the supplied time
      */
-    fun getCumulativeRate(time: Double): Double
+    fun cumulativeRate(time: Double): Double
 
     /** The function's lower limit on the cumulative rate range
      *

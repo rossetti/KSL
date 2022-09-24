@@ -171,7 +171,7 @@ class NHPPTimeBtwEventRV(
             } else {
                 myPPTime = tppne
             }
-            val nt = myCycleLength * myNumCycles + myRateFunction.getInverseCumulativeRate(myPPTime)
+            val nt = myCycleLength * myNumCycles + myRateFunction.inverseCumulativeRate(myPPTime)
             return nt - t
         }
 }

@@ -25,5 +25,5 @@ interface InvertibleCumulativeRateFunctionIfc : CumulativeRateFunctionIfc {
      * @param rate the rate to evaluate
      * @return the time associated with the supplied rate
      */
-    fun getInverseCumulativeRate(rate: Double): Double
+    fun inverseCumulativeRate(rate: Double): Double
 }

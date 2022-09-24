@@ -24,19 +24,19 @@ interface RateFunctionIfc {
      * @param time the time to evaluate
      * @return Returns the rate the supplied time
      */
-    fun getRate(time: Double): Double
+    fun rate(time: Double): Double
 
     /** Gets the maximum value of the rate function over its time horizon
      *
      * @return Gets the maximum value of the rate function over its time horizon
      */
-    val maximum: Double
+    val maximumRate: Double
 
     /** Gets the minimum value of the rate function over its time horizon
      *
      * @return Gets the minimum value of the rate function over its time horizon
      */
-    val minimum: Double
+    val minimumRate: Double
 
     /** The function's lower limit on the time range
      *

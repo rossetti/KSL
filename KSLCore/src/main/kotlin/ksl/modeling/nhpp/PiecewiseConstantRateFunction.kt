@@ -16,18 +16,16 @@
 package ksl.modeling.nhpp
 
 /** Adds the segments represented by the duration, rate pairs
- * The arrays must be the same length, not null, and have at
- * least 1 pair
+ * The arrays must be the same length, not null, and have at least 1 pair
  *
  * @param durations the durations
  * @param rates the rates
  * @author rossetti
  */
 class PiecewiseConstantRateFunction(durations: DoubleArray, rates: DoubleArray) : PiecewiseRateFunction() {
-
     init {
-        require(rates.size != 0) { "rates length was zero" }
-        require(durations.size != 0) { "durations length was zero" }
+        require(rates.isNotEmpty()) { "rates array was empty" }
+        require(durations.isNotEmpty()) { "durations array was empty" }
         require(rates.size == durations.size) { "durations and rates must have the same length" }
         addFirstSegment(durations[0], rates[0])
         for (i in 1 until rates.size) {
@@ -39,7 +37,7 @@ class PiecewiseConstantRateFunction(durations: DoubleArray, rates: DoubleArray) 
      *
      * @return the piecewise constance rate function
      */
-    override fun newInstance(): PiecewiseConstantRateFunction? {
+    override fun instance(): PiecewiseConstantRateFunction {
         return PiecewiseConstantRateFunction(durations, rates)
     }
 
@@ -49,8 +47,8 @@ class PiecewiseConstantRateFunction(durations: DoubleArray, rates: DoubleArray) 
      * @param factor multiplied by the addFactor
      * @return the piecewise constance rate function
      */
-    override fun newInstance(factor: Double): PiecewiseConstantRateFunction? {
-        require(factor > 0) { "The multiplication addFactor must be > 0" }
+    override fun instance(factor: Double): PiecewiseConstantRateFunction {
+        require(factor > 0) { "The multiplication factor must be > 0" }
         val rates = rates
         for (i in rates.indices) {
             rates[i] = rates[i] * factor
@@ -58,15 +56,14 @@ class PiecewiseConstantRateFunction(durations: DoubleArray, rates: DoubleArray) 
         return PiecewiseConstantRateFunction(durations, rates)
     }
 
-    protected fun addFirstSegment(duration: Double, rate: Double) {
-        val first: ConstantRateSegment =
-            ConstantRateSegment(0.0, 0.0, duration, rate)
+    private fun addFirstSegment(duration: Double, rate: Double) {
+        val first = ConstantRateSegment(0.0, 0.0, duration, rate)
         myRateSegments.add(first)
-        if (rate > myMaxRate) {
-            myMaxRate = rate
+        if (rate > maximumRate) {
+            maximumRate = rate
         }
-        if (rate < myMinRate) {
-            myMinRate = rate
+        if (rate < minimumRate) {
+            minimumRate = rate
         }
     }
 
@@ -77,40 +74,16 @@ class PiecewiseConstantRateFunction(durations: DoubleArray, rates: DoubleArray) 
      * @param rate must be &gt; 0, and less than Double.POSITIVE_INFINITY
      * @param duration must be &gt; 0
      */
-    override fun addRateSegment(duration: Double, rate: Double) {
+    private fun addRateSegment(duration: Double, rate: Double) {
         val k = myRateSegments.size
         val prev = myRateSegments[k - 1]
-        val next: ConstantRateSegment =
-            ConstantRateSegment(
-                prev.cumulativeRateUpperLimit,
-                prev.upperTimeLimit, duration, rate
-            )
+        val next = ConstantRateSegment(prev.cumulativeRateUpperLimit, prev.timeRangeUpperLimit, duration, rate)
         myRateSegments.add(next)
-        if (rate > myMaxRate) {
-            myMaxRate = rate
+        if (rate > maximumRate) {
+            maximumRate = rate
         }
-        if (rate < myMinRate) {
-            myMinRate = rate
-        }
-    }
-
-    /** Multiplies each rate by the addFactor. Changes each
-     * rate segment in this function
-     *
-     * @param factor the addFactor to multiply
-     */
-    fun multiplyRates(factor: Double) {
-        require(factor > 0) { "The multiplication addFactor must be > 0" }
-        val n = myRateSegments.size
-        val first: ConstantRateSegment =
-            myRateSegments[0] as ConstantRateSegment
-        first.setRate(0.0, factor * first.getRate())
-        for (i in 1 until n) {
-            val p: ConstantRateSegment =
-                myRateSegments[i - 1] as ConstantRateSegment
-            val c: ConstantRateSegment =
-                myRateSegments[i] as ConstantRateSegment
-            c.setRate(p.cumulativeRateUpperLimit, factor * c.getRate())
+        if (rate < minimumRate) {
+            minimumRate = rate
         }
     }
 
@@ -121,12 +94,8 @@ class PiecewiseConstantRateFunction(durations: DoubleArray, rates: DoubleArray) 
     override val rates: DoubleArray
         get() {
             val rates = DoubleArray(myRateSegments.size)
-            var i = 0
-            for (s in myRateSegments) {
-                val c: ConstantRateSegment =
-                    s as ConstantRateSegment
-                rates[i] = c.getRate()
-                i++
+            for ((i, s) in myRateSegments.withIndex()) {
+                rates[i] = s.rateAtLowerTimeLimit
             }
             return rates
         }
@@ -138,10 +107,8 @@ class PiecewiseConstantRateFunction(durations: DoubleArray, rates: DoubleArray) 
     override val durations: DoubleArray
         get() {
             val durations = DoubleArray(myRateSegments.size)
-            var i = 0
-            for (s in myRateSegments) {
-                durations[i] = s.timeWidth
-                i++
+            for ((i, s) in myRateSegments.withIndex()) {
+                durations[i] = s.timeRangeWidth
             }
             return durations
         }
@@ -163,7 +130,7 @@ class PiecewiseConstantRateFunction(durations: DoubleArray, rates: DoubleArray) 
         var k = -1
         for (i in myRateSegments) {
             k = k + 1
-            if (time < i.upperTimeLimit) {
+            if (time < i.timeRangeUpperLimit) {
                 return k
             }
         }

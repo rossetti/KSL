@@ -22,16 +22,11 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
 
     protected var myRateSegments: MutableList<RateSegmentIfc> = mutableListOf()
 
-    protected var myMaxRate = Double.NEGATIVE_INFINITY
+    override var maximumRate = Double.NEGATIVE_INFINITY
+        protected set
 
-    protected var myMinRate = Double.POSITIVE_INFINITY
-
-    /** Adds a rate segment to the function
-     *
-     * @param duration the duration
-     * @param rate the rate
-     */
-    abstract fun addRateSegment(duration: Double, rate: Double)
+    override var minimumRate = Double.POSITIVE_INFINITY
+        protected set
 
     /** Searches for the interval that the supplied time
      * falls within.  Returns -1 if no interval is found
@@ -48,15 +43,15 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
      *
      * @return a copy of the piecewise  rate function
      */
-    abstract fun newInstance(): PiecewiseRateFunction
+    abstract fun instance(): PiecewiseRateFunction
 
     /** Returns a copy of the piecewise  rate function
-     * with each rate multiplied by the addFactor
+     * with each rate multiplied by the factor
      *
-     * @param factor rate multiplied by the addFactor
+     * @param factor the factor to multiply each rate by
      * @return a copy of the piecewise
      */
-    abstract fun newInstance(factor: Double): PiecewiseRateFunction
+    abstract fun instance(factor: Double): PiecewiseRateFunction
 
     /** Get the rates as an array
      *
@@ -71,7 +66,7 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
     abstract val durations: DoubleArray
 
     override val cumulativeRateRangeLowerLimit: Double
-        get() = myRateSegments[0].cumulativeRateRangeLowerLimit
+        get() = myRateSegments[0].cumulativeRateLowerLimit
 
     override val timeRangeLowerLimit: Double
         get() = myRateSegments[0].timeRangeLowerLimit
@@ -82,7 +77,7 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
             val k = myRateSegments.size
             // get the last interval
             val last = myRateSegments[k - 1]
-            return last.upperTimeLimit
+            return last.timeRangeUpperLimit
         }
 
     // get the last interval
@@ -99,14 +94,14 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
      * @param time the time to evaluate
      * @return the rate for the supplied time
      */
-    override fun getRate(time: Double): Double {
+    override fun rate(time: Double): Double {
         if (time < 0.0) {
             return 0.0
         }
         val k = findTimeInterval(time)
         require(k != -1) { "The time = $time exceeds range of the function" }
         val i = myRateSegments[k]
-        return i.getRate(time)
+        return i.rate(time)
     }
 
     /** Returns the value of the cumulative rate function at the supplied time
@@ -114,14 +109,14 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
      * @param time the time to evaluate
      * @return the value of the cumulative rate function
      */
-    override fun getCumulativeRate(time: Double): Double {
+    override fun cumulativeRate(time: Double): Double {
         if (time < 0.0) {
             return 0.0
         }
         val k = findTimeInterval(time)
         require(k != -1) { "The time = $time exceeds range of the function" }
         val i = myRateSegments[k]
-        return i.getCumulativeRate(time)
+        return i.cumulativeRate(time)
     }
 
     /** Returns the value of the inverse cumulative rate function at the supplied rate
@@ -130,14 +125,14 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
      * @param rate the rate
      * @return the value of the inverse cumulative rate function
      */
-    override fun getInverseCumulativeRate(rate: Double): Double {
+    override fun inverseCumulativeRate(rate: Double): Double {
         if (rate <= 0.0) {
             return 0.0
         }
         val k = findCumulativeRateInterval(rate)
         require(k != -1) { "The rate = $rate exceeds range of the inverse function" }
         val i = myRateSegments[k]
-        return i.getInverseCumulativeRate(rate)
+        return i.inverseCumulativeRate(rate)
     }
 
     /** Searches for the interval that the supplied cumulative rate
@@ -166,7 +161,7 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
      * @param k the index
      * @return the rate segment at index k
      */
-    fun getRateSegment(k: Int): RateSegmentIfc {
+    fun rateSegment(k: Int): RateSegmentIfc {
         return myRateSegments[k]
     }
 
@@ -174,15 +169,9 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
      *
      * @return the number of segments
      */
-    fun getNumberSegments(): Int {
+    fun numberSegments(): Int {
         return myRateSegments.size
     }
-
-    override val maximum: Double
-        get() = myMaxRate
-
-    override val minimum: Double
-        get() = myMinRate
 
     override fun toString(): String {
         val sb = StringBuilder()

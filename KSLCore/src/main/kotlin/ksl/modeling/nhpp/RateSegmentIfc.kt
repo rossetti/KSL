@@ -20,7 +20,7 @@ interface RateSegmentIfc {
      *
      * @return a new instance of the rate segment
      */
-    fun newInstance(): RateSegmentIfc
+    fun instance(): RateSegmentIfc
 
     /** Returns true if the supplied time is within this
      * rate segments time interval
@@ -28,14 +28,16 @@ interface RateSegmentIfc {
      * @param time the time to be evaluated
      * @return true if in the segment
      */
-    operator fun contains(time: Double): Boolean
+    operator fun contains(time: Double): Boolean {
+        return timeRangeLowerLimit <= time && time < timeRangeUpperLimit
+    }
 
     /** Returns the rate for the interval
      *
      * @param time  the time to evaluate
      * @return the rate at the time
      */
-    fun getRate(time: Double): Double
+    fun rate(time: Double): Double
 
     /** The rate at the time that the time interval begins
      *
@@ -59,19 +61,19 @@ interface RateSegmentIfc {
      *
      * @return The upper time limit
      */
-    val upperTimeLimit: Double
+    val timeRangeUpperLimit: Double
 
     /** The width of the interval
      *
      * @return The width of the interval
      */
-    val timeWidth: Double
+    val timeRangeWidth: Double
 
     /** The lower limit on the cumulative rate axis
      *
      * @return The lower limit on the cumulative rate axis
      */
-    val cumulativeRateRangeLowerLimit: Double
+    val cumulativeRateLowerLimit: Double
 
     /** The upper limit on the cumulative rate axis
      *
@@ -91,7 +93,7 @@ interface RateSegmentIfc {
      * @param time the time to be evaluated
      * @return the cumulative rate at the given time
      */
-    fun getCumulativeRate(time: Double): Double
+    fun cumulativeRate(time: Double): Double
 
     /** Returns the inverse of the cumulative rate function given the interval
      * and a cumulative rate value within that interval.  Returns a time
@@ -99,5 +101,5 @@ interface RateSegmentIfc {
      * @param cumRate the cumulative rate
      * @return the inverse of the cumulative rate function
      */
-    fun getInverseCumulativeRate(cumRate: Double): Double
+    fun inverseCumulativeRate(cumRate: Double): Double
 }

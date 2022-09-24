@@ -22,118 +22,92 @@ import kotlin.math.sqrt
  * @author rossetti
  */
 class LinearRateSegment(
-    cumRateLL: Double, timeLL: Double, rateLL: Double, timeUL: Double,
-    rateUL: Double
+    cumRateLL: Double, timeLL: Double, rateLL: Double, timeUL: Double, rateUL: Double
 ) : RateSegmentIfc {
-    /**
-     * the slope for the interval
-     */
-    var slope = 0.0
-        protected set
+    init {
+        require(timeLL >= 0.0) { "The lower time limit must be >= 0" }
+        require(timeUL > 0.0) { "The lower time limit must be > 0" }
+        require(timeLL < timeUL) { "The lower time limit, $timeLL must be < the upper limit $timeUL" }
+        require(cumRateLL >= 0.0) { "The cumulative rate at lower time limit must be >= 0" }
+        require(rateLL >= 0.0) { "The rate at lower time limit must be >= 0" }
+        require(rateLL < Double.POSITIVE_INFINITY) { "The rate at lower time limit must be < infinity" }
+        require(rateUL >= 0.0) { "The rate at upper time limit must be >= 0" }
+        require(rateUL < Double.POSITIVE_INFINITY) { "The rate at upper time limit must be < infinity" }
+    }
 
     /** the rate at the lower limit of the interval
      *
      */
-    override var rateAtLowerTimeLimit = 0.0
-        protected set
+    override val rateAtLowerTimeLimit = rateLL
 
     /**
      * the rate at the upper limit of the interval
      */
-    override var rateAtUpperTimeLimit = 0.0
-        protected set
+    override val rateAtUpperTimeLimit = rateUL
+
+    override val timeRangeLowerLimit: Double = timeLL
+
+    override val timeRangeUpperLimit: Double = timeUL
+
+    override val timeRangeWidth: Double
+        get() = timeRangeUpperLimit - timeRangeLowerLimit
+
+    override val cumulativeRateLowerLimit: Double = cumRateLL
+
+    override val cumulativeRateUpperLimit: Double
+        get() = cumulativeRateLowerLimit + 0.5 * (rateAtUpperTimeLimit + rateAtLowerTimeLimit) * timeRangeWidth
+
+    override val cumulativeRateIntervalWidth: Double
+        get() = cumulativeRateUpperLimit - cumulativeRateLowerLimit
 
     /**
-     * the width of the interval on the cumulative rate scale (crWidth = crUL - crLL)
+     * the slope of the rate function for the interval
      */
-    protected var crWidth = 0.0
+    val slope
+        get() = (rateAtUpperTimeLimit - rateAtLowerTimeLimit) / timeRangeWidth
 
-    /**
-     * the lower limit of the interval on cumulative rate scale
-     */
-    protected var crLL = 0.0
-
-    /** the upper limit of the interval on the cumulative rate scale
-     *
-     */
-    protected var crUL = 0.0
-
-    /**
-     * the width of the interval on the time scale (tWidth = tUL - tLL)
-     */
-    protected var tWidth = 0.0
-
-    /**
-     * the lower limit of the interval on the time scale
-     */
-    protected var tLL = 0.0
-
-    /**
-     * the upper limit of the interval on the time scale
-     */
-    protected var tUL = 0.0
-
-    init {
-        tLL = timeLL
-        rateAtLowerTimeLimit = rateLL
-        tUL = timeUL
-        rateAtUpperTimeLimit = rateUL
-        tWidth = tUL - tLL
-        slope = (rateAtUpperTimeLimit - rateAtLowerTimeLimit) / tWidth
-        crLL = cumRateLL
-        crUL = crLL + 0.5 * (rateAtUpperTimeLimit + rateAtLowerTimeLimit) * (tUL - tLL)
-        crWidth = crUL - crLL
+    override fun instance(): LinearRateSegment {
+        return LinearRateSegment(
+            cumulativeRateLowerLimit,
+            timeRangeLowerLimit,
+            rateAtLowerTimeLimit,
+            timeRangeUpperLimit,
+            rateAtUpperTimeLimit
+        )
     }
 
-    override fun newInstance(): LinearRateSegment {
-        return LinearRateSegment(crLL, tLL, rateAtLowerTimeLimit, tUL, rateAtUpperTimeLimit)
+    override operator fun contains(time: Double): Boolean {
+        return time in timeRangeLowerLimit..timeRangeUpperLimit
     }
 
-    override fun contains(time: Double): Boolean {
-        return tLL <= time && time <= tUL
-    }
-
-    override fun getRate(time: Double): Double {
+    override fun rate(time: Double): Double {
         return if (KSLMath.equal(slope, 0.0)) {
             rateAtLowerTimeLimit
         } else {
-            rateAtLowerTimeLimit + slope * (time - tLL)
+            rateAtLowerTimeLimit + slope * (time - timeRangeLowerLimit)
         }
     }
 
-    override val timeRangeLowerLimit: Double
-        get() = tLL
-    override val upperTimeLimit: Double
-        get() = tUL
-    override val timeWidth: Double
-        get() = tWidth
-    override val cumulativeRateRangeLowerLimit: Double
-        get() = crLL
-    override val cumulativeRateUpperLimit: Double
-        get() = crUL
-    override val cumulativeRateIntervalWidth: Double
-        get() = crWidth
-
-    override fun getCumulativeRate(time: Double): Double {
+    override fun cumulativeRate(time: Double): Double {
         return if (KSLMath.equal(slope, 0.0)) {
-            crLL + rateAtLowerTimeLimit * (time - tLL)
+            cumulativeRateLowerLimit + rateAtLowerTimeLimit * (time - timeRangeLowerLimit)
         } else {
-            crLL + rateAtLowerTimeLimit * (time - tLL) + 0.5 * slope * (time - tLL) * (time - tLL)
+            cumulativeRateLowerLimit + rateAtLowerTimeLimit * (time - timeRangeLowerLimit) + 0.5 * slope * (time - timeRangeLowerLimit) * (time - timeRangeLowerLimit)
         }
     }
 
-    override fun getInverseCumulativeRate(cumRate: Double): Double {
+    override fun inverseCumulativeRate(cumRate: Double): Double {
         return if (KSLMath.equal(slope, 0.0)) {
             if (KSLMath.equal(rateAtLowerTimeLimit, 0.0)) {
                 Double.NaN
             } else {
-                tLL + (cumRate - crLL) / rateAtLowerTimeLimit
+                timeRangeLowerLimit + (cumRate - cumulativeRateLowerLimit) / rateAtLowerTimeLimit
             }
         } else {
-            val n = 2.0 * (cumRate - crLL)
+            val n = 2.0 * (cumRate - cumulativeRateLowerLimit)
             val d =
-                rateAtLowerTimeLimit + sqrt(rateAtLowerTimeLimit * rateAtLowerTimeLimit + 2.0 * slope * (cumRate - crLL))
-            tLL + n / d
+                rateAtLowerTimeLimit + sqrt(rateAtLowerTimeLimit * rateAtLowerTimeLimit + 2.0 * slope * (cumRate - cumulativeRateLowerLimit))
+            timeRangeLowerLimit + n / d
         }
     }
 
@@ -146,18 +120,18 @@ class LinearRateSegment(
         sb.append("] slope = ")
         sb.append(slope)
         sb.append(" [")
-        sb.append(tLL)
+        sb.append(timeRangeLowerLimit)
         sb.append(",")
-        sb.append(tUL)
+        sb.append(timeRangeUpperLimit)
         sb.append("] width = ")
-        sb.append(tWidth)
+        sb.append(timeRangeWidth)
         sb.append(" [")
-        sb.append(crLL)
+        sb.append(cumulativeRateLowerLimit)
         sb.append(",")
-        sb.append(crUL)
+        sb.append(cumulativeRateUpperLimit)
         sb.append("] cr width = ")
-        sb.append(crWidth)
-        sb.append("\n")
+        sb.append(cumulativeRateIntervalWidth)
+        sb.appendLine()
         return sb.toString()
     }
 }
