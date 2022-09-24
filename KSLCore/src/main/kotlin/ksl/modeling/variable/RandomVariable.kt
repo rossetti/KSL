@@ -103,7 +103,7 @@ interface RandomVariableCIfc : StreamOptionIfc {
  * be advanced to its next sub-stream after each replication.  This occurs by default unless the resetNextSubStreamOption
  * is set to false.
  */
-class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = null) : ModelElement(parent, name),
+open class RandomVariable(parent: ModelElement, rSource: RandomIfc, name: String? = null) : ModelElement(parent, name),
     RandomIfc, RandomElementIfc, RandomVariableCIfc {
 
     //TODO there is no capturing of the response implemented like in the JSL
