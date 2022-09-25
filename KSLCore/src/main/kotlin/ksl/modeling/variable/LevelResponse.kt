@@ -63,6 +63,7 @@ class LevelResponse(theResponse: TWResponse, theLevel: Double, stats: Boolean = 
     }
 
     // collected during the replication
+//TODO what are the proper limits
 
     private val myDistanceAbove = Response(this, "${myResponse.name}:$name:DistAboveLevel:${D2FORMAT.format(theLevel)}")
     private val myDistanceBelow = Response(this, "${myResponse.name}:$name:DistBelowLevel:${D2FORMAT.format(theLevel)}")

@@ -40,7 +40,7 @@ fun main() {
         bm.collect(d.value)
     }
     println(bm)
-    val bma = bm.batchMeanArrayCopy
+    val bma = bm.batchMeans
     var i = 0
     for (x in bma) {
         println("bm($i) = $x")

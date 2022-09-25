@@ -20,13 +20,13 @@ open class TWResponse(
     parent: ModelElement,
     name: String? = null,
     theInitialValue: Double = 0.0,
-    theLimits: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
+    theLimits: Interval = Interval(),
     theInitialCountLimit: Double = Double.POSITIVE_INFINITY,
 ) : Response(parent, name, theLimits, theInitialCountLimit), TimeWeightedIfc, TWResponseCIfc {
     //TODO timed update stuff
-
+//TODO limits for TW not starting at 0.0
     init {
-        require(limits.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $limits" }
+        require(theLimits.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $theLimits" }
     }
 
     /**
@@ -73,10 +73,11 @@ open class TWResponse(
         timeOfChange = time
         myWithinReplicationStatistic.collect(previousValue, weight)
         notifyModelElementObservers(Status.UPDATE)
-        if (countStopLimit > 0) {
-            if (myWithinReplicationStatistic.count >= countStopLimit) {
-                executive.stop("Stopped because observation limit $countStopLimit was reached for $name")
-            }
+        if (emissionsOn){
+            emitter.emit(Pair(timeOfChange, myValue))
+        }
+        if(myWithinReplicationStatistic.count >= countStopLimit){
+            notifyCountLimitActions()
         }
     }
 

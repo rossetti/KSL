@@ -77,6 +77,40 @@
         </encoder>
     </appender>
 
+    <appender name="KSL_ENTITY" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/kslEntity.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>logs/kslEntity.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- keep 2 days' worth of history capped at 30MB total size -->
+            <maxHistory>2</maxHistory>
+            <totalSizeCap>30MB</totalSizeCap>
+
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="KSL_STREAMS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/kslStreams.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>logs/kslStreams.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- keep 2 days' worth of history capped at 30MB total size -->
+            <maxHistory>2</maxHistory>
+            <totalSizeCap>30MB</totalSizeCap>
+
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
     <appender name="KSL_IO" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/ksl_io.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -205,6 +239,14 @@
 
     <logger name="ksl.simulation.ModelElement" level="DEBUG" additivity="false">
         <appender-ref ref="KSL_ME" />
+    </logger>
+
+    <logger name="ksl.modeling.entity.ProcessModel" level="INFO" additivity="false">
+        <appender-ref ref="KSL_ENTITY" />
+    </logger>
+
+    <logger name="ksl.utilities.random.rng.RNStreamProvider" level="INFO" additivity="false">
+        <appender-ref ref="KSL_STREAMS" />
     </logger>
 
     <logger name="org.jooq" level="WARN" additivity="false">

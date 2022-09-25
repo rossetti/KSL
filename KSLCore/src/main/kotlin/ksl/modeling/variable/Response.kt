@@ -160,7 +160,7 @@ open class Response(
         if (emissionsOn){
             emitter.emit(Pair(timeOfChange, myValue))
         }
-        if (myValue >= countStopLimit) {
+        if(myWithinReplicationStatistic.count >= countStopLimit){
             notifyCountLimitActions()
         }
     }
