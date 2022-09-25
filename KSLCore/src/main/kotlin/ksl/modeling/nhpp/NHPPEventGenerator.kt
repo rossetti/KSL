@@ -22,54 +22,23 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.modeling.variable.RandomVariableCIfc
 
-//TODO delegate to the interface, fix constructors
-
 /**
- * @author rossetti
+ * @param parent the parent
+ * @param rateFunction the rate function
+ * @param generatorAction   the listener for generation
+ * @param lastRate  the last rate
+ * @param name the name to assign
  */
-class NHPPEventGenerator : ModelElement, EventGeneratorIfc {
-    protected var myEventGenerator: EventGenerator
-    protected var myTBARV: NHPPTimeBtwEventRV
+class NHPPEventGenerator(
+    parent: ModelElement,
+    rateFunction: InvertibleCumulativeRateFunctionIfc,
+    generatorAction: GeneratorActionIfc,
+    lastRate: Double = Double.NaN,
+    theName: String? = null
+) : ModelElement(parent, theName), EventGeneratorIfc {
 
-    /**
-     * @param parent the parent
-     * @param rateFunction the rate function
-     * @param listener   the listener for generation
-     */
-    constructor(
-        parent: ModelElement, rateFunction: InvertibleCumulativeRateFunctionIfc,
-        listener: GeneratorActionIfc?
-    ) : this(parent, rateFunction, listener, null) {
-    }
-
-    /**
-     * @param parent the parent
-     * @param rateFunction the rate function
-     * @param listener   the listener for generation
-     * @param name the name to assign
-     */
-    constructor(
-        parent: ModelElement, rateFunction: InvertibleCumulativeRateFunctionIfc,
-        listener: GeneratorActionIfc?, name: String?
-    ) : super(parent, name) {
-        myTBARV = NHPPTimeBtwEventRV(this, rateFunction)
-        myEventGenerator = EventGenerator(this, listener, myTBARV, myTBARV)
-    }
-
-    /**
-     * @param parent the parent
-     * @param rateFunction the rate function
-     * @param listener   the listener for generation
-     * @param lastrate  the last rate
-     * @param name the name to assign
-     */
-    constructor(
-        parent: ModelElement, rateFunction: InvertibleCumulativeRateFunctionIfc,
-        listener: GeneratorActionIfc?, lastrate: Double, name: String?
-    ) : super(parent, name) {
-        myTBARV = NHPPTimeBtwEventRV(this, rateFunction, lastrate)
-        myEventGenerator = EventGenerator(this, listener, myTBARV, myTBARV)
-    }
+    private val myTBARV: NHPPTimeBtwEventRV = NHPPTimeBtwEventRV(this, rateFunction, lastRate)
+    private val myEventGenerator: EventGenerator = EventGenerator(this, generatorAction, myTBARV, myTBARV)
 
     override fun turnOnGenerator(t: Double) {
         myEventGenerator.turnOnGenerator(t)

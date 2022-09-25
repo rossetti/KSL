@@ -19,9 +19,15 @@ import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import kotlin.math.IEEErem
+import kotlin.math.floor
 
 /**
  *
+ * @param parent the parent
+ * @param rateFunction the rate function
+ * @param lastRate the last rate
+ * @param name the name
  */
 class NHPPTimeBtwEventRV(
     parent: ModelElement,
@@ -30,67 +36,34 @@ class NHPPTimeBtwEventRV(
     name: String? = null
 ) : RandomVariable(parent, ExponentialRV(1.0), name) {
 
-    /** Holds the time that the cycle started, where a cycle
-     * is the time period over which the rate function is defined.
+    /** Used to schedule the end of cycles if they repeat
      *
      */
-    protected var myCycleStartTime = 0.0
-
-    /** The length of a cycle if it repeats
-     *
-     */
-    protected var myCycleLength = 0.0
-
-    /** The number of cycles completed if cycles
-     *
-     */
-    protected var myNumCycles = 0
-
-    /** Holds the time of the last event from the underlying Poisson process
-     *
-     */
-    protected var myPPTime = 0.0
+    private val myRate1Expo: ExponentialRV = initialRandomSource as ExponentialRV
+    private val myRNStream: RNStreamIfc = myRate1Expo.rnStream
 
     /** Supplied to invert the rate function.
      *
      */
-    protected var myRateFunction: InvertibleCumulativeRateFunctionIfc
+    private var myRateFunction: InvertibleCumulativeRateFunctionIfc = rateFunction
 
     /** If supplied and the repeat flag is false then this rate will
      * be used after the range of the rate function has been passed
      *
      */
-    protected var myLastRate = Double.NaN
+    private var myLastRate = Double.NaN
 
-    /** Indicates whether or not the rate function should repeat
+    /** Indicates whether the rate function should repeat
      * when its range has been covered
      *
      */
-    protected var myRepeatFlag = true
+    private var myRepeatFlag = true
 
-    /** Turned on if the time goes past the rate function's range
-     * and a last rate was supplied
+    /** The length of a cycle if it repeats
      *
      */
-    protected var myUseLastRateFlag = false
-
-    /** Used to schedule the end of cycles if they repeat
-     *
-     */
-    protected val myRate1Expo: ExponentialRV
-    protected var myRNStream: RNStreamIfc
-
-    /**
-     *
-     * @param parent the parent
-     * @param rateFunction the rate function
-     * @param lastRate the last rate
-     * @param name the name
-     */
+    private var myCycleLength = 0.0
     init {
-        myRate1Expo = initialRandomSource as ExponentialRV
-        myRNStream = myRate1Expo.rnStream
-        myRateFunction = rateFunction
         if (!lastRate.isNaN()) {
             require(lastRate >= 0.0) { "The rate must be >= 0" }
             require(lastRate < Double.POSITIVE_INFINITY) { "The rate must be < infinity" }
@@ -101,17 +74,34 @@ class NHPPTimeBtwEventRV(
             myCycleLength = myRateFunction.timeRangeUpperLimit - myRateFunction.timeRangeLowerLimit
         }
     }
-    /** Returns the rate function
+    /** Holds the time that the cycle started, where a cycle
+     * is the time period over which the rate function is defined.
      *
-     * @return the function
      */
-    /** Sets the rate function for the random variable.  Must not be null
+    private var myCycleStartTime = 0.0
+
+    /** The number of cycles completed if cycles
      *
-     * @param rateFunction the rate function
+     */
+    private var myNumCycles = 0
+
+    /** Holds the time of the last event from the underlying Poisson process
+     *
+     */
+    private var myPPTime = 0.0
+
+    /** Turned on if the time goes past the rate function's range
+     * and a last rate was supplied
+     *
+     */
+    private var myUseLastRateFlag = false
+
+    /** the rate function for the random variable.
+     *
      */
     var rateFunction: InvertibleCumulativeRateFunctionIfc
         get() = myRateFunction
-        protected set(rateFunction) {
+        set(rateFunction) {
             myRateFunction = rateFunction
         }
 
@@ -144,8 +134,8 @@ class NHPPTimeBtwEventRV(
             //System.out.println("crul =" + crul);
             if (tppne >= crul) {
                 // compute the residual into the next appropriate cycle
-                val n = Math.floor(tppne / crul).toInt()
-                val residual = Math.IEEEremainder(tppne, crul)
+                val n = floor(tppne / crul).toInt()
+                val residual = tppne.IEEErem(crul)
                 //System.out.println("residual = " + residual);
                 // must either repeat or use constant rate forever
                 if (myRepeatFlag == false) {
