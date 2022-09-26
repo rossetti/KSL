@@ -43,7 +43,7 @@ interface ResponseCIfc : ResponseIfc {
     /**
      *  The legal limits for the response
      */
-    val limits: Interval
+    val range: Interval
 
     /**
      * Sets the initial value of the count limit. Only relevant prior to each
@@ -83,8 +83,8 @@ interface ResponseCIfc : ResponseIfc {
 open class Response(
     parent: ModelElement,
     name: String? = null,
-    theLimits: Interval = Interval(),
-    theInitialCountLimit: Double = Double.POSITIVE_INFINITY,
+    allowedRange: Interval = Interval(),
+    countLimit: Double = Double.POSITIVE_INFINITY,
 ) : ModelElement(parent, name), ResponseIfc, ResponseStatisticsIfc, ResponseCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
 
     override var emissionsOn: Boolean = false
@@ -92,7 +92,7 @@ open class Response(
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
     private var stoppingAction: StoppingAction? = null
 
-    override val limits: Interval = theLimits
+    override val range: Interval = allowedRange
 
     var timeOfWarmUp: Double = 0.0
         protected set
@@ -101,7 +101,7 @@ open class Response(
         protected set
 
     init {
-        require(theInitialCountLimit >= 0) { "The initial count limit value $theInitialCountLimit must be >= 0" }
+        require(countLimit >= 0) { "The initial count limit value $countLimit must be >= 0" }
     }
 
     /**
@@ -109,7 +109,7 @@ open class Response(
      * replication. Changing during a replication has no effect until the next
      * replication.
      */
-    override var initialCountLimit: Double = theInitialCountLimit
+    override var initialCountLimit: Double = countLimit
         set(value) {
             require(value >= 0) { "The initial count stop limit, when set, must be >= 0" }
             if (model.isRunning) {
@@ -122,7 +122,7 @@ open class Response(
      * indicates the count when the simulation should stop
      * zero indicates no limit
      */
-    var countStopLimit: Double = theInitialCountLimit
+    var countActionLimit: Double = countLimit
         set(limit) {
             require(limit >= 0) { "The count stop limit, when set, must be >= 0" }
             if (model.isRunning) {
@@ -150,7 +150,7 @@ open class Response(
         set(newValue) = assignValue(newValue)
 
     protected open fun assignValue(newValue: Double){
-        require(limits.contains(newValue)) { "The value $newValue was not within the limits $limits" }
+        require(range.contains(newValue)) { "The value $newValue was not within the limits $range" }
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue
@@ -160,7 +160,7 @@ open class Response(
         if (emissionsOn){
             emitter.emit(Pair(timeOfChange, myValue))
         }
-        if(myWithinReplicationStatistic.count >= countStopLimit){
+        if(myWithinReplicationStatistic.count == countActionLimit){
             notifyCountLimitActions()
         }
     }
@@ -196,7 +196,7 @@ open class Response(
         myAcrossReplicationStatistic.reset()
         timeOfWarmUp = 0.0
         lastTimedUpdate = 0.0
-        countStopLimit = initialCountLimit
+        countActionLimit = initialCountLimit
     }
 
     override fun beforeReplication() {
@@ -208,7 +208,7 @@ open class Response(
         myWithinReplicationStatistic.reset()
         timeOfWarmUp = 0.0
         lastTimedUpdate = 0.0
-        countStopLimit = initialCountLimit
+        countActionLimit = initialCountLimit
     }
 
     override fun timedUpdate() {
@@ -251,7 +251,7 @@ open class Response(
 
     private inner class StoppingAction : CountActionIfc {
         override fun action(response: ResponseIfc) {
-            executive.stop("Stopped because counter limit $countStopLimit was reached for $name")
+            executive.stop("Stopped because counter limit $countActionLimit was reached for $name")
         }
     }
 }

@@ -18,6 +18,7 @@ package ksl.modeling.variable
 import ksl.observers.ModelElementObserver
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.Interval
 import ksl.utilities.io.D2FORMAT
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateFrequency
@@ -33,8 +34,8 @@ import ksl.utilities.statistic.StateFrequency
 class LevelResponse(theResponse: TWResponse, theLevel: Double, stats: Boolean = true, theName: String? = null) :
     ModelElement(theResponse, theName) {
     init {
-        require(theResponse.limits.contains(theLevel))
-        { "The supplied level $theLevel was outside the range of the variable's limits ${theResponse.limits}" }
+        require(theResponse.range.contains(theLevel))
+        { "The supplied level $theLevel was outside the range of the variable's limits ${theResponse.range}" }
     }
 
     private val myObserver: ModelElementObserver = TheObserver()
@@ -67,10 +68,10 @@ class LevelResponse(theResponse: TWResponse, theLevel: Double, stats: Boolean = 
 
     private val myDistanceAbove = Response(this, "${myResponse.name}:$name:DistAboveLevel:${D2FORMAT.format(theLevel)}")
     private val myDistanceBelow = Response(this, "${myResponse.name}:$name:DistBelowLevel:${D2FORMAT.format(theLevel)}")
-    private val myDevAboveLevel = TWResponse(this, "${myResponse.name}:$name:DevAboveLevel:${D2FORMAT.format(theLevel)}")
-    private val myDevBelowLevel = TWResponse(this, "${myResponse.name}:$name:DevBelowLevel:${D2FORMAT.format(theLevel)}")
+    private val myDevAboveLevel = TWResponse(this, name = "${myResponse.name}:$name:DevAboveLevel:${D2FORMAT.format(theLevel)}")
+    private val myDevBelowLevel = TWResponse(this, name = "${myResponse.name}:$name:DevBelowLevel:${D2FORMAT.format(theLevel)}")
     private val myDeviationFromLevel =
-        TWResponse(this, "${myResponse.name}:$name:DevFromLevel:${D2FORMAT.format(theLevel)}")
+        TWResponse(this, allowedRange = Interval(), name = "${myResponse.name}:$name:DevFromLevel:${D2FORMAT.format(theLevel)}")
     private val myMaxDistanceAbove =
         Response(this, "${myResponse.name}:$name:MaxDistAboveLevel:${D2FORMAT.format(theLevel)}")
     private val myMaxDistanceBelow =

@@ -20,13 +20,13 @@ open class TWResponse(
     parent: ModelElement,
     name: String? = null,
     theInitialValue: Double = 0.0,
-    theLimits: Interval = Interval(),
-    theInitialCountLimit: Double = Double.POSITIVE_INFINITY,
-) : Response(parent, name, theLimits, theInitialCountLimit), TimeWeightedIfc, TWResponseCIfc {
+    allowedRange: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
+    countLimit: Double = Double.POSITIVE_INFINITY,
+) : Response(parent, name, allowedRange, countLimit), TimeWeightedIfc, TWResponseCIfc {
     //TODO timed update stuff
 //TODO limits for TW not starting at 0.0
     init {
-        require(theLimits.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $theLimits" }
+        require(allowedRange.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $allowedRange" }
     }
 
     /**
@@ -36,7 +36,7 @@ open class TWResponse(
      */
     override var initialValue: Double = theInitialValue
         set(value) {
-            require(limits.contains(value)) { "The initial value, $value must be within the specified limits: $limits" }
+            require(range.contains(value)) { "The initial value, $value must be within the specified limits: $range" }
             if (model.isRunning) {
                 Model.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
             }
@@ -58,7 +58,7 @@ open class TWResponse(
     override val weight: Double
         get() {
             val w = timeOfChange - previousTimeOfChange
-            return if (w < 0.0) {
+            return if ((w < 0.0) || (w.isNaN())) {
                 0.0
             } else {
                 w
@@ -66,7 +66,7 @@ open class TWResponse(
         }
 
     protected override fun assignValue(newValue: Double) {
-        require(limits.contains(newValue)) { "The value $newValue was not within the limits $limits" }
+        require(range.contains(newValue)) { "The value $newValue was not within the limits $range" }
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue
@@ -76,7 +76,7 @@ open class TWResponse(
         if (emissionsOn){
             emitter.emit(Pair(timeOfChange, myValue))
         }
-        if(myWithinReplicationStatistic.count >= countStopLimit){
+        if(myWithinReplicationStatistic.count == countActionLimit){
             notifyCountLimitActions()
         }
     }
@@ -90,11 +90,11 @@ open class TWResponse(
      * @param value the initial value to assign
      */
     protected fun assignInitialValue(value: Double) {
-        require(limits.contains(value)) { "The initial value, $value must be within the specified limits: $limits" }
+        require(range.contains(value)) { "The initial value, $value must be within the specified limits: $range" }
         myValue = value
         timeOfChange = 0.0
-        previousValue = myValue
-        previousTimeOfChange = timeOfChange
+        previousValue = myValue //TODO should this be Double.NaN, same ensures zero weight
+        previousTimeOfChange = timeOfChange //TODO should this be Double.NaN
     }
 
     /**

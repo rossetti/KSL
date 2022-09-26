@@ -60,8 +60,8 @@ interface CounterCIfc {
 open class Counter(
     parent: ModelElement,
     name: String? = null,
-    theInitialValue: Double = 0.0,
-    theInitialCounterLimit: Double = Double.POSITIVE_INFINITY,
+    initialValue: Double = 0.0,
+    countLimit: Double = Double.POSITIVE_INFINITY,
 ) : ModelElement(parent, name), CounterIfc, CounterCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
     //TODO timed update stuff
     override var emissionsOn: Boolean = false
@@ -74,15 +74,15 @@ open class Counter(
         protected set
 
     init {
-        require(theInitialValue >= 0.0) { "The initial value $theInitialValue must be >= 0" }
-        require(theInitialCounterLimit >= 0.0) { "The initial count limit value $theInitialCounterLimit must be >= 0" }
+        require(initialValue >= 0.0) { "The initial value $initialValue must be >= 0" }
+        require(countLimit >= 0.0) { "The initial count limit value $countLimit must be >= 0" }
     }
 
     /**
      * Sets the initial value of the count limit. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next replication.
      */
-    override var initialCounterLimit: Double = theInitialCounterLimit
+    override var initialCounterLimit: Double = countLimit
         set(value) {
             require(value >= 0) { "The initial counter stop limit, when set, must be >= 0" }
             if (model.isRunning) {
@@ -94,7 +94,7 @@ open class Counter(
     /**
      * Indicates the count when the simulation should stop. Zero indicates no limit.
      */
-    var counterStopLimit: Double = theInitialCounterLimit
+    var countActionLimit: Double = countLimit
         set(limit) {
             require(limit >= 0) { "The counter stop limit, when set, must be >= 0" }
             if (model.isRunning) {
@@ -116,14 +116,14 @@ open class Counter(
         }
 
     val isLimitReached: Boolean
-        get() = myValue >= counterStopLimit
+        get() = myValue >= countActionLimit
 
     /**
      * Sets the initial value of the variable. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next
      * replication.
      */
-    override var initialValue: Double = theInitialValue
+    override var initialValue: Double = initialValue
         set(value) {
             require(value >= 0) { "The initial value $value must be >= 0" }
             if (model.isRunning) {
@@ -132,7 +132,7 @@ open class Counter(
             field = value
         }
 
-    protected var myValue: Double = theInitialValue
+    protected var myValue: Double = initialValue
 
     override var value: Double
         get() = myValue
@@ -183,7 +183,7 @@ open class Counter(
         if (emissionsOn){
             emitter.emit(Pair(timeOfChange, myValue))
         }
-        if (myValue >= counterStopLimit) {
+        if (myValue == countActionLimit) {
             notifyCountLimitActions()
         }
     }
@@ -201,21 +201,21 @@ open class Counter(
         require(value < initialCounterLimit) { "The initial value, $value, of the counter must be < the initial counter limit, $initialCounterLimit" }
         myValue = value
         timeOfChange = 0.0
-        previousValue = myValue
-        previousTimeOfChange = timeOfChange
-        counterStopLimit = initialCounterLimit
+        previousValue = Double.NaN
+        previousTimeOfChange = Double.NaN
+        countActionLimit = initialCounterLimit
     }
 
     /**
      *  The previous value, before the current value changed
      */
-    override var previousValue: Double = theInitialValue
+    override var previousValue: Double = Double.NaN
         protected set
 
-    override var timeOfChange: Double = 0.0
+    override var timeOfChange: Double = Double.NaN
         protected set
 
-    override var previousTimeOfChange: Double = 0.0
+    override var previousTimeOfChange: Double = Double.NaN
         protected set
 
     protected val myAcrossReplicationStatistic: Statistic = Statistic(this.name)
@@ -268,12 +268,11 @@ open class Counter(
      */
     fun resetCounter(value: Double, notifyUpdateObservers: Boolean) {
         require(value >= 0) { "The counter's value must be >= 0" }
-        require(value < counterStopLimit) { "The counter's value, $value must be < the counter limit = $counterStopLimit" }
+        require(value < countActionLimit) { "The counter's value, $value must be < the counter limit = $countActionLimit" }
         previousValue = value
         previousTimeOfChange = time
         myValue = value
         timeOfChange = previousTimeOfChange
-//TODO        myCountAtPreviousTimedUpdate = value
         if (notifyUpdateObservers) {
             notifyModelElementObservers(Status.UPDATE)
         }
@@ -281,7 +280,7 @@ open class Counter(
 
     private inner class StoppingAction : CountActionIfc {
         override fun action(response: ResponseIfc) {
-            executive.stop("Stopped because counter limit $counterStopLimit was reached for $name")
+            executive.stop("Stopped because counter limit $countActionLimit was reached for $name")
         }
     }
 }
