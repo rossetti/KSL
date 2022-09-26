@@ -1,5 +1,7 @@
 package ksl.modeling.variable
 
+import ksl.utilities.IdentityIfc
+import ksl.utilities.Interval
 import ksl.utilities.PreviousValueIfc
 
 /**
@@ -40,10 +42,16 @@ interface PreviousTimeOfChangeIfc {
     val previousTimeOfChange: Double
 }
 
-interface ResponseIfc: ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc, DefaultReportingOptionIfc
+interface RangeIfc {
+    val range: Interval
+}
 
-interface TimeWeightedIfc : ResponseIfc, WeightIfc, InitialValueIfc
+interface ResponseIfc : IdentityIfc, ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc,
+    DefaultReportingOptionIfc, RangeIfc
 
-interface CounterIfc: ResponseIfc, InitialValueIfc, AcrossReplicationStatisticIfc
+interface TimeWeightedIfc : ResponseIfc, WeightIfc, VariableIfc
 
-interface VariableIfc : ValueIfc, PreviousValueIfc, InitialValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc
+interface CounterIfc : ResponseIfc, InitialValueIfc, AcrossReplicationStatisticIfc
+
+interface VariableIfc : IdentityIfc, ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc,
+    InitialValueIfc, RangeIfc

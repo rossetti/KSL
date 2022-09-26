@@ -20,21 +20,20 @@ import ksl.utilities.Interval
  *  @author rossetti@uark.edu
  *  @param parent the parent (containing) model element for this variable
  *  @param theInitialValue the initial value, default to 0.0
- *  @param theLimits the validity interval, defaults to [0.0, POSITIVE_INFINITY]
+ *  @param allowedRange the validity interval, defaults to [0.0, POSITIVE_INFINITY]
  *  @param name the name of the variable, will be auto-defined if null
  */
 open class Variable(
     parent: ModelElement,
     theInitialValue: Double = 0.0,
-    theLimits: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
+    allowedRange: Interval = Interval(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY),
     name: String? = null
 ) : ModelElement(parent, name), VariableIfc {
-//TODO aggregates?
 
-    var limits: Interval = theLimits
+    override var range: Interval = allowedRange
 
     init {
-        require(limits.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $limits" }
+        require(range.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $range" }
     }
 
     /**
@@ -44,7 +43,7 @@ open class Variable(
      */
     override var initialValue: Double = theInitialValue
         set(value) {
-            require(limits.contains(value)) { "The initial value, $value must be within the specified limits: $limits" }
+            require(range.contains(value)) { "The initial value, $value must be within the specified range for the variable: $range" }
             if (model.isRunning) {
                 Model.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
             }
@@ -58,7 +57,7 @@ open class Variable(
         set(newValue) = assignValue(newValue)
 
     protected fun assignValue(newValue: Double){
-        require(limits.contains(newValue)) { "The value $newValue must be within the specified limits : $limits" }
+        require(range.contains(newValue)) { "The value $newValue must be within the specified range for the variable : $range" }
         previousValue = myValue // remember the previous value
         previousTimeOfChange = timeOfChange // remember the previous change time
         myValue = newValue// remember the new value
@@ -75,7 +74,7 @@ open class Variable(
      * @param value the initial value to assign
      */
     protected fun assignInitialValue(value: Double) {
-        require(limits.contains(value)) { "The initial value, $value must be within the specified limits: $limits" }
+        require(range.contains(value)) { "The initial value, $value must be within the specified range of the variable: $range" }
         myValue = value
         timeOfChange = 0.0
         previousValue = myValue

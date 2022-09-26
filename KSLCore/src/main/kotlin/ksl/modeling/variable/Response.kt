@@ -41,9 +41,9 @@ interface ResponseCIfc : ResponseIfc {
     val emissionsOn: Boolean
 
     /**
-     *  The legal limits for the response
+     *  The legal range of values for the response
      */
-    val range: Interval
+    override val range: Interval
 
     /**
      * Sets the initial value of the count limit. Only relevant prior to each

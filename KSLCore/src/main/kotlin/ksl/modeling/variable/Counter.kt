@@ -2,6 +2,7 @@ package ksl.modeling.variable
 
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.Interval
 import ksl.utilities.observers.DoublePairEmitter
 import ksl.utilities.observers.DoublePairEmitterIfc
 import ksl.utilities.statistic.Statistic
@@ -67,6 +68,8 @@ open class Counter(
     override var emissionsOn: Boolean = false
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
 
+    override var range: Interval = Interval(0.0, Double.NEGATIVE_INFINITY)
+
     var timeOfWarmUp: Double = 0.0
         protected set
 
@@ -75,7 +78,9 @@ open class Counter(
 
     init {
         require(initialValue >= 0.0) { "The initial value $initialValue must be >= 0" }
+        require(range.contains(initialValue)) {"The initial value must be in counter's range $range"}
         require(countLimit >= 0.0) { "The initial count limit value $countLimit must be >= 0" }
+        require(range.contains(countLimit)) {"The count limit must be in counter's range $range"}
     }
 
     /**
@@ -84,7 +89,8 @@ open class Counter(
      */
     override var initialCounterLimit: Double = countLimit
         set(value) {
-            require(value >= 0) { "The initial counter stop limit, when set, must be >= 0" }
+            require(value >= 0) { "The initial counter limit, when set, must be >= 0" }
+            require(range.contains(value)) {"The initial counter limit must be in counter's range $range"}
             if (model.isRunning) {
                 Model.logger.info { "The user set the initial counter stop limit during the replication. The next replication will use a different initial value" }
             }
@@ -126,6 +132,7 @@ open class Counter(
     override var initialValue: Double = initialValue
         set(value) {
             require(value >= 0) { "The initial value $value must be >= 0" }
+            require(range.contains(value)) {"The initial value must be in counter's range $range"}
             if (model.isRunning) {
                 Model.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
             }
@@ -175,6 +182,7 @@ open class Counter(
 
     protected open fun assignValue(newValue: Double) {
         require(newValue >= 0) { "The value $newValue was not >= 0" }
+        require(range.contains(newValue)) {"The assigned value must be in counter's range $range"}
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue
