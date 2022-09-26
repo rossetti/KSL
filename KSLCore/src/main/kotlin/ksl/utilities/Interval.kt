@@ -27,7 +27,7 @@ package ksl.utilities
 class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Double.POSITIVE_INFINITY) :
     NewInstanceIfc<Interval> {
     init {
-        require(xLower <= xUpper) { "The lower limit must be <= the upper limit" }
+        require(xLower <= xUpper) { "The lower limit $xLower must be <= the upper limit $xUpper" }
     }
 
     /**

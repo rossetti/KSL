@@ -68,7 +68,7 @@ open class Counter(
     override var emissionsOn: Boolean = false
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
 
-    override var range: Interval = Interval(0.0, Double.NEGATIVE_INFINITY)
+    override var range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 
     var timeOfWarmUp: Double = 0.0
         protected set

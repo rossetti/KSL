@@ -34,7 +34,7 @@ class NHPPTimeBtwEventRV(
     rateFunction: InvertibleCumulativeRateFunctionIfc,
     lastRate: Double = Double.NaN,
     name: String? = null
-) : RandomVariable(parent, ExponentialRV(1.0), name) {
+) : RandomVariable(parent, ExponentialRV(1.0, 1), name) {
 
     /** Used to schedule the end of cycles if they repeat
      *
