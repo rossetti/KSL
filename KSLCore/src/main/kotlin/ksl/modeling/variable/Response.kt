@@ -83,9 +83,10 @@ interface ResponseCIfc : ResponseIfc {
 open class Response(
     parent: ModelElement,
     name: String? = null,
+    initialValue: Double = 0.0,
     allowedRange: Interval = Interval(),
     countLimit: Double = Double.POSITIVE_INFINITY,
-) : ModelElement(parent, name), ResponseIfc, ResponseStatisticsIfc, ResponseCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
+) : Variable(parent, initialValue, allowedRange, name), ResponseIfc, ResponseStatisticsIfc, ResponseCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
 
     override var emissionsOn: Boolean = false
 
@@ -143,13 +144,13 @@ open class Response(
             }
         }
 
-    protected var myValue: Double = Double.NaN
+    protected var myValue: Double = initialValue
 
     override var value: Double
         get() = myValue
         set(newValue) = assignValue(newValue)
 
-    protected open fun assignValue(newValue: Double){
+    override fun assignValue(newValue: Double){
         require(range.contains(newValue)) { "The value $newValue was not within the limits $range" }
         previousValue = myValue
         previousTimeOfChange = timeOfChange
@@ -165,13 +166,13 @@ open class Response(
         }
     }
 
-    override var previousValue: Double = Double.NaN
+    override var previousValue: Double = 0.0
         protected set
 
-    override var timeOfChange: Double = Double.NaN
+    override var timeOfChange: Double = 0.0
         protected set
 
-    override var previousTimeOfChange: Double = Double.NaN
+    override var previousTimeOfChange: Double = 0.0
         protected set
 
     protected val myAcrossReplicationStatistic: Statistic = Statistic(this.name)
@@ -188,10 +189,7 @@ open class Response(
 
     override fun beforeExperiment() {
         super.beforeExperiment()
-        myValue = Double.NaN
-        previousValue = Double.NaN
-        timeOfChange = Double.NaN
-        previousTimeOfChange = Double.NaN
+        assignInitialValue(initialValue)
         myWithinReplicationStatistic.reset()
         myAcrossReplicationStatistic.reset()
         timeOfWarmUp = 0.0
@@ -201,10 +199,7 @@ open class Response(
 
     override fun beforeReplication() {
         super.beforeReplication()
-        myValue = Double.NaN
-        previousValue = Double.NaN
-        timeOfChange = Double.NaN
-        previousTimeOfChange = Double.NaN
+        assignInitialValue(initialValue)
         myWithinReplicationStatistic.reset()
         timeOfWarmUp = 0.0
         lastTimedUpdate = 0.0

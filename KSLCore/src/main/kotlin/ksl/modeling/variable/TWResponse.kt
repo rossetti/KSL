@@ -22,7 +22,7 @@ open class TWResponse(
     theInitialValue: Double = 0.0,
     allowedRange: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
     countLimit: Double = Double.POSITIVE_INFINITY,
-) : Response(parent, name, allowedRange, countLimit), TimeWeightedIfc, TWResponseCIfc {
+) : Response(parent, name, theInitialValue, allowedRange, countLimit), TimeWeightedIfc, TWResponseCIfc {
     
     init {
         require(allowedRange.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $allowedRange" }
@@ -88,7 +88,7 @@ open class TWResponse(
      *
      * @param value the initial value to assign
      */
-    protected fun assignInitialValue(value: Double) {
+    override fun assignInitialValue(value: Double) {
         require(range.contains(value)) { "The initial value, $value must be within the specified limits: $range" }
         myValue = value
         timeOfChange = 0.0

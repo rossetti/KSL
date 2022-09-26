@@ -26,15 +26,14 @@ import ksl.utilities.Interval
 open class Variable(
     parent: ModelElement,
     theInitialValue: Double = 0.0,
-    allowedRange: Interval = Interval(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY),
+    allowedRange: Interval = Interval(),
     name: String? = null
 ) : ModelElement(parent, name), VariableIfc {
-
-    override var range: Interval = allowedRange
-
     init {
-        require(range.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $range" }
+        require(allowedRange.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $allowedRange" }
     }
+
+    override val range: Interval = allowedRange
 
     /**
      * Sets the initial value of the variable. Only relevant prior to each
@@ -56,7 +55,7 @@ open class Variable(
         get() = myValue
         set(newValue) = assignValue(newValue)
 
-    protected fun assignValue(newValue: Double){
+    protected open fun assignValue(newValue: Double){
         require(range.contains(newValue)) { "The value $newValue must be within the specified range for the variable : $range" }
         previousValue = myValue // remember the previous value
         previousTimeOfChange = timeOfChange // remember the previous change time
@@ -73,11 +72,11 @@ open class Variable(
      *
      * @param value the initial value to assign
      */
-    protected fun assignInitialValue(value: Double) {
+    protected open fun assignInitialValue(value: Double) {
         require(range.contains(value)) { "The initial value, $value must be within the specified range of the variable: $range" }
         myValue = value
         timeOfChange = 0.0
-        previousValue = myValue
+        previousValue = value
         previousTimeOfChange = timeOfChange
     }
 

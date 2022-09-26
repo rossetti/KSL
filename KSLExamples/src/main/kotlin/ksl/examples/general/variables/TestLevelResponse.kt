@@ -24,7 +24,7 @@ import ksl.utilities.random.rvariable.NormalRV
 
 class TestLevelResponse(parent: ModelElement, name: String? = null) : ModelElement(parent, name) {
     private val myRV: RandomVariable = RandomVariable(this, NormalRV(0.0, 1.0, 1))
-    private val myVariable: TWResponse = TWResponse(this, allowedRange = Interval(), name = "Level Variable")
+    private val myVariable: Variable = Variable(this, name = "Level Variable")
     private val myLR: LevelResponse = LevelResponse(myVariable, 0.0)
     private val myR: Response = Response(this, allowedRange = Interval(), name = "Observations")
 

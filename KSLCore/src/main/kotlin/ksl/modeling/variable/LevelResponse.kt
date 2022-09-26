@@ -26,70 +26,84 @@ import ksl.utilities.statistic.StateFrequency
 /**
  * Collects statistics on whether a specific level associated with a variable is
  * maintained.
- * @param theResponse the response to observe
+ * @param variable the response to observe
  * @param theLevel    the level to associate with the response
  * @param stats    whether detailed state change statistics are collected
  * @param theName     the name of the response
  */
-class LevelResponse(theResponse: TWResponse, theLevel: Double, stats: Boolean = true, theName: String? = null) :
-    ModelElement(theResponse, theName) {
+class LevelResponse(variable: Variable,
+                    theLevel: Double,
+                    stats: Boolean = true,
+                    theName: String? = null) :
+    ModelElement(variable, theName) {
     init {
-        require(theResponse.range.contains(theLevel))
-        { "The supplied level $theLevel was outside the range of the variable's limits ${theResponse.range}" }
+        require(variable.range.contains(theLevel))
+        { "The supplied level $theLevel was outside the range of the variable's limits ${variable.range}" }
     }
 
     private val myObserver: ModelElementObserver = TheObserver()
+
     //TODO should be VariableIfc
-    private val myResponse: TWResponse = theResponse
+    private val myVariable: Variable = variable
     val level: Double = theLevel
 
     /**
      * true if detailed state change statistics are collected
      */
     val statisticsOption: Boolean = stats
+
     private val myStateFreq: StateFrequency = StateFrequency(2)
     private val myAbove: State = myStateFreq.states[0]
     private val myBelow: State = myStateFreq.states[1]
-    private var myCurrentState: State = if (myResponse.initialValue >= level) {
+    private var myCurrentState: State = if (myVariable.initialValue >= level) {
         myAbove
     } else {
         myBelow
     }
 
     init {
-        myAbove.label = ("${myResponse.name}:$name:+")
-        myBelow.label = ("${myResponse.name}:$name:-")
+        myAbove.label = ("${myVariable.name}:$name:+")
+        myBelow.label = ("${myVariable.name}:$name:-")
         myAbove.sojournTimeCollectionFlag = true
         myBelow.sojournTimeCollectionFlag = true
-        myResponse.attachModelElementObserver(myObserver)
+        myVariable.attachModelElementObserver(myObserver)
     }
 
     // collected during the replication
-    private val myDistanceAbove = Response(this, "${myResponse.name}:$name:DistAboveLevel:${D2FORMAT.format(theLevel)}")
-    private val myDistanceBelow = Response(this, "${myResponse.name}:$name:DistBelowLevel:${D2FORMAT.format(theLevel)}")
-    private val myDevAboveLevel = TWResponse(this, name = "${myResponse.name}:$name:DevAboveLevel:${D2FORMAT.format(theLevel)}")
-    private val myDevBelowLevel = TWResponse(this, name = "${myResponse.name}:$name:DevBelowLevel:${D2FORMAT.format(theLevel)}")
+    private val myDistanceAbove = Response(this, "${myVariable.name}:$name:DistAboveLevel:${D2FORMAT.format(theLevel)}")
+    private val myDistanceBelow = Response(this, "${myVariable.name}:$name:DistBelowLevel:${D2FORMAT.format(theLevel)}")
+    private val myDevAboveLevel =
+        TWResponse(this, name = "${myVariable.name}:$name:DevAboveLevel:${D2FORMAT.format(theLevel)}")
+    private val myDevBelowLevel =
+        TWResponse(this, name = "${myVariable.name}:$name:DevBelowLevel:${D2FORMAT.format(theLevel)}")
     private val myDeviationFromLevel =
-        TWResponse(this, allowedRange = Interval(), name = "${myResponse.name}:$name:DevFromLevel:${D2FORMAT.format(theLevel)}")
+        TWResponse(
+            this,
+            allowedRange = Interval(),
+            name = "${myVariable.name}:$name:DevFromLevel:${D2FORMAT.format(theLevel)}"
+        )
     private val myMaxDistanceAbove =
-        Response(this, "${myResponse.name}:$name:MaxDistAboveLevel:${D2FORMAT.format(theLevel)}")
+        Response(this, "${myVariable.name}:$name:MaxDistAboveLevel:${D2FORMAT.format(theLevel)}")
     private val myMaxDistanceBelow =
-        Response(this, "${myResponse.name}:$name:MaxDistBelowLevel:${D2FORMAT.format(theLevel)}")
-    private val myPctTimeAbove = Response(this, "${myResponse.name}:$name:PctTimeAbove:${D2FORMAT.format(theLevel)}")
-    private val myPctTimeBelow = Response(this, "${myResponse.name}:$name:PctTimeBelow:${D2FORMAT.format(theLevel)}")
-    private val myTotalTimeAbove = Response(this, "${myResponse.name}:$name:TotalTimeAbove:${D2FORMAT.format(theLevel)}")
-    private val myTotalTimeBelow = Response(this, "${myResponse.name}:$name:TotalTimeBelow:${D2FORMAT.format(theLevel)}")
+        Response(this, "${myVariable.name}:$name:MaxDistBelowLevel:${D2FORMAT.format(theLevel)}")
+    private val myPctTimeAbove = Response(this, "${myVariable.name}:$name:PctTimeAbove:${D2FORMAT.format(theLevel)}")
+    private val myPctTimeBelow = Response(this, "${myVariable.name}:$name:PctTimeBelow:${D2FORMAT.format(theLevel)}")
+    private val myTotalTimeAbove =
+        Response(this, "${myVariable.name}:$name:TotalTimeAbove:${D2FORMAT.format(theLevel)}")
+    private val myTotalTimeBelow =
+        Response(this, "${myVariable.name}:$name:TotalTimeBelow:${D2FORMAT.format(theLevel)}")
     private val myTotalAbsDeviationFromLevel =
-        Response(this, "${myResponse.name}:$name:TotalAbsDevFromLevel:${D2FORMAT.format(theLevel)}")
+        Response(this, "${myVariable.name}:$name:TotalAbsDevFromLevel:${D2FORMAT.format(theLevel)}")
     private val myProportionDevFromAboveLevel =
-        Response(this, "${myResponse.name}:$name:PctDevAboveLevel:${D2FORMAT.format(theLevel)}")
+        Response(this, "${myVariable.name}:$name:PctDevAboveLevel:${D2FORMAT.format(theLevel)}")
     private val myProportionDevFromBelowLevel =
-        Response(this, "${myResponse.name}:$name:PctDevBelowLevel:${D2FORMAT.format(theLevel)}")
-    private val myRelDevFromLevel = Response(this, "${myResponse.name}:$name:RelDevFromLevel:${D2FORMAT.format(theLevel)}")
+        Response(this, "${myVariable.name}:$name:PctDevBelowLevel:${D2FORMAT.format(theLevel)}")
+    private val myRelDevFromLevel =
+        Response(this, "${myVariable.name}:$name:RelDevFromLevel:${D2FORMAT.format(theLevel)}")
     private val myRelPosDevFromLevel =
-        Response(this, "${myResponse.name}:$name:RelPosDevFromLevel:${D2FORMAT.format(theLevel)}")
+        Response(this, "${myVariable.name}:$name:RelPosDevFromLevel:${D2FORMAT.format(theLevel)}")
     private val myRelNegDevFromLevel =
-        Response(this, "${myResponse.name}:$name:RelNegDevFromLevel:${D2FORMAT.format(theLevel)}")
+        Response(this, "${myVariable.name}:$name:RelNegDevFromLevel:${D2FORMAT.format(theLevel)}")
 
     // all these are collected within replicationEnded()
     private var myAvgTimeAbove: Response? = null
@@ -108,18 +122,18 @@ class LevelResponse(theResponse: TWResponse, theLevel: Double, stats: Boolean = 
     init {
         // collected after the replication ends
         if (statisticsOption) {
-            myAvgTimeAbove = Response(this, "${myResponse.name}:$name:AvgTimeAboveLevel:${D2FORMAT.format(theLevel)}")
-            myAvgTimeBelow = Response(this, "${myResponse.name}:$name:AvgTimeBelowLevel:${D2FORMAT.format(theLevel)}")
-            myMaxTimeAbove = Response(this, "${myResponse.name}:$name:MaxTimeAboveLevel:${D2FORMAT.format(theLevel)}")
-            myMaxTimeBelow = Response(this, "${myResponse.name}:$name:MaxTimeBelowLevel:${D2FORMAT.format(theLevel)}")
-            myPAA = Response(this, "${myResponse.name}:$name:P(AboveToAbove)")
-            myPAB = Response(this, "${myResponse.name}:$name:P(AboveToBelow)")
-            myPBB = Response(this, "${myResponse.name}:$name:P(BelowToBelow)")
-            myPBA = Response(this, "${myResponse.name}:$name:P(BelowToAbove)")
-            myNAA = Response(this, "${myResponse.name}:$name:#(AboveToAbove)")
-            myNAB = Response(this, "${myResponse.name}:$name:#(AboveToBelow)")
-            myNBB = Response(this, "${myResponse.name}:$name:#(BelowToBelow)")
-            myNBA = Response(this, "${myResponse.name}:$name:#(BelowToAbove)")
+            myAvgTimeAbove = Response(this, "${myVariable.name}:$name:AvgTimeAboveLevel:${D2FORMAT.format(theLevel)}")
+            myAvgTimeBelow = Response(this, "${myVariable.name}:$name:AvgTimeBelowLevel:${D2FORMAT.format(theLevel)}")
+            myMaxTimeAbove = Response(this, "${myVariable.name}:$name:MaxTimeAboveLevel:${D2FORMAT.format(theLevel)}")
+            myMaxTimeBelow = Response(this, "${myVariable.name}:$name:MaxTimeBelowLevel:${D2FORMAT.format(theLevel)}")
+            myPAA = Response(this, "${myVariable.name}:$name:P(AboveToAbove)")
+            myPAB = Response(this, "${myVariable.name}:$name:P(AboveToBelow)")
+            myPBB = Response(this, "${myVariable.name}:$name:P(BelowToBelow)")
+            myPBA = Response(this, "${myVariable.name}:$name:P(BelowToAbove)")
+            myNAA = Response(this, "${myVariable.name}:$name:#(AboveToAbove)")
+            myNAB = Response(this, "${myVariable.name}:$name:#(AboveToBelow)")
+            myNBB = Response(this, "${myVariable.name}:$name:#(BelowToBelow)")
+            myNBA = Response(this, "${myVariable.name}:$name:#(BelowToAbove)")
         }
     }
 
@@ -214,17 +228,17 @@ class LevelResponse(theResponse: TWResponse, theLevel: Double, stats: Boolean = 
     }
 
     private fun stateUpdate() {
-        myDeviationFromLevel.value = (myResponse.value - level)
-        val nextState: State = if (myResponse.value >= level) {
-            myDevAboveLevel.value = myResponse.value - level
+        myDeviationFromLevel.value = (myVariable.value - level)
+        val nextState: State = if (myVariable.value >= level) {
+            myDevAboveLevel.value = myVariable.value - level
             myDevBelowLevel.value = 0.0
-            myDistanceAbove.value = myResponse.value - level
+            myDistanceAbove.value = myVariable.value - level
             myAbove
         } else {
             // below level
             myDevAboveLevel.value = 0.0
-            myDevBelowLevel.value = level - myResponse.value
-            myDistanceBelow.value = level - myResponse.value
+            myDevBelowLevel.value = level - myVariable.value
+            myDistanceBelow.value = level - myVariable.value
             myBelow
         }
         nextState.enter(time)
@@ -262,7 +276,7 @@ class LevelResponse(theResponse: TWResponse, theLevel: Double, stats: Boolean = 
         myAbove.initialize()
         myBelow.initialize()
         myStateFreq.reset()
-        myCurrentState = if (myResponse.initialValue >= level) {
+        myCurrentState = if (myVariable.initialValue >= level) {
             myAbove
         } else {
             myBelow
@@ -283,7 +297,7 @@ class LevelResponse(theResponse: TWResponse, theLevel: Double, stats: Boolean = 
         myAbove.initialize()
         myBelow.initialize()
         myStateFreq.reset()
-        myCurrentState = if (myResponse.value >= level) {
+        myCurrentState = if (myVariable.value >= level) {
             myAbove
         } else {
             myBelow
