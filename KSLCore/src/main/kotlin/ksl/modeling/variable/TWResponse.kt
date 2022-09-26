@@ -23,8 +23,7 @@ open class TWResponse(
     allowedRange: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
     countLimit: Double = Double.POSITIVE_INFINITY,
 ) : Response(parent, name, allowedRange, countLimit), TimeWeightedIfc, TWResponseCIfc {
-    //TODO timed update stuff
-//TODO limits for TW not starting at 0.0
+    
     init {
         require(allowedRange.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $allowedRange" }
     }
