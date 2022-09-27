@@ -68,7 +68,7 @@ open class Counter(
     override var emissionsOn: Boolean = false
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
 
-    override var range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    final override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 
     var timeOfWarmUp: Double = 0.0
         protected set
@@ -139,7 +139,7 @@ open class Counter(
             field = value
         }
 
-    protected var myValue: Double = initialValue
+    private var myValue: Double = initialValue
 
     override var value: Double
         get() = myValue
@@ -209,21 +209,21 @@ open class Counter(
         require(value < initialCounterLimit) { "The initial value, $value, of the counter must be < the initial counter limit, $initialCounterLimit" }
         myValue = value
         timeOfChange = 0.0
-        previousValue = Double.NaN
-        previousTimeOfChange = Double.NaN
+        previousValue = value
+        previousTimeOfChange = 0.0
         countActionLimit = initialCounterLimit
     }
 
     /**
      *  The previous value, before the current value changed
      */
-    override var previousValue: Double = Double.NaN
+    override var previousValue: Double = initialValue
         protected set
 
-    override var timeOfChange: Double = Double.NaN
+    override var timeOfChange: Double = 0.0
         protected set
 
-    override var previousTimeOfChange: Double = Double.NaN
+    override var previousTimeOfChange: Double = 0.0
         protected set
 
     protected val myAcrossReplicationStatistic: Statistic = Statistic(this.name)
@@ -252,7 +252,7 @@ open class Counter(
         super.initialize()
         lastTimedUpdate = 0.0
         timeOfWarmUp = 0.0
-        resetCounter(initialValue, false)
+//        resetCounter(initialValue, false)
         assignInitialValue(initialValue)
     }
 
@@ -262,10 +262,15 @@ open class Counter(
         resetCounter(0.0, false)
     }
 
-    override fun afterReplication() {
-        super.afterReplication()
+    override fun replicationEnded() {
+        super.replicationEnded()
         myAcrossReplicationStatistic.value = value
     }
+
+//    override fun afterReplication() {
+//        super.afterReplication()
+//        myAcrossReplicationStatistic.value = value
+//    }
 
     /**
      * Resets the counter to the supplied value.
@@ -280,7 +285,7 @@ open class Counter(
         previousValue = value
         previousTimeOfChange = time
         myValue = value
-        timeOfChange = previousTimeOfChange
+        timeOfChange = time
         if (notifyUpdateObservers) {
             notifyModelElementObservers(Status.UPDATE)
         }
