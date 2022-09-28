@@ -27,8 +27,8 @@ import ksl.utilities.random.rvariable.ExponentialRV
 
 class DriverLicenseBureauWithQ(parent: ModelElement,
                                numberOfServers: Int = 1,
-                               ad: RandomIfc = ExponentialRV(1.0),
-                               sd: RandomIfc = ExponentialRV(0.8)) :
+                               ad: RandomIfc = ExponentialRV(1.0, 1),
+                               sd: RandomIfc = ExponentialRV(0.8, 2)) :
     ModelElement(parent) {
     var numServers = numberOfServers
         set(value) {
@@ -102,8 +102,6 @@ fun runExperiment() {
     model.numberOfReplications = 30
     model.lengthOfReplication = 20000.0
     model.lengthOfReplicationWarmUp = 5000.0
-    // create the model element and attach it to the main model
-    DriverLicenseBureauWithQ(model)
     // tell the simulation to run
     println("Simulation started.")
     model.simulate()
