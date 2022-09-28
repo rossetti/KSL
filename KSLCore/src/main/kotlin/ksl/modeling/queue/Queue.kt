@@ -167,7 +167,7 @@ open class Queue<T : QObject>(
 
     /**
      *
-     * @return a unmodifiable view of the underlying list for the Queue
+     * @return unmodifiable view of the underlying list for the Queue
      */
     val immutableList: List<T>
         get() = myList.toList()
