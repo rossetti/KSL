@@ -6,7 +6,7 @@ import ksl.utilities.random.rvariable.MVRVariableIfc
 import ksl.utilities.random.rvariable.UniformRV
 
 /**
- * Provides for the integration of a multi-dimensional function via Monte-Carlo sampling.
+ * Provides for the integration of a multidimensional function via Monte-Carlo sampling.
  * The user is responsible for providing a function that when evaluated at the
  * sample from the provided sampler will evaluate to the desired integral over
  * the range of possible values of the sampler.

@@ -15,13 +15,72 @@
  */
 package ksl.modeling.queue
 
-import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rvariable.UniformRV
 import java.util.*
 import java.util.function.Predicate
+
+interface QueueCIfc<T : QObject> {
+    val numInQ : TWResponseCIfc
+    val timeInQ : ResponseCIfc
+
+    /**
+     *  The initial queue discipline. The initial discipline indicates
+     *  the queue distribution that will be used at the beginning of each
+     *  replication.  Changing the initial discipline during a replication
+     *  will have no effect until the next replication.  WARNING:
+     *  This will cause replications to have different disciplines and thus
+     *  invalidate the concept of replications if used during a replication.
+     *  Use this method only when the simulation is not running.
+     */
+    var initialDiscipline: Queue.Discipline
+
+    /**
+     * The current discipline for the queue
+     */
+    var currentDiscipline: Queue.Discipline
+
+    /**
+     * Indicates whether something was just enqueued or dequeued
+     */
+    val status: Queue.Status
+
+    /**
+     * Gets the size (number of elements) of the queue.
+     */
+    val size: Int
+
+    /**
+     * Returns whether the queue is empty.
+     *
+     * @return True if the queue is empty.
+     */
+    val isEmpty: Boolean
+
+    /**
+     * Returns true if the queue is not empty
+     *
+     * @return true if the queue is not empty
+     */
+    val isNotEmpty: Boolean
+
+    /**
+     * Adds the supplied listener to this queue
+     *
+     * @param listener Must not be null, cannot already be added
+     * @return true if added
+     */
+    fun addQueueListener(listener: QueueListenerIfc<T>): Boolean
+
+    /**
+     * Removes the supplied listener from this queue
+     *
+     * @param listener Must not be null
+     * @return true if removed
+     */
+    fun removeQueueListener(listener: QueueListenerIfc<T>): Boolean
+}
 
 /**
  * The Queue class provides the ability to hold entities (QObjects) within the
@@ -44,7 +103,7 @@ open class Queue<T : QObject>(
     name: String? = null,
     discipline: Discipline = Discipline.FIFO
 ) :
-    ModelElement(parent, name), Iterable<T> {
+    ModelElement(parent, name), Iterable<T>, QueueCIfc<T> {
     /**
      * ENQUEUED indicates that something was just enqueued DEQUEUED indicates
      * that something was just dequeued
@@ -68,11 +127,11 @@ open class Queue<T : QObject>(
     protected val myList: MutableList<T> = mutableListOf()
 
     protected val myNumInQ: TWResponse = TWResponse(this, name = "${name}:NumInQ")
-    val numInQ : TWResponseCIfc
+    override val numInQ : TWResponseCIfc
         get() = myNumInQ
 
     protected val myTimeInQ: Response = Response(this, name = "${name}:TimeInQ")
-    val timeInQ : ResponseCIfc
+    override val timeInQ : ResponseCIfc
         get() = myTimeInQ
 
     /**
@@ -84,7 +143,7 @@ open class Queue<T : QObject>(
      *  invalidate the concept of replications if used during a replication.
      *  Use this method only when the simulation is not running.
      */
-    var initialDiscipline: Discipline = discipline
+    override var initialDiscipline: Discipline = discipline
         set(value) {
             if (model.isRunning) {
                 Model.logger.warn { "Changed the initial queue discipline of $name during replication ${model.currentReplicationNumber}." }
@@ -101,7 +160,7 @@ open class Queue<T : QObject>(
     /**
      * The current discipline for the queue
      */
-    var currentDiscipline: Discipline = discipline
+    override var currentDiscipline: Discipline = discipline
         set(value) {
             if (field != value) {
                 // actual change
@@ -139,7 +198,7 @@ open class Queue<T : QObject>(
     /**
      * Indicates whether something was just enqueued or dequeued
      */
-    var status: Status = Status.IGNORE
+    override var status: Status = Status.IGNORE
         protected set
 
     /**
@@ -178,7 +237,7 @@ open class Queue<T : QObject>(
      * @param listener Must not be null, cannot already be added
      * @return true if added
      */
-    fun addQueueListener(listener: QueueListenerIfc<T>): Boolean {
+    override fun addQueueListener(listener: QueueListenerIfc<T>): Boolean {
         require(!myQueueListeners.contains(listener)) { "The queue already has the supplied listener." }
         return myQueueListeners.add(listener)
     }
@@ -189,7 +248,7 @@ open class Queue<T : QObject>(
      * @param listener Must not be null
      * @return true if removed
      */
-    fun removeQueueListener(listener: QueueListenerIfc<T>): Boolean {
+    override fun removeQueueListener(listener: QueueListenerIfc<T>): Boolean {
         return myQueueListeners.remove(listener)
     }
 
@@ -646,7 +705,7 @@ open class Queue<T : QObject>(
     /**
      * Gets the size (number of elements) of the queue.
      */
-    val size: Int
+    override val size: Int
         get() = myList.size
 
     /**
@@ -654,7 +713,7 @@ open class Queue<T : QObject>(
      *
      * @return True if the queue is empty.
      */
-    val isEmpty: Boolean
+    override val isEmpty: Boolean
         get() = myList.isEmpty()
 
     /**
@@ -662,7 +721,7 @@ open class Queue<T : QObject>(
      *
      * @return true if the queue is not empty
      */
-    val isNotEmpty: Boolean
+    override val isNotEmpty: Boolean
         get() = !isEmpty
 
     /**
