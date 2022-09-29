@@ -16,6 +16,7 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.queue.Queue
+import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
@@ -43,11 +44,13 @@ class DriveThroughPharmacyWithQ(
 ) :
     ModelElement(parent, theName = null) {
 
-    private var myNumPharmacists = numServers
-    private var myServiceRS: RandomIfc = sd
-    private var myArrivalRS: RandomIfc = ad
+    private var numPharmacists = numServers
     private var myServiceRV: RandomVariable = RandomVariable(this, sd)
+    val serviceRV: RandomVariableCIfc
+        get() = myServiceRV
     private var myArrivalRV: RandomVariable = RandomVariable(parent, ad)
+    val arrivalRV: RandomVariableCIfc
+        get() = myArrivalRV
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
     private val myNS: TWResponse = TWResponse(this, "# in System")
     private val mySysTime: Response = Response(this, "System Time")
@@ -55,6 +58,9 @@ class DriveThroughPharmacyWithQ(
     private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
     private val myNumCustomers: Counter = Counter(this, "Num Served")
     private val myWaitingQ: Queue<QObject> = Queue(this, "PharmacyQ")
+    val waitingQ: QueueCIfc<QObject>
+        get() = myWaitingQ
+
     private val myTotal: AggregateTWResponse = AggregateTWResponse(this, "aggregate # in system")
     private val mySysTimeHistogram: ResponseHistogram = ResponseHistogram(mySysTime, theBreakPointMinDataSize = 200)
     private val mySTGT3: IndicatorResponse = IndicatorResponse({ x -> x > 4.0 }, mySysTime, "SysTime>4.0")
@@ -66,26 +72,16 @@ class DriveThroughPharmacyWithQ(
         myTotal.observe(myNumBusy)
     }
 
-    val systemTimeResponse: Response
+    val systemTimeResponse: ResponseCIfc
         get() = mySysTime
-    val numInSystemResponse: TWResponse
+    val numInSystemResponse: TWResponseCIfc
         get() = myNS
     val numberOfServers: Int
-        get() = myNumPharmacists
+        get() = numPharmacists
 
     fun setNumberOfPharmacists(n: Int) {
         require(n >= 0)
-        myNumPharmacists = n
-    }
-
-    fun setServiceRS(d: RandomIfc) {
-        myServiceRS = d
-        myServiceRV.initialRandomSource = myServiceRS
-    }
-
-    fun setArrivalRS(d: RandomIfc) {
-        myArrivalRS = d
-        myArrivalRV.initialRandomSource = myArrivalRS
+        numPharmacists = n
     }
 
     protected override fun initialize() {
@@ -106,7 +102,7 @@ class DriveThroughPharmacyWithQ(
         myNS.increment() // new customer arrived
         val arrivingCustomer = QObject()
         myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
-        if (myNumBusy.value < myNumPharmacists) { // server available
+        if (myNumBusy.value < numPharmacists) { // server available
             myNumBusy.increment() // make server busy
             val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
             // schedule end of service, include the customer as the event's message
@@ -141,8 +137,8 @@ fun main() {
     sim.lengthOfReplicationWarmUp = 5000.0
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacyWithQ(sim, 1)
-    dtp.setArrivalRS(ExponentialRV(6.0, 1))
-    dtp.setServiceRS(ExponentialRV(3.0, 2))
+    dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
+    dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
     sim.simulate()
     sim.print()
 //    val reporter: SimulationReporter = sim.simulationReporter

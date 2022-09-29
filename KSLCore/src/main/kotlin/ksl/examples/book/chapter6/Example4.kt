@@ -20,8 +20,8 @@ fun main() {
     model.lengthOfReplicationWarmUp = 5000.0
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacy(model, 1)
-    dtp.setTimeBtwArrivalRandomSource(ExponentialRV(6.0, 1))
-    dtp.setServiceTimeRandomSource(ExponentialRV(3.0, 2))
+    dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
+    dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
     model.simulate()
     model.print()
 }

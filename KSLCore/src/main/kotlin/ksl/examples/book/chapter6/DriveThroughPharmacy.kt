@@ -15,10 +15,7 @@
  */
 package ksl.examples.book.chapter6
 
-import ksl.modeling.variable.AggregateTWResponse
-import ksl.modeling.variable.Counter
-import ksl.modeling.variable.RandomVariable
-import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
@@ -34,24 +31,32 @@ import ksl.utilities.random.rvariable.ExponentialRV
  * and the number of customers served.
  */
 class DriveThroughPharmacy(
-    parent: ModelElement, numPharmacists: Int = 1,
+    parent: ModelElement, numServers: Int = 1,
     timeBtwArrivals: RandomIfc = ExponentialRV(1.0, 1),
     serviceTime: RandomIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) : ModelElement(parent, name) {
-    init {
-        require(numPharmacists > 0) { "The number of pharmacists must be >= 1" }
+    init{
+        require(numServers >= 1) {"The number of pharmacists must be >= 1"}
     }
-
-    var numberOfPharmacists: Int = numPharmacists
+    var numPharmacists = numServers
         set(value) {
-            require(value > 0) { "The number of pharmacists must be >= 1" }
+            require(value >= 1){"The number of pharmacists must be >= 1"}
             field = value
         }
 
     private val myServiceRV: RandomVariable = RandomVariable(this, serviceTime, "Service RV")
+    val serviceRV: RandomVariableCIfc
+        get() = myServiceRV
+
     private val myArrivalRV: RandomVariable = RandomVariable(this, timeBtwArrivals, "Arrival RV")
-    private val myQ: TWResponse = TWResponse(this, "PharmacyQ")
+    val arrivalRV: RandomVariableCIfc
+        get() = myArrivalRV
+
+    private val myNumInQ: TWResponse = TWResponse(this, "PharmacyQ")
+    val numInQ: TWResponseCIfc
+        get() = myNumInQ
+
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
     private val myNS: TWResponse = TWResponse(this, "# in System")
     private val myNumCustomers: Counter = Counter(this, name = "Num Served")
@@ -60,17 +65,8 @@ class DriveThroughPharmacy(
     private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
 
     init {
-        myTotal.observe(myQ)
+        myTotal.observe(myNumInQ)
         myTotal.observe(myNumBusy)
-    }
-
-
-    fun setServiceTimeRandomSource(serviceTime: RandomIfc) {
-        myServiceRV.initialRandomSource = serviceTime
-    }
-
-    fun setTimeBtwArrivalRandomSource(timeBtwArrivals: RandomIfc) {
-        myArrivalRV.initialRandomSource = timeBtwArrivals
     }
 
     override fun initialize() {
@@ -82,12 +78,12 @@ class DriveThroughPharmacy(
     private inner class ArrivalEventAction : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
             myNS.increment() // new customer arrived
-            if (myNumBusy.value < numberOfPharmacists) { // server available
+            if (myNumBusy.value < numPharmacists) { // server available
                 myNumBusy.increment() // make server busy
                 // schedule end of service
                 schedule(myEndServiceEventAction, myServiceRV)
             } else {
-                myQ.increment() // customer must wait
+                myNumInQ.increment() // customer must wait
             }
             // always schedule the next arrival
             schedule(myArrivalEventAction, myArrivalRV)
@@ -97,8 +93,8 @@ class DriveThroughPharmacy(
     private inner class EndServiceEventAction : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
             myNumBusy.decrement() // customer is leaving server is freed
-            if (myQ.value > 0) { // queue is not empty
-                myQ.decrement() //remove the next customer
+            if (myNumInQ.value > 0) { // queue is not empty
+                myNumInQ.decrement() //remove the next customer
                 myNumBusy.increment() // make server busy
                 // schedule end of service
                 schedule(myEndServiceEventAction, myServiceRV)

@@ -44,6 +44,9 @@ class DriveThroughPharmacyWithQ(
 ) :
     ModelElement(parent, theName = null) {
 
+    init{
+        require(numServers >= 1) {"The number of pharmacists must be >= 1"}
+    }
      var numPharmacists = numServers
         set(value) {
             require(value >= 1){"The number of pharmacists must be >= 1"}
