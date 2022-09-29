@@ -15,9 +15,7 @@
  */
 package ksl.examples.book.chapter6
 
-import ksl.modeling.variable.Counter
-import ksl.modeling.variable.RandomVariable
-import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
@@ -42,29 +40,38 @@ class DriveThroughPharmacy(
         require(numPharmacists > 0) { "The number of pharmacists must be >= 1" }
     }
 
-    var numberOfPharmacists: Int = numPharmacists
+    var numPharmacists: Int = numPharmacists
         set(value) {
             require(value > 0) { "The number of pharmacists must be >= 1" }
             field = value
         }
 
     private val myServiceRV: RandomVariable = RandomVariable(this, serviceTime, "Service RV")
+    val serviceRV: RandomVariableCIfc
+        get() = myServiceRV
+
     private val myArrivalRV: RandomVariable = RandomVariable(this, timeBtwArrivals, "Arrival RV")
+    val arrivalRV: RandomVariableCIfc
+        get() = myArrivalRV
+
     private val myQ: TWResponse = TWResponse(this, name = "PharmacyQ")
+    val numInQ : TWResponseCIfc
+        get() = myQ
+
     private val myNumBusy: TWResponse = TWResponse(this, name = "NumBusy")
+    val numBusy: TWResponseCIfc
+        get() = myNumBusy
+
     private val myNS: TWResponse = TWResponse(this, name = "# in System")
+    val numInSystem: TWResponseCIfc
+        get() = myNS
+
     private val myNumCustomers: Counter = Counter(this, name = "Num Served")
+    val numCustomers: CounterCIfc
+        get() = myNumCustomers
+
     private val myArrivalEventAction: ArrivalEventAction = ArrivalEventAction()
     private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
-
-
-    fun setServiceTimeRandomSource(serviceTime: RandomIfc) {
-        myServiceRV.initialRandomSource = serviceTime
-    }
-
-    fun setTimeBtwArrivalRandomSource(timeBtwArrivals: RandomIfc) {
-        myArrivalRV.initialRandomSource = timeBtwArrivals
-    }
 
     override fun initialize() {
         super.initialize()
@@ -75,7 +82,7 @@ class DriveThroughPharmacy(
     private inner class ArrivalEventAction : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
             myNS.increment() // new customer arrived
-            if (myNumBusy.value < numberOfPharmacists) { // server available
+            if (myNumBusy.value < numPharmacists) { // server available
                 myNumBusy.increment() // make server busy
                 // schedule end of service
                 schedule(myEndServiceEventAction, myServiceRV)

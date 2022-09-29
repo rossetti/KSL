@@ -62,11 +62,19 @@ class DriveThroughPharmacyWithQ(
         get() = myArrivalRV
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
+    val numBusy: TWResponseCIfc
+        get() = myNumBusy
     private val myNS: TWResponse = TWResponse(this, "# in System")
+    val numInSystem: TWResponseCIfc
+        get() = myNS
     private val mySysTime: Response = Response(this, "System Time")
-    private val myArrivalEventAction: ArrivalEventAction = ArrivalEventAction()
-    private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
+    val systemTime: ResponseCIfc
+        get() = mySysTime
+
     private val myNumCustomers: Counter = Counter(this, "Num Served")
+    val numCustomers: CounterCIfc
+        get() = myNumCustomers
+
     private val myWaitingQ: Queue<QObject> = Queue(this, "PharmacyQ")
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
@@ -75,6 +83,9 @@ class DriveThroughPharmacyWithQ(
     private val mySysTimeHistogram: ResponseHistogram = ResponseHistogram(mySysTime, theBreakPointMinDataSize = 200)
     private val mySTGT3: IndicatorResponse = IndicatorResponse({ x -> x > 4.0 }, mySysTime, "P(SysTime>4.0)")
 
+    private val myArrivalEventAction: ArrivalEventAction = ArrivalEventAction()
+    private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
+
     val systemTimeHistogram: HistogramIfc
         get() = mySysTimeHistogram.histogram
 
@@ -82,12 +93,6 @@ class DriveThroughPharmacyWithQ(
         myTotal.observe(myWaitingQ.numInQ)
         myTotal.observe(myNumBusy)
     }
-
-    val systemTimeResponse: ResponseCIfc
-        get() = mySysTime
-    val numInSystemResponse: TWResponseCIfc
-        get() = myNS
-
 
     protected override fun initialize() {
         super.initialize()
