@@ -1,7 +1,6 @@
 package ksl.modeling.entity
 
 import ksl.modeling.elements.EventGenerator
-import ksl.modeling.queue.QObject
 import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
@@ -167,7 +166,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      *
      * @param aName an optional name for the entity
      */
-    open inner class Entity(aName: String? = null) : QObject(time, aName) {
+    open inner class Entity(aName: String? = null) : QObject(aName) {
 
         /**
          *  Controls whether the entity uses an assigned process sequence via the processSequence property

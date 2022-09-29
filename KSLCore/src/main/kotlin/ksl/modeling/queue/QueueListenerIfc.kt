@@ -15,12 +15,14 @@
  */
 package ksl.modeling.queue
 
+import ksl.simulation.ModelElement
+
 /** This interface should be implemented by classes that need to be notified
  * when an object gets enqueued or when the object gets removed (via removeNext()) on
  * a queue
  *
  * @param <T> the subtype of QObject that is associated with the updating
 </T> */
-interface QueueListenerIfc<T : QObject> {
+interface QueueListenerIfc<T : ModelElement.QObject> {
     fun update(status: Queue.Status, queue: Queue<T>, qObject: T?)
 }

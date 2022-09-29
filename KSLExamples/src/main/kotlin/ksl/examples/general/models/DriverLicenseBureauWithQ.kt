@@ -15,7 +15,6 @@
  */
 package ksl.examples.general.models
 
-import ksl.modeling.queue.QObject
 import ksl.modeling.queue.Queue
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
@@ -63,7 +62,7 @@ class DriverLicenseBureauWithQ(parent: ModelElement,
     private inner class ArrivalEventAction : EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
             myNS.increment() // new customer arrived
-            val arrival: QObject = QObject(time)
+            val arrival: QObject = QObject()
             myWaitingQ.enqueue(arrival) // enqueue the newly arriving customer
             if (myNumBusy.value < numServers) { // server available
                 myNumBusy.increment() // make server busy

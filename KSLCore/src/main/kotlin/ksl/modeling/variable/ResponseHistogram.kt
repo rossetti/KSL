@@ -13,6 +13,11 @@ import ksl.utilities.statistic.HistogramIfc
  * observations during the first replication in order to recommend desirable breakpoints.
  * The histogram and prior data are replaced when the new breakpoints are determined.
  *
+ * The histogram tabulates all within replication observations regardless of replication.
+ * That is, the histogram is based on every observation for every replication.  It observes
+ * observations that may have been within a warmup period even if the modeler specifies
+ * a warmup period.
+ *
  * @param theResponse the response variable to form a histogram on
  * @param theHistogram the histogram to use to collect the observations
  * @param theBreakPointMinDataSize the minimum about of data needed in the first replication

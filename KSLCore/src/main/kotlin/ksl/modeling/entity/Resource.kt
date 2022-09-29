@@ -1,11 +1,45 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
+import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
+
+interface ResourceCIfc {
+    val waitingQ : QueueCIfc<ProcessModel.Entity>
+    var initialCapacity: Int
+    val stateStatisticsOption: Boolean
+    val busyState: StateAccessorIfc
+    val idleState: StateAccessorIfc
+    val failedState: StateAccessorIfc
+    val inactiveState: StateAccessorIfc
+    val state: StateAccessorIfc
+    val previousState: StateAccessorIfc
+
+    /** Checks if the resource is idle, has no units allocated
+     */
+    val isIdle: Boolean
+
+    /** Checks to see if the resource is busy, has some units allocated
+     */
+    val isBusy: Boolean
+
+    /** Checks if the resource is failed
+     */
+    val isFailed: Boolean
+
+    /** Checks to see if the resource is inactive
+     */
+    val isInactive: Boolean
+    val numBusyUnits : TWResponseCIfc
+    val numAvailableUnits: Int
+    val hasAvailableUnits: Boolean
+    val hasBusyUnits: Boolean
+}
 
 /**
  *  A resource is considered busy if at least 1 unit is allocated.  A resource is considered idle if no
@@ -23,7 +57,7 @@ class Resource(
     theInitialCapacity: Int = 1,
     discipline: Queue.Discipline = Queue.Discipline.FIFO,
     collectStateStatistics: Boolean = false
-) : ModelElement(parent, aName) {
+) : ModelElement(parent, aName), ResourceCIfc {
 
     init {
         require(theInitialCapacity >= 1) { "The initial capacity of the resource must be >= 1" }
@@ -32,7 +66,9 @@ class Resource(
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
-    private val waitingQ: HoldQueue = HoldQueue(this, "${name}:Q", discipline)
+    private val myWaitingQ: HoldQueue = HoldQueue(this, "${name}:Q", discipline)
+    override val waitingQ : QueueCIfc<ProcessModel.Entity>
+        get() = myWaitingQ
 
     /** A resource can be allocated to 0 or more entities.
      *  An entity that is using a resource can have more than 1 allocation of the resource.
@@ -41,7 +77,7 @@ class Resource(
      */
     private val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
 
-    var initialCapacity = theInitialCapacity
+    override var initialCapacity = theInitialCapacity
         set(value) {
             require(value >= 1) { "The initial capacity of the resource must be >= 1" }
             if (model.isRunning) {
@@ -53,13 +89,13 @@ class Resource(
     var capacity = theInitialCapacity
         protected set
 
-    val stateStatistics: Boolean = collectStateStatistics
+    override val stateStatisticsOption: Boolean = collectStateStatistics
 
     /** The busy state, keeps track of when all units are busy
      *
      */
     protected val myBusyState: ResourceState = ResourceState("${name}_Busy", collectStateStatistics)
-    val busyState: StateAccessorIfc
+    override val busyState: StateAccessorIfc
         get() = myBusyState
 
     /** The idle state, keeps track of when there are idle units
@@ -67,7 +103,7 @@ class Resource(
      * considered idle
      */
     protected val myIdleState: ResourceState = ResourceState("${name}Idle", collectStateStatistics)
-    val idleState: StateAccessorIfc
+    override val idleState: StateAccessorIfc
         get() = myIdleState
 
     /** The failed state, keeps track of when no units
@@ -75,14 +111,14 @@ class Resource(
      *
      */
     protected val myFailedState: ResourceState = ResourceState("${name}_Failed", collectStateStatistics)
-    val failedState: StateAccessorIfc
+    override val failedState: StateAccessorIfc
         get() = myFailedState
 
     /** The inactive state, keeps track of when no units
      * are available because the resource is inactive
      */
     protected val myInactiveState: ResourceState = ResourceState("${name}_Inactive", collectStateStatistics)
-    val inactiveState: StateAccessorIfc
+    override val inactiveState: StateAccessorIfc
         get() = myInactiveState
 
     protected var myState: ResourceState = myIdleState
@@ -93,49 +129,49 @@ class Resource(
 ////            field.enter(time)
 //        }
 
-    val state: StateAccessorIfc
+    override val state: StateAccessorIfc
         get() = myState
 
     protected var myPreviousState: ResourceState = myInactiveState
-    val previousState: StateAccessorIfc
+    override val previousState: StateAccessorIfc
         get() = myPreviousState
 
     /** Checks if the resource is idle, has no units allocated
      */
-    val isIdle: Boolean
+    override val isIdle: Boolean
         get() = myState === myIdleState
 
     /** Checks to see if the resource is busy, has some units allocated
      */
-    val isBusy: Boolean
+    override val isBusy: Boolean
         get() = myState === myBusyState
 
     /** Checks if the resource is failed
      */
-    val isFailed: Boolean
+    override val isFailed: Boolean
         get() = myState === myFailedState
 
     /** Checks to see if the resource is inactive
      */
-    val isInactive: Boolean
+    override val isInactive: Boolean
         get() = myState === myInactiveState
 
-    protected val myNumBusy = TWResponse(this, "${name}:#Busy Units")
-    val numBusyUnits
-        get() = myNumBusy.value
+    private val myNumBusy = TWResponse(this, "${name}:#Busy Units")
+    override val numBusyUnits : TWResponseCIfc
+        get() = myNumBusy
 
-    val numAvailableUnits: Int
+    override val numAvailableUnits: Int
         get() = if (isBusy || isFailed || isInactive) {
             0
         } else {
-            capacity - numBusyUnits.toInt()
+            capacity - myNumBusy.value.toInt()
         }
 
-    val hasAvailableUnits: Boolean
+    override val hasAvailableUnits: Boolean
         get() = numAvailableUnits > 0
 
-    val hasBusyUnits: Boolean
-        get() = numBusyUnits > 0.0
+    override val hasBusyUnits: Boolean
+        get() = myNumBusy.value > 0.0
 
     override fun toString(): String {
         return "$name: state = $myState"
@@ -242,19 +278,19 @@ class Resource(
         allocation.amount = 0
         allocation.timeDeallocated = time
         // need to check the queue
-        if (waitingQ.isNotEmpty){
-            val entity = waitingQ.removeNext()
+        if (myWaitingQ.isNotEmpty){
+            val entity = myWaitingQ.removeNext()
             // resume the entity's process
             entity!!.resumeProcess()
         }
     }
 
     internal fun enqueue(entity: ProcessModel.Entity, priority: Int = entity.priority){
-        waitingQ.enqueue(entity, priority)
+        myWaitingQ.enqueue(entity, priority)
     }
 
     internal fun dequeue(entity: ProcessModel.Entity){
-        waitingQ.remove(entity)
+        myWaitingQ.remove(entity)
     }
 
     protected inner class ResourceState(aName: String, stateStatistics: Boolean = false) :

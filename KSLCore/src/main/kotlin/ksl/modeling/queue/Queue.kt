@@ -21,7 +21,7 @@ import ksl.simulation.ModelElement
 import java.util.*
 import java.util.function.Predicate
 
-interface QueueCIfc<T : QObject> {
+interface QueueCIfc<T : ModelElement.QObject> {
     val numInQ : TWResponseCIfc
     val timeInQ : ResponseCIfc
 
@@ -98,7 +98,7 @@ interface QueueCIfc<T : QObject> {
  * @param discipline The queuing discipline to be followed
  * @param <T> queues must hold sub-types of QObject
  */
-open class Queue<T : QObject>(
+open class Queue<T : ModelElement.QObject>(
     parent: ModelElement,
     name: String? = null,
     discipline: Discipline = Discipline.FIFO

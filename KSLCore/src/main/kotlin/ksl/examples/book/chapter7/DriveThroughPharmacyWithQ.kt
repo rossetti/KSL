@@ -15,7 +15,6 @@
  */
 package ksl.examples.book.chapter7
 
-import ksl.modeling.queue.QObject
 import ksl.modeling.queue.Queue
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
@@ -105,7 +104,7 @@ class DriveThroughPharmacyWithQ(
 
     private fun enterSystem() {
         myNS.increment() // new customer arrived
-        val arrivingCustomer = QObject(time)
+        val arrivingCustomer = QObject()
         myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
         if (myNumBusy.value < myNumPharmacists) { // server available
             myNumBusy.increment() // make server busy
