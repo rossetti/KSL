@@ -752,7 +752,7 @@ class Model(
         // do all model element beforeExperiment() actions
         if (resetStartStreamOption){
             logger.info { "Resetting random number streams to the beginning of their starting stream." }
-            resetStartStream() //TODO
+            resetStartStream()
         }
         beforeExperimentActions()
     }
