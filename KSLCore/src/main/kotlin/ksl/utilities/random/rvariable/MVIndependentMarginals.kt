@@ -15,30 +15,14 @@ import ksl.utilities.random.rng.RNStreamIfc
 class MVIndependentMarginals(
     marginals: List<RVariableIfc>,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : MVRVariableIfc {
-    /**
-     * myRNStream provides a reference to the underlying stream of random numbers
-     */
-    private var myRNStream: RNStreamIfc = stream
-
-    override var advanceToNextSubStreamOption: Boolean
-        get() = rnStream.advanceToNextSubStreamOption
-        set(value) {
-            rnStream.advanceToNextSubStreamOption = value
-        }
-
-    override var resetStartStreamOption: Boolean
-        get() = rnStream.resetStartStreamOption
-        set(value) {
-            rnStream.resetStartStreamOption = value
-        }
+) : MVRVariable(stream) {
 
     private val myRVs: MutableList<RVariableIfc> = ArrayList()
 
     init {
         require(marginals.size > 1) { "The number of supplied marginals must be at least 2" }
         for (rv in marginals) {
-            myRVs.add(rv.instance(myRNStream))
+            myRVs.add(rv.instance(rnStream))
         }
     }
 
@@ -47,42 +31,17 @@ class MVIndependentMarginals(
     }
 
     override fun antitheticInstance(): MVRVariableIfc {
-        return MVIndependentMarginals(myRVs, myRNStream.antitheticInstance())
+        return MVIndependentMarginals(myRVs, rnStream.antitheticInstance())
     }
 
     override val dimension: Int
         get() = myRVs.size
 
-    override fun sample(array: DoubleArray) {
+    override fun generate(array: DoubleArray) {
         require(array.size == dimension) { "The size of the array to fill does not match the sampling dimension!" }
         for ((i, rv) in myRVs.withIndex()) {
             array[i] = rv.sample()
         }
     }
 
-    override fun resetStartStream() {
-        myRNStream.resetStartStream()
-    }
-
-    override fun resetStartSubStream() {
-        myRNStream.resetStartSubStream()
-    }
-
-    override fun advanceToNextSubStream() {
-        myRNStream.advanceToNextSubStream()
-    }
-
-    override var rnStream: RNStreamIfc
-        get() = myRNStream
-        set(value) {
-            for (rv in myRVs) {
-                rv.rnStream = value
-            }
-        }
-
-    override var antithetic: Boolean
-        get() = myRNStream.antithetic
-        set(value) {
-            myRNStream.antithetic = value
-        }
 }
