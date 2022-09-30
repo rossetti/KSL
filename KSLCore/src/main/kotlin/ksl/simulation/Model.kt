@@ -94,6 +94,24 @@ class Model(
      */
     private lateinit var myControls: Controls
 
+    private var batchingElement: StatisticalBatchingElement? = null
+
+    /**
+     * A StatisticalBatchingElement is used to control statistical batching for
+     * single replication simulations. This method creates and attaches a
+     * StatisticalBatchingElement to the model. For convenience, it also returns
+     * the created element
+     * @param batchInterval the discretizing interval for TWResponse variables
+     * @param name the name of the model element
+     * @return the StatisticalBatchingElement
+     */
+    fun statisticalBatching(batchingInterval: Double = 0.0, name: String? = null) : StatisticalBatchingElement {
+        if (batchingElement == null){
+            batchingElement = StatisticalBatchingElement(this, batchingInterval, name)
+        }
+        return batchingElement!!
+    }
+
     /**
      * to hold the parameters of the random variables if used
      */
@@ -392,6 +410,8 @@ class Model(
         }
     }
 
+    //TODO change these get methods to more kotlin like
+
     /**
      *
      * @return the controls for the model
@@ -422,6 +442,28 @@ class Model(
             v
         } else {
             null
+        }
+    }
+
+    /**
+     * Returns the TWResponse associated with the name or null if named
+     * element is not in the model. Note that this will also return ANY
+     * instances of subclasses of TWResponse
+     *
+     * @param name The name of the TWResponse model element
+     *
+     * @return the associated TWResponse, may be null if provided name does not exist in the model
+     */
+    fun getTWResponse(name: String) : TWResponse? {
+        val r = getResponse(name)
+        if (r == null){
+            return null
+        } else {
+            return if (r is TWResponse) {
+                r
+            } else {
+                null
+            }
         }
     }
 

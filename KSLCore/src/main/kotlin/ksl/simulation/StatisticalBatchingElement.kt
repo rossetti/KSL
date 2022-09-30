@@ -40,7 +40,7 @@ import ksl.utilities.statistic.StatisticIfc
  * are batched by observation number.
  *
  * @param model the model for the batching
- * @param batchInterval the discretizing interval for TimeWeighted variables
+ * @param batchInterval the discretizing interval for TWResponse variables
  * @param name the name of the model element
  * @author rossetti
  */
@@ -50,22 +50,22 @@ class StatisticalBatchingElement(
     name: String? = null
 ) : ModelElement(model, name) {
 
-    private val myTWBatcher: TWBatchingElement = TWBatchingElement(this, batchInterval)
-    private val myRVBatcher: ResponseBatchingElement = ResponseBatchingElement(this)
+    private val twBatchingElement: TWBatchingElement = TWBatchingElement(this, batchInterval)
+    private val responseBatchingElement: ResponseBatchingElement = ResponseBatchingElement(this)
 
     /**
      *
      * Amap of all batch statistics with the ResponseVariable variable as the key
      */
     val allResponseBatchStatisticsAsMap: Map<Response, BatchStatisticIfc>
-        get() = myRVBatcher.allBatchStatisticsAsMap
+        get() = responseBatchingElement.allBatchStatisticsAsMap
 
     /**
      *
      * A map of all batch statistics with the TimeWeighted variable as the key
      */
     val allTimeWeightedBatchStatisticsAsMap: Map<TWResponse, BatchStatisticIfc>
-        get() = myTWBatcher.allBatchStatisticsAsMap
+        get() = twBatchingElement.allBatchStatisticsAsMap
 
     /**
      * Look up the BatchStatisticObserver for the ResponseVariable
@@ -75,9 +75,9 @@ class StatisticalBatchingElement(
      */
     fun batchStatisticObserverFor(response: Response): BatchStatisticObserver? {
         return if (response is TWResponse) {
-            myTWBatcher.timeWeightedBatchObserverFor(response)
+            twBatchingElement.timeWeightedBatchObserverFor(response)
         } else {
-            myRVBatcher.batchStatisticObserverFor(response)
+            responseBatchingElement.batchStatisticObserverFor(response)
         }
     }
 
@@ -88,9 +88,9 @@ class StatisticalBatchingElement(
      */
     fun remove(response: Response) {
         if (response is TWResponse) {
-            myTWBatcher.remove(response)
+            twBatchingElement.remove(response)
         } else {
-            myRVBatcher.remove(response)
+            responseBatchingElement.remove(response)
         }
     }
 
@@ -99,8 +99,8 @@ class StatisticalBatchingElement(
      *
      */
     fun removeAll() {
-        myTWBatcher.removeAll()
-        myRVBatcher.removeAll()
+        twBatchingElement.removeAll()
+        responseBatchingElement.removeAll()
     }
 
     /**
@@ -113,9 +113,9 @@ class StatisticalBatchingElement(
      */
     fun batchStatisticFor(response: Response): BatchStatisticIfc {
         return if (response is TWResponse) {
-            myTWBatcher.batchStatisticFor(response)
+            twBatchingElement.batchStatisticFor(response)
         } else {
-            myRVBatcher.batchStatisticFor(response)
+            responseBatchingElement.batchStatisticFor(response)
         }
     }
 
@@ -126,8 +126,8 @@ class StatisticalBatchingElement(
     val allBatchStatistcs: List<BatchStatisticIfc>
         get() {
             val list: MutableList<BatchStatisticIfc> = mutableListOf()
-            list.addAll(myTWBatcher.allBatchStatistics)
-            list.addAll(myRVBatcher.allBatchStatistics)
+            list.addAll(twBatchingElement.allBatchStatistics)
+            list.addAll(responseBatchingElement.allBatchStatistics)
             return list
         }
 
@@ -160,17 +160,17 @@ class StatisticalBatchingElement(
         val list: List<Response> = model.responses
         for (r in list) {
             if (r is TWResponse) {
-                myTWBatcher.add(r)
+                twBatchingElement.add(r)
             } else {
-                myRVBatcher.add(r)
+                responseBatchingElement.add(r)
             }
         }
     }
 
     fun asString(): String {
         val sb = StringBuilder()
-        sb.append(myTWBatcher.asString())
-        sb.append(myRVBatcher.asString())
+        sb.append(twBatchingElement.asString())
+        sb.append(responseBatchingElement.asString())
         return sb.toString()
     }
 }
