@@ -81,6 +81,12 @@ object KSLRandom {
     fun defaultRNStream(): RNStreamIfc = DefaultRNStreamProvider.defaultRNStream()
 
     /**
+     *  The default stream number for the underlying provider
+     */
+    val defaultStreamNumber
+        get() = DefaultRNStreamProvider.defaultStreamNumber
+
+    /**
      * @param pSuccess  the probability of success, must be in (0,1)
      * @param streamNum the stream number from the stream provider to use
      * @return the random value

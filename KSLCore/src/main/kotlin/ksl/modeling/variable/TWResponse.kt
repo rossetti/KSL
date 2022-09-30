@@ -20,12 +20,12 @@ open class TWResponse(
     parent: ModelElement,
     name: String? = null,
     theInitialValue: Double = 0.0,
-    allowedRange: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
+    allowedDomain: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
     countLimit: Double = Double.POSITIVE_INFINITY,
-) : Response(parent, name, theInitialValue, allowedRange, countLimit), TimeWeightedIfc, TWResponseCIfc {
+) : Response(parent, name, theInitialValue, allowedDomain, countLimit), TimeWeightedIfc, TWResponseCIfc {
     
     init {
-        require(allowedRange.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $allowedRange" }
+        require(allowedDomain.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $allowedDomain" }
     }
 
     /**
@@ -35,7 +35,7 @@ open class TWResponse(
      */
     override var initialValue: Double = theInitialValue
         set(value) {
-            require(range.contains(value)) { "The initial value, $value must be within the specified limits: $range" }
+            require(domain.contains(value)) { "The initial value, $value must be within the specified limits: $domain" }
             if (model.isRunning) {
                 Model.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
             }
@@ -65,7 +65,7 @@ open class TWResponse(
         }
 
     protected override fun assignValue(newValue: Double) {
-        require(range.contains(newValue)) { "The value $newValue was not within the limits $range" }
+        require(domain.contains(newValue)) { "The value $newValue was not within the limits $domain" }
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue
@@ -89,7 +89,7 @@ open class TWResponse(
      * @param value the initial value to assign
      */
     override fun assignInitialValue(value: Double) {
-        require(range.contains(value)) { "The initial value, $value must be within the specified limits: $range" }
+        require(domain.contains(value)) { "The initial value, $value must be within the specified limits: $domain" }
         myValue = value
         timeOfChange = 0.0
         previousValue = myValue //TODO should this be Double.NaN, same ensures zero weight

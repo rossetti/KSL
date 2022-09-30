@@ -21,6 +21,9 @@ import ksl.modeling.elements.EventGeneratorIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.modeling.variable.RandomVariableCIfc
+import ksl.utilities.random.rng.RNStreamControlIfc
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  * @param parent the parent
@@ -34,10 +37,21 @@ class NHPPEventGenerator(
     rateFunction: InvertibleCumulativeRateFunctionIfc,
     generatorAction: GeneratorActionIfc,
     lastRate: Double = Double.NaN,
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
     theName: String? = null
-) : ModelElement(parent, theName), EventGeneratorIfc {
+) : ModelElement(parent, theName), EventGeneratorIfc, RNStreamControlIfc by stream {
 
-    private val myTBARV: NHPPTimeBtwEventRV = NHPPTimeBtwEventRV(this, rateFunction, lastRate)
+    constructor(
+        parent: ModelElement,
+        rateFunction: InvertibleCumulativeRateFunctionIfc,
+        generatorAction: GeneratorActionIfc,
+        lastRate: Double = Double.NaN,
+        streamNum: Int,
+        name: String? = null
+    ) : this(parent, rateFunction, generatorAction, lastRate, KSLRandom.rnStream(streamNum), name)
+
+    private val myTBARV: NHPPTimeBtwEventRV = NHPPTimeBtwEventRV(this, rateFunction, lastRate, stream)
+
     private val myEventGenerator: EventGenerator = EventGenerator(this, generatorAction, myTBARV, myTBARV)
 
     override fun turnOnGenerator(t: Double) {
@@ -54,6 +68,7 @@ class NHPPEventGenerator(
 
     override val isStarted: Boolean
         get() = myEventGenerator.isStarted
+
     override var startOnInitializeOption: Boolean
         get() = myEventGenerator.startOnInitializeOption
         set(value) {
@@ -73,8 +88,10 @@ class NHPPEventGenerator(
 
     override val isDone: Boolean
         get() = myEventGenerator.isDone
+
     override val maximumNumberOfEvents: Long
         get() = myEventGenerator.maximumNumberOfEvents
+
     override val timeBetweenEvents: RandomIfc
         get() = myEventGenerator.timeBetweenEvents
 
@@ -91,19 +108,25 @@ class NHPPEventGenerator(
 
     override val initialTimeUntilFirstEvent: RandomVariableCIfc
         get() = myEventGenerator.initialTimeUntilFirstEvent
+
     override val endingTime: Double
         get() = myEventGenerator.endingTime
+
     override var initialEndingTime: Double
         get() = myEventGenerator.initialEndingTime
         set(value) {
             myEventGenerator.initialEndingTime = value
         }
+
     override val eventCount: Long
         get() = myEventGenerator.eventCount
+
     override val initialMaximumNumberOfEvents: Long
         get() = myEventGenerator.initialMaximumNumberOfEvents
+
     override val initialTimeBtwEvents: RandomIfc
         get() = myEventGenerator.initialTimeBtwEvents
+
     override val isEventPending: Boolean
         get() = myEventGenerator.isEventPending
 }

@@ -19,6 +19,7 @@ import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.IEEErem
 import kotlin.math.floor
 
@@ -33,8 +34,17 @@ class NHPPTimeBtwEventRV(
     parent: ModelElement,
     rateFunction: InvertibleCumulativeRateFunctionIfc,
     lastRate: Double = Double.NaN,
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
-) : RandomVariable(parent, ExponentialRV(1.0, 1), name) {
+) : RandomVariable(parent, ExponentialRV(1.0, stream), name) {
+
+    constructor(
+        parent: ModelElement,
+        rateFunction: InvertibleCumulativeRateFunctionIfc,
+        lastRate: Double = Double.NaN,
+        streamNum: Int,
+        name: String? = null
+    ) : this(parent, rateFunction, lastRate, KSLRandom.rnStream(streamNum), name)
 
     /** Used to schedule the end of cycles if they repeat
      *
@@ -63,6 +73,7 @@ class NHPPTimeBtwEventRV(
      *
      */
     private var myCycleLength = 0.0
+
     init {
         if (!lastRate.isNaN()) {
             require(lastRate >= 0.0) { "The rate must be >= 0" }
@@ -74,6 +85,7 @@ class NHPPTimeBtwEventRV(
             myCycleLength = myRateFunction.timeRangeUpperLimit - myRateFunction.timeRangeLowerLimit
         }
     }
+
     /** Holds the time that the cycle started, where a cycle
      * is the time period over which the rate function is defined.
      *

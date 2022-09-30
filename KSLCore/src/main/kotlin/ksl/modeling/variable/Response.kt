@@ -43,7 +43,7 @@ interface ResponseCIfc : ResponseIfc {
     /**
      *  The legal range of values for the response
      */
-    override val range: Interval
+    override val domain: Interval
 
     /**
      * Sets the initial value of the count limit. Only relevant prior to each
@@ -84,16 +84,16 @@ open class Response(
     parent: ModelElement,
     name: String? = null,
     initialValue: Double = 0.0,
-    allowedRange: Interval = Interval(),
+    allowedDomain: Interval = Interval(),
     countLimit: Double = Double.POSITIVE_INFINITY,
-) : Variable(parent, initialValue, allowedRange, name), ResponseIfc, ResponseStatisticsIfc, ResponseCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
+) : Variable(parent, initialValue, allowedDomain, name), ResponseIfc, ResponseStatisticsIfc, ResponseCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
 
     override var emissionsOn: Boolean = false
 
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
     private var stoppingAction: StoppingAction? = null
 
-    override val range: Interval = allowedRange
+    override val domain: Interval = allowedDomain
 
     var timeOfWarmUp: Double = 0.0
         protected set
@@ -151,7 +151,7 @@ open class Response(
         set(newValue) = assignValue(newValue)
 
     override fun assignValue(newValue: Double){
-        require(range.contains(newValue)) { "The value $newValue was not within the limits $range" }
+        require(domain.contains(newValue)) { "The value $newValue was not within the limits $domain" }
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue

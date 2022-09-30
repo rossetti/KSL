@@ -41,6 +41,8 @@ class EventGeneratorCPP(parent: ModelElement, mtba: Double = 1.0, name: String? 
         val values = doubleArrayOf(1.0, 2.0, 3.0)
         val cdf = doubleArrayOf(0.2, 0.5, 1.0)
         myNumArrivals = RandomVariable(this, DEmpiricalRV(values, cdf))
+//        myEventCounter.initialCounterLimit = 10.0
+//        myEventCounter.addCountLimitStoppingAction()
     }
 
     private fun arrivals(generator: EventGenerator) {
@@ -64,4 +66,5 @@ fun main() {
     m.lengthOfReplication = 20.0
     m.numberOfReplications = 50
     m.simulate()
+    m.print()
 }

@@ -43,7 +43,7 @@ interface PreviousTimeOfChangeIfc {
 }
 
 interface RangeIfc {
-    val range: Interval
+    val domain: Interval
 }
 
 interface ResponseIfc : IdentityIfc, ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc,

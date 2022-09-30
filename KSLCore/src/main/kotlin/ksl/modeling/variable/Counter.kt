@@ -68,7 +68,7 @@ open class Counter(
     override var emissionsOn: Boolean = false
     private val counterActions: MutableList<CountActionIfc> = mutableListOf()
 
-    final override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    final override val domain: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 
     var timeOfWarmUp: Double = 0.0
         protected set
@@ -78,9 +78,9 @@ open class Counter(
 
     init {
         require(initialValue >= 0.0) { "The initial value $initialValue must be >= 0" }
-        require(range.contains(initialValue)) {"The initial value must be in counter's range $range"}
+        require(domain.contains(initialValue)) {"The initial value must be in counter's range $domain"}
         require(countLimit >= 0.0) { "The initial count limit value $countLimit must be >= 0" }
-        require(range.contains(countLimit)) {"The count limit must be in counter's range $range"}
+        require(domain.contains(countLimit)) {"The count limit must be in counter's range $domain"}
     }
 
     /**
@@ -90,7 +90,7 @@ open class Counter(
     override var initialCounterLimit: Double = countLimit
         set(value) {
             require(value >= 0) { "The initial counter limit, when set, must be >= 0" }
-            require(range.contains(value)) {"The initial counter limit must be in counter's range $range"}
+            require(domain.contains(value)) {"The initial counter limit must be in counter's range $domain"}
             if (model.isRunning) {
                 Model.logger.info { "The user set the initial counter stop limit during the replication. The next replication will use a different initial value" }
             }
@@ -132,7 +132,7 @@ open class Counter(
     override var initialValue: Double = initialValue
         set(value) {
             require(value >= 0) { "The initial value $value must be >= 0" }
-            require(range.contains(value)) {"The initial value must be in counter's range $range"}
+            require(domain.contains(value)) {"The initial value must be in counter's range $domain"}
             if (model.isRunning) {
                 Model.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
             }
@@ -182,7 +182,7 @@ open class Counter(
 
     protected open fun assignValue(newValue: Double) {
         require(newValue >= 0) { "The value $newValue was not >= 0" }
-        require(range.contains(newValue)) {"The assigned value must be in counter's range $range"}
+        require(domain.contains(newValue)) {"The assigned value must be in counter's range $domain"}
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue

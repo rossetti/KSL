@@ -26,7 +26,7 @@ class TestLevelResponse(parent: ModelElement, name: String? = null) : ModelEleme
     private val myRV: RandomVariable = RandomVariable(this, NormalRV(0.0, 1.0, 1))
     private val myVariable: Variable = Variable(this, name = "Level Variable")
     private val myLR: LevelResponse = LevelResponse(myVariable, 0.0)
-    private val myR: Response = Response(this, allowedRange = Interval(), name = "Observations")
+    private val myR: Response = Response(this, allowedDomain = Interval(), name = "Observations")
 
     override fun initialize() {
         schedule(this::variableUpdate, 1.0);

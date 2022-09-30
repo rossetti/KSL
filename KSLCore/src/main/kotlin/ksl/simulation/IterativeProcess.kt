@@ -274,7 +274,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
         if (stoppingMessage != null) {
             sb.append("Stopping Message: ")
             sb.append(stoppingMessage)
-            sb.appendLine()
+//            sb.appendLine()
         }
         return sb.toString()
     }

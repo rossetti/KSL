@@ -37,8 +37,8 @@ class LevelResponse(variable: Variable,
                     theName: String? = null) :
     ModelElement(variable, theName) {
     init {
-        require(variable.range.contains(theLevel))
-        { "The supplied level $theLevel was outside the range of the variable's limits ${variable.range}" }
+        require(variable.domain.contains(theLevel))
+        { "The supplied level $theLevel was outside the range of the variable's limits ${variable.domain}" }
     }
 
     private val myObserver: ModelElementObserver = TheObserver()
@@ -79,7 +79,7 @@ class LevelResponse(variable: Variable,
     private val myDeviationFromLevel =
         TWResponse(
             this,
-            allowedRange = Interval(),
+            allowedDomain = Interval(),
             name = "${myVariable.name}:$name:DevFromLevel:${D2FORMAT.format(theLevel)}"
         )
     private val myMaxDistanceAbove =

@@ -320,7 +320,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         sb.appendLine()
         sb.append("Current Replication Number: ")
         sb.append(currentReplicationNumber)
-        sb.appendLine()
+//        sb.appendLine()
         return sb.toString()
     }
 
