@@ -58,7 +58,7 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
         }
     }
 
-    private fun beforeExperiment() {
+    internal fun beforeExperiment() {
         numReplications = 0
         myResponseData.clear()
         val numRows: Int = myModel.numberOfReplications
@@ -70,7 +70,7 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
         }
     }
 
-    private fun afterReplication() {
+    internal fun afterReplication() {
         numReplications = myModel.currentReplicationNumber
         val row = numReplications - 1
         for (r in myResponses) {
