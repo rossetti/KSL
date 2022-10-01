@@ -11,6 +11,7 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
 import mu.KLoggable
@@ -139,7 +140,10 @@ class Model(
      * @param stream the stream that the model will manage
      */
     fun addStream(stream: RNStreamIfc) {
-        myStreams.add(stream)
+        val b = myStreams.add(stream)
+        if (b){
+            RNStreamProvider.logger.info {"Stream $stream added to model stream control"}
+        }
     }
 
     /**

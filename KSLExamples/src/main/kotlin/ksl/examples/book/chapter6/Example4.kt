@@ -23,4 +23,5 @@ fun main() {
     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
     model.simulate()
+    model.print()
 }
