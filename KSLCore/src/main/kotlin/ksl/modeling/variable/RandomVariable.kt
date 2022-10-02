@@ -20,7 +20,7 @@ import ksl.utilities.random.rng.StreamOptionIfc
  *  For example:
  *
  *   private val myTBA = RandomVariable(this, ExponentialRV(6.0, 1))
- *   val tba: RandomVariableCIfc
+ *   val tba: RandomSourceCIfc
  *      get() = myTBA
  *
  *   Then users of the public property can change the initial random source and do other
@@ -113,7 +113,8 @@ open class RandomVariable(
     name: String? = null
 ) : RandomElement(parent, rSource, name), RandomIfc {
 
-    //TODO there is no capturing of the response implemented like in the JSL
+    //the calls to super<RandomElement> are because both RandomElementIfc and RandomIfc implement
+    // common interfaces
 
     final override fun sample(): Double {
         return randomSource.sample()
