@@ -1854,7 +1854,6 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      * Creates an QObject with the given name and the creation time set to the
      * supplied value
      *
-     * @param theCreateTime the time created
      * @param aName The name of the QObject
      */
     open inner class QObject(aName: String? = null) : NameIfc, Comparable<QObject> {

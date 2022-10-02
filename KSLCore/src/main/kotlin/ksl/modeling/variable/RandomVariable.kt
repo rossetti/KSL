@@ -5,6 +5,7 @@ import ksl.modeling.elements.RandomElementIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
+import ksl.utilities.PreviousValueIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.SampleIfc
 import ksl.utilities.random.rng.RNStreamIfc
@@ -111,7 +112,7 @@ open class RandomVariable(
     parent: ModelElement,
     rSource: RandomIfc,
     name: String? = null
-) : RandomElement(parent, rSource, name), RandomIfc {
+) : RandomElement(parent, rSource, name), RandomIfc, PreviousValueIfc {
 
     //the calls to super<RandomElement> are because both RandomElementIfc and RandomIfc implement
     // common interfaces
@@ -121,8 +122,13 @@ open class RandomVariable(
     }
 
     final override fun value(): Double {
-        return randomSource.value
+        previousValue = randomSource.value
+        notifyModelElementObservers(Status.UPDATE)
+        return previousValue
     }
+
+    override var previousValue: Double = 0.0
+        protected set
 
     final override fun resetStartStream() {
         super<RandomElement>.resetStartStream()
