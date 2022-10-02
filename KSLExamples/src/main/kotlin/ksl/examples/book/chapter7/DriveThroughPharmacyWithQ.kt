@@ -54,11 +54,11 @@ class DriveThroughPharmacyWithQ(
         }
 
     private var myServiceRV: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomVariableCIfc
+    val serviceRV: RandomSourceCIfc
         get() = myServiceRV
 
     private var myArrivalRV: RandomVariable = RandomVariable(parent, ad)
-    val arrivalRV: RandomVariableCIfc
+    val arrivalRV: RandomSourceCIfc
         get() = myArrivalRV
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")

@@ -15,7 +15,7 @@
  */
 package ksl.modeling.elements
 
-import ksl.modeling.variable.RandomVariableCIfc
+import ksl.modeling.variable.RandomSourceCIfc
 import ksl.utilities.random.RandomIfc
 
 /** An interface to define how event generators operate.  The primary
@@ -166,7 +166,7 @@ interface EventGeneratorIfc {
      * first event. This change becomes effective at the beginning of the next
      * replication to execute
      */
-    val initialTimeUntilFirstEvent: RandomVariableCIfc
+    val initialTimeUntilFirstEvent: RandomSourceCIfc
 
     /**
      * Controls the ending time for generating events for the current replication. A

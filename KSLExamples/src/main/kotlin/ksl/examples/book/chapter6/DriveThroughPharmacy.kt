@@ -47,11 +47,11 @@ class DriveThroughPharmacy(
         }
 
     private val myServiceRV: RandomVariable = RandomVariable(this, serviceTime, "Service RV")
-    val serviceRV: RandomVariableCIfc
+    val serviceRV: RandomSourceCIfc
         get() = myServiceRV
 
     private val myArrivalRV: RandomVariable = RandomVariable(this, timeBtwArrivals, "Arrival RV")
-    val arrivalRV: RandomVariableCIfc
+    val arrivalRV: RandomSourceCIfc
         get() = myArrivalRV
 
     private val myQ: TWResponse = TWResponse(this, name = "PharmacyQ")

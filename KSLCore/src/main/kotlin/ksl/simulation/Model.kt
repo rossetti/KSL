@@ -564,6 +564,7 @@ class Model(
         }
 
         if (modelElement is RandomElementIfc) {
+            //TODO can't add stream control here. why? causes NullPointerException when trying to access the stream
             myRandomElements.add(modelElement as RandomElementIfc)
         }
 

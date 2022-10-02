@@ -23,6 +23,7 @@ import ksl.utilities.random.rng.RNStreamControlIfc
  *
  */
 interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, RNStreamChangeIfc {
+
     override var advanceToNextSubStreamOption: Boolean
         get() = rnStream.advanceToNextSubStreamOption
         set(value) {

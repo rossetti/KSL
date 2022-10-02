@@ -20,7 +20,7 @@ import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.elements.EventGeneratorIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
-import ksl.modeling.variable.RandomVariableCIfc
+import ksl.modeling.variable.RandomSourceCIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
@@ -106,7 +106,7 @@ class NHPPEventGenerator(
         myEventGenerator.setInitialTimeBetweenEventsAndMaxNumEvents(initialTimeBtwEvents, initialMaxNumEvents)
     }
 
-    override val initialTimeUntilFirstEvent: RandomVariableCIfc
+    override val initialTimeUntilFirstEvent: RandomSourceCIfc
         get() = myEventGenerator.initialTimeUntilFirstEvent
 
     override val endingTime: Double

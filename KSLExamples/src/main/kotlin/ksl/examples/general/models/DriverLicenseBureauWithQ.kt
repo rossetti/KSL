@@ -38,11 +38,11 @@ class DriverLicenseBureauWithQ(parent: ModelElement,
     private val myWaitingQ: Queue<QObject> = Queue(this, "DriverLicenseQ")
 
     private val myServiceRV: RandomVariable = RandomVariable(this, sd)
-    val serviceRV : RandomVariableCIfc
+    val serviceRV : RandomSourceCIfc
         get() = myServiceRV
 
     private val myArrivalRV: RandomVariable = RandomVariable(this, ad)
-    val arrivalRV: RandomVariableCIfc
+    val arrivalRV: RandomSourceCIfc
         get() = myArrivalRV
 
     private val myNumBusy: TWResponse = TWResponse(this,  name = "NumBusy")
