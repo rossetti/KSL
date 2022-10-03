@@ -1976,6 +1976,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
          *
          */
         fun nullify() {
+            //TODO is this really necessary. consider removing
             attachedObject = null
             valueObject = null
             queue = null
