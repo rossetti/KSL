@@ -251,7 +251,7 @@ open class Queue<T : ModelElement.QObject>(
     override fun removeQueueListener(listener: QueueListenerIfc<T>): Boolean {
         return myQueueListeners.remove(listener)
     }
-    
+
     /**
      * Places the QObject in the queue, with the specified priority
      * Automatically, updates the number in queue response variable.
@@ -329,7 +329,7 @@ open class Queue<T : ModelElement.QObject>(
      * otherwise it will certainly return false.
      *
      * @param c Collection c of items to check
-     * @return True if the queue contains all of the elements.
+     * @return True if the queue contains all the elements.
      */
     operator fun contains(c: Collection<T>): Boolean {
         return myList.containsAll(c)
@@ -397,9 +397,8 @@ open class Queue<T : ModelElement.QObject>(
      * condition and adds them to the deletedItems collection
      *
      * @param condition The condition to check
-     * @param deletedItems Holds the items that were removed from the Queue
      * @param waitStats indicates whether waiting time statistics should be collected
-     * @return yields true if at least one was removed, false otherwise
+     * @return a list of the removed items, which may be empty if none are removed
      */
     fun remove(condition: Predicate<T>, waitStats: Boolean = true): MutableList<T> {
         val removedItems: MutableList<T> = mutableListOf()
@@ -563,12 +562,8 @@ open class Queue<T : ModelElement.QObject>(
      * of type QObject that had been enqueued in this queue; otherwise, nothing
      * will be removed.
      *
-     *
      * Automatically, updates the number in queue variable If statFlag is true
      * it automatically collects time in queue statistics on removed items
-     *
-     *
-     * Throws an IllegalArgumentException if the Collection is null
      *
      * @param c The collection containing the QObject's to remove
      * @param statFlag true means collect statistics, false means do not
@@ -591,8 +586,7 @@ open class Queue<T : ModelElement.QObject>(
      * Automatically, updates the number in queue variable If statFlag is true
      * it automatically collects time in queue statistics on removed items
      *
-     * @param c The iterator over the collection containing the QObject's to
-     * remove
+     * @param c The iterator over the collection containing the QObject's to remove
      * @param statFlag true means collect statistics, false means do not
      * @return true if the queue changed as a result of the call
      */
@@ -611,8 +605,6 @@ open class Queue<T : ModelElement.QObject>(
      * Automatically, updates the number in queue variable If statFlag is true
      * it automatically collects time in queue statistics on removed items
      *
-     * @param c The iterator over the collection containing the QObject's to
-     * remove
      * @param statFlag true means collect statistics, false means do not
      * @return true if the queue changed as a result of the call
      */
@@ -634,8 +626,7 @@ open class Queue<T : ModelElement.QObject>(
      * the remove(int index) method, while looping through the items to remove
      * Listeners are notified of the queue change with IGNORE
      *
-     * This method simply clears the underlying data structure that holds the
-     * objects
+     * This method simply clears the underlying data structure that holds the objects
      */
     fun clear() {
         for (qObj in myList) {
@@ -676,7 +667,7 @@ open class Queue<T : ModelElement.QObject>(
         get() = myList.size
 
     /**
-     * Returns whether or not the queue is empty.
+     * Returns whether the queue is empty.
      *
      * @return True if the queue is empty.
      */
@@ -711,7 +702,7 @@ open class Queue<T : ModelElement.QObject>(
     var randomness: RandomVariable = defaultUniformRV
 
     private inner class QueueListIterator : ListIterator<T> {
-        protected var myIterator: ListIterator<T> = myList.listIterator()
+        private var myIterator: ListIterator<T> = myList.listIterator()
 
         override fun hasNext(): Boolean {
             return myIterator.hasNext()
