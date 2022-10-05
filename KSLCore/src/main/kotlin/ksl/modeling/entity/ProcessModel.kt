@@ -209,6 +209,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private val myActiveState = Active()
         private val myWaitingForResourceState = WaitingForResource()
         private val myProcessEndedState = ProcessEndedState()
+        private val myBlockedReceivingState = BlockedReceiving()
+        private val myBlockedSendingState = BlockedSending()
         private var state: EntityState = myCreatedState
 
         val isCreated: Boolean
@@ -225,8 +227,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myWaitingForResourceState
         val isProcessEnded: Boolean
             get() = state == myProcessEndedState
+        val isBlockedSending: Boolean
+            get() = state == myBlockedSendingState
+        val isBlockedReceiving: Boolean
+            get() = state == myBlockedReceivingState
         val isSuspended: Boolean
-            get() = isScheduled || isWaitingForSignal || isInHoldQueue || isWaitingForResource
+            get() = isScheduled || isWaitingForSignal || isInHoldQueue || isWaitingForResource || isBlockedSending || isBlockedReceiving
 
         var currentDelay: String? = null
             private set
@@ -238,12 +244,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             private set
         var currentSeize: String? = null
             private set
+        var currentBlockedSending: String? = null
+            private set
+        var currentBlockedReceiving: String? = null
+            private set
 
         /**
          *  When an entity enters a time delayed state, this property captures the event associated
          *  with the delay action
          */
         private var myDelayEvent: KSLEvent<Nothing>? = null
+
         //TODO add functionality to allow cancellation, this will involve interrupting the delay
         private val myResumeAction = ResumeAction()
 
@@ -594,7 +605,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private abstract inner class EntityState(val name: String) {
             open fun create() {
-                errorMessage("create entity")
+                errorMessage("create the entity")
             }
 
             open fun activate() {
@@ -606,19 +617,27 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             open fun waitForSignal() {
-                errorMessage("wait for signal the entity")
+                errorMessage("wait for signal for the entity")
             }
 
             open fun holdInQueue() {
-                errorMessage("hold in queue the entity")
+                errorMessage("hold in queue for the entity")
             }
 
             open fun waitForResource() {
-                errorMessage("wait for resource the entity")
+                errorMessage("wait for resource for the entity")
             }
 
             open fun processEnded() {
-                errorMessage("complete the entity")
+                errorMessage("end process of the entity")
+            }
+
+            open fun blockSending() {
+                errorMessage("block sending the entity")
+            }
+
+            open fun blockReceiving() {
+                errorMessage("block receiving the entity")
             }
 
             private fun errorMessage(message: String) {
@@ -674,6 +693,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun processEnded() {
                 state = myProcessEndedState
             }
+
+            override fun blockSending() {
+                state = myBlockedSendingState
+            }
+
+            override fun blockReceiving() {
+                state = myBlockedReceivingState
+            }
         }
 
         private inner class Scheduled : EntityState("Scheduled") {
@@ -695,6 +722,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         private inner class WaitingForResource : EntityState("WaitingForResource") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        private inner class BlockedSending : EntityState("BlockedSending") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        private inner class BlockedReceiving : EntityState("BlockedReceiving") {
             override fun activate() {
                 state = myActiveState
             }

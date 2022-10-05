@@ -3,19 +3,18 @@ package ksl.modeling.entity
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
-import kotlin.contracts.contract
 
 class BlockingQueue(
     parent: ModelElement,
-    val size: Int = Int.MAX_VALUE,
+    val capacity: Int = Int.MAX_VALUE,
     name: String? = null
 ) : ModelElement(parent, name) {
     init {
-        require(size >= 1){"The size of the blocking queue must be >= 1"}
+        require(capacity >= 1){"The size of the blocking queue must be >= 1"}
     }
 
     val full: Boolean
-        get() = myChannelQ.size == size
+        get() = myChannelQ.size == capacity
     val notFull: Boolean
         get() = !full
     private val mySenderQ: Queue<ProcessModel.Entity> = Queue(this, "${name}:SenderQ")

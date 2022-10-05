@@ -251,40 +251,7 @@ open class Queue<T : ModelElement.QObject>(
     override fun removeQueueListener(listener: QueueListenerIfc<T>): Boolean {
         return myQueueListeners.remove(listener)
     }
-
-//    /**
-//     * Places the QObject in the queue, uses the priority associated with the QObject, which is 1 by default
-//     * Automatically, updates the number in queue response variable.
-//     *
-//     * @param queueingObject the QObject to enqueue
-//     */
-//    fun enqueue(queueingObject: T) {
-//        enqueue(queueingObject, queueingObject.priority, queueingObject.attachedObject)
-//    }
-//
-//    /**
-//     * Places the QObject in the queue, uses the priority associated with the QObject, which is 1 by default
-//     * Automatically, updates the number in queue response variable.
-//     * @param <S> The type of the object being attached to the QObject
-//     * @param queueingObject the sub-type of QObject to enqueue
-//     * @param obj an Object to be "wrapped" and queued while the QObject is in the queue
-//    </S> */
-//    fun <S> enqueue(queueingObject: T, obj: S) {
-//        enqueue(queueingObject, queueingObject.priority, obj)
-//    }
-//
-//    /**
-//     * Places the QObject in the queue, with the default priority of 1
-//     * Automatically, updates the number in queue response variable.
-//     *
-//     * @param queueingObject the QObject to enqueue
-//     * @param priority the priority for ordering the object, lower has more
-//     * priority
-//     */
-//    fun enqueue(queueingObject: T, priority: Int) {
-//        enqueue(queueingObject, priority, queueingObject.attachedObject)
-//    }
-
+    
     /**
      * Places the QObject in the queue, with the specified priority
      * Automatically, updates the number in queue response variable.
