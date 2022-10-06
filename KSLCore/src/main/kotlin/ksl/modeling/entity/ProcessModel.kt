@@ -599,6 +599,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         }
 
+        internal fun <T : QObject> reviewBlockingQueue(blockingQueue: BlockingQueue<T>, qStatus: Queue.Status) {
+            if (qStatus == Queue.Status.ENQUEUED) {
+                // new elements have arrived, handle case if the entity is blocked receiving
+                // what if channel does not have what the entity is waiting on?
+                // check criteria and only resume if channel has what is needed
+                TODO("Not implemented yet")
+            } else if (qStatus == Queue.Status.DEQUEUED) {
+                // elements were removed, handle case of the entity is blocked sending
+                // we assume that entity only wants to send 1 item at a time, thus
+                // there must be space and the entity can be resumed to send the item
+                resumeProcess() // what about the priority
+            }
+        }
+
         /**
          *  A state pattern implementation to ensure that the entity only transitions to
          *  valid states from its current state.
@@ -889,6 +903,29 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspend()
                 entity.state.activate()
                 logger.trace { "time = $time : entity ${entity.id} exited ${queue.name} in process, ($this)" }
+            }
+
+            override suspend fun <T : QObject> receive(
+                number: Int,
+                predicate: (T) -> Boolean,
+                blockingQ: BlockingQueue<T>
+            ) : Set<T> {
+
+                TODO(" not implemented yet")
+                return mutableSetOf()
+            }
+
+            override suspend fun <T : QObject> receiveAny(
+                predicate: (T) -> Boolean,
+                blockingQ: BlockingQueue<T>
+            ) : Set<T> {
+
+                TODO(" not implemented yet")
+                return mutableSetOf()
+            }
+
+            override suspend fun <T : QObject> send(item: T, blockingQ: BlockingQueue<T>) {
+                TODO("Not yet implemented")
             }
 
             override suspend fun seize(

@@ -7,10 +7,11 @@ import java.util.function.Predicate
 
 fun interface EntitySelectorIfc {
 
-    fun selectEntity(queue: Queue<ProcessModel.Entity>) : ProcessModel.Entity?
+    fun selectEntity(queue: Queue<ProcessModel.Entity>): ProcessModel.Entity?
 
 }
-class BlockingQueue(
+
+class BlockingQueue<T : ModelElement.QObject>(
     parent: ModelElement,
     val capacity: Int = Int.MAX_VALUE,
     name: String? = null
@@ -38,12 +39,31 @@ class BlockingQueue(
     private val myReceiverQ: Queue<ProcessModel.Entity> = Queue(this, "${name}:ReceiverQ")
     val receiverQ: QueueCIfc<ProcessModel.Entity>
         get() = myReceiverQ
-    private val myChannelQ: Queue<QObject> = Queue(this, "${name}:ChannelQ")
-    val channelQ: QueueCIfc<QObject>
+    private val myChannelQ: Queue<T> = Queue(this, "${name}:ChannelQ")
+    val channelQ: QueueCIfc<T>
         get() = myChannelQ
 
- //   var receiverSelector: EntitySelectorIfc = ::selectEntity
-//var senderSelector: EntitySelectorIfc
+    /**
+     *  The user of the BlockingQueue can supply a function that will select the next entity
+     *  that is waiting to receive items from the queue's channel after new items are
+     *  added to the channel.
+     */
+    var receiverSelector: EntitySelectorIfc = DefaultEntitySelector()
+
+    /**
+     *  The user of the BlockingQueue can supply a function that will select, after items
+     *  are removed from the channel, the next entity
+     *  that is blocked waiting to send items to the queue's channel because the channel
+     *  was full.
+     */
+    var senderSelector: EntitySelectorIfc = DefaultEntitySelector()
+
+    private inner class DefaultEntitySelector : EntitySelectorIfc {
+        override fun selectEntity(queue: Queue<ProcessModel.Entity>): ProcessModel.Entity? {
+            return queue.peekNext()
+        }
+
+    }
 
     internal fun enqueueSender(sender: ProcessModel.Entity, priority: Int = sender.priority) {
         mySenderQ.enqueue(sender, priority)
@@ -57,24 +77,22 @@ class BlockingQueue(
         return queue.peekNext()
     }
 
-    internal fun sendToChannel(qObject: QObject) {
+    internal fun sendToChannel(qObject: T) {
         check(notFull) { "$name : Attempted to send ${qObject.name} to a full channel queue." }
         myChannelQ.enqueue(qObject)
-        //TODO actions related to putting qObject in channel
-        // check if receivers are waiting, select next receiver, resume it
-        if(myReceiverQ.isNotEmpty){
-            val entity = selectEntity(myReceiverQ)!!
-            //TODO what if channel does not have what the entity is waiting on?
-            // check criteria and only resume if channel has what is needed
-            // I think we should let the entity decide if it should resume
-            entity.resumeProcess()
+        // actions related to putting a new qObject in the channel
+        // check if receivers are waiting, select next receiver
+        if (myReceiverQ.isNotEmpty) {
+            // select the next receiver to review channel queue
+            val entity = receiverSelector.selectEntity(myReceiverQ)!!
+            // ask selected entity to review the channel queue and decide what to do
+            entity.reviewBlockingQueue(this, Queue.Status.ENQUEUED)
         }
-        TODO("Not implemented yet")
     }
 
-    internal fun sendToChannel(c: Collection<QObject>) {
+    internal fun sendToChannel(c: Collection<T>) {
         require(c.size < availableSlots) { "$name : The channel has $availableSlots and cannot hold the collection of size ${c.size}" }
-        for(qo in c){
+        for (qo in c) {
             sendToChannel(qo)
         }
     }
@@ -83,7 +101,7 @@ class BlockingQueue(
      * @param c the collection to check
      * @return true if the channel contains all items in the collection
      */
-    fun containsAll(c: Collection<QObject>): Boolean {
+    fun containsAll(c: Collection<T>): Boolean {
         return myChannelQ.contains(c)
     }
 
@@ -92,7 +110,7 @@ class BlockingQueue(
      * @param condition the criteria for selecting the items
      * @return a list of the items found.  May be empty if nothing is found that matches the condition.
      */
-    fun findInChannel(condition: Predicate<QObject>): MutableList<QObject> {
+    fun findInChannel(condition: Predicate<T>): MutableList<T> {
         return myChannelQ.find(condition)
     }
 
@@ -113,7 +131,7 @@ class BlockingQueue(
      * @param waitStats indicates whether waiting time statistics should be collected
      * @return a list of the items found.  May be empty if nothing is found that matches the condition.
      */
-    fun receiveFromChannel(condition: Predicate<QObject>, waitStats: Boolean = true): MutableList<QObject> {
+    fun receiveFromChannel(condition: Predicate<T>, waitStats: Boolean = true): MutableList<T> {
         check(myChannelQ.isNotEmpty) { "$name : Attempted to receive from an empty channel queue" }
         val list = findInChannel(condition)
         removeAllFromChannel(list, waitStats)
@@ -126,11 +144,17 @@ class BlockingQueue(
      * @param c the collection of items to remove from the channel
      * @param waitStats indicates whether waiting time statistics should be collected
      */
-    fun removeAllFromChannel(c: Collection<QObject>, waitStats: Boolean = true) {
+    fun removeAllFromChannel(c: Collection<T>, waitStats: Boolean = true) {
         check(myChannelQ.isNotEmpty) { "$name : Attempted to receive from an empty channel queue" }
         check(!containsAll(c)) { "$name : The channel does not contain all of the items in the collection" }
         myChannelQ.removeAll(c, waitStats)
-        //TODO actions related to removal of elements, check for waiting senders
+        // actions related to removal of elements, check for waiting senders
         // select next waiting sender and resume it
+        if (mySenderQ.isNotEmpty) {
+            // select the entity waiting to send elements into the channel
+            val entity = receiverSelector.selectEntity(mySenderQ)!!
+            // ask selected entity to review the channel queue and decide what to do
+            entity.reviewBlockingQueue(this, Queue.Status.DEQUEUED)
+        }
     }
 }

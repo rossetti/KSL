@@ -1,6 +1,7 @@
 package ksl.modeling.entity
 
 import ksl.simulation.KSLEvent
+import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import kotlin.coroutines.*
 
@@ -84,6 +85,85 @@ interface KSLProcessBuilder {
      *   are more than one hold suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun hold(queue: HoldQueue, priority: Int = KSLEvent.DEFAULT_PRIORITY, holdName: String? = null)
+
+
+    /**
+     * This method will block (suspend) until the required number of items that meet the criteria
+     * become available within the blocking queue.
+     *
+     * @param number the number of items needed from the blocking queue that match the criteria
+     * @param predicate a functional predicate that tests items in the queue for the criteria
+     * @param blockingQ the blocking queue channel that has the items
+     */
+    suspend fun <T : ModelElement.QObject> receive(
+        number: Int = 1,
+        predicate: (T) -> Boolean,
+        blockingQ: BlockingQueue<T>
+    ): Set<T>
+
+    /**
+     * Permits simpler calling syntax when using a blocking queue within
+     * a KSLProcess
+     * This method will block (suspend) until the required number of items that meet the criteria
+     * become available within the blocking queue.
+     *
+     * @param number the number of items needed from the blocking queue that match the criteria
+     * @param predicate a functional predicate that tests items in the queue for the criteria
+     */
+    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.receive(
+        number: Int = 1,
+        predicate: (T) -> Boolean
+    ): Set<T> {
+        return receive(number, predicate, this)
+    }
+
+    /**
+     * This method will block (suspend) until at least 1 item that meets the criteria is available
+     * within the blocking queue.  If more than one is available, all items meeting the criteria will
+     * be returned.
+     *
+     * @param predicate a functional predicate that tests items in the queue for the criteria
+     * @param blockingQ the blocking queue channel that has the items
+     */
+    suspend fun <T : ModelElement.QObject> receiveAny(
+        predicate: (T) -> Boolean,
+        blockingQ: BlockingQueue<T>
+    ): Set<T>
+
+    /**
+     * Permits simpler calling syntax when using a blocking queue within a KSLProcess
+     * This method will block (suspend) until at least 1 item that meets the criteria is available
+     * within the blocking queue.  If more than one is available, all items meeting the criteria will
+     * be returned.
+     *
+     * @param predicate a functional predicate that tests items in the queue for the criteria
+     */
+    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.receiveAny(
+        predicate: (T) -> Boolean
+    ): Set<T> {
+        return receiveAny(predicate, this)
+    }
+
+    /** This method will block (suspend) if the blocking queue is full. That is, if the blocking queue
+     * has reached its capacity.  When space for the item
+     * becomes available, then the item is placed within the blocking queue.
+     *
+     * @param item the item being placed into the blocking queue
+     * @param blockingQ the blocking queue channel that holds the items
+     */
+    suspend fun <T : ModelElement.QObject> send(item: T, blockingQ: BlockingQueue<T>)
+
+    /**
+     * Permits simpler calling syntax when using a blocking queue within a KSLProcess
+     * This method will block (suspend) if the blocking queue is full. That is, if the blocking queue
+     * has reached its capacity.  When space for the item
+     * becomes available, then the item is placed within the blocking queue.
+     *
+     * @param item the item being placed into the blocking queue
+     */
+    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.send(item: T) {
+        send (item, this)
+    }
 
     /**
      *  Requests a number of units of the indicated resource.
