@@ -2,8 +2,10 @@ package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
+import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import java.util.function.Predicate
+import javax.print.attribute.standard.OrientationRequested
 
 fun interface EntitySelectorIfc {
 
@@ -38,14 +40,25 @@ class BlockingQueue<T : ModelElement.QObject>(
         get() = mySenderQ
 
     //TODO consider holding Requests(amount, entity, predicate)
-    private val myReceiverQ: Queue<ProcessModel.Entity> = Queue(this, "${name}:ReceiverQ")
-    val receiverQ: QueueCIfc<ProcessModel.Entity>
+    private val myReceiverQ: Queue<Request> = Queue(this, "${name}:ReceiverQ")
+    val receiverQ: QueueCIfc<Request>
         get() = myReceiverQ
 
     private val myChannelQ: Queue<T> = Queue(this, "${name}:ChannelQ")
     val channelQ: QueueCIfc<T>
         get() = myChannelQ
 
+    inner class Request(
+        val receiver: ProcessModel.Entity,
+        val predicate: (T) -> Boolean,
+        val amountRequested: Int = 1,
+    ) : QObject()
+
+//    fun interface RequestSelectorIfc {
+//
+//        fun selectRequest(queue: Queue<BlockingQueue<T>.Request>): Request
+//
+//    }
     /**
      *  The user of the BlockingQueue can supply a function that will select the next entity
      *  that is waiting to receive items from the queue's channel after new items are
@@ -72,12 +85,17 @@ class BlockingQueue<T : ModelElement.QObject>(
         mySenderQ.enqueue(sender, priority)
     }
 
-    internal fun dequeSender(sender: ProcessModel.Entity, waitStats: Boolean = true){
+    internal fun dequeSender(sender: ProcessModel.Entity, waitStats: Boolean = true) {
         mySenderQ.remove(sender, waitStats)
     }
 
-    internal fun enqueueReceiver(receiver: ProcessModel.Entity, priority: Int = receiver.priority) {
-        myReceiverQ.enqueue(receiver, priority)
+    internal fun enqueueReceiver(receiver: ProcessModel.Entity,
+                                 predicate: (T) -> Boolean,
+                                 amount: Int = 1,
+                                 priority: Int = receiver.priority) {
+        val request = Request(receiver, predicate, amount)
+        request.priority = priority
+        myReceiverQ.enqueue(request)
     }
 
     internal fun sendToChannel(qObject: T) {
@@ -87,11 +105,12 @@ class BlockingQueue<T : ModelElement.QObject>(
         // check if receivers are waiting, select next receiver
         if (myReceiverQ.isNotEmpty) {
             // select the next receiver to review channel queue
-            val entity = receiverSelector.selectEntity(myReceiverQ)!!
+//TODO            val request = receiverSelector.selectEntity(myReceiverQ)!!
             //TODO this will need to change with requests, also since we know new item is in channel we
             // should be more specific about the review, no need for use of Queue.Status
             // ask selected entity to review the channel queue and decide what to do
-            entity.reviewBlockingQueue(this, Queue.Status.ENQUEUED)
+            TODO("sendToChannel is not implemented yet")
+           // entity.reviewBlockingQueue(this, Queue.Status.ENQUEUED)
         }
     }
 
