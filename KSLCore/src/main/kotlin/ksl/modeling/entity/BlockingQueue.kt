@@ -28,17 +28,20 @@ class BlockingQueue<T : ModelElement.QObject>(
     val availableSlots: Int
         get() = capacity - myChannelQ.size
 
-    val full: Boolean
+    val isFull: Boolean
         get() = myChannelQ.size == capacity
-    val notFull: Boolean
-        get() = !full
+    val isNotFull: Boolean
+        get() = !isFull
 
     private val mySenderQ: Queue<ProcessModel.Entity> = Queue(this, "${name}:SenderQ")
     val senderQ: QueueCIfc<ProcessModel.Entity>
         get() = mySenderQ
+
+    //TODO consider holding Requests(amount, entity, predicate)
     private val myReceiverQ: Queue<ProcessModel.Entity> = Queue(this, "${name}:ReceiverQ")
     val receiverQ: QueueCIfc<ProcessModel.Entity>
         get() = myReceiverQ
+
     private val myChannelQ: Queue<T> = Queue(this, "${name}:ChannelQ")
     val channelQ: QueueCIfc<T>
         get() = myChannelQ
@@ -69,22 +72,24 @@ class BlockingQueue<T : ModelElement.QObject>(
         mySenderQ.enqueue(sender, priority)
     }
 
+    internal fun dequeSender(sender: ProcessModel.Entity, waitStats: Boolean = true){
+        mySenderQ.remove(sender, waitStats)
+    }
+
     internal fun enqueueReceiver(receiver: ProcessModel.Entity, priority: Int = receiver.priority) {
         myReceiverQ.enqueue(receiver, priority)
     }
 
-    private fun selectEntity(queue: Queue<ProcessModel.Entity>): ProcessModel.Entity? {
-        return queue.peekNext()
-    }
-
     internal fun sendToChannel(qObject: T) {
-        check(notFull) { "$name : Attempted to send ${qObject.name} to a full channel queue." }
+        check(isNotFull) { "$name : Attempted to send ${qObject.name} to a full channel queue." }
         myChannelQ.enqueue(qObject)
         // actions related to putting a new qObject in the channel
         // check if receivers are waiting, select next receiver
         if (myReceiverQ.isNotEmpty) {
             // select the next receiver to review channel queue
             val entity = receiverSelector.selectEntity(myReceiverQ)!!
+            //TODO this will need to change with requests, also since we know new item is in channel we
+            // should be more specific about the review, no need for use of Queue.Status
             // ask selected entity to review the channel queue and decide what to do
             entity.reviewBlockingQueue(this, Queue.Status.ENQUEUED)
         }
@@ -152,7 +157,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         // select next waiting sender and resume it
         if (mySenderQ.isNotEmpty) {
             // select the entity waiting to send elements into the channel
-            val entity = receiverSelector.selectEntity(mySenderQ)!!
+            val entity = senderSelector.selectEntity(mySenderQ)!!
             // ask selected entity to review the channel queue and decide what to do
             entity.reviewBlockingQueue(this, Queue.Status.DEQUEUED)
         }

@@ -150,8 +150,21 @@ interface KSLProcessBuilder {
      *
      * @param item the item being placed into the blocking queue
      * @param blockingQ the blocking queue channel that holds the items
+     * @param blockingPriority the priority for the entity that must wait to send if the blocking queue
+     * is full
+     * @param blockingStats true indicates that blocking statistics should be captured for the entity
+     * that might have blocked
+     * @param sendName the name of the possible suspension point. This can be used by the entity to
+     * determine which send blocking it might be experiencing when blocked.  It is up to the client to
+     * ensure the name is meaningful and possibly unique.
      */
-    suspend fun <T : ModelElement.QObject> send(item: T, blockingQ: BlockingQueue<T>)
+    suspend fun <T : ModelElement.QObject> send(
+        item: T,
+        blockingQ: BlockingQueue<T>,
+        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingStats: Boolean = true,
+        sendName: String? = null
+    )
 
     /**
      * Permits simpler calling syntax when using a blocking queue within a KSLProcess
@@ -160,9 +173,21 @@ interface KSLProcessBuilder {
      * becomes available, then the item is placed within the blocking queue.
      *
      * @param item the item being placed into the blocking queue
+     * @param blockingPriority the priority for the entity that must wait to send if the blocking queue
+     * is full
+     * @param blockingStats true indicates that blocking statistics should be captured for the entity
+     * that might have blocked
+     * @param sendName the name of the possible suspension point. This can be used by the entity to
+     * determine which send blocking it might be experiencing when blocked.  It is up to the client to
+     * ensure the name is meaningful and possibly unique.
      */
-    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.send(item: T) {
-        send (item, this)
+    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.send(
+        item: T,
+        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingStats: Boolean = true,
+        sendName: String? = null
+    ) {
+        send(item, this, blockingPriority, blockingStats, sendName)
     }
 
     /**

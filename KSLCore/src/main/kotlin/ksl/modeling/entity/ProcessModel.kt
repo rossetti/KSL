@@ -600,6 +600,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         internal fun <T : QObject> reviewBlockingQueue(blockingQueue: BlockingQueue<T>, qStatus: Queue.Status) {
+            //TODO maybe this should return what do to??
             if (qStatus == Queue.Status.ENQUEUED) {
                 // new elements have arrived, handle case if the entity is blocked receiving
                 // what if channel does not have what the entity is waiting on?
@@ -609,7 +610,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // elements were removed, handle case of the entity is blocked sending
                 // we assume that entity only wants to send 1 item at a time, thus
                 // there must be space and the entity can be resumed to send the item
-                resumeProcess() // what about the priority
+                resumeProcess() //TODO what about the priority
             }
         }
 
@@ -646,11 +647,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 errorMessage("end process of the entity")
             }
 
-            open fun blockSending() {
+            open fun blockedSending() {
                 errorMessage("block sending the entity")
             }
 
-            open fun blockReceiving() {
+            open fun blockedReceiving() {
                 errorMessage("block receiving the entity")
             }
 
@@ -708,11 +709,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 state = myProcessEndedState
             }
 
-            override fun blockSending() {
+            override fun blockedSending() {
                 state = myBlockedSendingState
             }
 
-            override fun blockReceiving() {
+            override fun blockedReceiving() {
                 state = myBlockedReceivingState
             }
         }
@@ -869,6 +870,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspend()
                 suspensionObserver.detach(entity)
                 logger.trace { "time = $time : entity ${entity.id} suspended process, ($this) resumed by suspension observe, ${suspensionObserver.name}" }
+                currentSuspensionPoint = null
             }
 
             /**
@@ -893,6 +895,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 signal.release(entity, waitStats)
                 entity.state.activate()
                 logger.trace { "time = $time : entity ${entity.id} released from ${signal.name} in process, ($this)" }
+                currentWaitFor = null
             }
 
             override suspend fun hold(queue: HoldQueue, priority: Int, holdName: String?) {
@@ -903,29 +906,49 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspend()
                 entity.state.activate()
                 logger.trace { "time = $time : entity ${entity.id} exited ${queue.name} in process, ($this)" }
+                currentHold = null
             }
 
             override suspend fun <T : QObject> receive(
                 number: Int,
                 predicate: (T) -> Boolean,
                 blockingQ: BlockingQueue<T>
-            ) : Set<T> {
+            ): Set<T> {
 
-                TODO(" not implemented yet")
+                TODO(" receive blocking not implemented yet")
                 return mutableSetOf()
             }
 
             override suspend fun <T : QObject> receiveAny(
                 predicate: (T) -> Boolean,
                 blockingQ: BlockingQueue<T>
-            ) : Set<T> {
+            ): Set<T> {
 
-                TODO(" not implemented yet")
+                TODO(" receiveAny blocking not implemented yet")
                 return mutableSetOf()
             }
 
-            override suspend fun <T : QObject> send(item: T, blockingQ: BlockingQueue<T>) {
-                TODO("Not yet implemented")
+            override suspend fun <T : QObject> send(
+                item: T,
+                blockingQ: BlockingQueue<T>,
+                blockingPriority: Int,
+                blockingStats: Boolean,
+                sendName: String?
+            ) {
+                currentBlockedSending = sendName
+                // always enqueue to capture wait statistics of those that do not wait
+                blockingQ.enqueueSender(entity, blockingPriority)
+                if (blockingQ.isFull) {
+                    logger.trace { "time = $time : entity ${entity.id} blocked sending to ${blockingQ.name} in process, ($this)" }
+                    entity.state.blockedSending()
+                    suspend()
+                    entity.state.activate()
+                    logger.trace { "time = $time : entity ${entity.id} unblocked sending to ${blockingQ.name} in process, ($this)" }
+                }
+                blockingQ.dequeSender(entity, blockingStats)
+                logger.trace { "time = $time : entity ${entity.id} sending ${item.name} to ${blockingQ.name} in process, ($this)" }
+                blockingQ.sendToChannel(item)
+                currentBlockedSending = null
             }
 
             override suspend fun seize(
@@ -951,6 +974,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 resource.dequeue(entity)
                 logger.trace { "time = $time : entity ${entity.id} allocated $amountNeeded units of ${resource.name} in process, ($this)" }
+                currentSeize = null
                 return resource.allocate(entity, amountNeeded, currentSeize)
             }
 
@@ -965,6 +989,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time : entity ${entity.id} delaying for $delayDuration, suspending process, ($this) ..." }
                 suspend()
                 entity.state.activate()
+                currentDelay = null
             }
 
             override fun release(allocation: Allocation) {
