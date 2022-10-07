@@ -53,16 +53,24 @@ class BlockingQueue<T : ModelElement.QObject>(
         val waitStats: Boolean = true
     ) : QObject() {
 
-        fun isFillable(): Boolean {
-            val list = myChannelQ.find(predicate)
-            return amountRequested <= list.size
-        }
+        /**
+         * Checks if the request can be filled
+         */
+        val isFillable: Boolean
+            get() {
+                val list = myChannelQ.find(predicate)
+                return amountRequested <= list.size
+            }
 
-        fun fill(): MutableList<T> {
+        /**
+         *  If the request can be filled, this returns a list of the items
+         *  that satisfy the request.  This does not remove the items from the channel.
+         *  Throws exception if the request cannot be filled.
+         */
+        fun requestedList(): List<T> {
             val list = myChannelQ.find(predicate)
             require(amountRequested <= list.size) { "Attempted to fill $amountRequested when only ${list.size} was available" }
-            removeAllFromChannel(list, waitStats)
-            return list
+            return list.take(amountRequested)
         }
     }
 
@@ -91,6 +99,17 @@ class BlockingQueue<T : ModelElement.QObject>(
     open inner class RequestSelector {
         open fun selectRequest(queue: Queue<Request>): Request? {
             return queue.peekNext()
+        }
+    }
+
+    inner class FirstFillableRequest() : RequestSelector(){
+        override fun selectRequest(queue: Queue<Request>): Request? {
+            for(request in queue){
+                if (request.isFillable){
+                    return request
+                }
+            }
+            return null
         }
     }
 
@@ -143,6 +162,13 @@ class BlockingQueue<T : ModelElement.QObject>(
         if (myReceiverRequestQ.isNotEmpty) {
             // select the next receiver to review channel queue
             val request = receiverRequestSelector.selectRequest(myReceiverRequestQ) //TODO we should allow for null
+
+            if (request != null) {
+                if (request.isFillable) {
+                    //TODO pass the request back to the entity so that it can pull them from the queue
+                    // after being resumed?
+                }
+            }
             //TODO this will need to change with requests, also since we know new item is in channel we
             // should be more specific about the review, no need for use of Queue.Status
             // ask selected entity to review the channel queue and decide what to do
@@ -220,7 +246,7 @@ class BlockingQueue<T : ModelElement.QObject>(
             // select the entity waiting to send elements into the channel
             val entity = senderSelector.selectEntity(mySenderQ)
             // ask selected entity to review the channel queue and decide what to do
-            if (entity != null){
+            if (entity != null) {
                 entity.reviewBlockingQueue(this, Queue.Status.DEQUEUED)
             }
             //TODO right now this just cause the selected sender to resume its process
