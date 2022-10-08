@@ -20,54 +20,101 @@ class BlockingQueue<T : ModelElement.QObject>(
         require(capacity >= 1) { "The size of the blocking queue must be >= 1" }
     }
 
+    /**
+     *  True if the channel does not contain any items
+     */
     val isChannelEmpty: Boolean
         get() = myChannelQ.isEmpty
+
+    /**
+     *  True if the channel contains items
+     */
     val isChannelNotEmpty: Boolean
         get() = myChannelQ.isNotEmpty
 
+    /**
+     *  The number of available slots in the channel based on the capacity
+     */
     val availableSlots: Int
         get() = capacity - myChannelQ.size
 
+    /**
+     *  True if the channel is at its capacity
+     */
     val isFull: Boolean
         get() = myChannelQ.size == capacity
+
+    /**
+     *  True if the channel is not at it capacity
+     */
     val isNotFull: Boolean
         get() = !isFull
 
     private val mySenderQ: Queue<ProcessModel.Entity> = Queue(this, "${name}:SenderQ")
+
+    /**
+     *  The queue that holds entities wanting to place items in to the channel that are
+     *  waiting (blocked) because there is no available capacity
+     */
     val senderQ: QueueCIfc<ProcessModel.Entity>
         get() = mySenderQ
 
-    //TODO consider holding Requests(amount, entity, predicate)
-    private val myReceiverRequestQ: Queue<Request> = Queue(this, "${name}:ReceiverQ")
-    val receiverRequestQ: QueueCIfc<Request>
-        get() = myReceiverRequestQ
+
+    private val myRequestQ: Queue<Request> = Queue(this, "${name}:RequestQ")
+
+    /**
+     *  The queue that holds requests by entities to remove items from the channel because
+     *  the channel does not have the requested amount of items that meet the desired
+     *  selection criteria.
+     */
+    val requestQ: QueueCIfc<Request>
+        get() = myRequestQ
 
     private val myChannelQ: Queue<T> = Queue(this, "${name}:ChannelQ")
+
+    /**
+     *  The channel that holds items that are being sent or received.
+     */
     val channelQ: QueueCIfc<T>
         get() = myChannelQ
 
+    /**
+     * Represents a request by an entity to receive a given amount of items from the channel
+     * that meet the criteria (predicate).
+     * @param receiver the entity that wants the items
+     * @param predicate the criteria for selecting the items from the channel
+     * @param amountRequested the number of items (meeting the criteria) that are needed
+     * @param waitStats if true waiting statistics are collected for the entities blocked
+     * waiting for their request
+     */
     inner class Request(
         val receiver: ProcessModel.Entity,
         val predicate: (T) -> Boolean,
-        val amountRequested: Int = 1,
-        val waitStats: Boolean = true
+        val amountRequested: Int,
+        val waitStats: Boolean
     ) : QObject() {
 
         /**
-         * Checks if the request can be filled
+         * True if the request can be filled at the time the property is accessed
          */
-        val isFillable: Boolean
+        val canBeFilled: Boolean
             get() {
                 val list = myChannelQ.find(predicate)
                 return amountRequested <= list.size
             }
 
         /**
+         * True if the request can not be filled at the time the property is accessed
+         */
+        val canNotBeFilled: Boolean
+            get() = !canBeFilled
+
+        /**
          *  If the request can be filled, this returns a list of the items
          *  that satisfy the request.  This does not remove the items from the channel.
          *  Throws exception if the request cannot be filled.
          */
-        fun requestedList(): List<T> {
+        internal fun requestedItems(): List<T> {
             val list = myChannelQ.find(predicate)
             require(amountRequested <= list.size) { "Attempted to fill $amountRequested when only ${list.size} was available" }
             return list.take(amountRequested)
@@ -79,7 +126,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      *  that is waiting to receive items from the queue's channel after new items are
      *  added to the channel.
      */
-    var receiverRequestSelector: RequestSelector = RequestSelector()
+    var receiverRequestSelector: RequestSelectorIfc<T> = RequestSelector()
 
     /**
      *  The user of the BlockingQueue can supply a function that will select, after items
@@ -96,16 +143,16 @@ class BlockingQueue<T : ModelElement.QObject>(
 
     }
 
-    open inner class RequestSelector {
-        open fun selectRequest(queue: Queue<Request>): Request? {
+    inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T>{
+        override fun selectRequest(queue: Queue<BlockingQueue<T>.Request>): BlockingQueue<T>.Request? {
             return queue.peekNext()
         }
     }
 
-    inner class FirstFillableRequest() : RequestSelector(){
+    inner class FirstFillableRequest() : RequestSelectorIfc<T>{
         override fun selectRequest(queue: Queue<Request>): Request? {
             for(request in queue){
-                if (request.isFillable){
+                if (request.canBeFilled){
                     return request
                 }
             }
@@ -114,14 +161,14 @@ class BlockingQueue<T : ModelElement.QObject>(
     }
 
     interface RequestSelectorIfc<T : ModelElement.QObject> {
-        fun selectRequest(queue: Queue<BlockingQueue<T>.Request>): BlockingQueue<T>.Request
+        fun selectRequest(queue: Queue<BlockingQueue<T>.Request>): BlockingQueue<T>.Request?
     }
 
     /**
      *  Called from ProcessModel via the Entity to put the entity in the queue if the
      *  blocking queue is full when sending
      */
-    internal fun enqueueSender(sender: ProcessModel.Entity, priority: Int = sender.priority) {
+    internal fun enqueueSender(sender: ProcessModel.Entity, priority: Int) {
         mySenderQ.enqueue(sender, priority)
     }
 
@@ -137,15 +184,24 @@ class BlockingQueue<T : ModelElement.QObject>(
      * Called from ProcessModel via the entity to enqueue the receiver if it has to wait
      * when trying to receive from the blocking queue
      */
-    internal fun enqueueReceiver(
+    internal fun requestItems(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         amount: Int = 1,
-        priority: Int = receiver.priority
-    ) {
-        val request = Request(receiver, predicate, amount)
+        priority: Int,
+        waitStats: Boolean
+    ) : Request {
+        require(amount >= 1) {"The requested amount must be >= 1"}
+        val request = Request(receiver, predicate, amount, waitStats)
         request.priority = priority
-        myReceiverRequestQ.enqueue(request)
+        myRequestQ.enqueue(request)
+        return request
+    }
+
+    internal fun receiveItems(request: Request) : List<T> {
+        val requestedItems = request.requestedItems()
+        removeAllFromChannel(requestedItems, request.waitStats)
+        return requestedItems
     }
 
     /**
@@ -158,22 +214,17 @@ class BlockingQueue<T : ModelElement.QObject>(
         check(isNotFull) { "$name : Attempted to send ${qObject.name} to a full channel queue." }
         myChannelQ.enqueue(qObject)
         // actions related to putting a new qObject in the channel
-        // check if receivers are waiting, select next receiver
-        if (myReceiverRequestQ.isNotEmpty) {
-            // select the next receiver to review channel queue
-            val request = receiverRequestSelector.selectRequest(myReceiverRequestQ) //TODO we should allow for null
-
+        // check if receivers are waiting, select next request waiting by a receiver
+        if (myRequestQ.isNotEmpty) {
+            // select the next request to be filled
+            val request = receiverRequestSelector.selectRequest(myRequestQ)
             if (request != null) {
-                if (request.isFillable) {
-                    //TODO pass the request back to the entity so that it can pull them from the queue
-                    // after being resumed?
+                if (request.canBeFilled) {
+                    val entity = request.receiver
+                    entity.resumeProcess() //TODO what about the resumption priority
+                    //TODO concern, can request become unfillable by the time suspended coroutine proceeds?
                 }
             }
-            //TODO this will need to change with requests, also since we know new item is in channel we
-            // should be more specific about the review, no need for use of Queue.Status
-            // ask selected entity to review the channel queue and decide what to do
-            TODO("sendToChannel is not implemented yet")
-            // entity.reviewBlockingQueue(this, Queue.Status.ENQUEUED)
         }
     }
 

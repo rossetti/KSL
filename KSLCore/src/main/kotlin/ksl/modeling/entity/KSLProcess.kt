@@ -86,20 +86,27 @@ interface KSLProcessBuilder {
      */
     suspend fun hold(queue: HoldQueue, priority: Int = KSLEvent.DEFAULT_PRIORITY, holdName: String? = null)
 
-
     /**
      * This method will block (suspend) until the required number of items that meet the criteria
      * become available within the blocking queue.
      *
-     * @param number the number of items needed from the blocking queue that match the criteria
+     * @param amount the number of items needed from the blocking queue that match the criteria
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingQ the blocking queue channel that has the items
+     * @param blockingPriority the priority associated with the entity if it has to wait to receive
+     * @param blockingWaitingStats if true, queueing statistics on the blocking wait are recorded
+     * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
+     * the entity is experiencing if there are more than one recieve suspension points within the process.
+     * The user is responsible for uniqueness.
      */
     suspend fun <T : ModelElement.QObject> receive(
-        number: Int = 1,
+        amount: Int = 1,
         predicate: (T) -> Boolean,
-        blockingQ: BlockingQueue<T>
-    ): Set<T>
+        blockingQ: BlockingQueue<T>,
+        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingWaitingStats: Boolean = true,
+        receiveName: String? = null
+    ): List<T>
 
     /**
      * Permits simpler calling syntax when using a blocking queue within
@@ -107,14 +114,22 @@ interface KSLProcessBuilder {
      * This method will block (suspend) until the required number of items that meet the criteria
      * become available within the blocking queue.
      *
-     * @param number the number of items needed from the blocking queue that match the criteria
+     * @param amount the number of items needed from the blocking queue that match the criteria
      * @param predicate a functional predicate that tests items in the queue for the criteria
+     * @param blockingPriority the priority associated with the entity if it has to wait to receive
+     * @param blockingWaitingStats if true, queueing statistics on the blocking wait are recorded
+     * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
+     * the entity is experiencing if there are more than one recieve suspension points within the process.
+     * The user is responsible for uniqueness.
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.receive(
-        number: Int = 1,
-        predicate: (T) -> Boolean
-    ): Set<T> {
-        return receive(number, predicate, this)
+        amount: Int = 1,
+        predicate: (T) -> Boolean,
+        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingWaitingStats: Boolean = true,
+        receiveName: String? = null
+    ): List<T> {
+        return receive(amount, predicate, this, blockingPriority, blockingWaitingStats, receiveName)
     }
 
     /**
@@ -124,11 +139,19 @@ interface KSLProcessBuilder {
      *
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingQ the blocking queue channel that has the items
+     * @param blockingPriority the priority associated with the entity if it has to wait to receive
+     * @param blockingWaitingStats if true, queueing statistics on the blocking wait are recorded
+     * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
+     * the entity is experiencing if there are more than one recieve suspension points within the process.
+     * The user is responsible for uniqueness.
      */
     suspend fun <T : ModelElement.QObject> receiveAny(
         predicate: (T) -> Boolean,
-        blockingQ: BlockingQueue<T>
-    ): Set<T>
+        blockingQ: BlockingQueue<T>,
+        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingWaitingStats: Boolean = true,
+        receiveName: String? = null
+    ): List<T>
 
     /**
      * Permits simpler calling syntax when using a blocking queue within a KSLProcess
@@ -137,11 +160,19 @@ interface KSLProcessBuilder {
      * be returned.
      *
      * @param predicate a functional predicate that tests items in the queue for the criteria
+     * @param blockingPriority the priority associated with the entity if it has to wait to receive
+     * @param blockingWaitingStats if true, queueing statistics on the blocking wait are recorded
+     * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
+     * the entity is experiencing if there are more than one recieve suspension points within the process.
+     * The user is responsible for uniqueness.
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.receiveAny(
-        predicate: (T) -> Boolean
-    ): Set<T> {
-        return receiveAny(predicate, this)
+        predicate: (T) -> Boolean,
+        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingWaitingStats: Boolean = true,
+        receiveName: String? = null
+    ): List<T> {
+        return receiveAny(predicate, this, blockingPriority, blockingWaitingStats, receiveName)
     }
 
     /** This method will block (suspend) if the blocking queue is full. That is, if the blocking queue

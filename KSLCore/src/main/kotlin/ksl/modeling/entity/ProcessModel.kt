@@ -910,22 +910,41 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override suspend fun <T : QObject> receive(
-                number: Int,
+                amount: Int,
                 predicate: (T) -> Boolean,
-                blockingQ: BlockingQueue<T>
-            ): Set<T> {
-
-                TODO(" receive blocking not implemented yet")
-                return mutableSetOf()
+                blockingQ: BlockingQueue<T>,
+                blockingPriority: Int,
+                blockingWaitingStats: Boolean,
+                receiveName: String?
+            ): List<T> {
+                currentBlockedReceiving = receiveName
+                // always enqueue to capture wait statistics of those that do not wait
+                val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority, blockingWaitingStats)
+                if (request.canNotBeFilled) {
+                    // must wait until it can be filled
+                    logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
+                    entity.state.blockedReceiving()
+                    suspend()
+                    entity.state.activate()
+                    logger.trace { "time = $time : entity ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
+                }
+                // the request should be able to be filled
+                val list = blockingQ.receiveItems(request)// this also removes request from queue
+                currentBlockedReceiving = null
+                return list
             }
 
             override suspend fun <T : QObject> receiveAny(
                 predicate: (T) -> Boolean,
-                blockingQ: BlockingQueue<T>
-            ): Set<T> {
-
+                blockingQ: BlockingQueue<T>,
+                blockingPriority: Int,
+                blockingWaitingStats: Boolean,
+                receiveName: String?
+            ): List<T> {
+                currentBlockedReceiving = receiveName
                 TODO(" receiveAny blocking not implemented yet")
-                return mutableSetOf()
+                currentBlockedReceiving = null
+                return mutableListOf()
             }
 
             override suspend fun <T : QObject> send(
