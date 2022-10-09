@@ -236,7 +236,8 @@ class BlockingQueue<T : ModelElement.QObject>(
         require(request.canBeFilled) { "The request could not be filled" }
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         val requestedItems = list.take(request.amountRequested)
-        removeAllFromChannel(requestedItems, request.waitStats)
+        removeAllFromChannel(requestedItems, request.waitStats) //TODO wait stats
+        myRequestQ.remove(request, request.waitStats)
         return requestedItems
     }
 
@@ -250,6 +251,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         require(request.canBeFilled) { "The request could not be filled" }
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         removeAllFromChannel(list, request.waitStats)
+        myRequestQ.remove(request, request.waitStats)
         return list
     }
 

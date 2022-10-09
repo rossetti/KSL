@@ -863,8 +863,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  the continuation for future resumption. Places the state of the process into the suspended state.
              */
             private suspend fun suspend() {
-                logger.trace { "time = $time : entity ${entity.id} suspended process, ($this) ..." }
+                logger.trace { "time = $time : entity ${entity.id} suspending process, ($this) ..." }
                 state.suspend()
+                logger.trace { "time = $time : entity ${entity.id} suspended process, ($this) ..." }
                 return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
                     continuation = cont
                     COROUTINE_SUSPENDED
