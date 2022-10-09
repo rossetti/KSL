@@ -60,7 +60,7 @@ class TestProcessModeling(parent: ModelElement) : ProcessModel(parent, null) {
 
 fun main(){
     val m = Model()
-    val test = TestProcessModeling(m)
+    val test = TestBlockingQ(m)
 
     m.lengthOfReplication = 100.0
     m.numberOfReplications = 1

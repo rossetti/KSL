@@ -1845,6 +1845,61 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         }
     }
 
+    interface QObjectIfc : NameIfc {
+        /**
+         * Gets a uniquely assigned identifier for this QObject. This
+         * identifier is assigned when the QObject is created. It may vary if the
+         * order of creation changes.
+         */
+        val id: Long
+
+        /**
+         * The name of the QObject
+         */
+        override val name: String
+
+        /**
+         * The time that the QObject was created
+         */
+        val createTime: Double
+
+        /**
+         *  The priority of the QObject for use by the queue
+         */
+        val priority: Int
+
+        /**
+         * This method can be used to get direct access to the State that represents
+         * when the object was queued. This allows access to the total time in the
+         * queued state as well as other statistical accumulation of state
+         * statistics
+         *
+         * @return Returns the QueuedState.
+         */
+        val queuedState: StateAccessorIfc
+
+        /**
+         * The time that the QObject was LAST enqueued
+         */
+        val timeEnteredQueue: Double
+
+        /**
+         *  The time that the QObject LAST exited a queue
+         */
+        val timeExitedQueue: Double
+
+        /**
+         * The time that the QObject spent in the Queue based on the LAST time dequeued
+         */
+        val timeInQueue: Double
+
+        /**
+         * Checks if the QObject is queued
+         */
+        val isQueued: Boolean
+        val isNotQueued: Boolean
+    }
+
     /**
      * QObject can be used as a base class for objects that need to be placed in
      * queues on a regular basis.  A QObject can be in one and only one Queue at a time.
@@ -1856,7 +1911,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      *
      * @param aName The name of the QObject
      */
-    open inner class QObject(aName: String? = null) : NameIfc, Comparable<QObject> {
+    open inner class QObject(aName: String? = null) : Comparable<QObject>, QObjectIfc {
         init{
             qObjCounter++
         }
@@ -1865,17 +1920,17 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
          * identifier is assigned when the QObject is created. It may vary if the
          * order of creation changes.
          */
-        val id: Long = qObjCounter
+        final override val id: Long = qObjCounter
 
         /**
          * The name of the QObject
          */
-        override val name: String = aName ?: ("ID_${id}")
+        final override val name: String = aName ?: ("ID_${id}")
 
         /**
          * The time that the QObject was created
          */
-        val createTime = time
+        final override val createTime = time
 
         /**
          * A state representing when the QObject was queued
@@ -1890,7 +1945,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
          *
          * @return Returns the QueuedState.
          */
-        val queuedState: StateAccessorIfc
+        final override val queuedState: StateAccessorIfc
             get() = myQueuedState  //provides limited access to the state information
 
         /**
@@ -1901,7 +1956,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
          * QObjects are compared and may or may not change how they are ordered in
          * the queue, depending on the queue discipline used
          */
-        var priority: Int = 1
+        final override var priority: Int = 1
             set(value) {
                 field = value // always make the change
                 if (isQueued) {
@@ -1938,49 +1993,49 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         var valueObject: GetValueIfc? = null
 
         override fun toString(): String {
-            return "ID= $id, name= $name"
+            return "ID= $id, name= $name isQueued = $isQueued"
         }
 
         /**
          * The time that the QObject was LAST enqueued
          */
-        val timeEnteredQueue: Double
+        final override val timeEnteredQueue: Double
             get() = myQueuedState.timeStateEntered
 
         /**
          *  The time that the QObject LAST exited a queue
          */
-        val timeExitedQueue: Double
+        final override val timeExitedQueue: Double
             get() = myQueuedState.timeStateExited
 
         /**
          * The time that the QObject spent in the Queue based on the LAST time dequeued
          */
-        val timeInQueue: Double
+        final override val timeInQueue: Double
             get() = myQueuedState.totalTimeInState
 
         /**
          * Checks if the QObject is queued
          */
-        val isQueued: Boolean
+        final override val isQueued: Boolean
             get() = myQueuedState.isEntered
 
-        val isNotQueued: Boolean
+        final override val isNotQueued: Boolean
             get() = !isQueued
 
-        /**
-         * Causes all references of objects from this QObject to be set to null.
-         *
-         * Meant primarily to facilitate garbage collection. After this call, the
-         * object should not be used.
-         *
-         */
-        fun nullify() {
-            //TODO is this really necessary. consider removing
-            attachedObject = null
-            valueObject = null
-            queue = null
-        }
+//        /**
+//         * Causes all references of objects from this QObject to be set to null.
+//         *
+//         * Meant primarily to facilitate garbage collection. After this call, the
+//         * object should not be used.
+//         *
+//         */
+//        fun nullify() {
+//            //TODO is this really necessary. consider removing
+//            attachedObject = null
+//            valueObject = null
+//            queue = null
+//        }
 
         /**
          * Used by Queue to indicate that the QObject has entered the queue

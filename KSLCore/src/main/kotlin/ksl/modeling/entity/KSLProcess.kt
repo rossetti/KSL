@@ -5,6 +5,8 @@ import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import kotlin.coroutines.*
 
+val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
+
 /**
  * Used to exit (terminate) a currently executing ProcessCoroutine.
  */
@@ -99,10 +101,10 @@ interface KSLProcessBuilder {
      * the entity is experiencing if there are more than one recieve suspension points within the process.
      * The user is responsible for uniqueness.
      */
-    suspend fun <T : ModelElement.QObject> receive(
-        amount: Int = 1,
-        predicate: (T) -> Boolean,
+    suspend fun <T : ModelElement.QObject> waitForItems(
         blockingQ: BlockingQueue<T>,
+        amount: Int = 1,
+        predicate: (T) -> Boolean = alwaysTrue,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         blockingWaitingStats: Boolean = true,
         receiveName: String? = null
@@ -124,12 +126,12 @@ interface KSLProcessBuilder {
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.receive(
         amount: Int = 1,
-        predicate: (T) -> Boolean,
+        predicate: (T) -> Boolean = alwaysTrue,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         blockingWaitingStats: Boolean = true,
         receiveName: String? = null
     ): List<T> {
-        return receive(amount, predicate, this, blockingPriority, blockingWaitingStats, receiveName)
+        return waitForItems(this, amount, predicate, blockingPriority, blockingWaitingStats, receiveName)
     }
 
     /**
@@ -145,9 +147,9 @@ interface KSLProcessBuilder {
      * the entity is experiencing if there are more than one recieve suspension points within the process.
      * The user is responsible for uniqueness.
      */
-    suspend fun <T : ModelElement.QObject> receiveAny(
-        predicate: (T) -> Boolean,
+    suspend fun <T : ModelElement.QObject> waitForAnyItems(
         blockingQ: BlockingQueue<T>,
+        predicate: (T) -> Boolean,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         blockingWaitingStats: Boolean = true,
         receiveName: String? = null
@@ -172,7 +174,7 @@ interface KSLProcessBuilder {
         blockingWaitingStats: Boolean = true,
         receiveName: String? = null
     ): List<T> {
-        return receiveAny(predicate, this, blockingPriority, blockingWaitingStats, receiveName)
+        return waitForAnyItems(this, predicate, blockingPriority, blockingWaitingStats, receiveName)
     }
 
     /** This method will block (suspend) if the blocking queue is full. That is, if the blocking queue

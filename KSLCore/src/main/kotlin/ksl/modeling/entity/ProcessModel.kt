@@ -599,21 +599,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         }
 
-        internal fun <T : QObject> reviewBlockingQueue(blockingQueue: BlockingQueue<T>, qStatus: Queue.Status) {
-            //TODO maybe this should return what do to??
-            if (qStatus == Queue.Status.ENQUEUED) {
-                // new elements have arrived, handle case if the entity is blocked receiving
-                // what if channel does not have what the entity is waiting on?
-                // check criteria and only resume if channel has what is needed
-                TODO("Not implemented yet")
-            } else if (qStatus == Queue.Status.DEQUEUED) {
-                // elements were removed, handle case of the entity is blocked sending
-                // we assume that entity only wants to send 1 item at a time, thus
-                // there must be space and the entity can be resumed to send the item
-                resumeProcess() //TODO what about the priority
-            }
-        }
-
         /**
          *  A state pattern implementation to ensure that the entity only transitions to
          *  valid states from its current state.
@@ -909,10 +894,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentHold = null
             }
 
-            override suspend fun <T : QObject> receive(
+            override suspend fun <T : QObject> waitForItems(
+                blockingQ: BlockingQueue<T>,
                 amount: Int,
                 predicate: (T) -> Boolean,
-                blockingQ: BlockingQueue<T>,
                 blockingPriority: Int,
                 blockingWaitingStats: Boolean,
                 receiveName: String?
@@ -929,22 +914,51 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "time = $time : entity ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
                 }
                 // the request should be able to be filled
-                val list = blockingQ.receiveItems(request)// this also removes request from queue
+                val list = blockingQ.fill(request)// this also removes request from queue
                 currentBlockedReceiving = null
                 return list
             }
 
-            override suspend fun <T : QObject> receiveAny(
-                predicate: (T) -> Boolean,
+//            private suspend fun <T : QObject> blockingQSuspend(
+//                request: BlockingQueue<T>.Request,
+//                blockingQ: BlockingQueue<T>
+//            ): List<T> {
+//                if (request.canNotBeFilled) {
+//                    // must wait until it can be filled
+//                    logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
+//                    entity.state.blockedReceiving()
+//                    suspend()
+//                    entity.state.activate()
+//                    logger.trace { "time = $time : entity ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
+//                }
+//                // the request should be able to be filled
+//                val list = blockingQ.fill(request)// this also removes request from queue
+//                currentBlockedReceiving = null
+//                return list
+//            }
+
+            override suspend fun <T : QObject> waitForAnyItems(
                 blockingQ: BlockingQueue<T>,
+                predicate: (T) -> Boolean,
                 blockingPriority: Int,
                 blockingWaitingStats: Boolean,
                 receiveName: String?
             ): List<T> {
                 currentBlockedReceiving = receiveName
-                TODO(" receiveAny blocking not implemented yet")
+                // always enqueue to capture wait statistics of those that do not wait
+                val request = blockingQ.requestItems(entity, predicate, blockingPriority, blockingWaitingStats)
+                if (request.canNotBeFilled) {
+                    // must wait until it can be filled
+                    logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
+                    entity.state.blockedReceiving()
+                    suspend()
+                    entity.state.activate()
+                    logger.trace { "time = $time : entity ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
+                }
+                // the request should be able to be filled
+                val list = blockingQ.fill(request)// this also removes request from queue
                 currentBlockedReceiving = null
-                return mutableListOf()
+                return list
             }
 
             override suspend fun <T : QObject> send(

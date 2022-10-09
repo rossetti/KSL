@@ -22,7 +22,15 @@ import java.util.*
 import java.util.function.Predicate
 
 interface QueueCIfc<T : ModelElement.QObject> {
+
+    /**
+     * Allows access to number in queue response information
+     */
     val numInQ : TWResponseCIfc
+
+    /**
+     *  Allows access to time in queue response information
+     */
     val timeInQ : ResponseCIfc
 
     /**
@@ -64,6 +72,12 @@ interface QueueCIfc<T : ModelElement.QObject> {
      * @return true if the queue is not empty
      */
     val isNotEmpty: Boolean
+
+    /**
+     *
+     * @return unmodifiable view of the underlying list for the Queue
+     */
+    val immutableList: List<ModelElement.QObjectIfc>
 
     /**
      * Adds the supplied listener to this queue
@@ -228,7 +242,7 @@ open class Queue<T : ModelElement.QObject>(
      *
      * @return unmodifiable view of the underlying list for the Queue
      */
-    val immutableList: List<T>
+    override val immutableList: List<QObjectIfc>
         get() = myList.toList()
 
     /**
@@ -266,14 +280,6 @@ open class Queue<T : ModelElement.QObject>(
         myNumInQ.increment()
         notifyQueueListeners(qObject)
     }
-
-//    fun <S> enqueue(qObject: T, priority: Int = qObject.priority, obj: S = qObject.attachedObject) {
-//        qObject.enterQueue(this, time, priority, obj)
-//        myDiscipline.add(qObject)
-//        status = Status.ENQUEUED
-//        myNumInQ.increment()
-//        notifyQueueListeners(qObject)
-//    }
 
     /**
      * Returns a reference to the QObject representing the item that is next to
@@ -362,34 +368,61 @@ open class Queue<T : ModelElement.QObject>(
     }
 
     /**
-     * Finds all the QObjects in the Queue that satisfy the condition and
-     * returns them.
-     *
-     * @param condition the condition of the search
-     * @return the items found that match the predicate
+     * @param predicate the predicate to count by
      */
-    fun find(condition: Predicate<T>): MutableList<T> {
-        val foundItems: MutableList<T> = mutableListOf()
-        for (qo in myList) {
-            if (condition.test(qo)) {
-                foundItems.add(qo)
-            }
-        }
-        return foundItems
+    fun countBy(predicate: (T) -> Boolean): Int {
+        return myList.filter(predicate).size
     }
 
     /**
-     * @param attachedObj the object to search
-     * @return all QObjects whose attached object is the same as attachedObj
+     * @param predicate the predicate to count by
      */
-    fun find(attachedObj: Any): MutableList<T> {
-        val foundQObjects: MutableList<T> = mutableListOf()
-        for (qo in myList) {
-            if (attachedObj == qo.attachedObject) {
-                foundQObjects.add(qo)
+    fun countBy(predicate: Predicate<T>): Int {
+        return countBy(predicate::test)
+    }
+
+    /**
+     * Finds all the QObjects in the Queue that satisfy the condition and
+     * returns a list containing them.  The items are not removed
+     * from the queue.
+     *
+     * @param predicate the condition for the search
+     * @return the list of items that match the predicate
+     */
+    fun filter(predicate: (T) -> Boolean) : List<T>{
+        return myList.filter(predicate)
+    }
+
+    /**
+     * Finds all the QObjects in the Queue that satisfy the condition and
+     * returns a list containing them.  The items are not removed
+     * from the queue.
+     *
+     * @param predicate the condition for the search
+     * @return the list of items that match the predicate
+     */
+    fun filter(predicate: Predicate<T>) : List<T>{
+        return filter(predicate::test)
+    }
+
+    /**
+     * Finds and removes all the QObjects in the Queue that satisfy the
+     * condition and adds them to the deletedItems collection
+     *
+     * @param condition The condition to check
+     * @param waitStats indicates whether waiting time statistics should be collected
+     * @return a list of the removed items, which may be empty if none are removed
+     */
+    fun remove(predicate: (T) -> Boolean, waitStats: Boolean = true): MutableList<T> {
+        val removedItems: MutableList<T> = mutableListOf()
+        for (i in myList.indices) {
+            val qo = myList[i]
+            if (predicate.invoke(qo)) {
+                removedItems.add(qo)
+                remove(qo, waitStats)
             }
         }
-        return foundQObjects
+        return removedItems
     }
 
     /**
@@ -401,15 +434,7 @@ open class Queue<T : ModelElement.QObject>(
      * @return a list of the removed items, which may be empty if none are removed
      */
     fun remove(condition: Predicate<T>, waitStats: Boolean = true): MutableList<T> {
-        val removedItems: MutableList<T> = mutableListOf()
-        for (i in myList.indices) {
-            val qo = myList[i]
-            if (condition.test(qo)) {
-                removedItems.add(qo)
-                remove(qo, waitStats)
-            }
-        }
-        return removedItems
+        return remove(condition::test, waitStats)
     }
 
     /**

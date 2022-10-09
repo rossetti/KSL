@@ -45,7 +45,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         get() = myChannelQ.size == capacity
 
     /**
-     *  True if the channel is not at it capacity
+     *  True if the channel is not at its capacity
      */
     val isNotFull: Boolean
         get() = !isFull
@@ -83,24 +83,18 @@ class BlockingQueue<T : ModelElement.QObject>(
      * that meet the criteria (predicate).
      * @param receiver the entity that wants the items
      * @param predicate the criteria for selecting the items from the channel
-     * @param amountRequested the number of items (meeting the criteria) that are needed
      * @param waitStats if true waiting statistics are collected for the entities blocked
      * waiting for their request
      */
-    inner class Request(
+    open inner class Request(
         val receiver: ProcessModel.Entity,
         val predicate: (T) -> Boolean,
-        val amountRequested: Int,
         val waitStats: Boolean
     ) : QObject() {
 
-        /**
-         * True if the request can be filled at the time the property is accessed
-         */
-        val canBeFilled: Boolean
+        open val canBeFilled: Boolean
             get() {
-                val list = myChannelQ.find(predicate)
-                return amountRequested <= list.size
+                return myChannelQ.filter(predicate).isNotEmpty()
             }
 
         /**
@@ -108,17 +102,35 @@ class BlockingQueue<T : ModelElement.QObject>(
          */
         val canNotBeFilled: Boolean
             get() = !canBeFilled
+    }
+
+    /**
+     * Represents a request by an entity to receive a given amount of items from the channel
+     * that meet the criteria (predicate).
+     * @param receiver the entity that wants the items
+     * @param predicate the criteria for selecting the items from the channel
+     * @param amountRequested the number of items (meeting the criteria) that are needed
+     * @param waitStats if true waiting statistics are collected for the entities blocked
+     * waiting for their request
+     */
+    inner class AmountRequest(
+        receiver: ProcessModel.Entity,
+        predicate: (T) -> Boolean,
+        val amountRequested: Int,
+        waitStats: Boolean
+    ) : Request(receiver, predicate, waitStats) {
+        init {
+            require(amountRequested >= 1) { "The amount request $amountRequested must be >= 1" }
+        }
 
         /**
-         *  If the request can be filled, this returns a list of the items
-         *  that satisfy the request.  This does not remove the items from the channel.
-         *  Throws exception if the request cannot be filled.
+         * True if the request can be filled at the time the property is accessed
          */
-        internal fun requestedItems(): List<T> {
-            val list = myChannelQ.find(predicate)
-            require(amountRequested <= list.size) { "Attempted to fill $amountRequested when only ${list.size} was available" }
-            return list.take(amountRequested)
-        }
+        override val canBeFilled: Boolean
+            get() {
+                val list = myChannelQ.filter(predicate)
+                return amountRequested <= list.size
+            }
     }
 
     /**
@@ -143,16 +155,16 @@ class BlockingQueue<T : ModelElement.QObject>(
 
     }
 
-    inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T>{
+    inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T> {
         override fun selectRequest(queue: Queue<BlockingQueue<T>.Request>): BlockingQueue<T>.Request? {
             return queue.peekNext()
         }
     }
 
-    inner class FirstFillableRequest() : RequestSelectorIfc<T>{
+    inner class FirstFillableRequest() : RequestSelectorIfc<T> {
         override fun selectRequest(queue: Queue<Request>): Request? {
-            for(request in queue){
-                if (request.canBeFilled){
+            for (request in queue) {
+                if (request.canBeFilled) {
                     return request
                 }
             }
@@ -190,18 +202,55 @@ class BlockingQueue<T : ModelElement.QObject>(
         amount: Int = 1,
         priority: Int,
         waitStats: Boolean
-    ) : Request {
-        require(amount >= 1) {"The requested amount must be >= 1"}
-        val request = Request(receiver, predicate, amount, waitStats)
+    ): AmountRequest {
+        require(amount >= 1) { "The requested amount must be >= 1" }
+        val request = AmountRequest(receiver, predicate, amount, waitStats)
         request.priority = priority
         myRequestQ.enqueue(request)
         return request
     }
 
-    internal fun receiveItems(request: Request) : List<T> {
-        val requestedItems = request.requestedItems()
+    /**
+     * Called from ProcessModel via the entity to enqueue the receiver if it has to wait
+     * when trying to receive from the blocking queue
+     */
+    internal fun requestItems(
+        receiver: ProcessModel.Entity,
+        predicate: (T) -> Boolean,
+        priority: Int,
+        waitStats: Boolean
+    ): Request {
+        val request = Request(receiver, predicate, waitStats)
+        request.priority = priority
+        myRequestQ.enqueue(request)
+        return request
+    }
+
+    /**
+     * Called from ProcessModel via the entity to get the items associated with
+     * a request to the blocking queue for items.  The request must be able to be
+     * filled. The requested items are extracted from the channel and returned
+     * to the requesting entity.
+     */
+    internal fun fill(request: AmountRequest): List<T> {
+        require(request.canBeFilled) { "The request could not be filled" }
+        val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
+        val requestedItems = list.take(request.amountRequested)
         removeAllFromChannel(requestedItems, request.waitStats)
         return requestedItems
+    }
+
+    /**
+     * Called from ProcessModel via the entity to get the items associated with
+     * a request to the blocking queue for items.  The request must be able to be
+     * filled. The requested items are extracted from the channel and returned
+     * to the requesting entity.
+     */
+    internal fun fill(request: Request): List<T> {
+        require(request.canBeFilled) { "The request could not be filled" }
+        val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
+        removeAllFromChannel(list, request.waitStats)
+        return list
     }
 
     /**
@@ -249,11 +298,36 @@ class BlockingQueue<T : ModelElement.QObject>(
 
     /** Finds the items in the channel according to the condition.  Does not remove the items from the channel.
      *
-     * @param condition the criteria for selecting the items
+     * @param predicate the criteria for selecting the items
      * @return a list of the items found.  May be empty if nothing is found that matches the condition.
      */
-    fun findInChannel(condition: Predicate<T>): MutableList<T> {
-        return myChannelQ.find(condition)
+    fun filterChannel(predicate: (T) -> Boolean): List<T> {
+        return myChannelQ.filter(predicate)
+    }
+
+    /** Finds the items in the channel according to the condition.  Does not remove the items from the channel.
+     *
+     * @param predicate the criteria for selecting the items
+     * @return a list of the items found.  May be empty if nothing is found that matches the condition.
+     */
+    fun filterChannel(predicate: Predicate<T>): List<T> {
+        return filterChannel(predicate::test)
+    }
+
+    /**
+     * @param predicate the condition to count by
+     * @return the number of items in the channel that match the condition
+     */
+    fun countByChannel(predicate: (T) -> Boolean): Int {
+        return myChannelQ.countBy(predicate)
+    }
+
+    /**
+     * @param predicate the condition to count by
+     * @return the number of items in the channel that match the condition
+     */
+    fun countByChannel(predicate: Predicate<T>): Int {
+        return countByChannel(predicate::test)
     }
 
     /** The channel must not be empty; otherwise an IllegalStateException will occur.
@@ -273,9 +347,9 @@ class BlockingQueue<T : ModelElement.QObject>(
      * @param waitStats indicates whether waiting time statistics should be collected
      * @return a list of the items found.  May be empty if nothing is found that matches the condition.
      */
-    fun receiveFromChannel(condition: Predicate<T>, waitStats: Boolean = true): MutableList<T> {
+    fun receiveFromChannel(condition: Predicate<T>, waitStats: Boolean = true): List<T> {
         check(myChannelQ.isNotEmpty) { "$name : Attempted to receive from an empty channel queue" }
-        val list = findInChannel(condition)
+        val list = filterChannel(condition)
         removeAllFromChannel(list, waitStats)
         return list
     }
@@ -288,8 +362,14 @@ class BlockingQueue<T : ModelElement.QObject>(
      * @param waitStats indicates whether waiting time statistics should be collected
      */
     fun removeAllFromChannel(c: Collection<T>, waitStats: Boolean = true) {
-        check(myChannelQ.isNotEmpty) { "$name : Attempted to receive from an empty channel queue" }
-        check(!containsAll(c)) { "$name : The channel does not contain all of the items in the collection" }
+        if (myChannelQ.isEmpty){
+            throw IllegalStateException( "$name : Attempted to receive from an empty channel queue")
+        }
+        if (!myChannelQ.contains(c)){
+            throw IllegalStateException( "$name : The channel does not contain all of the items in the collection")
+        }
+//        check(myChannelQ.isNotEmpty) { "$name : Attempted to receive from an empty channel queue" }
+//        check(!containsAll(c)) { "$name : The channel does not contain all of the items in the collection" }
         myChannelQ.removeAll(c, waitStats)
         // actions related to removal of elements, check for waiting senders
         // select next waiting sender
@@ -298,9 +378,8 @@ class BlockingQueue<T : ModelElement.QObject>(
             val entity = senderSelector.selectEntity(mySenderQ)
             // ask selected entity to review the channel queue and decide what to do
             if (entity != null) {
-                entity.reviewBlockingQueue(this, Queue.Status.DEQUEUED)
+                entity.resumeProcess() //TODO how to handle priority
             }
-            //TODO right now this just cause the selected sender to resume its process
         }
     }
 }
