@@ -14,8 +14,8 @@ fun interface EntitySelectorIfc {
 class BlockingQueue<T : ModelElement.QObject>(
     parent: ModelElement,
     val capacity: Int = Int.MAX_VALUE,
-    name: String? = null
-) : ModelElement(parent, name) {
+    theName: String? = null
+) : ModelElement(parent, theName) {
     init {
         require(capacity >= 1) { "The size of the blocking queue must be >= 1" }
     }
@@ -83,13 +83,14 @@ class BlockingQueue<T : ModelElement.QObject>(
      * that meet the criteria (predicate).
      * @param receiver the entity that wants the items
      * @param predicate the criteria for selecting the items from the channel
-     * @param waitStats if true waiting statistics are collected for the entities blocked
+     * @param blockingStats if true waiting statistics are collected for the entities blocked
      * waiting for their request
      */
     open inner class Request(
         val receiver: ProcessModel.Entity,
         val predicate: (T) -> Boolean,
-        val waitStats: Boolean
+        val blockingStats: Boolean,
+        val itemStats: Boolean
     ) : QObject() {
 
         open val canBeFilled: Boolean
@@ -117,8 +118,9 @@ class BlockingQueue<T : ModelElement.QObject>(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         val amountRequested: Int,
-        waitStats: Boolean
-    ) : Request(receiver, predicate, waitStats) {
+        blockingStats: Boolean,
+        itemStats: Boolean
+    ) : Request(receiver, predicate, blockingStats, itemStats) {
         init {
             require(amountRequested >= 1) { "The amount request $amountRequested must be >= 1" }
         }
@@ -201,10 +203,11 @@ class BlockingQueue<T : ModelElement.QObject>(
         predicate: (T) -> Boolean,
         amount: Int = 1,
         priority: Int,
-        waitStats: Boolean
+        blockingStats: Boolean,
+        itemStats: Boolean
     ): AmountRequest {
         require(amount >= 1) { "The requested amount must be >= 1" }
-        val request = AmountRequest(receiver, predicate, amount, waitStats)
+        val request = AmountRequest(receiver, predicate, amount, blockingStats, itemStats)
         request.priority = priority
         myRequestQ.enqueue(request)
         return request
@@ -218,9 +221,10 @@ class BlockingQueue<T : ModelElement.QObject>(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         priority: Int,
-        waitStats: Boolean
+        blockingStats: Boolean,
+        itemStats: Boolean
     ): Request {
-        val request = Request(receiver, predicate, waitStats)
+        val request = Request(receiver, predicate, blockingStats, itemStats)
         request.priority = priority
         myRequestQ.enqueue(request)
         return request
@@ -236,8 +240,8 @@ class BlockingQueue<T : ModelElement.QObject>(
         require(request.canBeFilled) { "The request could not be filled" }
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         val requestedItems = list.take(request.amountRequested)
-        removeAllFromChannel(requestedItems, request.waitStats) //TODO wait stats
-        myRequestQ.remove(request, request.waitStats)
+        removeAllFromChannel(requestedItems, request.itemStats)
+        myRequestQ.remove(request, request.blockingStats)
         return requestedItems
     }
 
@@ -250,8 +254,8 @@ class BlockingQueue<T : ModelElement.QObject>(
     internal fun fill(request: Request): List<T> {
         require(request.canBeFilled) { "The request could not be filled" }
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
-        removeAllFromChannel(list, request.waitStats)
-        myRequestQ.remove(request, request.waitStats)
+        removeAllFromChannel(list, request.itemStats)
+        myRequestQ.remove(request, request.blockingStats)
         return list
     }
 

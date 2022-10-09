@@ -5,10 +5,10 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
-class TestBlockingQ(parent: ModelElement) : ProcessModel(parent, null) {
+class TestBlockingQ(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
-    val blockingQ: BlockingQueue<QObject> = BlockingQueue(this)
-//    val blockingQ: BlockingQueue<QObject> = BlockingQueue(this, capacity = 10)
+//    val blockingQ: BlockingQueue<QObject> = BlockingQueue(this)
+    val blockingQ: BlockingQueue<QObject> = BlockingQueue(this, capacity = 10)
     private inner class Receiver: Entity() {
         val receiving : KSLProcess = process("receiving") {
             for (i in 1..15) {
@@ -34,6 +34,7 @@ class TestBlockingQ(parent: ModelElement) : ProcessModel(parent, null) {
                 send(item, blockingQ)
                 println("time = $time after sending an item")
             }
+            println("time = $time exiting the process in ${this@Sender}")
         }
     }
 
@@ -53,4 +54,5 @@ fun main(){
     m.lengthOfReplication = 100.0
     m.numberOfReplications = 1
     m.simulate()
+    m.print()
 }

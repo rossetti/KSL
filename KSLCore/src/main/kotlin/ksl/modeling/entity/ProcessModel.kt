@@ -901,11 +901,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 predicate: (T) -> Boolean,
                 blockingPriority: Int,
                 blockingWaitingStats: Boolean,
+                itemWaitingStats: Boolean,
                 receiveName: String?
             ): List<T> {
                 currentBlockedReceiving = receiveName
                 // always enqueue to capture wait statistics of those that do not wait
-                val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority, blockingWaitingStats)
+                val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority, blockingWaitingStats, itemWaitingStats)
                 if (request.canNotBeFilled) {
                     // must wait until it can be filled
                     logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
@@ -943,11 +944,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 predicate: (T) -> Boolean,
                 blockingPriority: Int,
                 blockingWaitingStats: Boolean,
+                itemWaitingStats: Boolean,
                 receiveName: String?
             ): List<T> {
                 currentBlockedReceiving = receiveName
                 // always enqueue to capture wait statistics of those that do not wait
-                val request = blockingQ.requestItems(entity, predicate, blockingPriority, blockingWaitingStats)
+                val request = blockingQ.requestItems(entity, predicate, blockingPriority, blockingWaitingStats, itemWaitingStats)
                 if (request.canNotBeFilled) {
                     // must wait until it can be filled
                     logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }

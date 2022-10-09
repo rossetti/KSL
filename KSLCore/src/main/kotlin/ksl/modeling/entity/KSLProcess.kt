@@ -96,7 +96,8 @@ interface KSLProcessBuilder {
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingQ the blocking queue channel that has the items
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
-     * @param blockingWaitingStats if true, queueing statistics on the blocking wait are recorded
+     * @param blockingWaitingStats if true, queue waiting statistics on the blocking wait are recorded
+     * @param itemWaitingStats if true, queue waiting statistics on items in channel are recorded
      * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one recieve suspension points within the process.
      * The user is responsible for uniqueness.
@@ -107,6 +108,7 @@ interface KSLProcessBuilder {
         predicate: (T) -> Boolean = alwaysTrue,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         blockingWaitingStats: Boolean = true,
+        itemWaitingStats: Boolean = true,
         receiveName: String? = null
     ): List<T>
 
@@ -120,6 +122,7 @@ interface KSLProcessBuilder {
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
      * @param blockingWaitingStats if true, queueing statistics on the blocking wait are recorded
+     * @param itemWaitingStats if true, queue waiting statistics on items in channel are recorded
      * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one recieve suspension points within the process.
      * The user is responsible for uniqueness.
@@ -129,9 +132,10 @@ interface KSLProcessBuilder {
         predicate: (T) -> Boolean = alwaysTrue,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         blockingWaitingStats: Boolean = true,
+        itemWaitingStats: Boolean = true,
         receiveName: String? = null
     ): List<T> {
-        return waitForItems(this, amount, predicate, blockingPriority, blockingWaitingStats, receiveName)
+        return waitForItems(this, amount, predicate, blockingPriority, blockingWaitingStats, itemWaitingStats, receiveName)
     }
 
     /**
@@ -143,6 +147,7 @@ interface KSLProcessBuilder {
      * @param blockingQ the blocking queue channel that has the items
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
      * @param blockingWaitingStats if true, queueing statistics on the blocking wait are recorded
+     * @param itemWaitingStats if true, queue waiting statistics on items in channel are recorded
      * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one recieve suspension points within the process.
      * The user is responsible for uniqueness.
@@ -152,6 +157,7 @@ interface KSLProcessBuilder {
         predicate: (T) -> Boolean,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         blockingWaitingStats: Boolean = true,
+        itemWaitingStats: Boolean = true,
         receiveName: String? = null
     ): List<T>
 
@@ -164,6 +170,7 @@ interface KSLProcessBuilder {
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
      * @param blockingWaitingStats if true, queueing statistics on the blocking wait are recorded
+     * @param itemWaitingStats if true, queue waiting statistics on items in channel are recorded
      * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one recieve suspension points within the process.
      * The user is responsible for uniqueness.
@@ -172,9 +179,10 @@ interface KSLProcessBuilder {
         predicate: (T) -> Boolean,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         blockingWaitingStats: Boolean = true,
+        itemWaitingStats: Boolean = true,
         receiveName: String? = null
     ): List<T> {
-        return waitForAnyItems(this, predicate, blockingPriority, blockingWaitingStats, receiveName)
+        return waitForAnyItems(this, predicate, blockingPriority, blockingWaitingStats, itemWaitingStats, receiveName)
     }
 
     /** This method will block (suspend) if the blocking queue is full. That is, if the blocking queue
