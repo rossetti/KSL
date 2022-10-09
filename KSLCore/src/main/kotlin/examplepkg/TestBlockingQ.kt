@@ -10,7 +10,7 @@ class TestBlockingQ(parent: ModelElement) : ProcessModel(parent, null) {
     val blockingQ: BlockingQueue<QObject> = BlockingQueue(this)
 //    val blockingQ: BlockingQueue<QObject> = BlockingQueue(this, capacity = 10)
     private inner class Receiver: Entity() {
-        val receiving : KSLProcess = process("test") {
+        val receiving : KSLProcess = process("receiving") {
             for (i in 1..10) {
                 println("time = $time before the first delay in ${this@Receiver}")
                 delay(1.0)
@@ -24,7 +24,7 @@ class TestBlockingQ(parent: ModelElement) : ProcessModel(parent, null) {
     }
 
     private inner class Sender: Entity() {
-        val sending : KSLProcess = process("test") {
+        val sending : KSLProcess = process("sending") {
             for (i in 1..15){
                 delay(5.0)
                 println("time = $time after the first delay in ${this@Sender}")
@@ -38,7 +38,7 @@ class TestBlockingQ(parent: ModelElement) : ProcessModel(parent, null) {
 
     override fun initialize() {
         val r = Receiver()
-//        activate(r.receiving)
+        activate(r.receiving)
         val s = Sender()
         activate(s.sending)
     }
