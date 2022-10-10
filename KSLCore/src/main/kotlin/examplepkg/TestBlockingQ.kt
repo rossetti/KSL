@@ -9,13 +9,16 @@ class TestBlockingQ(parent: ModelElement, name: String? = null) : ProcessModel(p
 
 //    val blockingQ: BlockingQueue<QObject> = BlockingQueue(this)
     val blockingQ: BlockingQueue<QObject> = BlockingQueue(this, capacity = 10)
+    init {
+//        blockingQ.waitTimeStatisticsOption(false)
+    }
     private inner class Receiver: Entity() {
         val receiving : KSLProcess = process("receiving") {
             for (i in 1..15) {
                 println("time = $time before the first delay in ${this@Receiver}")
                 delay(1.0)
                 println("time = $time trying to get item")
-                waitForItems(blockingQ)
+                waitForItems(blockingQ, 1)
                 println("time = $time after getting item")
                 delay(5.0)
                 println("time = $time after the second delay in ${this@Receiver}")
@@ -52,7 +55,7 @@ fun main(){
     val test = TestBlockingQ(m)
 
     m.lengthOfReplication = 100.0
-    m.numberOfReplications = 1
+    m.numberOfReplications = 2
     m.simulate()
     m.print()
 }

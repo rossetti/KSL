@@ -52,6 +52,8 @@ class BlockingQueue<T : ModelElement.QObject>(
 
     private val mySenderQ: Queue<ProcessModel.Entity> = Queue(this, "${name}:SenderQ")
 
+    var senderWaitTimeStatOption: Boolean = true
+
     /**
      *  The queue that holds entities wanting to place items in to the channel that are
      *  waiting (blocked) because there is no available capacity
@@ -59,8 +61,9 @@ class BlockingQueue<T : ModelElement.QObject>(
     val senderQ: QueueCIfc<ProcessModel.Entity>
         get() = mySenderQ
 
-
     private val myRequestQ: Queue<Request> = Queue(this, "${name}:RequestQ")
+
+    var requestWaitTimeStatOption: Boolean = true
 
     /**
      *  The queue that holds requests by entities to remove items from the channel because
@@ -78,6 +81,23 @@ class BlockingQueue<T : ModelElement.QObject>(
     val channelQ: QueueCIfc<T>
         get() = myChannelQ
 
+    var channelWaitTimeStatOption :Boolean = true
+
+    /**
+     *  @param option use false to turn off all wait time statistics
+     */
+    fun waitTimeStatisticsOption(option: Boolean){
+        requestWaitTimeStatOption = option
+        channelWaitTimeStatOption = option
+        senderWaitTimeStatOption = option
+        requestQ.timeInQ.defaultReportingOption = option
+        requestQ.numInQ.defaultReportingOption = option
+        senderQ.timeInQ.defaultReportingOption = option
+        senderQ.numInQ.defaultReportingOption = option
+        channelQ.timeInQ.defaultReportingOption = option
+        channelQ.numInQ.defaultReportingOption = option
+    }
+
     /**
      * Represents a request by an entity to receive a given amount of items from the channel
      * that meet the criteria (predicate).
@@ -89,8 +109,6 @@ class BlockingQueue<T : ModelElement.QObject>(
     open inner class Request(
         val receiver: ProcessModel.Entity,
         val predicate: (T) -> Boolean,
-        val blockingStats: Boolean,
-        val itemStats: Boolean
     ) : QObject() {
 
         open val canBeFilled: Boolean
@@ -111,16 +129,12 @@ class BlockingQueue<T : ModelElement.QObject>(
      * @param receiver the entity that wants the items
      * @param predicate the criteria for selecting the items from the channel
      * @param amountRequested the number of items (meeting the criteria) that are needed
-     * @param waitStats if true waiting statistics are collected for the entities blocked
-     * waiting for their request
      */
     inner class AmountRequest(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         val amountRequested: Int,
-        blockingStats: Boolean,
-        itemStats: Boolean
-    ) : Request(receiver, predicate, blockingStats, itemStats) {
+    ) : Request(receiver, predicate) {
         init {
             require(amountRequested >= 1) { "The amount request $amountRequested must be >= 1" }
         }
@@ -190,8 +204,8 @@ class BlockingQueue<T : ModelElement.QObject>(
      * Called from ProcessModel via the entity to remove the entity from the blocking queue
      * when there is space to send
      */
-    internal fun dequeSender(sender: ProcessModel.Entity, waitStats: Boolean = true) {
-        mySenderQ.remove(sender, waitStats)
+    internal fun dequeSender(sender: ProcessModel.Entity) {
+        mySenderQ.remove(sender, senderWaitTimeStatOption)
     }
 
     /**
@@ -202,12 +216,10 @@ class BlockingQueue<T : ModelElement.QObject>(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         amount: Int = 1,
-        priority: Int,
-        blockingStats: Boolean,
-        itemStats: Boolean
+        priority: Int
     ): AmountRequest {
         require(amount >= 1) { "The requested amount must be >= 1" }
-        val request = AmountRequest(receiver, predicate, amount, blockingStats, itemStats)
+        val request = AmountRequest(receiver, predicate, amount)
         request.priority = priority
         myRequestQ.enqueue(request)
         return request
@@ -220,11 +232,9 @@ class BlockingQueue<T : ModelElement.QObject>(
     internal fun requestItems(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
-        priority: Int,
-        blockingStats: Boolean,
-        itemStats: Boolean
+        priority: Int
     ): Request {
-        val request = Request(receiver, predicate, blockingStats, itemStats)
+        val request = Request(receiver, predicate)
         request.priority = priority
         myRequestQ.enqueue(request)
         return request
@@ -240,8 +250,8 @@ class BlockingQueue<T : ModelElement.QObject>(
         require(request.canBeFilled) { "The request could not be filled" }
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         val requestedItems = list.take(request.amountRequested)
-        removeAllFromChannel(requestedItems, request.itemStats)
-        myRequestQ.remove(request, request.blockingStats)
+        removeAllFromChannel(requestedItems, channelWaitTimeStatOption)
+        myRequestQ.remove(request, requestWaitTimeStatOption)
         return requestedItems
     }
 
@@ -254,8 +264,8 @@ class BlockingQueue<T : ModelElement.QObject>(
     internal fun fill(request: Request): List<T> {
         require(request.canBeFilled) { "The request could not be filled" }
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
-        removeAllFromChannel(list, request.itemStats)
-        myRequestQ.remove(request, request.blockingStats)
+        removeAllFromChannel(list, channelWaitTimeStatOption)
+        myRequestQ.remove(request, requestWaitTimeStatOption)
         return list
     }
 

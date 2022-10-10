@@ -900,13 +900,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 amount: Int,
                 predicate: (T) -> Boolean,
                 blockingPriority: Int,
-                blockingWaitingStats: Boolean,
-                itemWaitingStats: Boolean,
                 receiveName: String?
             ): List<T> {
                 currentBlockedReceiving = receiveName
                 // always enqueue to capture wait statistics of those that do not wait
-                val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority, blockingWaitingStats, itemWaitingStats)
+                val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority)
                 if (request.canNotBeFilled) {
                     // must wait until it can be filled
                     logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
@@ -943,13 +941,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 blockingQ: BlockingQueue<T>,
                 predicate: (T) -> Boolean,
                 blockingPriority: Int,
-                blockingWaitingStats: Boolean,
-                itemWaitingStats: Boolean,
                 receiveName: String?
             ): List<T> {
                 currentBlockedReceiving = receiveName
                 // always enqueue to capture wait statistics of those that do not wait
-                val request = blockingQ.requestItems(entity, predicate, blockingPriority, blockingWaitingStats, itemWaitingStats)
+                val request = blockingQ.requestItems(entity, predicate, blockingPriority)
                 if (request.canNotBeFilled) {
                     // must wait until it can be filled
                     logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
@@ -968,7 +964,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 item: T,
                 blockingQ: BlockingQueue<T>,
                 blockingPriority: Int,
-                blockingStats: Boolean,
                 sendName: String?
             ) {
                 currentBlockedSending = sendName
@@ -981,7 +976,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     entity.state.activate()
                     logger.trace { "time = $time : entity ${entity.id} unblocked sending to ${blockingQ.name} in process, ($this)" }
                 }
-                blockingQ.dequeSender(entity, blockingStats)
+                blockingQ.dequeSender(entity)
                 logger.trace { "time = $time : entity ${entity.id} sending ${item.name} to ${blockingQ.name} in process, ($this)" }
                 blockingQ.sendToChannel(item)
                 currentBlockedSending = null
