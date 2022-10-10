@@ -2,6 +2,7 @@ package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
+import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import java.util.function.Predicate
 
@@ -11,6 +12,20 @@ fun interface EntitySelectorIfc {
 
 }
 
+/**
+ * A blocking queue facilitates the exchange of information between two or more
+ * processes.  If the capacity is finite, then placing an item in the queue may cause
+ *  the sender to block its current process.  Receivers of items from the queue may block
+ *  if the number of items meeting their requirements are not available at the time of the
+ *  request. By default, all queues are FIFO, but their disciplines can be set by the user.
+ *  Instances are intended to be used to communicate between KSLProcesses via the shared
+ *  mutable state of the queue.  Statistics on blocking and usage of the communication
+ *  channel are automatically reported.
+ *
+ * @param parent the parent of the queue
+ * @param capacity the capacity of the queue, by default Int.MAX_VALUE (infinite)
+ * @param name the name of the queue
+ */
 class BlockingQueue<T : ModelElement.QObject>(
     parent: ModelElement,
     val capacity: Int = Int.MAX_VALUE,
@@ -19,6 +34,9 @@ class BlockingQueue<T : ModelElement.QObject>(
     init {
         require(capacity >= 1) { "The size of the blocking queue must be >= 1" }
     }
+
+    var requestQResumptionPriority : Int = KSLEvent.DEFAULT_PRIORITY - 8
+    var senderQResumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY - 9 // sender has more priority
 
     /**
      *  True if the channel does not contain any items
@@ -52,8 +70,6 @@ class BlockingQueue<T : ModelElement.QObject>(
 
     private val mySenderQ: Queue<ProcessModel.Entity> = Queue(this, "${this.name}:SenderQ")
 
-    var senderWaitTimeStatOption: Boolean = true
-
     /**
      *  The queue that holds entities wanting to place items in to the channel that are
      *  waiting (blocked) because there is no available capacity
@@ -62,8 +78,6 @@ class BlockingQueue<T : ModelElement.QObject>(
         get() = mySenderQ
 
     private val myRequestQ: Queue<Request> = Queue(this, "${this.name}:RequestQ")
-
-    var requestWaitTimeStatOption: Boolean = true
 
     /**
      *  The queue that holds requests by entities to remove items from the channel because
@@ -81,30 +95,25 @@ class BlockingQueue<T : ModelElement.QObject>(
     val channelQ: QueueCIfc<T>
         get() = myChannelQ
 
-    var channelWaitTimeStatOption :Boolean = true
-
     init{
         if (capacity == Int.MAX_VALUE){
             //no need for statistics for the sender, so turn it off
-            senderWaitTimeStatOption = false
+            senderQ.waitTimeStatOption = false
             senderQ.timeInQ.defaultReportingOption = false
             senderQ.numInQ.defaultReportingOption = false
         }
     }
 
     /**
-     *  @param option use false to turn off all wait time statistics
+     *  @param option use false to turn off all statistics
      */
     fun waitTimeStatisticsOption(option: Boolean){
-        requestWaitTimeStatOption = option
-        channelWaitTimeStatOption = option
-        senderWaitTimeStatOption = option
-        requestQ.timeInQ.defaultReportingOption = option
-        requestQ.numInQ.defaultReportingOption = option
-        senderQ.timeInQ.defaultReportingOption = option
-        senderQ.numInQ.defaultReportingOption = option
-        channelQ.timeInQ.defaultReportingOption = option
-        channelQ.numInQ.defaultReportingOption = option
+        requestQ.waitTimeStatOption = option
+        channelQ.waitTimeStatOption = option
+        senderQ.waitTimeStatOption = option
+        requestQ.defaultReportingOption = option
+        senderQ.defaultReportingOption = option
+        channelQ.defaultReportingOption = option
     }
 
     /**
@@ -112,7 +121,6 @@ class BlockingQueue<T : ModelElement.QObject>(
      * that meet the criteria (predicate).
      * @param receiver the entity that wants the items
      * @param predicate the criteria for selecting the items from the channel
-     * @param blockingStats if true waiting statistics are collected for the entities blocked
      * waiting for their request
      */
     open inner class Request(
@@ -180,12 +188,19 @@ class BlockingQueue<T : ModelElement.QObject>(
 
     }
 
+    /**
+     * The default is to select the next based on the queue discipline
+     */
     inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T> {
         override fun selectRequest(queue: Queue<BlockingQueue<T>.Request>): BlockingQueue<T>.Request? {
             return queue.peekNext()
         }
     }
 
+    /**
+     * Allows the next request that can be filled to be selected regardless of its
+     * location within the request queue.
+     */
     inner class FirstFillableRequest() : RequestSelectorIfc<T> {
         override fun selectRequest(queue: Queue<Request>): Request? {
             for (request in queue) {
@@ -197,6 +212,9 @@ class BlockingQueue<T : ModelElement.QObject>(
         }
     }
 
+    /**
+     *  Interface for defining request selection
+     */
     interface RequestSelectorIfc<T : ModelElement.QObject> {
         fun selectRequest(queue: Queue<BlockingQueue<T>.Request>): BlockingQueue<T>.Request?
     }
@@ -214,7 +232,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      * when there is space to send
      */
     internal fun dequeSender(sender: ProcessModel.Entity) {
-        mySenderQ.remove(sender, senderWaitTimeStatOption)
+        mySenderQ.remove(sender)
     }
 
     /**
@@ -259,8 +277,8 @@ class BlockingQueue<T : ModelElement.QObject>(
         require(request.canBeFilled) { "The request could not be filled" }
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         val requestedItems = list.take(request.amountRequested)
-        removeAllFromChannel(requestedItems, channelWaitTimeStatOption)
-        myRequestQ.remove(request, requestWaitTimeStatOption)
+        removeAllFromChannel(requestedItems, channelQ.waitTimeStatOption)
+        myRequestQ.remove(request)
         return requestedItems
     }
 
@@ -273,8 +291,8 @@ class BlockingQueue<T : ModelElement.QObject>(
     internal fun fill(request: Request): List<T> {
         require(request.canBeFilled) { "The request could not be filled" }
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
-        removeAllFromChannel(list, channelWaitTimeStatOption)
-        myRequestQ.remove(request, requestWaitTimeStatOption)
+        removeAllFromChannel(list, channelQ.waitTimeStatOption)
+        myRequestQ.remove(request)
         return list
     }
 
@@ -295,15 +313,14 @@ class BlockingQueue<T : ModelElement.QObject>(
             if (request != null) {
                 if (request.canBeFilled) {
                     val entity = request.receiver
-                    entity.resumeProcess() //TODO what about the resumption priority
-                    //TODO concern, can request become unfillable by the time suspended coroutine proceeds?
+                    entity.resumeProcess(requestQResumptionPriority)
                 }
             }
         }
     }
 
     /**
-     * Allows many items to be sent (placed into) the channel if there is space.  Calles
+     * Allows many items to be sent (placed into) the channel if there is space.  Calls
      * sendToChannel(qObject) to get the work done.
      */
     internal fun sendToChannel(c: Collection<T>) {
@@ -367,6 +384,7 @@ class BlockingQueue<T : ModelElement.QObject>(
     }
 
     /** Finds the items in the channel according to the condition and removes them.
+     * The channel must not be empty.
      *
      * @param condition the criteria for selecting the items
      * @param waitStats indicates whether waiting time statistics should be collected
@@ -391,10 +409,8 @@ class BlockingQueue<T : ModelElement.QObject>(
             throw IllegalStateException( "$name : Attempted to receive from an empty channel queue")
         }
         if (!myChannelQ.contains(c)){
-            throw IllegalStateException( "$name : The channel does not contain all of the items in the collection")
+            throw IllegalStateException( "$name : The channel does not contain all the items in the collection")
         }
-//        check(myChannelQ.isNotEmpty) { "$name : Attempted to receive from an empty channel queue" }
-//        check(!containsAll(c)) { "$name : The channel does not contain all of the items in the collection" }
         myChannelQ.removeAll(c, waitStats)
         // actions related to removal of elements, check for waiting senders
         // select next waiting sender
@@ -403,7 +419,7 @@ class BlockingQueue<T : ModelElement.QObject>(
             val entity = senderSelector.selectEntity(mySenderQ)
             // ask selected entity to review the channel queue and decide what to do
             if (entity != null) {
-                entity.resumeProcess() //TODO how to handle priority
+                entity.resumeProcess(senderQResumptionPriority)
             }
         }
     }

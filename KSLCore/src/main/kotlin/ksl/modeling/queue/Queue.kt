@@ -21,7 +21,7 @@ import ksl.simulation.ModelElement
 import java.util.*
 import java.util.function.Predicate
 
-interface QueueCIfc<T : ModelElement.QObject> {
+interface QueueCIfc<T : ModelElement.QObject> : DefaultReportingOptionIfc {
 
     /**
      * Allows access to number in queue response information
@@ -94,6 +94,12 @@ interface QueueCIfc<T : ModelElement.QObject> {
      * @return true if removed
      */
     fun removeQueueListener(listener: QueueListenerIfc<T>): Boolean
+
+    /**
+     *  Default option for whether waiting time statistics are collected
+     *  upon removal of items from the queue
+     */
+    var waitTimeStatOption: Boolean
 }
 
 /**
@@ -118,6 +124,16 @@ open class Queue<T : ModelElement.QObject>(
     discipline: Discipline = Discipline.FIFO
 ) :
     ModelElement(parent, name), Iterable<T>, QueueCIfc<T> {
+
+    override var waitTimeStatOption: Boolean = true
+
+    override var defaultReportingOption: Boolean = true
+        set(value) {
+            myNumInQ.defaultReportingOption = value
+            myTimeInQ.defaultReportingOption = value
+            field = value
+        }
+
     /**
      * ENQUEUED indicates that something was just enqueued DEQUEUED indicates
      * that something was just dequeued
@@ -413,7 +429,7 @@ open class Queue<T : ModelElement.QObject>(
      * @param waitStats indicates whether waiting time statistics should be collected
      * @return a list of the removed items, which may be empty if none are removed
      */
-    fun remove(predicate: (T) -> Boolean, waitStats: Boolean = true): MutableList<T> {
+    fun remove(predicate: (T) -> Boolean, waitStats: Boolean = waitTimeStatOption): MutableList<T> {
         val removedItems: MutableList<T> = mutableListOf()
         for (i in myList.indices) {
             val qo = myList[i]
@@ -433,7 +449,7 @@ open class Queue<T : ModelElement.QObject>(
      * @param waitStats indicates whether waiting time statistics should be collected
      * @return a list of the removed items, which may be empty if none are removed
      */
-    fun remove(condition: Predicate<T>, waitStats: Boolean = true): MutableList<T> {
+    fun remove(condition: Predicate<T>, waitStats: Boolean = waitTimeStatOption): MutableList<T> {
         return remove(condition::test, waitStats)
     }
 
@@ -448,7 +464,7 @@ open class Queue<T : ModelElement.QObject>(
      * collected on the removed item, true means collect statistics
      * @return True if the item was removed.
      */
-    fun remove(qObj: T, waitStats: Boolean = true): Boolean {
+    fun remove(qObj: T, waitStats: Boolean = waitTimeStatOption): Boolean {
         return if (myList.remove(qObj)) {
             if (waitStats) {
                 status = Status.DEQUEUED
@@ -482,7 +498,7 @@ open class Queue<T : ModelElement.QObject>(
      * means do not
      * @return the element previously at the specified position
      */
-    fun remove(index: Int, waitStats: Boolean = true): T {
+    fun remove(index: Int, waitStats: Boolean = waitTimeStatOption): T {
         val qObj = myList.removeAt(index)
         if (waitStats) {
             status = Status.DEQUEUED
@@ -594,7 +610,7 @@ open class Queue<T : ModelElement.QObject>(
      * @param statFlag true means collect statistics, false means do not
      * @return true if the queue changed as a result of the call
      */
-    fun removeAll(c: Collection<T>, statFlag: Boolean = true): Boolean {
+    fun removeAll(c: Collection<T>, statFlag: Boolean = waitTimeStatOption): Boolean {
         var removedFlag = false
         for (qObj in c) {
             removedFlag = remove(qObj, statFlag)
@@ -615,7 +631,7 @@ open class Queue<T : ModelElement.QObject>(
      * @param statFlag true means collect statistics, false means do not
      * @return true if the queue changed as a result of the call
      */
-    fun removeAll(c: Iterator<T>, statFlag: Boolean = true): Boolean {
+    fun removeAll(c: Iterator<T>, statFlag: Boolean = waitTimeStatOption): Boolean {
         var removedFlag = false
         while (c.hasNext()) {
             val qo = c.next()
@@ -633,7 +649,7 @@ open class Queue<T : ModelElement.QObject>(
      * @param statFlag true means collect statistics, false means do not
      * @return true if the queue changed as a result of the call
      */
-    fun removeAll(statFlag: Boolean = true): Boolean {
+    fun removeAll(statFlag: Boolean = waitTimeStatOption): Boolean {
         var removedFlag = false
         while (isNotEmpty) {
             val qObj = peekNext()

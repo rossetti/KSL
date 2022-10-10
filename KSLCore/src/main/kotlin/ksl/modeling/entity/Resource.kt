@@ -2,6 +2,7 @@ package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
+import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.Model
@@ -9,7 +10,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 
-interface ResourceCIfc {
+interface ResourceCIfc : DefaultReportingOptionIfc {
     val waitingQ : QueueCIfc<ProcessModel.Entity>
     var initialCapacity: Int
     val capacity: Int
@@ -66,6 +67,14 @@ class Resource(
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
     }
+
+    override var defaultReportingOption: Boolean = true
+        set(value) {
+            myWaitingQ.defaultReportingOption = value
+            myNumBusy.defaultReportingOption = value
+            myUtil.defaultReportingOption = value
+            field = value
+        }
 
     /**
      * Holds the entities that are waiting for allocations of the resource's units
