@@ -83,6 +83,15 @@ class BlockingQueue<T : ModelElement.QObject>(
 
     var channelWaitTimeStatOption :Boolean = true
 
+    init{
+        if (capacity == Int.MAX_VALUE){
+            //no need for statistics for the sender, so turn it off
+            senderWaitTimeStatOption = false
+            senderQ.timeInQ.defaultReportingOption = false
+            senderQ.numInQ.defaultReportingOption = false
+        }
+    }
+
     /**
      *  @param option use false to turn off all wait time statistics
      */

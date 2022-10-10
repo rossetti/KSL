@@ -12,6 +12,7 @@ import ksl.utilities.statistic.StateAccessorIfc
 interface ResourceCIfc {
     val waitingQ : QueueCIfc<ProcessModel.Entity>
     var initialCapacity: Int
+    val capacity: Int
     val stateStatisticsOption: Boolean
     val busyState: StateAccessorIfc
     val idleState: StateAccessorIfc
@@ -36,9 +37,12 @@ interface ResourceCIfc {
      */
     val isInactive: Boolean
     val numBusyUnits : TWResponseCIfc
+    val util: TWResponseCIfc
     val numAvailableUnits: Int
     val hasAvailableUnits: Boolean
     val hasBusyUnits: Boolean
+    val fractionBusy: Double
+    val numBusy: Int
 }
 
 /**
@@ -86,7 +90,7 @@ class Resource(
             field = value
         }
 
-    var capacity = capacity
+    override var capacity = capacity
         protected set
 
     override val stateStatisticsOption: Boolean = collectStateStatistics
@@ -156,15 +160,21 @@ class Resource(
     override val isInactive: Boolean
         get() = myState === myInactiveState
 
-    private val myNumBusy = TWResponse(this, "${this.name}:#Busy Units")
+    private val myNumBusy = TWResponse(this, "${this.name}:BusyUnits")
     override val numBusyUnits : TWResponseCIfc
         get() = myNumBusy
+
+    private val myUtil = TWResponse(this, "${this.name}:Util")
+    override val util: TWResponseCIfc
+        get() = myUtil
+    override val numBusy: Int
+        get() = myNumBusy.value.toInt()
 
     override val numAvailableUnits: Int
         get() = if (isFailed || isInactive) {//isBusy || isFailed || isInactive
             0
         } else {
-            capacity - myNumBusy.value.toInt()
+            capacity - numBusy
         }
 
     override val hasAvailableUnits: Boolean
@@ -172,6 +182,9 @@ class Resource(
 
     override val hasBusyUnits: Boolean
         get() = myNumBusy.value > 0.0
+
+    override val fractionBusy: Double
+        get() = myNumBusy.value/capacity
 
     override fun toString(): String {
         return "$name: state = $myState"
@@ -244,6 +257,7 @@ class Resource(
         }
         entityAllocations[entity]?.add(allocation)
         myNumBusy.increment(amountNeeded.toDouble())
+        myUtil.value = fractionBusy
         // must be busy, because an allocation occurred
         myState.exit(time)
         myState = myBusyState
@@ -267,6 +281,7 @@ class Resource(
         }
         // give back to the resource
         myNumBusy.decrement(allocation.amount.toDouble())
+        myUtil.value = fractionBusy
         if (myNumBusy.value == 0.0) {
             myState.exit(time)
             myState = myIdleState

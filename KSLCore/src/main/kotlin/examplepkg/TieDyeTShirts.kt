@@ -27,15 +27,11 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
     private val myNumInSystem = TWResponse(this, "Num in System")
     private val generator = EntityGenerator(::Order, myTBOrders, myTBOrders)
     private val completedShirtQ: BlockingQueue<Shirt> = BlockingQueue(this, name = "Completed Shirt Q")
-    init{
-        completedShirtQ.senderWaitTimeStatOption = false
-        completedShirtQ.senderQ.timeInQ.defaultReportingOption = false
-        completedShirtQ.senderQ.numInQ.defaultReportingOption = false
-    }
 
     private inner class Order: Entity() {
-        val type: Int = myOrderType.value.toInt() //notice that we must assign these in here
+        val type: Int = myOrderType.value.toInt() // in the problem, but not really used
         val size: Int = myOrderSize.value.toInt()
+        var completedShirts : List<Shirt> = emptyList() // not really necessary
 
         val orderMaking : KSLProcess = process("Order Making") {
             myNumInSystem.increment()
@@ -47,10 +43,8 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
             delay(myPaperWorkTime)
             release(a)
             // wait for shirts
-//            println("$time > waiting for $size shirts")
-            val completedShirts = waitForItems(completedShirtQ, size, {it.orderNum == this@Order.id})
-//            println("$time > received ${completedShirts.size} shirts")
-            a = seize(myPackager) //priority?
+            completedShirts = waitForItems(completedShirtQ, size, {it.orderNum == this@Order.id})
+            a = seize(myPackager)
             delay(myPackagingTime)
             release(a)
             myNumInSystem.decrement()

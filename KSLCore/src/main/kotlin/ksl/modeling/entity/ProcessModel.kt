@@ -36,23 +36,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     /**
      * @param entityCreator the thing that creates the entities of the particular type. Typically,
      * a reference to the constructor of the class
-     * @param theTimeUntilTheFirstEntity the time until the first entity creation
-     * @param theTimeBtwEvents the time between entity creation
-     * @param theMaxNumberOfEvents the maximum number of entities to create
-     * @param theTimeOfTheLastEvent the time of the last entity creation
-     * @param theName a name for the generator
+     * @param timeUntilTheFirstEntity the time until the first entity creation
+     * @param timeBtwEvents the time between entity creation
+     * @param maxNumberOfEvents the maximum number of entities to create
+     * @param timeOfTheLastEvent the time of the last entity creation
+     * @param name a name for the generator
      */
     protected inner class EntityGenerator<T : Entity>(
         private val entityCreator: () -> T,
-        theTimeUntilTheFirstEntity: RandomIfc = ConstantRV.ZERO,
-        theTimeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
-        theMaxNumberOfEvents: Long = Long.MAX_VALUE,
-        theTimeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
+        timeUntilTheFirstEntity: RandomIfc = ConstantRV.ZERO,
+        timeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
+        maxNumberOfEvents: Long = Long.MAX_VALUE,
+        timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
         var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,
-        theName: String? = null
+        name: String? = null
     ) : EventGenerator(
-        this@ProcessModel, null, theTimeUntilTheFirstEntity,
-        theTimeBtwEvents, theMaxNumberOfEvents, theTimeOfTheLastEvent, theName
+        this@ProcessModel, null, timeUntilTheFirstEntity,
+        timeBtwEvents, maxNumberOfEvents, timeOfTheLastEvent, name
     ) {
         override fun generate() {
             val entity = entityCreator()
