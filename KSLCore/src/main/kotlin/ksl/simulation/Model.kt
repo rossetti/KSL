@@ -27,7 +27,6 @@ class Model(
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement("MainModel"), ExperimentIfc {
 //TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
-//TODO statistical batching, but move it within Model
 //TODO observers
 //TODO note that JSLDataBaseObserver is actually attached as an observer on Model
 //TODO controls and parameters
@@ -82,7 +81,7 @@ class Model(
     /**
      * A list of all random elements within the model
      */
-    private var myRandomElements: MutableList<RandomElementIfc> = ArrayList() //TODO will not be needed with new stream control
+    private var myRandomElements: MutableList<RandomElementIfc> = ArrayList() //TODO may not be needed with new stream control
 
     /**
      * A Map that holds all the model elements in the order in which they are
