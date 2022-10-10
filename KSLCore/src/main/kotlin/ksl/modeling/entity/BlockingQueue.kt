@@ -14,8 +14,8 @@ fun interface EntitySelectorIfc {
 class BlockingQueue<T : ModelElement.QObject>(
     parent: ModelElement,
     val capacity: Int = Int.MAX_VALUE,
-    theName: String? = null
-) : ModelElement(parent, theName) {
+    name: String? = null
+) : ModelElement(parent, name) {
     init {
         require(capacity >= 1) { "The size of the blocking queue must be >= 1" }
     }
@@ -50,7 +50,7 @@ class BlockingQueue<T : ModelElement.QObject>(
     val isNotFull: Boolean
         get() = !isFull
 
-    private val mySenderQ: Queue<ProcessModel.Entity> = Queue(this, "${name}:SenderQ")
+    private val mySenderQ: Queue<ProcessModel.Entity> = Queue(this, "${this.name}:SenderQ")
 
     var senderWaitTimeStatOption: Boolean = true
 
@@ -61,7 +61,7 @@ class BlockingQueue<T : ModelElement.QObject>(
     val senderQ: QueueCIfc<ProcessModel.Entity>
         get() = mySenderQ
 
-    private val myRequestQ: Queue<Request> = Queue(this, "${name}:RequestQ")
+    private val myRequestQ: Queue<Request> = Queue(this, "${this.name}:RequestQ")
 
     var requestWaitTimeStatOption: Boolean = true
 
@@ -73,7 +73,7 @@ class BlockingQueue<T : ModelElement.QObject>(
     val requestQ: QueueCIfc<Request>
         get() = myRequestQ
 
-    private val myChannelQ: Queue<T> = Queue(this, "${name}:ChannelQ")
+    private val myChannelQ: Queue<T> = Queue(this, "${this.name}:ChannelQ")
 
     /**
      *  The channel that holds items that are being sent or received.

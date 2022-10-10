@@ -46,27 +46,27 @@ interface ResourceCIfc {
  *  units have been allocated.
  *
  * @param parent the containing model element
- * @param theInitialCapacity the capacity for the resource at the beginning of each replication, must be at least 1
- * @param aName the name for the resource
+ * @param capacity the capacity for the resource at the beginning of each replication, must be at least 1
+ * @param name the name for the resource
  * @param discipline the queue discipline for waiting entities
  * @param collectStateStatistics whether individual state statistics are collected
  */
 class Resource(
     parent: ModelElement,
-    aName: String? = null,
-    theInitialCapacity: Int = 1,
+    name: String? = null,
+    capacity: Int = 1,
     discipline: Queue.Discipline = Queue.Discipline.FIFO,
     collectStateStatistics: Boolean = false
-) : ModelElement(parent, aName), ResourceCIfc {
+) : ModelElement(parent, name), ResourceCIfc {
 
     init {
-        require(theInitialCapacity >= 1) { "The initial capacity of the resource must be >= 1" }
+        require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
     }
 
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
-    private val myWaitingQ: HoldQueue = HoldQueue(this, "${name}:Q", discipline)
+    private val myWaitingQ: HoldQueue = HoldQueue(this, "${this.name}:Q", discipline)
     override val waitingQ : QueueCIfc<ProcessModel.Entity>
         get() = myWaitingQ
 
@@ -77,7 +77,7 @@ class Resource(
      */
     private val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
 
-    override var initialCapacity = theInitialCapacity
+    override var initialCapacity = capacity
         set(value) {
             require(value >= 1) { "The initial capacity of the resource must be >= 1" }
             if (model.isRunning) {
@@ -86,7 +86,7 @@ class Resource(
             field = value
         }
 
-    var capacity = theInitialCapacity
+    var capacity = capacity
         protected set
 
     override val stateStatisticsOption: Boolean = collectStateStatistics
@@ -94,7 +94,7 @@ class Resource(
     /** The busy state, keeps track of when all units are busy
      *
      */
-    protected val myBusyState: ResourceState = ResourceState("${name}_Busy", collectStateStatistics)
+    protected val myBusyState: ResourceState = ResourceState("${this.name}_Busy", collectStateStatistics)
     override val busyState: StateAccessorIfc
         get() = myBusyState
 
@@ -102,7 +102,7 @@ class Resource(
      * i.e. if any unit is idle then the resource as a whole is
      * considered idle
      */
-    protected val myIdleState: ResourceState = ResourceState("${name}Idle", collectStateStatistics)
+    protected val myIdleState: ResourceState = ResourceState("${this.name}Idle", collectStateStatistics)
     override val idleState: StateAccessorIfc
         get() = myIdleState
 
@@ -110,14 +110,14 @@ class Resource(
      * are available because the resource is failed
      *
      */
-    protected val myFailedState: ResourceState = ResourceState("${name}_Failed", collectStateStatistics)
+    protected val myFailedState: ResourceState = ResourceState("${this.name}_Failed", collectStateStatistics)
     override val failedState: StateAccessorIfc
         get() = myFailedState
 
     /** The inactive state, keeps track of when no units
      * are available because the resource is inactive
      */
-    protected val myInactiveState: ResourceState = ResourceState("${name}_Inactive", collectStateStatistics)
+    protected val myInactiveState: ResourceState = ResourceState("${this.name}_Inactive", collectStateStatistics)
     override val inactiveState: StateAccessorIfc
         get() = myInactiveState
 
@@ -156,7 +156,7 @@ class Resource(
     override val isInactive: Boolean
         get() = myState === myInactiveState
 
-    private val myNumBusy = TWResponse(this, "${name}:#Busy Units")
+    private val myNumBusy = TWResponse(this, "${this.name}:#Busy Units")
     override val numBusyUnits : TWResponseCIfc
         get() = myNumBusy
 
