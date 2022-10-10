@@ -21,7 +21,7 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
     private val myShirtMakingTime = RandomVariable(this, UniformRV(15.0, 25.0))
     private val myPaperWorkTime = RandomVariable(this, UniformRV(8.0, 10.0))
     private val myPackagingTime = RandomVariable(this, TriangularRV(5.0, 10.0, 15.0))
-    private val myShirtMakers: Resource = Resource(this, capacity = 1000, name = "ShirtMakers_R")
+    private val myShirtMakers: Resource = Resource(this, capacity = 2, name = "ShirtMakers_R")
     private val myPackager: Resource = Resource(this, "Packager_R")
     private val mySystemTime = Response(this, "System Time")
     private val myNumInSystem = TWResponse(this, "Num in System")

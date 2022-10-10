@@ -161,7 +161,7 @@ class Resource(
         get() = myNumBusy
 
     override val numAvailableUnits: Int
-        get() = if (isBusy || isFailed || isInactive) {
+        get() = if (isFailed || isInactive) {//isBusy || isFailed || isInactive
             0
         } else {
             capacity - myNumBusy.value.toInt()
