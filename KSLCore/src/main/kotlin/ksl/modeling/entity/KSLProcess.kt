@@ -24,6 +24,18 @@ interface KSLProcess {
     val entity: ProcessModel.Entity
 }
 
+enum class SuspendType {
+    NONE,
+    SUSPEND,
+    WAIT_FOR_SIGNAL,
+    HOLD,
+    WAIT_FOR_ITEMS,
+    WAIT_FOR_ANY_ITEMS,
+    SEND,
+    SEIZE,
+    DELAY
+}
+
 /**
  *  Because an entity that is executing a process cannot resume itself
  *  after suspending itself, we need a mechanism to allow the entity
@@ -65,14 +77,14 @@ interface KSLProcessBuilder {
      *  the same signal
      *  @param waitStats Indicates whether waiting time statistics should be
      * collected on waiting items, true means collect statistics
-     *  @param waitForName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
+     *  @param suspensionName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
      *   are more than one waitFor suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun waitFor(
         signal: Signal,
         waitPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         waitStats: Boolean = true,
-        waitForName: String? = null
+        suspensionName: String? = null
     )
 
     /**
@@ -83,10 +95,10 @@ interface KSLProcessBuilder {
      *
      *  @param queue a queue to hold the waiting entities
      *  @param priority a priority for the queue discipline if needed
-     *  @param holdName the name of the hold. can be used to identify which hold the entity is experiencing if there
+     *  @param suspensionName the name of the hold. can be used to identify which hold the entity is experiencing if there
      *   are more than one hold suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun hold(queue: HoldQueue, priority: Int = KSLEvent.DEFAULT_PRIORITY, holdName: String? = null)
+    suspend fun hold(queue: HoldQueue, priority: Int = KSLEvent.DEFAULT_PRIORITY, suspensionName: String? = null)
 
     /**
      * This method will block (suspend) until the required number of items that meet the criteria
@@ -96,7 +108,7 @@ interface KSLProcessBuilder {
      * @param amount the number of items needed from the blocking queue that match the criteria
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
-     * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
+     * @param suspensionName the name of the receive suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one recieve suspension points within the process.
      * The user is responsible for uniqueness.
      */
@@ -105,7 +117,7 @@ interface KSLProcessBuilder {
         amount: Int = 1,
         predicate: (T) -> Boolean = alwaysTrue,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        receiveName: String? = null
+        suspensionName: String? = null
     ): List<T>
 
     /**
@@ -117,17 +129,17 @@ interface KSLProcessBuilder {
      * @param amount the number of items needed from the blocking queue that match the criteria
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
-     * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
+     * @param suspensionName the name of the receive suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one recieve suspension points within the process.
      * The user is responsible for uniqueness.
      */
-    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.receive(
+    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitFor(
         amount: Int = 1,
         predicate: (T) -> Boolean = alwaysTrue,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        receiveName: String? = null
+        suspensionName: String? = null
     ): List<T> {
-        return waitForItems(this, amount, predicate, blockingPriority, receiveName)
+        return waitForItems(this, amount, predicate, blockingPriority, suspensionName)
     }
 
     /**
@@ -138,7 +150,7 @@ interface KSLProcessBuilder {
      * @param blockingQ the blocking queue channel that has the items
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
-     * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
+     * @param suspensionName the name of the receive suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one recieve suspension points within the process.
      * The user is responsible for uniqueness.
      */
@@ -146,7 +158,7 @@ interface KSLProcessBuilder {
         blockingQ: BlockingQueue<T>,
         predicate: (T) -> Boolean,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        receiveName: String? = null
+        suspensionName: String? = null
     ): List<T>
 
     /**
@@ -157,16 +169,16 @@ interface KSLProcessBuilder {
      *
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
-     * @param receiveName the name of the receive suspension point. can be used to identify which receive suspension point
-     * the entity is experiencing if there are more than one recieve suspension points within the process.
+     * @param suspensionName the name of the receive suspension point. can be used to identify which receive suspension point
+     * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
      */
-    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.receiveAny(
+    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitForAny(
         predicate: (T) -> Boolean,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        receiveName: String? = null
+        suspensionName: String? = null
     ): List<T> {
-        return waitForAnyItems(this, predicate, blockingPriority, receiveName)
+        return waitForAnyItems(this, predicate, blockingPriority, suspensionName)
     }
 
     /** This method will block (suspend) if the blocking queue is full. That is, if the blocking queue
@@ -176,7 +188,7 @@ interface KSLProcessBuilder {
      * @param item the item being placed into the blocking queue
      * @param blockingQ the blocking queue channel that holds the items
      * @param blockingPriority the priority for the entity that must wait to send if the blocking queue is full
-     * @param sendName the name of the possible suspension point. This can be used by the entity to
+     * @param suspensionName the name of the possible suspension point. This can be used by the entity to
      * determine which send blocking it might be experiencing when blocked.  It is up to the client to
      * ensure the name is meaningful and possibly unique.
      */
@@ -184,7 +196,7 @@ interface KSLProcessBuilder {
         item: T,
         blockingQ: BlockingQueue<T>,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        sendName: String? = null
+        suspensionName: String? = null
     )
 
     /**
@@ -195,16 +207,16 @@ interface KSLProcessBuilder {
      *
      * @param item the item being placed into the blocking queue
      * @param blockingPriority the priority for the entity that must wait to send if the blocking queue is full
-     * @param sendName the name of the possible suspension point. This can be used by the entity to
+     * @param suspensionName the name of the possible suspension point. This can be used by the entity to
      * determine which send blocking it might be experiencing when blocked.  It is up to the client to
      * ensure the name is meaningful and possibly unique.
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.send(
         item: T,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        sendName: String? = null
+        suspensionName: String? = null
     ) {
-        send(item, this, blockingPriority, sendName)
+        send(item, this, blockingPriority, suspensionName)
     }
 
     /**
@@ -215,7 +227,7 @@ interface KSLProcessBuilder {
      *  @param resource the resource from which the units are being requested.
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
-     *  @param seizeName the name of the seize suspension point. can be used to identify which seize the entity is experiencing if there
+     *  @param suspensionName the name of the seize suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
      *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
@@ -223,7 +235,7 @@ interface KSLProcessBuilder {
      */
     suspend fun seize(
         resource: Resource, amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY, seizeName: String? = null
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY, suspensionName: String? = null
     ): Allocation
 
     /**
@@ -285,25 +297,25 @@ interface KSLProcessBuilder {
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
-     *  @param delayName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun delay(delayDuration: Double, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY, delayName: String? = null)
+    suspend fun delay(delayDuration: Double, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY, suspensionName: String? = null)
 
     /**
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
-     *  @param delayName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun delay(
         delayDuration: GetValueIfc,
         delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        delayName: String? = null
+        suspensionName: String? = null
     ) {
-        delay(delayDuration.value, delayPriority, delayName)
+        delay(delayDuration.value, delayPriority, suspensionName)
     }
 
     /**

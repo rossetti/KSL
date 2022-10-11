@@ -81,7 +81,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         entity.useProcessSequence = true
         entity.processSequenceIterator = entity.processSequence.listIterator()
         if (entity.processSequenceIterator.hasNext()) {
-            //TODO could attache the entity to the event
+            //TODO could attach the entity to the event
             return activate(entity.processSequenceIterator.next())
         }
         return null
@@ -136,7 +136,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         priority: Int = KSLEvent.DEFAULT_PRIORITY
     ): KSLEvent<KSLProcess> {
         val c = process as Entity.ProcessCoroutine
-        //TODO could attache the entity to the event
+        //TODO could attach the entity to the event
         return c.activate(timeUntilActivation, priority)
     }
 
@@ -231,22 +231,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myBlockedSendingState
         val isBlockedReceiving: Boolean
             get() = state == myBlockedReceivingState
-        val isSuspended: Boolean
+
+        val isSuspended: Boolean //TODO need to add actual suspend call
             get() = isScheduled || isWaitingForSignal || isInHoldQueue || isWaitingForResource || isBlockedSending || isBlockedReceiving
 
-        var currentDelay: String? = null
+        var currentSuspendName: String? = null
             private set
-        var currentSuspensionPoint: String? = null
-            private set
-        var currentWaitFor: String? = null
-            private set
-        var currentHold: String? = null
-            private set
-        var currentSeize: String? = null
-            private set
-        var currentBlockedSending: String? = null
-            private set
-        var currentBlockedReceiving: String? = null
+        var currentSuspendType: SuspendType = SuspendType.NONE
             private set
 
         /**
@@ -849,13 +840,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override suspend fun suspend(suspensionObserver: SuspensionObserver, suspensionName: String?) {
-                currentSuspensionPoint = suspensionName
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.SUSPEND
                 logger.trace { "time = $time : entity ${entity.id} suspended process, ($this) using suspension observe, ${suspensionObserver.name}" }
                 suspensionObserver.attach(entity)
                 suspend()
                 suspensionObserver.detach(entity)
                 logger.trace { "time = $time : entity ${entity.id} suspended process, ($this) resumed by suspension observe, ${suspensionObserver.name}" }
-                currentSuspensionPoint = null
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
             }
 
             /**
@@ -872,8 +865,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
-            override suspend fun waitFor(signal: Signal, waitPriority: Int, waitStats: Boolean, waitForName: String?) {
-                currentWaitFor = waitForName
+            override suspend fun waitFor(signal: Signal, waitPriority: Int, waitStats: Boolean, suspensionName: String?) {
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.WAIT_FOR_SIGNAL
                 logger.trace { "time = $time : entity ${entity.id} waiting for ${signal.name} in process, ($this)" }
                 entity.state.waitForSignal()
                 signal.hold(entity, waitPriority)
@@ -881,18 +875,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 signal.release(entity, waitStats)
                 entity.state.activate()
                 logger.trace { "time = $time : entity ${entity.id} released from ${signal.name} in process, ($this)" }
-                currentWaitFor = null
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
             }
 
-            override suspend fun hold(queue: HoldQueue, priority: Int, holdName: String?) {
-                currentHold = holdName
+            override suspend fun hold(queue: HoldQueue, priority: Int, suspensionName: String?) {
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.HOLD
                 logger.trace { "time = $time : entity ${entity.id} being held in ${queue.name} in process, ($this)" }
                 entity.state.holdInQueue()
                 queue.enqueue(entity, priority)
                 suspend()
                 entity.state.activate()
                 logger.trace { "time = $time : entity ${entity.id} exited ${queue.name} in process, ($this)" }
-                currentHold = null
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
             }
 
             override suspend fun <T : QObject> waitForItems(
@@ -900,9 +897,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 amount: Int,
                 predicate: (T) -> Boolean,
                 blockingPriority: Int,
-                receiveName: String?
+                suspensionName: String?
             ): List<T> {
-                currentBlockedReceiving = receiveName
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.WAIT_FOR_ITEMS
                 // always enqueue to capture wait statistics of those that do not wait
                 val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority)
                 if (request.canNotBeFilled) {
@@ -915,35 +913,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 // the request should be able to be filled
                 val list = blockingQ.fill(request)// this also removes request from queue
-                currentBlockedReceiving = null
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
                 return list
             }
-
-//            private suspend fun <T : QObject> blockingQSuspend(
-//                request: BlockingQueue<T>.Request,
-//                blockingQ: BlockingQueue<T>
-//            ): List<T> {
-//                if (request.canNotBeFilled) {
-//                    // must wait until it can be filled
-//                    logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
-//                    entity.state.blockedReceiving()
-//                    suspend()
-//                    entity.state.activate()
-//                    logger.trace { "time = $time : entity ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
-//                }
-//                // the request should be able to be filled
-//                val list = blockingQ.fill(request)// this also removes request from queue
-//                currentBlockedReceiving = null
-//                return list
-//            }
 
             override suspend fun <T : QObject> waitForAnyItems(
                 blockingQ: BlockingQueue<T>,
                 predicate: (T) -> Boolean,
                 blockingPriority: Int,
-                receiveName: String?
+                suspensionName: String?
             ): List<T> {
-                currentBlockedReceiving = receiveName
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.WAIT_FOR_ANY_ITEMS
                 // always enqueue to capture wait statistics of those that do not wait
                 val request = blockingQ.requestItems(entity, predicate, blockingPriority)
                 if (request.canNotBeFilled) {
@@ -956,7 +938,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 // the request should be able to be filled
                 val list = blockingQ.fill(request)// this also removes request from queue
-                currentBlockedReceiving = null
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
                 return list
             }
 
@@ -964,9 +947,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 item: T,
                 blockingQ: BlockingQueue<T>,
                 blockingPriority: Int,
-                sendName: String?
+                suspensionName: String?
             ) {
-                currentBlockedSending = sendName
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.SEND
                 // always enqueue to capture wait statistics of those that do not wait
                 blockingQ.enqueueSender(entity, blockingPriority)
                 if (blockingQ.isFull) {
@@ -979,23 +963,26 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 blockingQ.dequeSender(entity)
                 logger.trace { "time = $time : entity ${entity.id} sending ${item.name} to ${blockingQ.name} in process, ($this)" }
                 blockingQ.sendToChannel(item)
-                currentBlockedSending = null
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
             }
 
             override suspend fun seize(
                 resource: Resource,
                 amountNeeded: Int,
                 seizePriority: Int,
-                seizeName: String?
+                suspensionName: String?
             ): Allocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
-                currentSeize = seizeName
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.SEIZE
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
                 resource.enqueue(entity)
+                //TODO consider using a delay(0.0,seizePriority).  This would ensure suspension point is noted and not need SeizeAction
                 entity.state.schedule()
                 mySeizeAction.schedule(0.0, priority = seizePriority)
                 suspend()
-                entity.state.activate()
+                entity.state.activate() // after the seize with the priority via 0.0 delay
                 if (amountNeeded > resource.numAvailableUnits) {
                     // entity is already in the queue waiting for the resource, just suspend
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resource.name} in process, ($this)" }
@@ -1005,14 +992,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 resource.dequeue(entity)
                 logger.trace { "time = $time : entity ${entity.id} allocated $amountNeeded units of ${resource.name} in process, ($this)" }
-                currentSeize = null
-                return resource.allocate(entity, amountNeeded, currentSeize)
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                return resource.allocate(entity, amountNeeded, suspensionName)
             }
 
-            override suspend fun delay(delayDuration: Double, delayPriority: Int, delayName: String?) {
+            override suspend fun delay(delayDuration: Double, delayPriority: Int, suspensionName: String?) {
                 require(delayDuration >= 0.0) { "The duration of the delay must be >= 0.0 in process, ($this)" }
                 require(delayDuration.isFinite()) { "The duration of the delay must be finite (cannot be infinite) in process, ($this)" }
-                currentDelay = delayName
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.DELAY
                 // capture the event for possible cancellation
                 entity.state.schedule()
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
@@ -1020,7 +1009,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time : entity ${entity.id} delaying for $delayDuration, suspending process, ($this) ..." }
                 suspend()
                 entity.state.activate()
-                currentDelay = null
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
             }
 
             override fun release(allocation: Allocation) {
