@@ -14,7 +14,10 @@ fun interface EntitySelectorIfc {
 
 /**
  * A blocking queue facilitates the exchange of information between two or more
- * processes.  If the capacity is finite, then placing an item in the queue may cause
+ * entities that are experiencing processes. Note that an entity can experience
+ * one process at a time.
+ *
+ *  If the capacity is finite, then placing an item in the queue may cause
  *  the sender to block its current process.  Receivers of items from the queue may block
  *  if the number of items meeting their requirements are not available at the time of the
  *  request. By default, all queues are FIFO, but their disciplines can be set by the user.
@@ -35,7 +38,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         require(capacity >= 1) { "The size of the blocking queue must be >= 1" }
     }
 
-    var requestQResumptionPriority : Int = KSLEvent.DEFAULT_PRIORITY - 8
+    var requestQResumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY - 8
     var senderQResumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY - 9 // sender has more priority
 
     /**
@@ -95,8 +98,8 @@ class BlockingQueue<T : ModelElement.QObject>(
     val channelQ: QueueCIfc<T>
         get() = myChannelQ
 
-    init{
-        if (capacity == Int.MAX_VALUE){
+    init {
+        if (capacity == Int.MAX_VALUE) {
             //no need for statistics for the sender, so turn it off
             senderQ.waitTimeStatOption = false
             senderQ.timeInQ.defaultReportingOption = false
@@ -107,7 +110,7 @@ class BlockingQueue<T : ModelElement.QObject>(
     /**
      *  @param option use false to turn off all statistics
      */
-    fun waitTimeStatisticsOption(option: Boolean){
+    fun waitTimeStatisticsOption(option: Boolean) {
         requestQ.waitTimeStatOption = option
         channelQ.waitTimeStatOption = option
         senderQ.waitTimeStatOption = option
@@ -405,11 +408,11 @@ class BlockingQueue<T : ModelElement.QObject>(
      * @param waitStats indicates whether waiting time statistics should be collected
      */
     fun removeAllFromChannel(c: Collection<T>, waitStats: Boolean = true) {
-        if (myChannelQ.isEmpty){
-            throw IllegalStateException( "$name : Attempted to receive from an empty channel queue")
+        if (myChannelQ.isEmpty) {
+            throw IllegalStateException("$name : Attempted to receive from an empty channel queue")
         }
-        if (!myChannelQ.contains(c)){
-            throw IllegalStateException( "$name : The channel does not contain all the items in the collection")
+        if (!myChannelQ.contains(c)) {
+            throw IllegalStateException("$name : The channel does not contain all the items in the collection")
         }
         myChannelQ.removeAll(c, waitStats)
         // actions related to removal of elements, check for waiting senders
