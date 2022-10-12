@@ -241,7 +241,7 @@
         <appender-ref ref="KSL_ME" />
     </logger>
 
-    <logger name="ksl.modeling.entity.ProcessModel" level="TRACE" additivity="false">
+    <logger name="ksl.modeling.entity.ProcessModel" level="INFO" additivity="false">
         <appender-ref ref="KSL_ENTITY" />
     </logger>
 

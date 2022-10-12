@@ -767,7 +767,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  Used to invoke activation of a process
              */
             private val myActivationAction: ActivateAction = ActivateAction()
-            private val mySeizeAction: SeizeAction = SeizeAction()
+//            private val mySeizeAction: SeizeAction = SeizeAction()
 
             /**
              *  Activates the process. Causes the process to be scheduled to start at the present time or some time
@@ -978,11 +978,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
                 resource.enqueue(entity)
+                delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //TODO consider using a delay(0.0,seizePriority).  This would ensure suspension point is noted and not need SeizeAction
-                entity.state.schedule()
-                mySeizeAction.schedule(0.0, priority = seizePriority)
-                suspend()
-                entity.state.activate() // after the seize with the priority via 0.0 delay
+//                entity.state.schedule()
+//                mySeizeAction.schedule(0.0, priority = seizePriority)
+//                suspend()
+//                entity.state.activate() // after the seize with the priority via 0.0 delay
                 if (amountNeeded > resource.numAvailableUnits) {
                     // entity is already in the queue waiting for the resource, just suspend
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resource.name} in process, ($this)" }
@@ -1059,12 +1060,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             }
 
-            private inner class SeizeAction : EventAction<Nothing>() {
-                override fun action(event: KSLEvent<Nothing>) {
-                    resume()
-                }
-
-            }
+//            private inner class SeizeAction : EventAction<Nothing>() {
+//                override fun action(event: KSLEvent<Nothing>) {
+//                    resume()
+//                }
+//
+//            }
 
             private abstract inner class ProcessState(val processStateName: String) {
 
