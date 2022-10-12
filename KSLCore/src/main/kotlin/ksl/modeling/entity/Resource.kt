@@ -53,20 +53,29 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
  * @param parent the containing model element
  * @param capacity the capacity for the resource at the beginning of each replication, must be at least 1
  * @param name the name for the resource
- * @param discipline the queue discipline for waiting entities
+ * @param queue the queue for waiting entities
  * @param collectStateStatistics whether individual state statistics are collected
  */
 class Resource(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1,
-    discipline: Queue.Discipline = Queue.Discipline.FIFO,
+    queue: HoldQueue? = null,
     collectStateStatistics: Boolean = false
 ) : ModelElement(parent, name), ResourceCIfc {
 
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
     }
+    /**
+     * Holds the entities that are waiting for allocations of the resource's units
+     */
+    private val myWaitingQ: HoldQueue
+    init {
+        myWaitingQ = queue ?: HoldQueue(this, "${this.name}:Q")
+    }
+    override val waitingQ : QueueCIfc<ProcessModel.Entity>
+        get() = myWaitingQ
 
     override var defaultReportingOption: Boolean = true
         set(value) {
@@ -75,13 +84,6 @@ class Resource(
             myUtil.defaultReportingOption = value
             field = value
         }
-
-    /**
-     * Holds the entities that are waiting for allocations of the resource's units
-     */
-    private val myWaitingQ: HoldQueue = HoldQueue(this, "${this.name}:Q", discipline)
-    override val waitingQ : QueueCIfc<ProcessModel.Entity>
-        get() = myWaitingQ
 
     /** A resource can be allocated to 0 or more entities.
      *  An entity that is using a resource can have more than 1 allocation of the resource.
