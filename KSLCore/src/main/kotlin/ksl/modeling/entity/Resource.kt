@@ -1,6 +1,5 @@
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.TWResponse
@@ -70,7 +69,7 @@ class Resource(
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
-    private val myWaitingQ: HoldQueue
+    private val myWaitingQ: HoldQueue //TODO there will no longer be a queue????
     init {
         myWaitingQ = queue ?: HoldQueue(this, "${this.name}:Q")
     }
@@ -202,7 +201,8 @@ class Resource(
     }
 
     /**
-     *  Checks if the entity is using (has allocated units) of resource.
+     *  Checks if the entity is using (has allocated units) of the resource.
+     * @param entity the entity that might be using the resource
      */
     fun isUsing(entity: ProcessModel.Entity): Boolean {
         return entityAllocations.contains(entity)
@@ -210,6 +210,8 @@ class Resource(
 
     /**
      *  Computes the number of different allocations of the resource held by the entity.
+     * @param entity the entity that might be using the resource
+     * @return the count of the number of distinct allocations
      */
     fun numberOfAllocations(entity: ProcessModel.Entity): Int {
         return if (!isUsing(entity)) {
@@ -220,18 +222,32 @@ class Resource(
     }
 
     /**
+     * @param entity the entity that might be using the resource
+     * @return the list of allocations associated with the entity's use of the resource,
+     * which may be empty if the entity is not using the resource
+     */
+    fun allocations(entity: ProcessModel.Entity): List<Allocation> {
+        if (!isUsing(entity)) {
+            return emptyList()
+        }
+        return entityAllocations[entity]!!
+    }
+
+    /**
      * Computes the total number of units of the specified resource that are allocated
      * to the entity.
+     * @param entity the entity that might be using the resource
+     * @return the total amount requested over all the distinct allocations
      */
     fun totalAmountAllocated(entity: ProcessModel.Entity): Int {
-        if (!isUsing(entity)) {
-            return 0
+        return if (!isUsing(entity)) {
+            0
         } else {
             var sum = 0
             for (allocation in entityAllocations[entity]!!) {
                 sum = sum + allocation.amount
             }
-            return sum
+            sum
         }
     }
 
@@ -256,13 +272,15 @@ class Resource(
      * @param entity the entity that is requesting the units
      * @param amountNeeded that amount to allocate, must be greater than or equal to 1
      * @param allocationName an optional name for the allocation
+     * @param queue the queue associated with the allocation.  That is, where the entities would have had
+     * to wait if the allocation was not immediately filled
      * @return an allocation representing that the units have been allocated to the entity. The reference
      * to this allocation is necessary in order to deallocate the allocated units.
      */
-    fun allocate(entity: ProcessModel.Entity, amountNeeded: Int = 1, allocationName: String? = null): Allocation {
+    fun allocate(entity: ProcessModel.Entity, amountNeeded: Int = 1, queue: HoldQueue, allocationName: String? = null): Allocation {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
         check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
-        val allocation = Allocation(entity, this, amountNeeded, allocationName)
+        val allocation = Allocation(entity, this, amountNeeded, queue, allocationName)
         if (!entityAllocations.contains(entity)) {
             entityAllocations[entity] = mutableListOf()
         }
@@ -304,6 +322,7 @@ class Resource(
         allocation.amount = 0
         allocation.timeDeallocated = time
         // need to check the queue
+        //TODO there will no longer be a queue
         if (myWaitingQ.isNotEmpty){
             val entity = myWaitingQ.removeNext()
             // resume the entity's process
@@ -312,11 +331,11 @@ class Resource(
     }
 
     internal fun enqueue(entity: ProcessModel.Entity, priority: Int = entity.priority){
-        myWaitingQ.enqueue(entity, priority)
+        myWaitingQ.enqueue(entity, priority) //TODO there will no longer be a queue
     }
 
     internal fun dequeue(entity: ProcessModel.Entity){
-        myWaitingQ.remove(entity)
+        myWaitingQ.remove(entity) //TODO there will no longer be a queue
     }
 
     protected inner class ResourceState(aName: String, stateStatistics: Boolean = false) :

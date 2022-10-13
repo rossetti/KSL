@@ -971,19 +971,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 resource: Resource,
                 amountNeeded: Int,
                 seizePriority: Int,
+                queue: HoldQueue,
                 suspensionName: String?
             ): Allocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
-                resource.enqueue(entity)
+                queue.enqueue(entity)
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
-                //TODO consider using a delay(0.0,seizePriority).  This would ensure suspension point is noted and not need SeizeAction
-//                entity.state.schedule()
-//                mySeizeAction.schedule(0.0, priority = seizePriority)
-//                suspend()
-//                entity.state.activate() // after the seize with the priority via 0.0 delay
                 if (amountNeeded > resource.numAvailableUnits) {
                     // entity is already in the queue waiting for the resource, just suspend
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resource.name} in process, ($this)" }
@@ -991,11 +987,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     suspend()
                     entity.state.activate()
                 }
-                resource.dequeue(entity)
+                queue.remove(entity)
                 logger.trace { "time = $time : entity ${entity.id} allocated $amountNeeded units of ${resource.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                return resource.allocate(entity, amountNeeded, suspensionName)
+                return resource.allocate(entity, amountNeeded, queue, suspensionName)
             }
 
             override suspend fun delay(delayDuration: Double, delayPriority: Int, suspensionName: String?) {
@@ -1016,17 +1012,27 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override fun release(allocation: Allocation) {
                 logger.trace { "time = $time : entity ${entity.id} releasing ${allocation.amount} units of ${allocation.resource.name} in process, ($this)" }
+                //TODO this calls resource.deallocate() which assumes the resource has a queue
+                // we cannot assume that a resource has a queue in the new design
                 allocation.resource.deallocate(allocation)
             }
 
             override fun release(resource: Resource) {
                 val amount = entity.totalAmountAllocated(resource)
                 logger.trace { "time = $time : entity ${entity.id} releasing all $amount units of ${resource.name} allocated in process, ($this)" }
+                // get the allocations of this entity for this resource
+                resource.totalAmountAllocated(entity)
+                //TODO this eventually calls resource.deallocate() which assumes the resource has a queue
+                // need to write this instead using the base release() function, maybe loop through the allocations
+                // every allocation has a different queue to check
                 entity.releaseResource(resource)
             }
 
             override fun releaseAllResources() {
                 logger.trace { "time = $time : entity ${entity.id} releasing all units of every allocated resource in process, ($this)" }
+                //TODO this eventually calls resource.deallocate() which assumes the resource has a queue
+                // need to write this instead using the base release() function, maybe loop through the allocations
+                // every allocation has a different queue to check
                 entity.releaseAllResources()
             }
 

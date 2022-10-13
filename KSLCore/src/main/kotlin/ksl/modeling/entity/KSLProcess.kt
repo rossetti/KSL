@@ -227,6 +227,7 @@ interface KSLProcessBuilder {
      *  @param resource the resource from which the units are being requested.
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
      *  @param suspensionName the name of the seize suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
@@ -234,8 +235,11 @@ interface KSLProcessBuilder {
      *  all requested units of the resource have been allocated.
      */
     suspend fun seize(
-        resource: Resource, amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY, suspensionName: String? = null
+        resource: Resource,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        queue: HoldQueue,
+        suspensionName: String? = null
     ): Allocation
 
     /**
@@ -251,6 +255,7 @@ interface KSLProcessBuilder {
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
      */
     suspend fun use(
         resource: Resource,
@@ -258,8 +263,9 @@ interface KSLProcessBuilder {
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         delayDuration: Double,
         delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        queue: HoldQueue
     ) {
-        val a = seize(resource, amountNeeded, seizePriority)
+        val a = seize(resource, amountNeeded, seizePriority, queue)
         delay(delayDuration, delayPriority)
         release(a)
     }
@@ -277,6 +283,7 @@ interface KSLProcessBuilder {
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
      */
     suspend fun use(
         resource: Resource,
@@ -284,8 +291,9 @@ interface KSLProcessBuilder {
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         delayDuration: GetValueIfc,
         delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        queue: HoldQueue
     ) {
-        val a = seize(resource, amountNeeded, seizePriority)
+        val a = seize(resource, amountNeeded, seizePriority, queue)
         delay(delayDuration, delayPriority)
         release(a)
     }
