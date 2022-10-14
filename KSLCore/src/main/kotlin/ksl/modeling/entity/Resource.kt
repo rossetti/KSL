@@ -202,7 +202,7 @@ open class Resource(
         if (!isUsing(entity)) {
             return emptyList()
         }
-        return entityAllocations[entity]!!
+        return entityAllocations[entity]!!.toList()
     }
 
     /**

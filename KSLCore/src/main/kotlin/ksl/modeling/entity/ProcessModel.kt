@@ -365,25 +365,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  Causes the entity to release any allocations related to the supplied resource
          *  @param resource the resource to release all allocations
          */
-        private fun releaseResource(resource: Resource) {
-            if (isUsing(resource)) {
-                val allocations: MutableList<Allocation>? = resourceAllocations[resource]
-                val copies = ArrayList(allocations!!)
-                for (copy in copies) {
-                    resource.deallocate(copy)
-                }
-            }
-        }
+//        private fun releaseResource(resource: Resource) {
+//            if (isUsing(resource)) {
+//                val allocations: MutableList<Allocation>? = resourceAllocations[resource]
+//                val copies = ArrayList(allocations!!)
+//                for (copy in copies) {
+//                    resource.deallocate(copy)
+//                }
+//            }
+//        }
 
         /**
          *  Causes the entity to release all allocations for any resource that it
          *  may have
          */
-        private fun releaseAllResources() {
-            for (r in resourceAllocations.keys) {
-                releaseResource(r)
-            }
-        }
+//        private fun releaseAllResources() {
+//            for (r in resourceAllocations.keys) {
+//                releaseResource(r)
+//            }
+//        }
 
         /**
          *  This function is used to define via a builder for a process for the entity.
@@ -537,46 +537,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (autoDispose) {
                     logger.trace { "time = $time : entity $id is being disposed by ${processModel.name}" }
                     dispose(this)
-                }
-            }
-        }
-
-        /** This method is called from ProcessCoroutine to clean up the entity when
-         *  the process has been terminated.
-         *
-         *  If the entity is executing a process and the process is suspended, then
-         *  the process routine is terminated. This causes the currently suspended
-         *  process to exit, essentially with an error condition.  No further
-         *  processing within the process will execute. The process ends (is terminated).
-         *  All resources that the entity has allocated will be deallocated.  If the entity was
-         *  waiting in a queue, the entity is removed from the queue and no statistics
-         *  are collected on its queueing.  If the entity is experiencing a delay,
-         *  then the event associated with the delay is cancelled.
-         *
-         *  If the entity has additional processes in
-         *  its process sequence they are not automatically executed. If the user
-         *  requires specific behavior to occur for the entity after termination, then
-         *  the user should override the Entity's handleTerminatedProcess() function to
-         *  supply specific logic.
-         */
-        private fun afterTerminatedProcessCompletion(completedProcess: KSLProcess) {
-            if (hasAllocations) {
-                logger.trace { "time = $time Process $completedProcess was terminated for Entity $this releasing all resources." }
-                releaseAllResources()
-            }
-            if (isQueued) {
-                //remove it from its queue with no stats
-                @Suppress("UNCHECKED_CAST")
-                // since this is an entity, it must be in a HoldQueue which must hold EntityType.Entity
-                val q = queue!! as Queue<ProcessModel.Entity>
-                q.remove(this, false)
-                logger.trace { "time = $time Process $completedProcess was terminated for Entity $this removed from queue ${q.name} ." }
-            } else if (isScheduled) {
-                if (myDelayEvent != null) {
-                    if (myDelayEvent!!.scheduled) {
-                        logger.trace { "time = $time Process $completedProcess was terminated for Entity $this delay event was cancelled." }
-                        myDelayEvent?.cancelled = true
-                    }
                 }
             }
         }
@@ -767,7 +727,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  Used to invoke activation of a process
              */
             private val myActivationAction: ActivateAction = ActivateAction()
-//            private val mySeizeAction: SeizeAction = SeizeAction()
 
             /**
              *  Activates the process. Causes the process to be scheduled to start at the present time or some time
@@ -1011,28 +970,32 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override fun release(allocation: Allocation) {
                 logger.trace { "time = $time : entity ${entity.id} releasing ${allocation.amount} units of ${allocation.resource.name} in process, ($this)" }
-                //TODO this calls resource.deallocate() which assumes the resource has a queue
-                // we cannot assume that a resource has a queue in the new design
+                // we cannot assume that a resource has a queue
                 allocation.resource.deallocate(allocation)
+                // get the queue from the allocation being released
+                val theQ = allocation.queue
+                if (theQ.isNotEmpty) {
+                    // chose the next entity to proceed
+                    val entity = theQ.removeNext()
+                    // resume the entity's process
+                    entity!!.resumeProcess()
+                }
             }
 
             override fun release(resource: Resource) {
-                val amount = entity.totalAmountAllocated(resource)
-                logger.trace { "time = $time : entity ${entity.id} releasing all $amount units of ${resource.name} allocated in process, ($this)" }
+                logger.trace { "time = $time : entity ${entity.id} releasing all ${entity.totalAmountAllocated(resource)} units of ${resource.name} allocated in process, ($this)" }
                 // get the allocations of this entity for this resource
-                resource.totalAmountAllocated(entity)
-                //TODO this eventually calls resource.deallocate() which assumes the resource has a queue
-                // need to write this instead using the base release() function, maybe loop through the allocations
-                // every allocation has a different queue to check
-                entity.releaseResource(resource)
+                val list = resource.allocations(entity)
+                for(allocation in list){
+                    release(allocation)
+                }
             }
 
             override fun releaseAllResources() {
                 logger.trace { "time = $time : entity ${entity.id} releasing all units of every allocated resource in process, ($this)" }
-                //TODO this eventually calls resource.deallocate() which assumes the resource has a queue
-                // need to write this instead using the base release() function, maybe loop through the allocations
-                // every allocation has a different queue to check
-                entity.releaseAllResources()
+                for (r in resourceAllocations.keys) {
+                    release(r)
+                }
             }
 
             override fun resumeWith(result: Result<Unit>) {
@@ -1044,11 +1007,51 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     afterSuccessfulProcessCompletion(this)
                 }.onFailure {
                     if (it is ProcessTerminatedException) {
-                        afterTerminatedProcessCompletion(this)
+                        afterTerminatedProcessCompletion()
                         handleTerminatedProcess(this)
                     } else {
                         // some other exception, rethrow it
                         throw it
+                    }
+                }
+            }
+
+            /** This method is called from resumeWith to clean up the entity when
+             *  the process has been terminated.
+             *
+             *  If the entity is executing a process and the process is suspended, then
+             *  the process routine is terminated. This causes the currently suspended
+             *  process to exit, essentially with an error condition.  No further
+             *  processing within the process will execute. The process ends (is terminated).
+             *  All resources that the entity has allocated will be deallocated.  If the entity was
+             *  waiting in a queue, the entity is removed from the queue and no statistics
+             *  are collected on its queueing.  If the entity is experiencing a delay,
+             *  then the event associated with the delay is cancelled.
+             *
+             *  If the entity has additional processes in
+             *  its process sequence they are not automatically executed. If the user
+             *  requires specific behavior to occur for the entity after termination, then
+             *  the user should override the Entity's handleTerminatedProcess() function to
+             *  supply specific logic.
+             */
+            private fun afterTerminatedProcessCompletion() {
+                if (hasAllocations) {
+                    logger.trace { "time = $time Process $this was terminated for Entity $entity releasing all resources." }
+                    releaseAllResources()
+                }
+                if (isQueued) {
+                    //remove it from its queue with no stats
+                    @Suppress("UNCHECKED_CAST")
+                    // since this is an entity, it must be in a HoldQueue which must hold EntityType.Entity
+                    val q = queue!! as Queue<ProcessModel.Entity>
+                    q.remove(entity, false)
+                    logger.trace { "time = $time Process $this was terminated for Entity $entity removed from queue ${q.name} ." }
+                } else if (isScheduled) {
+                    if (myDelayEvent != null) {
+                        if (myDelayEvent!!.scheduled) {
+                            logger.trace { "time = $time Process $this was terminated for Entity $entity delay event was cancelled." }
+                            myDelayEvent?.cancelled = true
+                        }
                     }
                 }
             }
@@ -1064,13 +1067,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
 
             }
-
-//            private inner class SeizeAction : EventAction<Nothing>() {
-//                override fun action(event: KSLEvent<Nothing>) {
-//                    resume()
-//                }
-//
-//            }
 
             private abstract inner class ProcessState(val processStateName: String) {
 
