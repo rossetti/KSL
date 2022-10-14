@@ -1,6 +1,5 @@
 package ksl.modeling.entity
 
-import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
@@ -10,7 +9,7 @@ import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 
 interface ResourceCIfc : DefaultReportingOptionIfc {
-    val waitingQ : QueueCIfc<ProcessModel.Entity>
+
     var initialCapacity: Int
     val capacity: Int
     val stateStatisticsOption: Boolean
@@ -45,40 +44,19 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     val numBusy: Int
 }
 
-/**
- *  A resource is considered busy if at least 1 unit is allocated.  A resource is considered idle if no
- *  units have been allocated.
- *
- * @param parent the containing model element
- * @param capacity the capacity for the resource at the beginning of each replication, must be at least 1
- * @param name the name for the resource
- * @param queue the queue for waiting entities
- * @param collectStateStatistics whether individual state statistics are collected
- */
-class Resource(
+open class Resource(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1,
-    queue: HoldQueue? = null,
     collectStateStatistics: Boolean = false
-) : ModelElement(parent, name), ResourceCIfc {
+) : ModelElement(parent, name) , ResourceCIfc {
 
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
     }
-    /**
-     * Holds the entities that are waiting for allocations of the resource's units
-     */
-    private val myWaitingQ: HoldQueue //TODO there will no longer be a queue????
-    init {
-        myWaitingQ = queue ?: HoldQueue(this, "${this.name}:Q")
-    }
-    override val waitingQ : QueueCIfc<ProcessModel.Entity>
-        get() = myWaitingQ
 
     override var defaultReportingOption: Boolean = true
         set(value) {
-            myWaitingQ.defaultReportingOption = value
             myNumBusy.defaultReportingOption = value
             myUtil.defaultReportingOption = value
             field = value
@@ -89,7 +67,7 @@ class Resource(
      *  The key to this map represents the entities that are using the resource.
      *  The element of this map represents the list of allocations allocated to the entity.
      */
-    private val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
+    protected val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
 
     override var initialCapacity = capacity
         set(value) {
@@ -136,12 +114,6 @@ class Resource(
         get() = myInactiveState
 
     protected var myState: ResourceState = myIdleState
-//        protected set(value) {
-////            field.exit(time)
-//            myPreviousState = field
-//            field = value
-////            field.enter(time)
-//        }
 
     override val state: StateAccessorIfc
         get() = myState
@@ -170,11 +142,11 @@ class Resource(
     override val isInactive: Boolean
         get() = myState === myInactiveState
 
-    private val myNumBusy = TWResponse(this, "${this.name}:BusyUnits")
+    protected val myNumBusy = TWResponse(this, "${this.name}:BusyUnits")
     override val numBusyUnits : TWResponseCIfc
         get() = myNumBusy
 
-    private val myUtil = TWResponse(this, "${this.name}:Util")
+    protected val myUtil = TWResponse(this, "${this.name}:Util")
     override val util: TWResponseCIfc
         get() = myUtil
     override val numBusy: Int
@@ -321,21 +293,6 @@ class Resource(
         // deallocate the allocation, so it can't be used again
         allocation.amount = 0
         allocation.timeDeallocated = time
-        // need to check the queue
-        //TODO there will no longer be a queue
-        if (myWaitingQ.isNotEmpty){
-            val entity = myWaitingQ.removeNext()
-            // resume the entity's process
-            entity!!.resumeProcess()
-        }
-    }
-
-    internal fun enqueue(entity: ProcessModel.Entity, priority: Int = entity.priority){
-        myWaitingQ.enqueue(entity, priority) //TODO there will no longer be a queue
-    }
-
-    internal fun dequeue(entity: ProcessModel.Entity){
-        myWaitingQ.remove(entity) //TODO there will no longer be a queue
     }
 
     protected inner class ResourceState(aName: String, stateStatistics: Boolean = false) :

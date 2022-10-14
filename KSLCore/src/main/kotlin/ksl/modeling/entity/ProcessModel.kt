@@ -325,14 +325,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * to the entity.
          */
         fun totalAmountAllocated(resource: Resource): Int {
-            if (!isUsing(resource)) {
-                return 0
+            return if (!isUsing(resource)) {
+                0
             } else {
                 var sum = 0
                 for (allocation in resourceAllocations[resource]!!) {
                     sum = sum + allocation.amount
                 }
-                return sum
+                sum
             }
         }
 
@@ -865,7 +865,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
-            override suspend fun waitFor(signal: Signal, waitPriority: Int, waitStats: Boolean, suspensionName: String?) {
+            override suspend fun waitFor(
+                signal: Signal,
+                waitPriority: Int,
+                waitStats: Boolean,
+                suspensionName: String?
+            ) {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_SIGNAL
                 logger.trace { "time = $time : entity ${entity.id} waiting for ${signal.name} in process, ($this)" }
@@ -901,8 +906,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): List<T> {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ITEMS
-                // always enqueue to capture wait statistics of those that do not wait
+
                 val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority)
+                return blockingQWait(blockingQ, request)
+            }
+
+            private suspend fun <T : QObject> blockingQWait(
+                blockingQ: BlockingQueue<T>,
+                request: BlockingQueue<T>.Request
+            ): List<T> {
                 if (request.canNotBeFilled) {
                     // must wait until it can be filled
                     logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
@@ -926,21 +938,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): List<T> {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ANY_ITEMS
-                // always enqueue to capture wait statistics of those that do not wait
                 val request = blockingQ.requestItems(entity, predicate, blockingPriority)
-                if (request.canNotBeFilled) {
-                    // must wait until it can be filled
-                    logger.trace { "time = $time : entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
-                    entity.state.blockedReceiving()
-                    suspend()
-                    entity.state.activate()
-                    logger.trace { "time = $time : entity ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
-                }
-                // the request should be able to be filled
-                val list = blockingQ.fill(request)// this also removes request from queue
-                currentSuspendName = null
-                currentSuspendType = SuspendType.NONE
-                return list
+                return blockingQWait(blockingQ, request)
             }
 
             override suspend fun <T : QObject> send(

@@ -3,14 +3,14 @@ package examplepkg
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.Resource
+import ksl.modeling.entity.ResourceWithQ
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
 class TestProcessModeling(parent: ModelElement) : ProcessModel(parent, null) {
 
-    val resource: Resource = Resource(this, "test resource")
+    val resource: ResourceWithQ = ResourceWithQ(this, "test resource")
 
     val holdQueue = HoldQueue(this, "hold")
 

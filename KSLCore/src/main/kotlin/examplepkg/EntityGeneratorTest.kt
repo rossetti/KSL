@@ -2,19 +2,18 @@ package examplepkg
 
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.Resource
+import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
-import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
 class EntityGeneratorTest(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
-    private val worker: Resource = Resource(this, "worker")
+    private val worker: ResourceWithQ = ResourceWithQ(this, "worker")
     private val tba = ExponentialRV(6.0, 1)
     private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
     private val wip = TWResponse(this, "${this.name}:WIP")

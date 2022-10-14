@@ -243,6 +243,29 @@ interface KSLProcessBuilder {
     ): Allocation
 
     /**
+     *  Requests a number of units of the indicated resource.
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resource the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param suspensionName the name of the seize suspension point. can be used to identify which seize the entity is experiencing if there
+     *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
+     *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
+     *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
+     *  all requested units of the resource have been allocated.
+     */
+    suspend fun seize(
+        resource: ResourceWithQ,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ): Allocation {
+        return seize(resource, amountNeeded, seizePriority, resource.myWaitingQ, suspensionName)
+    }
+
+    /**
      *  Uses the resource with the amount of units for the delay and then releases it.
      *  Equivalent to: seize(), delay(), release()
      *

@@ -251,6 +251,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         require(amount >= 1) { "The requested amount must be >= 1" }
         val request = AmountRequest(receiver, predicate, amount)
         request.priority = priority
+        // always enqueue to capture wait statistics of those that do not wait
         myRequestQ.enqueue(request)
         return request
     }

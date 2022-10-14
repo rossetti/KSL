@@ -3,7 +3,7 @@ package examplepkg
 import ksl.modeling.entity.BlockingQueue
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.Resource
+import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
@@ -21,8 +21,8 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
     private val myShirtMakingTime = RandomVariable(this, UniformRV(15.0, 25.0))
     private val myPaperWorkTime = RandomVariable(this, UniformRV(8.0, 10.0))
     private val myPackagingTime = RandomVariable(this, TriangularRV(5.0, 10.0, 15.0))
-    private val myShirtMakers: Resource = Resource(this, capacity = 2, name = "ShirtMakers_R")
-    private val myPackager: Resource = Resource(this, "Packager_R")
+    private val myShirtMakers: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "ShirtMakers_R")
+    private val myPackager: ResourceWithQ = ResourceWithQ(this, "Packager_R")
     private val mySystemTime = Response(this, "System Time")
     private val myNumInSystem = TWResponse(this, "Num in System")
     private val generator = EntityGenerator(::Order, myTBOrders, myTBOrders)
