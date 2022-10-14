@@ -35,13 +35,15 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     /** Checks to see if the resource is inactive
      */
     val isInactive: Boolean
-    val numBusyUnits : TWResponseCIfc
+    val numBusyUnits: TWResponseCIfc
     val util: TWResponseCIfc
     val numAvailableUnits: Int
     val hasAvailableUnits: Boolean
     val hasBusyUnits: Boolean
     val fractionBusy: Double
     val numBusy: Int
+    val numTimesSeized: Int
+    val numTimesReleased: Int
 }
 
 open class Resource(
@@ -49,7 +51,7 @@ open class Resource(
     name: String? = null,
     capacity: Int = 1,
     collectStateStatistics: Boolean = false
-) : ModelElement(parent, name) , ResourceCIfc {
+) : ModelElement(parent, name), ResourceCIfc {
 
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
@@ -79,6 +81,12 @@ open class Resource(
         }
 
     override var capacity = capacity
+        protected set
+
+    override var numTimesSeized: Int = 0
+        protected set
+
+    override var numTimesReleased: Int = 0
         protected set
 
     override val stateStatisticsOption: Boolean = collectStateStatistics
@@ -143,7 +151,7 @@ open class Resource(
         get() = myState === myInactiveState
 
     protected val myNumBusy = TWResponse(this, "${this.name}:BusyUnits")
-    override val numBusyUnits : TWResponseCIfc
+    override val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
 
     protected val myUtil = TWResponse(this, "${this.name}:Util")
@@ -166,10 +174,10 @@ open class Resource(
         get() = myNumBusy.value > 0.0
 
     override val fractionBusy: Double
-        get() = myNumBusy.value/capacity
+        get() = myNumBusy.value / capacity
 
     override fun toString(): String {
-        return "$name: state = $myState"
+        return "$name: state = $myState capacity = $capacity numBusy = $numBusy numAvailable = $numAvailableUnits"
     }
 
     /**
@@ -234,6 +242,8 @@ open class Resource(
         myPreviousState = myInactiveState
         myState = myIdleState
         myState.enter(time)
+        numTimesSeized = 0
+        numTimesReleased = 0
     }
 
     /**
@@ -249,7 +259,12 @@ open class Resource(
      * @return an allocation representing that the units have been allocated to the entity. The reference
      * to this allocation is necessary in order to deallocate the allocated units.
      */
-    fun allocate(entity: ProcessModel.Entity, amountNeeded: Int = 1, queue: HoldQueue, allocationName: String? = null): Allocation {
+    fun allocate(
+        entity: ProcessModel.Entity,
+        amountNeeded: Int = 1,
+        queue: HoldQueue,
+        allocationName: String? = null
+    ): Allocation {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
         check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
         val allocation = Allocation(entity, this, amountNeeded, queue, allocationName)
@@ -258,11 +273,13 @@ open class Resource(
         }
         entityAllocations[entity]?.add(allocation)
         myNumBusy.increment(amountNeeded.toDouble())
+        numTimesSeized++
         myUtil.value = fractionBusy
         // must be busy, because an allocation occurred
         myState.exit(time)
         myState = myBusyState
         myState.enter(time)
+        numTimesSeized++
         //need to put this allocation in Entity also
         entity.allocate(allocation)
         return allocation
@@ -282,6 +299,7 @@ open class Resource(
         }
         // give back to the resource
         myNumBusy.decrement(allocation.amount.toDouble())
+        numTimesReleased++
         myUtil.value = fractionBusy
         if (myNumBusy.value == 0.0) {
             myState.exit(time)
