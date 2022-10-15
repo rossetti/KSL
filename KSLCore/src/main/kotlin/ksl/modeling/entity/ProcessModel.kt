@@ -81,8 +81,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         entity.useProcessSequence = true
         entity.processSequenceIterator = entity.processSequence.listIterator()
         if (entity.processSequenceIterator.hasNext()) {
-            //TODO could attach the entity to the event
-            return activate(entity.processSequenceIterator.next())
+            val event = activate(entity.processSequenceIterator.next())
+            event.entity = entity
+            return event
         }
         return null
     }
@@ -136,8 +137,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         priority: Int = KSLEvent.DEFAULT_PRIORITY
     ): KSLEvent<KSLProcess> {
         val c = process as Entity.ProcessCoroutine
-        //TODO could attach the entity to the event
-        return c.activate(timeUntilActivation, priority)
+        val event = c.activate(timeUntilActivation, priority)
+        event.entity = c.entity
+        return event
     }
 
     /**
@@ -232,8 +234,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         val isBlockedReceiving: Boolean
             get() = state == myBlockedReceivingState
 
-        val isSuspended: Boolean //TODO need to add actual suspend call
-            get() = isScheduled || isWaitingForSignal || isInHoldQueue || isWaitingForResource || isBlockedSending || isBlockedReceiving
+        val isSuspended: Boolean
+            get() {
+                if (myCurrentProcess != null){
+                    return myCurrentProcess!!.isSuspended
+                }
+                return isScheduled || isWaitingForSignal || isInHoldQueue || isWaitingForResource
+                        || isBlockedSending || isBlockedReceiving
+            }
 
         var currentSuspendName: String? = null
             private set
@@ -997,7 +1005,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // capture the event for possible cancellation
                 entity.state.schedule()
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
-                //TODO could attach the entity to the event
+                myDelayEvent!!.entity = entity
                 logger.trace { "time = $time : entity ${entity.id} delaying for $delayDuration, suspending process, ($this) ..." }
                 suspend()
                 entity.state.activate()
@@ -1013,10 +1021,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val theQ = allocation.queue
                 if (theQ.isNotEmpty) {
                     // chose the next request to proceed
-                    //TODO I think that this should peekNext() because the the resumed process should remove the request
-                    val request = theQ.peekNext() //TODO we could provide a selector type strategy
+                    //this is peekNext() because the resumed process removes the request
+                    val request = theQ.peekNext() //TODO we could provide a selector type strategy, it would need to be attache do the allocation
                     // resume the entity's process related to the request
-                    request!!.entity.resumeProcess()
+                    request!!.entity.resumeProcess() //TODO can't seem to specify priority as method argument
                 }
             }
 
