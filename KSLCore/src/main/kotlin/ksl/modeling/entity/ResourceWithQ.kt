@@ -1,10 +1,11 @@
 package ksl.modeling.entity
 
+import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
 
 interface ResourceWithQCIfc : ResourceCIfc{
-    val waitingQ : QueueCIfc<ProcessModel.Entity>
+    val waitingQ : QueueCIfc<ProcessModel.Entity.Request>
 }
 
 /**
@@ -21,18 +22,18 @@ class ResourceWithQ(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1,
-    queue: HoldQueue? = null,
+    queue: Queue<ProcessModel.Entity.Request>? = null,
     collectStateStatistics: Boolean = false
 ) : Resource(parent, name, capacity, collectStateStatistics), ResourceWithQCIfc {
 
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
-    internal val myWaitingQ: HoldQueue
+    internal val myWaitingQ: Queue<ProcessModel.Entity.Request>
     init {
-        myWaitingQ = queue ?: HoldQueue(this, "${this.name}:Q")
+        myWaitingQ = queue ?: Queue(this, "${this.name}:Q")
     }
-    override val waitingQ : QueueCIfc<ProcessModel.Entity>
+    override val waitingQ : QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
 
     override var defaultReportingOption: Boolean

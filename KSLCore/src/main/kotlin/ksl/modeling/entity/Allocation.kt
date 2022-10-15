@@ -1,5 +1,7 @@
 package ksl.modeling.entity
 
+import ksl.modeling.queue.Queue
+
 /**
  *  An allocation represents a distinct usage of a resource by an entity with an amount allocated.
  *  Entities can have multiple allocations for the same resource. An allocation is in response
@@ -11,7 +13,7 @@ class Allocation(
     val entity: ProcessModel.Entity,
     val resource: Resource,
     theAmount: Int = 1,
-    val queue: HoldQueue,
+    val queue: Queue<ProcessModel.Entity.Request>,
     allocationName: String? = null
 ) {
     //TODO amountRequested,  amountGiven

@@ -80,14 +80,14 @@ class BlockingQueue<T : ModelElement.QObject>(
     val senderQ: QueueCIfc<ProcessModel.Entity>
         get() = mySenderQ
 
-    private val myRequestQ: Queue<Request> = Queue(this, "${this.name}:RequestQ")
+    private val myRequestQ: Queue<ChannelRequest> = Queue(this, "${this.name}:RequestQ")
 
     /**
      *  The queue that holds requests by entities to remove items from the channel because
      *  the channel does not have the requested amount of items that meet the desired
      *  selection criteria.
      */
-    val requestQ: QueueCIfc<Request>
+    val requestQ: QueueCIfc<ChannelRequest>
         get() = myRequestQ
 
     private val myChannelQ: Queue<T> = Queue(this, "${this.name}:ChannelQ")
@@ -126,7 +126,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      * @param predicate the criteria for selecting the items from the channel
      * waiting for their request
      */
-    open inner class Request(
+    open inner class ChannelRequest(
         val receiver: ProcessModel.Entity,
         val predicate: (T) -> Boolean,
     ) : QObject() {
@@ -154,7 +154,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         val amountRequested: Int,
-    ) : Request(receiver, predicate) {
+    ) : ChannelRequest(receiver, predicate) {
         init {
             require(amountRequested >= 1) { "The amount request $amountRequested must be >= 1" }
         }
@@ -195,7 +195,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      * The default is to select the next based on the queue discipline
      */
     inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T> {
-        override fun selectRequest(queue: Queue<BlockingQueue<T>.Request>): BlockingQueue<T>.Request? {
+        override fun selectRequest(queue: Queue<BlockingQueue<T>.ChannelRequest>): BlockingQueue<T>.ChannelRequest? {
             return queue.peekNext()
         }
     }
@@ -205,7 +205,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      * location within the request queue.
      */
     inner class FirstFillableRequest() : RequestSelectorIfc<T> {
-        override fun selectRequest(queue: Queue<Request>): Request? {
+        override fun selectRequest(queue: Queue<ChannelRequest>): ChannelRequest? {
             for (request in queue) {
                 if (request.canBeFilled) {
                     return request
@@ -219,7 +219,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      *  Interface for defining request selection
      */
     interface RequestSelectorIfc<T : ModelElement.QObject> {
-        fun selectRequest(queue: Queue<BlockingQueue<T>.Request>): BlockingQueue<T>.Request?
+        fun selectRequest(queue: Queue<BlockingQueue<T>.ChannelRequest>): BlockingQueue<T>.ChannelRequest?
     }
 
     /**
@@ -264,8 +264,8 @@ class BlockingQueue<T : ModelElement.QObject>(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         priority: Int
-    ): Request {
-        val request = Request(receiver, predicate)
+    ): ChannelRequest {
+        val request = ChannelRequest(receiver, predicate)
         request.priority = priority
         myRequestQ.enqueue(request)
         return request
@@ -292,7 +292,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      * filled. The requested items are extracted from the channel and returned
      * to the requesting entity.
      */
-    internal fun fill(request: Request): List<T> {
+    internal fun fill(request: ChannelRequest): List<T> {
         require(request.canBeFilled) { "The request could not be filled" }
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         removeAllFromChannel(list, channelQ.waitTimeStatOption)

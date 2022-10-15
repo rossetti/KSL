@@ -1,5 +1,6 @@
 package ksl.modeling.entity
 
+import ksl.modeling.queue.Queue
 import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
@@ -46,12 +47,24 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     val numTimesReleased: Int
 }
 
+interface ResourceRequestIfc {
+
+    /**
+     *  Promises to process the request and indicate whether it can be filled
+     *
+     * @param entity the entity making the request
+     * @param amountNeeded the amount needed for the request
+     * @return the request which should indicate whether the request can or cannot be filled
+     */
+    fun request(entity: ProcessModel.Entity, amountNeeded: Int = 1) : ProcessModel.Entity.Request
+
+}
 open class Resource(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1,
     collectStateStatistics: Boolean = false
-) : ModelElement(parent, name), ResourceCIfc {
+) : ModelElement(parent, name), ResourceCIfc, ResourceRequestIfc {
 
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
@@ -246,6 +259,14 @@ open class Resource(
         numTimesReleased = 0
     }
 
+    override fun request(entity: ProcessModel.Entity, amountNeeded: Int): ProcessModel.Entity.Request {
+        val request = entity.createRequest(amountNeeded)
+        if (amountNeeded <= numAvailableUnits) {
+            request.canBeFilled = true
+        }
+        return request
+    }
+
     /**
      * It is an error to attempt to allocate resource units to an entity if there are insufficient
      * units available. Thus, the amount requested must be less than or equal to the number of units
@@ -262,7 +283,7 @@ open class Resource(
     fun allocate(
         entity: ProcessModel.Entity,
         amountNeeded: Int = 1,
-        queue: HoldQueue,
+        queue: Queue<ProcessModel.Entity.Request>,
         allocationName: String? = null
     ): Allocation {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
@@ -317,4 +338,6 @@ open class Resource(
         State(name = aName, useStatistic = stateStatistics) {
         //TODO need to track states: idle, busy, failed, inactive
     }
+
 }
+

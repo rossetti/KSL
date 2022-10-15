@@ -1,5 +1,6 @@
 package ksl.modeling.entity
 
+import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -108,8 +109,8 @@ interface KSLProcessBuilder {
      * @param amount the number of items needed from the blocking queue that match the criteria
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
-     * @param suspensionName the name of the receive suspension point. can be used to identify which receive suspension point
-     * the entity is experiencing if there are more than one recieve suspension points within the process.
+     * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
+     * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
      */
     suspend fun <T : ModelElement.QObject> waitForItems(
@@ -129,8 +130,8 @@ interface KSLProcessBuilder {
      * @param amount the number of items needed from the blocking queue that match the criteria
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
-     * @param suspensionName the name of the receive suspension point. can be used to identify which receive suspension point
-     * the entity is experiencing if there are more than one recieve suspension points within the process.
+     * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
+     * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitFor(
@@ -150,8 +151,8 @@ interface KSLProcessBuilder {
      * @param blockingQ the blocking queue channel that has the items
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
-     * @param suspensionName the name of the receive suspension point. can be used to identify which receive suspension point
-     * the entity is experiencing if there are more than one recieve suspension points within the process.
+     * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
+     * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
      */
     suspend fun <T : ModelElement.QObject> waitForAnyItems(
@@ -169,7 +170,7 @@ interface KSLProcessBuilder {
      *
      * @param predicate a functional predicate that tests items in the queue for the criteria
      * @param blockingPriority the priority associated with the entity if it has to wait to receive
-     * @param suspensionName the name of the receive suspension point. can be used to identify which receive suspension point
+     * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
      */
@@ -228,7 +229,7 @@ interface KSLProcessBuilder {
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
-     *  @param suspensionName the name of the seize suspension point. can be used to identify which seize the entity is experiencing if there
+     *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
      *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
@@ -238,7 +239,7 @@ interface KSLProcessBuilder {
         resource: Resource,
         amountNeeded: Int = 1,
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        queue: HoldQueue,
+        queue: Queue<ProcessModel.Entity.Request>,
         suspensionName: String? = null
     ): Allocation
 
@@ -250,7 +251,7 @@ interface KSLProcessBuilder {
      *  @param resource the resource from which the units are being requested.
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
-     *  @param suspensionName the name of the seize suspension point. can be used to identify which seize the entity is experiencing if there
+     *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
      *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
@@ -286,7 +287,7 @@ interface KSLProcessBuilder {
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         delayDuration: Double,
         delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        queue: HoldQueue
+        queue: Queue<ProcessModel.Entity.Request>
     ) {
         val a = seize(resource, amountNeeded, seizePriority, queue)
         delay(delayDuration, delayPriority)
@@ -314,7 +315,7 @@ interface KSLProcessBuilder {
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         delayDuration: GetValueIfc,
         delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        queue: HoldQueue
+        queue: Queue<ProcessModel.Entity.Request>
     ) {
         val a = seize(resource, amountNeeded, seizePriority, queue)
         delay(delayDuration, delayPriority)

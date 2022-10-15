@@ -283,6 +283,39 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private val resourceAllocations: MutableMap<Resource, MutableList<Allocation>> = mutableMapOf()
 
         /**
+         * Facilitates the creation of requests for the entity by clients that
+         * have access to a reference to the entity or via the entity itself.
+         *
+         * @param amountNeeded the amount needed to fill the request
+         * @return the constructed Request
+         */
+        fun createRequest(amountNeeded: Int = 1): Request {
+            return Request(amountNeeded)
+        }
+
+        /**
+         *  Represents some amount needed by the entity. Can be used to work with resources.
+         *
+         * @param amountNeeded the amount needed to fill the request
+         */
+        inner class Request(amountNeeded: Int = 1) : QObject(){
+            init {
+                require(amountNeeded >= 1) {"The amount needed for the request must be >= 1"}
+            }
+            val entity = this@Entity
+            val amount = amountNeeded
+
+            var canBeFilled: Boolean = false
+                internal set
+
+            /**
+             * True if the request can not be filled at the time the property is accessed
+             */
+            val canNotBeFilled: Boolean
+                get() = !canBeFilled
+        }
+
+        /**
          *  A string representation of the allocations held by the entity. Useful for printing and
          *  diagnostics.
          */
@@ -361,10 +394,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        /**
-         *  Causes the entity to release any allocations related to the supplied resource
-         *  @param resource the resource to release all allocations
-         */
+//        /**
+//         *  Causes the entity to release any allocations related to the supplied resource
+//         *  @param resource the resource to release all allocations
+//         */
 //        private fun releaseResource(resource: Resource) {
 //            if (isUsing(resource)) {
 //                val allocations: MutableList<Allocation>? = resourceAllocations[resource]
@@ -375,10 +408,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 //            }
 //        }
 
-        /**
-         *  Causes the entity to release all allocations for any resource that it
-         *  may have
-         */
+//        /**
+//         *  Causes the entity to release all allocations for any resource that it
+//         *  may have
+//         */
 //        private fun releaseAllResources() {
 //            for (r in resourceAllocations.keys) {
 //                releaseResource(r)
@@ -865,14 +898,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): List<T> {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ITEMS
-
                 val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority)
                 return blockingQWait(blockingQ, request)
             }
 
             private suspend fun <T : QObject> blockingQWait(
                 blockingQ: BlockingQueue<T>,
-                request: BlockingQueue<T>.Request
+                request: BlockingQueue<T>.ChannelRequest
             ): List<T> {
                 if (request.canNotBeFilled) {
                     // must wait until it can be filled
@@ -929,26 +961,31 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 resource: Resource,
                 amountNeeded: Int,
                 seizePriority: Int,
-                queue: HoldQueue,
+                queue: Queue<ProcessModel.Entity.Request>,
                 suspensionName: String?
             ): Allocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
-                queue.enqueue(entity)
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
-                if (amountNeeded > resource.numAvailableUnits) {
-                    // entity is already in the queue waiting for the resource, just suspend
+                //create the request based on the current resource state
+                val request = resource.request(entity, amountNeeded)
+                queue.enqueue(request) // put the request in the queue
+                if (request.canNotBeFilled){
+                    // it must wait
+                    // request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resource.name} in process, ($this)" }
                     entity.state.waitForResource()
                     suspend()
                     entity.state.activate()
                 }
-                queue.remove(entity)
+                // entity told to resume
+                queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "time = $time : entity ${entity.id} allocated $amountNeeded units of ${resource.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
+                //TODO maybe allocate takes in the request and request also remembers the queue
                 return resource.allocate(entity, amountNeeded, queue, suspensionName)
             }
 
@@ -975,10 +1012,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // get the queue from the allocation being released
                 val theQ = allocation.queue
                 if (theQ.isNotEmpty) {
-                    // chose the next entity to proceed
-                    val entity = theQ.removeNext()
-                    // resume the entity's process
-                    entity!!.resumeProcess()
+                    // chose the next request to proceed
+                    //TODO I think that this should peekNext() because the the resumed process should remove the request
+                    val request = theQ.peekNext() //TODO we could provide a selector type strategy
+                    // resume the entity's process related to the request
+                    request!!.entity.resumeProcess()
                 }
             }
 
