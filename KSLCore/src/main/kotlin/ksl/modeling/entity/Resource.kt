@@ -83,7 +83,7 @@ open class Resource(
     name: String? = null,
     capacity: Int = 1,
     collectStateStatistics: Boolean = false
-) : ModelElement(parent, name), ResourceCIfc, ResourceRequestIfc {
+) : ModelElement(parent, name), ResourceCIfc {
 
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
@@ -300,13 +300,14 @@ open class Resource(
         numTimesReleased = 0
     }
 
-    override fun request(entity: ProcessModel.Entity, amountNeeded: Int): ProcessModel.Entity.Request {
-        val request = entity.createRequest(amountNeeded)
-        if (amountNeeded <= numAvailableUnits) {
-            request.canBeFilled = true
-        }
-        return request
-    }
+//    override fun request(entity: ProcessModel.Entity, amountNeeded: Int): ProcessModel.Entity.Request {
+//        //TODO it is an error to make a request for an amount larger than the capacity of the resource
+//        // if the capacity cannot be changed
+//        // how to handle the fact that the capacity could change.  Need max capacity.
+//        require(amountNeeded <= initialCapacity){"The amount requested, $amountNeeded is larger than the capacity $initialCapacity of the resource!"}
+//        val request = entity.createRequest(amountNeeded)
+//        return request
+//    }
 
     /**
      * It is an error to attempt to allocate resource units to an entity if there are insufficient

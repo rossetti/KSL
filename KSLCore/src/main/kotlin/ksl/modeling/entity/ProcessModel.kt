@@ -302,7 +302,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         /**
-         *  Represents some amount needed by the entity. Can be used to work with resources.
+         *  Represents some amount of units needed from 1 or more resources
          *
          * @param amountNeeded the amount needed to fill the request
          */
@@ -310,11 +310,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             init {
                 require(amountNeeded >= 1) {"The amount needed for the request must be >= 1"}
             }
-            val entity = this@Entity
-            val amount = amountNeeded
+            internal val entity = this@Entity
+            val amountRequested = amountNeeded
+            private val resources : MutableList<Resource> = mutableListOf()
+            internal fun registerResource(resource: Resource){
+                resources.add(resource)
+                //TODO allocation listener
+            }
 
-            var canBeFilled: Boolean = false
-                internal set
+            val amountAvailable : Int
+                get() {
+                    var sum = 0
+                    for (resource in resources){
+                        sum = sum + resource.numAvailableUnits
+                    }
+                    return sum
+                }
+
+            val canBeFilled: Boolean
+                get() = amountAvailable >= amountRequested
 
             /**
              * True if the request can not be filled at the time the property is accessed
@@ -978,7 +992,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //create the request based on the current resource state
-                val request = resource.request(entity, amountNeeded)
+                val request = createRequest(amountNeeded)
+                request.registerResource(resource)// indicates that the resource is responsible for filling the request
+//                val request = resource.request(entity, amountNeeded)
                 queue.enqueue(request) // put the request in the queue
                 if (request.canNotBeFilled){
                     // it must wait
