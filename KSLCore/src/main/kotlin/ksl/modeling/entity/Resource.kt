@@ -60,9 +60,21 @@ interface ResourceRequestIfc {
 
 }
 
+/**
+ * An allocation listener is notified whenever the resource is allocated and when the resource
+ * is deallocated. This allows general actions to occur when the resource's state changes
+ * at these instances in time.
+ */
 interface AllocationListenerIfc {
+
+    /**
+     * @param allocation the allocation that was allocated
+     */
     fun allocate(allocation: Allocation)
 
+    /**
+     * @param allocation the allocation that was deallocated
+     */
     fun deallocate(allocation: Allocation)
 }
 
