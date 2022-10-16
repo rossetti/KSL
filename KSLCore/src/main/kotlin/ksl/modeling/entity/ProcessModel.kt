@@ -312,16 +312,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
             internal val entity = this@Entity
             val amountRequested = amountNeeded
-            private val resources : MutableList<Resource> = mutableListOf()
+            private val requestedResources : MutableList<Resource> = mutableListOf()
             internal fun registerResource(resource: Resource){
-                resources.add(resource)
+                requestedResources.add(resource)
                 //TODO allocation listener
             }
 
             val amountAvailable : Int
                 get() {
                     var sum = 0
-                    for (resource in resources){
+                    for (resource in requestedResources){
                         sum = sum + resource.numAvailableUnits
                     }
                     return sum
