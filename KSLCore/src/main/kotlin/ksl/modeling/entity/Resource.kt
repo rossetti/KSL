@@ -59,6 +59,13 @@ interface ResourceRequestIfc {
     fun request(entity: ProcessModel.Entity, amountNeeded: Int = 1) : ProcessModel.Entity.Request
 
 }
+
+interface AllocationListenerIfc {
+    fun allocate(allocation: Allocation)
+
+    fun deallocate(allocation: Allocation)
+}
+
 open class Resource(
     parent: ModelElement,
     name: String? = null,
@@ -83,6 +90,28 @@ open class Resource(
      *  The element of this map represents the list of allocations allocated to the entity.
      */
     protected val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
+
+    protected val allocationListeners : MutableList<AllocationListenerIfc> = mutableListOf()
+
+    fun addAllocationListener(listener: AllocationListenerIfc){
+        allocationListeners.add(listener)
+    }
+
+    fun removeAllocationListener(listener: AllocationListenerIfc){
+        allocationListeners.remove(listener)
+    }
+
+    protected fun allocationNotification(allocation: Allocation){
+        for(listener in allocationListeners){
+            listener.allocate(allocation)
+        }
+    }
+
+    protected fun deallocationNotification(allocation: Allocation){
+        for(listener in allocationListeners){
+            listener.deallocate(allocation)
+        }
+    }
 
     override var initialCapacity = capacity
         set(value) {
@@ -303,6 +332,7 @@ open class Resource(
         numTimesSeized++
         //need to put this allocation in Entity also
         entity.allocate(allocation)
+        allocationNotification(allocation)
         return allocation
     }
 
@@ -330,8 +360,9 @@ open class Resource(
         // need to also deallocate from the entity
         allocation.entity.deallocate(allocation)
         // deallocate the allocation, so it can't be used again
-        allocation.amount = 0
+        allocation.amount = 0  //TODO
         allocation.timeDeallocated = time
+        deallocationNotification(allocation)
     }
 
     protected inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
