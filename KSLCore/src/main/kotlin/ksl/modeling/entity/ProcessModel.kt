@@ -1020,11 +1020,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // get the queue from the allocation being released
                 val theQ = allocation.queue
                 if (theQ.isNotEmpty) {
-                    // chose the next request to proceed
+                    //TODO chose the next request to proceed, this needs to be fixed, it may still not be fillable
                     //this is peekNext() because the resumed process removes the request
                     val request = theQ.peekNext() //TODO we could provide a selector type strategy, it would need to be attache do the allocation
+                    //TODO resource might not have the amount requested
                     // resume the entity's process related to the request
-                    request!!.entity.resumeProcess() //TODO can't seem to specify priority as method argument
+                    request!!.entity.resumeProcess() //TODO can't seem to specify priority as method argument to release()
                 }
             }
 
