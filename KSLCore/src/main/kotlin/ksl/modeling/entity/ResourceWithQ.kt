@@ -1,6 +1,5 @@
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
 

@@ -287,15 +287,6 @@ open class Resource(
         numTimesReleased = 0
     }
 
-//    override fun request(entity: ProcessModel.Entity, amountNeeded: Int): ProcessModel.Entity.Request {
-//        //TODO it is an error to make a request for an amount larger than the capacity of the resource
-//        // if the capacity cannot be changed
-//        // how to handle the fact that the capacity could change.  Need max capacity.
-//        require(amountNeeded <= initialCapacity){"The amount requested, $amountNeeded is larger than the capacity $initialCapacity of the resource!"}
-//        val request = entity.createRequest(amountNeeded)
-//        return request
-//    }
-
     /**
      * It is an error to attempt to allocate resource units to an entity if there are insufficient
      * units available. Thus, the amount requested must be less than or equal to the number of units
@@ -364,7 +355,7 @@ open class Resource(
         // need to also deallocate from the entity
         allocation.entity.deallocate(allocation)
         // deallocate the allocation, so it can't be used again
-        allocation.amount = 0  //TODO
+        allocation.amount = 0
         allocation.timeDeallocated = time
         deallocationNotification(allocation)
     }

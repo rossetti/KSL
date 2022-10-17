@@ -1,6 +1,5 @@
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -336,6 +335,140 @@ interface KSLProcessBuilder {
         queue: RequestQ
     ) {
         val a = seize(resource, amountNeeded, seizePriority, queue)
+        delay(delayDuration, delayPriority)
+        release(a)
+    }
+
+    /**
+     *  Uses the resource with the amount of units for the delay and then releases it.
+     *  Equivalent to: seize(), delay(), release()
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resource the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+     *  must be finite.
+     *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
+     */
+    suspend fun use(
+        resource: ResourceWithQ,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayDuration: Double,
+        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ) {
+        val a = seize(resource, amountNeeded, seizePriority, resource.myWaitingQ)
+        delay(delayDuration, delayPriority)
+        release(a)
+    }
+
+    /**
+     *  Uses the resource with the amount of units for the delay and then releases it.
+     *  Equivalent to: seize(), delay(), release()
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resource the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+     *  must be finite.
+     *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
+     */
+    suspend fun use(
+        resource: ResourceWithQ,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayDuration: GetValueIfc,
+        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ) {
+        val a = seize(resource, amountNeeded, seizePriority)
+        delay(delayDuration, delayPriority)
+        release(a)
+    }
+
+    /**
+     *  Uses the resource with the amount of units for the delay and then releases it.
+     *  Equivalent to: seize(), delay(), release()
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resourcePool the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+     *  must be finite.
+     *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
+     */
+    suspend fun use(
+        resourcePool: ResourcePool,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayDuration: Double,
+        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        queue: RequestQ
+    ) {
+        val a = seize(resourcePool, amountNeeded, seizePriority, queue)
+        delay(delayDuration, delayPriority)
+        release(a)
+    }
+
+    /**
+     *  Uses the resource with the amount of units for the delay and then releases it.
+     *  Equivalent to: seize(), delay(), release()
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resourcePool the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+     *  must be finite.
+     *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time.
+     */
+    suspend fun use(
+        resourcePool: ResourcePoolWithQ,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayDuration: Double,
+        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ) {
+        val a = seize(resourcePool, amountNeeded, seizePriority)
+        delay(delayDuration, delayPriority)
+        release(a)
+    }
+
+    /**
+     *  Uses the resource with the amount of units for the delay and then releases it.
+     *  Equivalent to: seize(), delay(), release()
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resourcePool the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+     *  must be finite.
+     *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time.
+     */
+    suspend fun use(
+        resourcePool: ResourcePoolWithQ,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayDuration: GetValueIfc,
+        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ) {
+        val a = seize(resourcePool, amountNeeded, seizePriority)
         delay(delayDuration, delayPriority)
         release(a)
     }

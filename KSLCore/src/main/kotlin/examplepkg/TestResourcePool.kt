@@ -3,7 +3,6 @@ package examplepkg
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ResourcePoolWithQ
-import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
