@@ -213,6 +213,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private val myProcessEndedState = ProcessEndedState()
         private val myBlockedReceivingState = BlockedReceiving()
         private val myBlockedSendingState = BlockedSending()
+        private val myWaitForProcessState = WaitForProcess()
         private var state: EntityState = myCreatedState
 
         val isCreated: Boolean
@@ -233,14 +234,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myBlockedSendingState
         val isBlockedReceiving: Boolean
             get() = state == myBlockedReceivingState
+        val isWaitingForProcess: Boolean
+            get() = state == myWaitForProcessState
 
         val isSuspended: Boolean
             get() {
-                if (myCurrentProcess != null){
+                if (myCurrentProcess != null) {
                     return myCurrentProcess!!.isSuspended
                 }
                 return isScheduled || isWaitingForSignal || isInHoldQueue || isWaitingForResource
-                        || isBlockedSending || isBlockedReceiving
+                        || isBlockedSending || isBlockedReceiving || isWaitingForProcess
             }
 
         var currentSuspendName: String? = null
@@ -306,10 +309,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *
          * @param amountNeeded the amount needed to fill the request
          */
-        inner class Request(amountNeeded: Int = 1) : QObject(){
+        inner class Request(amountNeeded: Int = 1) : QObject() {
             init {
-                require(amountNeeded >= 1) {"The amount needed for the request must be >= 1"}
+                require(amountNeeded >= 1) { "The amount needed for the request must be >= 1" }
             }
+
             internal val entity = this@Entity
             val amountRequested = amountNeeded
         }
@@ -623,6 +627,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 errorMessage("block receiving the entity")
             }
 
+            open fun waitForProcess() {
+                errorMessage("wait for process for the entity")
+            }
+
             private fun errorMessage(message: String) {
                 val sb = StringBuilder()
                 sb.appendLine()
@@ -684,6 +692,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun blockedReceiving() {
                 state = myBlockedReceivingState
             }
+
+            override fun waitForProcess() {
+                state = myWaitForProcessState
+            }
         }
 
         private inner class Scheduled : EntityState("Scheduled") {
@@ -722,6 +734,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
+        private inner class WaitForProcess : EntityState("WaitForProcess") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
         /**
          *  The main implementation of the coroutine magic.
          */
@@ -731,6 +749,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override val name: String = processName ?: ("PROCESS_$id")
             internal var continuation: Continuation<Unit>? = null //set with suspending function
             override val context: CoroutineContext get() = EmptyCoroutineContext
+
+            internal var callingProcess: ProcessCoroutine? = null
+            internal var calledProcess: ProcessCoroutine? = null
 
             override var isActivated: Boolean = false
                 private set
@@ -857,6 +878,31 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override suspend fun waitFor(
+                process: KSLProcess,
+                timeUntilActivation: Double,
+                priority: Int,
+                suspensionName: String?
+            ) {
+                require(currentProcess != process){"The process ${process.name} is the same as the current process! "}
+                val p = process as ProcessCoroutine
+                require(p.callingProcess == null) {"The process to wait on already has a calling process"}
+                p.callingProcess = this
+                calledProcess = p
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.WAIT_FOR_PROCESS
+                logger.trace { "time = $time : entity ${entity.id} waiting for ${process.name} in process, ($this)" }
+                p.activate(timeUntilActivation, priority)
+                entity.state.waitForProcess()
+                suspend()
+                calledProcess = null
+                entity.state.activate()
+                logger.trace { "time = $time : entity ${entity.id} ended wait for ${process.name} in process, ($this)" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                TODO("Not yet implemented")
+            }
+
+            override suspend fun waitFor(
                 signal: Signal,
                 waitPriority: Int,
                 waitStats: Boolean,
@@ -964,7 +1010,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): Allocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
-                require( amountNeeded <= resource.capacity) {"The amount requested, $amountNeeded > resource capacity, ${resource.capacity}"}
+                require(amountNeeded <= resource.capacity) { "The amount requested, $amountNeeded > resource capacity, ${resource.capacity}" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
@@ -972,7 +1018,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded)
                 queue.enqueue(request) // put the request in the queue
-                if (request.amountRequested > resource.numAvailableUnits){
+                if (request.amountRequested > resource.numAvailableUnits) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resource.name} in process, ($this)" }
                     entity.state.waitForResource()
@@ -1002,7 +1048,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded)
                 queue.enqueue(request) // put the request in the queue
-                if (request.amountRequested > resourcePool.numAvailableUnits){
+                if (request.amountRequested > resourcePool.numAvailableUnits) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resourcePool.name} in process, ($this)" }
                     entity.state.waitForResource()
@@ -1043,20 +1089,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (theQ.isNotEmpty) {
                     //this is peekNext() because the resumed process removes the request
                     val request = theQ.selectRequest(allocation.resource.numAvailableUnits)
-                    if (request != null){
-                        if (request.amountRequested <= allocation.resource.numAvailableUnits){
+                    if (request != null) {
+                        if (request.amountRequested <= allocation.resource.numAvailableUnits) {
                             // resume the entity's process related to the request
                             request.entity.resumeProcess(allocation.allocationPriority)
                         }
                     }
-                 }
+                }
             }
 
             override fun release(resource: Resource) {
                 logger.trace { "time = $time : entity ${entity.id} releasing all ${entity.totalAmountAllocated(resource)} units of ${resource.name} allocated in process, ($this)" }
                 // get the allocations of this entity for this resource
                 val list = resource.allocations(entity)
-                for(allocation in list){
+                for (allocation in list) {
                     release(allocation)
                 }
             }
@@ -1079,8 +1125,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (theQ.isNotEmpty) {
                     //this is peekNext() because the resumed process removes the request
                     val request = theQ.selectRequest(pooledAllocation.resourcePool.numAvailableUnits)
-                    if (request != null){
-                        if (request.amountRequested <= pooledAllocation.resourcePool.numAvailableUnits){
+                    if (request != null) {
+                        if (request.amountRequested <= pooledAllocation.resourcePool.numAvailableUnits) {
                             // resume the entity's process related to the request
                             request.entity.resumeProcess(pooledAllocation.allocationPriority)
                         }
@@ -1094,9 +1140,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time The coroutine process ${this@ProcessCoroutine} completed with result = $result" }
                 result.onSuccess {
                     state.complete()
+                    //TODO handle calling process?
+                    if (callingProcess != null){
+                        // schedules calling process to resume at the current time
+                        callingProcess!!.entity.resumeProcess()
+                        callingProcess = null
+                    }
                     afterSuccessfulProcessCompletion(this)
                 }.onFailure {
                     if (it is ProcessTerminatedException) {
+                        // if it was called, then also terminate the caller
+                        if (callingProcess != null){
+                            callingProcess!!.terminate()
+                            callingProcess = null
+                        }
+                        // if the main process is waiting on a called process, then terminate that process also
+                        if (calledProcess != null){
+                            calledProcess!!.terminate()
+                            calledProcess = null
+                        }
                         afterTerminatedProcessCompletion()
                         handleTerminatedProcess(this)
                     } else {

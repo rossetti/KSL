@@ -31,6 +31,7 @@ enum class SuspendType {
     HOLD,
     WAIT_FOR_ITEMS,
     WAIT_FOR_ANY_ITEMS,
+    WAIT_FOR_PROCESS,
     SEND,
     SEIZE,
     DELAY
@@ -66,6 +67,21 @@ interface KSLProcessBuilder {
      * the entity is in when there are multiple suspension points.
      */
     suspend fun suspend(suspensionObserver: SuspensionObserver, suspensionName: String?)
+
+    /** Causes the current process to suspend until the specified process has run to completion.
+     *  This is like run blocking.  It activates the specified process and then waits for it
+     *  to complete before proceeding.
+     *
+     * @param process the process to start for an entity
+     * @param timeUntilActivation the time until the start the process
+     * @param priority the priority associated with the event to start the process
+     */
+    suspend fun waitFor(
+        process: KSLProcess,
+        timeUntilActivation: Double = 0.0,
+        priority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    )
 
     /**
      *  Causes the process to halt, waiting for the signal to be announced.  Some other process/event
@@ -511,7 +527,11 @@ interface KSLProcessBuilder {
      *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun delay(delayDuration: Double, delayPriority: Int = KSLEvent.DEFAULT_PRIORITY, suspensionName: String? = null)
+    suspend fun delay(
+        delayDuration: Double,
+        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    )
 
     /**
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
