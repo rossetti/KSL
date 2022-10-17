@@ -43,38 +43,4 @@ class ResourceWithQ(
             myWaitingQ.defaultReportingOption = value
         }
 
-//    override fun deallocate(allocation: Allocation) {
-//        require(allocation.amount >= 1) { "The allocation does not have any amount to deallocate" }
-//        require(allocation.resource === this) { "The allocations was not on this resource." }
-//        require(entityAllocations.contains(allocation.entity)) { "The entity associated with the allocation is not using this resource." }
-//        val b: Boolean = entityAllocations[allocation.entity]!!.contains(allocation)
-//        require(b) { "The supplied allocation is not currently allocated for this resource." }
-//        //need to remove from allocations for the specific entity
-//        entityAllocations[allocation.entity]!!.remove(allocation)
-//        if (entityAllocations[allocation.entity]!!.isEmpty()) {
-//            // no more allocations for this entity, remove it from the map also
-//            entityAllocations.remove(allocation.entity)
-//        }
-//        // give back to the resource
-//        myNumBusy.decrement(allocation.amount.toDouble())
-//        myUtil.value = fractionBusy
-//        if (myNumBusy.value == 0.0) {
-//            myState.exit(time)
-//            myState = myIdleState
-//            myState.enter(time)
-//        }
-//        // need to also deallocate from the entity
-//        allocation.entity.deallocate(allocation)
-//        // deallocate the allocation, so it can't be used again
-//        allocation.amount = 0
-//        allocation.timeDeallocated = time
-//        // need to check the queue
-//        //TODO there will no longer be a queue, could get the queue from the allocation???
-//        if (myWaitingQ.isNotEmpty){
-//            val entity = myWaitingQ.removeNext()
-//            // resume the entity's process
-//            entity!!.resumeProcess()
-//        }
-//    }
-
 }

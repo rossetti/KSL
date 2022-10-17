@@ -47,19 +47,6 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     val numTimesReleased: Int
 }
 
-interface ResourceRequestIfc {
-
-    /**
-     *  Promises to process the request and indicate whether it can be filled
-     *
-     * @param entity the entity making the request
-     * @param amountNeeded the amount needed for the request
-     * @return the request which should indicate whether the request can or cannot be filled
-     */
-    fun request(entity: ProcessModel.Entity, amountNeeded: Int = 1) : ProcessModel.Entity.Request
-
-}
-
 /**
  * An allocation listener is notified whenever the resource is allocated and when the resource
  * is deallocated. This allows general actions to occur when the resource's state changes

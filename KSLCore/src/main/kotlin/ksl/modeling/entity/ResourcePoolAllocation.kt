@@ -9,9 +9,9 @@ import ksl.modeling.queue.Queue
  *  resource result in multiple allocations (when filled).  An allocation is not created until
  *  the requested amount is available.
  */
-class Allocation(
+class ResourcePoolAllocation(
     val entity: ProcessModel.Entity,
-    val resource: Resource,
+    val resourcePool: ResourcePool,
     theAmount: Int = 1,
     val queue: Queue<ProcessModel.Entity.Request>,
     allocationName: String? = null
@@ -21,9 +21,9 @@ class Allocation(
     }
 
     /**
-     *  The time that the allocation was allocated to its resource
+     *  The time that the allocation was allocated to the pool
      */
-    val timeAllocated: Double = resource.time
+    val timeAllocated: Double = resourcePool.time
     var timeDeallocated: Double = Double.NaN //TODO not doing anything with these
         internal set
 
@@ -34,7 +34,7 @@ class Allocation(
         private set
 
     /**
-     *  The amount of the allocation representing the units allocated of the resource
+     *  The amount of the allocation representing the units allocated of the pool
      */
     var amount: Int = theAmount
         internal set(value) {
@@ -60,8 +60,8 @@ class Allocation(
         sb.append(entity.id)
         sb.append(" holds ")
         sb.append(amount)
-        sb.append(" units of resource ")
-        sb.append(resource.name)
+        sb.append(" units of resource pool ")
+        sb.append(resourcePool.name)
         return sb.toString()
     }
 }
