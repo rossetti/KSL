@@ -986,6 +986,37 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 return resource.allocate(entity, amountNeeded, queue, suspensionName)
             }
 
+            override suspend fun seize(
+                resourcePool: ResourcePool,
+                amountNeeded: Int,
+                seizePriority: Int,
+                queue: Queue<Request>,
+                suspensionName: String?
+            ): ResourcePoolAllocation {
+                require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.SEIZE
+                logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resourcePool.name} in process, ($this)" }
+                delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
+                //create the request based on the current resource state
+                val request = createRequest(amountNeeded)
+                queue.enqueue(request) // put the request in the queue
+                if (request.amountRequested > resourcePool.numAvailableUnits){
+                    // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
+                    logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resourcePool.name} in process, ($this)" }
+                    entity.state.waitForResource()
+                    suspend()
+                    entity.state.activate()
+                }
+                // entity has been told to resume
+                queue.remove(request) // take the request out of the queue after possible wait
+                logger.trace { "time = $time : entity ${entity.id} allocated $amountNeeded units of ${resourcePool.name} in process, ($this)" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                // make the pooled allocation and return it
+                return resourcePool.allocate(entity, amountNeeded, queue, suspensionName)
+            }
+
             override suspend fun delay(delayDuration: Double, delayPriority: Int, suspensionName: String?) {
                 require(delayDuration >= 0.0) { "The duration of the delay must be >= 0.0 in process, ($this)" }
                 require(delayDuration.isFinite()) { "The duration of the delay must be finite (cannot be infinite) in process, ($this)" }
@@ -1032,6 +1063,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time : entity ${entity.id} releasing all units of every allocated resource in process, ($this)" }
                 for (r in resourceAllocations.keys) {
                     release(r)
+                }
+            }
+
+            override fun release(pooledAllocation: ResourcePoolAllocation) {
+                logger.trace { "time = $time : entity ${entity.id} releasing ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} in process, ($this)" }
+                // ask the resource pool to deallocate the resources
+                pooledAllocation.resourcePool.deallocate(pooledAllocation)
+                // then check the queue for additional work
+                // get the queue from the allocation being released
+                val theQ = pooledAllocation.queue
+                if (theQ.isNotEmpty) {
+                    //this is peekNext() because the resumed process removes the request
+                    val request = theQ.peekNext()!! //TODO we could provide a selector type strategy, it would need to be attached to the allocation or resource
+                    if (request.amountRequested <= pooledAllocation.resourcePool.numAvailableUnits){
+                        // resume the entity's process related to the request
+                        //TODO can't seem to specify priority as method argument to release(), maybe attach to allocation
+                        request.entity.resumeProcess()
+                    }
                 }
             }
 

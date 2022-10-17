@@ -20,6 +20,10 @@ class ResourcePoolAllocation(
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
     }
 
+    internal val myAllocations: MutableList<Allocation> = mutableListOf()
+    val allocations: List<Allocation>
+        get() = myAllocations
+
     /**
      *  The time that the allocation was allocated to the pool
      */
@@ -41,18 +45,6 @@ class ResourcePoolAllocation(
             require(value >= 0) { "The amount allocated must be >= 0" }
             field = value
         }
-
-    /**
-     *  True if the allocation is currently allocated to a resource
-     */
-    val isAllocated: Boolean
-        get() = amount > 0
-
-    /**
-     *  True if no units are allocated
-     */
-    val isDeallocated: Boolean
-        get() = !isAllocated
 
     override fun toString(): String {
         val sb = StringBuilder()

@@ -1,14 +1,33 @@
 package ksl.modeling.entity
 
+import ksl.modeling.queue.Queue
 import ksl.modeling.variable.AggregateTWResponse
 import ksl.simulation.ModelElement
 
 interface ResourceSelectionRuleIfc {
     /**
+     * @param amountNeeded the amount needed from resources
      * @param list of resources to consider selecting from
      * @return the selected list of resources. It may be empty
      */
     fun selectResources(amountNeeded: Int, list: List<Resource>): List<Resource>
+}
+
+/**
+ *  Function to determine how to allocate requirement for units across
+ *  a list of resources that have sufficient available units to meet
+ *  the amount needed.
+ */
+interface AllocationRuleIfc {
+
+    /** The method assumes that the provided list of resources has
+     *  enough units available to satisfy the needs of the request.
+     *
+     * @param amountNeeded the amount needed from resources
+     * @param resourceList of resources to be allocated from
+     * @return the amount to allocate to each resource as a map
+     */
+    fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int>
 }
 
 /**
@@ -26,6 +45,29 @@ class DefaultResourceSelectionRule : ResourceSelectionRuleIfc {
         }
         return rList
     }
+}
+
+/**
+ * The default is to allocate all available from each resource until amount needed is met
+ * in the order in which the resources are listed.
+ */
+class DefaultAllocationRule : AllocationRuleIfc {
+    override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
+        val allocations = mutableMapOf<Resource, Int>()
+        var needed = amountNeeded
+        for(resource in resourceList){
+            val na = minOf(resource.numAvailableUnits, needed)
+            allocations[resource] = na
+            needed = needed - na
+            if (needed == 0){
+                break
+            }
+        }
+        // if value is false
+        check(needed == 0){"There was not enough available to meet amount needed"}
+        return allocations
+    }
+
 }
 
 /**
@@ -73,10 +115,12 @@ fun findAvailableResources(list: List<Resource>): List<Resource> {
 open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: String? = null) : ModelElement(parent, name) {
     private val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
     private val myResources: MutableList<Resource> = mutableListOf()
+
     val resources: List<Resource>
         get() = myResources.toList()
 
     var resourceSelectionRule : ResourceSelectionRuleIfc = DefaultResourceSelectionRule()
+    var resourceAllocationRule : AllocationRuleIfc = DefaultAllocationRule()
 
     init {
         for(r in resources){
@@ -151,6 +195,55 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
      */
     fun selectResources(amountNeeded: Int) : List<Resource>{
         return resourceSelectionRule.selectResources(amountNeeded, myResources)
+    }
+
+    /** For use, before calling allocate()
+     *
+     * @param amountNeeded amount needed by the request
+     * @return true if and only if resources can be selected according to the current resource selection rule
+     * that will have sufficient amount available to fill the request
+     */
+    fun canFill(amountNeeded: Int) : Boolean{
+        return selectResources(amountNeeded).isNotEmpty()
+    }
+
+    /**
+     * It is an error to attempt to allocate resource units to an entity if there are insufficient
+     * units available. Thus, the amount requested must be less than or equal to the number of units
+     * available at the time of this call.
+     *
+     * @param entity the entity that is requesting the units
+     * @param amountNeeded that amount to allocate, must be greater than or equal to 1
+     * @param allocationName an optional name for the allocation
+     * @param queue the queue associated with the allocation.  That is, where the entities would have had
+     * to wait if the allocation was not immediately filled
+     * @return an allocation representing that the units have been allocated to the entity. The reference
+     * to this allocation is necessary in order to deallocate the allocated units.
+     */
+    fun allocate(
+        entity: ProcessModel.Entity,
+        amountNeeded: Int = 1,
+        queue: Queue<ProcessModel.Entity.Request>,
+        allocationName: String? = null
+    ): ResourcePoolAllocation {
+        require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
+        check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
+        // default rule only tries to find a single resource, but numAvailableUnits is based on all contained resources
+        val list = selectResources(amountNeeded)
+        check(list.isNotEmpty()){"There were no resources selected to allocate the $amountNeeded using the current selection rule"}
+        val a = ResourcePoolAllocation(entity, this, amountNeeded, queue, allocationName)
+        val resourceIntMap = resourceAllocationRule.makeAllocations(amountNeeded, list)
+        for((resource, amt) in resourceIntMap){
+            val ra = resource.allocate(entity, amt, queue, allocationName)
+            a.myAllocations.add(ra)
+        }
+        return a
+    }
+
+    fun deallocate(poolAllocation: ResourcePoolAllocation){
+        for(allocation in poolAllocation.allocations){
+            allocation.resource.deallocate(allocation)
+        }
     }
 
 }

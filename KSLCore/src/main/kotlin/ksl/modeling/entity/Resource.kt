@@ -336,6 +336,10 @@ open class Resource(
         return allocation
     }
 
+    /** Causes the resource to deallocate the amount associated with the allocation
+     *
+     * @param allocation the allocation to be deallocated
+     */
     fun deallocate(allocation: Allocation) {
         require(allocation.amount >= 1) { "The allocation does not have any amount to deallocate" }
         require(allocation.resource === this) { "The allocations was not on this resource." }

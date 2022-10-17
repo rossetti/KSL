@@ -267,6 +267,52 @@ interface KSLProcessBuilder {
     }
 
     /**
+     *  Requests a number of units from the indicated pool of resources
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resourcePool the resource pool from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
+     *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
+     *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
+     *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
+     *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
+     *  all requested units of the resource have been allocated.
+     */
+    suspend fun seize(
+        resourcePool: ResourcePool,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        queue: Queue<ProcessModel.Entity.Request>,
+        suspensionName: String? = null
+    ): ResourcePoolAllocation
+
+    /**
+     *  Requests a number of units from the indicated pool of resources
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resourcePool the resource pool from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
+     *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
+     *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
+     *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
+     *  all requested units of the resource have been allocated.
+     */
+    suspend fun seize(
+        resourcePool: ResourcePoolWithQ,
+        amountNeeded: Int = 1,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ): ResourcePoolAllocation {
+        return seize(resourcePool, amountNeeded, seizePriority, resourcePool.myWaitingQ, suspensionName)
+    }
+
+    /**
      *  Uses the resource with the amount of units for the delay and then releases it.
      *  Equivalent to: seize(), delay(), release()
      *
@@ -369,5 +415,10 @@ interface KSLProcessBuilder {
      *  Releases ALL the resources that the entity has currently allocated to it
      */
     fun releaseAllResources()
+
+    /**
+     * Releases the allocations associated with using a ResourcePool
+     */
+    fun release(pooledAllocation: ResourcePoolAllocation)
 
 }
