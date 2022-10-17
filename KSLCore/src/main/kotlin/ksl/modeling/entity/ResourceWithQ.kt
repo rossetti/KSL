@@ -22,16 +22,16 @@ class ResourceWithQ(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1,
-    queue: Queue<ProcessModel.Entity.Request>? = null,
+    queue: RequestQ? = null,
     collectStateStatistics: Boolean = false
 ) : Resource(parent, name, capacity, collectStateStatistics), ResourceWithQCIfc {
 
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
-    internal val myWaitingQ: Queue<ProcessModel.Entity.Request>
+    internal val myWaitingQ: RequestQ
     init {
-        myWaitingQ = queue ?: Queue(this, "${this.name}:Q")
+        myWaitingQ = queue ?: RequestQ(this, "${this.name}:Q")
     }
     override val waitingQ : QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ

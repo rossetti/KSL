@@ -7,7 +7,7 @@ import ksl.simulation.ModelElement
 class ResourcePoolWithQ(
     parent: ModelElement,
     resources: List<Resource>,
-    queue: Queue<ProcessModel.Entity.Request>? = null,
+    queue: RequestQ? = null,
     name: String? = null
 ) : ResourcePool(parent, resources, name) {
 
@@ -21,7 +21,7 @@ class ResourcePoolWithQ(
     constructor(
         parent: ModelElement,
         numResources: Int = 1,
-        queue: Queue<ProcessModel.Entity.Request>? = null,
+        queue: RequestQ? = null,
         name: String? = null
     ) : this(
         parent,
@@ -37,10 +37,10 @@ class ResourcePoolWithQ(
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
-    internal val myWaitingQ: Queue<ProcessModel.Entity.Request>
+    internal val myWaitingQ: RequestQ
 
     init {
-        myWaitingQ = queue ?: Queue(this, "${this.name}:Q")
+        myWaitingQ = queue ?: RequestQ(this, "${this.name}:Q")
     }
 
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>

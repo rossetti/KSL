@@ -1,6 +1,7 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
+import ksl.simulation.KSLEvent
 
 /**
  *  An allocation represents a distinct usage of a resource by an entity with an amount allocated.
@@ -13,12 +14,14 @@ class Allocation(
     val entity: ProcessModel.Entity,
     val resource: Resource,
     theAmount: Int = 1,
-    val queue: Queue<ProcessModel.Entity.Request>,
+    val queue: RequestQ,
     allocationName: String? = null
 ) {
     init {
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
     }
+
+    var allocationPriority: Int = KSLEvent.DEFAULT_PRIORITY - 8
 
     /**
      *  The time that the allocation was allocated to its resource

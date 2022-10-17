@@ -960,7 +960,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 resource: Resource,
                 amountNeeded: Int,
                 seizePriority: Int,
-                queue: Queue<ProcessModel.Entity.Request>,
+                queue: RequestQ,
                 suspensionName: String?
             ): Allocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
@@ -991,7 +991,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 resourcePool: ResourcePool,
                 amountNeeded: Int,
                 seizePriority: Int,
-                queue: Queue<Request>,
+                queue: RequestQ,
                 suspensionName: String?
             ): ResourcePoolAllocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
@@ -1042,11 +1042,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val theQ = allocation.queue
                 if (theQ.isNotEmpty) {
                     //this is peekNext() because the resumed process removes the request
-                    val request = theQ.peekNext()!! //TODO we could provide a selector type strategy, it would need to be attached to the allocation or resource
+                    val request = theQ.selectRequest(allocation.resource.numAvailableUnits)!!
                     if (request.amountRequested <= allocation.resource.numAvailableUnits){
                         // resume the entity's process related to the request
-                        //TODO can't seem to specify priority as method argument to release(), maybe attach to allocation
-                        request.entity.resumeProcess()
+                        request.entity.resumeProcess(allocation.allocationPriority)
                     }
                  }
             }
@@ -1077,11 +1076,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val theQ = pooledAllocation.queue
                 if (theQ.isNotEmpty) {
                     //this is peekNext() because the resumed process removes the request
-                    val request = theQ.peekNext()!! //TODO we could provide a selector type strategy, it would need to be attached to the allocation or resource
+                    val request = theQ.selectRequest(pooledAllocation.resourcePool.numAvailableUnits)!!
                     if (request.amountRequested <= pooledAllocation.resourcePool.numAvailableUnits){
                         // resume the entity's process related to the request
-                        //TODO can't seem to specify priority as method argument to release(), maybe attach to allocation
-                        request.entity.resumeProcess()
+                        request.entity.resumeProcess(pooledAllocation.allocationPriority)
                     }
                 }
             }

@@ -312,7 +312,7 @@ open class Resource(
     fun allocate(
         entity: ProcessModel.Entity,
         amountNeeded: Int = 1,
-        queue: Queue<ProcessModel.Entity.Request>,
+        queue: RequestQ,
         allocationName: String? = null
     ): Allocation {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }

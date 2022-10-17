@@ -239,7 +239,7 @@ interface KSLProcessBuilder {
         resource: Resource,
         amountNeeded: Int = 1,
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        queue: Queue<ProcessModel.Entity.Request>,
+        queue: RequestQ,
         suspensionName: String? = null
     ): Allocation
 
@@ -285,7 +285,7 @@ interface KSLProcessBuilder {
         resourcePool: ResourcePool,
         amountNeeded: Int = 1,
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        queue: Queue<ProcessModel.Entity.Request>,
+        queue: RequestQ,
         suspensionName: String? = null
     ): ResourcePoolAllocation
 
@@ -333,7 +333,7 @@ interface KSLProcessBuilder {
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         delayDuration: Double,
         delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        queue: Queue<ProcessModel.Entity.Request>
+        queue: RequestQ
     ) {
         val a = seize(resource, amountNeeded, seizePriority, queue)
         delay(delayDuration, delayPriority)
@@ -361,7 +361,7 @@ interface KSLProcessBuilder {
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         delayDuration: GetValueIfc,
         delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        queue: Queue<ProcessModel.Entity.Request>
+        queue: RequestQ
     ) {
         val a = seize(resource, amountNeeded, seizePriority, queue)
         delay(delayDuration, delayPriority)

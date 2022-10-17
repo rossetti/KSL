@@ -245,7 +245,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
     fun allocate(
         entity: ProcessModel.Entity,
         amountNeeded: Int = 1,
-        queue: Queue<ProcessModel.Entity.Request>,
+        queue: RequestQ,
         allocationName: String? = null
     ): ResourcePoolAllocation {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
