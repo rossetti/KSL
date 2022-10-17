@@ -312,29 +312,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
             internal val entity = this@Entity
             val amountRequested = amountNeeded
-            private val requestedResources : MutableList<Resource> = mutableListOf()
-            internal fun registerResource(resource: Resource){
-                requestedResources.add(resource)
-                //TODO allocation listener
-            }
-
-            val amountAvailable : Int
-                get() {
-                    var sum = 0
-                    for (resource in requestedResources){
-                        sum = sum + resource.numAvailableUnits
-                    }
-                    return sum
-                }
-
-            val canBeFilled: Boolean
-                get() = amountAvailable >= amountRequested
-
-            /**
-             * True if the request can not be filled at the time the property is accessed
-             */
-            val canNotBeFilled: Boolean
-                get() = !canBeFilled
         }
 
         /**
@@ -993,23 +970,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded)
-                request.registerResource(resource)// indicates that the resource is responsible for filling the request
-//                val request = resource.request(entity, amountNeeded)
                 queue.enqueue(request) // put the request in the queue
-                if (request.canNotBeFilled){
-                    // it must wait
-                    // request is already in the queue waiting for the resource, just suspend the entity's process
+                if (request.amountRequested > resource.numAvailableUnits){
+                    // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resource.name} in process, ($this)" }
                     entity.state.waitForResource()
                     suspend()
                     entity.state.activate()
                 }
-                // entity told to resume
+                // entity has been told to resume
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "time = $time : entity ${entity.id} allocated $amountNeeded units of ${resource.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                //TODO maybe allocate takes in the request and request also remembers the queue
                 return resource.allocate(entity, amountNeeded, queue, suspensionName)
             }
 
@@ -1036,13 +1009,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // get the queue from the allocation being released
                 val theQ = allocation.queue
                 if (theQ.isNotEmpty) {
-                    //TODO chose the next request to proceed, this needs to be fixed, it may still not be fillable
                     //this is peekNext() because the resumed process removes the request
-                    val request = theQ.peekNext() //TODO we could provide a selector type strategy, it would need to be attache do the allocation
-                    //TODO resource might not have the amount requested
-                    // resume the entity's process related to the request
-                    request!!.entity.resumeProcess() //TODO can't seem to specify priority as method argument to release()
-                }
+                    val request = theQ.peekNext()!! //TODO we could provide a selector type strategy, it would need to be attached to the allocation or resource
+                    if (request.amountRequested <= allocation.resource.numAvailableUnits){
+                        // resume the entity's process related to the request
+                        //TODO can't seem to specify priority as method argument to release(), maybe attach to allocation
+                        request.entity.resumeProcess()
+                    }
+                 }
             }
 
             override fun release(resource: Resource) {
