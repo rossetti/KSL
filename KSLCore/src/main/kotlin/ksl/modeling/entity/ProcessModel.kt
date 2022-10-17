@@ -1042,10 +1042,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val theQ = allocation.queue
                 if (theQ.isNotEmpty) {
                     //this is peekNext() because the resumed process removes the request
-                    val request = theQ.selectRequest(allocation.resource.numAvailableUnits)!!
-                    if (request.amountRequested <= allocation.resource.numAvailableUnits){
-                        // resume the entity's process related to the request
-                        request.entity.resumeProcess(allocation.allocationPriority)
+                    val request = theQ.selectRequest(allocation.resource.numAvailableUnits)
+                    if (request != null){
+                        if (request.amountRequested <= allocation.resource.numAvailableUnits){
+                            // resume the entity's process related to the request
+                            request.entity.resumeProcess(allocation.allocationPriority)
+                        }
                     }
                  }
             }
@@ -1076,10 +1078,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val theQ = pooledAllocation.queue
                 if (theQ.isNotEmpty) {
                     //this is peekNext() because the resumed process removes the request
-                    val request = theQ.selectRequest(pooledAllocation.resourcePool.numAvailableUnits)!!
-                    if (request.amountRequested <= pooledAllocation.resourcePool.numAvailableUnits){
-                        // resume the entity's process related to the request
-                        request.entity.resumeProcess(pooledAllocation.allocationPriority)
+                    val request = theQ.selectRequest(pooledAllocation.resourcePool.numAvailableUnits)
+                    if (request != null){
+                        if (request.amountRequested <= pooledAllocation.resourcePool.numAvailableUnits){
+                            // resume the entity's process related to the request
+                            request.entity.resumeProcess(pooledAllocation.allocationPriority)
+                        }
                     }
                 }
             }

@@ -45,14 +45,9 @@ class RequestQ(
 
     var requestSelectionRule: RequestSelectionRuleIfc? = null
 
-    fun selectRequest(amountAvailable: Int): ProcessModel.Entity.Request?{
-        if (requestSelectionRule != null){
-            val r = requestSelectionRule!!.selectRequest(amountAvailable, this)
-            if (r == null){
-                return peekNext()
-            } else {
-                return r
-            }
+    fun selectRequest(amountAvailable: Int): ProcessModel.Entity.Request? {
+        if (requestSelectionRule != null) {
+            return requestSelectionRule!!.selectRequest(amountAvailable, this)
         } else {
             return peekNext()
         }
