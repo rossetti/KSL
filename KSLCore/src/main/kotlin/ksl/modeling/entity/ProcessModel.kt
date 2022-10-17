@@ -964,6 +964,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): Allocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
+                require( amountNeeded <= resource.capacity) {"The amount requested, $amountNeeded > resource capacity, ${resource.capacity}"}
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
@@ -1061,7 +1062,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override fun releaseAllResources() {
                 logger.trace { "time = $time : entity ${entity.id} releasing all units of every allocated resource in process, ($this)" }
-                for (r in resourceAllocations.keys) {
+                val rList = resourceAllocations.keys.toList()
+                for (r in rList) {
                     release(r)
                 }
             }
