@@ -155,7 +155,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     }
 
     final override fun afterReplication() {
-        for (entity in suspendedEntities) {
+        // make a copy of the set
+        val set = suspendedEntities.toHashSet()
+        for (entity in set){
             entity.terminateProcess()
         }
         suspendedEntities.clear()
@@ -899,7 +901,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time : entity ${entity.id} ended wait for ${process.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                TODO("Not yet implemented")
             }
 
             override suspend fun waitFor(
@@ -1140,25 +1141,43 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time The coroutine process ${this@ProcessCoroutine} completed with result = $result" }
                 result.onSuccess {
                     state.complete()
-                    //TODO handle calling process?
+                    // check if the current process was activated (called) by other process in a waitFor
                     if (callingProcess != null){
-                        // schedules calling process to resume at the current time
-                        callingProcess!!.entity.resumeProcess()
+                        // it had a calling process
+                        // the calling process must be suspended for it to be resumed
+                        // if it was not suspended then it may have been terminated
+                        if (callingProcess!!.isSuspended){
+                            // schedules calling process to resume at the current time
+                            callingProcess!!.entity.resumeProcess()
+                        }
+                        // called process is completed. it no longer can have calling process
                         callingProcess = null
                     }
                     afterSuccessfulProcessCompletion(this)
                 }.onFailure {
                     if (it is ProcessTerminatedException) {
-                        // if it was called, then also terminate the caller
+                        // check if the current process was activated (called) by other process in a waitFor
+                        // if so, then because this process was terminated with an exception, we should terminate its caller
                         if (callingProcess != null){
-                            callingProcess!!.terminate()
+                            // in here means that this process was called by another process
+                            // the calling process must be suspended if it was the caller, but just in case I am checking
+                            if (callingProcess!!.isSuspended){
+                                // make the calling process think that it has not called
+                                // this is to prevent the calling process from trying to re-terminate the called process
+                                // When it is terminated
+                                callingProcess!!.calledProcess = null
+                                callingProcess!!.terminate()
+                            }
                             callingProcess = null
                         }
+                        //commenting allows sub-process to finish
+                        // uncommented caused sub-process to not finish
                         // if the main process is waiting on a called process, then terminate that process also
-                        if (calledProcess != null){
-                            calledProcess!!.terminate()
-                            calledProcess = null
-                        }
+//                        if (calledProcess != null){
+//                            //TODO the called process might not be suspended, thus can't terminate it yet
+//                            calledProcess!!.terminate()
+//                            calledProcess = null
+//                        }
                         afterTerminatedProcessCompletion()
                         handleTerminatedProcess(this)
                     } else {
@@ -1289,6 +1308,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
                 override fun terminate() {
                     state = terminated
+                    //un-capture suspended entities here
+                    suspendedEntities.remove(entity)
                     logger.trace { "time = $time : entity ${entity.id} terminated process, (${this@ProcessCoroutine}) ..." }
                     //resume with exception
 //                    continuation?.resumeWith(Result.failure(ProcessTerminatedException())) // same as below
