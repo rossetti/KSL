@@ -1171,13 +1171,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             callingProcess = null
                         }
                         //commenting allows sub-process to finish
-                        // uncommented caused sub-process to not finish
+                        // uncommented causes sub-process to terminate
                         // if the main process is waiting on a called process, then terminate that process also
-//                        if (calledProcess != null){
-//                            //TODO the called process might not be suspended, thus can't terminate it yet
-//                            calledProcess!!.terminate()
-//                            calledProcess = null
-//                        }
+                        if (calledProcess != null){
+                            // the called process should be suspended, but just in case I am checking
+                            if (calledProcess!!.isSuspended){
+                                calledProcess!!.callingProcess = null
+                                calledProcess!!.terminate()
+                            }
+                            calledProcess = null
+                        }
                         afterTerminatedProcessCompletion()
                         handleTerminatedProcess(this)
                     } else {

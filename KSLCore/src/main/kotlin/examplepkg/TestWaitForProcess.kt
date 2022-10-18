@@ -36,10 +36,10 @@ class TestWaitForProcess(parent: ModelElement) : ProcessModel(parent, null) {
 
         val wfp = process{
             val c = Customer()
-            println("$time > before waitFor process")
-            schedule(KillIt(), .1, this@Customer)
+            println("$time > before waitFor process for ${this@Customer}")
+//            schedule(KillIt(), .1, this@Customer)
             waitFor(c.mm1)
-            println("$time > after waitFor process")
+            println("$time > after waitFor process for ${this@Customer}")
         }
     }
 
