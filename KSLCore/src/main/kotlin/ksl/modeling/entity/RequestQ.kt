@@ -1,6 +1,7 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
+import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
 interface RequestSelectionRuleIfc {
@@ -53,5 +54,31 @@ class RequestQ(
         }
     }
 
-    //TODO need to work on removing suspended items after a replication??
+    /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
+     *  that was suspended because the entity's request was placed in the queue is immediately terminated.
+     *
+     * @param request the request to remove from the queue
+     * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
+     * The default is false.
+     */
+    fun removeAndTerminate(
+        request: ProcessModel.Entity.Request,
+        waitStats: Boolean = false
+    ) {
+        remove(request, waitStats)
+        request.entity.terminateProcess()
+    }
+
+    /**
+     *  Removes and terminates all the requests waiting in the queue
+     *
+     * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
+     * The default is false.
+     */
+    fun removeAllAndTerminate(waitStats: Boolean = false) {
+        while (isNotEmpty) {
+            val request = peekNext()
+            removeAndTerminate(request!!, waitStats)
+        }
+    }
 }

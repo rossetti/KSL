@@ -107,6 +107,61 @@ class BlockingQueue<T : ModelElement.QObject>(
         }
     }
 
+    /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
+     *  that was suspended because the entity's request was placed in the queue is immediately terminated.
+     *
+     * @param request the request to remove from the queue
+     * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
+     * The default is false.
+     */
+    fun removeAndTerminateChannelRequest(
+        request: ChannelRequest,
+        waitStats: Boolean = false
+    ) {
+        myRequestQ.remove(request, waitStats)
+        request.receiver.terminateProcess()
+    }
+
+    /**
+     *  Removes and terminates all the requests waiting in the queue
+     *
+     * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
+     * The default is false.
+     */
+    fun removeAllAndTerminateChannelRequest(waitStats: Boolean = false) {
+        while (myRequestQ.isNotEmpty) {
+            val request = myRequestQ.peekNext()
+            removeAndTerminateChannelRequest(request!!, waitStats)
+        }
+    }
+
+    /** Removes the entity from the send queue and tells the entity to terminate its process.  The process
+     *  that was suspended because the entity was placed in the queue is immediately terminated.
+     *
+     * @param entity the entity to remove from the queue
+     * @param waitStats if true the waiting time statistics are collected on the usage of the queue. The default is false.
+     */
+    fun removeAndTerminateWaitingSenders(
+        entity: ProcessModel.Entity,
+        waitStats: Boolean = false
+    ) {
+        mySenderQ.remove(entity, waitStats)
+        entity.terminateProcess()
+    }
+
+    /**
+     *  Removes and terminates all the entities waiting in the send queue
+     *
+     * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
+     * The default is false.
+     */
+    fun removeAllAndTerminateWaitingSenders(waitStats: Boolean = false) {
+        while (mySenderQ.isNotEmpty) {
+            val entity = mySenderQ.peekNext()
+            removeAndTerminateWaitingSenders(entity!!, waitStats)
+        }
+    }
+
     /**
      *  @param option use false to turn off all statistics
      */
