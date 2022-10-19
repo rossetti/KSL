@@ -65,16 +65,16 @@ class KSLEvent<out T> internal constructor(
     val message: T? = theMessage
 
     /**
-     * The time that the event was created and placed on the calendar
-     */
-    var timeCreated : Double = Double.NaN
-        internal set
-
-    /**
      *  The difference between when the event will occur and the time that it was created (placed on the calendar)
      */
     val interEventTime : Double
         get() = time - timeCreated
+
+    /**
+     *  The time from the current time until time that the event will occur
+     */
+    val timeRemaining : Double
+        get() = modelElement.time - time
 
     var name: String? = theName
         get() {
@@ -87,6 +87,11 @@ class KSLEvent<out T> internal constructor(
         internal set
 
     internal val modelElement: ModelElement = theModelElement
+
+    /**
+     * The time that the event was created and placed on the calendar
+     */
+    val timeCreated : Double = theModelElement.time
 
     /**
      *  Unique number assigned when the event is scheduled
