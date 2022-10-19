@@ -49,11 +49,32 @@ class KSLEvent<out T> internal constructor(
 
     private val myAction: ModelElement.EventActionIfc<T> = theAction
 
+    /**
+     *  The time that the event will occur
+     */
     val time: Double = theTime
 
+    /**
+     *  The priority associated with the event
+     */
     val priority: Int = thePriority
 
+    /**
+     * An optional message attached to the event
+     */
     val message: T? = theMessage
+
+    /**
+     * The time that the event was created and placed on the calendar
+     */
+    var timeCreated : Double = Double.NaN
+        internal set
+
+    /**
+     *  The difference between when the event will occur and the time that it was created (placed on the calendar)
+     */
+    val interEventTime : Double
+        get() = time - timeCreated
 
     var name: String? = theName
         get() {

@@ -229,6 +229,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
                 KSLEvent(numEventsScheduled, eventAction, eventTime, priority, message, name, theElementScheduling)
             myEventCalendar.add(event)
             event.scheduled = true
+            event.timeCreated = currentTime
             return event
         } else {
             val event = KSLEvent(-99, eventAction, eventTime, priority, message, name, theElementScheduling)
