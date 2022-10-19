@@ -1174,9 +1174,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         // uncommented causes sub-process to terminate
                         // if the main process is waiting on a called process, then terminate that process also
                         if (calledProcess != null){
+                            // the main process has been terminated. We need to terminate the process
+                            // that it is waiting on.  That is, it's calledProcess
                             // the called process should be suspended, but just in case I am checking
                             if (calledProcess!!.isSuspended){
+                                // the called process has a calling process, that's the process that
+                                // is right now, in this method, being terminated. We set its reference
+                                // to null so that when the called process is terminated, it does not
+                                // try to terminate its calling process, which has already terminated
                                 calledProcess!!.callingProcess = null
+                                // now terminate the sub-process
                                 calledProcess!!.terminate()
                             }
                             calledProcess = null
