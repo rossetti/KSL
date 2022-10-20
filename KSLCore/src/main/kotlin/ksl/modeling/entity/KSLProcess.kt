@@ -55,12 +55,23 @@ interface SuspensionObserver {
     fun detach(entity: ProcessModel.Entity)
 }
 
+/**
+ * KSLProcessBuilder provides the functionality for describing a process.  A process is an instance
+ * of a coroutine that can be suspended and resumed.  The methods of the KSLProcessBuilder are the suspending
+ * methods that are allowed within the process modeling paradigm of the KSL.  The various suspend methods have
+ * an optional string name parameter to identify the name of the suspension point.  While not required for basic
+ * modeling, identifying the suspension point can be useful for more advanced modeling involving the
+ * cancellation or interrupting of a process.  The name can be used to determine which suspension point
+ * is suspending the process when the process has many suspension points.
+ */
 @RestrictsSuspension
 interface KSLProcessBuilder {
 
     /**
      *  Suspends the execution of the process.  Since the process cannot resume itself, the client
-     *  must provide an object that will resume the process.
+     *  must provide an object that will resume the process. Most required functionality is provided
+     *  via the other methods in this interface.  The method suspend() might be considered for implementing
+     *  higher level functionality.
      *
      * @param suspensionObserver the thing that promises to resume the process
      * @param suspensionName a name for the suspension point. Can be used to determine which suspension point

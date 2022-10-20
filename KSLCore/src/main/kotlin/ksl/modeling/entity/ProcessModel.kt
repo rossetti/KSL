@@ -26,6 +26,8 @@ import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
  * the entity will try to use its sequence to run the next process (if available). Individual
  * processes can be activated for specific entities.
  *
+ * See **[ksl.modeling.entity.KSLProcessBuilder]** for documentation on the functionality provided for processes.
+ *
  * @param parent the parent model element
  * @param name an optional name for the process model
  */
