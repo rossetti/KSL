@@ -615,6 +615,32 @@ interface KSLProcessBuilder {
      * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
      * at the current time without suspending.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
+     * time has elapsed, the process experiencing the original delay continues a delay for the specified
+     * post interruption delay time.
+     *
+     * @param process the process with the delay that may be interrupted
+     * @param delayName the name of the delay within the process that needs to be interrupted
+     * @param interruptTime the length of time associated with the interrupt
+     * @param interruptPriority the priority associated with the interrupt event
+     * @param postInterruptDelayTime the time to be associated with the original delay, after the
+     * interruption is completed
+     */
+    suspend fun interruptDelay(
+        process: KSLProcess,
+        delayName: String,
+        interruptTime: GetValueIfc,
+        interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        postInterruptDelayTime: GetValueIfc
+    ){
+        interruptDelay(process, delayName, interruptTime.value, interruptPriority, postInterruptDelayTime.value)
+    }
+
+    /**
+     * This method allows a process to interrupt another process while that process is
+     * experiencing a delay.  If the supplied process is not currently experiencing the named
+     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
+     * at the current time without suspending.  If the supplied process is experiencing the named
+     * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay using its original
      * delay time.  That is, it restarts its original delay.
      *
@@ -629,6 +655,29 @@ interface KSLProcessBuilder {
         interruptTime: Double,
         interruptPriority: Int,
     )
+
+    /**
+     * This method allows a process to interrupt another process while that process is
+     * experiencing a delay.  If the supplied process is not currently experiencing the named
+     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
+     * at the current time without suspending.  If the supplied process is experiencing the named
+     * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
+     * time has elapsed, the process experiencing the original delay continues a delay using its original
+     * delay time.  That is, it restarts its original delay.
+     *
+     * @param process the process with the delay that may be interrupted
+     * @param delayName the name of the delay within the process that needs to be interrupted
+     * @param interruptTime the length of time associated with the interrupt
+     * @param interruptPriority the priority associated with the interrupt event
+     */
+    suspend fun interruptDelayAndRestart(
+        process: KSLProcess,
+        delayName: String,
+        interruptTime: GetValueIfc,
+        interruptPriority: Int,
+    ){
+        interruptDelayAndRestart(process, delayName, interruptTime.value, interruptPriority)
+    }
 
     /**
      * This method allows a process to interrupt another process while that process is
@@ -657,6 +706,30 @@ interface KSLProcessBuilder {
      * experiencing a delay.  If the supplied process is not currently experiencing the named
      * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
      * at the current time without suspending.  If the supplied process is experiencing the named
+     * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
+     * time has elapsed, the process experiencing the original delay continues with the post
+     * interruption time being equal to the time remaining on the original delay at the time
+     * of the interruption
+     *
+     * @param process the process with the delay that may be interrupted
+     * @param delayName the name of the delay within the process that needs to be interrupted
+     * @param interruptTime the length of time associated with the interrupt
+     * @param interruptPriority the priority associated with the interrupt event
+     */
+    suspend fun interruptDelayAndContinue(
+        process: KSLProcess,
+        delayName: String,
+        interruptTime: GetValueIfc,
+        interruptPriority: Int,
+    ){
+        interruptDelayAndContinue(process, delayName, interruptTime.value, interruptPriority)
+    }
+
+    /**
+     * This method allows a process to interrupt another process while that process is
+     * experiencing a delay.  If the supplied process is not currently experiencing the named
+     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
+     * at the current time without suspending.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay
      * continues a delay for the specified post interruption delay time.  Note that this functionality
@@ -677,6 +750,34 @@ interface KSLProcessBuilder {
         interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         postInterruptDelayTime: Double
     )
+
+    /**
+     * This method allows a process to interrupt another process while that process is
+     * experiencing a delay.  If the supplied process is not currently experiencing the named
+     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
+     * at the current time without suspending.  If the supplied process is experiencing the named
+     * delay, then its delay is interrupted while the interrupting process executes to completion.
+     * After the interruption process has completed, the process experiencing the original delay
+     * continues a delay for the specified post interruption delay time.  Note that this functionality
+     * requires three processes 1) to have the interruptDelay() call, 2) the process being interrupted,
+     * and 3) the process that is used as the interruption.
+     *
+     * @param process the process with the delay that may be interrupted
+     * @param delayName the name of the delay within the process that needs to be interrupted
+     * @param interruptingProcess the process that will interrupt the delay
+     * @param interruptPriority the priority associated with the interrupt event
+     * @param postInterruptDelayTime the time to be associated with the original delay, after the
+     * interruption is completed
+     */
+    suspend fun interruptDelayWithProcess(
+        process: KSLProcess,
+        delayName: String,
+        interruptingProcess: KSLProcess,
+        interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        postInterruptDelayTime: GetValueIfc
+    ){
+        interruptDelayWithProcess(process, delayName, interruptingProcess, interruptPriority, postInterruptDelayTime.value)
+    }
 
     /**
      * This method allows a process to interrupt another process while that process is
