@@ -372,7 +372,7 @@ class BlockingQueue<T : ModelElement.QObject>(
             if (request != null) {
                 if (request.canBeFilled) {
                     val entity = request.receiver
-                    entity.resumeProcess(requestQResumptionPriority)
+                    entity.resumeProcess(0.0, requestQResumptionPriority)
                 }
             }
         }
@@ -478,7 +478,7 @@ class BlockingQueue<T : ModelElement.QObject>(
             val entity = senderSelector.selectEntity(mySenderQ)
             // ask selected entity to review the channel queue and decide what to do
             if (entity != null) {
-                entity.resumeProcess(senderQResumptionPriority)
+                entity.resumeProcess(0.0, senderQResumptionPriority)
             }
         }
     }

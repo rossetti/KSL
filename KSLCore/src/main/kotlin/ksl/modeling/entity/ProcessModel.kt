@@ -456,12 +456,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  If the entity is executing a process and the process is suspended, then
          *  the process is scheduled to resume at the current simulation time.
          *  @param priority the priority parameter can be used to provide an ordering to the
+         *  @param timeUntilResumption the time until the resumption will occur
          *  scheduled resumption events, if multiple events are scheduled at the same time
          */
-        fun resumeProcess(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+        fun resumeProcess(timeUntilResumption: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
             // entity must be in a process and suspended
             if (myCurrentProcess != null) {
-                myResumeAction.schedule(0.0, priority = priority)
+                myResumeAction.schedule(timeUntilResumption, priority = priority)
             }
         }
 
@@ -1095,7 +1096,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     if (request != null) {
                         if (request.amountRequested <= allocation.resource.numAvailableUnits) {
                             // resume the entity's process related to the request
-                            request.entity.resumeProcess(allocation.allocationPriority)
+                            request.entity.resumeProcess(0.0, allocation.allocationPriority)
                         }
                     }
                 }
@@ -1131,7 +1132,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     if (request != null) {
                         if (request.amountRequested <= pooledAllocation.resourcePool.numAvailableUnits) {
                             // resume the entity's process related to the request
-                            request.entity.resumeProcess(pooledAllocation.allocationPriority)
+                            request.entity.resumeProcess(0.0, pooledAllocation.allocationPriority)
                         }
                     }
                 }

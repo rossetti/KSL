@@ -27,7 +27,7 @@ class HoldQueue(
         waitStats: Boolean = true
     ) {
         remove(entity, waitStats)
-        entity.resumeProcess(resumePriority)
+        entity.resumeProcess(0.0, resumePriority)
     }
 
     /**

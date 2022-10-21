@@ -34,7 +34,7 @@ class Signal(
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
     fun signal(entity: ProcessModel.Entity, resumePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
-        entity.resumeProcess(resumePriority)
+        entity.resumeProcess(0.0, resumePriority)
     }
 
     /** The entity removes itself from the waiting condition.
