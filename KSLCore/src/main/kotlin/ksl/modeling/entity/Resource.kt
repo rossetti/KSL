@@ -65,6 +65,19 @@ interface AllocationListenerIfc {
     fun deallocate(allocation: Allocation)
 }
 
+interface ResourceFailureListenerIfc {
+
+    /**
+     * @param allocation the allocation that was affected by the failure
+     */
+    fun beginFailure(allocation: Allocation)
+
+    /**
+     * @param allocation the allocation that was affected by the failure
+     */
+    fun endFailure(allocation: Allocation)
+}
+
 open class Resource(
     parent: ModelElement,
     name: String? = null,
@@ -162,6 +175,7 @@ open class Resource(
     override val inactiveState: StateAccessorIfc
         get() = myInactiveState
 
+    //TODO not tracking previous state, need setter for myState, why start in idle state, why not inactive
     protected var myState: ResourceState = myIdleState
 
     override val state: StateAccessorIfc
@@ -280,6 +294,7 @@ open class Resource(
         myBusyState.initialize()
         myFailedState.initialize()
         myInactiveState.initialize()
+        //TODO need to start myState as inactive so previous is inactive, what about after replication, or before replication
         myPreviousState = myInactiveState
         myState = myIdleState
         myState.enter(time)
@@ -363,6 +378,7 @@ open class Resource(
     protected inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
         State(name = aName, useStatistic = stateStatistics) {
         //TODO need to track states: idle, busy, failed, inactive
+            //TODO maybe use onEnter and onExit to notify of failure
     }
 
 }
