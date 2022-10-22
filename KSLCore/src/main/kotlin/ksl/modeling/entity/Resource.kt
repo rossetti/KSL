@@ -103,24 +103,24 @@ open class Resource(
      */
     protected val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
 
-    protected val allocationListeners : MutableList<AllocationListenerIfc> = mutableListOf()
+    protected val allocationListeners: MutableList<AllocationListenerIfc> = mutableListOf()
 
-    fun addAllocationListener(listener: AllocationListenerIfc){
+    fun addAllocationListener(listener: AllocationListenerIfc) {
         allocationListeners.add(listener)
     }
 
-    fun removeAllocationListener(listener: AllocationListenerIfc){
+    fun removeAllocationListener(listener: AllocationListenerIfc) {
         allocationListeners.remove(listener)
     }
 
-    protected fun allocationNotification(allocation: Allocation){
-        for(listener in allocationListeners){
+    protected fun allocationNotification(allocation: Allocation) {
+        for (listener in allocationListeners) {
             listener.allocate(allocation)
         }
     }
 
-    protected fun deallocationNotification(allocation: Allocation){
-        for(listener in allocationListeners){
+    protected fun deallocationNotification(allocation: Allocation) {
+        for (listener in allocationListeners) {
             listener.deallocate(allocation)
         }
     }
@@ -266,6 +266,17 @@ open class Resource(
             return emptyList()
         }
         return entityAllocations[entity]!!.toList()
+    }
+
+    /**
+     * @return a list of all the allocations of the resource to any entity
+     */
+    fun allocations(): List<Allocation> {
+        val list = mutableListOf<Allocation>()
+        for ((entity, aList) in entityAllocations) {
+            list.addAll(aList)
+        }
+        return list
     }
 
     /**

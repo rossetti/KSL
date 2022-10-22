@@ -9,6 +9,12 @@ import ksl.simulation.KSLEvent
  *  to separate requests for units. Multiple requests by the same entity for units of the
  *  resource result in multiple allocations (when filled).  An allocation is not created until
  *  the requested amount is available.
+ *
+ *  @param entity the entity associated with the allocation
+ *  @param resource the resource associated with the allocation
+ *  @param theAmount the amount allocated of the resource to the entity
+ *  @param queue the queue that the entity had to wait in when requesting the allocation
+ *  @param allocationName the name of the allocation
  */
 class Allocation(
     val entity: ProcessModel.Entity,

@@ -159,7 +159,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     final override fun afterReplication() {
         // make a copy of the set
         val set = suspendedEntities.toHashSet()
-        for (entity in set){
+        for (entity in set) {
             entity.terminateProcess()
         }
         suspendedEntities.clear()
@@ -888,9 +888,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 priority: Int,
                 suspensionName: String?
             ) {
-                require(currentProcess != process){"The process ${process.name} is the same as the current process! "}
+                require(currentProcess != process) { "The process ${process.name} is the same as the current process! " }
                 val p = process as ProcessCoroutine
-                require(p.callingProcess == null) {"The process to wait on already has a calling process"}
+                require(p.callingProcess == null) { "The process to wait on already has a calling process" }
                 p.callingProcess = this
                 calledProcess = p
                 currentSuspendName = suspensionName
@@ -1138,6 +1138,93 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
+            override suspend fun interruptDelay(
+                process: KSLProcess,
+                delayName: String,
+                interruptTime: Double,
+                interruptPriority: Int,
+                postInterruptDelayTime: Double
+            ) {
+                require(this != process) { "A process cannot interrupt itself!" }
+                require(interruptTime >= 0.0) { "The interrupt time must be >= 0.0" }
+                require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
+                if (!process.entity.isScheduled) {
+                    return
+                }
+                if (delayName != process.entity.currentSuspendName) {
+                    return
+                }
+                val delayEvent = process.entity.myDelayEvent ?: return
+                // the process is experiencing the named delay
+                delayEvent.cancelled = true
+                delay(interruptTime, interruptPriority)
+                process.entity.resumeProcess(postInterruptDelayTime, delayEvent.priority)
+            }
+
+            override suspend fun interruptDelayAndRestart(
+                process: KSLProcess,
+                delayName: String,
+                interruptTime: Double,
+                interruptPriority: Int
+            ) {
+                val delayEvent = process.entity.myDelayEvent ?: return
+                interruptDelay(process, delayName, interruptTime, interruptPriority, delayEvent.interEventTime)
+            }
+
+            override suspend fun interruptDelayAndContinue(
+                process: KSLProcess,
+                delayName: String,
+                interruptTime: Double,
+                interruptPriority: Int
+            ) {
+                val delayEvent = process.entity.myDelayEvent ?: return
+                interruptDelay(process, delayName, interruptTime, interruptPriority, delayEvent.timeRemaining)
+            }
+
+            override suspend fun interruptDelayWithProcess(
+                process: KSLProcess,
+                delayName: String,
+                interruptingProcess: KSLProcess,
+                interruptPriority: Int,
+                postInterruptDelayTime: Double
+            ) {
+                require(this != process) { "A process cannot interrupt itself!" }
+                require(this != interruptingProcess) { "This process cannot be used as the interrupting process" }
+                require(interruptingProcess != process) { "The interrupting process cannot be the same as the process being interrupted" }
+                require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
+                if (!process.entity.isScheduled) {
+                    return
+                }
+                if (delayName != process.entity.currentSuspendName) {
+                    return
+                }
+                val delayEvent = process.entity.myDelayEvent ?: return
+                // the process is experiencing the named delay
+                delayEvent.cancelled = true
+                waitFor(interruptingProcess, priority = interruptPriority)
+                process.entity.resumeProcess(postInterruptDelayTime, delayEvent.priority)
+            }
+
+            override suspend fun interruptDelayWithProcessAndRestart(
+                process: KSLProcess,
+                delayName: String,
+                interruptingProcess: KSLProcess,
+                interruptPriority: Int
+            ) {
+                val delayEvent = process.entity.myDelayEvent ?: return
+                interruptDelayWithProcess(process, delayName, interruptingProcess, interruptPriority, delayEvent.interEventTime)
+            }
+
+            override suspend fun interruptDelayWithProcessAndContinue(
+                process: KSLProcess,
+                delayName: String,
+                interruptingProcess: KSLProcess,
+                interruptPriority: Int
+            ) {
+                val delayEvent = process.entity.myDelayEvent ?: return
+                interruptDelayWithProcess(process, delayName, interruptingProcess, interruptPriority, delayEvent.timeRemaining)
+            }
+
             override fun resumeWith(result: Result<Unit>) {
                 // Resumes the execution of the corresponding coroutine passing a successful or failed result
                 // as the return value of the last suspension point.
@@ -1145,11 +1232,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 result.onSuccess {
                     state.complete()
                     // check if the current process was activated (called) by other process in a waitFor
-                    if (callingProcess != null){
+                    if (callingProcess != null) {
                         // it had a calling process
                         // the calling process must be suspended for it to be resumed
                         // if it was not suspended then it may have been terminated
-                        if (callingProcess!!.isSuspended){
+                        if (callingProcess!!.isSuspended) {
                             // schedules calling process to resume at the current time
                             callingProcess!!.entity.resumeProcess()
                         }
@@ -1161,10 +1248,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     if (it is ProcessTerminatedException) {
                         // check if the current process was activated (called) by other process in a waitFor
                         // if so, then because this process was terminated with an exception, we should terminate its caller
-                        if (callingProcess != null){
+                        if (callingProcess != null) {
                             // in here means that this process was called by another process
                             // the calling process must be suspended if it was the caller, but just in case I am checking
-                            if (callingProcess!!.isSuspended){
+                            if (callingProcess!!.isSuspended) {
                                 // make the calling process think that it has not called
                                 // this is to prevent the calling process from trying to re-terminate the called process
                                 // When it is terminated
@@ -1176,11 +1263,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         //commenting allows sub-process to finish
                         // uncommented causes sub-process to terminate
                         // if the main process is waiting on a called process, then terminate that process also
-                        if (calledProcess != null){
+                        if (calledProcess != null) {
                             // the main process has been terminated. We need to terminate the process
                             // that it is waiting on.  That is, it's calledProcess
                             // the called process should be suspended, but just in case I am checking
-                            if (calledProcess!!.isSuspended){
+                            if (calledProcess!!.isSuspended) {
                                 // the called process has a calling process, that's the process that
                                 // is right now, in this method, being terminated. We set its reference
                                 // to null so that when the called process is terminated, it does not
