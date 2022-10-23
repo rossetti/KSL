@@ -317,6 +317,15 @@ open class Resource(
         numTimesReleased = 0
     }
 
+    private fun initializeStates(){
+        //clears the accumulators but keeps the current state thinking that is entered
+        myIdleState.initialize(isIdle)
+        myBusyState.initialize(isBusy)
+        myFailedState.initialize(isFailed)
+        myInactiveState.initialize(isInactive)
+        myState = myIdleState // tell it to be in the idle state (assign prev, exit, assign, enter)
+    }
+
     /**
      * It is an error to attempt to allocate resource units to an entity if there are insufficient
      * units available. Thus, the amount requested must be less than or equal to the number of units
