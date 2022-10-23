@@ -165,7 +165,9 @@ open class State(
         require(!time.isNaN()) { "The supplied time was Double.NaN" }
         require(time.isFinite()) { "The supplied time was Double.Infinity" }
         require(time >= 0.0) { "The supplied time was less than 0.0" }
-        require(time >= timeStateEntered) { "The exit time = $time was < enter time = $timeStateEntered" }
+        if (!timeStateEntered.isNaN()){
+            require(time >= timeStateEntered) { "The exit time = $time was < enter time = $timeStateEntered" }
+        }
         if (!isEntered) {
             throw IllegalStateException("Attempted to exit a state when not in the state:$this")
         }

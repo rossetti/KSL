@@ -179,7 +179,9 @@ open class Resource(
     protected var myState: ResourceState = myIdleState
         set(nextState){
             myPreviousState = field
+            field.exit(time)
             field = nextState
+            field.enter(time)
         }
 
     override val state: StateAccessorIfc
@@ -301,20 +303,9 @@ open class Resource(
         }
     }
 
-    override fun initialize() {
-        super.initialize()
-        entityAllocations.clear()
-        capacity = initialCapacity
-        // note that initialize() causes state to not be entered, and clears it accumulators
-        myIdleState.initialize()
-        myBusyState.initialize()
-        myFailedState.initialize()
-        myInactiveState.initialize()
-        myState = myIdleState // will cause myPreviousState to be set to current value of myState
-        myState.enter(time) // besides setting it, we must enter it
-        myPreviousState = myInactiveState // make sure that it starts as if it was inactive to idle
-        numTimesSeized = 0
-        numTimesReleased = 0
+    override fun beforeReplication() {
+        super.beforeReplication()
+        initializeStates()
     }
 
     private fun initializeStates(){
@@ -323,8 +314,26 @@ open class Resource(
         myBusyState.initialize(isBusy)
         myFailedState.initialize(isFailed)
         myInactiveState.initialize(isInactive)
-        myState = myIdleState // tell it to be in the idle state (assign prev, exit, assign, enter)
+        myState = myInactiveState // tell it to be in the inactive state (assign prev, exit, assign, enter)
     }
+
+    override fun initialize() {
+        super.initialize()
+        entityAllocations.clear()
+        capacity = initialCapacity
+        // note that initialize() causes state to not be entered, and clears it accumulators
+//        myIdleState.initialize()
+//        myBusyState.initialize()
+//        myFailedState.initialize()
+//        myInactiveState.initialize()
+        myState = myIdleState // will cause myPreviousState to be set to current value of myState
+//        myState.enter(time) // besides setting it, we must enter it
+//        myPreviousState = myInactiveState // make sure that it starts as if it was inactive to idle
+        numTimesSeized = 0
+        numTimesReleased = 0
+    }
+
+
 
     /**
      * It is an error to attempt to allocate resource units to an entity if there are insufficient
@@ -356,9 +365,9 @@ open class Resource(
         numTimesSeized++
         myUtil.value = fractionBusy
         // resource becomes busy (or stays busy), because an allocation occurred
-        myState.exit(time)
+//        myState.exit(time)
         myState = myBusyState
-        myState.enter(time)
+//        myState.enter(time)
         numTimesSeized++
         //need to put this allocation in Entity also
         entity.allocate(allocation)
@@ -387,9 +396,9 @@ open class Resource(
         numTimesReleased++
         myUtil.value = fractionBusy
         if (myNumBusy.value == 0.0) {
-            myState.exit(time)
+//            myState.exit(time)
             myState = myIdleState
-            myState.enter(time)
+//            myState.enter(time)
         }
         // need to also deallocate from the entity
         allocation.entity.deallocate(allocation)
