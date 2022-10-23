@@ -152,7 +152,7 @@ open class State(
      * can be overwritten by subclasses to
      * perform work when the state is entered
      */
-    protected fun onEnter() {}
+    protected open fun onEnter() {}
 
     /**
      * Causes the state to be exited
@@ -187,7 +187,7 @@ open class State(
      * can be overwritten by subclasses to
      * perform work when the state is exited
      */
-    protected fun onExit() {}
+    protected open fun onExit() {}
 
     /**
      * Initializes the state back to new

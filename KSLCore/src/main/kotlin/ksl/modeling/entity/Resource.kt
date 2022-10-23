@@ -164,7 +164,7 @@ open class Resource(
      * are available because the resource is failed
      *
      */
-    protected val myFailedState: ResourceState = ResourceState("${this.name}_Failed", collectStateStatistics)
+    protected val myFailedState: ResourceState = FailedState("${this.name}_Failed", collectStateStatistics)
     override val failedState: StateAccessorIfc
         get() = myFailedState
 
@@ -177,11 +177,11 @@ open class Resource(
 
     //TODO not tracking previous state, need setter for myState, why start in idle state, why not inactive
     protected var myState: ResourceState = myIdleState
-        set(nextState){
-            myPreviousState = field
-            field.exit(time)
-            field = nextState
-            field.enter(time)
+        set(nextState) {
+            field.exit(time)  // exit the current state
+            myPreviousState = field // remember what the current state was
+            field = nextState // transition to next state
+            field.enter(time) // enter the current state
         }
 
     override val state: StateAccessorIfc
@@ -308,7 +308,7 @@ open class Resource(
         initializeStates()
     }
 
-    private fun initializeStates(){
+    private fun initializeStates() {
         //clears the accumulators but keeps the current state thinking that is entered
         myIdleState.initialize(isIdle)
         myBusyState.initialize(isBusy)
@@ -332,7 +332,6 @@ open class Resource(
         numTimesSeized = 0
         numTimesReleased = 0
     }
-
 
 
     /**
@@ -408,11 +407,28 @@ open class Resource(
         deallocationNotification(allocation)
     }
 
-    protected inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
-        State(name = aName, useStatistic = stateStatistics) {
-        //TODO need to track states: idle, busy, failed, inactive
-            //TODO maybe use onEnter and onExit to notify of failure
+    protected open fun resourceEnterFailure() {
+        //TODO notify allocations?
     }
 
+    protected open fun resourcedExitedFailure() {
+        //TODO notify allocations?
+    }
+
+    protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
+        State(name = aName, useStatistic = stateStatistics) {
+        //TODO need to track states: idle, busy, failed, inactive
+    }
+
+    protected inner class FailedState(aName: String, stateStatistics: Boolean = false) :
+        ResourceState(aName, stateStatistics) {
+        override fun onEnter() {
+            resourceEnterFailure()
+        }
+
+        override fun onExit() {
+            resourcedExitedFailure()
+        }
+    }
 }
 
