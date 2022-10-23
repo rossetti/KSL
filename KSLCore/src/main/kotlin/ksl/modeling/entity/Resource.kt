@@ -177,6 +177,10 @@ open class Resource(
 
     //TODO not tracking previous state, need setter for myState, why start in idle state, why not inactive
     protected var myState: ResourceState = myIdleState
+        set(nextState){
+            myPreviousState = field
+            field = nextState
+        }
 
     override val state: StateAccessorIfc
         get() = myState
@@ -301,14 +305,14 @@ open class Resource(
         super.initialize()
         entityAllocations.clear()
         capacity = initialCapacity
+        // note that initialize() causes state to not be entered, and clears it accumulators
         myIdleState.initialize()
         myBusyState.initialize()
         myFailedState.initialize()
         myInactiveState.initialize()
-        //TODO need to start myState as inactive so previous is inactive, what about after replication, or before replication
-        myPreviousState = myInactiveState
-        myState = myIdleState
-        myState.enter(time)
+        myState = myIdleState // will cause myPreviousState to be set to current value of myState
+        myState.enter(time) // besides setting it, we must enter it
+        myPreviousState = myInactiveState // make sure that it starts as if it was inactive to idle
         numTimesSeized = 0
         numTimesReleased = 0
     }
@@ -342,7 +346,7 @@ open class Resource(
         myNumBusy.increment(amountNeeded.toDouble())
         numTimesSeized++
         myUtil.value = fractionBusy
-        // must be busy, because an allocation occurred
+        // resource becomes busy (or stays busy), because an allocation occurred
         myState.exit(time)
         myState = myBusyState
         myState.enter(time)

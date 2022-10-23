@@ -36,7 +36,8 @@ private var stateCounter: Int = 0
 open class State(
     theStateNumber: Int = stateCounter + 1,
     name: String = "State:${theStateNumber}",
-    useStatistic: Boolean = false
+    useStatistic: Boolean = false,
+    entered: Boolean = false
 ) : IdentityIfc by Identity(name), StateAccessorIfc {
 
     /**
@@ -64,7 +65,7 @@ open class State(
         if(useStatistic){
             sojournTimeCollectionFlag = true
         }
-        initialize()
+        initialize(entered)
     }
 
     /**
@@ -188,14 +189,14 @@ open class State(
 
     /**
      * Initializes the state back to new
-     * - not in state
      * - enter/exited time/time first entered = Double.NaN
      * - total time in state = 0.0
      * - enter/exited count = 0.0
      * - sojourn statistics reset if turned on
+     * @param entered true indicates that the state starts as if it is entered. false is the default
      */
-    fun initialize() {
-        isEntered = false
+    fun initialize(entered: Boolean = false) {
+        isEntered = entered
         timeStateEntered = Double.NaN
         timeStateExited = Double.NaN
         timeFirstEntered = Double.NaN
