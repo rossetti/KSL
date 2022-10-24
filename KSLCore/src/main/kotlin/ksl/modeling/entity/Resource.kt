@@ -424,16 +424,22 @@ open class Resource(
     }
 
     protected open fun resourceEnteredFailure() {
-        //TODO notify allocations?
+        val list = allocations()
+        for(allocation in list){
+            allocation.failureActions.beginFailure(allocation)
+        }
     }
 
     protected open fun resourcedExitedFailure() {
-        //TODO notify allocations?
+        val list = allocations()
+        for(allocation in list){
+            allocation.failureActions.endFailure(allocation)
+        }
     }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
         State(name = aName, useStatistic = stateStatistics) {
-        //TODO need to track states: idle, busy, inactive?
+        //TODO need to have states: idle, busy, inactive?
     }
 
     protected inner class FailedState(aName: String, stateStatistics: Boolean = false) :
