@@ -18,7 +18,6 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
 import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
@@ -83,7 +82,7 @@ interface AllocationListenerIfc {
     fun deallocate(allocation: Allocation)
 }
 
-interface ResourceFailureListenerIfc {
+interface ResourceFailureActionsIfc {
 
     /**
      * @param allocation the allocation that was affected by the failure
@@ -193,7 +192,6 @@ open class Resource(
     override val inactiveState: StateAccessorIfc
         get() = myInactiveState
 
-    //TODO not tracking previous state, need setter for myState, why start in idle state, why not inactive
     protected var myState: ResourceState = myIdleState
         set(nextState) {
             field.exit(time)  // exit the current state
@@ -425,7 +423,7 @@ open class Resource(
         deallocationNotification(allocation)
     }
 
-    protected open fun resourceEnterFailure() {
+    protected open fun resourceEnteredFailure() {
         //TODO notify allocations?
     }
 
@@ -435,13 +433,13 @@ open class Resource(
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
         State(name = aName, useStatistic = stateStatistics) {
-        //TODO need to track states: idle, busy, failed, inactive
+        //TODO need to track states: idle, busy, inactive?
     }
 
     protected inner class FailedState(aName: String, stateStatistics: Boolean = false) :
         ResourceState(aName, stateStatistics) {
         override fun onEnter() {
-            resourceEnterFailure()
+            resourceEnteredFailure()
         }
 
         override fun onExit() {

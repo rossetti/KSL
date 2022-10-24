@@ -224,6 +224,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         var autoDispose = true
 
+        var defaultFailureActions: ResourceFailureActionsIfc = DefaultFailureActions()
+
         private var processCounter = 0
         val processModel = this@ProcessModel
         private val myCreatedState = CreatedState()
@@ -419,29 +421,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-//        /**
-//         *  Causes the entity to release any allocations related to the supplied resource
-//         *  @param resource the resource to release all allocations
-//         */
-//        private fun releaseResource(resource: Resource) {
-//            if (isUsing(resource)) {
-//                val allocations: MutableList<Allocation>? = resourceAllocations[resource]
-//                val copies = ArrayList(allocations!!)
-//                for (copy in copies) {
-//                    resource.deallocate(copy)
-//                }
-//            }
-//        }
+        protected open fun beginFailure(allocation: Allocation){
+            TODO("Not implemented yet")
+        }
 
-//        /**
-//         *  Causes the entity to release all allocations for any resource that it
-//         *  may have
-//         */
-//        private fun releaseAllResources() {
-//            for (r in resourceAllocations.keys) {
-//                releaseResource(r)
-//            }
-//        }
+        protected open fun endFailure(allocation: Allocation){
+            TODO("Not implemented yet")
+        }
+
+        protected inner class DefaultFailureActions : ResourceFailureActionsIfc{
+            override fun beginFailure(allocation: Allocation) {
+                this@Entity.beginFailure(allocation)
+            }
+
+            override fun endFailure(allocation: Allocation) {
+                this@Entity.endFailure(allocation)
+            }
+
+        }
 
         /**
          *  This function is used to define via a builder for a process for the entity.
