@@ -1,5 +1,5 @@
 /*
- *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
