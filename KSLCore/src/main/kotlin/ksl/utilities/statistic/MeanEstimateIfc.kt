@@ -18,7 +18,6 @@
 
 package ksl.utilities.statistic
 
-import ksl.utilities.statistic.EstimatorIfc
 import kotlin.math.sqrt
 
 /**
@@ -29,7 +28,7 @@ import kotlin.math.sqrt
  * mean; however, implementors may override this behavior by overriding the
  * estimate() method.
  */
-interface MeanEstimatorIfc : EstimatorIfc {
+interface MeanEstimateIfc : EstimateIfc {
     override fun estimate(): Double {
         return average
     }

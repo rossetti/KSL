@@ -18,7 +18,7 @@
 
 package ksl.utilities.statistic
 
-interface SummaryStatisticsIfc : MeanEstimatorIfc {
+interface SummaryStatisticsIfc : MeanEstimateIfc {
     /**
      * Gets the minimum of the observations.
      *

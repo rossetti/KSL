@@ -21,7 +21,7 @@ package ksl.utilities.statistic
 /** A functional interface that produces some estimate of some
  * quantity of interest.
  */
-interface EstimatorIfc {
+interface EstimateIfc {
     /**
      * @return the estimated value
      */
