@@ -496,9 +496,67 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
     companion object {
 
         /**
+         * Uses definition 7, as per R definitions
+         *
+         * @param data the array of data. will be sorted
+         * @param p the percentile, must be within (0, 1)
+         * @return the quantile
+         */
+        fun quantile(data: DoubleArray, p: Double): Double {
+            require((p <= 0.0) || (p < 1.0)) { "Percentile value must be (0,1)" }
+            val n = data.size
+            if (n == 1) {
+                return data[0]
+            }
+            data.sort()
+            val index = 1 + (n - 1) * p
+            if (index < 1.0) {
+                return data[0]
+            }
+            if (index >= n) {
+                return data[n - 1]
+            }
+            var lo = floor(index).toInt()
+            var hi = ceil(index).toInt()
+            val h = index - lo
+            // correct for 0 based arrays
+            lo = lo - 1
+            hi = hi - 1
+            return (1.0 - h) * data[lo] + h * data[hi]
+        }
+
+        /**
+         * As per Apache Math commons
+         *
+         * @param data the array of data. will be sorted
+         * @param p the percentile, must be within (0, 1)
+         * @return the percentile
+         */
+        fun percentile(data: DoubleArray, p: Double): Double {
+            require((p <= 0.0) || (p < 1.0)) { "Percentile value must be (0,1)" }
+            val n = data.size
+            if (n == 1) {
+                return data[0]
+            }
+            data.sort()
+            val pos = p * (n + 1)
+            return if (pos < 1.0) {
+                data[0]
+            } else if (pos >= n) {
+                data[n - 1]
+            } else {
+                val d = pos - floor(pos)
+                val fpos = floor(pos).toInt() - 1 // correct for 0 based arrays
+                val lower = data[fpos]
+                val upper = data[fpos + 1]
+                lower + d * (upper - lower)
+            }
+        }
+
+        /**
          * Returns the median of the data. The array is sorted
          *
-         * @param data the array of data, must not be null
+         * @param data the array of data
          * @return the median of the data
          */
         fun median(data: DoubleArray): Double {

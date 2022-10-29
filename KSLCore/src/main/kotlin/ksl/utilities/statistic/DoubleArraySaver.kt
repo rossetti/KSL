@@ -89,6 +89,16 @@ class DoubleArraySaver : ObserverIfc<Double> {
         myData[saveCount - 1] = x
     }
 
+    /** Saves all data in the presented array.
+     *
+     * @param array the array to save
+     */
+    fun save(array: DoubleArray){
+        for(x in array){
+            save(x)
+        }
+    }
+
     override fun onChange(newValue: Double) {
         save(newValue)
     }
