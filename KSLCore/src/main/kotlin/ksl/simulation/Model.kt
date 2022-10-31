@@ -99,8 +99,7 @@ class Model(
     /**
      * A list of all random elements within the model
      */
-    private var myRandomElements: MutableList<RandomElementIfc> =
-        ArrayList() //TODO may not be needed with new stream control
+    private var myRandomElements: MutableList<RandomElementIfc> = ArrayList()
 
     /**
      * A Map that holds all the model elements in the order in which they are
@@ -374,25 +373,12 @@ class Model(
         element.removeFromModel()
     }
 
-    //TODO update API method names to better reflect stream control
-
     /**
-     * Causes random number streams that have been added to the model to immediately
-     * turn on their antithetic generating streams.
+     * @param option true means that streams will have their antithetic property set to true
      */
-    fun turnOnAntithetic() {
+    fun antitheticOption(option: Boolean){
         for (rs in myStreams) {
-            rs.antithetic = true
-        }
-    }
-
-    /**
-     * Causes random number streams that have been added to the model to immediately
-     * turn off their antithetic generating streams.
-     */
-    fun turnOffAntithetic() {
-        for (rs in myStreams) {
-            rs.antithetic = false
+            rs.antithetic = option
         }
     }
 
@@ -447,13 +433,11 @@ class Model(
         }
     }
 
-    //TODO change these get methods to more kotlin like
-
     /**
      *
      * @return the controls for the model
      */
-    fun getControls(): Controls {
+    fun controls(): Controls {
         if (!::myControls.isInitialized) {
             myControls = Controls(this)
         }
@@ -470,7 +454,7 @@ class Model(
      * @return the associated Response, may be null if provided name
      * does not exist in the model
      */
-    fun getResponse(name: String): Response? {
+    fun response(name: String): Response? {
         if (!myModelElementMap.containsKey(name)) {
             return null
         }
@@ -491,8 +475,8 @@ class Model(
      *
      * @return the associated TWResponse, may be null if provided name does not exist in the model
      */
-    fun getTWResponse(name: String): TWResponse? {
-        val r = getResponse(name)
+    fun timeWeightedResponse(name: String): TWResponse? {
+        val r = response(name)
         if (r == null) {
             return null
         } else {
@@ -513,7 +497,7 @@ class Model(
      * @return the associated Counter, may be null if provided name
      * does not exist in the model
      */
-    fun getCounter(name: String): Counter? {
+    fun counter(name: String): Counter? {
         if (!myModelElementMap.containsKey(name)) {
             return null
         }
@@ -777,11 +761,11 @@ class Model(
                 // return to beginning of sub-stream
                 resetStartSubStream()
                 // turn on antithetic sampling
-                turnOnAntithetic()
+                antitheticOption(true)
             } else  // odd number replication
                 if (currentReplicationNumber > 1) {
                     // turn off antithetic sampling
-                    turnOffAntithetic()
+                    antitheticOption(false)
                     // advance to next sub-stream
                     advanceToNextSubStream()
                 }
@@ -847,7 +831,7 @@ class Model(
             val cMap: Map<String, Double>? = experimentalControls
             if (cMap != null) {
                 // extract controls and apply them
-                val k: Int = getControls().setControlsAsDoubles(cMap)
+                val k: Int = controls().setControlsAsDoubles(cMap)
                 logger.info(
                     "{} out of {} controls were applied to Model {} to setup the experiment.",
                     k,

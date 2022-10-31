@@ -129,7 +129,7 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
      * @param responseName the name of the response within the model, must be in the model
      */
     fun addResponse(responseName: String) {
-        val responseVariable: Response? = myModel.getResponse(responseName)
+        val responseVariable: Response? = myModel.response(responseName)
         if (responseVariable!= null){
             addResponse(responseVariable)
         }
@@ -150,7 +150,7 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
      * @param counterName the name of the counter within the model, must be in the model
      */
     fun addCounterResponse(counterName: String) {
-        val counter: Counter? = myModel.getCounter(counterName)
+        val counter: Counter? = myModel.counter(counterName)
         if (counter != null){
             addCounterResponse(counter)
         }

@@ -55,7 +55,7 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      * @param responseName the name of the response to add for collection
      */
     fun addResponse(responseName: String) {
-        val responseVariable: Response? = myModel.getResponse(responseName)
+        val responseVariable: Response? = myModel.response(responseName)
         if (responseVariable != null){
             addResponse(responseVariable)
         }

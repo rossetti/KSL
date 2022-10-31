@@ -100,7 +100,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         requireNotNull(numBootstrapSamples) { "The specification of the bootstrap generate sizes was null." }
         for ((name1, n) in numBootstrapSamples) {
             if (n > 1) {
-                val bootstrap = myBootstraps[name]
+                val bootstrap = myBootstraps[name1]
                 bootstrap!!.generateSamples(n, estimator, saveBootstrapSamples)
             }
         }
