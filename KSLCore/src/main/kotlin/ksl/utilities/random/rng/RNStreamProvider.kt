@@ -38,7 +38,7 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
         }
     }
 
-    var streamNumberWarningLimit = 5000
+    override var streamNumberWarningLimit = 5000
         set(value) {
             require(value > 0) { "The stream number warning limit must be at least 1" }
             field = value

@@ -23,6 +23,15 @@ package ksl.utilities.random.rng
  * for use in generating pseudo-random numbers that can be controlled.
  */
 interface RNStreamProviderIfc {
+
+    /**
+     *  When the number of streams provided reaches this limit a warning is issued.
+     *  This warning may indicate that a conceptual misunderstanding is occurring that
+     *  is causing a large number of streams to be used. Generally, a small number of
+     *  streams should be used, with each stream being accessed many times.
+     */
+    var streamNumberWarningLimit: Int
+
     /**
      * It is useful to designate one of the streams in the sequence of streams as
      * the default stream from the provider.  When clients don't care to get new
@@ -141,7 +150,7 @@ interface RNStreamProviderIfc {
      * at the beginning of their next sub-stream.
      * Note: This call only effects previously provided streams.
      */
-    fun advanceAllStreamsToNextSubstream() {
+    fun advanceAllStreamsToNextSubStream() {
         val n = lastRNStreamNumber()
         for (i in 1..n) {
             rnStream(i).advanceToNextSubStream()
