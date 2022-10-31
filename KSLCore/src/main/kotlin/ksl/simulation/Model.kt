@@ -18,7 +18,6 @@
 
 package ksl.simulation
 
-//TODO import jsl.utilities.random.rvariable.RVParameterSetter
 import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
@@ -30,6 +29,7 @@ import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.rvariable.RVParameterSetter
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
 import mu.KLoggable
@@ -99,7 +99,8 @@ class Model(
     /**
      * A list of all random elements within the model
      */
-    private var myRandomElements: MutableList<RandomElementIfc> = ArrayList() //TODO may not be needed with new stream control
+    private var myRandomElements: MutableList<RandomElementIfc> =
+        ArrayList() //TODO may not be needed with new stream control
 
     /**
      * A Map that holds all the model elements in the order in which they are
@@ -119,12 +120,12 @@ class Model(
      * single replication simulations. This method creates and attaches a
      * StatisticalBatchingElement to the model. For convenience, it also returns
      * the created element
-     * @param batchInterval the discretizing interval for TWResponse variables
+     * @param batchingInterval the discretizing interval for TWResponse variables
      * @param name the name of the model element
      * @return the StatisticalBatchingElement
      */
-    fun statisticalBatching(batchingInterval: Double = 0.0, name: String? = null) : StatisticalBatchingElement {
-        if (batchingElement == null){
+    fun statisticalBatching(batchingInterval: Double = 0.0, name: String? = null): StatisticalBatchingElement {
+        if (batchingElement == null) {
             batchingElement = StatisticalBatchingElement(this, batchingInterval, name)
         }
         return batchingElement!!
@@ -133,8 +134,23 @@ class Model(
     /**
      * to hold the parameters of the random variables if used
      */
+    private var myRVParameterSetter: RVParameterSetter? = null
 
-//TODO private val myRVParameterSetter: RVParameterSetter? = null
+    /**
+     * If the model parameters change then the user is responsible for
+     * calling extractParameters(model) on the returned RVParameterSetter
+     *
+     * @returns a RVParameterSetter configured with the parameters of the model at
+     * the time of accessing the property.
+     */
+    val rvParameterSetter: RVParameterSetter
+        get() {
+            if (myRVParameterSetter == null){
+                myRVParameterSetter = RVParameterSetter()
+                myRVParameterSetter!!.extractParameters(this)
+            }
+            return myRVParameterSetter!!
+        }
 
     /**
      * Controls the execution of replications
@@ -158,8 +174,8 @@ class Model(
      */
     fun addStream(stream: RNStreamIfc) {
         val b = myStreams.add(stream)
-        if (b){
-            RNStreamProvider.logger.info {"Stream $stream added to model stream control"}
+        if (b) {
+            RNStreamProvider.logger.info { "Stream $stream added to model stream control" }
         }
     }
 
@@ -475,9 +491,9 @@ class Model(
      *
      * @return the associated TWResponse, may be null if provided name does not exist in the model
      */
-    fun getTWResponse(name: String) : TWResponse? {
+    fun getTWResponse(name: String): TWResponse? {
         val r = getResponse(name)
-        if (r == null){
+        if (r == null) {
             return null
         } else {
             return if (r is TWResponse) {
@@ -603,6 +619,41 @@ class Model(
      */
     fun containsModelElement(modelElementName: String): Boolean {
         return myModelElementMap.containsKey(modelElementName)
+    }
+
+    /**
+     * Returns the random variable associated with the name or null if named
+     * element is not in the model. Note that this will also return ANY
+     * instances of subclasses of RandomVariable
+     *
+     * @param name The name of the RandomVariable model element
+     * @return the associated random variable, may be null if provided name does
+     * not exist in the model
+     */
+    fun randomVariable(name: String): RandomVariable? {
+        if (!myModelElementMap.containsKey(name)) {
+            return null
+        }
+        val v: ModelElement? = myModelElementMap[name]
+        return if (v is RandomVariable) {
+            v
+        } else {
+            null
+        }
+    }
+
+    /**
+     *
+     * @return a list containing all RandomVariables within the model
+     */
+    fun randomVariables(): List<RandomVariable> {
+        val list: MutableList<RandomVariable> = mutableListOf()
+        for (re in myRandomElements) {
+            if (re is RandomVariable) {
+                list.add(re)
+            }
+        }
+        return list
     }
 
     /**
@@ -808,13 +859,12 @@ class Model(
 
         // if the user has asked for the parameters, then they may have changed
         // thus apply the possibly new parameters to set up the model
-//TODO  after converting RVParameterSetter to kotlin code
-//        if (myRVParameterSetter != null) {
-//            myRVParameterSetter.applyParameterChanges(this)
-//        }
+        if (myRVParameterSetter != null) {
+            myRVParameterSetter!!.applyParameterChanges(this)
+        }
 
         // do all model element beforeExperiment() actions
-        if (resetStartStreamOption){
+        if (resetStartStreamOption) {
             logger.info { "Resetting random number streams to the beginning of their starting stream." }
             resetStartStream()
         }
@@ -835,7 +885,7 @@ class Model(
         logger.info { "The executive finished executing events. Current time = $time" }
         logger.info { "Performing end of replication actions for model elements" }
         replicationEndedActions()
-        if (advanceNextSubStreamOption){
+        if (advanceNextSubStreamOption) {
             logger.info { "Advancing random number streams to the next sub-stream" }
             advanceToNextSubStream()
         }
@@ -1045,7 +1095,7 @@ class Model(
         }
     }
 
-    fun print(){
+    fun print() {
         println()
         println(this)
         println()
