@@ -75,7 +75,7 @@ fun runBatchingExample() {
     //System.out.println(be.asString());
 
     // use the name of a response to get a reference to a particular response variable
-    val systemTime: Response? = m.getResponse("System Time")
+    val systemTime: Response? = m.response("System Time")
     // access the batch statistic from the batching element
     val batchStatistic: BatchStatisticIfc = be.batchStatisticFor(systemTime!!)
     // get the actual batch mean values
@@ -97,7 +97,7 @@ fun batchingASingleResponse() {
     // make a time weighted batching element, accepting the default batching parameters
     val twbe = TWBatchingElement(driveThroughPharmacy)
     // get the reference to the response
-    val tw: TWResponse? = m.getTWResponse("# in System")
+    val tw: TWResponse? = m.timeWeightedResponse("# in System")
     // tell the batching element to observe the time weighted variable
     twbe.add(tw!!)
     // set the parameters of the experiment

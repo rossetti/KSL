@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `java-library`
-    kotlin("jvm") version "1.7.10"
+    kotlin("jvm") version "1.7.20"
     //TODO will need to add signing and publishing plug-ins
 }
 
@@ -36,12 +36,12 @@ dependencies {
 //TODO maybe not needed due to permit api via KSLCore
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
     implementation("org.junit.jupiter:junit-jupiter:5.7.0")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.10")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.20")
 
     testImplementation(kotlin("test"))
     implementation(kotlin("stdlib-jdk8"))
     
-    // include local jar files found in libs folder in the compile
+    // include local jar files found in libs folder in the compilation
     implementation(fileTree(baseDir = "libs"))
 }
 

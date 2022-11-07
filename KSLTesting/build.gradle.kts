@@ -5,7 +5,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     `java-library`
     kotlin("jvm") version "1.7.20"
-    //TODO will need to add signing and publishing plug-ins
 }
 
 group = "io.github.rossetti"
@@ -21,13 +20,14 @@ dependencies {
     // depends on KSLCore as an internal project in multi-project build
     // this permits changes to the KSLCore to be immediately reflected in KSLExtensions
     api(project(":KSLCore"))
-    api(project(":KSLExamples")
+    api(project(":KSLExamples"))
 //TODO uncomment when extensions are done
 //    implementation(project(":KSLExtensions"))
-	//TODO add external dependencies based on JSLExtensions
 
-            testImplementation(kotlin("test"))
-            testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
+    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
+
+    testImplementation(kotlin("test"))
+    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
     testImplementation(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
     implementation(kotlin("stdlib-jdk8"))
 }

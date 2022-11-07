@@ -35,8 +35,8 @@ fun main() {
     val m = Model("DLB_with_Q")
     // create the model element and attach it to the main model
     DriveThroughPharmacyWithQ(m)
-    val rs: Response? = m.getResponse("System Time")
-    val tw: TWResponse? = m.getResponse("# in System") as TWResponse
+    val rs: Response? = m.response("System Time")
+    val tw: TWResponse? = m.response("# in System") as TWResponse?
     //ResponseSchedule sched = new ResponseSchedule(m, 5.0);
     val sched = ResponseSchedule(m, 0.0)
     //sched.addConsecutiveIntervals(2, 5, "Interval");
