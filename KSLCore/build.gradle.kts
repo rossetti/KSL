@@ -22,7 +22,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `java-library`
-    kotlin("jvm") version "1.7.10"
+    kotlin("jvm") version "1.7.20"
+    kotlin("plugin.serialization") version "1.7.20"
 }
 group = "io.github.rossetti"
 version = "1.0-SNAPSHOT"
@@ -48,7 +49,9 @@ dependencies {
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
-    implementation("org.junit.jupiter:junit-jupiter:5.7.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
+    
+    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.10")
 
     testImplementation(kotlin("test"))
