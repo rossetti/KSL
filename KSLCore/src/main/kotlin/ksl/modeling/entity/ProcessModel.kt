@@ -101,7 +101,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         entity.useProcessSequence = true
         entity.processSequenceIterator = entity.processSequence.listIterator()
         if (entity.processSequenceIterator.hasNext()) {
-            val event = activate(entity.processSequenceIterator.next())
+            val event = activate(entity.processSequenceIterator.next(), timeUntilActivation, priority)
             event.entity = entity
             return event
         }

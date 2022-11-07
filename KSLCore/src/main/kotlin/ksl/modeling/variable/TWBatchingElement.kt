@@ -276,7 +276,7 @@ class TWBatchingElement(
     fun approximateBatchInterval(repLength: Double, warmUp: Double): Double {
         require(repLength > 0.0) { "The length of the replication must be > 0" }
         require(warmUp >= 0) { "The warm up length must be >= 0" }
-        var deltaT = 0.0
+        var deltaT: Double
         if (repLength.isInfinite()) {
             // runlength is infinite
             deltaT = DEFAULT_BATCH_INTERVAL
