@@ -60,9 +60,9 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
 }
 
-tasks.test {
-    useJUnitPlatform()
-}
+//tasks.test {
+//    useJUnitPlatform()
+//}
 
 tasks.withType<KotlinCompile>() {
     kotlinOptions.jvmTarget = "11"
