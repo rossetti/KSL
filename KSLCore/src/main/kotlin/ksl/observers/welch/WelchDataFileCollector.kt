@@ -78,9 +78,9 @@ class WelchDataFileCollector(pathToDirectory: Path, statisticType: StatisticType
      *
      * @return a WelchDataFileAnalyzer
      */
-//    fun makeWelchDataFileAnalyzer(): jsl.utilities.statistic.welch.WelchDataFileAnalyzer {
-//        return jsl.utilities.statistic.welch.WelchDataFileAnalyzer(makeWelchFileMetaDataBean())
-//    }//TODO
+    fun makeWelchDataFileAnalyzer(): WelchDataFileAnalyzer {
+        return WelchDataFileAnalyzer(makeWelchFileMetaDataBean())
+    }
 
     override fun toString(): String {
         val sb = StringBuilder()
@@ -88,7 +88,7 @@ class WelchDataFileCollector(pathToDirectory: Path, statisticType: StatisticType
         sb.append(System.lineSeparator())
         sb.append("Welch Data File Collector")
         sb.append(System.lineSeparator())
-//        sb.append(welchFileMetaDataBeanAsJson) //TODO
+       sb.append(welchFileMetaDataBeanAsJson)
         sb.append(System.lineSeparator())
         sb.append("-------------------")
         sb.append(System.lineSeparator())
@@ -173,30 +173,29 @@ class WelchDataFileCollector(pathToDirectory: Path, statisticType: StatisticType
         }
     }
 
-    //TODO
-//    fun makeWelchFileMetaDataBean(): jsl.utilities.statistic.welch.WelchFileMetaDataBean {
-//        val w: jsl.utilities.statistic.welch.WelchFileMetaDataBean =
-//            jsl.utilities.statistic.welch.WelchFileMetaDataBean()
-//        w.setBatchSize(batchSize)
-//        w.setDataName(myName)
-//        w.setNumberOfReplications(numberOfReplications)
-//        w.setPathToFile(dataFile.absolutePath)
-//        w.setStatisticType(myStatType)
-//        w.setEndReplicationAverages(replicationAverages)
-//        w.setTimeBtwObsInEachReplication(avgTimeBtwObservationsForEachReplication)
-//        w.setNumObsInEachReplication(numberOfObservationsForEachReplication)
-//        w.setTimeOfLastObsInEachReplication(timeOfLastObservationForReps)
-//        w.setMinNumObsForReplications(KSLArrays.min(numberOfObservationsForEachReplication))
-//        return w
-//    }
+    fun makeWelchFileMetaDataBean(): WelchFileMetaDataBean {
+        val w: WelchFileMetaDataBean = WelchFileMetaDataBean(
+            dataName = myName,
+        pathToFile = dataFile.absolutePath,
+        numberOfReplications = numberOfReplications,
+        numObsInEachReplication = numberOfObservationsForEachReplication,
+        timeOfLastObsInEachReplication = timeOfLastObservationForReps,
+        minNumObsForReplications = KSLArrays.min(numberOfObservationsForEachReplication),
+        endReplicationAverages = replicationAverages,
+        timeBtwObsInEachReplication= avgTimeBtwObservationsForEachReplication,
+        batchSize = batchSize,
+        statisticType = myStatType
+        )
+        return w
+    }
 
-//    val welchFileMetaDataBeanAsJson: String
-//        get() {
-//            val bean = makeWelchFileMetaDataBean()
-//            return bean.toJSON()
-//        }
+    val welchFileMetaDataBeanAsJson: String
+        get() {
+            val bean = makeWelchFileMetaDataBean()
+            return bean.toJSON()
+        }
 
     override fun cleanUpCollector() {
-//        myMetaData.println(welchFileMetaDataBeanAsJson)
+        myMetaData.println(welchFileMetaDataBeanAsJson)
     }
 }

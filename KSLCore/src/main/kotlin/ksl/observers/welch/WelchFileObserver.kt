@@ -12,8 +12,7 @@ class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelEl
 
     init {
         Objects.requireNonNull<Any>(responseVariable, "The response variable cannot be null")
-        var statType: StatisticType? = null
-        statType = if (responseVariable is TWResponse) {
+        val statType = if (responseVariable is TWResponse) {
             StatisticType.TIME_PERSISTENT
         } else {
             StatisticType.TALLY
@@ -28,13 +27,12 @@ class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelEl
         return myWelchDataFileCollector.toString()
     }
 
-    //TODO
-//    fun makeWelchDataFileAnalyzer(): WelchDataFileAnalyzer {
-//        return myWelchDataFileCollector.makeWelchDataFileAnalyzer()
-//    }
-//
-//    val welchFileMetaDataBeanAsJson: String
-//        get() = myWelchDataFileCollector.getWelchFileMetaDataBeanAsJson()
+    fun makeWelchDataFileAnalyzer(): WelchDataFileAnalyzer {
+        return myWelchDataFileCollector.makeWelchDataFileAnalyzer()
+    }
+
+    val welchFileMetaDataBeanAsJson: String
+        get() = myWelchDataFileCollector.welchFileMetaDataBeanAsJson
 
     override fun beforeExperiment(modelElement: ModelElement) {
         myWelchDataFileCollector.setUpCollector()
