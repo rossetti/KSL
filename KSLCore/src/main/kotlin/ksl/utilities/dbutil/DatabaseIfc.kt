@@ -1,6 +1,7 @@
 
 package ksl.utilities.dbutil
 
+import ksl.utilities.io.KSL
 import mu.KLoggable
 import java.io.*
 import java.nio.file.Files
@@ -74,149 +75,30 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @return a list of table names within the schema
      */
-    fun getTableNames(schemaName: String?): List<String> {
-        val tables: List<Table<*>> = getTables(schemaName)!!
-        val list: MutableList<String> = ArrayList()
-        for (t in tables) {
-            list.add(t.getName())
-        }
-        return list
-    }
+    fun tableNames(schemaName: String): List<String>
 
     /**
      * @return a list of all table names within the database
      */
-    val allTableNames: List<String>?
-        get() {
-            val meta: Meta = dSLContext.meta()
-            val tables: List<Table<*>> = meta.getTables()
-            val list: MutableList<String> = ArrayList()
-            for (t in tables) {
-                list.add(t.getName())
-            }
-            return list
-        }
-
-    /**
-     * @param schemaName the schema name to check
-     * @return true if the database contains a schema with the provided name
-     */
-    fun containsSchema(schemaName: String?): Boolean {
-        return getSchema(schemaName) != null
-    }
-
-    /**
-     * @param schema the schema to check
-     * @return true if the schema is in this database
-     */
-    fun containsSchema(schema: Schema): Boolean {
-        val meta: Meta = dSLContext.meta()
-        val schemas: List<Schema> = meta.getSchemas()
-        return schemas.contains(schema)
-    }
+    val allTableNames: List<String>
 
     /**
      * The name of the schema is first checked for an exact lexicographical match.
      * If a match occurs, the schema is returned.  If a lexicographical match fails,
      * then a check for a match ignoring the case of the string is performed.
-     * This is done because SQL identifier names should be case insensitive.
-     * If neither matches then null is returned.
+     * This is done because SQL identifier names should be case-insensitive.
+     * If neither matches then false is returned.
      *
-     * @param schemaName the schema name to find
-     * @return the jooq schema for the name or null
+     * @param schemaName the schema name to check
+     * @return true if the database contains a schema with the provided name
      */
-    fun getSchema(schemaName: String?): Schema? {
-        val meta: Meta = dSLContext.meta()
-        val schemas: List<Schema> = meta.getSchemas()
-        //LOG.debug("Looking for schema {}",schemaName);
-        //Schema found = null;
-        for (s in schemas) {
-            if (s.getName().equals(schemaName)) {
-                return s
-            } else if (s.getName().equalsIgnoreCase(schemaName)) {
-                return s
-            }
-        }
-        // if it gets here it was not found
-        return null
-    }
-
-    /**
-     * @param table a jooq table for a potential table in the database
-     * @return true if the table is in this database
-     */
-    fun containsTable(table: Table<*>): Boolean {
-        val meta: Meta = dSLContext.meta()
-        val tables: List<Table<*>> = meta.getTables()
-        return tables.contains(table)
-    }
+    fun containsSchema(schemaName: String): Boolean
 
     /**
      * @param tableName the unqualified table name to find as a string
      * @return true if the database contains the table
      */
-    fun containsTable(tableName: String?): Boolean {
-        return getTable(tableName) != null
-    }
-
-    /**
-     * The name of the table is first checked for an exact lexicographical match.
-     * If a match occurs, the table is returned.  If a lexicographical match fails,
-     * then a check for a match ignoring the case of the string is performed.
-     * This is done because SQL identifier names should be case insensitive.
-     * If neither matches then null is returned.
-     *
-     * @param tableName the unqualified table name to find as a string
-     * @return the jooq Table representation or null if not found
-     */
-    fun getTable(tableName: String?): Table<*>? {
-        //LOG.debug("Looking for table {}",tableName);
-        val meta: Meta = dSLContext.meta()
-        val tables: List<Table<*>> = meta.getTables()
-        for (t in tables) {
-            if (t.getName().equals(tableName)) {
-                return t
-            } else if (t.getName().equalsIgnoreCase(tableName)) {
-                return t
-            }
-        }
-        return null
-    }
-
-    /**
-     * The name of the table is first checked for an exact lexicographical match.
-     * If a match occurs, the table is returned.  If a lexicographical match fails,
-     * then a check for a match ignoring the case of the string is performed.
-     * This is done because SQL identifier names should be case insensitive.
-     * If neither matches then null is returned.
-     *
-     * @param schema    the schema to check, must not be null
-     * @param tableName the unqualified table name to find as a string
-     * @return the jooq Table representation or null if not found
-     */
-    fun getTable(schema: Schema, tableName: String): Table<*>? {
-        Objects.requireNonNull<Any>(schema, "The schema was null")
-        //LOG.debug("Looking for table {}",tableName);
-        var table: Table<*> = schema.getTable(tableName)
-        if (table == null) {
-            // try all upper case
-            table = schema.getTable(tableName.uppercase(Locale.getDefault()))
-            if (table == null) {
-                // try all lower case
-                table = schema.getTable(tableName.lowercase(Locale.getDefault()))
-            }
-        }
-        return table
-    }
-
-    /**
-     * @param schemaName the name of the schema that should contain the tables
-     * @return a list of jooq Tables that are in the specified schema of the database
-     */
-    fun getTables(schemaName: String?): List<Table<*>?>? {
-        val schema: Schema = getSchema(schemaName) ?: return ArrayList<Table<*>?>()
-        return schema.getTables() //TODO jooq returns List<Table<?>>
-    }
+    fun containsTable(tableName: String): Boolean
 
     /**
      * Checks if tables exist in the specified schema
@@ -224,8 +106,8 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @return true if at least one table exists in the schema
      */
-    fun hasTables(schemaName: String?): Boolean {
-        return !getTables(schemaName)!!.isEmpty()
+    fun hasTables(schemaName: String): Boolean {
+        return tableNames(schemaName).isNotEmpty()
     }
 
     /**
@@ -235,18 +117,8 @@ interface DatabaseIfc {
      * @param table      a string representing the unqualified name of the table
      * @return true if it exists
      */
-    fun containsTable(schemaName: String?, table: String?): Boolean {
-        return getTable(schemaName, table) != null
-    }
-
-    /**
-     * @param schemaName the name of the schema that should contain the table
-     * @param tableName  a string representation of the unqualified table name as recognized by valid SQL table name
-     * @return a jooq Table, or null if no table with that name exists
-     */
-    fun getTable(schemaName: String?, tableName: String?): Table<*>? {
-        val schema: Schema = getSchema(schemaName) ?: return null
-        return schema.getTable(tableName)
+    fun containsTable(schemaName: String, table: String): Boolean {
+        return tableNames(schemaName).contains(table)
     }
 
     /**
@@ -255,12 +127,13 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to
      */
-    fun writeTableAsCSV(tableName: String?, out: PrintWriter) {
+    fun writeTableAsCSV(tableName: String, out: PrintWriter) {
         if (!containsTable(tableName)) {
             logger.trace("Table: {} does not exist in database {}", tableName, label)
             return
         }
-        out.println(selectAll(tableName).formatCSV())
+        //TODO
+      //  out.println(selectAll(tableName).formatCSV())
         out.flush()
     }
 
@@ -269,7 +142,7 @@ interface DatabaseIfc {
      *
      * @param tableName the unqualified name of the table to print
      */
-    fun printTableAsCSV(tableName: String?) {
+    fun printTableAsCSV(tableName: String) {
         writeTableAsCSV(tableName, PrintWriter(System.out))
     }
 
@@ -279,7 +152,7 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to
      */
-    fun writeTableAsText(tableName: String?, out: PrintWriter) {
+    fun writeTableAsText(tableName: String, out: PrintWriter) {
         if (!containsTable(tableName)) {
             logger.trace("Table: {} does not exist in database {}", tableName, label)
             return
@@ -294,7 +167,7 @@ interface DatabaseIfc {
      *
      * @param tableName the unqualified name of the table to write
      */
-    fun printTableAsText(tableName: String?) {
+    fun printTableAsText(tableName: String) {
         writeTableAsText(tableName, PrintWriter(System.out))
     }
 
@@ -304,26 +177,11 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsText(schemaName: String?, out: PrintWriter) {
-        val tables: List<Table<*>> = getTables(schemaName)!!
+    fun writeAllTablesAsText(schemaName: String, out: PrintWriter) {
+        val tables = tableNames(schemaName)
         for (table in tables) {
-            out.println(table.getName())
-            out.println(selectAll(table))
-            out.flush()
+            writeTableAsText(table, out)
         }
-    }
-
-    /**
-     * @param table the Table to get all records from
-     * @return the records as a jooq Result or null
-     */
-    fun selectAll(table: Table<out Record?>?): Result<Record?>? {
-        if (table == null) {
-            return null
-        }
-        return if (!containsTable(table)) {
-            null
-        } else dSLContext.select().from(table).fetch()
     }
 
     /**
@@ -331,7 +189,7 @@ interface DatabaseIfc {
      *
      * @param schemaName the name of the schema that should contain the tables
      */
-    fun printAllTablesAsText(schemaName: String?) {
+    fun printAllTablesAsText(schemaName: String) {
         writeAllTablesAsText(schemaName, PrintWriter(System.out))
     }
 
@@ -344,15 +202,14 @@ interface DatabaseIfc {
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
      * @throws IOException a checked exception
      */
-    fun writeAllTablesAsCSV(schemaName: String?, pathToOutPutDirectory: Path) {
+    fun writeAllTablesAsCSV(schemaName: String, pathToOutPutDirectory: Path) {
         Files.createDirectories(pathToOutPutDirectory)
-        val tables: List<Table<*>> = getTables(schemaName)!!
+        val tables = tableNames(schemaName)
         for (table in tables) {
-            val path: Path = pathToOutPutDirectory.resolve(table.getName() + ".csv")
-            var newOutputStream: OutputStream?
-            newOutputStream = Files.newOutputStream(path)
+            val path: Path = pathToOutPutDirectory.resolve("$table.csv")
+            val newOutputStream: OutputStream = Files.newOutputStream(path)
             val printWriter = PrintWriter(newOutputStream)
-            printWriter.println(selectAll(table).formatCSV())
+//TODO            printWriter.println(selectAll(table).formatCSV())
             printWriter.flush()
             printWriter.close()
         }
@@ -360,50 +217,34 @@ interface DatabaseIfc {
 
     /**
      * @param tableName the unqualified name of the table to get all records from
-     * @return a jooq result holding all of the records from the table or null
+     * @return a jooq result holding all the records from the table or null
      */
-    fun selectAll(tableName: String?): Result<Record?>? {
-        return if (!containsTable(tableName)) {
-            null
-        } else selectAll(getTable(tableName))
-    }
+    fun selectAll(tableName: String): ResultSet
 
     /**
      * @param table the unqualified name of the table
      * @return true if the table contains no records (rows)
      */
-    fun isTableEmpty(table: String?): Boolean {
-        val selectAll: Result<Record> = selectAll(table) ?: return true
-        return selectAll.isEmpty()
-    }
-
-    /**
-     * @param table the table to check
-     * @return true if the table has no data in the result
-     */
-    fun isTableEmpty(table: Table<out Record?>?): Boolean {
-        val selectAll: Result<Record> = selectAll(table) ?: return true
-        return selectAll.isEmpty()
-    }
+    fun isTableEmpty(table: String): Boolean
 
     /**
      * @param schemaName the name of the schema that should contain the tables
      * @return true if at least one user defined table in the schema has data
      */
-    fun hasData(schemaName: String?): Boolean {
-        return areAllTablesEmpty(schemaName) != true
+    fun hasData(schemaName: String): Boolean {
+        return !areAllTablesEmpty(schemaName)
     }
 
     /**
      * @param schemaName the name of the schema that should contain the tables
      * @return true if all user defined tables are empty in the schema
      */
-    fun areAllTablesEmpty(schemaName: String?): Boolean {
-        val tables: List<Table<*>> = getTables(schemaName)!!
+    fun areAllTablesEmpty(schemaName: String): Boolean {
+        val tables  = tableNames(schemaName)
         var result = true
         for (t in tables) {
             result = isTableEmpty(t)
-            if (result == false) {
+            if (!result) {
                 break
             }
         }
@@ -413,36 +254,16 @@ interface DatabaseIfc {
     /**
      * @param tableName the unqualified name of the table
      * @return a string that represents all the insert queries for the data that is currently in the
-     * supplied table or null
+     * supplied table
      */
-    fun getInsertQueries(tableName: String?): String? {
-        val table: Table<out Record?> = getTable(tableName) ?: return null
-        return getInsertQueries(table)
-    }
-
-    /**
-     * @param table the table to generate the insert statements for, must not be null
-     * @return the insert statements as a string or null
-     */
-    fun getInsertQueries(table: Table<out Record?>?): String? {
-        if (table == null) {
-            logger.trace("The supplied table reference was null")
-            throw IllegalArgumentException("The supplied table was null")
-        }
-        if (!containsTable(table)) {
-            logger.trace("Table: {} does not exist in database {}", table.getName(), label)
-            return null
-        }
-        val results: Result<Record> = selectAll(table)
-        return results.formatInsert(table)
-    }
+    fun insertQueries(tableName: String): String
 
     /**
      * Prints the insert queries associated with the supplied table to the console
      *
      * @param tableName the unqualified name of the table
      */
-    fun printInsertQueries(tableName: String?) {
+    fun printInsertQueries(tableName: String) {
         writeInsertQueries(tableName, PrintWriter(System.out))
     }
 
@@ -452,37 +273,14 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table
      * @param out       the PrintWriter to write to
      */
-    fun writeInsertQueries(tableName: String?, out: PrintWriter?) {
-        if (!containsTable(tableName)) {
-            logger.trace("Table: {} does not exist in database {}", tableName, label)
-            return
-        }
-        writeInsertQueries(getTable(tableName), out)
-    }
-
-    /**
-     * Writes the insert statements for the table in the file
-     *
-     * @param table the the table for the insert statements
-     * @param out   the file to write to
-     */
-    fun writeInsertQueries(table: Table<out Record?>?, out: PrintWriter) {
-        requireNotNull(table) { "The supplied table was null" }
-        if (!containsTable(table)) {
-            logger.trace("Table: {} does not exist in database {}", table.getName(), label)
-            return
-        }
-        val results: Result<Record> = selectAll(table)
-        out.print(results.formatInsert(table))
-        out.flush()
-    }
+    fun writeInsertQueries(tableName: String, out: PrintWriter)
 
     /**
      * Prints all table data as insert queries to the console
      *
      * @param schemaName the name of the schema that should contain the tables
      */
-    fun printAllTablesAsInsertQueries(schemaName: String?) {
+    fun printAllTablesAsInsertQueries(schemaName: String) {
         writeAllTablesAsInsertQueries(schemaName, PrintWriter(System.out))
     }
 
@@ -492,12 +290,14 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsInsertQueries(schemaName: String?, out: PrintWriter?) {
-        val tables: List<Table<*>> = getTables(schemaName)!!
+    fun writeAllTablesAsInsertQueries(schemaName: String, out: PrintWriter) {
+        val tables = tableNames(schemaName)
         for (t in tables) {
             writeInsertQueries(t, out)
         }
     }
+
+    //TODO collapse these overloads
 
     /**
      * Writes all the tables to an Excel workbook, uses name of database
@@ -506,7 +306,7 @@ interface DatabaseIfc {
      * @param wbDirectory directory of the workbook, if null uses the working directory
      * @throws IOException if there is a problem
      */
-    fun writeDbToExcelWorkbook(schemaName: String?, wbDirectory: Path?) {
+    fun writeDbToExcelWorkbook(schemaName: String, wbDirectory: Path?) {
         writeDbToExcelWorkbook(schemaName, null, wbDirectory)
     }
     /**
@@ -529,7 +329,7 @@ interface DatabaseIfc {
      * @param wbName     name of the workbook, if null uses name of database
      * @throws IOException if there is a problem
      */
-    fun writeDbToExcelWorkbook(schemaName: String?, wbName: String? = null, wbDirectory: Path? = null) {
+    fun writeDbToExcelWorkbook(schemaName: String, wbName: String? = null, wbDirectory: Path? = null) {
         Objects.requireNonNull(schemaName, "The schema name was null")
         if (!containsSchema(schemaName)) {
             logger.warn(
@@ -538,7 +338,7 @@ interface DatabaseIfc {
             )
             return
         }
-        val tableNames = getTableNames(schemaName)
+        val tableNames = tableNames(schemaName)
         if (tableNames.isEmpty()) {
             logger.warn(
                 "The supplied schema name {} had no tables to write to Excel in database {}",
@@ -570,13 +370,13 @@ interface DatabaseIfc {
             }
         }
         if (wbDirectory == null) {
-            wbDirectory = JSL.getInstance().getExcelDir().toAbsolutePath()
+            wbDirectory = KSL.excelDir
         }
         val path = wbDirectory.resolve(wbName)
         if (tableNames.isEmpty()) {
             logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
         } else {
-            ExcelUtil.writeDBAsExcelWorkbook(this, tableNames, path)
+//TODO            ExcelUtil.writeDBAsExcelWorkbook(this, tableNames, path)
         }
     }
 
