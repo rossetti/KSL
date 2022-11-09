@@ -471,36 +471,13 @@ interface DatabaseIfc {
         return executeCommands(parseQueriesInSQLScript(path))
     }
 
-    /** A simple wrapper to ease the use of jooq for novices. Returns a jooq query that can
-     * be executed to return results.  Errors in the SQL are the user's responsibility.
-     * With the query, the user has multiple paths to execution.
-     *
-     * @param sql an SQL text string that is valid
-     * @return the query, ready to execute
-     */
-    fun createResultQuery(sql: String?): ResultQuery<Record?>? {
-        return dSLContext.resultQuery(sql)
-    }
-
-    /** A simple wrapper to ease the use of jooq for novices. Returns the results of a jooq query that can
-     * be executed to return results. Errors in the SQL are the user's responsibility
-     *
-     * @param sql an SQL text string that is valid
-     * @return the results of the query, basically uses fetch() on createResultQuery(String sql)
-     */
-    fun fetchResults(sql: String?): Result<Record?>? {
-        return createResultQuery(sql).fetch()
-    }
-
     /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
      * form of a JDBC ResultSet. Errors in the SQL are the user's responsibility
      *
      * @param sql an SQL text string that is valid
      * @return the results of the query
      */
-    fun fetchJDBCResultSet(sql: String?): ResultSet? {
-        return createResultQuery(sql).fetchResultSet()
-    }
+    fun fetchResultSet(sql: String): ResultSet
 
     /**
      * Drops the named schema from the database. If no such schema exist with the name, then nothing is done.
@@ -510,55 +487,52 @@ interface DatabaseIfc {
      * @param viewNames  the view names in the order that they must be dropped, must not be null
      */
     fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
-        Objects.requireNonNull(schemaName, "The schema name cannot be null")
-        Objects.requireNonNull(tableNames, "The list of table names cannot be null")
-        Objects.requireNonNull(viewNames, "The list of view names cannot be null")
         if (containsSchema(schemaName)) {
             // need to delete the schema and any tables/data
             val schema: Schema? = getSchema(schemaName)
-            this@Companion.logger.debug("The database {} contains the JSL schema {}", label, schema.getName())
-            this@Companion.logger.debug("Attempting to drop the schema {}....", schema.getName())
+            logger.debug("The database {} contains the JSL schema {}", label, schema.getName())
+            logger.debug("Attempting to drop the schema {}....", schema.getName())
 
             //first drop any views, then the tables
             var table: org.jooq.Table<*>? = null
             val tables: List<org.jooq.Table<*>> = schema.getTables()
-            this@Companion.logger.debug("Schema {} has jooq tables or views ... ", schema.getName())
+            logger.debug("Schema {} has jooq tables or views ... ", schema.getName())
             for (t in tables) {
-                this@Companion.logger.debug("table or view: {}", t.getName())
+                logger.debug("table or view: {}", t.getName())
             }
             for (name in viewNames) {
                 if (name == null) {
                     continue
                 }
-                this@Companion.logger.debug("Checking for view {} ", name)
+                logger.debug("Checking for view {} ", name)
                 table = getTable(schema, name)
                 if (table != null) {
                     dSLContext.dropView(table).execute()
-                    this@Companion.logger.debug("Dropped view {} ", table.getName())
+                    logger.debug("Dropped view {} ", table.getName())
                 }
             }
             for (name in tableNames) {
                 if (name == null) {
                     continue
                 }
-                this@Companion.logger.debug("Checking for table {} ", name)
+                logger.debug("Checking for table {} ", name)
                 table = getTable(schema, name)
                 if (table != null) {
                     dSLContext.dropTable(table).execute()
-                    this@Companion.logger.debug("Dropped table {} ", table.getName())
+                    logger.debug("Dropped table {} ", table.getName())
                 }
             }
             dSLContext.dropSchema(schema.getName()).execute() // works
             //db.getDSLContext().dropSchema(schema).execute(); // doesn't work
             // db.getDSLContext().execute("drop schema jsl_db restrict"); //works
             //boolean exec = db.executeCommand("drop schema jsl_db restrict");
-            this@Companion.logger.debug("Completed the dropping of the schema {}", schema.getName())
+            logger.debug("Completed the dropping of the schema {}", schema.getName())
         } else {
-            this@Companion.logger.debug("The database {} does not contain the schema {}", label, schemaName)
+            logger.debug("The database {} does not contain the schema {}", label, schemaName)
             val schemas: List<Schema> = dSLContext.meta().getSchemas()
-            this@Companion.logger.debug("The database {} has the following schemas", label)
+            logger.debug("The database {} has the following schemas", label)
             for (s in schemas) {
-                this@Companion.logger.debug("schema: {}", s.getName())
+                logger.debug("schema: {}", s.getName())
             }
         }
     }
