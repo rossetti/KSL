@@ -18,8 +18,6 @@
 
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-// An example gradle build file for a project that depends on the JSL
-
 plugins {
     `java-library`
     kotlin("jvm") version "1.7.20"
@@ -53,6 +51,9 @@ dependencies {
 
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.20")
+
+    // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
+    implementation("org.ktorm:ktorm-core:3.5.0")
 
 //    testImplementation(kotlin("test"))
 //    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")

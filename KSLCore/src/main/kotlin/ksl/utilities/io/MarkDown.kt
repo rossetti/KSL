@@ -193,8 +193,8 @@ object MarkDown {
         constructor(colHeaders: List<String>, format: ColFmt) : this(colHeaders, allSame(colHeaders.size, format)) {}
 
         init {
-            require(!colHeaders.isEmpty()) { "The column headers list was empty" }
-            require(!formats.isEmpty()) { "The column formats list was empty" }
+            require(colHeaders.isNotEmpty()) { "The column headers list was empty" }
+            require(formats.isNotEmpty()) { "The column formats list was empty" }
             require(colHeaders.size == formats.size) { "The size of the header and format lists do not match" }
             numCols = colHeaders.size
             sbTable.append(tableHeader(colHeaders, formats))
