@@ -55,6 +55,9 @@ dependencies {
     // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
     implementation("org.ktorm:ktorm-core:3.5.0")
 
+    // https://mvnrepository.com/artifact/com.opencsv/opencsv
+    implementation("com.opencsv:opencsv:5.7.1") //TODO this vulnerability is not reported on Maven Central
+
 //    testImplementation(kotlin("test"))
 //    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
 //    testImplementation(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")

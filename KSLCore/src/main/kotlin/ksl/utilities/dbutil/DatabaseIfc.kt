@@ -1,7 +1,9 @@
 
 package ksl.utilities.dbutil
 
+import com.opencsv.CSVWriterBuilder
 import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
 import mu.KLoggable
 import java.io.*
 import java.nio.file.Files
@@ -120,15 +122,16 @@ interface DatabaseIfc {
      * Writes the table as comma separated values
      *
      * @param tableName the unqualified name of the table to write
-     * @param out       the PrintWriter to write to
+     * @param header true means column names as the header included
+     * @param out       the PrintWriter to write to.  The print writer is not closed.
      */
-    fun writeTableAsCSV(tableName: String, out: PrintWriter) {
+    fun writeTableAsCSV(tableName: String, header: Boolean = true, out: PrintWriter) {
         if (!containsTable(tableName)) {
             logger.trace("Table: {} does not exist in database {}", tableName, label)
             return
         }
-        //TODO
-      //  out.println(selectAll(tableName).formatCSV())
+        val resultSet = selectAll(tableName)
+        writeToCSV(resultSet, header, out)
         out.flush()
     }
 
@@ -137,15 +140,15 @@ interface DatabaseIfc {
      *
      * @param tableName the unqualified name of the table to print
      */
-    fun printTableAsCSV(tableName: String) {
-        writeTableAsCSV(tableName, PrintWriter(System.out))
+    fun printTableAsCSV(tableName: String, header: Boolean = true) {
+        writeTableAsCSV(tableName, header, PrintWriter(System.out))
     }
 
     /**
-     * Writes the table as prettified text
+     * Writes the table as prettified text.
      *
      * @param tableName the unqualified name of the table to write
-     * @param out       the PrintWriter to write to
+     * @param out       the PrintWriter to write to.  The print writer is not closed
      */
     fun writeTableAsText(tableName: String, out: PrintWriter) {
         if (!containsTable(tableName)) {
@@ -153,7 +156,8 @@ interface DatabaseIfc {
             return
         }
         out.println(tableName)
-        out.println(selectAll(tableName)) //TODO
+        val resultSet = selectAll(tableName)
+        writeAsText(resultSet, out)
         out.flush()
     }
 
@@ -195,19 +199,16 @@ interface DatabaseIfc {
      *
      * @param schemaName            the name of the schema that should contain the tables
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
-     * @throws IOException a checked exception
+     * @param header  true means all files will have the column headers
      */
-    fun writeAllTablesAsCSV(schemaName: String, pathToOutPutDirectory: Path) {
+    fun writeAllTablesAsCSV(schemaName: String, pathToOutPutDirectory: Path, header: Boolean = true) {
         Files.createDirectories(pathToOutPutDirectory)
         val tables = tableNames(schemaName)
-        //TODO why not use writeTableAsCSV() here
         for (table in tables) {
             val path: Path = pathToOutPutDirectory.resolve("$table.csv")
-            val newOutputStream: OutputStream = Files.newOutputStream(path)
-            val printWriter = PrintWriter(newOutputStream)
-//TODO            printWriter.println(selectAll(table).formatCSV())
-            printWriter.flush()
-            printWriter.close()
+            val writer = KSLFileUtil.createPrintWriter(path)
+            writeTableAsCSV(table, header, writer)
+            writer.close()
         }
     }
 
@@ -293,18 +294,6 @@ interface DatabaseIfc {
         }
     }
 
-    //TODO collapse these overloads
-
-    /**
-     * Writes all the tables to an Excel workbook, uses name of database
-     *
-     * @param schemaName  the name of the schema that should contain the tables
-     * @param wbDirectory directory of the workbook, if null uses the working directory
-     * @throws IOException if there is a problem
-     */
-    fun writeDbToExcelWorkbook(schemaName: String, wbDirectory: Path?) {
-        writeDbToExcelWorkbook(schemaName, null, wbDirectory)
-    }
     /**
      * Writes all the tables in the supplied schema to an Excel workbook
      *
@@ -361,6 +350,7 @@ interface DatabaseIfc {
             logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
         } else {
 //TODO            ExcelUtil.writeDBAsExcelWorkbook(this, tableNames, path)
+            TODO("not implemented yet")
         }
     }
 
@@ -450,7 +440,6 @@ interface DatabaseIfc {
      * @throws IOException if there is a problem
      */
     fun executeScript(path: Path): Boolean {
-        requireNotNull(path) { "The script path must not be null" }
         require(!Files.notExists(path)) { "The script file does not exist" }
         logger.trace("Executing SQL in file: {}", path)
         return executeCommands(parseQueriesInSQLScript(path))
@@ -472,6 +461,7 @@ interface DatabaseIfc {
      * @param viewNames  the view names in the order that they must be dropped, must not be null
      */
     fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>)
+
 //    fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
 //        if (containsSchema(schemaName)) {
 //            // need to delete the schema and any tables/data
@@ -706,6 +696,31 @@ interface DatabaseIfc {
             return false
         }
 
+        /**
+         * @param resultSet the result set to write out as csv delimited
+         * @param header true (default) indicates include the header
+         * @param writer the writer to use
+         */
+        fun writeToCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer){
+            val builder = CSVWriterBuilder(writer)
+            val csvWriter = builder.build()
+            csvWriter.writeAll(resultSet, header)
+        }
 
+        /**
+         * @param resultSet the result set to write out as text
+         * @param writer the writer to use
+         */
+        fun writeAsText(resultSet: ResultSet, writer: Writer){
+            TODO("Not implemented yet")
+        }
+
+        /**
+         * @param resultSet the result set to write out as Markdown text
+         * @param writer the writer to use
+         */
+        fun writeAsMarkdown(resultSet: ResultSet, writer: Writer){
+            TODO("Not implemented yet")
+        }
     }
 }
