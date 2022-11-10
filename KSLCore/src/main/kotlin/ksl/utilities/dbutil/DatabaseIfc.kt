@@ -25,30 +25,25 @@ interface DatabaseIfc {
     }
 
     /**
-     * @return the DataSource backing the database
+     * the DataSource backing the database
      */
     val dataSource: DataSource
 
     /**
-     * @return an identifying string representing the database. This has no relation to
+     * identifying string representing the database. This has no relation to
      * the name of the database on disk or in the dbms. The sole purpose is for labeling of output
      */
     val label: String
 
     /**
-     * @return a String that represents the name of the default schema for the database.
-     * This is the schema that contains the database objects such as the tables. This may
-     * be null if no default schema is specified.
-     */
-    /**
      * Sets the name of the default schema
      *
-     * @param name the name for the default schema, may be null
+     *  name for the default schema, may be null
      */
     var defaultSchemaName: String?
 
     /**
-     * It is best to use this method within a try-with-resource construct
+     * It is best to use this property within a try-with-resource construct
      * This method calls the DataSource for a connection. You are responsible for closing the connection.
      *
      * @return a connection to the database
@@ -158,7 +153,7 @@ interface DatabaseIfc {
             return
         }
         out.println(tableName)
-        out.println(selectAll(tableName))
+        out.println(selectAll(tableName)) //TODO
         out.flush()
     }
 
@@ -205,6 +200,7 @@ interface DatabaseIfc {
     fun writeAllTablesAsCSV(schemaName: String, pathToOutPutDirectory: Path) {
         Files.createDirectories(pathToOutPutDirectory)
         val tables = tableNames(schemaName)
+        //TODO why not use writeTableAsCSV() here
         for (table in tables) {
             val path: Path = pathToOutPutDirectory.resolve("$table.csv")
             val newOutputStream: OutputStream = Files.newOutputStream(path)
@@ -217,7 +213,7 @@ interface DatabaseIfc {
 
     /**
      * @param tableName the unqualified name of the table to get all records from
-     * @return a jooq result holding all the records from the table or null
+     * @return a result holding all the records from the table
      */
     fun selectAll(tableName: String): ResultSet
 
@@ -317,18 +313,6 @@ interface DatabaseIfc {
      * @param wbDirectory directory of the workbook, if null uses the working directory
      * @throws IOException if there is a problem
      */
-    /**
-     * Writes all the tables to an Excel workbook, uses name of schema, uses the working directory
-     * @param schemaName the name of the schema containing the tables
-     * @throws IOException if there is a problem
-     */
-    /**
-     * Writes all the tables to an Excel workbook uses the working directory
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     * @param wbName     name of the workbook, if null uses name of database
-     * @throws IOException if there is a problem
-     */
     fun writeDbToExcelWorkbook(schemaName: String, wbName: String? = null, wbDirectory: Path? = null) {
         Objects.requireNonNull(schemaName, "The schema name was null")
         if (!containsSchema(schemaName)) {
@@ -380,20 +364,21 @@ interface DatabaseIfc {
         }
     }
 
-    /**
-     * @return returns a DbCreateTask that can be configured to execute on the database
-     */
-    fun create(): DbCreateTask.DbCreateTaskFirstStepIfc? {
-        return DbCreateTaskBuilder(this)
-    }
+    //TODO
+//    /**
+//     * @return returns a DbCreateTask that can be configured to execute on the database
+//     */
+//    fun create(): DbCreateTask.DbCreateTaskFirstStepIfc? {
+//        return DbCreateTaskBuilder(this)
+//    }
 
     /**
-     * Executes a single command on an database connection
+     * Executes a single command on a database connection
      *
      * @param cmd a valid SQL command
      * @return true if the command executed without an SQLException
      */
-    fun executeCommand(cmd: String?): Boolean {
+    fun executeCommand(cmd: String): Boolean {
         var flag = false
         try {
             connection.use { con -> flag = executeCommand(con, cmd) }
@@ -411,7 +396,7 @@ interface DatabaseIfc {
      * @param cmd the command
      * @return true if the command executed without an exception
      */
-    fun executeCommand(con: Connection, cmd: String?): Boolean {
+    fun executeCommand(con: Connection, cmd: String): Boolean {
         var flag = false
         try {
             con.createStatement().use { statement ->
@@ -433,7 +418,7 @@ interface DatabaseIfc {
      * @param cmds the commands
      * @return true if all commands were executed
      */
-    fun executeCommands(cmds: List<String?>): Boolean {
+    fun executeCommands(cmds: List<String>): Boolean {
         var flag = true
         try {
             connection.use { con ->
@@ -464,7 +449,7 @@ interface DatabaseIfc {
      * @return true if all commands are executed
      * @throws IOException if there is a problem
      */
-    fun executeScript(path: Path?): Boolean {
+    fun executeScript(path: Path): Boolean {
         requireNotNull(path) { "The script path must not be null" }
         require(!Files.notExists(path)) { "The script file does not exist" }
         logger.trace("Executing SQL in file: {}", path)
@@ -486,56 +471,57 @@ interface DatabaseIfc {
      * @param tableNames the table names in the order that they must be dropped, must not be null
      * @param viewNames  the view names in the order that they must be dropped, must not be null
      */
-    fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
-        if (containsSchema(schemaName)) {
-            // need to delete the schema and any tables/data
-            val schema: Schema? = getSchema(schemaName)
-            logger.debug("The database {} contains the JSL schema {}", label, schema.getName())
-            logger.debug("Attempting to drop the schema {}....", schema.getName())
-
-            //first drop any views, then the tables
-            var table: org.jooq.Table<*>? = null
-            val tables: List<org.jooq.Table<*>> = schema.getTables()
-            logger.debug("Schema {} has jooq tables or views ... ", schema.getName())
-            for (t in tables) {
-                logger.debug("table or view: {}", t.getName())
-            }
-            for (name in viewNames) {
-                if (name == null) {
-                    continue
-                }
-                logger.debug("Checking for view {} ", name)
-                table = getTable(schema, name)
-                if (table != null) {
-                    dSLContext.dropView(table).execute()
-                    logger.debug("Dropped view {} ", table.getName())
-                }
-            }
-            for (name in tableNames) {
-                if (name == null) {
-                    continue
-                }
-                logger.debug("Checking for table {} ", name)
-                table = getTable(schema, name)
-                if (table != null) {
-                    dSLContext.dropTable(table).execute()
-                    logger.debug("Dropped table {} ", table.getName())
-                }
-            }
-            dSLContext.dropSchema(schema.getName()).execute() // works
-            //db.getDSLContext().dropSchema(schema).execute(); // doesn't work
-            // db.getDSLContext().execute("drop schema jsl_db restrict"); //works
-            //boolean exec = db.executeCommand("drop schema jsl_db restrict");
-            logger.debug("Completed the dropping of the schema {}", schema.getName())
-        } else {
-            logger.debug("The database {} does not contain the schema {}", label, schemaName)
-            val schemas: List<Schema> = dSLContext.meta().getSchemas()
-            logger.debug("The database {} has the following schemas", label)
-            for (s in schemas) {
-                logger.debug("schema: {}", s.getName())
-            }
-        }
-    }
+    fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>)
+//    fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
+//        if (containsSchema(schemaName)) {
+//            // need to delete the schema and any tables/data
+//            val schema: Schema? = getSchema(schemaName)
+//            logger.debug("The database {} contains the JSL schema {}", label, schema.getName())
+//            logger.debug("Attempting to drop the schema {}....", schema.getName())
+//
+//            //first drop any views, then the tables
+//            var table: org.jooq.Table<*>? = null
+//            val tables: List<org.jooq.Table<*>> = schema.getTables()
+//            logger.debug("Schema {} has jooq tables or views ... ", schema.getName())
+//            for (t in tables) {
+//                logger.debug("table or view: {}", t.getName())
+//            }
+//            for (name in viewNames) {
+//                if (name == null) {
+//                    continue
+//                }
+//                logger.debug("Checking for view {} ", name)
+//                table = getTable(schema, name)
+//                if (table != null) {
+//                    dSLContext.dropView(table).execute()
+//                    logger.debug("Dropped view {} ", table.getName())
+//                }
+//            }
+//            for (name in tableNames) {
+//                if (name == null) {
+//                    continue
+//                }
+//                logger.debug("Checking for table {} ", name)
+//                table = getTable(schema, name)
+//                if (table != null) {
+//                    dSLContext.dropTable(table).execute()
+//                    logger.debug("Dropped table {} ", table.getName())
+//                }
+//            }
+//            dSLContext.dropSchema(schema.getName()).execute() // works
+//            //db.getDSLContext().dropSchema(schema).execute(); // doesn't work
+//            // db.getDSLContext().execute("drop schema jsl_db restrict"); //works
+//            //boolean exec = db.executeCommand("drop schema jsl_db restrict");
+//            logger.debug("Completed the dropping of the schema {}", schema.getName())
+//        } else {
+//            logger.debug("The database {} does not contain the schema {}", label, schemaName)
+//            val schemas: List<Schema> = dSLContext.meta().getSchemas()
+//            logger.debug("The database {} has the following schemas", label)
+//            for (s in schemas) {
+//                logger.debug("schema: {}", s.getName())
+//            }
+//        }
+//    }
 
     companion object : KLoggable {
 
@@ -568,13 +554,13 @@ interface DatabaseIfc {
          * @return the list of strings of the commands
          * @throws IOException if there is a problem
          */
-        fun parseQueriesInSQLScript(filePath: Path?): List<String?> {
+        fun parseQueriesInSQLScript(filePath: Path): List<String> {
             requireNotNull(filePath) { "The supplied path was null!" }
-            val queries: MutableList<String?> = ArrayList()
-            val `in` = Files.newInputStream(filePath)
-            val reader = BufferedReader(InputStreamReader(`in`))
+            val queries: MutableList<String> = ArrayList()
+            val inFile = Files.newInputStream(filePath)
+            val reader = BufferedReader(InputStreamReader(inFile))
             var cmd = StringBuilder()
-            var line: String? = null
+            var line: String
             while (reader.readLine().also { line = it } != null) {
                 //boolean end = parseCommandString(line, cmd);
                 val option = parseLine(line, cmd)
@@ -598,7 +584,7 @@ interface DatabaseIfc {
          * @return the LineOption COMMENT means line was a comment, CONTINUED means that
          * command continues on next line, END means that command was ended with the delimiter
          */
-        fun parseLine(line: String?, command: StringBuilder): LineOption {
+        fun parseLine(line: String, command: StringBuilder): LineOption {
             return parseLine(line, DEFAULT_DELIMITER, command)
         }
 
@@ -612,8 +598,8 @@ interface DatabaseIfc {
          * @return the LineOption COMMENT means line was a comment, CONTINUED means that
          * command continues on next line, END means that command was ended with the delimiter
          */
-        fun parseLine(line: String?, delimiter: String, command: StringBuilder): LineOption {
-            var trimmedLine = line!!.trim { it <= ' ' }
+        fun parseLine(line: String, delimiter: String, command: StringBuilder): LineOption {
+            var trimmedLine = line.trim { it <= ' ' }
             if (trimmedLine.startsWith("--")
                 || trimmedLine.startsWith("//")
                 || trimmedLine.startsWith("#")
@@ -670,20 +656,18 @@ interface DatabaseIfc {
          * @return a list of strings representing each SQL command
          * @throws IOException the exception
          */
-        fun parseQueriesInString(str: String?): List<String>? {
+        fun parseQueriesInString(str: String): List<String> {
             val queries: MutableList<String> = ArrayList()
-            if (str != null) {
-                val sr = StringReader(str) // wrap your String
-                val reader = BufferedReader(sr) // wrap your StringReader
-                var cmd = StringBuilder()
-                var line: String? = null
-                while (reader.readLine().also { line = it } != null) {
-                    //boolean end = parseCommandString(line, cmd);
-                    val option = parseLine(line, cmd)
-                    if (option == LineOption.END) {
-                        queries.add(cmd.toString().trim { it <= ' ' })
-                        cmd = StringBuilder()
-                    }
+            val sr = StringReader(str) // wrap your String
+            val reader = BufferedReader(sr) // wrap your StringReader
+            var cmd = StringBuilder()
+            var line: String
+            while (reader.readLine().also { line = it } != null) {
+                //boolean end = parseCommandString(line, cmd);
+                val option = parseLine(line, cmd)
+                if (option == LineOption.END) {
+                    queries.add(cmd.toString().trim { it <= ' ' })
+                    cmd = StringBuilder()
                 }
             }
             return queries
