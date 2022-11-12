@@ -94,6 +94,19 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         }
     }
 
+    val dbDir: Path = createDatabaseDirectory()
+
+    private fun createDatabaseDirectory(): Path {
+        return try {
+            Files.createDirectories(outDir.resolve("db"))
+        } catch (e: IOException) {
+            KSLFileUtil.logger.error("There was a problem creating the directories for {} used program launch directory",
+                outDir.resolve("db"))
+            KSLFileUtil.programLaunchDirectory
+        }
+    }
+
+
     /** Makes a new PrintWriter within the base directory with the given file name
      *
      * @param fileName the name of the file for the PrintWriter

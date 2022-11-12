@@ -58,6 +58,19 @@ dependencies {
     // https://mvnrepository.com/artifact/com.opencsv/opencsv
     implementation("com.opencsv:opencsv:5.7.1") //TODO this vulnerability is not reported on Maven Central
 
+    // https://db.apache.org/derby/releases
+    // 10.16.1.1 is only compatible with Java 17
+    implementation(group = "org.apache.derby", name = "derby", version = "10.15.2.0")
+    implementation(group = "org.apache.derby", name = "derbyshared", version = "10.15.2.0")
+    implementation(group = "org.apache.derby", name = "derbyclient", version = "10.15.2.0")
+    implementation(group = "org.apache.derby", name = "derbytools", version = "10.15.2.0")
+
+    implementation(group = "org.postgresql", name = "postgresql", version = "42.5.0")
+
+    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.39.4.0")
+
+    implementation(group = "com.zaxxer", name = "HikariCP", version = "5.0.1")
+
 //    testImplementation(kotlin("test"))
 //    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
 //    testImplementation(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")

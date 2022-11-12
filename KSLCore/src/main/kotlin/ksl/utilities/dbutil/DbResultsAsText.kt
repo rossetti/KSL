@@ -3,25 +3,68 @@ package ksl.utilities.dbutil
 import java.sql.Types
 import javax.sql.rowset.CachedRowSet
 
-class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat : String? = null) : Iterable<List<String>> {
+class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = null) : Iterable<List<String>> {
 
     private val myColumns = mutableListOf<DbColumn>()
-    val columns : List<DbColumn>
+
+    val columns: List<DbColumn>
         get() = myColumns
+
     private val tableNames = mutableListOf<String>()
+
+    /**
+     *  the number of rows in the row set
+     */
     val numRows = rowSet.size()
+
+    /**
+     * @return the list of column names
+     */
+    val columnNames: List<String>
+
+    var paddingSize = DEFAULT_PADDING
+
+    val rowSeparator: String
+
+    val columnHeader: String
+
+    val header: String
 
     init {
         val md = rowSet.metaData
         val columnCount = md.columnCount
-        for(i in 1..columnCount){
+        val rs = StringBuilder()
+        val ch = StringBuilder()
+        val h = StringBuilder()
+        val list = mutableListOf<String>()
+        for (i in 1..columnCount) {
             val column = DbColumn(i, md.getColumnLabel(i), md.getColumnType(i), md.getColumnTypeName(i))
+            list.add(column.name)
             myColumns.add(column)
             val tn = md.getTableName(i)
-            if (!tableNames.contains(tn)){
+            if (!tableNames.contains(tn)) {
                 tableNames.add(tn)
             }
+            rs.append("+")
+            rs.append("-".repeat(column.width))
+            ch.append("|")
+            ch.append(" ".repeat(paddingSize))
+            ch.append(column.name)
+            ch.append(" ".repeat(paddingSize))
         }
+        rs.append("+")
+//        rs.appendLine()
+        ch.append("|")
+//        ch.appendLine()
+        columnNames = list
+        rowSeparator = rs.toString()
+        columnHeader = ch.toString()
+        h.append(rs)
+        h.appendLine()
+        h.append(ch)
+        h.appendLine()
+        h.append(rs)
+        header = h.toString()
     }
 
     /** Converts the column values to string values. Any instance that cannot
@@ -31,29 +74,54 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat : String? = 
      * @param rowNum the row of the row set to convert
      * @return the values across the columns for the row as strings
      */
-    fun rowAsStrings(rowNum : Int) : List<String> {
-        if (rowNum !in 1..numRows){
+    fun rowAsStrings(rowNum: Int): List<String> {
+        if (rowNum !in 1..numRows) {
             return emptyList()
         }
         val list = mutableListOf<String>()
         rowSet.absolute(rowNum)
-        for(i in 1.. myColumns.size){
+        for (i in 1..myColumns.size) {
             list.add(columnObjectAsString(i))
         }
         return list
     }
 
-    private fun columnObjectAsString(col: Int) : String {
+    fun formattedRow(rowNum: Int): String {
+        val list = rowAsStrings(rowNum)
+        val sb = StringBuilder()
+        for (i in myColumns.indices) {
+            val c = myColumns[i]
+            val v = list[i]
+            sb.append("|")
+            if (v.length > (c.width - 2 * paddingSize)) {
+                sb.append("*".repeat(c.width - 2))
+            } else {
+                sb.append(" ".repeat(paddingSize))
+                sb.append(v)
+                sb.append(" ".repeat(paddingSize))
+            }
+        }
+        sb.append("|")
+        return sb.toString()
+    }
+
+    private fun columnObjectAsString(col: Int): String {
         val any = rowSet.getObject(col) ?: return "NULL"
         val index = col - 1 // zero based indexing of list
         val dbColumn = myColumns[index]
-        return when(dbColumn.textType){
+        return when (dbColumn.textType) {
             TextType.BOOLEAN,
             TextType.DATETIME,
-            TextType.INTEGER,
-            TextType.STRING -> any.toString()
+            TextType.INTEGER -> any.toString()
+            TextType.STRING -> {
+                if (any.toString().length < (dbColumn.width - paddingSize)) {
+                    any.toString()
+                } else {
+                    any.toString().substring(0..dbColumn.width).plus(" ...")
+                }
+            }
             TextType.DOUBLE -> {
-                val x : Double = try {
+                val x: Double = try {
                     any.toString().toDouble()
                 } catch (e: NumberFormatException) {
                     Double.NaN
@@ -74,7 +142,9 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat : String? = 
          * Default maximum width for text columns
          * (like a `VARCHAR`) column.
          */
-        const val DEFAULT_MAX_TEXT_COL_WIDTH = 150
+        var DEFAULT_MAX_COL_WIDTH = 30
+
+        var DEFAULT_PADDING = 4
 
         /** Mapping sql type to text printing type
          * @param type the SQL type via java.sql.Types
@@ -132,21 +202,28 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat : String? = 
         OTHER
     }
 
-    class DbColumn(val index: Int, val name: String, val type: Int, val typeName: String) {
-        var width: Int = name.length
+    inner class DbColumn(val index: Int, val name: String, val type: Int, val typeName: String) {
         val textType = textType(type)
-        var justify = ""
-        fun justifyLeft() {
-            justify = "-"
-        }
+        val width: Int
+            get() {
+                return minOf(name.length + 2 * paddingSize, DEFAULT_MAX_COL_WIDTH)
+            }
+//        var justify = ""
+//        fun justifyLeft() {
+//            justify = "-"
+//        }
     }
 
     override fun iterator(): Iterator<List<String>> {
         return TextRowsIterator()
     }
 
+    fun formattedRowIterator(): Iterator<String> {
+        return FormattedRowIterator()
+    }
+
     inner class TextRowsIterator : Iterator<List<String>> {
-        private var current :Int = 0
+        private var current: Int = 0
         private val end = rowSet.size()
 
         override fun hasNext(): Boolean {
@@ -156,6 +233,21 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat : String? = 
         override fun next(): List<String> {
             current++
             return rowAsStrings(current)
+        }
+
+    }
+
+    inner class FormattedRowIterator : Iterator<String> {
+        private var current: Int = 0
+        private val end = rowSet.size()
+
+        override fun hasNext(): Boolean {
+            return current < end
+        }
+
+        override fun next(): String {
+            current++
+            return formattedRow(current)
         }
 
     }

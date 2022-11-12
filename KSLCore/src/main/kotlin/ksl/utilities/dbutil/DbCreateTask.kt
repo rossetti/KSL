@@ -344,9 +344,9 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             this.database = database
         }
 
-        override fun withCreationScript(pathToScript: Path): DbCreateTaskExecuteStepIfc {
-            require(!Files.notExists(pathToScript)) { "The creation script file does not exist" }
-            pathToCreationScript = pathToScript
+        override fun withCreationScript(pathToCreationScript: Path): DbCreateTaskExecuteStepIfc {
+            require(!Files.notExists(pathToCreationScript)) { "The creation script file does not exist" }
+            this.pathToCreationScript = pathToCreationScript
             return this
         }
 
@@ -372,9 +372,9 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             return this
         }
 
-        override fun withConstraints(toAlterScript: Path): DbCreateTaskExecuteStepIfc {
-            require(!Files.notExists(toAlterScript)) { "The alter table script file does not exist" }
-            pathToAlterScript = toAlterScript
+        override fun withConstraints(toConstraintScript: Path): DbCreateTaskExecuteStepIfc {
+            require(!Files.notExists(toConstraintScript)) { "The alter table script file does not exist" }
+            pathToAlterScript = toConstraintScript
             return this
         }
 
@@ -426,11 +426,11 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
         /**
          * @param toExcelWorkbook a path to an Excel workbook that can be read to insert
          * data into the database, must not be null
-         * @param tableNames      a list of table names that need to be filled. Sheets in
+         * @param tableNamesInInsertOrder      a list of table names that need to be filled. Sheets in
          * the workbook must correspond exactly to these names
          * @return a reference to the alter step in the builder process
          */
-        fun withExcelData(toExcelWorkbook: Path, tableNames: List<String>): DBAfterInsertStepIfc
+        fun withExcelData(toExcelWorkbook: Path, tableNamesInInsertOrder: List<String>): DBAfterInsertStepIfc
 
         /**
          * @param toInsertScript a path to an SQL script that can be read to insert

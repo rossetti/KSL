@@ -145,7 +145,7 @@ object MarkDown {
     }
 
     fun tableHeader(colHeaders: List<String>, formats: List<ColFmt>): String {
-        require(!colHeaders.isEmpty()) { "The column headers list was empty" }
+        require(colHeaders.isNotEmpty()) { "The column headers list was empty" }
         require(!formats.isEmpty()) { "The column formats list was empty" }
         require(colHeaders.size == formats.size) { "The size of the header and format lists do not match" }
         val sb = StringBuilder()
@@ -159,7 +159,7 @@ object MarkDown {
     }
 
     fun tableRow(elements: List<String>): String {
-        require(!elements.isEmpty()) { "The row elements list was empty" }
+        require(elements.isNotEmpty()) { "The row elements list was empty" }
         val sb = StringBuilder()
         val h1 = elements.joinToString("| ", "|", "|")
         sb.append(h1)

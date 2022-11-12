@@ -3,6 +3,7 @@ package ksl.utilities.dbutil
 import com.opencsv.CSVWriterBuilder
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.MarkDown
 import mu.KLoggable
 import java.io.*
 import java.nio.file.Files
@@ -44,7 +45,7 @@ interface DatabaseIfc {
      *
      *  name for the default schema, may be null
      */
-    var defaultSchemaName: String?
+    var defaultSchemaName: String?  //TODO plan to use
 
     /**
      * It is best to use this property within a try-with-resource construct
@@ -243,7 +244,9 @@ interface DatabaseIfc {
         if (resultSet != null) {
             writeAsCSV(resultSet, header, out)
             out.flush()
+            resultSet.close()
         }
+
     }
 
     /**
@@ -275,6 +278,7 @@ interface DatabaseIfc {
             out.println(tableName)
             writeAsText(resultSet, out)
             out.flush()
+            resultSet.close()
         }
     }
 
@@ -288,6 +292,15 @@ interface DatabaseIfc {
     }
 
     /**
+     * Prints all tables as text to the console
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     */
+    fun printAllTablesAsText(schemaName: String) {
+        writeAllTablesAsText(schemaName, PrintWriter(System.out))
+    }
+
+    /**
      * Writes all tables as text
      *
      * @param schemaName the name of the schema that should contain the tables
@@ -298,15 +311,6 @@ interface DatabaseIfc {
         for (table in tables) {
             writeTableAsText(schemaName, table, out)
         }
-    }
-
-    /**
-     * Prints all tables as text to the console
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     */
-    fun printAllTablesAsText(schemaName: String) {
-        writeAllTablesAsText(schemaName, PrintWriter(System.out))
     }
 
     /**
@@ -356,7 +360,9 @@ interface DatabaseIfc {
             true
         } else {
             // first() returns false if there are no rows, so turn it into true
-            !rs.first()
+            val b = !rs.first()
+            rs.close()
+            b
         }
     }
 
@@ -384,6 +390,7 @@ interface DatabaseIfc {
         return result
     }
 
+/*
     /**
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the unqualified name of the table
@@ -442,7 +449,7 @@ interface DatabaseIfc {
             writeInsertQueries(schemaName, t, out)
         }
     }
-
+*/
     /**
      * Writes all the tables in the supplied schema to an Excel workbook
      *
@@ -595,7 +602,7 @@ interface DatabaseIfc {
 
     /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
      * form of a JDBC ResultSet. Errors in the SQL are the user's responsibility. Any exceptions
-     * are logged and squashed.
+     * are logged and squashed. It is the user's responsibility to close the ResultSet
      *
      * @param sql an SQL text string that is valid
      * @return the results of the query or null
@@ -604,7 +611,9 @@ interface DatabaseIfc {
         try {
             connection.use { connection ->
                 val query = connection.prepareStatement(sql)
-                return query.executeQuery()
+                val rs = query.executeQuery()
+                query.close()
+                return rs
             }
         } catch (e: SQLException) {
             logger.warn("The query $sql was not executed for database $label", e)
@@ -876,7 +885,14 @@ interface DatabaseIfc {
          * @param writer the writer to use
          */
         fun writeAsText(resultSet: ResultSet, writer: PrintWriter) {
-            TODO("Not implemented yet")
+            val rowSet = createCachedRowSet(resultSet)
+            val tw = DbResultsAsText(rowSet)
+            writer.println(tw.header)
+            val iterator = tw.formattedRowIterator()
+            while(iterator.hasNext()){
+                writer.println(iterator.next())
+                writer.println(tw.rowSeparator)
+            }
         }
 
         /**
@@ -884,7 +900,23 @@ interface DatabaseIfc {
          * @param writer the writer to use
          */
         fun writeAsMarkdown(resultSet: ResultSet, writer: PrintWriter) {
-            TODO("Not implemented yet")
+            val rowSet = createCachedRowSet(resultSet)
+            val tw = DbResultsAsText(rowSet)
+            val formats = mutableListOf<MarkDown.ColFmt>()
+            for(c in tw.columns){
+                if (c.textType == DbResultsAsText.TextType.STRING){
+                    formats.add(MarkDown.ColFmt.LEFT)
+                } else {
+                    formats.add(MarkDown.ColFmt.CENTER)
+                }
+            }
+            val h = MarkDown.tableHeader(tw.columnNames, formats)
+            writer.println(h)
+            val iterator = tw.iterator()
+            while(iterator.hasNext()){
+                val line = MarkDown.tableRow(iterator.next())
+                writer.println(line)
+            }
         }
 
         /**

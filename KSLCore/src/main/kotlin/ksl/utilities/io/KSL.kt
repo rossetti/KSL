@@ -56,6 +56,12 @@ object KSL : KLoggable {
     val excelDir = myOutputDir.excelDir
 
     /**
+     *
+     * @return the path to the default database directory
+     */
+    val dbDir = myOutputDir.dbDir
+
+    /**
      * Should be used by classes to get the next constant
      * so that unique constants can be used
      *

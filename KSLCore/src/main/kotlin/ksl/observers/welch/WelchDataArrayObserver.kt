@@ -31,8 +31,7 @@ class WelchDataArrayObserver(
     private val myResponse: Response = responseVariable
 
     init {
-        var statType: StatisticType? = null
-        statType = if (responseVariable is TWResponse) {
+        val statType: StatisticType = if (responseVariable is TWResponse) {
             StatisticType.TIME_PERSISTENT
         } else {
             StatisticType.TALLY
