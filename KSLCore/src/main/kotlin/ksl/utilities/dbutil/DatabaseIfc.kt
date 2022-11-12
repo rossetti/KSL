@@ -1,4 +1,3 @@
-
 package ksl.utilities.dbutil
 
 import com.opencsv.CSVWriterBuilder
@@ -12,6 +11,9 @@ import java.sql.*
 import java.util.*
 import java.util.regex.Pattern
 import javax.sql.DataSource
+import javax.sql.rowset.CachedRowSet
+import javax.sql.rowset.RowSetProvider
+
 
 /**
  * Many databases define the words database, user, schema in a variety of ways. This abstraction
@@ -63,7 +65,7 @@ interface DatabaseIfc {
             try {
                 connection.use { connection -> metaData = connection.metaData }
             } catch (e: SQLException) {
-                logger.warn("The meta data was not available", e)
+                logger.warn("The meta data was not available for database $label", e)
             }
             return metaData
         }
@@ -72,12 +74,95 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @return a list of table names within the schema
      */
-    fun tableNames(schemaName: String): List<String>
+    fun tableNames(schemaName: String): List<String> {
+        val list = mutableListOf<String>()
+        if (containsSchema(schemaName)) {
+            databaseMetaData?.getTables(
+                null,
+                schemaName,
+                null,
+                arrayOf("TABLE")
+            )?.use { resultSet ->
+                while (resultSet.next()) {
+                    list.add(resultSet.getString("TABLE_NAME"))
+                }
+            }
+        }
+        return list
+    }
+
+    /**
+     * @param schemaName the name of the schema that should contain the tables
+     * @return a list of table names within the schema
+     */
+    fun viewNames(schemaName: String): List<String> {
+        val list = mutableListOf<String>()
+        if (containsSchema(schemaName)) {
+            databaseMetaData?.getTables(
+                null,
+                schemaName,
+                null,
+                arrayOf("VIEW")
+            )?.use { resultSet ->
+                while (resultSet.next()) {
+                    list.add(resultSet.getString("TABLE_NAME"))
+                }
+            }
+        }
+        return list
+    }
 
     /**
      * @return a list of all table names within the database
      */
-    val allTableNames: List<String>
+    val userDefinedTables: List<String>
+        get() {
+            val list = mutableListOf<String>()
+            databaseMetaData?.getTables(
+                null,
+                null,
+                null,
+                arrayOf("TABLE")
+            )?.use { resultSet ->
+                while (resultSet.next()) {
+                    list.add(resultSet.getString("TABLE_NAME"))
+                }
+            }
+            return list
+        }
+
+    /**
+     * @return a list of all schemas within the database
+     */
+    val schemas: List<String>
+        get() {
+            val list = mutableListOf<String>()
+            databaseMetaData?.schemas?.use { resultSet ->
+                while (resultSet.next()) {
+                    list.add(resultSet.getString("TABLE_SCHEM"))
+                }
+            }
+            return list
+        }
+
+    /**
+     * @return a list of all view names within the database
+     */
+    val views: List<String>
+        get() {
+            val list = mutableListOf<String>()
+            databaseMetaData?.getTables(
+                null,
+                null,
+                null,
+                arrayOf("VIEW")
+            )?.use { resultSet ->
+                while (resultSet.next()) {
+                    list.add(resultSet.getString("TABLE_NAME"))
+                }
+            }
+            return list
+        }
 
     /**
      * The name of the schema is first checked for an exact lexicographical match.
@@ -89,13 +174,33 @@ interface DatabaseIfc {
      * @param schemaName the schema name to check
      * @return true if the database contains a schema with the provided name
      */
-    fun containsSchema(schemaName: String): Boolean
+    fun containsSchema(schemaName: String): Boolean {
+        val schemaNames = schemas
+        for (name in schemaNames) {
+            if (name == schemaName) {
+                return true
+            } else if (name.equals(schemaName, ignoreCase = true)) {
+                return true
+            }
+        }
+        return false
+    }
 
     /**
      * @param tableName the unqualified table name to find as a string
      * @return true if the database contains the table
      */
-    fun containsTable(tableName: String): Boolean
+    fun containsTable(tableName: String): Boolean {
+        val tableNames = userDefinedTables
+        for (name in tableNames) {
+            if (name == tableName) {
+                return true
+            } else if (name.equals(tableName, ignoreCase = true)) {
+                return true
+            }
+        }
+        return false
+    }
 
     /**
      * Checks if tables exist in the specified schema
@@ -120,54 +225,66 @@ interface DatabaseIfc {
 
     /**
      * Writes the table as comma separated values
-     *
-     * @param tableName the unqualified name of the table to write
+     * @param schemaName the name of the schema that should contain the tables
+     * @param tableName the name of the table to write
      * @param header true means column names as the header included
      * @param out       the PrintWriter to write to.  The print writer is not closed.
      */
-    fun writeTableAsCSV(tableName: String, header: Boolean = true, out: PrintWriter) {
+    fun writeTableAsCSV(schemaName: String, tableName: String, header: Boolean = true, out: PrintWriter) {
+        if (!containsSchema(schemaName)) {
+            logger.trace("Schema: {} does not exist in database {}", schemaName, label)
+            return
+        }
         if (!containsTable(tableName)) {
             logger.trace("Table: {} does not exist in database {}", tableName, label)
             return
         }
-        val resultSet = selectAll(tableName)
-        writeToCSV(resultSet, header, out)
-        out.flush()
+        val resultSet = selectAll(schemaName, tableName)
+        if (resultSet != null) {
+            writeAsCSV(resultSet, header, out)
+            out.flush()
+        }
     }
 
     /**
      * Prints the table as comma separated values to the console
-     *
-     * @param tableName the unqualified name of the table to print
+     * @param schemaName the name of the schema that should contain the table
+     * @param tableName the name of the table to print
      */
-    fun printTableAsCSV(tableName: String, header: Boolean = true) {
-        writeTableAsCSV(tableName, header, PrintWriter(System.out))
+    fun printTableAsCSV(schemaName: String, tableName: String, header: Boolean = true) {
+        writeTableAsCSV(schemaName, tableName, header, PrintWriter(System.out))
     }
 
     /**
      * Writes the table as prettified text.
-     *
+     * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsText(tableName: String, out: PrintWriter) {
+    fun writeTableAsText(schemaName: String, tableName: String, out: PrintWriter) {
+        if (!containsSchema(schemaName)) {
+            logger.trace("Schema: {} does not exist in database {}", schemaName, label)
+            return
+        }
         if (!containsTable(tableName)) {
             logger.trace("Table: {} does not exist in database {}", tableName, label)
             return
         }
-        out.println(tableName)
-        val resultSet = selectAll(tableName)
-        writeAsText(resultSet, out)
-        out.flush()
+        val resultSet = selectAll(schemaName, tableName)
+        if (resultSet != null) {
+            out.println(tableName)
+            writeAsText(resultSet, out)
+            out.flush()
+        }
     }
 
     /**
      * Prints the table as prettified text to the console
-     *
+     * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
-    fun printTableAsText(tableName: String) {
-        writeTableAsText(tableName, PrintWriter(System.out))
+    fun printTableAsText(schemaName: String, tableName: String) {
+        writeTableAsText(schemaName, tableName, PrintWriter(System.out))
     }
 
     /**
@@ -179,7 +296,7 @@ interface DatabaseIfc {
     fun writeAllTablesAsText(schemaName: String, out: PrintWriter) {
         val tables = tableNames(schemaName)
         for (table in tables) {
-            writeTableAsText(table, out)
+            writeTableAsText(schemaName, table, out)
         }
     }
 
@@ -197,7 +314,7 @@ interface DatabaseIfc {
      * directory. The files are written to text files using the same name as
      * the tables in the database
      *
-     * @param schemaName            the name of the schema that should contain the tables
+     * @param schemaName the name of the schema that should contain the tables
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
      * @param header  true means all files will have the column headers
      */
@@ -207,22 +324,41 @@ interface DatabaseIfc {
         for (table in tables) {
             val path: Path = pathToOutPutDirectory.resolve("$table.csv")
             val writer = KSLFileUtil.createPrintWriter(path)
-            writeTableAsCSV(table, header, writer)
+            writeTableAsCSV(schemaName, table, header, writer)
             writer.close()
         }
     }
 
     /**
-     * @param tableName the unqualified name of the table to get all records from
+     * @param schemaName the schema containing the table
+     * @param tableName the name of the table within the schema to get all records from
      * @return a result holding all the records from the table
      */
-    fun selectAll(tableName: String): ResultSet
+    fun selectAll(schemaName: String, tableName: String): ResultSet? {
+        if (!containsSchema(schemaName)) {
+            return null
+        }
+        if (!containsTable(tableName)) {
+            return null
+        }
+        val sql = "select * from ${schemaName}.${tableName}"
+        return fetchResultSet(sql)
+    }
 
     /**
-     * @param table the unqualified name of the table
+     * @param schemaName the schema containing the table
+     * @param tableName the name of the table within the schema
      * @return true if the table contains no records (rows)
      */
-    fun isTableEmpty(table: String): Boolean
+    fun isTableEmpty(schemaName: String, tableName: String): Boolean {
+        val rs = selectAll(schemaName, tableName)
+        return if (rs == null) {
+            true
+        } else {
+            // first() returns false if there are no rows, so turn it into true
+            !rs.first()
+        }
+    }
 
     /**
      * @param schemaName the name of the schema that should contain the tables
@@ -237,10 +373,10 @@ interface DatabaseIfc {
      * @return true if all user defined tables are empty in the schema
      */
     fun areAllTablesEmpty(schemaName: String): Boolean {
-        val tables  = tableNames(schemaName)
+        val tables = tableNames(schemaName)
         var result = true
         for (t in tables) {
-            result = isTableEmpty(t)
+            result = isTableEmpty(schemaName, t)
             if (!result) {
                 break
             }
@@ -249,28 +385,41 @@ interface DatabaseIfc {
     }
 
     /**
+     * @param schemaName the name of the schema that should contain the table
      * @param tableName the unqualified name of the table
-     * @return a string that represents all the insert queries for the data that is currently in the
+     * @return a list that represents all the insert queries for the data that is currently in the
      * supplied table
      */
-    fun insertQueries(tableName: String): String
+    fun insertQueries(schemaName: String, tableName: String): List<String> {
+        val list = mutableListOf<String>()
+        if (!containsTable(schemaName, tableName)) {
+            return list
+        }
+        TODO("Not yet implemented")
+        return list
+    }
 
     /**
      * Prints the insert queries associated with the supplied table to the console
-     *
+     * @param schemaName the name of the schema that should contain the table
      * @param tableName the unqualified name of the table
      */
-    fun printInsertQueries(tableName: String) {
-        writeInsertQueries(tableName, PrintWriter(System.out))
+    fun printInsertQueries(schemaName: String, tableName: String) {
+        writeInsertQueries(schemaName, tableName, PrintWriter(System.out))
     }
 
     /**
      * Writes the insert queries associated with the supplied table to the PrintWriter
-     *
+     * @param schemaName the name of the schema that should contain the table
      * @param tableName the unqualified name of the table
      * @param out       the PrintWriter to write to
      */
-    fun writeInsertQueries(tableName: String, out: PrintWriter)
+    fun writeInsertQueries(schemaName: String, tableName: String, out: PrintWriter) {
+        val list = insertQueries(schemaName, tableName)
+        for (query in list) {
+            out.println(query)
+        }
+    }
 
     /**
      * Prints all table data as insert queries to the console
@@ -290,7 +439,7 @@ interface DatabaseIfc {
     fun writeAllTablesAsInsertQueries(schemaName: String, out: PrintWriter) {
         val tables = tableNames(schemaName)
         for (t in tables) {
-            writeInsertQueries(t, out)
+            writeInsertQueries(schemaName, t, out)
         }
     }
 
@@ -354,13 +503,12 @@ interface DatabaseIfc {
         }
     }
 
-    //TODO
-//    /**
-//     * @return returns a DbCreateTask that can be configured to execute on the database
-//     */
-//    fun create(): DbCreateTask.DbCreateTaskFirstStepIfc? {
-//        return DbCreateTaskBuilder(this)
-//    }
+    /**
+     * @return returns a DbCreateTask that can be configured to execute on the database
+     */
+    fun create(): DbCreateTask.DbCreateTaskFirstStepIfc? {
+        return DbCreateTask.DbCreateTaskBuilder(this)
+    }
 
     /**
      * Executes a single command on a database connection
@@ -446,12 +594,23 @@ interface DatabaseIfc {
     }
 
     /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
-     * form of a JDBC ResultSet. Errors in the SQL are the user's responsibility
+     * form of a JDBC ResultSet. Errors in the SQL are the user's responsibility. Any exceptions
+     * are logged and squashed.
      *
      * @param sql an SQL text string that is valid
-     * @return the results of the query
+     * @return the results of the query or null
      */
-    fun fetchResultSet(sql: String): ResultSet
+    fun fetchResultSet(sql: String): ResultSet? {
+        try {
+            connection.use { connection ->
+                val query = connection.prepareStatement(sql)
+                return query.executeQuery()
+            }
+        } catch (e: SQLException) {
+            logger.warn("The query $sql was not executed for database $label", e)
+        }
+        return null
+    }
 
     /**
      * Drops the named schema from the database. If no such schema exist with the name, then nothing is done.
@@ -460,58 +619,64 @@ interface DatabaseIfc {
      * @param tableNames the table names in the order that they must be dropped, must not be null
      * @param viewNames  the view names in the order that they must be dropped, must not be null
      */
-    fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>)
+    fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
+        if (containsSchema(schemaName)) {
+            // need to delete the schema and any tables/data
+            logger.debug("The database {} contains the schema {}", label, schemaName)
+            logger.debug("Attempting to drop the schema {}....", schemaName)
 
-//    fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
-//        if (containsSchema(schemaName)) {
-//            // need to delete the schema and any tables/data
-//            val schema: Schema? = getSchema(schemaName)
-//            logger.debug("The database {} contains the JSL schema {}", label, schema.getName())
-//            logger.debug("Attempting to drop the schema {}....", schema.getName())
-//
-//            //first drop any views, then the tables
-//            var table: org.jooq.Table<*>? = null
-//            val tables: List<org.jooq.Table<*>> = schema.getTables()
-//            logger.debug("Schema {} has jooq tables or views ... ", schema.getName())
-//            for (t in tables) {
-//                logger.debug("table or view: {}", t.getName())
-//            }
-//            for (name in viewNames) {
-//                if (name == null) {
-//                    continue
-//                }
-//                logger.debug("Checking for view {} ", name)
-//                table = getTable(schema, name)
-//                if (table != null) {
-//                    dSLContext.dropView(table).execute()
-//                    logger.debug("Dropped view {} ", table.getName())
-//                }
-//            }
-//            for (name in tableNames) {
-//                if (name == null) {
-//                    continue
-//                }
-//                logger.debug("Checking for table {} ", name)
-//                table = getTable(schema, name)
-//                if (table != null) {
-//                    dSLContext.dropTable(table).execute()
-//                    logger.debug("Dropped table {} ", table.getName())
-//                }
-//            }
-//            dSLContext.dropSchema(schema.getName()).execute() // works
-//            //db.getDSLContext().dropSchema(schema).execute(); // doesn't work
-//            // db.getDSLContext().execute("drop schema jsl_db restrict"); //works
-//            //boolean exec = db.executeCommand("drop schema jsl_db restrict");
-//            logger.debug("Completed the dropping of the schema {}", schema.getName())
-//        } else {
-//            logger.debug("The database {} does not contain the schema {}", label, schemaName)
-//            val schemas: List<Schema> = dSLContext.meta().getSchemas()
-//            logger.debug("The database {} has the following schemas", label)
-//            for (s in schemas) {
-//                logger.debug("schema: {}", s.getName())
-//            }
-//        }
-//    }
+            //first drop any views, then the tables
+            val tables = tableNames(schemaName)
+            logger.debug("Schema {} has tables ... ", schemaName)
+            for (t in tables) {
+                logger.debug("table {}", t)
+            }
+            val views = viewNames(schemaName)
+            logger.debug("Schema {} has views ... ", schemaName)
+            for (v in views) {
+                logger.debug("table {}", v)
+            }
+            for (name in viewNames) {
+                logger.debug("Checking for view {} ", name)
+                if (views.contains(name)) {
+                    val sql = "drop view $name"
+                    val b = executeCommand(sql)
+                    if (b) {
+                        logger.debug("Dropped view {} ", name)
+                    } else {
+                        logger.debug("Unable to drop view {} ", name)
+                    }
+                }
+            }
+            for (name in tableNames) {
+                logger.debug("Checking for table {} ", name)
+                if (tables.contains(name)) {
+                    val sql = "drop table $name"
+                    val b = executeCommand(sql)
+                    if (b) {
+                        logger.debug("Dropped table {} ", name)
+                    } else {
+                        logger.debug("Unable to drop table {} ", name)
+                    }
+                }
+
+            }
+            val sql = "drop schema $schemaName cascade"
+            val b = executeCommand(sql)
+            if (b) {
+                logger.debug("Dropped schema {} ", schemaName)
+            } else {
+                logger.debug("Unable to drop schema {} ", schemaName)
+            }
+            logger.debug("Completed the dropping of the schema {}", schemaName)
+        } else {
+            logger.debug("The database {} does not contain the schema {}", label, schemaName)
+            logger.debug("The database {} has the following schemas", label)
+            for (s in schemas) {
+                logger.debug("schema: {}", s)
+            }
+        }
+    }
 
     companion object : KLoggable {
 
@@ -519,9 +684,9 @@ interface DatabaseIfc {
 
         const val DEFAULT_DELIMITER = ";"
 
-        val NEW_DELIMITER_PATTERN = Pattern.compile("(?:--|\\/\\/|\\#)?!DELIMITER=(.+)")
+        val NEW_DELIMITER_PATTERN: Pattern = Pattern.compile("(?:--|\\/\\/|\\#)?!DELIMITER=(.+)")
 
-        val COMMENT_PATTERN = Pattern.compile("^(?:--|\\/\\/|\\#).+")
+        val COMMENT_PATTERN: Pattern = Pattern.compile("^(?:--|\\/\\/|\\#).+")
 
         /**
          * Method to parse a SQL script for the database. The script honors SQL
@@ -545,7 +710,6 @@ interface DatabaseIfc {
          * @throws IOException if there is a problem
          */
         fun parseQueriesInSQLScript(filePath: Path): List<String> {
-            requireNotNull(filePath) { "The supplied path was null!" }
             val queries: MutableList<String> = ArrayList()
             val inFile = Files.newInputStream(filePath)
             val reader = BufferedReader(InputStreamReader(inFile))
@@ -701,7 +865,7 @@ interface DatabaseIfc {
          * @param header true (default) indicates include the header
          * @param writer the writer to use
          */
-        fun writeToCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer){
+        fun writeAsCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer) {
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
             csvWriter.writeAll(resultSet, header)
@@ -711,7 +875,7 @@ interface DatabaseIfc {
          * @param resultSet the result set to write out as text
          * @param writer the writer to use
          */
-        fun writeAsText(resultSet: ResultSet, writer: Writer){
+        fun writeAsText(resultSet: ResultSet, writer: PrintWriter) {
             TODO("Not implemented yet")
         }
 
@@ -719,8 +883,18 @@ interface DatabaseIfc {
          * @param resultSet the result set to write out as Markdown text
          * @param writer the writer to use
          */
-        fun writeAsMarkdown(resultSet: ResultSet, writer: Writer){
+        fun writeAsMarkdown(resultSet: ResultSet, writer: PrintWriter) {
             TODO("Not implemented yet")
         }
+
+        /**
+         * @param resultSet the result set to turn into a CashedRowSet
+         */
+        fun createCachedRowSet(resultSet: ResultSet): CachedRowSet {
+            val cachedRowSet = RowSetProvider.newFactory().createCachedRowSet()
+            cachedRowSet.populate(resultSet)
+            return cachedRowSet
+        }
+
     }
 }

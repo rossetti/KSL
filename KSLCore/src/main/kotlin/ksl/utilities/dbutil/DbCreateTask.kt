@@ -15,7 +15,6 @@
  */
 package ksl.utilities.dbutil
 
-import ksl.utilities.exceptions.DataAccessException
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -44,54 +43,114 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
     private var pathToTablesScript: Path? = null
     private var pathToInsertScript: Path? = null
     private var pathToAlterScript: Path? = null
-    private var myInsertTableOrder: List<String> = ArrayList()
-    private var myCreationScriptCommands: List<String> = ArrayList()
-    private var myTableCommands: List<String> = ArrayList()
-    private var myInsertCommands: List<String> = ArrayList()
-    private var myAlterCommands: List<String> = ArrayList()
+    private var myInsertTableOrder: List<String> = mutableListOf()
+    private var myCreationScriptCommands: List<String> = mutableListOf()
+    private var myTableCommands: List<String> = mutableListOf()
+    private var myInsertCommands: List<String> = mutableListOf()
+    private var myAlterCommands: List<String> = mutableListOf()
 
     /**
      * @return the type of the command sequence specified during the builder process
      */
-    var type: Type
+    lateinit var type: Type
+
     var state = State.UN_EXECUTED
         private set
-    private val myDatabase: DatabaseIfc
+
+    private val myDatabase: DatabaseIfc = builder.database
+
+    init {
+        doBuild(builder)
+    }
+
+    private fun doBuild(builder: DbCreateTaskBuilder) {
+
+        type = Type.NONE
+        if (builder.pathToCreationScript != null) {
+            // full creation script provided
+            type = Type.FULL_SCRIPT
+            pathToCreationScript = builder.pathToCreationScript
+            myCreationScriptCommands = fillCommandsFromScript(builder.pathToCreationScript!!)
+            if (myCreationScriptCommands.isEmpty()) {
+                state = State.NO_TABLES_ERROR
+                return
+            }
+        } else {
+            if (builder.pathToTablesScript != null) {
+                // use script to create database structure
+                type = Type.TABLES
+                pathToTablesScript = builder.pathToTablesScript
+                myTableCommands = fillCommandsFromScript(builder.pathToTablesScript!!)
+                if (myTableCommands.isEmpty()) {
+                    state = State.NO_TABLES_ERROR
+                    return
+                }
+                // now check for insert
+                if (builder.pathToInsertScript != null) {
+                    // prefer insert via SQL script if it exists
+                    type = Type.TABLES_INSERT
+                    pathToInsertScript = builder.pathToInsertScript
+                    myInsertCommands = fillCommandsFromScript(builder.pathToInsertScript!!)
+                } else {
+                    // could be Excel insert
+                    if (builder.pathToExcelWorkbook != null) {
+                        type = Type.TABLES_EXCEL
+                        excelWorkbookPathForDataInsert = builder.pathToExcelWorkbook
+                        val list: List<String> = builder.tableNamesInInsertOrder!!
+                        myInsertTableOrder = ArrayList(list)
+                    }
+                }
+                // now check for alter
+                if (builder.pathToAlterScript != null) {
+                    pathToAlterScript = builder.pathToAlterScript
+                    myAlterCommands = fillCommandsFromScript(builder.pathToAlterScript!!)
+                    if (type == Type.TABLES_INSERT) {
+                        type = Type.TABLES_INSERT_ALTER
+                    } else if (type == Type.TABLES_EXCEL) {
+                        type = Type.TABLES_EXCEL_ALTER
+                    } else if (type == Type.TABLES) {
+                        type = Type.TABLES_ALTER
+                    }
+                }
+            }
+        }
+        executeCreateTask()
+    }
 
     /**
      *
      * @return a list of table names in the order in which they need to be inserted. May be empty
      */
     val insertTableOrder: List<String>
-        get() = Collections.unmodifiableList(myInsertTableOrder)
+        get() = myInsertTableOrder
 
     /**
      *
      * @return a list of all the commands that were in the creation script, may be empty
      */
     val creationScriptCommands: List<String>
-        get() = Collections.unmodifiableList(myCreationScriptCommands)
+        get() = myCreationScriptCommands
 
     /**
      *
      * @return a list of the create table commands, may be empty
      */
     val tableCommands: List<String>
-        get() = Collections.unmodifiableList(myTableCommands)
+        get() = myTableCommands
 
     /**
      *
      * @return a list of the insert commands, may be empty
      */
     val insertCommands: List<String>
-        get() = Collections.unmodifiableList(myInsertCommands)
+        get() = myInsertCommands
 
     /**
      *
      * @return a list of the alter commands, may be empty
      */
     val alterCommands: List<String>
-        get() = Collections.unmodifiableList(myAlterCommands)
+        get() = myAlterCommands
 
     override fun toString(): String {
         val sb = StringBuilder()
@@ -133,58 +192,6 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
         return sb.toString()
     }
 
-    init {
-        myDatabase = builder.database
-        type = Type.NONE
-        if (builder.pathToCreationScript != null) {
-            // full creation script provided
-            type = Type.FULL_SCRIPT
-            pathToCreationScript = builder.pathToCreationScript
-            myCreationScriptCommands = fillCommandsFromScript(builder.pathToCreationScript)
-            if (myCreationScriptCommands.isEmpty()) {
-                state = State.NO_TABLES_ERROR
-                return
-            }
-        } else {
-            if (builder.pathToTablesScript != null) {
-                // use script to create database structure
-                type = Type.TABLES
-                pathToTablesScript = builder.pathToTablesScript
-                myTableCommands = fillCommandsFromScript(builder.pathToTablesScript)
-                if (myTableCommands.isEmpty()) {
-                    state = State.NO_TABLES_ERROR
-                    return
-                }
-                // now check for insert
-                if (builder.pathToInsertScript != null) {
-                    // prefer insert via SQL script if it exists
-                    type = Type.TABLES_INSERT
-                    pathToInsertScript = builder.pathToInsertScript
-                    myInsertCommands = fillCommandsFromScript(builder.pathToInsertScript)
-                } else {
-                    // could be Excel insert
-                    if (builder.pathToExcelWorkbook != null) {
-                        type = Type.TABLES_EXCEL
-                        excelWorkbookPathForDataInsert = builder.pathToExcelWorkbook
-                        myInsertTableOrder = ArrayList(builder.tableNamesInInsertOrder)
-                    }
-                }
-                // now check for alter
-                if (builder.pathToAlterScript != null) {
-                    pathToAlterScript = builder.pathToAlterScript
-                    myAlterCommands = fillCommandsFromScript(builder.pathToAlterScript)
-                    if (type == Type.TABLES_INSERT) {
-                        type = Type.TABLES_INSERT_ALTER
-                    } else if (type == Type.TABLES_EXCEL) {
-                        type = Type.TABLES_EXCEL_ALTER
-                    } else if (type == Type.TABLES) {
-                        type = Type.TABLES_ALTER
-                    }
-                }
-            }
-        }
-        executeCreateTask()
-    }
 
     /**
      * Attempts to execute a configured set of tasks that will create, possibly fill, and
@@ -196,17 +203,14 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
         return when (state) {
             State.UN_EXECUTED ->                 // execute the task
                 dbCreateTaskExecution()
-
             State.EXECUTED -> {
                 DatabaseIfc.logger.error("Tried to execute an already executed create task.\n {}", this)
                 false
             }
-
             State.EXECUTION_ERROR -> {
                 DatabaseIfc.logger.error("Tried to execute a previously executed task that had errors.\n {}", this)
                 false
             }
-
             State.NO_TABLES_ERROR -> {
                 DatabaseIfc.logger.error("Tried to execute a create task with no tables created.\n {}", this)
                 false
@@ -275,12 +279,15 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.TABLES_EXCEL_ALTER -> {
-                DatabaseIfc.logger.info("Attempting to execute tables create plus Excel plus alter import task.\n {}", this)
+                DatabaseIfc.logger.info(
+                    "Attempting to execute tables create plus Excel plus alter import task.\n {}",
+                    this
+                )
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = try {
                         TODO("write workbook to database")
- //                       ExcelUtil.writeWorkbookToDatabase(excelWorkbookPathForDataInsert, true, myDatabase, insertTableOrder)
+                        //                       ExcelUtil.writeWorkbookToDatabase(excelWorkbookPathForDataInsert, true, myDatabase, insertTableOrder)
                         myDatabase.executeCommands(alterCommands)
                     } catch (e: IOException) {
                         false
@@ -303,8 +310,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
      * @param pathToScript the script to parse
      * @return the list of commands from the script
      */
-    private fun fillCommandsFromScript(pathToScript: Path?): List<String> {
-        requireNotNull(pathToScript) { "The creation script path must not be null" }
+    private fun fillCommandsFromScript(pathToScript: Path): List<String> {
         require(!Files.notExists(pathToScript)) { "The creation script file does not exist" }
         val commands: MutableList<String> = ArrayList()
         try {
@@ -325,6 +331,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
     class DbCreateTaskBuilder internal constructor(database: DatabaseIfc) : DbCreateTaskExecuteStepIfc,
         WithCreateScriptStepIfc, WithTablesScriptStepIfc, DbCreateTaskFirstStepIfc, AfterTablesOnlyStepIfc,
         DbInsertStepIfc, DBAfterInsertStepIfc, DBAddConstraintsStepIfc {
+
         internal var pathToCreationScript: Path? = null
         internal var pathToTablesScript: Path? = null
         internal var pathToInsertScript: Path? = null
@@ -338,14 +345,12 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
         }
 
         override fun withCreationScript(pathToScript: Path): DbCreateTaskExecuteStepIfc {
-            requireNotNull(pathToScript) { "The provided creation script path was null" }
             require(!Files.notExists(pathToScript)) { "The creation script file does not exist" }
             pathToCreationScript = pathToScript
             return this
         }
 
         override fun withTables(pathToScript: Path): AfterTablesOnlyStepIfc {
-            requireNotNull(pathToScript) { "The provided table script path was null" }
             require(!Files.notExists(pathToScript)) { "The create table script file does not exist" }
             pathToTablesScript = pathToScript
             return this
@@ -355,23 +360,19 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             toExcelWorkbook: Path,
             tableNamesInInsertOrder: List<String>
         ): DBAfterInsertStepIfc {
-            requireNotNull(toExcelWorkbook) { "The provided workbook script path was null" }
             require(!Files.notExists(toExcelWorkbook)) { "The Excel workbook file does not exist" }
-            requireNotNull(tableNamesInInsertOrder) { "The provided list of table names was null" }
             pathToExcelWorkbook = toExcelWorkbook
             this.tableNamesInInsertOrder = ArrayList(tableNamesInInsertOrder)
             return this
         }
 
         override fun withInserts(toInsertScript: Path): DBAfterInsertStepIfc {
-            requireNotNull(toInsertScript) { "The provided inset script path was null" }
             require(!Files.notExists(toInsertScript)) { "The insert script file does not exist" }
             pathToInsertScript = toInsertScript
             return this
         }
 
         override fun withConstraints(toAlterScript: Path): DbCreateTaskExecuteStepIfc {
-            requireNotNull(toAlterScript) { "The provided alter script path was null" }
             require(!Files.notExists(toAlterScript)) { "The alter table script file does not exist" }
             pathToAlterScript = toAlterScript
             return this
@@ -411,7 +412,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
     }
 
     interface AfterTablesOnlyStepIfc : DbCreateTaskExecuteStepIfc, DbInsertStepIfc
-    
+
     interface DbCreateStepIfc : DbCreateTaskExecuteStepIfc {
         /**
          * @param toCreateScript the path to a script that will create the database, must not be null
@@ -449,7 +450,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
     }
 
     interface DBAfterInsertStepIfc : DBAddConstraintsStepIfc, DbCreateTaskExecuteStepIfc
-    
+
     interface DbCreateTaskExecuteStepIfc {
         /**
          * Finishes the builder process of building the creation commands

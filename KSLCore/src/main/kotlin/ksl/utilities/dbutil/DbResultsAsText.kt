@@ -1,0 +1,162 @@
+package ksl.utilities.dbutil
+
+import java.sql.Types
+import javax.sql.rowset.CachedRowSet
+
+class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat : String? = null) : Iterable<List<String>> {
+
+    private val myColumns = mutableListOf<DbColumn>()
+    val columns : List<DbColumn>
+        get() = myColumns
+    private val tableNames = mutableListOf<String>()
+    val numRows = rowSet.size()
+
+    init {
+        val md = rowSet.metaData
+        val columnCount = md.columnCount
+        for(i in 1..columnCount){
+            val column = DbColumn(i, md.getColumnLabel(i), md.getColumnType(i), md.getColumnTypeName(i))
+            myColumns.add(column)
+            val tn = md.getTableName(i)
+            if (!tableNames.contains(tn)){
+                tableNames.add(tn)
+            }
+        }
+    }
+
+    /** Converts the column values to string values. Any instance that cannot
+     *  be converted is replaced with a string representing the SQL type in parentheses.
+     *  For example, SQL type BLOB will be (BLOB).
+     *
+     * @param rowNum the row of the row set to convert
+     * @return the values across the columns for the row as strings
+     */
+    fun rowAsStrings(rowNum : Int) : List<String> {
+        if (rowNum !in 1..numRows){
+            return emptyList()
+        }
+        val list = mutableListOf<String>()
+        rowSet.absolute(rowNum)
+        for(i in 1.. myColumns.size){
+            list.add(columnObjectAsString(i))
+        }
+        return list
+    }
+
+    private fun columnObjectAsString(col: Int) : String {
+        val any = rowSet.getObject(col) ?: return "NULL"
+        val index = col - 1 // zero based indexing of list
+        val dbColumn = myColumns[index]
+        return when(dbColumn.textType){
+            TextType.BOOLEAN,
+            TextType.DATETIME,
+            TextType.INTEGER,
+            TextType.STRING -> any.toString()
+            TextType.DOUBLE -> {
+                val x : Double = try {
+                    any.toString().toDouble()
+                } catch (e: NumberFormatException) {
+                    Double.NaN
+                }
+                dFormat?.format(x) ?: x.toString()
+            }
+            else -> "($dbColumn.typeName)"
+        }
+    }
+
+    companion object {
+        /**
+         * Default maximum number of rows to query and print.
+         */
+        const val DEFAULT_MAX_ROWS = 10
+
+        /**
+         * Default maximum width for text columns
+         * (like a `VARCHAR`) column.
+         */
+        const val DEFAULT_MAX_TEXT_COL_WIDTH = 150
+
+        /** Mapping sql type to text printing type
+         * @param type the SQL type via java.sql.Types
+         * @return the corresponding type for text printing conversion
+         */
+        fun textType(type: Int): TextType {
+            return when (type) {
+                Types.BIGINT, Types.TINYINT, Types.SMALLINT, Types.INTEGER -> TextType.INTEGER
+                Types.REAL, Types.DOUBLE, Types.DECIMAL -> TextType.DOUBLE
+                Types.DATE, Types.TIME, Types.TIME_WITH_TIMEZONE, Types.TIMESTAMP,
+                Types.TIMESTAMP_WITH_TIMEZONE -> TextType.DATETIME
+                Types.BOOLEAN -> TextType.BOOLEAN
+                Types.VARCHAR, Types.NVARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR,
+                Types.CHAR, Types.NCHAR -> TextType.STRING
+                else -> TextType.OTHER
+            }
+        }
+    }
+
+    enum class TextType {
+        /**
+         * Column type category for `CHAR`, `VARCHAR`
+         * and similar text columns.
+         */
+        STRING,
+
+        /**
+         * Column type category for `TINYINT`, `SMALLINT`,
+         * `INT` and `BIGINT` columns.
+         */
+        INTEGER,
+
+        /**
+         * Column type category for `REAL`, `DOUBLE`,
+         * and `DECIMAL` columns.
+         */
+        DOUBLE,
+
+        /**
+         * Column type category for date and time related columns like
+         * `DATE`, `TIME`, `TIMESTAMP` etc.
+         */
+        DATETIME,
+
+        /**
+         * Column type category for `BOOLEAN` columns.
+         */
+        BOOLEAN,
+
+        /**
+         * Column type category for types for which the type name
+         * will be printed instead of the content, like `BLOB`,
+         * `BINARY`, `ARRAY` etc.
+         */
+        OTHER
+    }
+
+    class DbColumn(val index: Int, val name: String, val type: Int, val typeName: String) {
+        var width: Int = name.length
+        val textType = textType(type)
+        var justify = ""
+        fun justifyLeft() {
+            justify = "-"
+        }
+    }
+
+    override fun iterator(): Iterator<List<String>> {
+        return TextRowsIterator()
+    }
+
+    inner class TextRowsIterator : Iterator<List<String>> {
+        private var current :Int = 0
+        private val end = rowSet.size()
+
+        override fun hasNext(): Boolean {
+            return current < end
+        }
+
+        override fun next(): List<String> {
+            current++
+            return rowAsStrings(current)
+        }
+
+    }
+}
