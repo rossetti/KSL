@@ -55,21 +55,13 @@ interface DatabaseIfc {
      * @throws SQLException if there is a problem with the connection
      */
     val connection: Connection
-        get() = dataSource.connection
-
-    /**
-     * @return the meta-data about the database if available, or null
-     */
-    val databaseMetaData: DatabaseMetaData?
         get() {
-            var metaData: DatabaseMetaData? = null
-            try {
-                connection.use { connection -> metaData = connection.metaData }
-            } catch (e: SQLException) {
-                logger.warn("The meta data was not available for database $label", e)
-            }
-            return metaData
+            val c = dataSource.connection
+            logger.debug { "Established a connection to Database $label " }
+            return c
         }
+
+    val dbURL: String?
 
     /**
      * @param schemaName the name of the schema that should contain the tables
@@ -78,15 +70,20 @@ interface DatabaseIfc {
     fun tableNames(schemaName: String): List<String> {
         val list = mutableListOf<String>()
         if (containsSchema(schemaName)) {
-            databaseMetaData?.getTables(
-                null,
-                schemaName,
-                null,
-                arrayOf("TABLE")
-            )?.use { resultSet ->
-                while (resultSet.next()) {
-                    list.add(resultSet.getString("TABLE_NAME"))
+            try {
+                connection.use { connection ->
+                    val metaData = connection.metaData
+                    val rs = metaData.getTables(null, schemaName, null, arrayOf("TABLE"))
+                    while (rs.next()) {
+                        list.add(rs.getString("TABLE_NAME"))
+                    }
+                    rs.close()
                 }
+            } catch (e: SQLException) {
+                logger.warn(
+                    "Unable to get table names for schema $schemaName. The meta data was not available for database $label",
+                    e
+                )
             }
         }
         return list
@@ -99,15 +96,20 @@ interface DatabaseIfc {
     fun viewNames(schemaName: String): List<String> {
         val list = mutableListOf<String>()
         if (containsSchema(schemaName)) {
-            databaseMetaData?.getTables(
-                null,
-                schemaName,
-                null,
-                arrayOf("VIEW")
-            )?.use { resultSet ->
-                while (resultSet.next()) {
-                    list.add(resultSet.getString("TABLE_NAME"))
+            try {
+                connection.use { connection ->
+                    val metaData = connection.metaData
+                    val rs = metaData.getTables(null, schemaName, null, arrayOf("VIEW"))
+                    while (rs.next()) {
+                        list.add(rs.getString("TABLE_NAME"))
+                    }
+                    rs.close()
                 }
+            } catch (e: SQLException) {
+                logger.warn(
+                    "Unable to get view names for schema $schemaName. The meta data was not available for database $label",
+                    e
+                )
             }
         }
         return list
@@ -119,15 +121,20 @@ interface DatabaseIfc {
     val userDefinedTables: List<String>
         get() {
             val list = mutableListOf<String>()
-            databaseMetaData?.getTables(
-                null,
-                null,
-                null,
-                arrayOf("TABLE")
-            )?.use { resultSet ->
-                while (resultSet.next()) {
-                    list.add(resultSet.getString("TABLE_NAME"))
+            try {
+                connection.use { connection ->
+                    val metaData = connection.metaData
+                    val rs = metaData.getTables(null, null, null, arrayOf("TABLE"))
+                    while (rs.next()) {
+                        list.add(rs.getString("TABLE_NAME"))
+                    }
+                    rs.close()
                 }
+            } catch (e: SQLException) {
+                logger.warn(
+                    "Unable to get database user defined tables. The meta data was not available for database $label",
+                    e
+                )
             }
             return list
         }
@@ -138,10 +145,17 @@ interface DatabaseIfc {
     val schemas: List<String>
         get() {
             val list = mutableListOf<String>()
-            databaseMetaData?.schemas?.use { resultSet ->
-                while (resultSet.next()) {
-                    list.add(resultSet.getString("TABLE_SCHEM"))
+            try {
+                connection.use { connection ->
+                    val metaData = connection.metaData
+                    val rs = metaData.schemas
+                    while (rs.next()) {
+                        list.add(rs.getString("TABLE_SCHEM"))
+                    }
+                    rs.close()
                 }
+            } catch (e: SQLException) {
+                logger.warn("Unable to get database schemas. The meta data was not available for database $label", e)
             }
             return list
         }
@@ -152,15 +166,17 @@ interface DatabaseIfc {
     val views: List<String>
         get() {
             val list = mutableListOf<String>()
-            databaseMetaData?.getTables(
-                null,
-                null,
-                null,
-                arrayOf("VIEW")
-            )?.use { resultSet ->
-                while (resultSet.next()) {
-                    list.add(resultSet.getString("TABLE_NAME"))
+            try {
+                connection.use { connection ->
+                    val metaData = connection.metaData
+                    val rs = metaData.getTables(null, null, null, arrayOf("VIEW"))
+                    while (rs.next()) {
+                        list.add(rs.getString("TABLE_NAME"))
+                    }
+                    rs.close()
                 }
+            } catch (e: SQLException) {
+                logger.warn("Unable to get database views. The meta data was not available for database $label", e)
             }
             return list
         }
@@ -189,7 +205,7 @@ interface DatabaseIfc {
 
     /**
      * @param tableName the unqualified table name to find as a string
-     * @return true if the database contains the table
+     * @return true if the database contains the named table
      */
     fun containsTable(tableName: String): Boolean {
         val tableNames = userDefinedTables
@@ -231,10 +247,12 @@ interface DatabaseIfc {
      * @param header true means column names as the header included
      * @param out       the PrintWriter to write to.  The print writer is not closed.
      */
-    fun writeTableAsCSV(schemaName: String, tableName: String, header: Boolean = true, out: PrintWriter) {
-        if (!containsSchema(schemaName)) {
-            logger.trace("Schema: {} does not exist in database {}", schemaName, label)
-            return
+    fun writeTableAsCSV(schemaName: String? = null, tableName: String, header: Boolean = true, out: PrintWriter) {
+        if (schemaName != null) {
+            if (!containsSchema(schemaName)) {
+                logger.trace("Schema: {} does not exist in database {}", schemaName, label)
+                return
+            }
         }
         if (!containsTable(tableName)) {
             logger.trace("Table: {} does not exist in database {}", tableName, label)
@@ -254,7 +272,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the name of the table to print
      */
-    fun printTableAsCSV(schemaName: String, tableName: String, header: Boolean = true) {
+    fun printTableAsCSV(schemaName: String? = null, tableName: String, header: Boolean = true) {
         writeTableAsCSV(schemaName, tableName, header, PrintWriter(System.out))
     }
 
@@ -264,13 +282,15 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsText(schemaName: String, tableName: String, out: PrintWriter) {
-        if (!containsSchema(schemaName)) {
-            logger.trace("Schema: {} does not exist in database {}", schemaName, label)
-            return
+    fun writeTableAsText(schemaName: String? = null, tableName: String, out: PrintWriter) {
+        if (schemaName != null) {
+            if (!containsSchema(schemaName)) {
+                logger.info("Schema: {} does not exist in database {}", schemaName, label)
+                return
+            }
         }
         if (!containsTable(tableName)) {
-            logger.trace("Table: {} does not exist in database {}", tableName, label)
+            logger.info("Table: {} does not exist in database {}", tableName, label)
             return
         }
         val resultSet = selectAll(schemaName, tableName)
@@ -287,7 +307,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
-    fun printTableAsText(schemaName: String, tableName: String) {
+    fun printTableAsText(schemaName: String? = null, tableName: String) {
         writeTableAsText(schemaName, tableName, PrintWriter(System.out))
     }
 
@@ -296,7 +316,7 @@ interface DatabaseIfc {
      *
      * @param schemaName the name of the schema that should contain the tables
      */
-    fun printAllTablesAsText(schemaName: String) {
+    fun printAllTablesAsText(schemaName: String? = null) {
         writeAllTablesAsText(schemaName, PrintWriter(System.out))
     }
 
@@ -306,8 +326,12 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsText(schemaName: String, out: PrintWriter) {
-        val tables = tableNames(schemaName)
+    fun writeAllTablesAsText(schemaName: String? = null, out: PrintWriter) {
+        val tables = if (schemaName != null) {
+            tableNames(schemaName)
+        } else {
+            userDefinedTables
+        }
         for (table in tables) {
             writeTableAsText(schemaName, table, out)
         }
@@ -322,9 +346,13 @@ interface DatabaseIfc {
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
      * @param header  true means all files will have the column headers
      */
-    fun writeAllTablesAsCSV(schemaName: String, pathToOutPutDirectory: Path, header: Boolean = true) {
+    fun writeAllTablesAsCSV(schemaName: String? = null, pathToOutPutDirectory: Path, header: Boolean = true) {
         Files.createDirectories(pathToOutPutDirectory)
-        val tables = tableNames(schemaName)
+        val tables = if (schemaName != null) {
+            tableNames(schemaName)
+        } else {
+            userDefinedTables
+        }
         for (table in tables) {
             val path: Path = pathToOutPutDirectory.resolve("$table.csv")
             val writer = KSLFileUtil.createPrintWriter(path)
@@ -338,14 +366,27 @@ interface DatabaseIfc {
      * @param tableName the name of the table within the schema to get all records from
      * @return a result holding all the records from the table
      */
-    fun selectAll(schemaName: String, tableName: String): ResultSet? {
-        if (!containsSchema(schemaName)) {
-            return null
+    fun selectAll(schemaName: String? = null, tableName: String): ResultSet? {
+        if (schemaName != null) {
+            if (!containsSchema(schemaName)) {
+                return null
+            }
         }
         if (!containsTable(tableName)) {
             return null
         }
-        val sql = "select * from ${schemaName}.${tableName}"
+        return if (schemaName != null) {
+            selectAllFromTable("${schemaName}.${tableName}")
+        } else {
+            selectAllFromTable(tableName)
+        }
+    }
+
+    /**
+     * @param tableName qualified or unqualified name of an existing table in the database
+     */
+    private fun selectAllFromTable(tableName: String): ResultSet? {
+        val sql = "select * from $tableName"
         return fetchResultSet(sql)
     }
 
@@ -354,7 +395,7 @@ interface DatabaseIfc {
      * @param tableName the name of the table within the schema
      * @return true if the table contains no records (rows)
      */
-    fun isTableEmpty(schemaName: String, tableName: String): Boolean {
+    fun isTableEmpty(schemaName: String? = null, tableName: String): Boolean {
         val rs = selectAll(schemaName, tableName)
         return if (rs == null) {
             true
@@ -370,7 +411,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @return true if at least one user defined table in the schema has data
      */
-    fun hasData(schemaName: String): Boolean {
+    fun hasData(schemaName: String? = null): Boolean {
         return !areAllTablesEmpty(schemaName)
     }
 
@@ -378,8 +419,12 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @return true if all user defined tables are empty in the schema
      */
-    fun areAllTablesEmpty(schemaName: String): Boolean {
-        val tables = tableNames(schemaName)
+    fun areAllTablesEmpty(schemaName: String? = null): Boolean {
+        val tables = if (schemaName != null) {
+            tableNames(schemaName)
+        } else {
+            userDefinedTables
+        }
         var result = true
         for (t in tables) {
             result = isTableEmpty(schemaName, t)
@@ -458,16 +503,21 @@ interface DatabaseIfc {
      * @param wbDirectory directory of the workbook, if null uses the working directory
      * @throws IOException if there is a problem
      */
-    fun writeDbToExcelWorkbook(schemaName: String, wbName: String? = null, wbDirectory: Path? = null) {
-        Objects.requireNonNull(schemaName, "The schema name was null")
-        if (!containsSchema(schemaName)) {
-            logger.warn(
-                "Attempting to write to Excel: The supplied schema name {} is not in database {}",
-                schemaName, label
-            )
-            return
+    fun writeDbToExcelWorkbook(schemaName: String? = null, wbName: String? = null, wbDirectory: Path? = null) {
+        if (schemaName != null){
+            if (!containsSchema(schemaName)) {
+                logger.warn(
+                    "Attempting to write to Excel: The supplied schema name {} is not in database {}",
+                    schemaName, label
+                )
+                return
+            }
         }
-        val tableNames = tableNames(schemaName)
+        val tableNames = if (schemaName != null) {
+            tableNames(schemaName)
+        } else {
+            userDefinedTables
+        }
         if (tableNames.isEmpty()) {
             logger.warn(
                 "The supplied schema name {} had no tables to write to Excel in database {}",
@@ -889,7 +939,7 @@ interface DatabaseIfc {
             val tw = DbResultsAsText(rowSet)
             writer.println(tw.header)
             val iterator = tw.formattedRowIterator()
-            while(iterator.hasNext()){
+            while (iterator.hasNext()) {
                 writer.println(iterator.next())
                 writer.println(tw.rowSeparator)
             }
@@ -903,8 +953,8 @@ interface DatabaseIfc {
             val rowSet = createCachedRowSet(resultSet)
             val tw = DbResultsAsText(rowSet)
             val formats = mutableListOf<MarkDown.ColFmt>()
-            for(c in tw.columns){
-                if (c.textType == DbResultsAsText.TextType.STRING){
+            for (c in tw.columns) {
+                if (c.textType == DbResultsAsText.TextType.STRING) {
                     formats.add(MarkDown.ColFmt.LEFT)
                 } else {
                     formats.add(MarkDown.ColFmt.CENTER)
@@ -913,7 +963,7 @@ interface DatabaseIfc {
             val h = MarkDown.tableHeader(tw.columnNames, formats)
             writer.println(h)
             val iterator = tw.iterator()
-            while(iterator.hasNext()){
+            while (iterator.hasNext()) {
                 val line = MarkDown.tableRow(iterator.next())
                 writer.println(line)
             }

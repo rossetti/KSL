@@ -164,11 +164,11 @@
         </encoder>
     </appender>
 
-    <appender name="JSLDB" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/jslDbLog.log</file>
+    <appender name="KSLDB" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/kslDbLog.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- daily rollover -->
-            <fileNamePattern>logs/jslDbLog.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/kslDbLog.%d{yyyy-MM-dd}.log</fileNamePattern>
 
             <!-- keep 2 days' worth of history capped at 30MB total size -->
             <maxHistory>2</maxHistory>
@@ -215,8 +215,8 @@
         </encoder>
     </appender>
 
-    <logger name="ksl.utilities.dbutil.DatabaseIfc" level="DEBUG" additivity="false">
-        <appender-ref ref="JSLDB" />
+    <logger name="ksl.utilities.dbutil.DatabaseIfc" level="INFO" additivity="false">
+        <appender-ref ref="KSLDB" />
     </logger>
 
     <logger name="com.zaxxer.hikari" level="OFF" additivity="false">
@@ -231,7 +231,7 @@
         <appender-ref ref="KSL_LOG" />
     </logger>
 
-    <logger name="ksl.utilities.io.KSKFileUtil" level="DEBUG" additivity="false">
+    <logger name="ksl.utilities.io.KSKFileUtil" level="INFO" additivity="false">
         <appender-ref ref="KSL_IO" />
     </logger>
 

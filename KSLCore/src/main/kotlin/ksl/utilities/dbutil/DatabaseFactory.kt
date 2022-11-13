@@ -43,7 +43,7 @@ object DatabaseFactory {
      * @param dbDir  a path to the directory that holds the database, must not be null
      * @return the created database
      */
-    fun getEmbeddedDerbyDatabase(dbName: String, dbDir: Path = KSL.dbDir): DatabaseIfc {
+    fun embeddedDerbyDatabase(dbName: String, dbDir: Path = KSL.dbDir): DatabaseIfc {
         val pathToDb = dbDir.resolve(dbName)
         check(isEmbeddedDerbyDatabaseExists(dbName, dbDir)) { "The database does not exist at location $pathToDb" }
         val ds = createEmbeddedDerbyDataSource(pathToDb, create = false)
@@ -56,7 +56,7 @@ object DatabaseFactory {
      * @param pathToDb the full path to the directory that is the database, must not be null
      * @return the database
      */
-    fun getEmbeddedDerbyDatabase(pathToDb: Path): DatabaseIfc {
+    fun embeddedDerbyDatabase(pathToDb: Path): DatabaseIfc {
         check(isEmbeddedDerbyDatabaseExists(pathToDb)) { "The database does not exist at location $pathToDb" }
         val ds = createEmbeddedDerbyDataSource(pathToDb, create = false)
         return DatabaseImp(ds, pathToDb.fileName.toString())

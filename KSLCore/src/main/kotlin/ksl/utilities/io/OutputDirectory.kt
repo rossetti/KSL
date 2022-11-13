@@ -74,7 +74,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return try {
             Files.createDirectories(pathToDir)
         } catch (e: IOException) {
-            KSLFileUtil.logger.error("There was a problem creating the directories for {} used program launch directory", pathToDir)
+            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory", pathToDir)
             KSLFileUtil.programLaunchDirectory
         }
     }
@@ -88,7 +88,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return try {
             Files.createDirectories(outDir.resolve("excel"))
         } catch (e: IOException) {
-            KSLFileUtil.logger.error("There was a problem creating the directories for {} used program launch directory",
+            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
                 outDir.resolve("excel"))
             KSLFileUtil.programLaunchDirectory
         }
@@ -100,7 +100,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return try {
             Files.createDirectories(outDir.resolve("db"))
         } catch (e: IOException) {
-            KSLFileUtil.logger.error("There was a problem creating the directories for {} used program launch directory",
+            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
                 outDir.resolve("db"))
             KSLFileUtil.programLaunchDirectory
         }
@@ -127,10 +127,10 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return newFilePath.toFile()
     }
 
-    /** Makes a Path to the named sub-directory within the base directory
+    /** Makes a Path to the named subdirectory within the base directory
      *
-     * @param dirName the name of the sub-directory to create. It must not be null
-     * @return a path to the created sub-directory, or the base directory if something went wrong in the creation.
+     * @param dirName the name of the subdirectory to create. It must not be null
+     * @return a path to the created subdirectory, or the base directory if something went wrong in the creation.
      * Any problems are logged.
      */
     fun createSubDirectory(dirName: String): Path {
