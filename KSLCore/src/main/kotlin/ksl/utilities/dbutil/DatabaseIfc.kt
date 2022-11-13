@@ -293,12 +293,12 @@ interface DatabaseIfc {
             logger.info("Table: {} does not exist in database {}", tableName, label)
             return
         }
-        val resultSet = selectAll(schemaName, tableName)
-        if (resultSet != null) {
+        val rowSet = selectAll(schemaName, tableName)
+        if (rowSet != null) {
             out.println(tableName)
-            writeAsText(resultSet, out)
+            writeAsText(rowSet, out)
             out.flush()
-            resultSet.close()
+            rowSet.close()
         }
     }
 
@@ -338,6 +338,68 @@ interface DatabaseIfc {
     }
 
     /**
+     * Writes the table as prettified text.
+     * @param schemaName the name of the schema that should contain the tables
+     * @param tableName the unqualified name of the table to write
+     * @param out       the PrintWriter to write to.  The print writer is not closed
+     */
+    fun writeTableAsMarkdown(schemaName: String? = null, tableName: String, out: PrintWriter) {
+        if (schemaName != null) {
+            if (!containsSchema(schemaName)) {
+                logger.info("Schema: {} does not exist in database {}", schemaName, label)
+                return
+            }
+        }
+        if (!containsTable(tableName)) {
+            logger.info("Table: {} does not exist in database {}", tableName, label)
+            return
+        }
+        val rowSet = selectAll(schemaName, tableName)
+        if (rowSet != null) {
+            out.println(MarkDown.bold("Table: $tableName"))
+            writeAsMarkdown(rowSet, out)
+            out.flush()
+            rowSet.close()
+        }
+    }
+
+    /**
+     * Prints the table as prettified text to the console
+     * @param schemaName the name of the schema that should contain the tables
+     * @param tableName the unqualified name of the table to write
+     */
+    fun printTableAsMarkdown(schemaName: String? = null, tableName: String) {
+        writeTableAsMarkdown(schemaName, tableName, PrintWriter(System.out))
+    }
+
+    /**
+     * Prints all tables as text to the console
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     */
+    fun printAllTablesAsMarkdown(schemaName: String? = null) {
+        writeAllTablesAsMarkdown(schemaName, PrintWriter(System.out))
+    }
+
+    /**
+     * Writes all tables as text
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param out        the PrintWriter to write to
+     */
+    fun writeAllTablesAsMarkdown(schemaName: String? = null, out: PrintWriter) {
+        val tables = if (schemaName != null) {
+            tableNames(schemaName)
+        } else {
+            userDefinedTables
+        }
+        for (table in tables) {
+            writeTableAsMarkdown(schemaName, table, out)
+        }
+    }
+
+
+    /**
      * Writes all tables as separate comma separated value files into the supplied
      * directory. The files are written to text files using the same name as
      * the tables in the database
@@ -366,7 +428,7 @@ interface DatabaseIfc {
      * @param tableName the name of the table within the schema to get all records from
      * @return a result holding all the records from the table
      */
-    fun selectAll(schemaName: String? = null, tableName: String): ResultSet? {
+    fun selectAll(schemaName: String? = null, tableName: String): CachedRowSet? {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return null
@@ -385,9 +447,9 @@ interface DatabaseIfc {
     /**
      * @param tableName qualified or unqualified name of an existing table in the database
      */
-    private fun selectAllFromTable(tableName: String): ResultSet? {
+    private fun selectAllFromTable(tableName: String): CachedRowSet? {
         val sql = "select * from $tableName"
-        return fetchResultSet(sql)
+        return fetchCachedRowSet(sql)
     }
 
     /**
@@ -657,13 +719,14 @@ interface DatabaseIfc {
      * @param sql an SQL text string that is valid
      * @return the results of the query or null
      */
-    fun fetchResultSet(sql: String): ResultSet? {
+    fun fetchCachedRowSet(sql: String): CachedRowSet? {
         try {
             connection.use { connection ->
                 val query = connection.prepareStatement(sql)
                 val rs = query.executeQuery()
+                val crs = createCachedRowSet(rs)
                 query.close()
-                return rs
+                return crs
             }
         } catch (e: SQLException) {
             logger.warn("The query $sql was not executed for database $label", e)
@@ -924,7 +987,7 @@ interface DatabaseIfc {
          * @param header true (default) indicates include the header
          * @param writer the writer to use
          */
-        fun writeAsCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer) {
+        fun writeAsCSV(resultSet: CachedRowSet, header: Boolean = true, writer: Writer) {
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
             csvWriter.writeAll(resultSet, header)
@@ -934,7 +997,7 @@ interface DatabaseIfc {
          * @param resultSet the result set to write out as text
          * @param writer the writer to use
          */
-        fun writeAsText(resultSet: ResultSet, writer: PrintWriter) {
+        fun writeAsText(resultSet: CachedRowSet, writer: PrintWriter) {
             val rowSet = createCachedRowSet(resultSet)
             val tw = DbResultsAsText(rowSet)
             writer.println(tw.header)
@@ -949,7 +1012,7 @@ interface DatabaseIfc {
          * @param resultSet the result set to write out as Markdown text
          * @param writer the writer to use
          */
-        fun writeAsMarkdown(resultSet: ResultSet, writer: PrintWriter) {
+        fun writeAsMarkdown(resultSet: CachedRowSet, writer: PrintWriter) {
             val rowSet = createCachedRowSet(resultSet)
             val tw = DbResultsAsText(rowSet)
             val formats = mutableListOf<MarkDown.ColFmt>()

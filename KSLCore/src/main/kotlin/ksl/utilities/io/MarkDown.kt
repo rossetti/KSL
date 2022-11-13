@@ -149,10 +149,10 @@ object MarkDown {
         require(!formats.isEmpty()) { "The column formats list was empty" }
         require(colHeaders.size == formats.size) { "The size of the header and format lists do not match" }
         val sb = StringBuilder()
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         val h1 = colHeaders.joinToString("| ", "|", "|")
         sb.append(h1)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         val h2 = formats.joinToString("| ", "|", "|", transform = { it.fmt })
         sb.append(h2)
         return sb.toString()

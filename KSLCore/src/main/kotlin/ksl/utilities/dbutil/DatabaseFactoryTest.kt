@@ -20,4 +20,6 @@ fun testSQLite() {
     database.executeCommand("insert into person values(1, 'PersonA')")
     database.executeCommand("insert into person values(2, 'PersonB')")
     database.printTableAsText(tableName = "person")
+    println()
+    database.printTableAsMarkdown(tableName = "person")
 }

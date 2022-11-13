@@ -3,6 +3,9 @@ package ksl.utilities.dbutil
 import java.sql.Types
 import javax.sql.rowset.CachedRowSet
 
+fun isEven(value: Int) = value % 2 == 0
+fun isOdd(value: Int) = value % 2 == 1
+
 class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = null) : Iterable<List<String>> {
 
     private val myColumns = mutableListOf<DbColumn>()
@@ -93,12 +96,18 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
             val c = myColumns[i]
             val v = list[i]
             sb.append("|")
-            if (v.length > (c.width - 2 * paddingSize)) {
-                sb.append("*".repeat(c.width - 2))
+            if (v.length >= c.width) {
+                sb.append("*".repeat(c.width))
             } else {
-                sb.append(" ".repeat(paddingSize))
+                val gap = c.width - v.length
+                val fps = if (isEven(gap)){
+                    (gap/2).toInt()
+                } else {
+                    (gap/2).toInt() - 1
+                }
+                sb.append(" ".repeat(fps))
                 sb.append(v)
-                sb.append(" ".repeat(paddingSize))
+                sb.append(" ".repeat(gap - fps))
             }
         }
         sb.append("|")
