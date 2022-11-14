@@ -1,10 +1,11 @@
 package ksl.utilities.dbutil
 
+//import org.ktorm.database.Database
+//import org.ktorm.logging.Slf4jLoggerAdapter
 import java.sql.Connection
-import java.sql.DatabaseMetaData
 import javax.sql.DataSource
 
-open class DatabaseImp(
+open class Database(
     final override val dataSource: DataSource,
     final override val label: String,
     final override var defaultSchemaName: String? = null
@@ -15,9 +16,11 @@ open class DatabaseImp(
 
     override val dbURL: String? = connection.metaData?.url
 
-    init{
-        DatabaseIfc.logger.info{"Constructed DatabaseImp $label via $dbURL"}
+    init {
+        DatabaseIfc.logger.info { "Constructed DatabaseImp $label via $dbURL" }
     }
+
+//    val db = Database.connect(dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))
 
     override fun toString(): String {
         val sb = StringBuilder()

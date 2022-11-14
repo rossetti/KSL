@@ -15,7 +15,6 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.sql.SQLException
 import java.util.*
 import javax.sql.DataSource
@@ -29,11 +28,13 @@ object DatabaseFactory {
      * @param dbDir  a path to the directory to hold the database. Must not be null
      * @return the created database
      */
-    fun createEmbeddedDerbyDatabase(dbName: String, dbDir: Path = KSL.dbDir): DatabaseIfc {
+    fun createEmbeddedDerbyDatabase(dbName: String, dbDir: Path = KSL.dbDir): Database {
         val pathToDb = dbDir.resolve(dbName)
         deleteEmbeddedDerbyDatabase(pathToDb)
         val ds = createEmbeddedDerbyDataSource(pathToDb, create = true)
-        return DatabaseImp(ds, dbName)
+        val db = Database(ds, dbName)
+        db.defaultSchemaName = "APP"
+        return db
     }
 
     /**
@@ -43,11 +44,13 @@ object DatabaseFactory {
      * @param dbDir  a path to the directory that holds the database, must not be null
      * @return the created database
      */
-    fun embeddedDerbyDatabase(dbName: String, dbDir: Path = KSL.dbDir): DatabaseIfc {
+    fun embeddedDerbyDatabase(dbName: String, dbDir: Path = KSL.dbDir): Database {
         val pathToDb = dbDir.resolve(dbName)
         check(isEmbeddedDerbyDatabaseExists(dbName, dbDir)) { "The database does not exist at location $pathToDb" }
         val ds = createEmbeddedDerbyDataSource(pathToDb, create = false)
-        return DatabaseImp(ds, dbName)
+        val db = Database(ds, dbName)
+        db.defaultSchemaName = "APP"
+        return db
     }
 
     /**
@@ -56,10 +59,12 @@ object DatabaseFactory {
      * @param pathToDb the full path to the directory that is the database, must not be null
      * @return the database
      */
-    fun embeddedDerbyDatabase(pathToDb: Path): DatabaseIfc {
+    fun embeddedDerbyDatabase(pathToDb: Path): Database {
         check(isEmbeddedDerbyDatabaseExists(pathToDb)) { "The database does not exist at location $pathToDb" }
         val ds = createEmbeddedDerbyDataSource(pathToDb, create = false)
-        return DatabaseImp(ds, pathToDb.fileName.toString())
+        val db = Database(ds, pathToDb.fileName.toString())
+        db.defaultSchemaName = "APP"
+        return db
     }
 
     /**
@@ -92,15 +97,33 @@ object DatabaseFactory {
         if (b) {
             DatabaseIfc.logger.info("Deleting directory to derby database {}", pathToDb)
         } else {
-            DatabaseIfc.logger.error("Unable to delete directory to derby database {}", pathToDb)
+            DatabaseIfc.logger.info("Unable to delete directory to derby database {}", pathToDb)
         }
     }
 
     /**
-     * @param pathToDb a path to the database, must not be null
+     * @param dbDir a path to the database, must not be null
      * @param user     a username, can be null
      * @param pWord    a password, can be null
      * @param create   a flag to indicate if the database should be created upon first connection
+     * @return the created DataSource
+     */
+    fun createEmbeddedDerbyDataSource(
+        dbName: String,
+        dbDir: Path = KSL.dbDir,
+        user: String? = null,
+        pWord: String? = null,
+        create: Boolean = false
+    ): DataSource {
+        val path = dbDir.resolve(dbName)
+        return createEmbeddedDerbyDataSource(path, user, pWord, create)
+    }
+
+    /**
+     * @param pathToDb the full path to the database as a string, must not be null
+     * @param user   a username, can be null
+     * @param pWord  a password, can be null
+     * @param create a flag to indicate if the database should be created upon first connection
      * @return the created DataSource
      */
     fun createEmbeddedDerbyDataSource(
@@ -109,36 +132,20 @@ object DatabaseFactory {
         pWord: String? = null,
         create: Boolean = false
     ): DataSource {
-        return createEmbeddedDerbyDataSource(pathToDb.toString(), user, pWord, create)
-    }
-
-    /**
-     * @param dbName the path to the database, must not be null
-     * @param user   a username, can be null
-     * @param pWord  a password, can be null
-     * @param create a flag to indicate if the database should be created upon first connection
-     * @return the created DataSource
-     */
-    fun createEmbeddedDerbyDataSource(
-        dbName: String,
-        user: String? = null,
-        pWord: String? = null,
-        create: Boolean = false
-    ): DataSource {
         val ds = EmbeddedDataSource()
-        ds.databaseName = dbName
+        ds.databaseName = pathToDb.toString()
         if (user != null) ds.user = user
         if (pWord != null) ds.password = pWord
         if (create) {
-            val path = Paths.get(dbName)
-            DatabaseIfc.logger.info("Create option is on for {}", dbName)
-            if (isEmbeddedDerbyDatabaseExists(path)) {
-                DatabaseIfc.logger.info("Database already exists at location {}", dbName)
-                deleteEmbeddedDerbyDatabase(path)
+            //val path = Paths.get(dbName)
+            DatabaseIfc.logger.info("Create option is on for {}", pathToDb)
+            if (isEmbeddedDerbyDatabaseExists(pathToDb)) {
+                DatabaseIfc.logger.info("Database already exists at location {}", pathToDb)
+                deleteEmbeddedDerbyDatabase(pathToDb)
             }
             ds.createDatabase = "create"
         }
-        DatabaseIfc.logger.info("Created an embedded Derby data source for {}", dbName)
+        DatabaseIfc.logger.info("Created an embedded Derby data source for {}", pathToDb)
         return ds
     }
 
@@ -228,13 +235,13 @@ object DatabaseFactory {
      * @param pWord  the password
      * @return the DataSource for getting connections
      */
-    fun getPostGresDataSourceWithLocalHost(
+    fun postgreSQLDataSourceWithLocalHost(
         dbName: String,
         user: String = "",
         pWord: String = "",
         portNumber: Int = 5432
     ): DataSource {
-        return getPostGresDataSource("localhost", dbName, user, pWord, portNumber)
+        return postgreSQLDataSource("localhost", dbName, user, pWord, portNumber)
     }
 
     /**
@@ -245,15 +252,15 @@ object DatabaseFactory {
      * @param portNumber   a valid port number
      * @return the DataSource for getting connections
      */
-    fun getPostGresDataSource(
+    fun postgreSQLDataSource(
         dbServerName: String = "localhost",
         dbName: String,
         user: String = "",
         pWord: String = "",
         portNumber: Int = 5432
     ): DataSource {
-        val props = makePostGresProperties(dbServerName, dbName, user, pWord, portNumber)
-        return getDataSource(props)
+        val props = makePostgreSQLProperties(dbServerName, dbName, user, pWord, portNumber)
+        return dataSource(props)
     }
 
     /**
@@ -263,7 +270,7 @@ object DatabaseFactory {
      * @param pWord        the password, must not be null
      * @return the Properties instance
      */
-    fun makePostGresProperties(
+    fun makePostgreSQLProperties(
         dbServerName: String,
         dbName: String,
         user: String = "",
@@ -287,7 +294,7 @@ object DatabaseFactory {
      * @param properties the properties
      * @return a pooled connection DataSource
      */
-    fun getDataSource(properties: Properties): DataSource {
+    fun dataSource(properties: Properties): DataSource {
         val config = HikariConfig(properties)
         return HikariDataSource(config)
     }
@@ -296,7 +303,7 @@ object DatabaseFactory {
      * @param pathToPropertiesFile must not be null
      * @return a DataSource for making a database
      */
-    fun getDataSource(pathToPropertiesFile: Path): DataSource {
+    fun dataSource(pathToPropertiesFile: Path): DataSource {
         val config = HikariConfig(pathToPropertiesFile.toString())
         return HikariDataSource(config)
     }
@@ -494,7 +501,7 @@ object DatabaseFactory {
      * @return the created database
      */
     fun createSQLiteDatabase(dbLabel: String, dataSource: SQLiteDataSource): DatabaseIfc {
-        return DatabaseImp(dataSource, dbLabel)
+        return Database(dataSource, dbLabel)
     }
 
     /**
@@ -526,7 +533,7 @@ object DatabaseFactory {
         // must exist and be at path
         val dataSource: SQLiteDataSource = createSQLiteDataSource(pathToDb)
         dataSource.setReadOnly(readOnly)
-        return DatabaseImp(dataSource, pathToDb.fileName.toString())
+        return Database(dataSource, pathToDb.fileName.toString())
     }
 
     /**
