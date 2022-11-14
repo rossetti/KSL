@@ -45,7 +45,7 @@ interface DatabaseIfc {
      *
      *  name for the default schema, may be null
      */
-    var defaultSchemaName: String?  //TODO plan to use
+    var defaultSchemaName: String?
 
     /**
      * It is best to use this property within a try-with-resource construct
@@ -247,7 +247,7 @@ interface DatabaseIfc {
      * @param header true means column names as the header included
      * @param out       the PrintWriter to write to.  The print writer is not closed.
      */
-    fun writeTableAsCSV(schemaName: String? = null, tableName: String, header: Boolean = true, out: PrintWriter) {
+    fun writeTableAsCSV(schemaName: String? = defaultSchemaName, tableName: String, header: Boolean = true, out: PrintWriter) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.trace("Schema: {} does not exist in database {}", schemaName, label)
@@ -272,7 +272,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the name of the table to print
      */
-    fun printTableAsCSV(schemaName: String? = null, tableName: String, header: Boolean = true) {
+    fun printTableAsCSV(schemaName: String? = defaultSchemaName, tableName: String, header: Boolean = true) {
         writeTableAsCSV(schemaName, tableName, header, PrintWriter(System.out))
     }
 
@@ -282,7 +282,7 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsText(schemaName: String? = null, tableName: String, out: PrintWriter) {
+    fun writeTableAsText(schemaName: String? = defaultSchemaName, tableName: String, out: PrintWriter) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.info("Schema: {} does not exist in database {}", schemaName, label)
@@ -307,7 +307,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
-    fun printTableAsText(schemaName: String? = null, tableName: String) {
+    fun printTableAsText(schemaName: String? = defaultSchemaName, tableName: String) {
         writeTableAsText(schemaName, tableName, PrintWriter(System.out))
     }
 
@@ -316,7 +316,7 @@ interface DatabaseIfc {
      *
      * @param schemaName the name of the schema that should contain the tables
      */
-    fun printAllTablesAsText(schemaName: String? = null) {
+    fun printAllTablesAsText(schemaName: String? = defaultSchemaName) {
         writeAllTablesAsText(schemaName, PrintWriter(System.out))
     }
 
@@ -326,7 +326,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsText(schemaName: String? = null, out: PrintWriter) {
+    fun writeAllTablesAsText(schemaName: String? = defaultSchemaName, out: PrintWriter) {
         val tables = if (schemaName != null) {
             tableNames(schemaName)
         } else {
@@ -343,7 +343,7 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsMarkdown(schemaName: String? = null, tableName: String, out: PrintWriter) {
+    fun writeTableAsMarkdown(schemaName: String? = defaultSchemaName, tableName: String, out: PrintWriter) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.info("Schema: {} does not exist in database {}", schemaName, label)
@@ -368,7 +368,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
-    fun printTableAsMarkdown(schemaName: String? = null, tableName: String) {
+    fun printTableAsMarkdown(schemaName: String? = defaultSchemaName, tableName: String) {
         writeTableAsMarkdown(schemaName, tableName, PrintWriter(System.out))
     }
 
@@ -377,7 +377,7 @@ interface DatabaseIfc {
      *
      * @param schemaName the name of the schema that should contain the tables
      */
-    fun printAllTablesAsMarkdown(schemaName: String? = null) {
+    fun printAllTablesAsMarkdown(schemaName: String? = defaultSchemaName) {
         writeAllTablesAsMarkdown(schemaName, PrintWriter(System.out))
     }
 
@@ -387,7 +387,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsMarkdown(schemaName: String? = null, out: PrintWriter) {
+    fun writeAllTablesAsMarkdown(schemaName: String? = defaultSchemaName, out: PrintWriter) {
         val tables = if (schemaName != null) {
             tableNames(schemaName)
         } else {
@@ -408,7 +408,7 @@ interface DatabaseIfc {
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
      * @param header  true means all files will have the column headers
      */
-    fun writeAllTablesAsCSV(schemaName: String? = null, pathToOutPutDirectory: Path, header: Boolean = true) {
+    fun writeAllTablesAsCSV(schemaName: String? = defaultSchemaName, pathToOutPutDirectory: Path, header: Boolean = true) {
         Files.createDirectories(pathToOutPutDirectory)
         val tables = if (schemaName != null) {
             tableNames(schemaName)
@@ -428,7 +428,7 @@ interface DatabaseIfc {
      * @param tableName the name of the table within the schema to get all records from
      * @return a result holding all the records from the table
      */
-    fun selectAll(schemaName: String? = null, tableName: String): CachedRowSet? {
+    fun selectAll(schemaName: String? = defaultSchemaName, tableName: String): CachedRowSet? {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return null
@@ -457,7 +457,7 @@ interface DatabaseIfc {
      * @param tableName the name of the table within the schema
      * @return true if the table contains no records (rows)
      */
-    fun isTableEmpty(schemaName: String? = null, tableName: String): Boolean {
+    fun isTableEmpty(schemaName: String? = defaultSchemaName, tableName: String): Boolean {
         val rs = selectAll(schemaName, tableName)
         return if (rs == null) {
             true
@@ -473,7 +473,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @return true if at least one user defined table in the schema has data
      */
-    fun hasData(schemaName: String? = null): Boolean {
+    fun hasData(schemaName: String? = defaultSchemaName): Boolean {
         return !areAllTablesEmpty(schemaName)
     }
 
@@ -481,7 +481,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @return true if all user defined tables are empty in the schema
      */
-    fun areAllTablesEmpty(schemaName: String? = null): Boolean {
+    fun areAllTablesEmpty(schemaName: String? = defaultSchemaName): Boolean {
         val tables = if (schemaName != null) {
             tableNames(schemaName)
         } else {
@@ -565,7 +565,7 @@ interface DatabaseIfc {
      * @param wbDirectory directory of the workbook, if null uses the working directory
      * @throws IOException if there is a problem
      */
-    fun writeDbToExcelWorkbook(schemaName: String? = null, wbName: String? = null, wbDirectory: Path? = null) {
+    fun writeDbToExcelWorkbook(schemaName: String? = defaultSchemaName, wbName: String? = null, wbDirectory: Path? = null) {
         if (schemaName != null){
             if (!containsSchema(schemaName)) {
                 logger.warn(
@@ -1007,6 +1007,7 @@ interface DatabaseIfc {
          * @param writer the writer to use
          */
         fun writeAsCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer) {
+            require(!resultSet.isClosed){"The supplied ResultSet is closed!"}
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
             csvWriter.writeAll(resultSet, header)
@@ -1017,7 +1018,6 @@ interface DatabaseIfc {
          * @param writer the writer to use
          */
         fun writeAsText(rowSet: CachedRowSet, writer: PrintWriter) {
-            val rowSet = createCachedRowSet(rowSet)
             val tw = DbResultsAsText(rowSet)
             writer.println(tw.header)
             val iterator = tw.formattedRowIterator()
@@ -1032,7 +1032,6 @@ interface DatabaseIfc {
          * @param writer the writer to use
          */
         fun writeAsMarkdown(rowSet: CachedRowSet, writer: PrintWriter) {
-            val rowSet = createCachedRowSet(rowSet)
             val tw = DbResultsAsText(rowSet)
             val formats = mutableListOf<MarkDown.ColFmt>()
             for (c in tw.columns) {
@@ -1055,7 +1054,7 @@ interface DatabaseIfc {
          * @param resultSet the result set to turn into a CashedRowSet
          */
         fun createCachedRowSet(resultSet: ResultSet): CachedRowSet {
-            require(!resultSet.isClosed){"The supplied resultSet is closed!"}
+            require(!resultSet.isClosed){"The supplied ResultSet is closed!"}
             val cachedRowSet = RowSetProvider.newFactory().createCachedRowSet()
             cachedRowSet.populate(resultSet)
             return cachedRowSet
