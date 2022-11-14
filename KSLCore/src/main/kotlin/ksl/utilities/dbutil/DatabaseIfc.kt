@@ -1,10 +1,12 @@
 package ksl.utilities.dbutil
 
 import com.opencsv.CSVWriterBuilder
+import ksl.utilities.excel.ExcelUtil
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.MarkDown
 import mu.KLoggable
+import org.dhatim.fastexcel.Workbook
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -247,7 +249,12 @@ interface DatabaseIfc {
      * @param header true means column names as the header included
      * @param out       the PrintWriter to write to.  The print writer is not closed.
      */
-    fun writeTableAsCSV(schemaName: String? = defaultSchemaName, tableName: String, header: Boolean = true, out: PrintWriter) {
+    fun writeTableAsCSV(
+        schemaName: String? = defaultSchemaName,
+        tableName: String,
+        header: Boolean = true,
+        out: PrintWriter
+    ) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.trace("Schema: {} does not exist in database {}", schemaName, label)
@@ -408,7 +415,11 @@ interface DatabaseIfc {
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
      * @param header  true means all files will have the column headers
      */
-    fun writeAllTablesAsCSV(schemaName: String? = defaultSchemaName, pathToOutPutDirectory: Path, header: Boolean = true) {
+    fun writeAllTablesAsCSV(
+        schemaName: String? = defaultSchemaName,
+        pathToOutPutDirectory: Path,
+        header: Boolean = true
+    ) {
         Files.createDirectories(pathToOutPutDirectory)
         val tables = if (schemaName != null) {
             tableNames(schemaName)
@@ -450,6 +461,14 @@ interface DatabaseIfc {
     private fun selectAllFromTable(tableName: String): CachedRowSet? {
         val sql = "select * from $tableName"
         return fetchCachedRowSet(sql)
+    }
+
+    /**
+     * @param tableName qualified or unqualified name of an existing table in the database
+     */
+    private fun selectAllIntoOpenResultSet(tableName: String): ResultSet? {
+        val sql = "select * from $tableName"
+        return fetchOpenResultSet(sql)
     }
 
     /**
@@ -497,66 +516,66 @@ interface DatabaseIfc {
         return result
     }
 
-/*
-    /**
-     * @param schemaName the name of the schema that should contain the table
-     * @param tableName the unqualified name of the table
-     * @return a list that represents all the insert queries for the data that is currently in the
-     * supplied table
-     */
-    fun insertQueries(schemaName: String, tableName: String): List<String> {
-        val list = mutableListOf<String>()
-        if (!containsTable(schemaName, tableName)) {
+    /*
+        /**
+         * @param schemaName the name of the schema that should contain the table
+         * @param tableName the unqualified name of the table
+         * @return a list that represents all the insert queries for the data that is currently in the
+         * supplied table
+         */
+        fun insertQueries(schemaName: String, tableName: String): List<String> {
+            val list = mutableListOf<String>()
+            if (!containsTable(schemaName, tableName)) {
+                return list
+            }
+            TODO("Not yet implemented")
             return list
         }
-        TODO("Not yet implemented")
-        return list
-    }
 
-    /**
-     * Prints the insert queries associated with the supplied table to the console
-     * @param schemaName the name of the schema that should contain the table
-     * @param tableName the unqualified name of the table
-     */
-    fun printInsertQueries(schemaName: String, tableName: String) {
-        writeInsertQueries(schemaName, tableName, PrintWriter(System.out))
-    }
-
-    /**
-     * Writes the insert queries associated with the supplied table to the PrintWriter
-     * @param schemaName the name of the schema that should contain the table
-     * @param tableName the unqualified name of the table
-     * @param out       the PrintWriter to write to
-     */
-    fun writeInsertQueries(schemaName: String, tableName: String, out: PrintWriter) {
-        val list = insertQueries(schemaName, tableName)
-        for (query in list) {
-            out.println(query)
+        /**
+         * Prints the insert queries associated with the supplied table to the console
+         * @param schemaName the name of the schema that should contain the table
+         * @param tableName the unqualified name of the table
+         */
+        fun printInsertQueries(schemaName: String, tableName: String) {
+            writeInsertQueries(schemaName, tableName, PrintWriter(System.out))
         }
-    }
 
-    /**
-     * Prints all table data as insert queries to the console
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     */
-    fun printAllTablesAsInsertQueries(schemaName: String) {
-        writeAllTablesAsInsertQueries(schemaName, PrintWriter(System.out))
-    }
-
-    /**
-     * Writes all table data as insert queries to the PrintWriter
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     * @param out        the PrintWriter to write to
-     */
-    fun writeAllTablesAsInsertQueries(schemaName: String, out: PrintWriter) {
-        val tables = tableNames(schemaName)
-        for (t in tables) {
-            writeInsertQueries(schemaName, t, out)
+        /**
+         * Writes the insert queries associated with the supplied table to the PrintWriter
+         * @param schemaName the name of the schema that should contain the table
+         * @param tableName the unqualified name of the table
+         * @param out       the PrintWriter to write to
+         */
+        fun writeInsertQueries(schemaName: String, tableName: String, out: PrintWriter) {
+            val list = insertQueries(schemaName, tableName)
+            for (query in list) {
+                out.println(query)
+            }
         }
-    }
-*/
+
+        /**
+         * Prints all table data as insert queries to the console
+         *
+         * @param schemaName the name of the schema that should contain the tables
+         */
+        fun printAllTablesAsInsertQueries(schemaName: String) {
+            writeAllTablesAsInsertQueries(schemaName, PrintWriter(System.out))
+        }
+
+        /**
+         * Writes all table data as insert queries to the PrintWriter
+         *
+         * @param schemaName the name of the schema that should contain the tables
+         * @param out        the PrintWriter to write to
+         */
+        fun writeAllTablesAsInsertQueries(schemaName: String, out: PrintWriter) {
+            val tables = tableNames(schemaName)
+            for (t in tables) {
+                writeInsertQueries(schemaName, t, out)
+            }
+        }
+    */
     /**
      * Writes all the tables in the supplied schema to an Excel workbook
      *
@@ -565,8 +584,12 @@ interface DatabaseIfc {
      * @param wbDirectory directory of the workbook, if null uses the working directory
      * @throws IOException if there is a problem
      */
-    fun writeDbToExcelWorkbook(schemaName: String? = defaultSchemaName, wbName: String? = null, wbDirectory: Path? = null) {
-        if (schemaName != null){
+    fun writeDbToExcelWorkbook(
+        schemaName: String? = defaultSchemaName,
+        wbName: String? = null,
+        wbDirectory: Path? = null
+    ) {
+        if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.warn(
                     "Attempting to write to Excel: The supplied schema name {} is not in database {}",
@@ -619,6 +642,51 @@ interface DatabaseIfc {
         } else {
 //TODO            ExcelUtil.writeDBAsExcelWorkbook(this, tableNames, path)
             TODO("not implemented yet")
+        }
+    }
+
+    fun writeToExcel(
+        schemaName: String? = defaultSchemaName,
+        wbName: String = label,
+        wbDirectory: Path = KSL.excelDir
+    ) {
+        if (schemaName != null) {
+            if (!containsSchema(schemaName)) {
+                logger.warn { "Attempting to write to Excel: The supplied schema name $schemaName is not in database $label" }
+                return
+            }
+            val tables = tableNames(schemaName)
+            writeToExcel(tables, wbName, wbDirectory)
+        }
+    }
+
+    fun writeToExcel(tableNames: List<String>, wbName: String = label, wbDirectory: Path = KSL.excelDir) {
+        if (tableNames.isEmpty()) {
+            logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
+            return
+        }
+        val wbn = if (!wbName.endsWith(".xlsx")) {
+            "$wbName.xlsx"
+        } else {
+            wbName
+        }
+        val path = wbDirectory.resolve(wbn)
+        FileOutputStream(path.toFile()).use {
+            val wb = Workbook(it, "KSL", "1.0")
+            for (tableName in tableNames) {
+                if (containsTable(tableName)) {
+                    // get result set
+                    val rs = selectAllIntoOpenResultSet(tableName)
+                    if (rs != null) {
+                        // write result set to workbook
+                        ExcelUtil.writeSheet(wb, rs, tableName)
+                        // close result set
+                        rs.close()
+                    }
+                }
+            }
+            wb.finish()
+            logger.info("Completed database $label export to workbook $path")
         }
     }
 
@@ -735,8 +803,10 @@ interface DatabaseIfc {
     }
 
     /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
-     * form of a JDBC ResultSet. Errors in the SQL are the user's responsibility. Any exceptions
-     * are logged and squashed. It is the user's responsibility to close the ResultSet
+     * form of a JDBC ResultSet that is TYPE_FORWARD_ONLY and CONCUR_READ_ONLY .
+     * Errors in the SQL are the user's responsibility. Any exceptions
+     * are logged and squashed. It is the user's responsibility to close the ResultSet.  That is,
+     * the statement used to create the ResultSet is not automatically closed.
      *
      * @param sql an SQL text string that is valid
      * @return the results of the query or null
@@ -817,6 +887,35 @@ interface DatabaseIfc {
                 logger.debug("schema: {}", s)
             }
         }
+    }
+
+    /**
+     * @param schemaName the name of the schema for the table
+     * @param tableName the name of the table, unqualified if the schema
+     * @return the list of the table's metadata or an empty list if the table or schema is not found
+     */
+    fun tableMetaData(schemaName: String? = defaultSchemaName, tableName: String): List<ColumnMetaData> {
+        if (schemaName != null) {
+            if (!containsSchema(schemaName)) {
+                return emptyList()
+            }
+        }
+        if (!containsTable(tableName)) {
+            return emptyList()
+        }
+        val sql = if (schemaName != null) {
+            "select * from ${schemaName}.${tableName}"
+        } else {
+            "select * from $tableName"
+        }
+        val rs = fetchOpenResultSet(sql)
+        val list = if (rs != null) {
+            columnMetaData(rs)
+        } else {
+            emptyList()
+        }
+        rs?.close()
+        return list
     }
 
     companion object : KLoggable {
@@ -1007,7 +1106,7 @@ interface DatabaseIfc {
          * @param writer the writer to use
          */
         fun writeAsCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer) {
-            require(!resultSet.isClosed){"The supplied ResultSet is closed!"}
+            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
             csvWriter.writeAll(resultSet, header)
@@ -1054,11 +1153,137 @@ interface DatabaseIfc {
          * @param resultSet the result set to turn into a CashedRowSet
          */
         fun createCachedRowSet(resultSet: ResultSet): CachedRowSet {
-            require(!resultSet.isClosed){"The supplied ResultSet is closed!"}
+            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }
             val cachedRowSet = RowSetProvider.newFactory().createCachedRowSet()
             cachedRowSet.populate(resultSet)
             return cachedRowSet
         }
 
+        /** The result set must be open and remains open after this call.
+         *
+         * @param resultSet the result set from which to grab the metadata
+         * @return the metadata for each column with the list ordered by columns of
+         * the result set from left to right (0 is column 1, etc.)
+         */
+        fun columnMetaData(resultSet: ResultSet): List<ColumnMetaData> {
+            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }
+            val list = mutableListOf<ColumnMetaData>()
+            val md = resultSet.metaData
+            if (md != null) {
+                val nc = md.columnCount
+                for (c in 1..nc) {
+                    val catalogName: String = md.getCatalogName(c)
+                    val className: String = md.getColumnClassName(c)
+                    val label: String = md.getColumnLabel(c)
+                    val name: String = md.getColumnName(c)
+                    val typeName: String = md.getColumnTypeName(c)
+                    val type: Int = md.getColumnType(c)
+                    val tableName: String = md.getTableName(c)
+                    val schemaName: String = md.getSchemaName(c)
+                    val isAutoIncrement: Boolean = md.isAutoIncrement(c)
+                    val isCaseSensitive: Boolean = md.isCaseSensitive(c)
+                    val isCurrency: Boolean = md.isCurrency(c)
+                    val isDefiniteWritable: Boolean = md.isDefinitelyWritable(c)
+                    val isReadOnly: Boolean = md.isReadOnly(c)
+                    val isSearchable: Boolean = md.isSearchable(c)
+                    val isReadable: Boolean = md.isReadOnly(c)
+                    val isSigned: Boolean = md.isSigned(c)
+                    val isWritable: Boolean = md.isWritable(c)
+                    val nullable: Int = md.isNullable(c)
+                    val cmd = ColumnMetaData(
+                        catalogName, className, label, name, typeName, type, tableName, schemaName,
+                        isAutoIncrement, isCaseSensitive, isCurrency, isDefiniteWritable, isReadOnly, isSearchable,
+                        isReadable, isSigned, isWritable, nullable
+                    )
+                    list.add(cmd)
+                }
+            }
+            return list
+        }
+
+        /** The result set must be open and remains open after this call.
+         *
+         * @param resultSet the result set from which to grab the names of the columns
+         * @return the name for each column with the list ordered by columns of
+         * the result set from left to right (0 is column 1, etc.)
+         */
+        fun columnNames(resultSet: ResultSet): List<String> {
+            val list = mutableListOf<String>()
+            val cmdList = columnMetaData(resultSet)
+            for (cmd in cmdList) {
+                list.add(cmd.label)
+            }
+            return list
+        }
     }
+}
+
+data class ColumnMetaData(
+    val catalogName: String,
+    val className: String,
+    val label: String,
+    val name: String,
+    val typeName: String,
+    val type: Int,
+    val tableName: String,
+    val schemaName: String,
+    val isAutoIncrement: Boolean,
+    val isCaseSensitive: Boolean,
+    val isCurrency: Boolean,
+    val isDefiniteWritable: Boolean,
+    val isReadOnly: Boolean,
+    val isSearchable: Boolean,
+    val isReadable: Boolean,
+    val isSigned: Boolean,
+    val isWritable: Boolean,
+    val nullable: Int
+)
+
+/**
+ * The user can convert the returned rows based on ColumnMetaData
+ *
+ * @param resultSet the result set to iterate. It must be open and will be closed after iteration.
+ */
+class ResultSetRowIterator(private val resultSet: ResultSet) : Iterator<List<Any?>> {
+    init {
+        require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
+    }
+
+    var currentRow: Int = 0
+        private set
+    private var didNext: Boolean = false
+    private var hasNext: Boolean = false
+    val columnCount = resultSet.metaData?.columnCount ?: 0
+
+    override fun hasNext(): Boolean {
+        if (!didNext) {
+            hasNext = resultSet.next()
+            if (!hasNext) resultSet.close()
+            didNext = true
+        }
+        return hasNext
+    }
+
+    override fun next(): List<Any?> {
+        if (!didNext) {
+            resultSet.next()
+        }
+        didNext = false
+        currentRow++
+        return makeRow(resultSet)
+    }
+
+    private fun makeRow(resultSet: ResultSet): List<Any?> {
+        val list = mutableListOf<Any?>()
+        for (i in 1..columnCount) {
+            try {
+                list.add(resultSet.getObject(i))
+            } catch (e: RuntimeException) {
+                list.add(null)
+                DatabaseIfc.logger.warn { "There was a problem accessing column $i of the result set. Set value to null" }
+            }
+        }
+        return list
+    }
+
 }

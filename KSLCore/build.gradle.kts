@@ -71,6 +71,11 @@ dependencies {
 
     implementation(group = "com.zaxxer", name = "HikariCP", version = "5.0.1")
 
+    // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
+    implementation("org.dhatim:fastexcel-reader:0.14.0")
+    // https://mvnrepository.com/artifact/org.dhatim/fastexcel
+    implementation("org.dhatim:fastexcel:0.14.0")
+
 //    testImplementation(kotlin("test"))
 //    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
 //    testImplementation(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
