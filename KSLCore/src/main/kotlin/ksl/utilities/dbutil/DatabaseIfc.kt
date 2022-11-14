@@ -656,6 +656,7 @@ interface DatabaseIfc {
                 return
             }
             val tables = tableNames(schemaName)
+            logger.info {"Exporting $schemaName to $wbName at $wbDirectory"}
             writeToExcel(tables, wbName, wbDirectory)
         }
     }
