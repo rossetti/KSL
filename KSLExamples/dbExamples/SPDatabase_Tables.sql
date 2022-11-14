@@ -1,0 +1,21 @@
+
+CREATE TABLE S (
+	SNUM int NOT NULL,
+	SNAME varchar(16) NOT NULL,
+	STATUS int NOT NULL,
+	CITY varchar(20) NOT NULL
+);
+
+CREATE TABLE P (
+	PNUM int NOT NULL,
+	PNAME varchar(18) NOT NULL,
+	COLOR varchar(10) NOT NULL,
+	WEIGHT decimal(4,1) NOT NULL,
+	CITY varchar(20) NOT NULL
+);
+
+CREATE TABLE SP (
+	SNUM_FK int NOT NULL,
+	PNUM_FK int NOT NULL,
+	QTY int NOT NULL
+);

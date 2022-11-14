@@ -241,7 +241,6 @@ KSLExampleProject/gradle/wrapper/gradle-wrapper.jar
 KSLExampleProject/gradle/wrapper/gradle-wrapper.properties
 >>>>>>> develop
 
-dbExamples/
 JSLKotlin/gradle/wrapper/gradle-wrapper.jar
 JSLKotlin/gradle/wrapper/gradle-wrapper.properties
 *.iml
