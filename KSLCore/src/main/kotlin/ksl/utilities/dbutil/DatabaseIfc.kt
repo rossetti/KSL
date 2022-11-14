@@ -713,11 +713,11 @@ interface DatabaseIfc {
     }
 
     /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
-     * form of a JDBC ResultSet. Errors in the SQL are the user's responsibility. Any exceptions
-     * are logged and squashed. It is the user's responsibility to close the ResultSet
+     * form of a JDBC CachedRowSet. Errors in the SQL are the user's responsibility. Any exceptions
+     * are logged and squashed.
      *
      * @param sql an SQL text string that is valid
-     * @return the results of the query or null
+     * @return the results of the query or null if there was a problem
      */
     fun fetchCachedRowSet(sql: String): CachedRowSet? {
         try {
@@ -727,6 +727,25 @@ interface DatabaseIfc {
                 val crs = createCachedRowSet(rs)
                 query.close()
                 return crs
+            }
+        } catch (e: SQLException) {
+            logger.warn("The query $sql was not executed for database $label", e)
+        }
+        return null
+    }
+
+    /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
+     * form of a JDBC ResultSet. Errors in the SQL are the user's responsibility. Any exceptions
+     * are logged and squashed. It is the user's responsibility to close the ResultSet
+     *
+     * @param sql an SQL text string that is valid
+     * @return the results of the query or null
+     */
+    fun fetchOpenResultSet(sql: String): ResultSet? {
+        try {
+            connection.use { connection ->
+                val query = connection.prepareStatement(sql)
+                return query.executeQuery()
             }
         } catch (e: SQLException) {
             logger.warn("The query $sql was not executed for database $label", e)
@@ -987,18 +1006,18 @@ interface DatabaseIfc {
          * @param header true (default) indicates include the header
          * @param writer the writer to use
          */
-        fun writeAsCSV(resultSet: CachedRowSet, header: Boolean = true, writer: Writer) {
+        fun writeAsCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer) {
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
             csvWriter.writeAll(resultSet, header)
         }
 
         /**
-         * @param resultSet the result set to write out as text
+         * @param rowSet the result set to write out as text
          * @param writer the writer to use
          */
-        fun writeAsText(resultSet: CachedRowSet, writer: PrintWriter) {
-            val rowSet = createCachedRowSet(resultSet)
+        fun writeAsText(rowSet: CachedRowSet, writer: PrintWriter) {
+            val rowSet = createCachedRowSet(rowSet)
             val tw = DbResultsAsText(rowSet)
             writer.println(tw.header)
             val iterator = tw.formattedRowIterator()
@@ -1009,11 +1028,11 @@ interface DatabaseIfc {
         }
 
         /**
-         * @param resultSet the result set to write out as Markdown text
+         * @param rowSet the result set to write out as Markdown text
          * @param writer the writer to use
          */
-        fun writeAsMarkdown(resultSet: CachedRowSet, writer: PrintWriter) {
-            val rowSet = createCachedRowSet(resultSet)
+        fun writeAsMarkdown(rowSet: CachedRowSet, writer: PrintWriter) {
+            val rowSet = createCachedRowSet(rowSet)
             val tw = DbResultsAsText(rowSet)
             val formats = mutableListOf<MarkDown.ColFmt>()
             for (c in tw.columns) {
@@ -1036,6 +1055,7 @@ interface DatabaseIfc {
          * @param resultSet the result set to turn into a CashedRowSet
          */
         fun createCachedRowSet(resultSet: ResultSet): CachedRowSet {
+            require(!resultSet.isClosed){"The supplied resultSet is closed!"}
             val cachedRowSet = RowSetProvider.newFactory().createCachedRowSet()
             cachedRowSet.populate(resultSet)
             return cachedRowSet
