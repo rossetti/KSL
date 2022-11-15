@@ -680,7 +680,7 @@ interface DatabaseIfc {
                     val rs = selectAllIntoOpenResultSet(tableName)
                     if (rs != null) {
                         // write result set to workbook
-                        ExcelUtil.writeSheet(wb, rs, tableName)
+                        ExcelUtil.writeSheet(rs, wb, tableName)
                         // close result set
                         rs.close()
                     }

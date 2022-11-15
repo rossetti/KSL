@@ -72,9 +72,14 @@ dependencies {
     implementation(group = "com.zaxxer", name = "HikariCP", version = "5.0.1")
 
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
-    implementation("org.dhatim:fastexcel-reader:0.14.0")
+//    implementation("org.dhatim:fastexcel-reader:0.14.0")
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel
-    implementation("org.dhatim:fastexcel:0.14.0")
+//    implementation("org.dhatim:fastexcel:0.14.0")
+
+    // https://mvnrepository.com/artifact/org.apache.poi/poi
+    api(group = "org.apache.poi", name = "poi", version = "5.2.3")
+    // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
+    api(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.3")
 
 //    testImplementation(kotlin("test"))
 //    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
