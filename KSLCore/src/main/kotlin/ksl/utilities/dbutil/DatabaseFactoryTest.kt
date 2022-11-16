@@ -29,6 +29,7 @@ fun testSQLite() {
     database.printTableAsText(tableName = "person")
     println()
     database.printTableAsMarkdown(tableName = "person")
+    database.writeToExcel(tableNames = listOf("person"))
 }
 
 fun testKTorm(){

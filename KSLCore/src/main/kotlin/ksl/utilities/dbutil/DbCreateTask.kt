@@ -15,6 +15,7 @@
  */
 package ksl.utilities.dbutil
 
+import ksl.utilities.excel.ExcelUtil
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -203,14 +204,17 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
         return when (state) {
             State.UN_EXECUTED ->                 // execute the task
                 dbCreateTaskExecution()
+
             State.EXECUTED -> {
                 DatabaseIfc.logger.error("Tried to execute an already executed create task.\n {}", this)
                 false
             }
+
             State.EXECUTION_ERROR -> {
                 DatabaseIfc.logger.error("Tried to execute a previously executed task that had errors.\n {}", this)
                 false
             }
+
             State.NO_TABLES_ERROR -> {
                 DatabaseIfc.logger.error("Tried to execute a create task with no tables created.\n {}", this)
                 false
@@ -270,8 +274,9 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     try {
-                        TODO("write workbook to database")
-//                        ExcelUtil.writeWorkbookToDatabase(excelWorkbookPathForDataInsert, true, myDatabase, insertTableOrder)
+                        ExcelUtil.writeWorkbookToDatabase(
+                            excelWorkbookPathForDataInsert!!,
+                            skipFirstRow = true, myDatabase, tableNames = insertTableOrder)
                     } catch (e: IOException) {
                         execFlag = false
                     }
@@ -286,8 +291,9 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = try {
-                        TODO("write workbook to database")
-                        //                       ExcelUtil.writeWorkbookToDatabase(excelWorkbookPathForDataInsert, true, myDatabase, insertTableOrder)
+                        ExcelUtil.writeWorkbookToDatabase(
+                            excelWorkbookPathForDataInsert!!,
+                            skipFirstRow = true, myDatabase, tableNames = insertTableOrder)
                         myDatabase.executeCommands(alterCommands)
                     } catch (e: IOException) {
                         false

@@ -23,14 +23,18 @@ import ksl.utilities.dbutil.DatabaseIfc
 import ksl.utilities.dbutil.ResultSetRowIterator
 import ksl.utilities.io.KSLFileUtil
 import mu.KLoggable
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException
+import org.apache.poi.openxml4j.opc.OPCPackage
+import org.apache.poi.openxml4j.opc.PackageAccess
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.ss.util.WorkbookUtil
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.IOException
 import java.io.PrintWriter
 import java.math.BigDecimal
+import java.nio.file.Path
+import java.sql.*
 import java.sql.Date
-import java.sql.ResultSet
-import java.sql.Time
-import java.sql.Timestamp
 import java.util.*
 import javax.sql.rowset.CachedRowSet
 
@@ -62,21 +66,20 @@ object ExcelUtil : KLoggable {
 
     /**
      * @param resultSet the result set to copy from
-     * @param workbook the workbook to copy to
-     * @param sheetName the name of the sheet in the workbook to hold the results et values
+     * @param sheet the sheet in the workbook to hold the results et values
      * @param writeHeader whether to write a header of the column names into the sheet. The default is true
      */
-    fun writeSheet(resultSet: ResultSet, workbook: Workbook, sheetName: String, writeHeader: Boolean = true) {
-        val ws = createSheet(workbook, sheetName)
+    fun writeSheet(resultSet: ResultSet, sheet: Sheet, writeHeader: Boolean = true) {
+        require(!resultSet.isClosed) { "The supplied ResultSet is closed when trying to write workbook ${sheet.sheetName} " }
         // write the header
         var rowCnt = 0
         if (writeHeader) {
             val names = DatabaseIfc.columnNames(resultSet)
             for (col in names.indices) {
-                val header = ws.createRow(0)
+                val header = sheet.createRow(0)
                 val cell = header.createCell(col)
                 cell.setCellValue(names[col])
-                ws.setColumnWidth(col, ((names[col].length + 2) * 256))
+                sheet.setColumnWidth(col, ((names[col].length + 2) * 256))
             }
             rowCnt++
         }
@@ -84,13 +87,13 @@ object ExcelUtil : KLoggable {
         val iterator = ResultSetRowIterator(resultSet)
         while (iterator.hasNext()) {
             val list = iterator.next()
-            val row = ws.createRow(rowCnt)
+            val row = sheet.createRow(rowCnt)
             for (col in list.indices) {
                 writeCell(row.createCell(col), list[col])
             }
             rowCnt++
         }
-        logger.info { "Completed exporting sheet $sheetName to the workbook" }
+        logger.info { "Completed exporting sheet ${sheet.sheetName} to the workbook" }
     }
 
     /**
@@ -172,29 +175,109 @@ object ExcelUtil : KLoggable {
         }
     }
 
-    /** Copies the rows from the sheet to the CachedRowSet.  The copy is assumed to start
+    /**
+     * Opens the workbook for reading only and writes the sheets of the workbook into database tables.
+     * The list of names is the names of the
+     * sheets in the workbook and the names of the tables that need to be written. They are in the
+     * order that is required for entering data so that no integrity constraints are violated. The
+     * underlying workbook is closed after the operation.
+     *
+     * @param pathToWorkbook the path to the workbook. Must be valid workbook with .xlsx extension
+     * @param skipFirstRow   if true the first row of each sheet is skipped
+     * @param db             the database to write to
+     * @param schemaName the name of the schema containing the named tables
+     * @param tableNames     the names of the sheets and tables in the order that needs to be written
+     * @throws IOException an io exception
+     */
+    fun writeWorkbookToDatabase(
+        pathToWorkbook: Path,
+        skipFirstRow: Boolean = true,
+        db: DatabaseIfc,
+        schemaName: String? = db.defaultSchemaName,
+        tableNames: List<String>
+    ) {
+        val workbook: XSSFWorkbook = openExistingXSSFWorkbookReadOnly(pathToWorkbook)
+            ?: throw IOException("There was a problem opening the workbook!")
+
+        logger.info("Writing workbook {} to database {}", pathToWorkbook, db.label)
+        for (tableName in tableNames) {
+            val sheet = workbook.getSheet(tableName)
+            if (sheet == null) {
+                logger.info("Skipping table {} no corresponding sheet in workbook", tableName)
+                continue
+            }
+            val rs = db.selectAllIntoOpenResultSet(schemaName, tableName)
+            if (rs != null) {
+                val pathToBadRows = pathToWorkbook.resolve("${tableName}_MissingRows")
+                val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
+                val numToSkip = if (skipFirstRow) 1 else 0
+                writeSheetToResultSet(sheet, rs, numToSkip, unCompatibleRows = badRowsFile)
+            } else {
+                logger.info { "Unable to write sheet $tableName to database ${db.label}. Could not form ResultSet for the table" }
+            }
+        }
+        workbook.close()
+        logger.info("Closed workbook {} ", pathToWorkbook)
+        logger.info("Completed writing workbook {} to database {}", pathToWorkbook, db.label)
+    }
+
+    /**
+     * IO exceptions are squelched in this method.  If there is a problem, then null is returned.
+     * Opens an Apache POI XSSFWorkbook instance. The user is responsible for closing the workbook
+     * when done. Do not try to write to the returned workbook.
+     *
+     * @param pathToWorkbook the path to a valid Excel xlsx workbook
+     * @return an Apache POI XSSFWorkbook or null if there was a problem opening the workbook.
+     */
+    fun openExistingXSSFWorkbookReadOnly(pathToWorkbook: Path): XSSFWorkbook? {
+        val file = pathToWorkbook.toFile()
+        if (!file.exists()) {
+            logger.warn("The file at {} does not exist", pathToWorkbook)
+            return null
+        }
+        var pkg: OPCPackage? = null
+        pkg = try {
+            OPCPackage.open(file, PackageAccess.READ)
+        } catch (e: InvalidFormatException) {
+            logger.error("The workbook has an invalid format. See Apache POI InvalidFormatException")
+            return null
+        }
+        var wb: XSSFWorkbook? = null
+        try {
+            wb = XSSFWorkbook(pkg)
+            logger.info("Opened workbook for reading only at: {}", pathToWorkbook)
+        } catch (e: IOException) {
+            logger.error("There was an IO error when trying to open the workbook at: {}", pathToWorkbook)
+        }
+        return wb
+    }
+
+    /** Copies the rows from the sheet to the ResultSet.  The copy is assumed to start
      * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
-     * row set and the number of rows of the sheet.  The copy is from the perspective of the CachedRowSet.
-     * That is, all columns of a row of the CachedRowSet are attempted to be filled from a corresponding
+     * result set and the number of rows of the sheet.  The copy is from the perspective of the ResultSet.
+     * That is, all columns of a row of the ResultSet are attempted to be filled from a corresponding
      * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
      * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
      * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
-     * in the row set.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
+     * in the result set.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
      *
-     * @param sheet the sheet that has the data to transfer to the CachedRowSet
-     * @param rowSet the CachedRowSet to receive the data
+     * @param sheet the sheet that has the data to transfer to the ResultSet
+     * @param resultSet the ResultSet to receive the data. It must be open and have an active connection.  It is
+     * the responsibility of the caller to close the result set.
      * @param numRowsToSkip indicates the number of rows to skip from the top of the sheet. Use 1 (default) if the sheet has
      * a header row
      *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
      *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
      */
-    fun writeSheetToCachedRowSet(
+    fun writeSheetToResultSet(
         sheet: Sheet,
-        rowSet: CachedRowSet,
+        resultSet: ResultSet,
         numRowsToSkip: Int = 1,
-        rowBatchSize: Int = minOf(rowSet.size(), 100),
+        rowBatchSize: Int = 100,
         unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
     ) {
+        require(!resultSet.isClosed) { "The supplied ResultSet is closed" }
+        val rowSet = DatabaseIfc.createCachedRowSet(resultSet)
         val rowIterator = sheet.rowIterator()
         for (i in 1..numRowsToSkip) {
             if (rowIterator.hasNext()) {
@@ -202,22 +285,50 @@ object ExcelUtil : KLoggable {
             }
         }
         val colMetaData = DatabaseIfc.columnMetaData(rowSet)
+        var batchCnt = 0
+        var cntBad = 0
+        var rowCnt = 0
+        var cntGood = 0
         while (rowIterator.hasNext()) {
             val row = rowIterator.next()
             val rowData = readRowAsObjectList(row, colMetaData.size)
+            rowCnt++
             // rowData needs to be placed in row set
-
+            val success = insertNewRow(rowData, colMetaData, rowSet)
+            if (!success) {
+                unCompatibleRows.println("Sheet: ${sheet.sheetName} row: ${row.rowNum} not written: $rowData")
+                cntBad++
+            } else {
+                batchCnt++
+                if (batchCnt.mod(rowBatchSize) == 0) {
+                    batchCnt = 0
+                    rowSet.acceptChanges()
+                }
+                cntGood++
+            }
         }
-
+        logger.info { "Transferred $cntGood out of $rowCnt rows for ${sheet.sheetName}. There were $cntBad incompatible rows written." }
     }
 
-    private fun insertNewRow(rowData: List<Any?>, colMetaData: List<ColumnMetaData>, rowSet: CachedRowSet) {
-        rowSet.moveToInsertRow()
-        for (colIndex in colMetaData.indices) {
-//TODO just don't know. not sure if object is translated to type
-            rowSet.updateObject(colIndex + 1, rowData[colIndex])
+    /** This method inserts the
+     * @param rowData the data to be inserted
+     * @param colMetaData the column metadata for the row set
+     * @param rowSet a row set to hold the new data
+     * @return returns true if the data was inserted false if something went wrong and no insert made
+     */
+    private fun insertNewRow(rowData: List<Any?>, colMetaData: List<ColumnMetaData>, rowSet: CachedRowSet): Boolean {
+        //TODO notice that elements of colMetaData are not used. Consider changing to number of columns
+        return try {
+            rowSet.moveToInsertRow()
+            for (colIndex in colMetaData.indices) {
+                //TODO just don't know. not sure if object is translated to type
+                rowSet.updateObject(colIndex + 1, rowData[colIndex])
+            }
+            rowSet.insertRow()
+            true
+        } catch (e: SQLException) {
+            false
         }
-        rowSet.insertRow()
     }
 
     /**

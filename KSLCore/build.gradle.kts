@@ -38,12 +38,16 @@ dependencies {
 //    api(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
-    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "2.1.21")
+    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    api(group = "ch.qos.logback", name = "logback-classic", version = "1.2.10")
+    api(group = "ch.qos.logback", name = "logback-classic", version = "1.4.4")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    api(group = "ch.qos.logback", name = "logback-core", version = "1.2.10")
+    api(group = "ch.qos.logback", name = "logback-core", version = "1.4.4")
+
+    // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
+// https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
+    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.19.0")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")

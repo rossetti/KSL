@@ -6,7 +6,7 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.MarkDown
 import mu.KLoggable
-import org.dhatim.fastexcel.Workbook
+import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -466,8 +466,20 @@ interface DatabaseIfc {
     /**
      * @param tableName qualified or unqualified name of an existing table in the database
      */
-    private fun selectAllIntoOpenResultSet(tableName: String): ResultSet? {
-        val sql = "select * from $tableName"
+    fun selectAllIntoOpenResultSet(schemaName: String? = defaultSchemaName, tableName: String): ResultSet? {
+        if (schemaName != null) {
+            if (!containsSchema(schemaName)) {
+                return null
+            }
+        }
+        if (!containsTable(tableName)) {
+            return null
+        }
+        val sql: String = if (schemaName == null) {
+            "select * from $tableName"
+        } else {
+            "select * from ${schemaName}.$tableName"
+        }
         return fetchOpenResultSet(sql)
     }
 
@@ -652,16 +664,35 @@ interface DatabaseIfc {
     ) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
-                logger.warn { "Attempting to write to Excel: The supplied schema name $schemaName is not in database $label" }
+                logger.warn {
+                    "Attempting to write to Excel: The supplied schema name $schemaName is not in " +
+                            "database $label. No workbook named $wbName at $wbDirectory was created"
+                }
                 return
             }
             val tables = tableNames(schemaName)
-            logger.info {"Exporting $schemaName to $wbName at $wbDirectory"}
-            writeToExcel(tables, wbName, wbDirectory)
+            logger.info { "Exporting $schemaName to $wbName at $wbDirectory" }
+            writeToExcel(schemaName, tables, wbName, wbDirectory)
+        } else {
+            logger.info { "The supplied schema to write was null. No workbook named $wbName at $wbDirectory was created" }
         }
     }
 
-    fun writeToExcel(tableNames: List<String>, wbName: String = label, wbDirectory: Path = KSL.excelDir) {
+    /** Writes each table in the list to an Excel workbook with each table being placed
+     *  in a new sheet with the sheet name equal to the name of the table. The column names
+     *  for each table are written as the first row of each sheet.
+     *
+     * @param schemaName the name of the schema containing the tables or null
+     * @param tableNames the names of the tables to write to a workbook
+     * @param wbName the name of the workbook
+     * @param wbDirectory the directory to store the workbook
+     */
+    fun writeToExcel(
+        schemaName: String? = defaultSchemaName,
+        tableNames: List<String>,
+        wbName: String = label.substringBeforeLast("."),
+        wbDirectory: Path = KSL.excelDir
+    ) {
         if (tableNames.isEmpty()) {
             logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
             return
@@ -673,21 +704,28 @@ interface DatabaseIfc {
         }
         val path = wbDirectory.resolve(wbn)
         FileOutputStream(path.toFile()).use {
-            val wb = Workbook(it, "KSL", "1.0")
+            logger.info { "Writing database $label to workbook at $path" }
+            //TODO seems to cause this message to print
+//        ERROR StatusLogger Log4j2 could not find a logging implementation.
+//        Please add log4j-core to the classpath. Using SimpleLogger to log to the console...
+            val workbook = SXSSFWorkbook(100)
             for (tableName in tableNames) {
                 if (containsTable(tableName)) {
                     // get result set
-                    val rs = selectAllIntoOpenResultSet(tableName)
+                    val rs = selectAllIntoOpenResultSet(schemaName, tableName)
                     if (rs != null) {
                         // write result set to workbook
-                        ExcelUtil.writeSheet(rs, wb, tableName)
+                        val sheet = ExcelUtil.createSheet(workbook, tableName)
+                        ExcelUtil.writeSheet(rs, sheet)
                         // close result set
                         rs.close()
                     }
                 }
             }
-            wb.finish()
-            logger.info("Completed database $label export to workbook $path")
+            workbook.write(it)
+            workbook.close()
+            workbook.dispose()
+            logger.info { "Completed database $label export to workbook at $path" }
         }
     }
 
@@ -813,13 +851,17 @@ interface DatabaseIfc {
      * @return the results of the query or null
      */
     fun fetchOpenResultSet(sql: String): ResultSet? {
+        var query: PreparedStatement? = null
         try {
-            connection.use { connection ->
-                val query = connection.prepareStatement(sql)
-                return query.executeQuery()
-            }
+            query = connection.prepareStatement(sql)
+            return query.executeQuery()
+//            connection.use { connection ->
+//                val query = connection.prepareStatement(sql)
+//                return query.executeQuery()
+//            }
         } catch (e: SQLException) {
             logger.warn("The query $sql was not executed for database $label", e)
+            query?.close()
         }
         return null
     }
