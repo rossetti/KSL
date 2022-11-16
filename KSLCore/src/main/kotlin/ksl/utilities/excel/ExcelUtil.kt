@@ -197,7 +197,7 @@ object ExcelUtil : KLoggable {
         tableNames: List<String>
     ) {
         val workbook: XSSFWorkbook = openExistingXSSFWorkbookReadOnly(pathToWorkbook)
-            ?: throw IOException("There was a problem opening the workbook!")
+            ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
 
         logger.info("Writing workbook {} to database {}", pathToWorkbook, db.label)
         for (tableName in tableNames) {

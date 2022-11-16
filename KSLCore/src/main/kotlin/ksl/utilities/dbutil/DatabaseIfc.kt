@@ -652,8 +652,7 @@ interface DatabaseIfc {
         if (tableNames.isEmpty()) {
             logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
         } else {
-//TODO            ExcelUtil.writeDBAsExcelWorkbook(this, tableNames, path)
-            TODO("not implemented yet")
+            ExcelUtil.writeWorkbookToDatabase(path, db = this, tableNames = tableNames)
         }
     }
 
@@ -732,7 +731,7 @@ interface DatabaseIfc {
     /**
      * @return returns a DbCreateTask that can be configured to execute on the database
      */
-    fun create(): DbCreateTask.DbCreateTaskFirstStepIfc? {
+    fun create(): DbCreateTask.DbCreateTaskFirstStepIfc {
         return DbCreateTask.DbCreateTaskBuilder(this)
     }
 
@@ -997,10 +996,10 @@ interface DatabaseIfc {
             val inFile = Files.newInputStream(filePath)
             val reader = BufferedReader(InputStreamReader(inFile))
             var cmd = StringBuilder()
-            var line: String
+            var line: String?
             while (reader.readLine().also { line = it } != null) {
                 //boolean end = parseCommandString(line, cmd);
-                val option = parseLine(line, cmd)
+                val option = parseLine(line!!, cmd)
                 if (option == LineOption.END) {
                     val trimmedString = cmd.toString().trim { it <= ' ' }
                     //System.out.println(trimmedString);
@@ -1209,7 +1208,7 @@ interface DatabaseIfc {
          * the result set from left to right (0 is column 1, etc.)
          */
         fun columnMetaData(resultSet: ResultSet): List<ColumnMetaData> {
-            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }
+//TODO            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }  maybe Derby does not support this!
             val list = mutableListOf<ColumnMetaData>()
             val md = resultSet.metaData
             if (md != null) {
