@@ -6,7 +6,9 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.MarkDown
 import mu.KLoggable
+import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.xssf.streaming.SXSSFWorkbook
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -19,7 +21,7 @@ import javax.sql.rowset.RowSetProvider
 
 
 /**
- * Many databases define the words database, user, schema in a variety of ways. This abstraction
+ * Many databases define database, user, schema in a variety of ways. This abstraction
  * defines this concept as the userSchema.  It is the name of the organizational construct for
  * which the user defined database object are contained. These are not the system abstractions.
  * The database name provided to the construct is for labeling and may or may not have any relationship
@@ -50,18 +52,18 @@ interface DatabaseIfc {
     var defaultSchemaName: String?
 
     /**
-     * It is best to use this property within a try-with-resource construct
-     * This method calls the DataSource for a connection. You are responsible for closing the connection.
+     * It is best to use this function within a try-with-resource construct
+     * This method calls the DataSource for a connection from the underlying DataSource.
+     * You are responsible for closing the connection.
      *
      * @return a connection to the database
      * @throws SQLException if there is a problem with the connection
      */
-    val connection: Connection
-        get() {
-            val c = dataSource.connection
-            logger.debug { "Established a connection to Database $label " }
-            return c
-        }
+    fun getConnection(): Connection {
+        val c = dataSource.connection
+        logger.trace { "Established a connection to Database $label " }
+        return c
+    }
 
     val dbURL: String?
 
@@ -73,7 +75,8 @@ interface DatabaseIfc {
         val list = mutableListOf<String>()
         if (containsSchema(schemaName)) {
             try {
-                connection.use { connection ->
+                logger.trace { "Getting a connection to retrieve the list of table names for schema $schemaName in database $label" }
+                getConnection().use { connection ->
                     val metaData = connection.metaData
                     val rs = metaData.getTables(null, schemaName, null, arrayOf("TABLE"))
                     while (rs.next()) {
@@ -99,7 +102,8 @@ interface DatabaseIfc {
         val list = mutableListOf<String>()
         if (containsSchema(schemaName)) {
             try {
-                connection.use { connection ->
+                logger.trace { "Getting a connection to retrieve the list of view names for schema $schemaName in database $label" }
+                getConnection().use { connection ->
                     val metaData = connection.metaData
                     val rs = metaData.getTables(null, schemaName, null, arrayOf("VIEW"))
                     while (rs.next()) {
@@ -124,7 +128,8 @@ interface DatabaseIfc {
         get() {
             val list = mutableListOf<String>()
             try {
-                connection.use { connection ->
+                logger.trace { "Getting a connection to retrieve the list of user defined table names in database $label" }
+                getConnection().use { connection ->
                     val metaData = connection.metaData
                     val rs = metaData.getTables(null, null, null, arrayOf("TABLE"))
                     while (rs.next()) {
@@ -148,7 +153,8 @@ interface DatabaseIfc {
         get() {
             val list = mutableListOf<String>()
             try {
-                connection.use { connection ->
+                logger.trace { "Getting a connection to retrieve the list of schema names in database $label" }
+                getConnection().use { connection ->
                     val metaData = connection.metaData
                     val rs = metaData.schemas
                     while (rs.next()) {
@@ -169,7 +175,8 @@ interface DatabaseIfc {
         get() {
             val list = mutableListOf<String>()
             try {
-                connection.use { connection ->
+                logger.trace { "Getting a connection to retrieve the list of views in database $label" }
+                getConnection().use { connection ->
                     val metaData = connection.metaData
                     val rs = metaData.getTables(null, null, null, arrayOf("VIEW"))
                     while (rs.next()) {
@@ -250,22 +257,22 @@ interface DatabaseIfc {
      * @param out       the PrintWriter to write to.  The print writer is not closed.
      */
     fun writeTableAsCSV(
-        schemaName: String? = defaultSchemaName,
         tableName: String,
-        header: Boolean = true,
-        out: PrintWriter
+        out: PrintWriter,
+        schemaName: String? = defaultSchemaName,
+        header: Boolean = true
     ) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
-                logger.trace("Schema: {} does not exist in database {}", schemaName, label)
+                logger.trace { "Schema: $schemaName does not exist in database $label" }
                 return
             }
         }
         if (!containsTable(tableName)) {
-            logger.trace("Table: {} does not exist in database {}", tableName, label)
+            logger.trace { "Table: $tableName does not exist in database $label" }
             return
         }
-        val resultSet = selectAll(schemaName, tableName)
+        val resultSet = selectAll(tableName, schemaName)
         if (resultSet != null) {
             writeAsCSV(resultSet, header, out)
             out.flush()
@@ -279,8 +286,8 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the name of the table to print
      */
-    fun printTableAsCSV(schemaName: String? = defaultSchemaName, tableName: String, header: Boolean = true) {
-        writeTableAsCSV(schemaName, tableName, header, PrintWriter(System.out))
+    fun printTableAsCSV(tableName: String, schemaName: String? = defaultSchemaName, header: Boolean = true) {
+        writeTableAsCSV(tableName, PrintWriter(System.out), schemaName, header)
     }
 
     /**
@@ -289,21 +296,21 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsText(schemaName: String? = defaultSchemaName, tableName: String, out: PrintWriter) {
+    fun writeTableAsText(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
-                logger.info("Schema: {} does not exist in database {}", schemaName, label)
+                logger.info { "Schema: $schemaName does not exist in database $label" }
                 return
             }
         }
         if (!containsTable(tableName)) {
-            logger.info("Table: {} does not exist in database {}", tableName, label)
+            logger.info { "Table: $tableName does not exist in database $label" }
             return
         }
-        val rowSet = selectAll(schemaName, tableName)
+        val rowSet = selectAll(tableName, schemaName)
         if (rowSet != null) {
             out.println(tableName)
-            logger.info {"Writing table: $tableName from schema $schemaName as text to output"}
+            logger.info { "Writing table: $tableName from schema $schemaName as text to output" }
             writeAsText(rowSet, out)
             out.flush()
             rowSet.close()
@@ -315,8 +322,8 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
-    fun printTableAsText(schemaName: String? = defaultSchemaName, tableName: String) {
-        writeTableAsText(schemaName, tableName, PrintWriter(System.out))
+    fun printTableAsText(tableName: String, schemaName: String? = defaultSchemaName) {
+        writeTableAsText(tableName, PrintWriter(System.out), schemaName)
     }
 
     /**
@@ -325,7 +332,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      */
     fun printAllTablesAsText(schemaName: String? = defaultSchemaName) {
-        writeAllTablesAsText(schemaName, PrintWriter(System.out))
+        writeAllTablesAsText(PrintWriter(System.out), schemaName)
     }
 
     /**
@@ -334,14 +341,14 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsText(schemaName: String? = defaultSchemaName, out: PrintWriter) {
+    fun writeAllTablesAsText(out: PrintWriter, schemaName: String? = defaultSchemaName) {
         val tables = if (schemaName != null) {
             tableNames(schemaName)
         } else {
             userDefinedTables
         }
         for (table in tables) {
-            writeTableAsText(schemaName, table, out)
+            writeTableAsText(table, out, schemaName)
         }
     }
 
@@ -351,7 +358,7 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsMarkdown(schemaName: String? = defaultSchemaName, tableName: String, out: PrintWriter) {
+    fun writeTableAsMarkdown(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.info("Schema: {} does not exist in database {}", schemaName, label)
@@ -362,7 +369,7 @@ interface DatabaseIfc {
             logger.info("Table: {} does not exist in database {}", tableName, label)
             return
         }
-        val rowSet = selectAll(schemaName, tableName)
+        val rowSet = selectAll(tableName, schemaName)
         if (rowSet != null) {
             out.println(MarkDown.bold("Table: $tableName"))
             writeAsMarkdown(rowSet, out)
@@ -376,8 +383,8 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
-    fun printTableAsMarkdown(schemaName: String? = defaultSchemaName, tableName: String) {
-        writeTableAsMarkdown(schemaName, tableName, PrintWriter(System.out))
+    fun printTableAsMarkdown(tableName: String, schemaName: String? = defaultSchemaName) {
+        writeTableAsMarkdown(tableName, PrintWriter(System.out), schemaName)
     }
 
     /**
@@ -386,7 +393,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      */
     fun printAllTablesAsMarkdown(schemaName: String? = defaultSchemaName) {
-        writeAllTablesAsMarkdown(schemaName, PrintWriter(System.out))
+        writeAllTablesAsMarkdown(PrintWriter(System.out), schemaName)
     }
 
     /**
@@ -395,14 +402,14 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsMarkdown(schemaName: String? = defaultSchemaName, out: PrintWriter) {
+    fun writeAllTablesAsMarkdown(out: PrintWriter, schemaName: String? = defaultSchemaName) {
         val tables = if (schemaName != null) {
             tableNames(schemaName)
         } else {
             userDefinedTables
         }
         for (table in tables) {
-            writeTableAsMarkdown(schemaName, table, out)
+            writeTableAsMarkdown(table, out, schemaName)
         }
     }
 
@@ -417,8 +424,8 @@ interface DatabaseIfc {
      * @param header  true means all files will have the column headers
      */
     fun writeAllTablesAsCSV(
-        schemaName: String? = defaultSchemaName,
         pathToOutPutDirectory: Path,
+        schemaName: String? = defaultSchemaName,
         header: Boolean = true
     ) {
         Files.createDirectories(pathToOutPutDirectory)
@@ -430,7 +437,7 @@ interface DatabaseIfc {
         for (table in tables) {
             val path: Path = pathToOutPutDirectory.resolve("$table.csv")
             val writer = KSLFileUtil.createPrintWriter(path)
-            writeTableAsCSV(schemaName, table, header, writer)
+            writeTableAsCSV(table, writer, schemaName, header)
             writer.close()
         }
     }
@@ -440,7 +447,7 @@ interface DatabaseIfc {
      * @param tableName the name of the table within the schema to get all records from
      * @return a result holding all the records from the table
      */
-    fun selectAll(schemaName: String? = defaultSchemaName, tableName: String): CachedRowSet? {
+    fun selectAll(tableName: String, schemaName: String? = defaultSchemaName): CachedRowSet? {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return null
@@ -467,7 +474,7 @@ interface DatabaseIfc {
     /**
      * @param tableName qualified or unqualified name of an existing table in the database
      */
-    fun selectAllIntoOpenResultSet(schemaName: String? = defaultSchemaName, tableName: String): ResultSet? {
+    fun selectAllIntoOpenResultSet(tableName: String, schemaName: String? = defaultSchemaName): ResultSet? {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return null
@@ -489,8 +496,8 @@ interface DatabaseIfc {
      * @param tableName the name of the table within the schema
      * @return true if the table contains no records (rows)
      */
-    fun isTableEmpty(schemaName: String? = defaultSchemaName, tableName: String): Boolean {
-        val rs = selectAll(schemaName, tableName)
+    fun isTableEmpty(tableName: String, schemaName: String? = defaultSchemaName): Boolean {
+        val rs = selectAll(tableName, schemaName)
         return if (rs == null) {
             true
         } else {
@@ -521,7 +528,7 @@ interface DatabaseIfc {
         }
         var result = true
         for (t in tables) {
-            result = isTableEmpty(schemaName, t)
+            result = isTableEmpty(t, schemaName)
             if (!result) {
                 break
             }
@@ -589,77 +596,8 @@ interface DatabaseIfc {
             }
         }
     */
-    /**
-     * Writes all the tables in the supplied schema to an Excel workbook
-     *
-     * @param schemaName  the name of the schema that should contain the tables, must not be null
-     * @param wbName      name of the workbook, if null uses name of database
-     * @param wbDirectory directory of the workbook, if null uses the working directory
-     * @throws IOException if there is a problem
-     */
-//    fun writeDbToExcelWorkbook(
-//        schemaName: String? = defaultSchemaName,
-//        wbName: String? = null,
-//        wbDirectory: Path? = null
-//    ) {
-//        if (schemaName != null) {
-//            if (!containsSchema(schemaName)) {
-//                logger.warn(
-//                    "Attempting to write to Excel: The supplied schema name {} is not in database {}",
-//                    schemaName, label
-//                )
-//                return
-//            }
-//        }
-//        val tableNames = if (schemaName != null) {
-//            tableNames(schemaName)
-//        } else {
-//            userDefinedTables
-//        }
-//        if (tableNames.isEmpty()) {
-//            logger.warn(
-//                "The supplied schema name {} had no tables to write to Excel in database {}",
-//                schemaName, label
-//            )
-//        } else {
-//            //TODO is this the correct call
-//            writeDbToExcelWorkbook(tableNames, wbName, wbDirectory)
-//        }
-//    }
 
-    /**
-     * Writes the tables in the supplied list to an Excel workbook, if they exist in the database.
-     *
-     * @param tableNames  a list of table names that should be written to Excel, must not be null
-     * @param wbName      name of the workbook, if null uses name of database
-     * @param wbDirectory directory of the workbook, if null uses the working directory
-     * @throws IOException if there is a problem
-     */
-//    fun writeDbToExcelWorkbook(tableNames: List<String>, wbName: String?, wbDirectory: Path?) {
-//        var wbName = wbName
-//        var wbDirectory = wbDirectory
-//        Objects.requireNonNull(tableNames, "The list of table names was null")
-//        if (wbName == null) {
-//            wbName = label + ".xlsx"
-//        } else {
-//            // name is not null make sure it has .xlsx
-//            if (!wbName.endsWith(".xlsx")) {
-//                wbName = "$wbName.xlsx"
-//            }
-//        }
-//        if (wbDirectory == null) {
-//            wbDirectory = KSL.excelDir
-//        }
-//        val path = wbDirectory.resolve(wbName)
-//        if (tableNames.isEmpty()) {
-//            logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
-//        } else {
-//            //TODO this should be write database to workbook
-//            ExcelUtil.writeWorkbookToDatabase(path, db = this, tableNames = tableNames)
-//        }
-//    }
-
-    fun writeToExcel(
+    fun exportToExcel(
         schemaName: String? = defaultSchemaName,
         wbName: String = label,
         wbDirectory: Path = KSL.excelDir
@@ -674,7 +612,7 @@ interface DatabaseIfc {
             }
             val tables = tableNames(schemaName)
             logger.info { "Exporting $schemaName to $wbName at $wbDirectory" }
-            writeToExcel(schemaName, tables, wbName, wbDirectory)
+            exportToExcel(tables, schemaName, wbName, wbDirectory)
         } else {
             logger.info { "The supplied schema to write was null. No workbook named $wbName at $wbDirectory was created" }
         }
@@ -689,9 +627,9 @@ interface DatabaseIfc {
      * @param wbName the name of the workbook
      * @param wbDirectory the directory to store the workbook
      */
-    fun writeToExcel(
-        schemaName: String? = defaultSchemaName,
+    fun exportToExcel(
         tableNames: List<String>,
+        schemaName: String? = defaultSchemaName,
         wbName: String = label.substringBeforeLast("."),
         wbDirectory: Path = KSL.excelDir
     ) {
@@ -707,18 +645,15 @@ interface DatabaseIfc {
         val path = wbDirectory.resolve(wbn)
         FileOutputStream(path.toFile()).use {
             logger.info { "Writing database $label to workbook at $path" }
-            //TODO seems to cause this message to print
-//        ERROR StatusLogger Log4j2 could not find a logging implementation.
-//        Please add log4j-core to the classpath. Using SimpleLogger to log to the console...
             val workbook = SXSSFWorkbook(100)
             for (tableName in tableNames) {
                 if (containsTable(tableName)) {
                     // get result set
-                    val rs = selectAllIntoOpenResultSet(schemaName, tableName)
+                    val rs = selectAllIntoOpenResultSet(tableName, schemaName)
                     if (rs != null) {
                         // write result set to workbook
                         val sheet = ExcelUtil.createSheet(workbook, tableName)
-                        ExcelUtil.writeSheet(rs, sheet)
+                        exportAsWorkSheet(rs, sheet)
                         // close result set
                         rs.close()
                     }
@@ -732,6 +667,153 @@ interface DatabaseIfc {
     }
 
     /**
+     * Opens the workbook for reading only and writes the sheets of the workbook into database tables.
+     * The list of names is the names of the
+     * sheets in the workbook and the names of the tables that need to be written. They are in the
+     * order that is required for entering data so that no integrity constraints are violated. The
+     * underlying workbook is closed after the operation.
+     *
+     * @param pathToWorkbook the path to the workbook. Must be valid workbook with .xlsx extension
+     * @param skipFirstRow   if true the first row of each sheet is skipped
+     * @param schemaName the name of the schema containing the named tables
+     * @param tableNames     the names of the sheets and tables in the order that needs to be written
+     * @throws IOException an io exception
+     */
+    fun importWorkbookToSchema(
+        pathToWorkbook: Path,
+        skipFirstRow: Boolean = true,
+        schemaName: String? = defaultSchemaName,
+        tableNames: List<String>
+    ) {
+        val workbook: XSSFWorkbook = ExcelUtil.openExistingXSSFWorkbookReadOnly(pathToWorkbook)
+            ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
+
+        logger.info("Writing workbook {} to database {}", pathToWorkbook, label)
+        for (tableName in tableNames) {
+            val sheet = workbook.getSheet(tableName)
+            if (sheet == null) {
+                logger.info("Skipping table {} no corresponding sheet in workbook", tableName)
+                continue
+            }
+            logger.trace { "Processing the sheet for table $tableName. Selecting data for the table into a ResultSet." }
+            val rs = selectAllIntoOpenResultSet(tableName, schemaName)
+            if (rs != null) {
+                logger.trace { "The ResultSet for table $tableName was not null, constructing path for bad rows." }
+                val dirStr = pathToWorkbook.toString().substringBeforeLast(".")
+                val path = Path.of(dirStr)
+                val pathToBadRows = path.resolve("${tableName}_MissingRows.txt")
+                logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
+                val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
+                val numToSkip = if (skipFirstRow) 1 else 0
+                writeSheetToResultSet(sheet, rs, numToSkip, unCompatibleRows = badRowsFile)
+            } else {
+                logger.info { "Unable to write sheet $tableName to database ${label}. Could not form ResultSet for the table" }
+            }
+        }
+        workbook.close()
+        logger.info("Closed workbook {} ", pathToWorkbook)
+        logger.info("Completed writing workbook {} to database {}", pathToWorkbook, label)
+    }
+
+    /** Copies the rows from the sheet to the ResultSet.  The copy is assumed to start
+     * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
+     * result set and the number of rows of the sheet.  The copy is from the perspective of the ResultSet.
+     * That is, all columns of a row of the ResultSet are attempted to be filled from a corresponding
+     * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
+     * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
+     * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
+     * in the result set.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
+     *
+     * @param sheet the sheet that has the data to transfer to the ResultSet
+     * @param resultSet the ResultSet to receive the data. It must be open and have an active connection.  It is
+     * the responsibility of the caller to close the result set.
+     * @param numRowsToSkip indicates the number of rows to skip from the top of the sheet. Use 1 (default) if the sheet has
+     * a header row
+     *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
+     *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
+     */
+    fun writeSheetToResultSet(
+        sheet: Sheet,
+        resultSet: ResultSet,
+        numRowsToSkip: Int = 1,
+        rowBatchSize: Int = 100,
+        unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
+    ) {
+        require(!resultSet.isClosed) { "The supplied ResultSet is closed" }//TODO I thought this didn't work for derby
+        val rowSet = createCachedRowSet(resultSet)
+        if (rowSet.size() == 0) {
+            logger.trace { "The CachedRowSet to hold data for sheet ${sheet.sheetName} is empty." }
+        }
+        val rowIterator = sheet.rowIterator()
+        for (i in 1..numRowsToSkip) {
+            if (rowIterator.hasNext()) {
+                rowIterator.next()
+            }
+        }
+        val colMetaData = columnMetaData(rowSet)
+        var batchCnt = 0
+        var cntBad = 0
+        var rowCnt = 0
+        var cntGood = 0
+        logger.trace { "The CachedRowSet to hold data for sheet ${sheet.sheetName} has ${colMetaData.size} columns to fill." }
+        while (rowIterator.hasNext()) {
+            val row = rowIterator.next()
+            val rowData = ExcelUtil.readRowAsObjectList(row, colMetaData.size)
+            rowCnt++
+            logger.trace { "Read ${rowData.size} elements from sheet ${sheet.sheetName}" }
+            logger.trace { "Sheet Data: $rowData" }
+            // rowData needs to be placed in row set
+            val success = insertNewRow(rowData, colMetaData.size, rowSet)
+            if (!success) {
+                logger.trace { "Wrote row number ${row.rowNum} of sheet ${sheet.sheetName} to bad data file" }
+                unCompatibleRows.println("Sheet: ${sheet.sheetName} row: ${row.rowNum} not written: $rowData")
+                cntBad++
+            } else {
+                logger.trace { "Inserted data into CachedRowSet" }
+                batchCnt++
+                if (batchCnt.mod(rowBatchSize) == 0) {
+                    rowSet.moveToCurrentRow()
+                    rowSet.acceptChanges(getConnection()) //TODO causes error because the table name is null
+                    logger.trace { "Wrote batch of size $batchCnt to the CachedRowSet via accept changes" }
+                    batchCnt = 0
+                }
+                cntGood++
+            }
+        }
+        if (batchCnt > 0) {
+            rowSet.moveToCurrentRow()
+            rowSet.acceptChanges(getConnection()) //TODO causes error because the table name is null
+            logger.trace { "Wrote batch of size $batchCnt to the CachedRowSet via accept changes" }
+        }
+        logger.info { "Transferred $cntGood out of $rowCnt rows for ${sheet.sheetName}. There were $cntBad incompatible rows written." }
+    }
+
+    /** This method inserts the
+     * @param rowData the data to be inserted
+     * @param numColumns the column metadata for the row set
+     * @param rowSet a row set to hold the new data
+     * @return returns true if the data was inserted false if something went wrong and no insert made
+     */
+    private fun insertNewRow(
+        rowData: List<Any?>,
+        numColumns: Int,
+        rowSet: CachedRowSet
+    ): Boolean {
+        return try {
+            rowSet.moveToInsertRow()
+            for (colIndex in 1..numColumns) {
+                //looks like it does the updates
+                rowSet.updateObject(colIndex, rowData[colIndex-1])
+                logger.trace { "Updated column $colIndex with data ${rowData[colIndex-1]}" }
+            }
+            rowSet.insertRow()
+            true
+        } catch (e: SQLException) {
+            false
+        }
+    }
+
+    /**
      * @return returns a DbCreateTask that can be configured to execute on the database
      */
     fun create(): DbCreateTask.DbCreateTaskFirstStepIfc {
@@ -741,38 +823,16 @@ interface DatabaseIfc {
     /**
      * Executes a single command on a database connection
      *
-     * @param cmd a valid SQL command
+     * @param command a valid SQL command
      * @return true if the command executed without an SQLException
      */
-    fun executeCommand(cmd: String): Boolean {
+    fun executeCommand(command: String): Boolean {
         var flag = false
         try {
-            connection.use { con -> flag = executeCommand(con, cmd) }
+            logger.trace{"Getting connection to execute command $command on database $label"}
+            getConnection().use { con -> flag = executeCommand(con, command) }
         } catch (ex: SQLException) {
-            logger.error("SQLException when executing {}", cmd, ex)
-        }
-        return flag
-    }
-
-    /**
-     * Executes the SQL provided in the string. Squelches exceptions The string
-     * must not have ";" semicolon at the end. The caller is responsible for closing the connection
-     *
-     * @param con a connection for preparing the statement
-     * @param cmd the command
-     * @return true if the command executed without an exception
-     */
-    fun executeCommand(con: Connection, cmd: String): Boolean {
-        var flag = false
-        try {
-            con.createStatement().use { statement ->
-                statement.execute(cmd)
-                logger.info("Executed SQL: {}", cmd)
-                statement.close()
-                flag = true
-            }
-        } catch (ex: SQLException) {
-            logger.error("SQLException when executing {}", cmd, ex)
+            logger.error("SQLException when executing {}", command, ex)
         }
         return flag
     }
@@ -781,31 +841,34 @@ interface DatabaseIfc {
      * Consecutively executes the list of SQL queries supplied as a list of
      * strings The strings must not have ";" semi-colon at the end.
      *
-     * @param cmds the commands
+     * @param commands the commands
      * @return true if all commands were executed
      */
-    fun executeCommands(cmds: List<String>): Boolean {
-        var flag = true
+    fun executeCommands(commands: List<String>): Boolean {
+        var executed = true
         try {
-            connection.use { con ->
+            getConnection().use { con ->
                 con.autoCommit = false
-                for (cmd in cmds) {
-                    flag = executeCommand(con, cmd)
-                    if (flag == false) {
+                for (cmd in commands) {
+                    executed = executeCommand(con, cmd)
+                    if (!executed) {
+                        logger.trace { "Rolling back command on database $label" }
                         con.rollback()
                         break
                     }
                 }
-                if (flag == true) {
+                if (executed) {
+                    logger.trace { "Committing commands on database $label" }
                     con.commit()
                 }
                 con.autoCommit = true
             }
         } catch (ex: SQLException) {
-            flag = false
+            executed = false
+            logger.trace{"The commands were not executed for database $label"}
             logger.error("SQLException: ", ex)
         }
-        return flag
+        return executed
     }
 
     /**
@@ -823,14 +886,15 @@ interface DatabaseIfc {
 
     /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
      * form of a JDBC CachedRowSet. Errors in the SQL are the user's responsibility. Any exceptions
-     * are logged and squashed.
+     * are logged and squashed.  The underlying query is closed.
      *
      * @param sql an SQL text string that is valid
      * @return the results of the query or null if there was a problem
      */
     fun fetchCachedRowSet(sql: String): CachedRowSet? {
         try {
-            connection.use { connection ->
+            logger.trace { "Database $label: Getting connection to fetch CachedRowSet for $sql" }
+            getConnection().use { connection ->
                 val query = connection.prepareStatement(sql)
                 val rs = query.executeQuery()
                 val crs = createCachedRowSet(rs)
@@ -855,7 +919,8 @@ interface DatabaseIfc {
     fun fetchOpenResultSet(sql: String): ResultSet? {
         var query: PreparedStatement? = null
         try {
-            query = connection.prepareStatement(sql)
+            logger.trace { "Database $label: Getting connection to fetch open ResultSet for $sql" }
+            query = getConnection().prepareStatement(sql)
             return query.executeQuery()
 //            connection.use { connection ->
 //                val query = connection.prepareStatement(sql)
@@ -939,7 +1004,7 @@ interface DatabaseIfc {
      * @param tableName the name of the table, unqualified if the schema
      * @return the list of the table's metadata or an empty list if the table or schema is not found
      */
-    fun tableMetaData(schemaName: String? = defaultSchemaName, tableName: String): List<ColumnMetaData> {
+    fun tableMetaData(tableName: String, schemaName: String? = defaultSchemaName): List<ColumnMetaData> {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return emptyList()
@@ -972,6 +1037,65 @@ interface DatabaseIfc {
         val NEW_DELIMITER_PATTERN: Pattern = Pattern.compile("(?:--|\\/\\/|\\#)?!DELIMITER=(.+)")
 
         val COMMENT_PATTERN: Pattern = Pattern.compile("^(?:--|\\/\\/|\\#).+")
+
+        /** Exports the data in the ResultSet to an Excel worksheet. The ResultSet is assumed to be forward
+         * only and each row is processed until all rows are exported. The ResultSet is closed after
+         * the processing.
+         *
+         * @param resultSet the result set to copy from
+         * @param sheet the sheet in the workbook to hold the results set values
+         * @param writeHeader whether to write a header of the column names into the sheet. The default is true
+         */
+        fun exportAsWorkSheet(resultSet: ResultSet, sheet: Sheet, writeHeader: Boolean = true) {
+            require(!resultSet.isClosed) { "The supplied ResultSet is closed when trying to write workbook ${sheet.sheetName} " }
+            // write the header
+            var rowCnt = 0
+            if (writeHeader) {
+                val names = columnNames(resultSet)
+                val header = sheet.createRow(0)
+                for (col in names.indices) {
+                    val cell = header.createCell(col)
+                    cell.setCellValue(names[col])
+                    sheet.setColumnWidth(col, ((names[col].length + 2) * 256))
+                }
+                rowCnt++
+            }
+            // write all the rows
+            val iterator = ResultSetRowIterator(resultSet)
+            while (iterator.hasNext()) {
+                val list = iterator.next()
+                val row = sheet.createRow(rowCnt)
+                for (col in list.indices) {
+                    ExcelUtil.writeCell(row.createCell(col), list[col])
+                }
+                rowCnt++
+            }
+            resultSet.close()
+            logger.info { "Completed exporting ResultSet to Excel worksheet ${sheet.sheetName}" }
+        }
+
+        /**
+         * Executes the SQL provided in the string. Squelches exceptions The string
+         * must not have ";" semicolon at the end. The caller is responsible for closing the connection
+         *
+         * @param connection a connection for preparing the statement
+         * @param command the command
+         * @return true if the command executed without an exception
+         */
+        fun executeCommand(connection: Connection, command: String): Boolean {
+            var flag = false
+            try {
+                connection.createStatement().use { statement ->
+                    statement.execute(command)
+                    logger.info("Executed SQL: {}", command)
+                    statement.close()
+                    flag = true
+                }
+            } catch (ex: SQLException) {
+                logger.error("SQLException when executing {}", command, ex)
+            }
+            return flag
+        }
 
         /**
          * Method to parse a SQL script for the database. The script honors SQL
@@ -1032,7 +1156,7 @@ interface DatabaseIfc {
          * the string.  Checks for "--", "//" and "#" as start of line comments
          *
          * @param line      the input to parse
-         * @param delimiter the end of comand indicator
+         * @param delimiter the end of command indicator
          * @param command   the parsed output
          * @return the LineOption COMMENT means line was a comment, CONTINUED means that
          * command continues on next line, END means that command was ended with the delimiter
@@ -1047,7 +1171,6 @@ interface DatabaseIfc {
             }
             // not a comment, could be end of command or continued on next line
             // add the line to the command
-            //command.append(trimmedLine);
             if (trimmedLine.endsWith(delimiter)) {
                 // remove the delimiter
                 trimmedLine = trimmedLine.replaceFirst(delimiter.toRegex(), " ")
@@ -1145,13 +1268,15 @@ interface DatabaseIfc {
             return false
         }
 
-        /**
+        /** The ResultSet is processed through all rows.
+         *
          * @param resultSet the result set to write out as csv delimited
          * @param header true (default) indicates include the header
          * @param writer the writer to use
          */
         fun writeAsCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer) {
             require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }
+            //okay because resultSet is only read from
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
             csvWriter.writeAll(resultSet, header)
@@ -1162,6 +1287,7 @@ interface DatabaseIfc {
          * @param writer the writer to use
          */
         fun writeAsText(rowSet: CachedRowSet, writer: PrintWriter) {
+            //okay because rowSet is only read from
             val tw = DbResultsAsText(rowSet)
             writer.println(tw.header)
             val iterator = tw.formattedRowIterator()
@@ -1169,13 +1295,15 @@ interface DatabaseIfc {
                 writer.println(iterator.next())
                 writer.println(tw.rowSeparator)
             }
+            rowSet.beforeFirst() //TODO test this
         }
 
         /**
-         * @param rowSet the result set to write out as Markdown text
+         * @param rowSet the CachedRowSet to write out as Markdown text
          * @param writer the writer to use
          */
         fun writeAsMarkdown(rowSet: CachedRowSet, writer: PrintWriter) {
+            //okay because rowSet is only read from
             val tw = DbResultsAsText(rowSet)
             val formats = mutableListOf<MarkDown.ColFmt>()
             for (c in tw.columns) {
@@ -1192,9 +1320,11 @@ interface DatabaseIfc {
                 val line = MarkDown.tableRow(iterator.next())
                 writer.println(line)
             }
+            rowSet.beforeFirst() //TODO test this
         }
 
-        /**
+        /** Populates a CachedRowSet based on the supplied ResultSet
+         *
          * @param resultSet the result set to turn into a CashedRowSet
          */
         fun createCachedRowSet(resultSet: ResultSet): CachedRowSet {

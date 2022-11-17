@@ -272,13 +272,15 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
 
             Type.TABLES_EXCEL -> {
                 DatabaseIfc.logger.info("Attempting to execute tables create plus Excel import task.\n {}", this)
-                DatabaseIfc.logger.info{"The Excel file holding data for import is $excelWorkbookPathForDataInsert"}
+                DatabaseIfc.logger.info { "The Excel file holding data for import is $excelWorkbookPathForDataInsert" }
                 execFlag = myDatabase.executeCommands(tableCommands) //TODO should this be inside the try?
                 if (execFlag) {
                     try {
-                        ExcelUtil.writeWorkbookToDatabase(
+                        myDatabase.importWorkbookToSchema(
                             excelWorkbookPathForDataInsert!!,
-                            skipFirstRow = true, myDatabase, tableNames = insertTableOrder)
+                            skipFirstRow = true,
+                            tableNames = insertTableOrder
+                        )
                         //TODO is there something missing here. There is no assignment to the execFlag
                     } catch (e: IOException) {
                         execFlag = false
@@ -294,9 +296,11 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = try {
-                        ExcelUtil.writeWorkbookToDatabase(
+                        myDatabase.importWorkbookToSchema(
                             excelWorkbookPathForDataInsert!!,
-                            skipFirstRow = true, myDatabase, tableNames = insertTableOrder)
+                            skipFirstRow = true,
+                            tableNames = insertTableOrder
+                        )
                         myDatabase.executeCommands(alterCommands)
                     } catch (e: IOException) {
                         false

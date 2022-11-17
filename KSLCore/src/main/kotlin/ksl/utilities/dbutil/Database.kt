@@ -11,10 +11,9 @@ open class Database(
     final override var defaultSchemaName: String? = null
 ) : DatabaseIfc {
 
-    final override val connection: Connection
-        get() = super.connection
+    final override fun getConnection(): Connection = super.getConnection()
 
-    override val dbURL: String? = connection.metaData?.url
+    override val dbURL: String? = getConnection().metaData?.url
 
     init {
         DatabaseIfc.logger.info { "Constructed DatabaseImp $label via $dbURL" }

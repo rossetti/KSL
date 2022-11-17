@@ -5,6 +5,7 @@ import ksl.utilities.dbutil.Database
 import ksl.utilities.dbutil.DatabaseFactory
 import ksl.utilities.dbutil.DatabaseIfc
 import ksl.utilities.dbutil.DbCreateTask
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
 import javax.sql.DataSource
@@ -14,7 +15,7 @@ import javax.sql.DataSource
  * the dbutil package
  */
 
-fun main(args: Array<String>) {
+fun main() {
     // This example creates a Derby database called SP_Example_Db within the dbExamples folder
 //    println()
 //    println("*** example1 output:")
@@ -34,8 +35,8 @@ fun main(args: Array<String>) {
 }
 
 object DBExamples {
-    var pathToWorkingDir = Paths.get("").toAbsolutePath()
-    var pathToDbExamples = pathToWorkingDir.resolve("dbExamples")
+    var pathToWorkingDir: Path = Paths.get("").toAbsolutePath()
+    var pathToDbExamples: Path = pathToWorkingDir.resolve("dbExamples")
 
     /**
      * This example shows how to create a new database from a creation script and perform some simple
@@ -57,12 +58,12 @@ object DBExamples {
         // Create a database creation execution task and execute it.
         val task: DbCreateTask = db.create().withCreationScript(script).execute()
         // You can print out the task to illustrate what it is
-        // System.out.println(task);
+        // println(task);
         // You can even print out the script commands
-        task.creationScriptCommands.forEach(System.out::println)
+        task.creationScriptCommands.forEach(::println)
         // Perform a simple select * command on the table SP
         db.printAllTablesAsText("APP")
-//TODO        db.selectAll("SP").format(System.out)
+
         // Do a regular SQL select statement as a string and print the results
 //        val records: Result<Record> = db.fetchResults("select * from s")
 //        // Print them all out
@@ -96,11 +97,9 @@ object DBExamples {
             .withInserts(inserts)
             .withConstraints(alters)
             .execute()
-        System.out.println(task)
+        println(task)
         db.printAllTablesAsText("APP")
-        //TODO missing first column names
-        db.writeToExcel("APP", "${dbName}_${Clock.System.now()}", pathToDbExamples)
-//        db.writeDbToExcelWorkbook("APP", dbName + Clock.System.now(), pathToDbExamples)
+        db.exportToExcel("APP", "${dbName}_${Clock.System.now()}", pathToDbExamples)
     }
 
     /** Shows how to create the SP database by importing from an Excel workbook
@@ -148,7 +147,7 @@ object DBExamples {
         // Create a database creation execution task and execute it.
         val task: DbCreateTask = db.create().withCreationScript(script).execute()
         // Perform a simple select * command on the table SP
-        db.printTableAsText(schemaName = "APP", tableName = "SP")
+        db.printTableAsText(tableName = "SP", schemaName = "APP")
         return db
     }
 }
