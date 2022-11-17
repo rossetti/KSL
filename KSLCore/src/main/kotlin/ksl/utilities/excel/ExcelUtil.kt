@@ -75,8 +75,8 @@ object ExcelUtil : KLoggable {
         var rowCnt = 0
         if (writeHeader) {
             val names = DatabaseIfc.columnNames(resultSet)
+            val header = sheet.createRow(0)
             for (col in names.indices) {
-                val header = sheet.createRow(0)
                 val cell = header.createCell(col)
                 cell.setCellValue(names[col])
                 sheet.setColumnWidth(col, ((names[col].length + 2) * 256))

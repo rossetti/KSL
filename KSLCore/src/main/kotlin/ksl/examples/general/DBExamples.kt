@@ -1,5 +1,6 @@
 package ksl.examples.general
 
+import kotlinx.datetime.Clock
 import ksl.utilities.dbutil.Database
 import ksl.utilities.dbutil.DatabaseFactory
 import ksl.utilities.dbutil.DatabaseIfc
@@ -15,21 +16,21 @@ import javax.sql.DataSource
 
 fun main(args: Array<String>) {
     // This example creates a Derby database called SP_Example_Db within the dbExamples folder
-    println()
-    println("*** example1 output:")
-    DBExamples.example1()
+//    println()
+//    println("*** example1 output:")
+//    DBExamples.example1()
     // This example creates a Derby database called SP_To_Excel within the dbExamples folder and exports it to Excel
-    println()
-    println("*** exampleDbToExcelExport output:")
-    DBExamples.exampleDbToExcelExport()
-    // This example reads an Excel work book holding the SP database information and makes a Derby database
+//    println()
+//    println("*** exampleDbToExcelExport output:")
+//    DBExamples.exampleDbToExcelExport()
+//    // This example reads an Excel work book holding the SP database information and makes a Derby database
     println()
     println("*** exampleExcelDbImport output:")
-    DBExamples.exampleExcelDbImport()
-    // This example creates the SP database and prints out the SP table
-    println()
-    println("*** exampleSPCreationFromFullScript output:")
-    DBExamples.exampleSPCreationFromFullScript()
+    DBExamples.exampleExcelDbImport()//TODO some error here
+//    // This example creates the SP database and prints out the SP table
+//    println()
+//    println("*** exampleSPCreationFromFullScript output:")
+//    DBExamples.exampleSPCreationFromFullScript()
 }
 
 object DBExamples {
@@ -60,7 +61,7 @@ object DBExamples {
         // You can even print out the script commands
         task.creationScriptCommands.forEach(System.out::println)
         // Perform a simple select * command on the table SP
-        db.printAllTablesAsText("SP")
+        db.printAllTablesAsText("APP")
 //TODO        db.selectAll("SP").format(System.out)
         // Do a regular SQL select statement as a string and print the results
 //        val records: Result<Record> = db.fetchResults("select * from s")
@@ -87,7 +88,7 @@ object DBExamples {
         val dbName = "SP_To_Excel"
         // make the database
         val db: DatabaseIfc = DatabaseFactory.createEmbeddedDerbyDatabase(dbName, pathToDbExamples)
-        // builder the creation task
+        // build the creation task
         val tables = pathToDbExamples.resolve("SPDatabase_Tables.sql")
         val inserts = pathToDbExamples.resolve("SPDatabase_Insert.sql")
         val alters = pathToDbExamples.resolve("SPDatabase_Alter.sql")
@@ -96,7 +97,10 @@ object DBExamples {
             .withConstraints(alters)
             .execute()
         System.out.println(task)
-        db.writeDbToExcelWorkbook("APP", dbName, pathToDbExamples)
+        db.printAllTablesAsText("APP")
+        //TODO missing first column names
+        db.writeToExcel("APP", "${dbName}_${Clock.System.now()}", pathToDbExamples)
+//        db.writeDbToExcelWorkbook("APP", dbName + Clock.System.now(), pathToDbExamples)
     }
 
     /** Shows how to create the SP database by importing from an Excel workbook
@@ -113,6 +117,8 @@ object DBExamples {
         val inserts = pathToDbExamples.resolve("SPDatabase_Insert.sql")
         val alters = pathToDbExamples.resolve("SPDatabase_Alter.sql")
         val wbPath = pathToDbExamples.resolve("SP_To_DB.xlsx")
+        //TODO an error is in here
+        // seems to create the database but not populate it
         db.create().withTables(tables)
             .withExcelData(wbPath, Arrays.asList("S", "P", "SP"))
             .withConstraints(alters)

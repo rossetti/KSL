@@ -303,6 +303,7 @@ interface DatabaseIfc {
         val rowSet = selectAll(schemaName, tableName)
         if (rowSet != null) {
             out.println(tableName)
+            logger.info {"Writing table: $tableName from schema $schemaName as text to output"}
             writeAsText(rowSet, out)
             out.flush()
             rowSet.close()
@@ -596,34 +597,35 @@ interface DatabaseIfc {
      * @param wbDirectory directory of the workbook, if null uses the working directory
      * @throws IOException if there is a problem
      */
-    fun writeDbToExcelWorkbook(
-        schemaName: String? = defaultSchemaName,
-        wbName: String? = null,
-        wbDirectory: Path? = null
-    ) {
-        if (schemaName != null) {
-            if (!containsSchema(schemaName)) {
-                logger.warn(
-                    "Attempting to write to Excel: The supplied schema name {} is not in database {}",
-                    schemaName, label
-                )
-                return
-            }
-        }
-        val tableNames = if (schemaName != null) {
-            tableNames(schemaName)
-        } else {
-            userDefinedTables
-        }
-        if (tableNames.isEmpty()) {
-            logger.warn(
-                "The supplied schema name {} had no tables to write to Excel in database {}",
-                schemaName, label
-            )
-        } else {
-            writeDbToExcelWorkbook(tableNames, wbName, wbDirectory)
-        }
-    }
+//    fun writeDbToExcelWorkbook(
+//        schemaName: String? = defaultSchemaName,
+//        wbName: String? = null,
+//        wbDirectory: Path? = null
+//    ) {
+//        if (schemaName != null) {
+//            if (!containsSchema(schemaName)) {
+//                logger.warn(
+//                    "Attempting to write to Excel: The supplied schema name {} is not in database {}",
+//                    schemaName, label
+//                )
+//                return
+//            }
+//        }
+//        val tableNames = if (schemaName != null) {
+//            tableNames(schemaName)
+//        } else {
+//            userDefinedTables
+//        }
+//        if (tableNames.isEmpty()) {
+//            logger.warn(
+//                "The supplied schema name {} had no tables to write to Excel in database {}",
+//                schemaName, label
+//            )
+//        } else {
+//            //TODO is this the correct call
+//            writeDbToExcelWorkbook(tableNames, wbName, wbDirectory)
+//        }
+//    }
 
     /**
      * Writes the tables in the supplied list to an Excel workbook, if they exist in the database.
@@ -633,28 +635,29 @@ interface DatabaseIfc {
      * @param wbDirectory directory of the workbook, if null uses the working directory
      * @throws IOException if there is a problem
      */
-    fun writeDbToExcelWorkbook(tableNames: List<String>, wbName: String?, wbDirectory: Path?) {
-        var wbName = wbName
-        var wbDirectory = wbDirectory
-        Objects.requireNonNull(tableNames, "The list of table names was null")
-        if (wbName == null) {
-            wbName = label + ".xlsx"
-        } else {
-            // name is not null make sure it has .xlsx
-            if (!wbName.endsWith(".xlsx")) {
-                wbName = "$wbName.xlsx"
-            }
-        }
-        if (wbDirectory == null) {
-            wbDirectory = KSL.excelDir
-        }
-        val path = wbDirectory.resolve(wbName)
-        if (tableNames.isEmpty()) {
-            logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
-        } else {
-            ExcelUtil.writeWorkbookToDatabase(path, db = this, tableNames = tableNames)
-        }
-    }
+//    fun writeDbToExcelWorkbook(tableNames: List<String>, wbName: String?, wbDirectory: Path?) {
+//        var wbName = wbName
+//        var wbDirectory = wbDirectory
+//        Objects.requireNonNull(tableNames, "The list of table names was null")
+//        if (wbName == null) {
+//            wbName = label + ".xlsx"
+//        } else {
+//            // name is not null make sure it has .xlsx
+//            if (!wbName.endsWith(".xlsx")) {
+//                wbName = "$wbName.xlsx"
+//            }
+//        }
+//        if (wbDirectory == null) {
+//            wbDirectory = KSL.excelDir
+//        }
+//        val path = wbDirectory.resolve(wbName)
+//        if (tableNames.isEmpty()) {
+//            logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
+//        } else {
+//            //TODO this should be write database to workbook
+//            ExcelUtil.writeWorkbookToDatabase(path, db = this, tableNames = tableNames)
+//        }
+//    }
 
     fun writeToExcel(
         schemaName: String? = defaultSchemaName,
