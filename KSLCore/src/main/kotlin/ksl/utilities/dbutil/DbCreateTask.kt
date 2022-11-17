@@ -115,7 +115,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
                 }
             }
         }
-        executeCreateTask()
+        executeCreateTask() //TODO the boolean is never used, why
     }
 
     /**
@@ -225,6 +225,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
 
     private fun dbCreateTaskExecution(): Boolean {
         var execFlag = false // assume it does not execute
+        //TODO is this working, is it falling through
         when (type) {
             Type.NONE -> {
                 DatabaseIfc.logger.warn("Attempted to execute a create task with no commands.\n {}", this)
@@ -271,12 +272,14 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
 
             Type.TABLES_EXCEL -> {
                 DatabaseIfc.logger.info("Attempting to execute tables create plus Excel import task.\n {}", this)
-                execFlag = myDatabase.executeCommands(tableCommands)
+                DatabaseIfc.logger.info{"The Excel file holding data for import is $excelWorkbookPathForDataInsert"}
+                execFlag = myDatabase.executeCommands(tableCommands) //TODO should this be inside the try?
                 if (execFlag) {
                     try {
                         ExcelUtil.writeWorkbookToDatabase(
                             excelWorkbookPathForDataInsert!!,
                             skipFirstRow = true, myDatabase, tableNames = insertTableOrder)
+                        //TODO is there something missing here. There is no assignment to the execFlag
                     } catch (e: IOException) {
                         execFlag = false
                     }

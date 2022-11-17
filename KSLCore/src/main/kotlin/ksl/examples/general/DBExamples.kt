@@ -10,7 +10,7 @@ import java.util.*
 import javax.sql.DataSource
 
 /**
- * The purpose of this class is to provide a series of examples that utilize some of the functionality within
+ * The purpose of this class is to provide a series of examples that utilize some functionality within
  * the dbutil package
  */
 

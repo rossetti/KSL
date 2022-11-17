@@ -66,10 +66,10 @@ object ExcelUtil : KLoggable {
 
     /**
      * @param resultSet the result set to copy from
-     * @param sheet the sheet in the workbook to hold the results et values
+     * @param sheet the sheet in the workbook to hold the results set values
      * @param writeHeader whether to write a header of the column names into the sheet. The default is true
      */
-    fun writeSheet(resultSet: ResultSet, sheet: Sheet, writeHeader: Boolean = true) {
+    fun writeSheet(resultSet: ResultSet, sheet: Sheet, writeHeader: Boolean = true) {//TODO move to DatabaseIfc
         require(!resultSet.isClosed) { "The supplied ResultSet is closed when trying to write workbook ${sheet.sheetName} " }
         // write the header
         var rowCnt = 0
@@ -189,7 +189,7 @@ object ExcelUtil : KLoggable {
      * @param tableNames     the names of the sheets and tables in the order that needs to be written
      * @throws IOException an io exception
      */
-    fun writeWorkbookToDatabase(
+    fun writeWorkbookToDatabase( //TODO move to DatabaseIfc
         pathToWorkbook: Path,
         skipFirstRow: Boolean = true,
         db: DatabaseIfc,
@@ -206,9 +206,14 @@ object ExcelUtil : KLoggable {
                 logger.info("Skipping table {} no corresponding sheet in workbook", tableName)
                 continue
             }
+            logger.trace{"Processing the sheet for table $tableName. Selecting data for the table into a ResultSet."}
             val rs = db.selectAllIntoOpenResultSet(schemaName, tableName)
             if (rs != null) {
-                val pathToBadRows = pathToWorkbook.resolve("${tableName}_MissingRows")
+                logger.trace{"The ResultSet for table $tableName was not null, constructing path for bad rows."}
+                val dirStr = pathToWorkbook.toString().substringBeforeLast(".")
+                val path = Path.of(dirStr)
+                val pathToBadRows = path.resolve("${tableName}_MissingRows.txt")
+                logger.trace{"The file to hold bad data for table $tableName is $pathToBadRows"}
                 val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
                 val numToSkip = if (skipFirstRow) 1 else 0
                 writeSheetToResultSet(sheet, rs, numToSkip, unCompatibleRows = badRowsFile)
@@ -269,15 +274,18 @@ object ExcelUtil : KLoggable {
      *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
      *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
      */
-    fun writeSheetToResultSet(
+    fun writeSheetToResultSet( //TODO move to DatabaseIfc
         sheet: Sheet,
         resultSet: ResultSet,
         numRowsToSkip: Int = 1,
         rowBatchSize: Int = 100,
         unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
     ) {
-        require(!resultSet.isClosed) { "The supplied ResultSet is closed" }
+        require(!resultSet.isClosed) { "The supplied ResultSet is closed" }//TODO I thought this didn't work
         val rowSet = DatabaseIfc.createCachedRowSet(resultSet)
+        if (rowSet.size() == 0){
+            logger.trace{"The CachedRowSet to hold data for sheet ${sheet.sheetName} is empty."}
+        }
         val rowIterator = sheet.rowIterator()
         for (i in 1..numRowsToSkip) {
             if (rowIterator.hasNext()) {
@@ -289,23 +297,35 @@ object ExcelUtil : KLoggable {
         var cntBad = 0
         var rowCnt = 0
         var cntGood = 0
+        logger.trace{"The CachedRowSet to hold data for sheet ${sheet.sheetName} has ${colMetaData.size} columns to fill."}
         while (rowIterator.hasNext()) {
             val row = rowIterator.next()
             val rowData = readRowAsObjectList(row, colMetaData.size)
             rowCnt++
+            logger.trace { "Read ${rowData.size} elements from sheet ${sheet.sheetName}" }
+            logger.trace { "Sheet Data: $rowData" }
             // rowData needs to be placed in row set
             val success = insertNewRow(rowData, colMetaData, rowSet)
             if (!success) {
+                logger.trace{"Wrote row number ${row.rowNum} of sheet ${sheet.sheetName} to bad data file"}
                 unCompatibleRows.println("Sheet: ${sheet.sheetName} row: ${row.rowNum} not written: $rowData")
                 cntBad++
             } else {
+                logger.trace{"Inserted data into CachedRowSet"}
                 batchCnt++
                 if (batchCnt.mod(rowBatchSize) == 0) {
+                    rowSet.moveToCurrentRow()
+                    rowSet.acceptChanges() //TODO causes error because there is no connection
+                    logger.trace{"Wrote batch of size $batchCnt to the CachedRowSet via accept changes"}
                     batchCnt = 0
-                    rowSet.acceptChanges()
                 }
                 cntGood++
             }
+        }
+        if (batchCnt > 0){
+            rowSet.moveToCurrentRow()
+            rowSet.acceptChanges() //TODO causes error because there is no connection
+            logger.trace{"Wrote batch of size $batchCnt to the CachedRowSet via accept changes"}
         }
         logger.info { "Transferred $cntGood out of $rowCnt rows for ${sheet.sheetName}. There were $cntBad incompatible rows written." }
     }
@@ -316,13 +336,14 @@ object ExcelUtil : KLoggable {
      * @param rowSet a row set to hold the new data
      * @return returns true if the data was inserted false if something went wrong and no insert made
      */
-    private fun insertNewRow(rowData: List<Any?>, colMetaData: List<ColumnMetaData>, rowSet: CachedRowSet): Boolean {
+    private fun insertNewRow(rowData: List<Any?>, colMetaData: List<ColumnMetaData>, rowSet: CachedRowSet): Boolean {//TODO move to DatabaseIfc
         //TODO notice that elements of colMetaData are not used. Consider changing to number of columns
         return try {
             rowSet.moveToInsertRow()
             for (colIndex in colMetaData.indices) {
                 //TODO just don't know. not sure if object is translated to type
                 rowSet.updateObject(colIndex + 1, rowData[colIndex])
+                logger.trace{ "Updated column ${colIndex+1} with data ${rowData[colIndex]}"}
             }
             rowSet.insertRow()
             true
