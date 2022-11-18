@@ -695,24 +695,153 @@ interface DatabaseIfc {
                 logger.info("Skipping table {} no corresponding sheet in workbook", tableName)
                 continue
             }
-            logger.trace { "Processing the sheet for table $tableName. Selecting data for the table into a ResultSet." }
-            val rs = selectAllIntoOpenResultSet(tableName, schemaName)
-            if (rs != null) {
-                logger.trace { "The ResultSet for table $tableName was not null, constructing path for bad rows." }
-                val dirStr = pathToWorkbook.toString().substringBeforeLast(".")
-                val path = Path.of(dirStr)
-                val pathToBadRows = path.resolve("${tableName}_MissingRows.txt")
-                logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
-                val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
-                val numToSkip = if (skipFirstRow) 1 else 0
-                writeSheetToResultSet(sheet, rs, numToSkip, unCompatibleRows = badRowsFile)
+            logger.trace { "Processing the sheet for table $tableName." }
+            val tblMetaData = tableMetaData(tableName, schemaName)
+            logger.trace { "Constructing path for bad rows file for table $tableName." }
+            val dirStr = pathToWorkbook.toString().substringBeforeLast(".")
+            val path = Path.of(dirStr)
+            val pathToBadRows = path.resolve("${tableName}_MissingRows.txt")
+            logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
+            val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
+            val numToSkip = if (skipFirstRow) 1 else 0
+            val success = importSheetToTable(sheet, tableName, tblMetaData.size, schemaName, numToSkip, unCompatibleRows = badRowsFile )
+            if (!success){
+                logger.info { "Unable to write sheet $tableName to database ${label}. See trace logs for details" }
             } else {
-                logger.info { "Unable to write sheet $tableName to database ${label}. Could not form ResultSet for the table" }
+                logger.info { "Wrote sheet $tableName to database ${label}." }
             }
         }
         workbook.close()
         logger.info("Closed workbook {} ", pathToWorkbook)
         logger.info("Completed writing workbook {} to database {}", pathToWorkbook, label)
+    }
+
+    /** Copies the rows from the sheet to the ResultSet.  The copy is assumed to start
+     * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
+     * result set and the number of rows of the sheet.  The copy is from the perspective of the ResultSet.
+     * That is, all columns of a row of the ResultSet are attempted to be filled from a corresponding
+     * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
+     * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
+     * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
+     * in the result set.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
+     *
+     * @param sheet the sheet that has the data to transfer to the ResultSet
+     * @param tableName the table to copy into
+     * @param numColumns the number of columns in the sheet to copy into the table
+     * @param schemaName the name of the schema containing the tabel
+     * @param numRowsToSkip indicates the number of rows to skip from the top of the sheet. Use 1 (default) if the sheet has
+     * a header row
+     *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
+     *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
+     */
+    fun importSheetToTable(
+        sheet: Sheet,
+        tableName: String,
+        numColumns: Int,
+        schemaName: String? = defaultSchemaName,
+        numRowsToSkip: Int = 1,
+        rowBatchSize: Int = 100,
+        unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
+    ) : Boolean {
+        return try {
+            val rowIterator = sheet.rowIterator()
+            for (i in 1..numRowsToSkip) {
+                if (rowIterator.hasNext()) {
+                    rowIterator.next()
+                }
+            }
+            logger.trace { "Getting connection to import ${sheet.sheetName} into table $tableName of schema $schemaName of database $label" }
+            logger.trace { "Table $tableName to hold data for sheet ${sheet.sheetName} has $numColumns columns to fill." }
+            getConnection().use { con ->
+                con.autoCommit = false
+                // make prepared statement for inserts
+                val insertStatement = makeInsertStatement(con, tableName, numColumns, schemaName)
+                var batchCnt = 0
+                var cntBad = 0
+                var rowCnt = 0
+                var cntGood = 0
+                while (rowIterator.hasNext()) {
+                    val row = rowIterator.next()
+                    val rowData = ExcelUtil.readRowAsObjectList(row, numColumns)
+                    rowCnt++
+                    logger.trace { "Read ${rowData.size} elements from sheet ${sheet.sheetName}" }
+                    logger.trace { "Sheet Data: $rowData" }
+                    // rowData needs to be placed into insert statement
+                   val success = addBatch(rowData, numColumns, insertStatement)
+                    if (!success) {
+                        logger.trace { "Wrote row number ${row.rowNum} of sheet ${sheet.sheetName} to bad data file" }
+                        unCompatibleRows.println("Sheet: ${sheet.sheetName} row: ${row.rowNum} not written: $rowData")
+                        cntBad++
+                    } else {
+                        logger.trace { "Inserted data into batch for insertion" }
+                        batchCnt++
+                        if (batchCnt.mod(rowBatchSize) == 0) {
+                            val ni = insertStatement.executeBatch()
+                            con.commit()
+                            logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
+                            batchCnt = 0
+                        }
+                        cntGood++
+                    }
+                }
+                if (batchCnt > 0) {
+                    val ni = insertStatement.executeBatch()
+                    con.commit()
+                    logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
+                }
+                logger.info { "Transferred $cntGood out of $rowCnt rows for ${sheet.sheetName}. There were $cntBad incompatible rows written." }
+            }
+            true
+        } catch (ex: SQLException) {
+            logger.error(
+                "SQLException when importing ${sheet.sheetName} into table $tableName of schema $schemaName of database $label",
+                ex
+            )
+            false
+        }
+    }
+
+    fun makeInsertStatement(
+        con: Connection,
+        tableName: String,
+        numColumns: Int,
+        schemaName: String?
+    ): PreparedStatement {
+        // assume all columns have the same table name and schema name
+        require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
+        val qm = CharArray(numColumns)
+        qm.fill('?', toIndex = numColumns)
+        val inputs = qm.joinToString(", ", prefix = "(", postfix = ")")
+        val sql = if (schemaName == null) {
+            "insert into $tableName values $inputs"
+        } else {
+            "insert into ${schemaName}.${tableName} values $inputs"
+        }
+        return con.prepareStatement(sql)
+    }
+
+    /** This method inserts the
+     * @param rowData the data to be inserted
+     * @param numColumns the column metadata for the row set
+     * @param rowSet a row set to hold the new data
+     * @return returns true if the data was inserted false if something went wrong and no insert made
+     */
+    private fun addBatch(
+        rowData: List<Any?>,
+        numColumns: Int,
+        preparedStatement: PreparedStatement
+    ): Boolean {
+        return try {
+            for (colIndex in 1..numColumns) {
+                //looks like it does the updates
+                preparedStatement.setObject(colIndex,rowData[colIndex - 1] )
+                logger.trace { "Updated column $colIndex with data ${rowData[colIndex - 1]}" }
+            }
+            preparedStatement.addBatch()
+            true
+        } catch (e: SQLException) {
+            false
+        }
     }
 
     /** Copies the rows from the sheet to the ResultSet.  The copy is assumed to start
@@ -803,8 +932,8 @@ interface DatabaseIfc {
             rowSet.moveToInsertRow()
             for (colIndex in 1..numColumns) {
                 //looks like it does the updates
-                rowSet.updateObject(colIndex, rowData[colIndex-1])
-                logger.trace { "Updated column $colIndex with data ${rowData[colIndex-1]}" }
+                rowSet.updateObject(colIndex, rowData[colIndex - 1])
+                logger.trace { "Updated column $colIndex with data ${rowData[colIndex - 1]}" }
             }
             rowSet.insertRow()
             true
@@ -829,7 +958,7 @@ interface DatabaseIfc {
     fun executeCommand(command: String): Boolean {
         var flag = false
         try {
-            logger.trace{"Getting connection to execute command $command on database $label"}
+            logger.trace { "Getting connection to execute command $command on database $label" }
             getConnection().use { con -> flag = executeCommand(con, command) }
         } catch (ex: SQLException) {
             logger.error("SQLException when executing {}", command, ex)
@@ -865,7 +994,7 @@ interface DatabaseIfc {
             }
         } catch (ex: SQLException) {
             executed = false
-            logger.trace{"The commands were not executed for database $label"}
+            logger.trace { "The commands were not executed for database $label" }
             logger.error("SQLException: ", ex)
         }
         return executed
