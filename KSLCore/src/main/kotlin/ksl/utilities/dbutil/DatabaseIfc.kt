@@ -541,7 +541,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the unqualified name of the table
      */
-    fun printInsertQueries(tableName: String, schemaName: String?) {
+    fun printInsertQueries(tableName: String, schemaName: String? = defaultSchemaName) {
         exportInsertQueries(tableName, PrintWriter(System.out), schemaName)
     }
 
@@ -554,8 +554,8 @@ interface DatabaseIfc {
     fun exportInsertQueries(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName) {
         val rowSet = selectAll(tableName, schemaName)
         if (rowSet != null) {
+            logger.info{"Exporting insert queries for table $tableName in schema $schemaName"}
             val resultsAsText = DbResultsAsText(rowSet)
-            val numColumns = resultsAsText.columns.size
             val sql = if (schemaName == null) {
                 "insert into $tableName values "
             } else {
@@ -566,7 +566,11 @@ interface DatabaseIfc {
                 val rowData = iterator.next()
                 val inputs = rowData.joinToString(", ", prefix = "(", postfix = ")")
                 out.println(sql + inputs)
+                out.flush()
+                logger.trace { "Wrote insert statement: ${sql}${inputs}" }
             }
+        } else {
+            logger.info{"Failed to export insert queries for table $tableName in schema $schemaName"}
         }
     }
 
