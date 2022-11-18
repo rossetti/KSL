@@ -805,7 +805,7 @@ interface DatabaseIfc {
      * @param schemaName the schema containing the table
      * @return a prepared statement that can perform the insert if given the appropriate column values
      */
-    fun makeInsertStatement(
+    private fun makeInsertStatement(
         con: Connection,
         tableName: String,
         numColumns: Int,
