@@ -564,6 +564,7 @@ interface DatabaseIfc {
             val iterator = resultsAsText.iterator()
             while(iterator.hasNext()){
                 val rowData = iterator.next()
+
                 val inputs = rowData.joinToString(", ", prefix = "(", postfix = ")")
                 out.println(sql + inputs)
             }

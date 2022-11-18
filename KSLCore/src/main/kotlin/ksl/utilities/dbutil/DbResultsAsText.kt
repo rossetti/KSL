@@ -33,6 +33,8 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
 
     val header: String
 
+    val columnMetaData = DatabaseIfc.columnMetaData(rowSet)
+
     init {
         val md = rowSet.metaData
         val columnCount = md.columnCount
@@ -101,9 +103,9 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
             } else {
                 val gap = c.width - v.length
                 val fps = if (isEven(gap)){
-                    (gap/2).toInt()
+                    (gap/2)
                 } else {
-                    (gap/2).toInt() - 1
+                    (gap/2) - 1
                 }
                 sb.append(" ".repeat(fps))
                 sb.append(v)
