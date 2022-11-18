@@ -25,13 +25,13 @@ fun main() {
 //    println("*** exampleDbToExcelExport output:")
 //    DBExamples.exampleDbToExcelExport()
 //    // This example reads an Excel work book holding the SP database information and makes a Derby database
-    println()
-    println("*** exampleExcelDbImport output:")
-    DBExamples.exampleExcelDbImport()//TODO some error here
-//    // This example creates the SP database and prints out the SP table
 //    println()
-//    println("*** exampleSPCreationFromFullScript output:")
-//    DBExamples.exampleSPCreationFromFullScript()
+//    println("*** exampleExcelDbImport output:")
+//    DBExamples.exampleExcelDbImport()
+//    // This example creates the SP database and prints out the SP table
+    println()
+    println("*** exampleSPCreationFromFullScript output:")
+    DBExamples.exampleSPCreationFromFullScript()
 }
 
 object DBExamples {
