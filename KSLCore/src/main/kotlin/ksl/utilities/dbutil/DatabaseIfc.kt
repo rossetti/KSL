@@ -541,8 +541,8 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the unqualified name of the table
      */
-    fun printInsertQueries(schemaName: String, tableName: String) {
-        exportInsertQueries(schemaName, tableName, PrintWriter(System.out))
+    fun printInsertQueries(tableName: String, schemaName: String?) {
+        exportInsertQueries(tableName, PrintWriter(System.out), schemaName)
     }
 
     /**
@@ -551,18 +551,23 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table
      * @param out       the PrintWriter to write to
      */
-    fun exportInsertQueries(schemaName: String, tableName: String, out: PrintWriter) {
-        TODO("Not yet implemented")
-        //TODO I don't really want to do this with arrays. Just write them to the out directly
-        // form the insert string
-        // get the result set
-        // process each row and get the string value of each row
-        // add the inputs to the insert string
-        // add the string to the list
-//        val list = insertQueries(schemaName, tableName) //TODO don't do this with a list, write row by row
-//        for (query in list) {
-//            out.println(query)
-//        }
+    fun exportInsertQueries(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName) {
+        val rowSet = selectAll(tableName, schemaName)
+        if (rowSet != null) {
+            val resultsAsText = DbResultsAsText(rowSet)
+            val numColumns = resultsAsText.columns.size
+            val sql = if (schemaName == null) {
+                "insert into $tableName values "
+            } else {
+                "insert into ${schemaName}.${tableName} values "
+            }
+            val iterator = resultsAsText.iterator()
+            while(iterator.hasNext()){
+                val rowData = iterator.next()
+                val inputs = rowData.joinToString(", ", prefix = "(", postfix = ")")
+                out.println(sql + inputs)
+            }
+        }
     }
 
     /**
@@ -570,7 +575,7 @@ interface DatabaseIfc {
      *
      * @param schemaName the name of the schema that should contain the tables
      */
-    fun printAllTablesAsInsertQueries(schemaName: String) {
+    fun printAllTablesAsInsertQueries(schemaName: String? = defaultSchemaName) {
         exportAllTablesAsInsertQueries(schemaName, PrintWriter(System.out))
     }
 
@@ -580,10 +585,14 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun exportAllTablesAsInsertQueries(schemaName: String, out: PrintWriter) {
-        val tables = tableNames(schemaName)
+    fun exportAllTablesAsInsertQueries(schemaName: String? = defaultSchemaName, out: PrintWriter) {
+        val tables = if (schemaName == null){
+            userDefinedTables
+        } else {
+            tableNames(schemaName)
+        }
         for (t in tables) {
-            exportInsertQueries(schemaName, t, out)
+            exportInsertQueries(t, out, schemaName)
         }
     }
 
