@@ -536,66 +536,56 @@ interface DatabaseIfc {
         return result
     }
 
-    /*
-        /**
-         * @param schemaName the name of the schema that should contain the table
-         * @param tableName the unqualified name of the table
-         * @return a list that represents all the insert queries for the data that is currently in the
-         * supplied table
-         */
-        fun insertQueries(schemaName: String, tableName: String): List<String> {
-            val list = mutableListOf<String>()
-            if (!containsTable(schemaName, tableName)) {
-                return list
-            }
-            TODO("Not yet implemented")
-            return list
-        }
+    /**
+     * Prints the insert queries associated with the supplied table to the console
+     * @param schemaName the name of the schema that should contain the table
+     * @param tableName the unqualified name of the table
+     */
+    fun printInsertQueries(schemaName: String, tableName: String) {
+        exportInsertQueries(schemaName, tableName, PrintWriter(System.out))
+    }
 
-        /**
-         * Prints the insert queries associated with the supplied table to the console
-         * @param schemaName the name of the schema that should contain the table
-         * @param tableName the unqualified name of the table
-         */
-        fun printInsertQueries(schemaName: String, tableName: String) {
-            writeInsertQueries(schemaName, tableName, PrintWriter(System.out))
-        }
+    /**
+     * Writes the insert queries associated with the supplied table to the PrintWriter
+     * @param schemaName the name of the schema that should contain the table
+     * @param tableName the unqualified name of the table
+     * @param out       the PrintWriter to write to
+     */
+    fun exportInsertQueries(schemaName: String, tableName: String, out: PrintWriter) {
+        TODO("Not yet implemented")
+        //TODO I don't really want to do this with arrays. Just write them to the out directly
+        // form the insert string
+        // get the result set
+        // process each row and get the string value of each row
+        // add the inputs to the insert string
+        // add the string to the list
+//        val list = insertQueries(schemaName, tableName) //TODO don't do this with a list, write row by row
+//        for (query in list) {
+//            out.println(query)
+//        }
+    }
 
-        /**
-         * Writes the insert queries associated with the supplied table to the PrintWriter
-         * @param schemaName the name of the schema that should contain the table
-         * @param tableName the unqualified name of the table
-         * @param out       the PrintWriter to write to
-         */
-        fun writeInsertQueries(schemaName: String, tableName: String, out: PrintWriter) {
-            val list = insertQueries(schemaName, tableName)
-            for (query in list) {
-                out.println(query)
-            }
-        }
+    /**
+     * Prints all table data as insert queries to the console
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     */
+    fun printAllTablesAsInsertQueries(schemaName: String) {
+        exportAllTablesAsInsertQueries(schemaName, PrintWriter(System.out))
+    }
 
-        /**
-         * Prints all table data as insert queries to the console
-         *
-         * @param schemaName the name of the schema that should contain the tables
-         */
-        fun printAllTablesAsInsertQueries(schemaName: String) {
-            writeAllTablesAsInsertQueries(schemaName, PrintWriter(System.out))
+    /**
+     * Writes all table data as insert queries to the PrintWriter
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param out        the PrintWriter to write to
+     */
+    fun exportAllTablesAsInsertQueries(schemaName: String, out: PrintWriter) {
+        val tables = tableNames(schemaName)
+        for (t in tables) {
+            exportInsertQueries(schemaName, t, out)
         }
-
-        /**
-         * Writes all table data as insert queries to the PrintWriter
-         *
-         * @param schemaName the name of the schema that should contain the tables
-         * @param out        the PrintWriter to write to
-         */
-        fun writeAllTablesAsInsertQueries(schemaName: String, out: PrintWriter) {
-            val tables = tableNames(schemaName)
-            for (t in tables) {
-                writeInsertQueries(schemaName, t, out)
-            }
-        }
-    */
+    }
 
     fun exportToExcel(
         schemaName: String? = defaultSchemaName,
@@ -704,8 +694,15 @@ interface DatabaseIfc {
             logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
             val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
             val numToSkip = if (skipFirstRow) 1 else 0
-            val success = importSheetToTable(sheet, tableName, tblMetaData.size, schemaName, numToSkip, unCompatibleRows = badRowsFile )
-            if (!success){
+            val success = importSheetToTable(
+                sheet,
+                tableName,
+                tblMetaData.size,
+                schemaName,
+                numToSkip,
+                unCompatibleRows = badRowsFile
+            )
+            if (!success) {
                 logger.info { "Unable to write sheet $tableName to database ${label}. See trace logs for details" }
             } else {
                 logger.info { "Wrote sheet $tableName to database ${label}." }
@@ -716,14 +713,14 @@ interface DatabaseIfc {
         logger.info("Completed writing workbook {} to database {}", pathToWorkbook, label)
     }
 
-    /** Copies the rows from the sheet to the ResultSet.  The copy is assumed to start
+    /** Copies the rows from the sheet to the table.  The copy is assumed to start
      * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
-     * result set and the number of rows of the sheet.  The copy is from the perspective of the ResultSet.
-     * That is, all columns of a row of the ResultSet are attempted to be filled from a corresponding
+     * table and the number of rows of the sheet.  The copy is from the perspective of the table.
+     * That is, all columns of a row of the table are attempted to be filled from a corresponding
      * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
      * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
      * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
-     * in the result set.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
+     * in the table.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
      *
      * @param sheet the sheet that has the data to transfer to the ResultSet
      * @param tableName the table to copy into
@@ -742,7 +739,7 @@ interface DatabaseIfc {
         numRowsToSkip: Int = 1,
         rowBatchSize: Int = 100,
         unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
-    ) : Boolean {
+    ): Boolean {
         return try {
             val rowIterator = sheet.rowIterator()
             for (i in 1..numRowsToSkip) {
@@ -767,7 +764,7 @@ interface DatabaseIfc {
                     logger.trace { "Read ${rowData.size} elements from sheet ${sheet.sheetName}" }
                     logger.trace { "Sheet Data: $rowData" }
                     // rowData needs to be placed into insert statement
-                   val success = addBatch(rowData, numColumns, insertStatement)
+                    val success = addBatch(rowData, numColumns, insertStatement)
                     if (!success) {
                         logger.trace { "Wrote row number ${row.rowNum} of sheet ${sheet.sheetName} to bad data file" }
                         unCompatibleRows.println("Sheet: ${sheet.sheetName} row: ${row.rowNum} not written: $rowData")
@@ -801,6 +798,13 @@ interface DatabaseIfc {
         }
     }
 
+    /**
+     * @param con an active connection to the database
+     * @param tableName the name of the table to be inserted into
+     * @param numColumns the number of columns starting from the left to insert into
+     * @param schemaName the schema containing the table
+     * @return a prepared statement that can perform the insert if given the appropriate column values
+     */
     fun makeInsertStatement(
         con: Connection,
         tableName: String,
@@ -834,108 +838,10 @@ interface DatabaseIfc {
         return try {
             for (colIndex in 1..numColumns) {
                 //looks like it does the updates
-                preparedStatement.setObject(colIndex,rowData[colIndex - 1] )
+                preparedStatement.setObject(colIndex, rowData[colIndex - 1])
                 logger.trace { "Updated column $colIndex with data ${rowData[colIndex - 1]}" }
             }
             preparedStatement.addBatch()
-            true
-        } catch (e: SQLException) {
-            false
-        }
-    }
-
-    /** Copies the rows from the sheet to the ResultSet.  The copy is assumed to start
-     * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
-     * result set and the number of rows of the sheet.  The copy is from the perspective of the ResultSet.
-     * That is, all columns of a row of the ResultSet are attempted to be filled from a corresponding
-     * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
-     * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
-     * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
-     * in the result set.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
-     *
-     * @param sheet the sheet that has the data to transfer to the ResultSet
-     * @param resultSet the ResultSet to receive the data. It must be open and have an active connection.  It is
-     * the responsibility of the caller to close the result set.
-     * @param numRowsToSkip indicates the number of rows to skip from the top of the sheet. Use 1 (default) if the sheet has
-     * a header row
-     *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
-     *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
-     */
-    fun writeSheetToResultSet(
-        sheet: Sheet,
-        resultSet: ResultSet,
-        numRowsToSkip: Int = 1,
-        rowBatchSize: Int = 100,
-        unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
-    ) {
-        require(!resultSet.isClosed) { "The supplied ResultSet is closed" }//TODO I thought this didn't work for derby
-        val rowSet = createCachedRowSet(resultSet)
-        if (rowSet.size() == 0) {
-            logger.trace { "The CachedRowSet to hold data for sheet ${sheet.sheetName} is empty." }
-        }
-        val rowIterator = sheet.rowIterator()
-        for (i in 1..numRowsToSkip) {
-            if (rowIterator.hasNext()) {
-                rowIterator.next()
-            }
-        }
-        val colMetaData = columnMetaData(rowSet)
-        var batchCnt = 0
-        var cntBad = 0
-        var rowCnt = 0
-        var cntGood = 0
-        logger.trace { "The CachedRowSet to hold data for sheet ${sheet.sheetName} has ${colMetaData.size} columns to fill." }
-        while (rowIterator.hasNext()) {
-            val row = rowIterator.next()
-            val rowData = ExcelUtil.readRowAsObjectList(row, colMetaData.size)
-            rowCnt++
-            logger.trace { "Read ${rowData.size} elements from sheet ${sheet.sheetName}" }
-            logger.trace { "Sheet Data: $rowData" }
-            // rowData needs to be placed in row set
-            val success = insertNewRow(rowData, colMetaData.size, rowSet)
-            if (!success) {
-                logger.trace { "Wrote row number ${row.rowNum} of sheet ${sheet.sheetName} to bad data file" }
-                unCompatibleRows.println("Sheet: ${sheet.sheetName} row: ${row.rowNum} not written: $rowData")
-                cntBad++
-            } else {
-                logger.trace { "Inserted data into CachedRowSet" }
-                batchCnt++
-                if (batchCnt.mod(rowBatchSize) == 0) {
-                    rowSet.moveToCurrentRow()
-                    rowSet.acceptChanges(getConnection()) //TODO causes error because the table name is null
-                    logger.trace { "Wrote batch of size $batchCnt to the CachedRowSet via accept changes" }
-                    batchCnt = 0
-                }
-                cntGood++
-            }
-        }
-        if (batchCnt > 0) {
-            rowSet.moveToCurrentRow()
-            rowSet.acceptChanges(getConnection()) //TODO causes error because the table name is null
-            logger.trace { "Wrote batch of size $batchCnt to the CachedRowSet via accept changes" }
-        }
-        logger.info { "Transferred $cntGood out of $rowCnt rows for ${sheet.sheetName}. There were $cntBad incompatible rows written." }
-    }
-
-    /** This method inserts the
-     * @param rowData the data to be inserted
-     * @param numColumns the column metadata for the row set
-     * @param rowSet a row set to hold the new data
-     * @return returns true if the data was inserted false if something went wrong and no insert made
-     */
-    private fun insertNewRow(
-        rowData: List<Any?>,
-        numColumns: Int,
-        rowSet: CachedRowSet
-    ): Boolean {
-        return try {
-            rowSet.moveToInsertRow()
-            for (colIndex in 1..numColumns) {
-                //looks like it does the updates
-                rowSet.updateObject(colIndex, rowData[colIndex - 1])
-                logger.trace { "Updated column $colIndex with data ${rowData[colIndex - 1]}" }
-            }
-            rowSet.insertRow()
             true
         } catch (e: SQLException) {
             false
@@ -1051,10 +957,6 @@ interface DatabaseIfc {
             logger.trace { "Database $label: Getting connection to fetch open ResultSet for $sql" }
             query = getConnection().prepareStatement(sql)
             return query.executeQuery()
-//            connection.use { connection ->
-//                val query = connection.prepareStatement(sql)
-//                return query.executeQuery()
-//            }
         } catch (e: SQLException) {
             logger.warn("The query $sql was not executed for database $label", e)
             query?.close()
@@ -1424,7 +1326,7 @@ interface DatabaseIfc {
                 writer.println(iterator.next())
                 writer.println(tw.rowSeparator)
             }
-            rowSet.beforeFirst() //TODO test this
+            rowSet.beforeFirst()
         }
 
         /**
@@ -1449,7 +1351,7 @@ interface DatabaseIfc {
                 val line = MarkDown.tableRow(iterator.next())
                 writer.println(line)
             }
-            rowSet.beforeFirst() //TODO test this
+            rowSet.beforeFirst()
         }
 
         /** Populates a CachedRowSet based on the supplied ResultSet
