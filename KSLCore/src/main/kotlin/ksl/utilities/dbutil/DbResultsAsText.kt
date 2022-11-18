@@ -36,17 +36,17 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
     val columnMetaData = DatabaseIfc.columnMetaData(rowSet)
 
     init {
-        val md = rowSet.metaData
-        val columnCount = md.columnCount
+        val columnCount = columnMetaData.size
         val rs = StringBuilder()
         val ch = StringBuilder()
         val h = StringBuilder()
         val list = mutableListOf<String>()
         for (i in 1..columnCount) {
-            val column = DbColumn(i, md.getColumnLabel(i), md.getColumnType(i), md.getColumnTypeName(i))
+            columnMetaData[i-1].label
+            val column = DbColumn(i, columnMetaData[i-1].label, columnMetaData[i-1].type, columnMetaData[i-1].typeName)
             list.add(column.name)
             myColumns.add(column)
-            val tn = md.getTableName(i)
+            val tn = columnMetaData[i-1].tableName
             if (!tableNames.contains(tn)) {
                 tableNames.add(tn)
             }
@@ -89,6 +89,32 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
             list.add(columnObjectAsString(i))
         }
         return list
+    }
+
+    fun rowAsInsertString(rowNum: Int): List<String>{
+        if (rowNum !in 1..numRows) {
+            return emptyList()
+        }
+        val list = mutableListOf<String>()
+        rowSet.absolute(rowNum)
+        for (i in 1..myColumns.size) {
+            val str = columnObjectAsInsertString(i)
+            list.add(str)
+        }
+        return list
+    }
+
+    private fun columnObjectAsInsertString(col: Int): String {
+        val any = rowSet.getObject(col) ?: return "NULL"
+        val index = col - 1 // zero based indexing of list
+        val dbColumn = myColumns[index]
+        return when (dbColumn.textType) {
+            TextType.DATETIME,
+            TextType.STRING -> {
+                "'%s'".format(any)
+            }
+            else -> any.toString()
+        }
     }
 
     fun formattedRow(rowNum: Int): String {
@@ -233,7 +259,11 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
         return FormattedRowIterator()
     }
 
-    inner class TextRowsIterator : Iterator<List<String>> {
+    fun insertTextRowIterator(): Iterator<List<String>>{
+        return InsertTextRowsIterator()
+    }
+
+    internal inner class TextRowsIterator : Iterator<List<String>> {
         private var current: Int = 0
         private val end = rowSet.size()
 
@@ -248,7 +278,7 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
 
     }
 
-    inner class FormattedRowIterator : Iterator<String> {
+    internal inner class FormattedRowIterator : Iterator<String> {
         private var current: Int = 0
         private val end = rowSet.size()
 
@@ -259,6 +289,21 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
         override fun next(): String {
             current++
             return formattedRow(current)
+        }
+
+    }
+
+    internal inner class InsertTextRowsIterator : Iterator<List<String>> {
+        private var current: Int = 0
+        private val end = rowSet.size()
+
+        override fun hasNext(): Boolean {
+            return current < end
+        }
+
+        override fun next(): List<String> {
+            current++
+            return rowAsInsertString(current)
         }
 
     }

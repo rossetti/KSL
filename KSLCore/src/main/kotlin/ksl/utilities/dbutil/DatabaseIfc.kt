@@ -561,10 +561,9 @@ interface DatabaseIfc {
             } else {
                 "insert into ${schemaName}.${tableName} values "
             }
-            val iterator = resultsAsText.iterator()
+            val iterator = resultsAsText.insertTextRowIterator()
             while(iterator.hasNext()){
                 val rowData = iterator.next()
-
                 val inputs = rowData.joinToString(", ", prefix = "(", postfix = ")")
                 out.println(sql + inputs)
             }

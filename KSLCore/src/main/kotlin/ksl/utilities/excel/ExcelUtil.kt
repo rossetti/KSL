@@ -151,8 +151,7 @@ object ExcelUtil : KLoggable {
             logger.warn("The file at {} does not exist", pathToWorkbook)
             return null
         }
-        var pkg: OPCPackage? = null
-        pkg = try {
+        val pkg: OPCPackage? = try {
             OPCPackage.open(file, PackageAccess.READ)
         } catch (e: InvalidFormatException) {
             logger.error("The workbook has an invalid format. See Apache POI InvalidFormatException")
