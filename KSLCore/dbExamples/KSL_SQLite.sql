@@ -1,4 +1,4 @@
--- A database for holding JSL output statistics
+-- A database for holding KSL output statistics
 -- Created 3-22-2018
 -- Author: M. Rossetti, rossetti@uark.edu
 --

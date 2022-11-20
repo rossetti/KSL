@@ -272,27 +272,26 @@ class KSLDatabase(private val db: Database) {
 
         init {
             //TODO some logging
-            //TODO change file names to KSL
             try {
                 val classLoader = this::class.java.classLoader
-                val dbCreate = classLoader.getResourceAsStream("JSLDb.sql")
-                val dbDrop = classLoader.getResourceAsStream("JSLDbDropScript.sql")
-                val dbSQLiteCreate = classLoader.getResourceAsStream("JSL_SQLite.sql")
+                val dbCreate = classLoader.getResourceAsStream("KSL_Db.sql")
+                val dbDrop = classLoader.getResourceAsStream("KSL_DbDropScript.sql")
+                val dbSQLiteCreate = classLoader.getResourceAsStream("KSL_SQLite.sql")
                 if (dbCreate!= null){
                     Files.copy(
-                        dbCreate, dbScriptsDir.resolve("JSLDb.sql"),
+                        dbCreate, dbScriptsDir.resolve("KSL_Db.sql"),
                         StandardCopyOption.REPLACE_EXISTING
                     )
                 }
                 if(dbDrop != null){
                     Files.copy(
-                        dbDrop, dbScriptsDir.resolve("JSLDbDropScript.sql"),
+                        dbDrop, dbScriptsDir.resolve("KSL_DbDropScript.sql"),
                         StandardCopyOption.REPLACE_EXISTING
                     )
                 }
                 if (dbSQLiteCreate != null){
                     Files.copy(
-                        dbSQLiteCreate, dbScriptsDir.resolve("JSL_SQLite.sql"),
+                        dbSQLiteCreate, dbScriptsDir.resolve("KSL_SQLite.sql"),
                         StandardCopyOption.REPLACE_EXISTING
                     )
                 }
