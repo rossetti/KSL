@@ -672,6 +672,16 @@ class Model(
         return null
     }
 
+    /** The list is ordered parent-child, in the order of the model element hierarchy
+     *
+     * @return all the model elements in the model as a List
+     */
+    internal fun getModelElements(): List<ModelElement?>{
+        val list = mutableListOf<ModelElement?>()
+        getAllModelElements(list)
+        return list
+    }
+
     /**
      * Schedules the ending of the executive at the provided time
      *

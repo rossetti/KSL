@@ -1,6 +1,7 @@
 package ksl.utilities.dbutil
 
 import ksl.simulation.Model
+import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 import org.ktorm.dsl.deleteAll
 import org.ktorm.dsl.isNotNull
@@ -26,6 +27,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
     internal var simulationRun: SimulationRun? = null
 
     private val simulationRuns get() = kDb.sequenceOf(SimulationRuns, withReferences = false)
+    private val dbModelElements get() = kDb.sequenceOf(DbModelElements, withReferences = false)
 
     val label = db.label
     val tables = listOf(
@@ -83,10 +85,26 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
     }
 
     internal fun beforeExperiment(model: Model) {
-        TODO("Not yet implemented")
         // start simulation run record
-
+        insertSimulationRun(model)
         // insert the model elements into the database
+        val modelElements: List<ModelElement?> = model.getModelElements()
+        insertModelElements(modelElements)
+    }
+
+    private fun insertModelElements(elements: List<ModelElement?>) {
+        val list = mutableListOf<DbModelElement>()
+        for(element in elements){
+            val dbModelElement = makeDbModelElement(element, simulationRun!!.id)
+            if (dbModelElement!=null){
+                list.add(dbModelElement)
+            }
+        }
+        //TODO insert into database
+    }
+
+    private fun makeDbModelElement(element: ModelElement?, id: Int): KSLDatabase.DbModelElement {
+        TODO("Not implemented yet")
 
     }
 
@@ -111,6 +129,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         simulationRun = record
     }
 
+    fun finalizeCurrentSimulationRun(model:Model){
+        simulationRun?.lastRep = model.numberReplicationsCompleted
+        simulationRun?.hasMoreReps = model.hasMoreReplications()
+        simulationRun?.expEndTimeStamp = ZonedDateTime.now().toInstant()
+        simulationRun?.flushChanges()
+    }
     internal fun afterReplication(model: Model) {
         TODO("Not yet implemented")
         // insert the within replication statistics
@@ -122,9 +146,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
     }
 
     internal fun afterExperiment(model: Model) {
-        TODO("Not yet implemented")
         // finalize current simulation run record
-
+        finalizeCurrentSimulationRun(model)
+        TODO("Not yet implemented")
         // insert across replication response statistics
 
         // insert across replication counter statistics
@@ -477,5 +501,6 @@ fun main(){
     val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
     val kdb = KSLDatabase(sdb)
     kdb.insertSimulationRun(m)
+    kdb.finalizeCurrentSimulationRun(m)
 }
 
