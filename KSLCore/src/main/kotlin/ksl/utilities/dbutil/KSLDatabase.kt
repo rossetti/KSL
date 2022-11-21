@@ -11,6 +11,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.time.Instant
+import java.util.*
 
 class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
@@ -20,10 +21,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
     internal var simulationRun: SimulationRun? = null
 
     val label = db.label
-    
+
     init {
 //TODO        validateDatabase()
-        if (clearDataOption){
+        if (clearDataOption) {
 //TODO            clearAllData()
         }
     }
@@ -38,7 +39,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         TODO("Not yet implemented")
     }
 
-    internal fun beforeExperiment(model: Model){
+    internal fun beforeExperiment(model: Model) {
         TODO("Not yet implemented")
         // start simulation run record
 
@@ -46,7 +47,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
     }
 
-    internal fun afterReplication(model: Model){
+    internal fun afterReplication(model: Model) {
         TODO("Not yet implemented")
         // insert the within replication statistics
 
@@ -56,7 +57,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
     }
 
-    internal fun afterExperiment(model: Model){
+    internal fun afterExperiment(model: Model) {
         TODO("Not yet implemented")
         // finalize current simulation run record
 
@@ -112,16 +113,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         var statName = varchar("STAT_NAME").bindTo { it.statName }
         var statCount = double("STAT_COUNT").bindTo { it.statCount }
         var average = double("AVERAGE").bindTo { it.average }
-        var minimum = double("MINIMUM").bindTo { it.minimum}
+        var minimum = double("MINIMUM").bindTo { it.minimum }
         var maximum = double("MAXIMUM").bindTo { it.maximum }
         var weightedSum = double("WEIGHTED_SUM").bindTo { it.weightedSum }
         var sumOfWeights = double("SUM_OF_WEIGHTS").bindTo { it.sumOfWeights }
         var weightedSSQ = double("WEIGHTED_SSQ").bindTo { it.weightedSSQ }
-        var lastValue = double("LAST_VALUE").bindTo { it.lastValue}
+        var lastValue = double("LAST_VALUE").bindTo { it.lastValue }
         var lastWeight = double("LAST_WEIGHT").bindTo { it.lastWeight }
     }
 
-    object AcrossRepStats : Table<AcrossRepStat>("ACROSS_REP_STAT"){
+    object AcrossRepStats : Table<AcrossRepStat>("ACROSS_REP_STAT") {
         var id = int("ID").primaryKey().bindTo { it.id }
         var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk } //TODO not sure how to do references
         var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk } //TODO not sure how to do references
@@ -130,13 +131,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         var average = double("AVERAGE").bindTo { it.average }
         var stdDev = double("STD_DEV").bindTo { it.stdDev }
         var stdError = double("STD_ERR").bindTo { it.stdError }
-        var halfWidth = double("HALF_WIDTH").bindTo { it.halfWidth}
-        var confLevel = double("CONF_LEVEL").bindTo {it.confLevel }
-        var minimum = double("MINIMUM").bindTo { it.minimum}
+        var halfWidth = double("HALF_WIDTH").bindTo { it.halfWidth }
+        var confLevel = double("CONF_LEVEL").bindTo { it.confLevel }
+        var minimum = double("MINIMUM").bindTo { it.minimum }
         var maximum = double("MAXIMUM").bindTo { it.maximum }
         var sumOfObs = double("SUM_OF_OBS").bindTo { it.sumOfObs }
         var devSSQ = double("DEV_SSQ").bindTo { it.devSSQ }
-        var lastValue = double("LAST_VALUE").bindTo { it.lastValue}
+        var lastValue = double("LAST_VALUE").bindTo { it.lastValue }
         var kurtosis = double("KURTOSIS").bindTo { it.kurtosis }
         var skewness = double("SKEWNESS").bindTo { it.skewness }
         var lag1Cov = double("LAG1_COV").bindTo { it.lag1Cov }
@@ -145,16 +146,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         var numMissingObs = double("NUM_MISSING_OBS").bindTo { it.numMissingObs }
     }
 
-    object WithinRepCounterStats : Table<WithinRepCounterStat>("WITHIN_REP_COUNTER_STAT"){
+    object WithinRepCounterStats : Table<WithinRepCounterStat>("WITHIN_REP_COUNTER_STAT") {
         var id = int("ID").primaryKey().bindTo { it.id }
         var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk } //TODO not sure how to do references
         var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk } //TODO not sure how to do references
         var repNum = int("REP_NUM").bindTo { it.repNum }
         var statName = varchar("STAT_NAME").bindTo { it.statName }
-        var lastValue = double("LAST_VALUE").bindTo { it.lastValue}
+        var lastValue = double("LAST_VALUE").bindTo { it.lastValue }
     }
 
-    object BatchStats : Table< BatchStat> ("BATCH_STAT"){
+    object BatchStats : Table<BatchStat>("BATCH_STAT") {
         var id = int("ID").primaryKey().bindTo { it.id }
         var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk } //TODO not sure how to do references
         var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk } //TODO not sure how to do references
@@ -164,13 +165,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         var average = double("AVERAGE").bindTo { it.average }
         var stdDev = double("STD_DEV").bindTo { it.stdDev }
         var stdError = double("STD_ERR").bindTo { it.stdError }
-        var halfWidth = double("HALF_WIDTH").bindTo { it.halfWidth}
-        var confLevel = double("CONF_LEVEL").bindTo {it.confLevel }
-        var minimum = double("MINIMUM").bindTo { it.minimum}
+        var halfWidth = double("HALF_WIDTH").bindTo { it.halfWidth }
+        var confLevel = double("CONF_LEVEL").bindTo { it.confLevel }
+        var minimum = double("MINIMUM").bindTo { it.minimum }
         var maximum = double("MAXIMUM").bindTo { it.maximum }
         var sumOfObs = double("SUM_OF_OBS").bindTo { it.sumOfObs }
         var devSSQ = double("DEV_SSQ").bindTo { it.devSSQ }
-        var lastValue = double("LAST_VALUE").bindTo { it.lastValue}
+        var lastValue = double("LAST_VALUE").bindTo { it.lastValue }
         var kurtosis = double("KURTOSIS").bindTo { it.kurtosis }
         var skewness = double("SKEWNESS").bindTo { it.skewness }
         var lag1Cov = double("LAG1_COV").bindTo { it.lag1Cov }
@@ -187,6 +188,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
     interface SimulationRun : Entity<SimulationRun> {
         companion object : Entity.Factory<SimulationRun>()
+
         var id: Int
         var simName: String
         var modelName: String
@@ -208,6 +210,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
     interface DbModelElement : Entity<DbModelElement> {
         companion object : Entity.Factory<DbModelElement>()
+
         var simRunIDFk: Int
         var elementId: Int
         var elementName: String
@@ -220,6 +223,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
     interface WithinRepStat : Entity<WithinRepStat> {
         companion object : Entity.Factory<WithinRepStat>()
+
         var id: Int
         var elementIdFk: Int
         var simRunIdFk: Int
@@ -236,8 +240,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         var lastWeight: Double?
     }
 
-    interface AcrossRepStat : Entity<AcrossRepStat>{
+    interface AcrossRepStat : Entity<AcrossRepStat> {
         companion object : Entity.Factory<AcrossRepStat>()
+
         var id: Int
         var elementIdFk: Int
         var simRunIdFk: Int
@@ -263,6 +268,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
     interface WithinRepCounterStat : Entity<WithinRepCounterStat> {
         companion object : Entity.Factory<WithinRepCounterStat>()
+
         var id: Int
         var elementIdFk: Int
         var simRunIdFk: Int
@@ -273,6 +279,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
     interface BatchStat : Entity<BatchStat> {
         companion object : Entity.Factory<BatchStat>()
+
         var id: Int
         var elementIdFk: Int
         var simRunIdFk: Int
@@ -330,19 +337,19 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
                 val dbCreate = classLoader.getResourceAsStream("KSL_Db.sql")
                 val dbDrop = classLoader.getResourceAsStream("KSL_DbDropScript.sql")
                 val dbSQLiteCreate = classLoader.getResourceAsStream("KSL_SQLite.sql")
-                if (dbCreate!= null){
+                if (dbCreate != null) {
                     Files.copy(
                         dbCreate, dbScriptsDir.resolve("KSL_Db.sql"),
                         StandardCopyOption.REPLACE_EXISTING
                     )
                 }
-                if(dbDrop != null){
+                if (dbDrop != null) {
                     Files.copy(
                         dbDrop, dbScriptsDir.resolve("KSL_DbDropScript.sql"),
                         StandardCopyOption.REPLACE_EXISTING
                     )
                 }
-                if (dbSQLiteCreate != null){
+                if (dbSQLiteCreate != null) {
                     Files.copy(
                         dbSQLiteCreate, dbScriptsDir.resolve("KSL_SQLite.sql"),
                         StandardCopyOption.REPLACE_EXISTING
@@ -350,6 +357,52 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
                 }
             } catch (e: IOException) {
                 e.printStackTrace()
+            }
+        }
+
+        fun createSQLiteKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
+            val database = DatabaseFactory.createSQLiteDatabase(dbName, dbDirectory)
+            val executed = database.executeScript(dbScriptsDir.resolve("KSL_SQLite.sql"))
+            if (!executed) {
+                DatabaseIfc.logger.error("Unable to execute KSL_SQLite.sql creation script")
+                throw DataAccessException("The execution script KSL_SQLite.sql did not fully execute")
+            }
+            return database
+        }
+
+        /** This method creates the database on disk as configures it to hold KSL simulation data.
+         *
+         * @param dbName the name of the database
+         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+         * @return an empty embedded Derby database configured to hold KSL simulation results
+         */
+        fun createEmbeddedDerbyKSLDatabase(dbName: String, dbDirectory: Path = dbDir) : Database {
+            val derbyDatabase = DatabaseFactory.createEmbeddedDerbyDatabase(dbName, dbDirectory)
+            executeKSLDbCreationScriptOnDatabase(derbyDatabase)
+            derbyDatabase.defaultSchemaName = SchemaName
+            return derbyDatabase
+        }
+
+        /** Executes the KSL database creation script on the database if the database does not already
+         * have a KSL_DB schema. If the database already contains a KSL_DB schema then the creation
+         * script is not executed. This method assumes that the underlying data source supports schemas.
+         * For example, SQLite does not support schemas.
+         *
+         * @param db the database
+         */
+        fun executeKSLDbCreationScriptOnDatabase(db: Database) {
+            if (!db.containsSchema(SchemaName)) {
+                DatabaseIfc.logger.warn("The database {} does not contain schema {}", db.label, SchemaName)
+                try {
+                    DatabaseIfc.logger.warn("Assume the schema has not be made and execute the creation script KSL_Db.sql")
+                    val executed = db.executeScript(dbScriptsDir.resolve("KSL_Db.sql"))
+                    if (!executed) {
+                        throw DataAccessException("The execution script KSL_Db.sql did not fully execute")
+                    }
+                } catch (e: IOException) {
+                    DatabaseIfc.logger.error("Unable to execute KSL_Db.sql creation script")
+                    throw DataAccessException("Unable to execute KSL_Db.sql creation script")
+                }
             }
         }
     }

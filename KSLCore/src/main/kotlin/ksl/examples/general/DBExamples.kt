@@ -1,10 +1,7 @@
 package ksl.examples.general
 
 import kotlinx.datetime.Clock
-import ksl.utilities.dbutil.Database
-import ksl.utilities.dbutil.DatabaseFactory
-import ksl.utilities.dbutil.DatabaseIfc
-import ksl.utilities.dbutil.DbCreateTask
+import ksl.utilities.dbutil.*
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
@@ -29,14 +26,27 @@ fun main() {
 //    println("*** exampleExcelDbImport output:")
 //    DBExamples.exampleExcelDbImport()
 //    // This example creates the SP database and prints out the SP table
-    println()
-    println("*** exampleSPCreationFromFullScript output:")
-    DBExamples.exampleSPCreationFromFullScript()
+//    println()
+//    println("*** exampleSPCreationFromFullScript output:")
+//    DBExamples.exampleSPCreationFromFullScript()
+
+    DBExamples.createKSLDatabases()
 }
 
 object DBExamples {
     var pathToWorkingDir: Path = Paths.get("").toAbsolutePath()
     var pathToDbExamples: Path = pathToWorkingDir.resolve("dbExamples")
+
+    fun createKSLDatabases(){
+        val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
+        println("created SQLite based KSLDatabase")
+        println(sdb)
+        println()
+        val ddb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb")
+        println("created Derby based KSLDatabase")
+        println(ddb)
+        println()
+    }
 
     /**
      * This example shows how to create a new database from a creation script and perform some simple

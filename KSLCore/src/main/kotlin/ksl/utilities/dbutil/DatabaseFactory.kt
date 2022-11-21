@@ -500,7 +500,7 @@ object DatabaseFactory {
      * @param dataSource the data source for connections
      * @return the created database
      */
-    fun createSQLiteDatabase(dbLabel: String, dataSource: SQLiteDataSource): DatabaseIfc {
+    fun createSQLiteDatabase(dbLabel: String, dataSource: SQLiteDataSource): Database {
         return Database(dataSource, dbLabel)
     }
 
@@ -511,7 +511,7 @@ object DatabaseFactory {
      * @param dbDir  a path to the directory to hold the database. Must not be null
      * @return the created database
      */
-    fun createSQLiteDatabase(dbName: String, dbDir: Path = KSL.dbDir): DatabaseIfc {
+    fun createSQLiteDatabase(dbName: String, dbDir: Path = KSL.dbDir): Database {
         val pathToDb = dbDir.resolve(dbName)
         // if it exists, delete it
         if (Files.exists(pathToDb)) {
@@ -528,7 +528,7 @@ object DatabaseFactory {
      * @param readOnly true indicates that the database is read only
      * @return the database
      */
-    fun getSQLiteDatabase(pathToDb: Path, readOnly: Boolean = false): DatabaseIfc {
+    fun getSQLiteDatabase(pathToDb: Path, readOnly: Boolean = false): Database {
         check(isSQLiteDatabase(pathToDb)) { "The path does represent a valid SQLite database $pathToDb" }
         // must exist and be at path
         val dataSource: SQLiteDataSource = createSQLiteDataSource(pathToDb)
@@ -543,7 +543,7 @@ object DatabaseFactory {
      * @param fileName the name of database file, must not be null
      * @return the database
      */
-    fun getSQLiteDatabase(fileName: String): DatabaseIfc {
+    fun getSQLiteDatabase(fileName: String): Database {
         return getSQLiteDatabase(KSL.dbDir.resolve(fileName))
     }
 }
