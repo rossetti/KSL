@@ -1,5 +1,6 @@
 package ksl.utilities.dbutil
 
+import ksl.simulation.Model
 import ksl.utilities.io.KSL
 import org.ktorm.dsl.isNotNull
 import org.ktorm.entity.Entity
@@ -11,13 +12,65 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.time.Instant
 
-class KSLDatabase(private val db: Database) {
+class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
     private val kDb =
         org.ktorm.database.Database.connect(db.dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))
 
-    init {
+    internal var simulationRun: SimulationRun? = null
 
+    val label = db.label
+    
+    init {
+//TODO        validateDatabase()
+        if (clearDataOption){
+//TODO            clearAllData()
+        }
+    }
+
+    private fun validateDatabase() {
+        //TODO check if supplied database is configured as KSL database
+        TODO("Not yet implemented")
+    }
+
+    fun clearAllData() {
+        //TODO remove all data from user tables
+        TODO("Not yet implemented")
+    }
+
+    internal fun beforeExperiment(model: Model){
+        TODO("Not yet implemented")
+        // start simulation run record
+
+        // insert the model elements into the database
+
+    }
+
+    internal fun afterReplication(model: Model){
+        TODO("Not yet implemented")
+        // insert the within replication statistics
+
+        // insert the within replication counters
+
+        // insert the batch statistics if available
+
+    }
+
+    internal fun afterExperiment(model: Model){
+        TODO("Not yet implemented")
+        // finalize current simulation run record
+
+        // insert across replication response statistics
+
+        // insert across replication counter statistics
+    }
+
+    fun clearSimulationData(model: Model) {
+        TODO("Not yet implemented")
+    }
+
+    fun doesSimulationRunRecordExist(simName: String, expName: String): Boolean {
+        TODO("Not yet implemented")
     }
 
     object SimulationRuns : Table<SimulationRun>("SIMULATION_RUN") {
