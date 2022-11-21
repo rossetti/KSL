@@ -2,8 +2,12 @@ package ksl.utilities.dbutil
 
 import ksl.simulation.Model
 import ksl.utilities.io.KSL
+import org.ktorm.dsl.deleteAll
 import org.ktorm.dsl.isNotNull
 import org.ktorm.entity.Entity
+import org.ktorm.entity.add
+import org.ktorm.entity.sequenceOf
+import org.ktorm.entity.update
 import org.ktorm.logging.Slf4jLoggerAdapter
 import org.ktorm.schema.*
 import java.io.IOException
@@ -11,32 +15,71 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.time.Instant
-import java.util.*
+import java.time.ZonedDateTime
 
 class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
     private val kDb =
         org.ktorm.database.Database.connect(db.dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))
 
+
     internal var simulationRun: SimulationRun? = null
 
+    private val simulationRuns get() = kDb.sequenceOf(SimulationRuns, withReferences = false)
+
     val label = db.label
+    val tables = listOf(
+        SimulationRuns, DbModelElements, WithRepStats,
+        AcrossRepStats, WithinRepCounterStats, BatchStats
+    )
 
     init {
-//TODO        validateDatabase()
+        val check = checkTableNames()
+        if (!check){
+            DatabaseIfc.logger.error{"The database does not have the required tables for a KSLDatabase"}
+        }
         if (clearDataOption) {
-//TODO            clearAllData()
+            clearAllData()
         }
     }
 
-    private fun validateDatabase() {
-        //TODO check if supplied database is configured as KSL database
-        TODO("Not yet implemented")
+    private fun checkTableNames(): Boolean {
+        //check if supplied database is configured as KSL database
+        // by checking if the names of the tables match with the KSL table names
+        // an admittedly poor test, but it is something
+        val tableNames = if (db.defaultSchemaName != null) {
+            db.tableNames(db.defaultSchemaName!!)
+        } else {
+            db.userDefinedTables
+        }
+        for (name in TableNames) {
+            if (!containsTableName(name, tableNames)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    private fun containsTableName(name: String, list: List<String>): Boolean {
+        for (tn in list) {
+            if (tn.equals(name, true)) {
+                return true
+            }
+        }
+        return false
     }
 
     fun clearAllData() {
         //TODO remove all data from user tables
-        TODO("Not yet implemented")
+//        kDb.deleteAll(BatchStats)
+//        kDb.deleteAll(WithinRepCounterStats)
+//        kDb.deleteAll(AcrossRepStats)
+//        kDb.deleteAll(WithRepStats)
+//        kDb.deleteAll(DbModelElements)
+//        kDb.deleteAll(SimulationRuns)
+        for (table in tables.asReversed()) {
+            kDb.deleteAll(table)
+        }
     }
 
     internal fun beforeExperiment(model: Model) {
@@ -45,6 +88,27 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
         // insert the model elements into the database
 
+    }
+
+    fun insertSimulationRun(model: Model){
+        val record = SimulationRun()
+        record.simName = model.simulationName
+        record.expName = model.experimentName
+        record.modelName = model.name
+        record.expStartTimeStamp = ZonedDateTime.now().toInstant()
+        record.numReps = model.numberOfReplications
+        if (!model.lengthOfReplication.isNaN() && model.lengthOfReplication.isFinite()){
+            record.lengthOfRep = model.lengthOfReplication
+        }
+        record.lengthOfWarmUp = model.lengthOfReplicationWarmUp
+        record.repAllowedExecTime = model.maximumAllowedExecutionTime.inWholeMilliseconds
+        record.repInitOption = model.replicationInitializationOption
+        record.repResetStartStreamOption = model.resetStartStreamOption
+        record.antitheticOption = model.antitheticOption
+        record.advNextSubStreamOption = model.advanceNextSubStreamOption
+        record.numStreamAdvances = model.numberOfStreamAdvancesPriorToRunning
+        simulationRuns.add(record)
+        simulationRun = record
     }
 
     internal fun afterReplication(model: Model) {
@@ -311,12 +375,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
     }
 
     companion object {
-        private val TableNames = listOf(
+        val TableNames = listOf(
             "batch_stat", "within_rep_counter_stat",
             "across_rep_stat", "within_rep_stat", "model_element", "simulation_run"
         )
 
-        private val ViewNames = listOf(
+        val ViewNames = listOf(
             "within_rep_response_view",
             "within_rep_counter_view",
             "across_rep_view",
@@ -376,7 +440,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
          * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
          * @return an empty embedded Derby database configured to hold KSL simulation results
          */
-        fun createEmbeddedDerbyKSLDatabase(dbName: String, dbDirectory: Path = dbDir) : Database {
+        fun createEmbeddedDerbyKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
             val derbyDatabase = DatabaseFactory.createEmbeddedDerbyDatabase(dbName, dbDirectory)
             executeKSLDbCreationScriptOnDatabase(derbyDatabase)
             derbyDatabase.defaultSchemaName = SchemaName
@@ -406,5 +470,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
             }
         }
     }
+}
+
+fun main(){
+    val m = Model("someName")
+    val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
+    val kdb = KSLDatabase(sdb)
+    kdb.insertSimulationRun(m)
 }
 
