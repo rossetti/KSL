@@ -3,6 +3,8 @@ package ksl.utilities.dbutil
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
+import org.ktorm.dsl.BatchInsertStatementBuilder
+import org.ktorm.dsl.batchInsert
 import org.ktorm.dsl.deleteAll
 import org.ktorm.dsl.isNotNull
 import org.ktorm.entity.Entity
@@ -101,6 +103,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
             }
         }
         //TODO insert into database
+ //       BatchInsertStatementBuilder(DbModelElements).item {  }
     }
 
     private fun makeDbModelElement(element: ModelElement?, id: Int): KSLDatabase.DbModelElement {
