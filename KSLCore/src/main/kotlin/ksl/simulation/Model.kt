@@ -112,7 +112,7 @@ class Model(
      */
     private lateinit var myControls: Controls
 
-    private var batchingElement: StatisticalBatchingElement? = null
+    internal var batchingElement: StatisticalBatchingElement? = null
 
     /**
      * A StatisticalBatchingElement is used to control statistical batching for
@@ -676,8 +676,8 @@ class Model(
      *
      * @return all the model elements in the model as a List
      */
-    internal fun getModelElements(): List<ModelElement?>{
-        val list = mutableListOf<ModelElement?>()
+    internal fun getModelElements(): List<ModelElement>{
+        val list = mutableListOf<ModelElement>()
         getAllModelElements(list)
         return list
     }

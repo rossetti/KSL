@@ -6,6 +6,7 @@ import javax.sql.rowset.CachedRowSet
 fun isEven(value: Int) = value % 2 == 0
 fun isOdd(value: Int) = value % 2 == 1
 
+//TODO need a default format
 class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = null) : Iterable<List<String>> {
 
     private val myColumns = mutableListOf<DbColumn>()
@@ -128,14 +129,19 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
                 sb.append("*".repeat(c.width))
             } else {
                 val gap = c.width - v.length
-                val fps = if (isEven(gap)){
-                    (gap/2)
+                if (gap == 1){
+                    sb.append(" ")
+                    sb.append(v)
                 } else {
-                    (gap/2) - 1
+                    val fps = if (isEven(gap)){
+                        (gap/2)
+                    } else {
+                        (gap/2) - 1
+                    }
+                    sb.append(" ".repeat(fps))
+                    sb.append(v)
+                    sb.append(" ".repeat(gap - fps))
                 }
-                sb.append(" ".repeat(fps))
-                sb.append(v)
-                sb.append(" ".repeat(gap - fps))
             }
         }
         sb.append("|")
@@ -154,7 +160,10 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
                 if (any.toString().length < (dbColumn.width - paddingSize)) {
                     any.toString()
                 } else {
-                    any.toString().substring(0..dbColumn.width).plus(" ...")
+                    //TODO index out of bounds error, need to rethink this
+                    // something to do about max column width
+                    // I think I should get the full string and then apply formatting afterwards using %s
+                    any.toString().substring(0..(dbColumn.width)).plus(" ...")
                 }
             }
             TextType.DOUBLE -> {

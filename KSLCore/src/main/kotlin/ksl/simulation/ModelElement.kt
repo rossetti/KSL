@@ -582,7 +582,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      *
      * @param list the list to fill
      */
-    protected fun getAllModelElements(list: MutableList<ModelElement?>) {
+    protected fun getAllModelElements(list: MutableList<ModelElement>) {
         list.add(this)
         if (myModelElements.isNotEmpty()) {
             for (me in myModelElements) {
@@ -595,7 +595,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      *
      * @param list the list of model elements
      */
-    protected fun getThisElementsModelElements(list: MutableList<ModelElement?>) {
+    protected fun getThisElementsModelElements(list: MutableList<ModelElement>) {
         if (myModelElements.isNotEmpty()) {
             for (me in myModelElements) {
                 list.add(me)

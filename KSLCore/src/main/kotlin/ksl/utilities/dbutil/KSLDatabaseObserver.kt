@@ -23,20 +23,24 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 
-class KSLDatabaseObserver(private val db: KSLDatabase, private val model: Model, var clearDataBeforeExperimentOption: Boolean = true) {
+class KSLDatabaseObserver(
+    private val db: KSLDatabase,
+    private val model: Model,
+    var clearDataBeforeExperimentOption: Boolean = true
+) {
 
     private val myObserver = SimulationDatabaseObserver()
 
-    init{
+    init {
         model.attachModelElementObserver(myObserver)
     }
 
-    fun stopObserving(){
+    fun stopObserving() {
         model.detachModelElementObserver(myObserver)
     }
 
-    fun startObserving(){
-        if (!model.isModelElementObserverAttached(myObserver)){
+    fun startObserving() {
+        if (!model.isModelElementObserverAttached(myObserver)) {
             model.attachModelElementObserver(myObserver)
         }
     }
