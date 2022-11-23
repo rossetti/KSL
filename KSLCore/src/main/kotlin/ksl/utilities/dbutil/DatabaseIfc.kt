@@ -1131,7 +1131,7 @@ interface DatabaseIfc {
             try {
                 connection.createStatement().use { statement ->
                     statement.execute(command)
-                    logger.info("Executed SQL: {}", command)
+                    logger.trace("Executed SQL: {}", command)
                     statement.close()
                     flag = true
                 }

@@ -53,6 +53,9 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
 
+    // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
+    implementation("org.jetbrains.kotlinx:dataframe-core:0.8.1")
+
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.20")
 

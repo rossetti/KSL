@@ -14,9 +14,9 @@ import javax.sql.DataSource
 
 fun main() {
     // This example creates a Derby database called SP_Example_Db within the dbExamples folder
-//    println()
-//    println("*** example1 output:")
-//    DBExamples.example1()
+    println()
+    println("*** example1 output:")
+    DBExamples.example1()
     // This example creates a Derby database called SP_To_Excel within the dbExamples folder and exports it to Excel
 //    println()
 //    println("*** exampleDbToExcelExport output:")
@@ -30,7 +30,8 @@ fun main() {
 //    println("*** exampleSPCreationFromFullScript output:")
 //    DBExamples.exampleSPCreationFromFullScript()
 
-    DBExamples.createKSLDatabases()
+//    DBExamples.createKSLDatabases()
+//
 }
 
 object DBExamples {

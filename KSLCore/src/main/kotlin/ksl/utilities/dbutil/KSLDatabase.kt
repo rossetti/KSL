@@ -10,18 +10,19 @@ import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.StatisticIfc
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.*
+import org.ktorm.database.asIterable
 import org.ktorm.dsl.*
 import org.ktorm.entity.*
 import org.ktorm.logging.Slf4jLoggerAdapter
 import org.ktorm.schema.*
 import java.io.IOException
-import java.io.PrintWriter
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.time.Instant
 import java.time.ZonedDateTime
-import javax.sql.rowset.CachedRowSet
 
 class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
@@ -37,6 +38,70 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
     private val batchStats get() = kDb.sequenceOf(BatchStats, withReferences = false)
 
     val label = db.label
+
+    val acrossReplicationStatistics: DataFrame<AcrossRepStat>
+        get() {
+            var df = acrossRepStats.toList().toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("id").to(1)
+                .move("statName").to(2)
+                .move("statCount").to(3)
+                .move("average").to(4)
+                .move("halfWidth").to(5)
+                .move("stdDev").to(6)
+                .move("stdError").to(7)
+                .move("minimum").to(8)
+                .move("maximum").to(9)
+                .move("confLevel").to(10)
+            df = df.remove("entityClass", "properties", "elementIdFk")
+            return df
+        }
+
+    val withinReplicationStatistics: DataFrame<WithinRepStat>
+        get() {
+            var df = withinRepStats.toList().toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("id").to(1)
+                .move("statName").to(2)
+                .move("repNum").to(3)
+                .move("statCount").to(4)
+                .move("average").to(5)
+                .move("minimum").to(6)
+                .move("maximum").to(7)
+                .remove("entityClass", "properties", "elementIdFk")
+            return df
+        }
+
+    val withinReplicationCounterStatistics: DataFrame<WithinRepCounterStat>
+        get() {
+            var df = withinRepCounterStats.toList().toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("id").to(1)
+                .move("statName").to(2)
+                .move("repNum").to(3)
+                .move("lastValue").to(4)
+                .remove("entityClass", "properties", "elementIdFk")
+            return df
+        }
+
+    val batchingStatistics: DataFrame<BatchStat>
+        get() {
+            var df = batchStats.toList().toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("id").to(1)
+                .move("statName").to(2)
+                .move("repNum").to(3)
+                .move("statCount").to(4)
+                .move("average").to(5)
+                .move("halfWidth").to(6)
+                .move("stdDev").to(7)
+                .move("stdError").to(8)
+                .move("minimum").to(9)
+                .move("maximum").to(10)
+                .move("confLevel").to(11)
+            df = df.remove("entityClass", "properties", "elementIdFk")
+            return df
+        }
 
     val tables = listOf(
         SimulationRuns, DbModelElements, WithRepStats,
@@ -90,12 +155,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         for (table in tables.asReversed()) {
             kDb.deleteAll(table)
         }
-        DatabaseIfc.logger.info{"Cleared data for KSLDatabase ${db.label}"}
+        DatabaseIfc.logger.info { "Cleared data for KSLDatabase ${db.label}" }
     }
 
-    fun acrossReplicationRecords() : QueryRowSet {
+    fun acrossReplicationRecords(): QueryRowSet {
+        val query: Query = kDb.from(AcrossRepStats).select()
         return kDb.from(AcrossRepStats).select().rowSet
     }
+
 
     internal fun beforeExperiment(model: Model) {
         // start simulation run record
@@ -814,12 +881,21 @@ fun main() {
     model.simulate()
     model.print()
 
-//    val records = kdb.acrossReplicationRecords()
-//    val cachedRowSet = DatabaseIfc.createCachedRowSet(records)
-//    DatabaseIfc.writeAsText(cachedRowSet, PrintWriter(System.out))
+    val records = kdb.acrossReplicationRecords()
+    println("number of records = ${records.query.totalRecords}")
 
-//TODO    sdb.printAllTablesAsText()
-//TODO    sdb.printAllTablesAsMarkdown()
+    val cachedRowSet = DatabaseIfc.createCachedRowSet(records)
+    println("size of cachedRowSet = ${cachedRowSet.size()}")
+    cachedRowSet.first()
+    DatabaseIfc.writeAsText(cachedRowSet, KSL.out)
 
+//    sdb.printAllTablesAsText()
+    val file = KSL.createPrintWriter("results.md")
+    sdb.writeAllTablesAsMarkdown(out = file)
+
+    val df = kdb.withinReplicationStatistics
+    println(df.schema())
+    println(df)
+    println("Done!")
 }
 

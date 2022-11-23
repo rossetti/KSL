@@ -125,24 +125,31 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
             val c = myColumns[i]
             val v = list[i]
             sb.append("|")
-            if (v.length >= c.width) {
-                sb.append("*".repeat(c.width))
-            } else {
-                val gap = c.width - v.length
-                if (gap == 1){
-                    sb.append(" ")
-                    sb.append(v)
-                } else {
-                    val fps = if (isEven(gap)){
-                        (gap/2)
-                    } else {
-                        (gap/2) - 1
-                    }
-                    sb.append(" ".repeat(fps))
-                    sb.append(v)
-                    sb.append(" ".repeat(gap - fps))
-                }
+            val fmt = "%${c.width}s"
+            if (v.length >= c.width){
+                val s = v.take(c.width-2*paddingSize).plus("...")
+                sb.append(fmt.format(s))
+            } else{
+                sb.append(fmt.format(v))
             }
+//            if (v.length >= c.width) {
+//                sb.append("*".repeat(c.width))
+//            } else {
+//                val gap = c.width - v.length
+//                if (gap == 1){
+//                    sb.append(" ")
+//                    sb.append(v)
+//                } else {
+//                    val fps = if (isEven(gap)){
+//                        (gap/2)
+//                    } else {
+//                        (gap/2) - 1
+//                    }
+//                    sb.append(" ".repeat(fps))
+//                    sb.append(v)
+//                    sb.append(" ".repeat(gap - fps))
+//                }
+//            }
         }
         sb.append("|")
         return sb.toString()
@@ -157,14 +164,22 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
             TextType.DATETIME,
             TextType.INTEGER -> any.toString()
             TextType.STRING -> {
-                if (any.toString().length < (dbColumn.width - paddingSize)) {
-                    any.toString()
-                } else {
-                    //TODO index out of bounds error, need to rethink this
-                    // something to do about max column width
-                    // I think I should get the full string and then apply formatting afterwards using %s
-                    any.toString().substring(0..(dbColumn.width)).plus(" ...")
-                }
+                any.toString()
+                //don't truncate it here, just return the string
+//                if (any.toString().length >= DEFAULT_MAX_COL_WIDTH){
+//                    any.toString().take(DEFAULT_MAX_COL_WIDTH-2*paddingSize).plus("...")
+//                } else {
+//                    any.toString()
+//                }
+//
+//                if (any.toString().length < (dbColumn.width - paddingSize)) {
+//                    any.toString()
+//                } else {
+//                    //TODO index out of bounds error, need to rethink this
+//                    // something to do about max column width
+//                    // I think I should get the full string and then apply formatting afterwards using %s
+//                    any.toString().substring(0..(dbColumn.width)).plus(" ...")
+//                }
             }
             TextType.DOUBLE -> {
                 val x: Double = try {
@@ -188,9 +203,9 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
          * Default maximum width for text columns
          * (like a `VARCHAR`) column.
          */
-        var DEFAULT_MAX_COL_WIDTH = 30
+        var DEFAULT_MAX_COL_WIDTH = 32
 
-        var DEFAULT_PADDING = 4
+        var DEFAULT_PADDING = 2
 
         /** Mapping sql type to text printing type
          * @param type the SQL type via java.sql.Types
@@ -254,10 +269,6 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
             get() {
                 return minOf(name.length + 2 * paddingSize, DEFAULT_MAX_COL_WIDTH)
             }
-//        var justify = ""
-//        fun justifyLeft() {
-//            justify = "-"
-//        }
     }
 
     override fun iterator(): Iterator<List<String>> {
