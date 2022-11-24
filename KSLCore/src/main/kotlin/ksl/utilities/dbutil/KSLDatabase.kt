@@ -6,6 +6,7 @@ import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.dbutil.KSLDatabase.WithinRepViewStats.bindTo
+import ksl.utilities.dbutil.KSLDatabase.WithinRepViewStats.expName
 import ksl.utilities.io.KSL
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.StatisticIfc
@@ -205,6 +206,15 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return kDb.from(AcrossRepStats).select().rowSet
     }
 
+    fun withinRepValuesFor(expNameStr: String, statNameStr: String){
+        var df = withinReplicationViewStatistics
+        val expName by column<String>()
+        val statName by column<String>()
+        df = df.filter { expName() == expNameStr && statName() == statNameStr }
+        val values: Sequence<Any?> = df.values()
+        val stuff = values.toList()
+        println(stuff)
+    }
 
     internal fun beforeExperiment(model: Model) {
         // start simulation run record
