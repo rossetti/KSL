@@ -50,7 +50,7 @@ object DBExamples {
 
     fun testKSLDatabase() {
         val model = Model("Drive Through Pharmacy", autoCSVReports = false)
-        model.numberOfReplications = 30
+        model.numberOfReplications = 10
         model.lengthOfReplication = 20000.0
         model.lengthOfReplicationWarmUp = 5000.0
         // add DriveThroughPharmacy to the main model
@@ -92,6 +92,9 @@ object DBExamples {
         println("Found = " + filter.count())
 //    val c: DataColumn<String> = df[statName]
 //    println(c)
+
+        kdb.withinRepValuesFor("Experiment_1", "# in System")
+        println()
 
         val rs = sdb.selectAllIntoOpenResultSet("ACROSS_REP_STAT")
         if (rs != null) {
