@@ -58,10 +58,11 @@ object DBExamples {
         dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
         dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
 
+        // this creates and attaches a KSLDatabase
         val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
         val kdb = KSLDatabase(sdb)
         KSLDatabaseObserver(model, kdb)
-
+        // this also creates and attached another KSLDatabase, using the defaults
         KSLDatabaseObserver(model)
 
         model.simulate()

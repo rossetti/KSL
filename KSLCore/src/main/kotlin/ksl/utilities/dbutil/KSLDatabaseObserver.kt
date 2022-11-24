@@ -23,6 +23,13 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 
+/**
+ * @param model the model to observe
+ * @param db the properly configured databased to hold KSL related results
+ * @param clearDataBeforeExperimentOption indicates whether data should be cleared before each experiment. The
+ * default is false. Data will not be clear if multiple simulations of the same model are executed within
+ * the same execution frame. An error is issued if the experiment name has not changed.
+ */
 class KSLDatabaseObserver(
     private val model: Model,
     val db: KSLDatabase = KSLDatabase("${model.name}.db".replace(" ","_"), model.outputDirectory.dbDir),
@@ -45,14 +52,14 @@ class KSLDatabaseObserver(
         }
     }
 
-    inner class SimulationDatabaseObserver : ModelElementObserver() {
+    private inner class SimulationDatabaseObserver : ModelElementObserver() {
         override fun beforeExperiment(modelElement: ModelElement) {
             super.beforeExperiment(modelElement)
             //handle clearing of database here
             if (clearDataBeforeExperimentOption) {
                 db.clearSimulationData(model)
             } else {
-                // no clear option, need to check if simulation record exists
+                // no clear option specified, need to check if simulation record exists
                 val simName: String = model.simulationName
                 val expName: String = model.experimentName
                 if (db.doesSimulationRunRecordExist(simName, expName)) {
@@ -63,12 +70,12 @@ class KSLDatabaseObserver(
                     KSL.logger.error("You attempted to run a simulation for a run that has ")
                     KSL.logger.error(" the same name and experiment without allowing its data to be cleared.")
                     KSL.logger.error("You should consider using the clearDataBeforeExperimentOption property on the observer.")
-                    KSL.logger.error("Or, you might change the name of the experiment before calling simulation.run().")
+                    KSL.logger.error("Or, you might change the name of the experiment before calling model.simulate().")
                     KSL.logger.error(
                         "This error is to prevent you from accidentally losing data associated with simulation: {}, and experiment: {} in database {}",
                         simName, expName, db.label
                     )
-                    throw DataAccessException("A simulation run record already exists with the name $simName and experiment name $expName")
+                    throw DataAccessException("A simulation run record already exists with the name $simName and experiment name $expName. Check the ksl.log for details.")
                 }
             }
             db.beforeExperiment(model)
@@ -85,7 +92,4 @@ class KSLDatabaseObserver(
         }
     }
 
-    companion object {
-        //TODO various ways to construct KSLDatabaseObserver??
-    }
 }
