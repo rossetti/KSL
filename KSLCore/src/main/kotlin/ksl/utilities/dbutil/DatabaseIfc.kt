@@ -28,23 +28,7 @@ import javax.sql.rowset.RowSetProvider
 import kotlin.reflect.typeOf
 
 
-/**
- * Many databases define database, user, schema in a variety of ways. This abstraction
- * defines this concept as the userSchema.  It is the name of the organizational construct for
- * which the user defined database object are contained. These are not the system abstractions.
- * The database name provided to the construct is for labeling and may or may not have any relationship
- * to the actual file name or database name of the database. The supplied connection has all
- * the information that it needs to access the database.
- */
-interface DatabaseIfc {
-    enum class LineOption {
-        COMMENT, CONTINUED, END
-    }
-
-    /**
-     * the DataSource backing the database
-     */
-    val dataSource: DataSource
+interface DatabaseIOIfc {
 
     /**
      * identifying string representing the database. This has no relation to
@@ -58,6 +42,229 @@ interface DatabaseIfc {
      *  name for the default schema, may be null
      */
     var defaultSchemaName: String?
+
+    /**
+     * Writes the table as comma separated values
+     * @param schemaName the name of the schema that should contain the tables
+     * @param tableName the name of the table to write
+     * @param header true means column names as the header included
+     * @param out       the PrintWriter to write to.  The print writer is not closed.
+     */
+    fun writeTableAsCSV(
+        tableName: String,
+        out: PrintWriter,
+        schemaName: String? = defaultSchemaName,
+        header: Boolean = true
+    )
+
+    /**
+     * Prints the table as comma separated values to the console
+     * @param schemaName the name of the schema that should contain the table
+     * @param tableName the name of the table to print
+     */
+    fun printTableAsCSV(tableName: String, schemaName: String? = defaultSchemaName, header: Boolean = true)
+
+    /**
+     * Writes the table as prettified text.
+     * @param schemaName the name of the schema that should contain the tables
+     * @param tableName the unqualified name of the table to write
+     * @param out       the PrintWriter to write to.  The print writer is not closed
+     */
+    fun writeTableAsText(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName)
+
+    /**
+     * Prints the table as prettified text to the console
+     * @param schemaName the name of the schema that should contain the tables
+     * @param tableName the unqualified name of the table to write
+     */
+    fun printTableAsText(tableName: String, schemaName: String? = defaultSchemaName)
+
+    /**
+     * Prints all tables as text to the console
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     */
+    fun printAllTablesAsText(schemaName: String? = defaultSchemaName)
+
+    /**
+     * Writes all tables as text
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param out        the PrintWriter to write to
+     */
+    fun writeAllTablesAsText(out: PrintWriter, schemaName: String? = defaultSchemaName)
+
+    /**
+     * Writes the table as prettified text.
+     * @param schemaName the name of the schema that should contain the tables
+     * @param tableName the unqualified name of the table to write
+     * @param out       the PrintWriter to write to.  The print writer is not closed
+     */
+    fun writeTableAsMarkdown(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName)
+
+    /**
+     * Prints the table as prettified text to the console
+     * @param schemaName the name of the schema that should contain the tables
+     * @param tableName the unqualified name of the table to write
+     */
+    fun printTableAsMarkdown(tableName: String, schemaName: String? = defaultSchemaName)
+
+    /**
+     * Prints all tables as text to the console
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     */
+    fun printAllTablesAsMarkdown(schemaName: String? = defaultSchemaName)
+
+    /**
+     * Writes all tables as text
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param out        the PrintWriter to write to
+     */
+    fun writeAllTablesAsMarkdown(out: PrintWriter, schemaName: String? = defaultSchemaName)
+
+    /**
+     * Writes all tables as separate comma separated value files into the supplied
+     * directory. The files are written to text files using the same name as
+     * the tables in the database
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param pathToOutPutDirectory the path to the output directory to hold the csv files
+     * @param header  true means all files will have the column headers
+     */
+    fun writeAllTablesAsCSV(
+        pathToOutPutDirectory: Path,
+        schemaName: String? = defaultSchemaName,
+        header: Boolean = true
+    )
+
+    /**
+     * Prints the insert queries associated with the supplied table to the console
+     * @param schemaName the name of the schema that should contain the table
+     * @param tableName the unqualified name of the table
+     */
+    fun printInsertQueries(tableName: String, schemaName: String? = defaultSchemaName)
+
+    /**
+     * Writes the insert queries associated with the supplied table to the PrintWriter
+     * @param schemaName the name of the schema that should contain the table
+     * @param tableName the unqualified name of the table
+     * @param out       the PrintWriter to write to
+     */
+    fun exportInsertQueries(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName)
+
+    /**
+     * Prints all table data as insert queries to the console
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     */
+    fun printAllTablesAsInsertQueries(schemaName: String? = defaultSchemaName)
+
+    /**
+     * Writes all table data as insert queries to the PrintWriter
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param out        the PrintWriter to write to
+     */
+    fun exportAllTablesAsInsertQueries(schemaName: String? = defaultSchemaName, out: PrintWriter)
+
+    /** Writes each table in the schema to an Excel workbook with each table being placed
+     *  in a new sheet with the sheet name equal to the name of the table. The column names
+     *  for each table are written as the first row of each sheet.
+     *
+     * @param schemaName the name of the schema containing the tables or null
+     * @param wbName the name of the workbook
+     * @param wbDirectory the directory to store the workbook
+     */
+    fun exportToExcel(
+        schemaName: String? = defaultSchemaName,
+        wbName: String = label,
+        wbDirectory: Path = KSL.excelDir
+    )
+
+    /** Writes each table in the list to an Excel workbook with each table being placed
+     *  in a new sheet with the sheet name equal to the name of the table. The column names
+     *  for each table are written as the first row of each sheet.
+     *
+     * @param schemaName the name of the schema containing the tables or null
+     * @param tableNames the names of the tables to write to a workbook
+     * @param wbName the name of the workbook
+     * @param wbDirectory the directory to store the workbook
+     */
+    fun exportToExcel(
+        tableNames: List<String>,
+        schemaName: String? = defaultSchemaName,
+        wbName: String = label.substringBeforeLast("."),
+        wbDirectory: Path = KSL.excelDir
+    )
+
+    /**
+     * Opens the workbook for reading only and writes the sheets of the workbook into database tables.
+     * The list of names is the names of the
+     * sheets in the workbook and the names of the tables that need to be written. They are in the
+     * order that is required for entering data so that no integrity constraints are violated. The
+     * underlying workbook is closed after the operation.
+     *
+     * @param pathToWorkbook the path to the workbook. Must be valid workbook with .xlsx extension
+     * @param skipFirstRow   if true the first row of each sheet is skipped
+     * @param schemaName the name of the schema containing the named tables
+     * @param tableNames     the names of the sheets and tables in the order that needs to be written
+     * @throws IOException an io exception
+     */
+    fun importWorkbookToSchema(
+        pathToWorkbook: Path,
+        skipFirstRow: Boolean = true,
+        schemaName: String? = defaultSchemaName,
+        tableNames: List<String>
+    )
+
+    /** Copies the rows from the sheet to the table.  The copy is assumed to start
+     * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
+     * table and the number of rows of the sheet.  The copy is from the perspective of the table.
+     * That is, all columns of a row of the table are attempted to be filled from a corresponding
+     * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
+     * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
+     * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
+     * in the table.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
+     *
+     * @param sheet the sheet that has the data to transfer to the ResultSet
+     * @param tableName the table to copy into
+     * @param numColumns the number of columns in the sheet to copy into the table
+     * @param schemaName the name of the schema containing the tabel
+     * @param numRowsToSkip indicates the number of rows to skip from the top of the sheet. Use 1 (default) if the sheet has
+     * a header row
+     *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
+     *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
+     */
+    fun importSheetToTable(
+        sheet: Sheet,
+        tableName: String,
+        numColumns: Int,
+        schemaName: String? = defaultSchemaName,
+        numRowsToSkip: Int = 1,
+        rowBatchSize: Int = 100,
+        unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
+    ): Boolean
+}
+
+/**
+ * Many databases define database, user, schema in a variety of ways. This abstraction
+ * defines this concept as the userSchema.  It is the name of the organizational construct for
+ * which the user defined database object are contained. These are not the system abstractions.
+ * The database name provided to the construct is for labeling and may or may not have any relationship
+ * to the actual file name or database name of the database. The supplied connection has all
+ * the information that it needs to access the database.
+ */
+interface DatabaseIfc : DatabaseIOIfc {
+    enum class LineOption {
+        COMMENT, CONTINUED, END
+    }
+
+    /**
+     * the DataSource backing the database
+     */
+    val dataSource: DataSource
 
     /**
      * It is best to use this function within a try-with-resource construct
@@ -264,11 +471,11 @@ interface DatabaseIfc {
      * @param header true means column names as the header included
      * @param out       the PrintWriter to write to.  The print writer is not closed.
      */
-    fun writeTableAsCSV(
+    override fun writeTableAsCSV(
         tableName: String,
         out: PrintWriter,
-        schemaName: String? = defaultSchemaName,
-        header: Boolean = true
+        schemaName: String?,
+        header: Boolean
     ) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
@@ -294,7 +501,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the name of the table to print
      */
-    fun printTableAsCSV(tableName: String, schemaName: String? = defaultSchemaName, header: Boolean = true) {
+    override fun printTableAsCSV(tableName: String, schemaName: String?, header: Boolean) {
         writeTableAsCSV(tableName, PrintWriter(System.out), schemaName, header)
     }
 
@@ -304,7 +511,7 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsText(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName) {
+    override fun writeTableAsText(tableName: String, out: PrintWriter, schemaName: String?) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.info { "Schema: $schemaName does not exist in database $label" }
@@ -330,7 +537,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
-    fun printTableAsText(tableName: String, schemaName: String? = defaultSchemaName) {
+    override fun printTableAsText(tableName: String, schemaName: String?) {
         writeTableAsText(tableName, PrintWriter(System.out), schemaName)
     }
 
@@ -339,7 +546,7 @@ interface DatabaseIfc {
      *
      * @param schemaName the name of the schema that should contain the tables
      */
-    fun printAllTablesAsText(schemaName: String? = defaultSchemaName) {
+    override fun printAllTablesAsText(schemaName: String?) {
         writeAllTablesAsText(PrintWriter(System.out), schemaName)
     }
 
@@ -349,7 +556,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsText(out: PrintWriter, schemaName: String? = defaultSchemaName) {
+    override fun writeAllTablesAsText(out: PrintWriter, schemaName: String?) {
         val tables = if (schemaName != null) {
             tableNames(schemaName)
         } else {
@@ -366,7 +573,7 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsMarkdown(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName) {
+    override fun writeTableAsMarkdown(tableName: String, out: PrintWriter, schemaName: String?) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.info("Schema: {} does not exist in database {}", schemaName, label)
@@ -391,7 +598,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
-    fun printTableAsMarkdown(tableName: String, schemaName: String? = defaultSchemaName) {
+    override fun printTableAsMarkdown(tableName: String, schemaName: String?) {
         writeTableAsMarkdown(tableName, PrintWriter(System.out), schemaName)
     }
 
@@ -400,7 +607,7 @@ interface DatabaseIfc {
      *
      * @param schemaName the name of the schema that should contain the tables
      */
-    fun printAllTablesAsMarkdown(schemaName: String? = defaultSchemaName) {
+    override fun printAllTablesAsMarkdown(schemaName: String?) {
         writeAllTablesAsMarkdown(PrintWriter(System.out), schemaName)
     }
 
@@ -410,7 +617,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsMarkdown(out: PrintWriter, schemaName: String? = defaultSchemaName) {
+    override fun writeAllTablesAsMarkdown(out: PrintWriter, schemaName: String?) {
         val tables = if (schemaName != null) {
             tableNames(schemaName)
         } else {
@@ -421,7 +628,6 @@ interface DatabaseIfc {
         }
     }
 
-
     /**
      * Writes all tables as separate comma separated value files into the supplied
      * directory. The files are written to text files using the same name as
@@ -431,10 +637,10 @@ interface DatabaseIfc {
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
      * @param header  true means all files will have the column headers
      */
-    fun writeAllTablesAsCSV(
+    override fun writeAllTablesAsCSV(
         pathToOutPutDirectory: Path,
-        schemaName: String? = defaultSchemaName,
-        header: Boolean = true
+        schemaName: String?,
+        header: Boolean
     ) {
         Files.createDirectories(pathToOutPutDirectory)
         val tables = if (schemaName != null) {
@@ -549,7 +755,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the unqualified name of the table
      */
-    fun printInsertQueries(tableName: String, schemaName: String? = defaultSchemaName) {
+    override fun printInsertQueries(tableName: String, schemaName: String?) {
         exportInsertQueries(tableName, PrintWriter(System.out), schemaName)
     }
 
@@ -559,7 +765,7 @@ interface DatabaseIfc {
      * @param tableName the unqualified name of the table
      * @param out       the PrintWriter to write to
      */
-    fun exportInsertQueries(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName) {
+    override fun exportInsertQueries(tableName: String, out: PrintWriter, schemaName: String?) {
         val rowSet = selectAll(tableName, schemaName)
         if (rowSet != null) {
             logger.info { "Exporting insert queries for table $tableName in schema $schemaName" }
@@ -587,7 +793,7 @@ interface DatabaseIfc {
      *
      * @param schemaName the name of the schema that should contain the tables
      */
-    fun printAllTablesAsInsertQueries(schemaName: String? = defaultSchemaName) {
+    override fun printAllTablesAsInsertQueries(schemaName: String?) {
         exportAllTablesAsInsertQueries(schemaName, PrintWriter(System.out))
     }
 
@@ -597,7 +803,7 @@ interface DatabaseIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun exportAllTablesAsInsertQueries(schemaName: String? = defaultSchemaName, out: PrintWriter) {
+    override fun exportAllTablesAsInsertQueries(schemaName: String?, out: PrintWriter) {
         val tables = if (schemaName == null) {
             userDefinedTables
         } else {
@@ -608,10 +814,10 @@ interface DatabaseIfc {
         }
     }
 
-    fun exportToExcel(
-        schemaName: String? = defaultSchemaName,
-        wbName: String = label,
-        wbDirectory: Path = KSL.excelDir
+    override fun exportToExcel(
+        schemaName: String?,
+        wbName: String,
+        wbDirectory: Path
     ) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
@@ -638,11 +844,11 @@ interface DatabaseIfc {
      * @param wbName the name of the workbook
      * @param wbDirectory the directory to store the workbook
      */
-    fun exportToExcel(
+    override fun exportToExcel(
         tableNames: List<String>,
-        schemaName: String? = defaultSchemaName,
-        wbName: String = label.substringBeforeLast("."),
-        wbDirectory: Path = KSL.excelDir
+        schemaName: String?,
+        wbName: String,
+        wbDirectory: Path
     ) {
         if (tableNames.isEmpty()) {
             logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
@@ -690,10 +896,10 @@ interface DatabaseIfc {
      * @param tableNames     the names of the sheets and tables in the order that needs to be written
      * @throws IOException an io exception
      */
-    fun importWorkbookToSchema(
+    override fun importWorkbookToSchema(
         pathToWorkbook: Path,
-        skipFirstRow: Boolean = true,
-        schemaName: String? = defaultSchemaName,
+        skipFirstRow: Boolean,
+        schemaName: String?,
         tableNames: List<String>
     ) {
         val workbook: XSSFWorkbook = ExcelUtil.openExistingXSSFWorkbookReadOnly(pathToWorkbook)
@@ -752,14 +958,14 @@ interface DatabaseIfc {
      *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
      *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
      */
-    fun importSheetToTable(
+    override fun importSheetToTable(
         sheet: Sheet,
         tableName: String,
         numColumns: Int,
-        schemaName: String? = defaultSchemaName,
-        numRowsToSkip: Int = 1,
-        rowBatchSize: Int = 100,
-        unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
+        schemaName: String?,
+        numRowsToSkip: Int,
+        rowBatchSize: Int,
+        unCompatibleRows: PrintWriter
     ): Boolean {
         return try {
             val rowIterator = sheet.rowIterator()

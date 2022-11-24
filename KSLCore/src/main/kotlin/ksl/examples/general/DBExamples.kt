@@ -1,7 +1,15 @@
 package ksl.examples.general
 
 import kotlinx.datetime.Clock
+import ksl.examples.book.chapter6.DriveThroughPharmacy
+import ksl.simulation.Model
 import ksl.utilities.dbutil.*
+import ksl.utilities.io.KSL
+import ksl.utilities.random.rvariable.ExponentialRV
+import org.jetbrains.kotlinx.dataframe.api.column
+import org.jetbrains.kotlinx.dataframe.api.filter
+import org.jetbrains.kotlinx.dataframe.api.schema
+import org.jetbrains.kotlinx.dataframe.api.values
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
@@ -14,9 +22,9 @@ import javax.sql.DataSource
 
 fun main() {
     // This example creates a Derby database called SP_Example_Db within the dbExamples folder
-    println()
-    println("*** example1 output:")
-    DBExamples.example1()
+//    println()
+//    println("*** example1 output:")
+//    DBExamples.example1()
     // This example creates a Derby database called SP_To_Excel within the dbExamples folder and exports it to Excel
 //    println()
 //    println("*** exampleDbToExcelExport output:")
@@ -32,13 +40,65 @@ fun main() {
 
 //    DBExamples.createKSLDatabases()
 //
+
+    DBExamples.testKSLDatabase()
 }
 
 object DBExamples {
     var pathToWorkingDir: Path = Paths.get("").toAbsolutePath()
     var pathToDbExamples: Path = pathToWorkingDir.resolve("dbExamples")
 
-    fun createKSLDatabases(){
+    fun testKSLDatabase() {
+        val model = Model("Drive Through Pharmacy", autoCSVReports = false)
+        model.numberOfReplications = 30
+        model.lengthOfReplication = 20000.0
+        model.lengthOfReplicationWarmUp = 5000.0
+        // add DriveThroughPharmacy to the main model
+        val dtp = DriveThroughPharmacy(model, 1)
+        dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
+        dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
+
+        val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
+        val kdb = KSLDatabase(sdb)
+        KSLDatabaseObserver(model, kdb)
+
+        model.simulate()
+        model.print()
+
+        val records = kdb.acrossReplicationRecords()
+        println("number of records = ${records.query.totalRecords}")
+
+        val cachedRowSet = DatabaseIfc.createCachedRowSet(records)
+        println("size of cachedRowSet = ${cachedRowSet.size()}")
+        cachedRowSet.first()
+        DatabaseIfc.writeAsText(cachedRowSet, KSL.out)
+
+//    sdb.printAllTablesAsText()
+        val file = KSL.createPrintWriter("results.md")
+        sdb.writeAllTablesAsMarkdown(out = file)
+
+        val df = kdb.withinReplicationViewStatistics
+        println(df.schema())
+        println(df)
+
+        val simRunIdFk by column<Int>()
+        val expName by column<String>()
+        println(expName.name())
+        val filter = df.filter { expName().equals("Experiment_1") }.values { simRunIdFk }
+
+        println("Found = " + filter.count())
+//    val c: DataColumn<String> = df[statName]
+//    println(c)
+
+        val rs = sdb.selectAllIntoOpenResultSet("ACROSS_REP_STAT")
+        if (rs != null) {
+            val r = DatabaseIfc.toDataFrame(rs)
+            println(r)
+        }
+        println("Done!")
+    }
+
+    fun createKSLDatabases() {
         val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
         println("created SQLite based KSLDatabase")
         println(sdb)
@@ -62,7 +122,7 @@ object DBExamples {
         // Specify the path as a datasource with true indicating that new database will be created (even if old exists)
         val dataSource: DataSource = DatabaseFactory.createEmbeddedDerbyDataSource(pathToDb = pathToDb, create = true)
         // Now, make the database from the data source
-        val db = Database(dataSource,"SP_Example_Db")
+        val db = Database(dataSource, "SP_Example_Db")
         // We have only established the database, but there isn't anything in it.
         // Specify the path to the full SQL script file that will create the database structure and fill it.
         val script = pathToDbExamples.resolve("SPDatabase_FullCreate.sql")
@@ -151,7 +211,7 @@ object DBExamples {
         // Specify the path as a datasource with true indicating that new database will be created (even if old exists)
         val dataSource: DataSource = DatabaseFactory.createEmbeddedDerbyDataSource(pathToDb, create = true)
         // Now, make the database from the data source
-        val db = Database(dataSource,"SP_FullCreate_Db")
+        val db = Database(dataSource, "SP_FullCreate_Db")
         // We have only established the database, but there isn't anything in it.
         // Specify the path to the full SQL script file that will create the database structure and fill it.
         val script = pathToDbExamples.resolve("SPDatabase_FullCreate.sql")

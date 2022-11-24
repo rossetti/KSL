@@ -1,18 +1,27 @@
 package ksl.utilities.dbutil
 
+import java.nio.file.Path
 import java.nio.file.Paths
+import javax.sql.DataSource
 
 class DatabaseFactoryTest {
 
 }
+var pathToWorkingDir: Path = Paths.get("").toAbsolutePath()
+var pathToDbExamples: Path = pathToWorkingDir.resolve("dbExamples")
 
 fun main() {
     testSQLite()
 //    testSQLite2()
-//    testKTorm()
 //    testCreateDerbyDbCreation()
 
 //    testDatabaseCreation()
+
+    // the postgres tests assume that postgres is installed on the local machine
+    // and there is a user called test with pw test with appropriate privileges on the server
+//    testPostgresLocalHost()
+//    testPostgresLocalHostKSLDb()
+//    createPostgresLocalHostKSLDb()
 }
 
 fun testSQLite() {
@@ -33,11 +42,6 @@ fun testSQLite() {
     database.printInsertQueries(tableName = "person")
 }
 
-fun testKTorm(){
-    val db = DatabaseFactory.getSQLiteDatabase("someDB.db") as Database
-//    println(db.ktormDb)
-}
-
 fun testSQLite2() {
     val database = DatabaseFactory.getSQLiteDatabase("someDB.db")
     database.printTableAsText(tableName = "person")
@@ -54,4 +58,41 @@ fun testDatabaseCreation() {
 fun testCreateDerbyDbCreation(){
     val db = DatabaseFactory.createEmbeddedDerbyDatabase("TestSPDb")
     println(db)
+}
+
+fun testPostgresLocalHost() {
+    val dbName = "test"
+    val user = "test"
+    val pw = "test"
+    val dataSource: DataSource = DatabaseFactory.postgreSQLDataSourceWithLocalHost(dbName, user, pw)
+    // make the database
+    val db = Database(dataSource, dbName)
+    // builder the creation task
+    val pathToCreationScript: Path = pathToDbExamples.resolve("SPDatabase_Postgres.sql")
+    val task = db.create().withCreationScript(pathToCreationScript).execute()
+    System.out.println(task)
+    task.creationScriptCommands.forEach(System.out::println)
+    db.printTableAsText("s")
+}
+
+fun testPostgresLocalHostKSLDb() {
+    val dbName = "test"
+    val user = "test"
+    val pw = "test"
+    val dataSource: DataSource = DatabaseFactory.postgreSQLDataSourceWithLocalHost(dbName, user, pw)
+    // make the database
+    val db = Database(dataSource, dbName)
+    db.executeCommand("DROP SCHEMA IF EXISTS ksl_db CASCADE")
+    // builder the creation task
+    val pathToCreationScript: Path = pathToDbExamples.resolve("KSL_Db.sql")
+    val task = db.create().withCreationScript(pathToCreationScript).execute()
+    System.out.println(task)
+    task.creationScriptCommands.forEach(System.out::println)
+    db.printTableAsText("simulation_run", "ksl_db")
+
+}
+
+fun createPostgresLocalHostKSLDb(){
+    val db = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "test", user = "test", pWord = "test")
+    db.printAllTablesAsText()
 }

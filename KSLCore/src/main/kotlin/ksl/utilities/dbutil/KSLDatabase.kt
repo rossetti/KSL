@@ -1,13 +1,11 @@
 package ksl.utilities.dbutil
 
-import ksl.examples.book.chapter6.DriveThroughPharmacy
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
-import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.StatisticIfc
 import org.jetbrains.kotlinx.dataframe.DataFrame
@@ -22,12 +20,13 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.time.Instant
 import java.time.ZonedDateTime
+import java.util.*
 
 /**
  * @param db the database that is configured to hold KSL simulation data
  * @param clearDataOption to clear any old data upon construction. The default is false
  */
-class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : DatabaseIfc by db {
+class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
     /** This constructs a SQLite database on disk and configures it to hold KSL simulation data.
      * The database will be empty.
@@ -54,8 +53,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     private val withinRepCounterStats get() = kDb.sequenceOf(WithinRepCounterStats, withReferences = false)
     private val batchStats get() = kDb.sequenceOf(BatchStats, withReferences = false)
     private val withinRepViewStats get() = kDb.sequenceOf(WithinRepViewStats, withReferences = false)
-
-    //val label = db.label
 
     val acrossReplicationStatistics: DataFrame<AcrossRepStat>
         get() {
@@ -138,10 +135,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         AcrossRepStats, WithinRepCounterStats, BatchStats
     )
 
+    /**
+     *  If true the underlying database was configured as a KSLDatabase
+     */
+    val configured: Boolean
+
     init {
-        val check = checkTableNames()
-        if (!check) {
+        configured = checkTableNames()
+        if (!configured) {
             DatabaseIfc.logger.error { "The database does not have the required tables for a KSLDatabase" }
+            throw KSLDatabaseNotConfigured()
         }
         if (clearDataOption) {
             clearAllData()
@@ -926,57 +929,75 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 }
             }
         }
+
+        /**
+         * Creates a new KSLDatabase
+         *
+         * @param dbServerName    the name of the database server, must not be null
+         * @param dbName          the name of the database, must not be null
+         * @param user            the user
+         * @param pWord           the password
+         * @return a reference to a KSLDatabase
+         */
+        fun createPostgreSQLKSLDatabase(
+            dbServerName: String = "localhost",
+            dbName: String,
+            user: String,
+            pWord: String
+        ): KSLDatabase {
+            val props: Properties = DatabaseFactory.makePostgreSQLProperties(dbServerName, dbName, user, pWord)
+            val db = DatabaseFactory.createDatabaseFromProperties(props)
+            db.executeCommand("DROP SCHEMA IF EXISTS ksl_db CASCADE")
+            executeKSLDbCreationScriptOnDatabase(db)
+            db.defaultSchemaName = "ksl_db"
+            return KSLDatabase(db)
+        }
+
+        /**
+         * Creates a reference to a KSLDatabase. This method assumes that the data source
+         * has a properly configured KSL schema. If it does not, an exception occurs. If it has
+         * one the data from previous simulations remains. If the clear data option is
+         * set to true then the data WILL be deleted immediately.
+         *
+         * @param clearDataOption whether the data will be deleted when the KSLDatabase instance is created
+         * @param dbServerName    the name of the database server, must not be null
+         * @param dbName          the name of the database, must not be null
+         * @param user            the user
+         * @param pWord           the password
+         * @return a reference to a KSLDatabase
+         */
+        fun getPostgresKSLDatabase(
+            clearDataOption: Boolean = false,
+            dbServerName: String = "localhost",
+            dbName: String,
+            user: String,
+            pWord: String
+        ): KSLDatabase {
+            val props: Properties = DatabaseFactory.makePostgreSQLProperties(dbServerName, dbName, user, pWord)
+            val kslDatabase: KSLDatabase = getKSLDatabase(clearDataOption, props)
+            DatabaseIfc.logger.info("Connected to a postgres KSL database {} ", kslDatabase.db.dbURL)
+            return kslDatabase
+        }
+
+        /**
+         * Creates a reference to a KSLDatabase. This method assumes that the data source
+         * has a properly configured KSL schema. If it does not, an exception occurs. If it has
+         * one the data from previous simulation runs will be deleted if the
+         * clear data option is true. The deletion occurs immediately if configured as true.
+         *
+         * @param clearDataOption whether the data will be cleared of prior experiments when created
+         * @param dBProperties    appropriately configured HikariCP datasource properties
+         * @return a reference to a KSLDatabase
+         */
+        fun getKSLDatabase(
+            clearDataOption: Boolean = false,
+            dBProperties: Properties,
+        ): KSLDatabase {
+            val db: Database = DatabaseFactory.createDatabaseFromProperties(dBProperties)
+            return KSLDatabase(db, clearDataOption)
+        }
     }
 }
 
-fun main() {
-
-    val model = Model("Drive Through Pharmacy", autoCSVReports = false)
-    model.numberOfReplications = 30
-    model.lengthOfReplication = 20000.0
-    model.lengthOfReplicationWarmUp = 5000.0
-    // add DriveThroughPharmacy to the main model
-    val dtp = DriveThroughPharmacy(model, 1)
-    dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
-    dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
-
-    val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
-    val kdb = KSLDatabase(sdb)
-    KSLDatabaseObserver(model, kdb)
-
-    model.simulate()
-    model.print()
-
-    val records = kdb.acrossReplicationRecords()
-    println("number of records = ${records.query.totalRecords}")
-
-    val cachedRowSet = DatabaseIfc.createCachedRowSet(records)
-    println("size of cachedRowSet = ${cachedRowSet.size()}")
-    cachedRowSet.first()
-    DatabaseIfc.writeAsText(cachedRowSet, KSL.out)
-
-//    sdb.printAllTablesAsText()
-    val file = KSL.createPrintWriter("results.md")
-    sdb.writeAllTablesAsMarkdown(out = file)
-
-    val df = kdb.withinReplicationViewStatistics
-    println(df.schema())
-    println(df)
-
-    val simRunIdFk by column<Int>()
-    val expName by column<String>()
-    println(expName.name())
-    val filter = df.filter { expName().equals("Experiment_1") }.values { simRunIdFk }
-
-    println("Found = " + filter.count())
-//    val c: DataColumn<String> = df[statName]
-//    println(c)
-
-    val rs = sdb.selectAllIntoOpenResultSet("ACROSS_REP_STAT")
-    if (rs != null) {
-        val r = DatabaseIfc.toDataFrame(rs)
-        println(r)
-    }
-    println("Done!")
-}
-
+class KSLDatabaseNotConfigured(msg: String = "KSLDatabase: The supplied database was not configured as a KSLDatabase!") :
+    RuntimeException(msg)

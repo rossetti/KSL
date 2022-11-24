@@ -287,6 +287,19 @@ object DatabaseFactory {
         return props
     }
 
+    /** Helper method for making a database
+     *
+     * @param dBProperties the properties, must not be null
+     * @return the created database
+     */
+   fun createDatabaseFromProperties(dBProperties: Properties): Database {
+        val ds: DataSource = DatabaseFactory.dataSource(dBProperties)
+        val user = dBProperties.getProperty("dataSource.user")
+        val name = dBProperties.getProperty("dataSource.databaseName")
+        val dbLabel = user + "_" + name
+        return Database(ds, dbLabel)
+    }
+
     /**
      * Assumes that the properties are appropriately configured to create a DataSource
      * via  HikariCP
@@ -546,4 +559,5 @@ object DatabaseFactory {
     fun getSQLiteDatabase(fileName: String): Database {
         return getSQLiteDatabase(KSL.dbDir.resolve(fileName))
     }
+
 }
