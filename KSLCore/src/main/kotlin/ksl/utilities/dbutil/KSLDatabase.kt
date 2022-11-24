@@ -27,7 +27,7 @@ import java.time.ZonedDateTime
  * @param db the database that is configured to hold KSL simulation data
  * @param clearDataOption to clear any old data upon construction. The default is false
  */
-class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
+class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : DatabaseIfc by db {
 
     /** This constructs a SQLite database on disk and configures it to hold KSL simulation data.
      * The database will be empty.
@@ -55,7 +55,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
     private val batchStats get() = kDb.sequenceOf(BatchStats, withReferences = false)
     private val withinRepViewStats get() = kDb.sequenceOf(WithinRepViewStats, withReferences = false)
 
-    val label = db.label
+    //val label = db.label
 
     val acrossReplicationStatistics: DataFrame<AcrossRepStat>
         get() {
