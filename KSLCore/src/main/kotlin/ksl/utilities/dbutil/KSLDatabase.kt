@@ -5,6 +5,7 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.dbutil.KSLDatabase.WithinRepViewStats.bindTo
 import ksl.utilities.io.KSL
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.StatisticIfc
@@ -53,6 +54,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     private val withinRepCounterStats get() = kDb.sequenceOf(WithinRepCounterStats, withReferences = false)
     private val batchStats get() = kDb.sequenceOf(BatchStats, withReferences = false)
     private val withinRepViewStats get() = kDb.sequenceOf(WithinRepViewStats, withReferences = false)
+    private val pairWiseDiffViewStats get() = kDb.sequenceOf(PairWiseDiffViewStats, withReferences = false)
 
     val acrossReplicationStatistics: DataFrame<AcrossRepStat>
         get() {
@@ -126,6 +128,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 .move("statName").to(2)
                 .move("repNum").to(3)
                 .move("value").to(4)
+            df = df.remove("entityClass", "properties")
+            return df
+        }
+
+    val pairWiseDiffViewStatistics: DataFrame<PairWiseDiffView>
+        get(){
+            var df = pairWiseDiffViewStats.toList().toDataFrame()
             df = df.remove("entityClass", "properties")
             return df
         }
@@ -677,6 +686,20 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var value = double("VALUE").bindTo { it.value }
     }
 
+    object PairWiseDiffViewStats : Table<PairWiseDiffView>("PW_DIFF_WITHIN_REP_VIEW") {
+        var simName = varchar("SIM_NAME").bindTo { it.simName }.isNotNull()
+        var simNumA = int("A_SIM_NUM").bindTo { it.simNumA }.isNotNull()
+        var statName = varchar("STAT_NAME").bindTo { it.statName }.isNotNull()
+        var expNameA = varchar("A_EXP_NAME").bindTo { it.expNameA }.isNotNull()
+        var repNum = int("REP_NUM").bindTo { it.repNum }.isNotNull()
+        var valueA = double("A_VALUE").bindTo { it.valueA }
+        var simNumB = int("B_SIM_NUM").bindTo { it.simNumB }.isNotNull()
+        var expNameB = varchar("B_EXP_NAME").bindTo { it.expNameB }.isNotNull()
+        var valueB = double("B_VALUE").bindTo { it.valueB }
+        var diffName = varchar("DIFF_NAME").bindTo { it.diffName }.isNotNull()
+        var AminusB = double("A_MINUS_B").bindTo { it.AminusB }
+    }
+
     interface SimulationRun : Entity<SimulationRun> {
         companion object : Entity.Factory<SimulationRun>()
 
@@ -811,6 +834,22 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var currentBatchSize: Double?
         var amtUnbatched: Double?
         var totalNumObs: Double?
+    }
+
+    interface PairWiseDiffView : Entity<PairWiseDiffView> {
+        companion object : Entity.Factory<PairWiseDiffView>()
+
+        var simName: String
+        var simNumA: Int
+        var statName: String
+        var expNameA: String
+        var repNum: Int
+        var valueA: Double
+        var simNumB: Int
+        var expNameB: String
+        var valueB: Double
+        var diffName: String
+        var AminusB: Double
     }
 
     companion object {
