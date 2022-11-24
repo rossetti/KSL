@@ -6,12 +6,15 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.dbutil.KSLDatabase.SimulationRuns.bindTo
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.StatisticIfc
+import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
+import org.jetbrains.kotlinx.dataframe.size
 import org.ktorm.database.asIterable
 import org.ktorm.dsl.*
 import org.ktorm.entity.*
@@ -26,6 +29,8 @@ import java.time.ZonedDateTime
 
 class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
+    //TODO views
+
     private val kDb =
         org.ktorm.database.Database.connect(db.dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))
 
@@ -36,6 +41,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
     private val acrossRepStats get() = kDb.sequenceOf(AcrossRepStats, withReferences = false)
     private val withinRepCounterStats get() = kDb.sequenceOf(WithinRepCounterStats, withReferences = false)
     private val batchStats get() = kDb.sequenceOf(BatchStats, withReferences = false)
+    private val withinRepViewStats get() = kDb.sequenceOf(WithinRepViewStats, withReferences = false)
 
     val label = db.label
 
@@ -100,6 +106,18 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
                 .move("maximum").to(10)
                 .move("confLevel").to(11)
             df = df.remove("entityClass", "properties", "elementIdFk")
+            return df
+        }
+
+    val withinReplicationViewStatistics: DataFrame<WithinRepView>
+        get() {
+            var df = withinRepViewStats.toList().toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("expName").to(1)
+                .move("statName").to(2)
+                .move("repNum").to(3)
+                .move("value").to(4)
+            df = df.remove("entityClass", "properties")
             return df
         }
 
@@ -637,6 +655,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         var totalNumObs = double("TOTAL_NUM_OBS").bindTo { it.totalNumObs }
     }
 
+    object WithinRepViewStats : Table<WithinRepView>("WITHIN_REP_VIEW") {
+        var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk }
+        var expName = varchar("EXP_NAME").bindTo { it.expName }.isNotNull()
+        var statName = varchar("STAT_NAME").bindTo { it.statName }
+        var repNum = int("REP_NUM").bindTo { it.repNum }
+        var value = double("VALUE").bindTo { it.value }
+    }
+
     interface SimulationRun : Entity<SimulationRun> {
         companion object : Entity.Factory<SimulationRun>()
 
@@ -726,6 +752,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         var repNum: Int
         var statName: String?
         var lastValue: Double?
+    }
+
+    interface WithinRepView : Entity<WithinRepView> {
+        companion object : Entity.Factory<WithinRepView>()
+
+        var simRunIdFk: Int
+        var expName: String
+        var statName: String
+        var repNum: Int
+        var value: Double?
     }
 
     interface BatchStat : Entity<BatchStat> {
@@ -893,9 +929,24 @@ fun main() {
     val file = KSL.createPrintWriter("results.md")
     sdb.writeAllTablesAsMarkdown(out = file)
 
-    val df = kdb.withinReplicationStatistics
+    val df = kdb.withinReplicationViewStatistics
     println(df.schema())
     println(df)
+
+    val simRunIdFk by column<Int>()
+    val expName by column<String>()
+    println(expName.name())
+    val filter = df.filter { expName().equals("Experiment_1") }.values {simRunIdFk  }
+
+    println("Found = " + filter.count())
+//    val c: DataColumn<String> = df[statName]
+//    println(c)
+
+    val rs = sdb.selectAllIntoOpenResultSet("ACROSS_REP_STAT")
+    if (rs != null) {
+        val r = DatabaseIfc.toDataFrame(rs)
+        println(r)
+    }
     println("Done!")
 }
 

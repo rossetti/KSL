@@ -1,6 +1,9 @@
 package ksl.utilities.dbutil
 
 import com.opencsv.CSVWriterBuilder
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
 import ksl.utilities.excel.ExcelUtil
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
@@ -9,6 +12,10 @@ import mu.KLoggable
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.DataColumn
+import org.jetbrains.kotlinx.dataframe.api.*
+import org.jetbrains.kotlinx.dataframe.columns.ValueColumn
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -18,6 +25,7 @@ import java.util.regex.Pattern
 import javax.sql.DataSource
 import javax.sql.rowset.CachedRowSet
 import javax.sql.rowset.RowSetProvider
+import kotlin.reflect.typeOf
 
 
 /**
@@ -554,7 +562,7 @@ interface DatabaseIfc {
     fun exportInsertQueries(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName) {
         val rowSet = selectAll(tableName, schemaName)
         if (rowSet != null) {
-            logger.info{"Exporting insert queries for table $tableName in schema $schemaName"}
+            logger.info { "Exporting insert queries for table $tableName in schema $schemaName" }
             val resultsAsText = DbResultsAsText(rowSet)
             val sql = if (schemaName == null) {
                 "insert into $tableName values "
@@ -562,7 +570,7 @@ interface DatabaseIfc {
                 "insert into ${schemaName}.${tableName} values "
             }
             val iterator = resultsAsText.insertTextRowIterator()
-            while(iterator.hasNext()){
+            while (iterator.hasNext()) {
                 val rowData = iterator.next()
                 val inputs = rowData.joinToString(", ", prefix = "(", postfix = ")")
                 out.println(sql + inputs)
@@ -570,7 +578,7 @@ interface DatabaseIfc {
                 logger.trace { "Wrote insert statement: ${sql}${inputs}" }
             }
         } else {
-            logger.info{"Failed to export insert queries for table $tableName in schema $schemaName"}
+            logger.info { "Failed to export insert queries for table $tableName in schema $schemaName" }
         }
     }
 
@@ -590,7 +598,7 @@ interface DatabaseIfc {
      * @param out        the PrintWriter to write to
      */
     fun exportAllTablesAsInsertQueries(schemaName: String? = defaultSchemaName, out: PrintWriter) {
-        val tables = if (schemaName == null){
+        val tables = if (schemaName == null) {
             userDefinedTables
         } else {
             tableNames(schemaName)
@@ -1074,6 +1082,8 @@ interface DatabaseIfc {
 
     companion object : KLoggable {
 
+        //TODO create Dataframe from ResultSet
+
         override val logger = logger()
 
         const val DEFAULT_DELIMITER = ";"
@@ -1434,7 +1444,74 @@ interface DatabaseIfc {
             }
             return list
         }
+
+        enum class ColumnType {
+            BOOLEAN, DOUBLE, FLOAT, INSTANT, INTEGER, LOCAL_DATE, LOCAL_TIME,
+            LONG, SHORT, STRING
+        }
+
+        /**
+         * @param resultSet the result set that needs conversion
+         * @return the result set as a DataFrame
+         */
+        fun toDataFrame(resultSet: ResultSet): AnyFrame {
+            val columnMetaData = columnMetaData(resultSet)
+            val cachedRowSet = createCachedRowSet(resultSet)
+            val colList = mutableListOf<ValueColumn<Any?>>()
+            for ((index, cmd) in columnMetaData.withIndex()) {
+                val data = fillFromColumn(index + 1, cachedRowSet)
+                val c = makeDataFrameColumn(cmd, data)
+                colList.add(c)
+            }
+            return dataFrameOf(colList)
+        }
+
+        /**
+         * Provides a mapping of SQL types to the DataFrame types to assist with type inference
+         */
+        private fun makeDataFrameColumn(columnMetaData: ColumnMetaData, data: List<Any?>) : ValueColumn<Any?> {
+            return when (columnMetaData.type) {
+                Types.BIT, Types.BOOLEAN -> {
+                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Boolean>())
+                }
+                Types.DECIMAL, Types.DOUBLE, Types.FLOAT, Types.NUMERIC, Types.REAL -> {
+                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Double>())
+                }
+                Types.TIMESTAMP -> {
+                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Instant>())
+                }
+                Types.INTEGER -> {
+                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Int>())
+                }
+                Types.DATE -> {
+                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<LocalDate>())
+                }
+                Types.TIME -> {
+                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<LocalTime>())
+                }
+                Types.BIGINT -> {
+                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Long>())
+                }
+                Types.SMALLINT, Types.TINYINT -> {
+                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Short>())
+                }
+                Types.BINARY, Types.CHAR, Types.NCHAR, Types.NVARCHAR,
+                Types.VARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> {
+                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<String>())
+                }
+                else -> {DataColumn.createValueColumn(columnMetaData.label, mutableListOf<Any>())}
+            }
+        }
+
+        /**
+         *  Fills a list with the indicated column of the CachedRowSet
+         */
+        private fun fillFromColumn(column: Int, cachedRowSet: CachedRowSet): List<Any?> {
+            val toCollection: MutableCollection<*> = cachedRowSet.toCollection(column)
+            return toCollection.toList()
+        }
     }
+
 }
 
 data class ColumnMetaData(
