@@ -23,7 +23,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 
-/**
+/** The observer is automatically attached to the model upon creation. Use stopObserving() or stopObserving() as needed.
  * @param model the model to observe
  * @param db the properly configured databased to hold KSL related results
  * @param clearDataBeforeExperimentOption indicates whether data should be cleared before each experiment. The
@@ -42,10 +42,16 @@ class KSLDatabaseObserver(
         model.attachModelElementObserver(myObserver)
     }
 
+    /**
+     * Tells the observer to stop collecting simulation result data
+     */
     fun stopObserving() {
         model.detachModelElementObserver(myObserver)
     }
 
+    /**
+     * Tells a stopped observer to start collecting simulation result data
+     */
     fun startObserving() {
         if (!model.isModelElementObserverAttached(myObserver)) {
             model.attachModelElementObserver(myObserver)
