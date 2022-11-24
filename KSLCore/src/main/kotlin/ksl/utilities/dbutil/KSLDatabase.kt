@@ -41,6 +41,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
         clearDataOption
     )
     //TODO views
+    //TODO postgres
 
     private val kDb =
         org.ktorm.database.Database.connect(db.dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))
