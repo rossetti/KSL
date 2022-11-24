@@ -24,9 +24,9 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 
 class KSLDatabaseObserver(
-    private val db: KSLDatabase,
     private val model: Model,
-    var clearDataBeforeExperimentOption: Boolean = true
+    private val db: KSLDatabase = KSLDatabase("${model.name}.db", model.outputDirectory.dbDir),
+    var clearDataBeforeExperimentOption: Boolean = false
 ) {
 
     private val myObserver = SimulationDatabaseObserver()

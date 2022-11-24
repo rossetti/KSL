@@ -6,16 +6,12 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.dbutil.KSLDatabase.SimulationRuns.bindTo
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.StatisticIfc
-import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
-import org.jetbrains.kotlinx.dataframe.size
-import org.ktorm.database.asIterable
 import org.ktorm.dsl.*
 import org.ktorm.entity.*
 import org.ktorm.logging.Slf4jLoggerAdapter
@@ -27,8 +23,23 @@ import java.nio.file.StandardCopyOption
 import java.time.Instant
 import java.time.ZonedDateTime
 
+/**
+ * @param db the database that is configured to hold KSL simulation data
+ * @param clearDataOption to clear any old data upon construction. The default is false
+ */
 class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
 
+    /** This constructs a SQLite database on disk and configures it to hold KSL simulation data.
+     * The database will be empty.
+     *
+     * @param dbName the name of the database
+     * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+     * @return an empty embedded SQLite database configured to hold KSL simulation results
+     */
+    constructor(dbName: String, dbDirectory: Path = dbDir, clearDataOption: Boolean = true) : this(
+        createSQLiteKSLDatabase(dbName, dbDirectory),
+        clearDataOption
+    )
     //TODO views
 
     private val kDb =
@@ -851,6 +862,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
             }
         }
 
+        /** This method creates the database on disk and configures it to hold KSL simulation data.
+         *
+         * @param dbName the name of the database
+         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+         * @return an empty embedded SQLite database configured to hold KSL simulation results
+         */
         fun createSQLiteKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
             val database = DatabaseFactory.createSQLiteDatabase(dbName, dbDirectory)
             val executed = database.executeScript(dbScriptsDir.resolve("KSL_SQLite.sql"))
@@ -861,7 +878,19 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) {
             return database
         }
 
-        /** This method creates the database on disk as configures it to hold KSL simulation data.
+        /** This method creates the database on disk and configures it to hold KSL simulation data.
+         *
+         * @param dbName the name of the database
+         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+         *
+         * @return an empty embedded SQLite database configured to hold KSL simulation results
+         */
+        fun createKSLDatabase(dbName: String, dbDirectory: Path = dbDir): KSLDatabase {
+            val db = createSQLiteKSLDatabase(dbName, dbDirectory)
+            return KSLDatabase(db)
+        }
+
+        /** This method creates the database on disk and configures it to hold KSL simulation data.
          *
          * @param dbName the name of the database
          * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
@@ -912,7 +941,7 @@ fun main() {
 
     val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
     val kdb = KSLDatabase(sdb)
-    KSLDatabaseObserver(kdb, model)
+    KSLDatabaseObserver(model, kdb)
 
     model.simulate()
     model.print()
@@ -936,7 +965,7 @@ fun main() {
     val simRunIdFk by column<Int>()
     val expName by column<String>()
     println(expName.name())
-    val filter = df.filter { expName().equals("Experiment_1") }.values {simRunIdFk  }
+    val filter = df.filter { expName().equals("Experiment_1") }.values { simRunIdFk }
 
     println("Found = " + filter.count())
 //    val c: DataColumn<String> = df[statName]
