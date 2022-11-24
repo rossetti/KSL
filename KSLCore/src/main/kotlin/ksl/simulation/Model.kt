@@ -40,7 +40,7 @@ private var simCounter: Int = 0
 
 class Model(
     simulationName: String = "Simulation${++simCounter}",
-    pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName + "_OutputDir"),
+    pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
     autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement("MainModel"), ExperimentIfc {

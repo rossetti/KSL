@@ -62,6 +62,8 @@ object DBExamples {
         val kdb = KSLDatabase(sdb)
         KSLDatabaseObserver(model, kdb)
 
+        KSLDatabaseObserver(model)
+
         model.simulate()
         model.print()
 

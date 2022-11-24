@@ -430,7 +430,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     internal fun afterExperiment(model: Model) {
-        println("KSLDatabase: in after Experiment")
         // finalize current simulation run record
         finalizeCurrentSimulationRun(model)
         // insert across replication response statistics

@@ -25,7 +25,7 @@ import ksl.utilities.io.KSL
 
 class KSLDatabaseObserver(
     private val model: Model,
-    val db: KSLDatabase = KSLDatabase("${model.name}.db", model.outputDirectory.dbDir),
+    val db: KSLDatabase = KSLDatabase("${model.name}.db".replace(" ","_"), model.outputDirectory.dbDir),
     var clearDataBeforeExperimentOption: Boolean = false
 ) {
 
