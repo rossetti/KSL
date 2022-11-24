@@ -46,7 +46,6 @@ class Model(
 ) : ModelElement("MainModel"), ExperimentIfc {
 //TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
 //TODO observers
-//TODO note that JSLDataBaseObserver is actually attached as an observer on Model
 //TODO controls and parameters
     /**
      *
