@@ -1310,21 +1310,16 @@ object KSLArrays {
      * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
      * @return the parsed doubles as an array
      */
-    fun parseToDoubles(dblStrings: Array<String?>, parseFail: Double = Double.NaN): DoubleArray {
+    fun parseToDoubles(dblStrings: Array<String>, parseFail: Double = Double.NaN): DoubleArray {
         if (dblStrings.isEmpty()) {
             return DoubleArray(0)
         }
         val target = DoubleArray(dblStrings.size)
         for (i in dblStrings.indices) {
-//            dblStrings[i]?.toDoubleOrNull()?: Double.NaN
-            if (dblStrings[i] == null) {
+            try {
+                target[i] = dblStrings[i].toDouble()
+            } catch (e: NumberFormatException) {
                 target[i] = parseFail
-            } else {
-                try {
-                    target[i] = dblStrings[i]!!.toDouble()
-                } catch (e: NumberFormatException) {
-                    target[i] = parseFail
-                }
             }
         }
         return target
@@ -1337,7 +1332,7 @@ object KSLArrays {
      * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
      * @return the parsed doubles as an array
      */
-    fun parseToDoubles(dblStrings: List<String?>, parseFail: Double = Double.NaN): DoubleArray {
+    fun parseToDoubles(dblStrings: List<String>, parseFail: Double = Double.NaN): DoubleArray {
         return parseToDoubles(dblStrings.toTypedArray(), parseFail)
     }
 
@@ -1452,18 +1447,16 @@ object KSLArrays {
      * @param entries the list of data entries
      * @return the 2D array
      */
-    fun parseTo2DArray(entries: List<Array<String?>>): Array<DoubleArray?> {
-        // read as 2-D array//TODO review this
-        val data = arrayOfNulls<DoubleArray>(entries.size)
+    fun parseTo2DArray(entries: List<Array<String>>): Array<DoubleArray> {
+        val data = mutableListOf<DoubleArray>()
         val iterator = entries.iterator()
-        var row = 0
         while (iterator.hasNext()) {
             val strings = iterator.next()
             val rowData = parseToDoubles(strings)
-            data[row] = rowData
-            row++
+            data.add(rowData)
+
         }
-        return data
+        return data.toTypedArray()
     }
 
     /**
@@ -2763,7 +2756,7 @@ fun Array<LongArray>.toLongs(): Array<Array<Long>> {
  * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
  * @return the parsed doubles as an array
  */
-fun Array<String?>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
+fun Array<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
     return KSLArrays.parseToDoubles(this, parseFail)
 }
 
@@ -2773,7 +2766,7 @@ fun Array<String?>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
  * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
  * @return the parsed doubles as an array
  */
-fun List<String?>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
+fun List<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
     return KSLArrays.parseToDoubles(this, parseFail)
 }
 

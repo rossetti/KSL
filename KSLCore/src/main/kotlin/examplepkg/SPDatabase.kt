@@ -1,11 +1,9 @@
 package examplepkg
 
-import examplepkg.SPDatabase.Parts.primaryKey
 import ksl.utilities.io.dbutil.DatabaseFactory
 import org.ktorm.dsl.isNotNull
 import org.ktorm.schema.Table
 import org.ktorm.schema.*
-import java.nio.file.Path
 
 class SPDatabase(dbName: String) {
 

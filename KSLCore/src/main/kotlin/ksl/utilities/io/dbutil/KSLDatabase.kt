@@ -5,7 +5,6 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.io.dbutil.KSLDatabase.AcrossRepStats.bindTo
 import ksl.utilities.io.KSL
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
