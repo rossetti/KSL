@@ -16,10 +16,9 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.excel
+package ksl.utilities.io
 
 import com.opencsv.CSVWriterBuilder
-import ksl.utilities.io.KSL
 import mu.KLoggable
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException
 import org.apache.poi.openxml4j.opc.OPCPackage
@@ -320,7 +319,7 @@ object ExcelUtil : KLoggable {
      */
     fun columnSize(sheet: Sheet, columnIndex: Int): Int {
         var lastRow = sheet.lastRowNum
-        while (lastRow >= 0 && ExcelUtil.isCellEmpty(sheet.getRow(lastRow).getCell(columnIndex))) {
+        while (lastRow >= 0 && isCellEmpty(sheet.getRow(lastRow).getCell(columnIndex))) {
             lastRow--
         }
         return lastRow + 1
