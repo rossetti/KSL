@@ -1,4 +1,4 @@
-package ksl.utilities.dbutil
+package ksl.utilities.io.dbutil
 
 import java.sql.Types
 import javax.sql.rowset.CachedRowSet

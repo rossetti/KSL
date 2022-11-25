@@ -18,10 +18,11 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package ksl.utilities.dbutil
+package ksl.utilities.io.dbutil
 
 /**
  * @author rossetti
  */
-class TableDoesNotExistException(msg: String = "TableDoesNotExistException: The table in the database does not exist!") :
+
+class DatabaseDoesNotExistException(msg: String = "DatabaseDoesNotExistException: The database does not exist!") :
     RuntimeException(msg)

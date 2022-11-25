@@ -1,4 +1,4 @@
-package ksl.utilities.dbutil
+package ksl.utilities.io.dbutil
 
 import com.opencsv.CSVWriterBuilder
 import kotlinx.datetime.Instant

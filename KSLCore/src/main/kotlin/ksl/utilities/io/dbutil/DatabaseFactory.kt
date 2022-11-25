@@ -1,4 +1,4 @@
-package ksl.utilities.dbutil
+package ksl.utilities.io.dbutil
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource

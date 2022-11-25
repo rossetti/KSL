@@ -1,4 +1,4 @@
-package ksl.utilities.dbutil
+package ksl.utilities.io.dbutil
 
 //import org.ktorm.database.Database
 //import org.ktorm.logging.Slf4jLoggerAdapter

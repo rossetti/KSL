@@ -13,7 +13,7 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package ksl.utilities.dbutil
+package ksl.utilities.io.dbutil
 
 import java.io.IOException
 import java.nio.file.Files
