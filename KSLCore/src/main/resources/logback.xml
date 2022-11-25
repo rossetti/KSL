@@ -223,7 +223,7 @@
         <appender-ref ref="hikari" />
     </logger>
 
-    <logger name="ksl.utilities.excel.ExcelUtil" level="TRACE" additivity="false">
+    <logger name="ksl.utilities.io.ExcelUtil" level="TRACE" additivity="false">
         <appender-ref ref="KSLEXCEL" />
     </logger>
 
