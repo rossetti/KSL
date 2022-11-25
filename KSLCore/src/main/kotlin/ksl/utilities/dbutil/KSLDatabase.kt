@@ -5,11 +5,10 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.dbutil.KSLDatabase.WithinRepViewStats.bindTo
-import ksl.utilities.dbutil.KSLDatabase.WithinRepViewStats.expName
-import ksl.utilities.dbutil.KSLDatabase.WithinRepViewStats.value
+import ksl.utilities.dbutil.KSLDatabase.AcrossRepStats.bindTo
 import ksl.utilities.io.KSL
 import ksl.utilities.statistic.BatchStatisticIfc
+import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.StatisticIfc
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
@@ -42,13 +41,15 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         createSQLiteKSLDatabase(dbName, dbDirectory),
         clearDataOption
     )
-    //TODO views
-    //TODO postgres
 
     private val kDb =
         org.ktorm.database.Database.connect(db.dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))
 
     internal var simulationRun: SimulationRun? = null
+
+    //TODO consider whether these can be public properties
+    // it would permit a lot of functionality that may or may not be necessary or useful, and may
+    // expose the encapsulation
     private val simulationRuns get() = kDb.sequenceOf(SimulationRuns, withReferences = false)
     private val dbModelElements get() = kDb.sequenceOf(DbModelElements, withReferences = false)
     private val withinRepStats get() = kDb.sequenceOf(WithRepStats, withReferences = false)
@@ -57,6 +58,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     private val batchStats get() = kDb.sequenceOf(BatchStats, withReferences = false)
     private val withinRepViewStats get() = kDb.sequenceOf(WithinRepViewStats, withReferences = false)
     private val pairWiseDiffViewStats get() = kDb.sequenceOf(PairWiseDiffViewStats, withReferences = false)
+    private val acrossRepViewStats get() = kDb.sequenceOf(AcrossRepViewStats, withReferences = false)
+    private val batchViewStats get() = kDb.sequenceOf(BatchViewStats, withReferences = false)
 
     val acrossReplicationStatistics: DataFrame<AcrossRepStat>
         get() {
@@ -135,8 +138,22 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         }
 
     val pairWiseDiffViewStatistics: DataFrame<PairWiseDiffView>
-        get(){
+        get() {
             var df = pairWiseDiffViewStats.toList().toDataFrame()
+            df = df.remove("entityClass", "properties")
+            return df
+        }
+
+    val acrossReplicationViewStatistics: DataFrame<AcrossRepView>
+        get() {
+            var df = acrossRepViewStats.toList().toDataFrame()
+            df = df.remove("entityClass", "properties")
+            return df
+        }
+
+    val batchViewStatistics: DataFrame<BatchStatView>
+        get() {
+            var df = batchViewStats.toList().toDataFrame()
             df = df.remove("entityClass", "properties")
             return df
         }
@@ -202,20 +219,69 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         DatabaseIfc.logger.info { "Cleared data for KSLDatabase ${db.label}" }
     }
 
-    fun acrossReplicationRecords(): QueryRowSet {
-        val query: Query = kDb.from(AcrossRepStats).select()
-        return kDb.from(AcrossRepStats).select().rowSet
-    }
-
-    fun withinRepValuesFor(expNameStr: String, statNameStr: String){
+    fun withinReplicationObservationsFor(expNameStr: String, statNameStr: String): DoubleArray {
         var df = withinReplicationViewStatistics
         val expName by column<String>()
         val statName by column<String>()
+        val value by column<Double>()
         df = df.filter { expName() == expNameStr && statName() == statNameStr }
-        println(df)
-//        val values: Sequence<Any?> = df.values()
-//        val stuff = values.toList()
-//        println(stuff)
+        df = df.select(value)
+        val values = df.values()
+        val result = DoubleArray(values.count())
+        for ((index, v) in values.withIndex()) {
+            result[index] = v as Double
+        }
+        return result
+    }
+
+    /**
+     * This prepares a map that can be used with MultipleComparisonAnalyzer. If the set of
+     * simulation runs does not contain the provided experiment name, then an IllegalArgumentException
+     * occurs.  If there are multiple simulation runs with the same experiment name, then
+     * an IllegalArgumentException occurs. In other words, when running the experiments, the user
+     * must make the experiment names unique in order for this map to be built.
+     *
+     * @param expNames     The set of experiment names for with the responses need extraction, must not
+     *                     be null
+     * @param responseName the name of the response variable, time weighted variable or counter
+     * @return a map with key exp_name containing an array of values, each value from each replication
+     */
+    fun withinReplicationViewMapForExperiments(expNames: List<String>, responseName: String): Map<String, DoubleArray> {
+        for (name in expNames) {
+            val filter = withinRepViewStats.filter { it.expName.like(name) }
+            if (filter.isEmpty()) {
+                DatabaseIfc.logger.error { "There were no simulation runs with the experiment name $name" }
+                throw IllegalArgumentException("There were no simulation runs with the experiment name $name")
+            }
+            if (filter.count() > 1) {
+                DatabaseIfc.logger.error { "There were multiple simulation runs with the experiment name $name" }
+                throw IllegalArgumentException("There were multiple simulation runs with the experiment name $name")
+            }
+        }
+        val theMap = mutableMapOf<String, DoubleArray>()
+        for (name in expNames) {
+            theMap[name] = withinReplicationObservationsFor(name, responseName)
+        }
+        return theMap
+    }
+
+    /**
+     * This prepares a map that can be used with MultipleComparisonAnalyzer and
+     * returns the MultipleComparisonAnalyzer. If the set of
+     * simulation runs does not contain the provided experiment name, then an IllegalArgumentException
+     * occurs.  If there are multiple simulation runs with the same experiment name, then
+     * an IllegalArgumentException occurs. In other words, when running the experiments, the user
+     * must make the experiment names unique in order for this map to be built.
+     *
+     * @param expNames     The set of experiment names for with the responses need extraction, must not be null
+     * @param responseName the name of the response variable, time weighted variable or counter
+     * @return a configured MultipleComparisonAnalyzer
+     */
+    fun multipleComparisonAnalyzerFor(expNames: List<String>, responseName: String): MultipleComparisonAnalyzer {
+        val map = withinReplicationViewMapForExperiments(expNames, responseName)
+        val mca = MultipleComparisonAnalyzer(map)
+        mca.name = responseName
+        return mca
     }
 
     internal fun beforeExperiment(model: Model) {
@@ -712,6 +778,24 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var AminusB = double("A_MINUS_B").bindTo { it.AminusB }
     }
 
+    object AcrossRepViewStats : Table<AcrossRepView>("ACROSS_REP_VIEW") {
+        var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk }
+        var expName = varchar("EXP_NAME").bindTo { it.expName }.isNotNull()
+        var statName = varchar("STAT_NAME").bindTo { it.statName }
+        var statCount = double("STAT_COUNT").bindTo { it.statCount }
+        var average = double("AVERAGE").bindTo { it.average }
+        var stdDev = double("STD_DEV").bindTo { it.stdDev }
+    }
+
+    object BatchViewStats : Table<BatchStatView>("BATCH_STAT_VIEW") {
+        var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk }
+        var expName = varchar("EXP_NAME").bindTo { it.expName }.isNotNull()
+        var statName = varchar("STAT_NAME").bindTo { it.statName }
+        var statCount = double("STAT_COUNT").bindTo { it.statCount }
+        var average = double("AVERAGE").bindTo { it.average }
+        var stdDev = double("STD_DEV").bindTo { it.stdDev }
+    }
+
     interface SimulationRun : Entity<SimulationRun> {
         companion object : Entity.Factory<SimulationRun>()
 
@@ -862,6 +946,30 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var valueB: Double
         var diffName: String
         var AminusB: Double
+    }
+
+    interface AcrossRepView: Entity<AcrossRepView>{
+        companion object : Entity.Factory<AcrossRepView>()
+
+        var simRunIdFk: Int
+        var expName: String
+        var statName: String
+        var statCount: Double
+        var average: Double
+        var stdDev: Double
+
+    }
+
+    interface BatchStatView: Entity<BatchStatView>{
+        companion object : Entity.Factory<BatchStatView>()
+
+        var simRunIdFk: Int
+        var expName: String
+        var statName: String
+        var statCount: Double
+        var average: Double
+        var stdDev: Double
+
     }
 
     companion object {

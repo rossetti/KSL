@@ -6,6 +6,7 @@ import ksl.simulation.Model
 import ksl.utilities.dbutil.*
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.toStrings
 import org.jetbrains.kotlinx.dataframe.api.column
 import org.jetbrains.kotlinx.dataframe.api.filter
 import org.jetbrains.kotlinx.dataframe.api.schema
@@ -68,13 +69,13 @@ object DBExamples {
         model.simulate()
         model.print()
 
-        val records = kdb.acrossReplicationRecords()
-        println("number of records = ${records.query.totalRecords}")
-
-        val cachedRowSet = DatabaseIfc.createCachedRowSet(records)
-        println("size of cachedRowSet = ${cachedRowSet.size()}")
-        cachedRowSet.first()
-        DatabaseIfc.writeAsText(cachedRowSet, KSL.out)
+//        val records = kdb.acrossReplicationRecords()
+//        println("number of records = ${records.query.totalRecords}")
+//
+//        val cachedRowSet = DatabaseIfc.createCachedRowSet(records)
+//        println("size of cachedRowSet = ${cachedRowSet.size()}")
+//        cachedRowSet.first()
+//        DatabaseIfc.writeAsText(cachedRowSet, KSL.out)
 
 //    sdb.printAllTablesAsText()
         val file = KSL.createPrintWriter("results.md")
@@ -93,8 +94,8 @@ object DBExamples {
 //    val c: DataColumn<String> = df[statName]
 //    println(c)
 
-        kdb.withinRepValuesFor("Experiment_1", "# in System")
-        println()
+        val observations = kdb.withinReplicationObservationsFor("Experiment_1", "# in System")
+        println(observations.toList())
 
         val rs = sdb.selectAllIntoOpenResultSet("ACROSS_REP_STAT")
         if (rs != null) {

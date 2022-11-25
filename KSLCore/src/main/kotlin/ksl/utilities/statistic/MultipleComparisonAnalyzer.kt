@@ -44,6 +44,8 @@ import kotlin.math.min
  */
 class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 
+    var name: String? = null
+
     private lateinit var myDataMap: LinkedHashMap<String, DoubleArray>
     private var myDataSize = 0
     private lateinit var myPairDiffs: LinkedHashMap<String, LinkedHashMap<String, DoubleArray>>

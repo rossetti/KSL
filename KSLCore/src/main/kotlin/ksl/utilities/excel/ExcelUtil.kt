@@ -18,6 +18,8 @@
 
 package ksl.utilities.excel
 
+import com.opencsv.CSVWriterBuilder
+import ksl.utilities.io.KSL
 import mu.KLoggable
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException
 import org.apache.poi.openxml4j.opc.OPCPackage
@@ -25,16 +27,25 @@ import org.apache.poi.openxml4j.opc.PackageAccess
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.ss.util.WorkbookUtil
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.FileWriter
 import java.io.IOException
 import java.math.BigDecimal
 import java.nio.file.Path
 import java.sql.Date
 import java.sql.Time
 import java.sql.Timestamp
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.*
 
 object ExcelUtil : KLoggable {
 
     override val logger = logger()
+
+    const val DEFAULT_MAX_CHAR_IN_CELL = 512
+
+    val DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        .withZone(ZoneId.systemDefault())
 
     /** Creates a sheet within the workbook with the name.  If a sheet already exists with the
      * same name then a new sheet with name sheetName_n, where n is the current number of sheets
@@ -168,6 +179,30 @@ object ExcelUtil : KLoggable {
     }
 
     /**
+     * @param sheet  the sheet to process
+     * @param numColumns the number of columns for each row
+     * @param skipFirstRow true means first row is skipped
+     * @return a list of lists of the objects representing each cell of each row of the sheet
+     */
+    fun readSheetAsObjects(
+        sheet: Sheet,
+        numColumns: Int = numberColumnsForCSVHeader(sheet),
+        skipFirstRow: Boolean = false
+    ): List<List<Any?>> {
+        val rowIterator = sheet.rowIterator()
+        if (skipFirstRow) {
+            if (rowIterator.hasNext()) {
+                rowIterator.next()
+            }
+        }
+        val list: MutableList<List<Any?>> = ArrayList()
+        while (rowIterator.hasNext()) {
+            list.add(readRowAsObjectList(rowIterator.next(), numColumns))
+        }
+        return list
+    }
+
+    /**
      * Read a row assuming a fixed number of columns.  Cells that
      * are missing/null in the row are read as null objects.
      *
@@ -175,7 +210,7 @@ object ExcelUtil : KLoggable {
      * @param numColumns the number of columns to read in the row
      * @return a list of objects representing the contents of the cells for each column
      */
-    fun readRowAsObjectList(row: Row, numColumns: Int): List<Any?> {
+    fun readRowAsObjectList(row: Row, numColumns: Int = numberColumns(row)): List<Any?> {
         val list = mutableListOf<Any?>()
         for (i in 0 until numColumns) {
             val cell = row.getCell(i)
@@ -207,5 +242,156 @@ object ExcelUtil : KLoggable {
             CellType.FORMULA -> cell.cellFormula
             else -> null
         }
+    }
+
+    /**
+     * Reads the Excel cell and translates it into a String
+     *
+     * @param cell the Excel cell to read data from
+     * @return the data in the form of a String
+     */
+    fun readCellAsString(cell: Cell): String {
+        return when (cell.cellType) {
+            CellType.STRING -> cell.stringCellValue
+            CellType.NUMERIC -> if (DateUtil.isCellDateFormatted(cell)) {
+                val date = cell.dateCellValue
+                DATE_TIME_FORMATTER.format(date.toInstant())
+            } else {
+                val value = cell.numericCellValue
+                value.toString()
+            }
+            CellType.BOOLEAN -> {
+                val value = cell.booleanCellValue
+                value.toString()
+            }
+            CellType.FORMULA -> cell.cellFormula
+            else -> ""
+        }
+    }
+
+    /**
+     * Read a row assuming a fixed number of columns.  Cells that
+     * are missing/null in the row are read as null Strings.
+     *
+     * @param row     the Excel row
+     * @param numCol  the number of columns in the row
+     * @param maxChar the maximum number of characters permitted for any string
+     * @return a list of java Strings representing the contents of the cells
+     */
+    fun readRowAsStringList(row: Row, numCol: Int, maxChar: Int = DEFAULT_MAX_CHAR_IN_CELL): List<String?> {
+        require(numCol > 0) { "The number of columns must be >= 1" }
+        require(maxChar > 0) { "The maximum number of characters must be >= 1" }
+        val list: MutableList<String?> = ArrayList()
+        for (i in 0 until numCol) {
+            val cell = row.getCell(i)
+            var s: String? = null
+            if (cell != null) {
+                s = readCellAsString(cell)
+                if (s.length > maxChar) {
+                    s = s.substring(0, maxChar - 1)
+                    logger.warn("The cell {} was truncated to {} characters", cell.stringCellValue, maxChar)
+                }
+            }
+            list.add(s)
+        }
+        return list
+    }
+
+    /**
+     * Read a row assuming a fixed number of columns.  Cells that
+     * are missing/null in the row are read as null Strings.
+     *
+     * @param row     the Excel row
+     * @param numCol  the number of columns in the row
+     * @param maxChar the maximum number of characters permitted for any string
+     * @return an array of java Strings representing the contents of the cells
+     */
+    fun readRowAsStringArray(row: Row, numCol: Int, maxChar: Int = DEFAULT_MAX_CHAR_IN_CELL): Array<String?> {
+        return readRowAsStringList(row, numCol, maxChar).toTypedArray()
+    }
+
+    /**
+     * Starts as the last row number of the sheet and looks up in the column to find the first non-null cell
+     *
+     * @param sheet       the sheet holding the column, must not be null
+     * @param columnIndex the column index, must be 0 or greater, since POI is 0 based columns
+     * @return the number of rows that have data in the particular column as defined by not having
+     * a null cell.
+     */
+    fun columnSize(sheet: Sheet, columnIndex: Int): Int {
+        var lastRow = sheet.lastRowNum
+        while (lastRow >= 0 && ExcelUtil.isCellEmpty(sheet.getRow(lastRow).getCell(columnIndex))) {
+            lastRow--
+        }
+        return lastRow + 1
+    }
+
+    /**
+     * @param cell the cell to check
+     * @return true if it null or blank or string and empty
+     */
+    fun isCellEmpty(cell: Cell): Boolean {
+        return if (cell.cellType == CellType.BLANK) {
+            true
+        } else cell.cellType == CellType.STRING && cell.stringCellValue.isEmpty()
+    }
+
+    /**
+     * Treats the columns as fields in a csv file, writes each row as a separate csv row
+     * in the resulting csv file
+     *
+     * @param sheet        the sheet to write, must not be null
+     * @param skipFirstRow if true, the first row is skipped in the sheet
+     * @param pathToCSV    a Path to the file to write as csv, must not be null
+     * @param numCol       the number of columns to write from each row, must be at least 1
+     * @param maxChar      the maximum number of characters that can be in any cell, must be at least 1
+     * @throws IOException an IO exception
+     */
+    fun writeSheetToCSV(
+        sheet: Sheet,
+        numCol: Int = numberColumnsForCSVHeader(sheet),
+        skipFirstRow: Boolean = false,
+        pathToCSV: Path = KSL.outDir.resolve("${sheet.sheetName}.csv"),
+        maxChar: Int = DEFAULT_MAX_CHAR_IN_CELL
+    ) {
+        require(numCol > 0) { "The number of columns must be >= 1" }
+        require(maxChar > 0) { "The maximum number of characters must be >= 1" }
+        val rowIterator = sheet.rowIterator()
+        if (skipFirstRow) {
+            if (rowIterator.hasNext()) {
+                rowIterator.next()
+            }
+        }
+        val fileWriter = FileWriter(pathToCSV.toFile())
+        val writer = CSVWriterBuilder(fileWriter).build()
+        while (rowIterator.hasNext()) {
+            val row = rowIterator.next()
+            val strings = readRowAsStringArray(row, numCol, maxChar)
+            writer.writeNext(strings)
+        }
+        writer.close()
+    }
+
+    /**
+     * Assumes that the first row is a header for a CSV like file and
+     * returns the number of columns (1 for each header)
+     *
+     * @param sheet the sheet to write, must not be null
+     * @return the number of header columns
+     */
+    fun numberColumnsForCSVHeader(sheet: Sheet): Int {
+        val row = sheet.getRow(0)
+        return row?.lastCellNum?.toInt() ?: 0
+    }
+
+    /**
+     * Assumes that the first row is a header for a CSV like file and
+     * returns the number of columns (1 for each header)
+     *
+     * @param sheet the sheet to write, must not be null
+     * @return the number of header columns
+     */
+    fun numberColumns(row: Row): Int {
+        return row.lastCellNum.toInt()
     }
 }
