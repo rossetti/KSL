@@ -3,7 +3,7 @@ package ksl.examples.general
 import kotlinx.datetime.Clock
 import ksl.examples.book.chapter6.DriveThroughPharmacy
 import ksl.simulation.Model
-import ksl.utilities.dbutil.*
+import ksl.utilities.io.dbutil.*
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.toStrings

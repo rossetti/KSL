@@ -215,7 +215,7 @@
         </encoder>
     </appender>
 
-    <logger name="ksl.utilities.dbutil.DatabaseIfc" level="INFO" additivity="false">
+    <logger name="ksl.utilities.io.dbutil.DatabaseIfc" level="INFO" additivity="false">
         <appender-ref ref="KSLDB" />
     </logger>
 

@@ -1,7 +1,7 @@
 package examplepkg
 
-import ksl.utilities.dbutil.DatabaseFactory
-import ksl.utilities.dbutil.Database
+import ksl.utilities.io.dbutil.DatabaseFactory
+import ksl.utilities.io.dbutil.Database
 
 class TestDbWork {
 }

@@ -110,7 +110,7 @@
         </encoder>
     </appender>
 
-    <logger name="ksl.utilities.dbutil.DatabaseIfc" level="DEBUG" additivity="false">
+    <logger name="ksl.utilities.io.dbutil.DatabaseIfc" level="DEBUG" additivity="false">
         <appender-ref ref="JSLDB" />
     </logger>
 
