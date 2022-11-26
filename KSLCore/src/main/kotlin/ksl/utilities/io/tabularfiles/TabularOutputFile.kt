@@ -1,19 +1,21 @@
 package ksl.utilities.io.tabularfiles
 
+import ksl.utilities.io.dbutil.ColumnMetaData
 import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.DatabaseIfc
 import java.nio.file.Path
 import java.util.*
 import kotlin.math.max
 
-class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : TabularFile(columnTypes, path){
+class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : TabularFile(columnTypes, path) {
     //TODO consider permitting the appending of rows to an existing file
 
     private val myDb: DatabaseIfc
     private var myMaxRowsInBatch = 0
-    private var myLoadArray: Array<Array<Any?>>? = null
+    private var myLoadData: MutableList<List<Any?>> = mutableListOf()
     private var myRowCount = 0
     private val myRow: RowSetterIfc
+    private val myTableMetaData: List<ColumnMetaData>
 
     init {
         val fileName = path.fileName.toString()
@@ -21,24 +23,36 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
         myDb = DatabaseFactory.createSQLiteDatabase(fileName, dir)
         val fixedFileName = fileName.replace("[^a-zA-Z]".toRegex(), "")
         val dataTableName = fixedFileName + "_Data"
-        createTable(dataTableName)
-//TODO        myTable = myDb.getTable(dataTableName)
+        val cmd = createTableCommand(dataTableName)
+        val executed = myDb.executeCommand(cmd)
+        if (!executed){
+            throw IllegalStateException("Unable to create tabular file: $path")
+        }
+        myTableMetaData = myDb.tableMetaData(dataTableName)
         val numRowBytes = getNumRowBytes(getNumNumericColumns(), getNumTextColumns(), DEFAULT_TEXT_SIZE)
         val rowBatchSize = getRecommendedRowBatchSize(numRowBytes)
         myMaxRowsInBatch = max(MIN_DEFAULT_ROWS_IN_BATCH, rowBatchSize)
-//TODO        myLoadArray = arrayOfNulls(myMaxRowsInBatch)
         myRow = getRow()
     }
 
-    private fun createTable(name: String) {
-        TODO("Not implemented yet")
-//        val dsl: DSLContext = myDb.getDSLContext()
-//        // make the fields
-//        var columnStep: CreateTableColumnStep = dsl.createTable(name)
-//        for ((key, value): Map.Entry<String, DataType> in myColumnTypes.entrySet()) {
-//            columnStep = columnStep.column(key, JOOQ_TYPE.get(value))
-//        }
-//        columnStep.execute()
+    private fun createTableCommand(name: String) : String {
+        val sb = StringBuilder()
+        sb.append("create table $name (")
+        var i = 0
+        for(col in myColumnTypes){
+            val type = if (col.value == DataType.NUMERIC) {
+                "double"
+            } else {
+                "text"
+            }
+            i++
+            if (i < myColumnNames.size){
+                sb.append("${col.key} $type,")
+            } else{
+                sb.append("${col.key} $type)")
+            }
+        }
+        return sb.toString()
     }
 
     /** Allows the user to configure the size of the batch writing if performance becomes an issue.
@@ -108,10 +122,10 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      */
     fun writeRow(rowSetter: RowSetterIfc) {
         val row = rowSetter as Row
-        myLoadArray!![myRowCount] = arrayOf(row.elements)
+        myLoadData[myRowCount] = row.elements
         myRowCount++
         if (myRowCount == myMaxRowsInBatch) {
-            loadArray(myLoadArray)
+            loadArray(myLoadData)
             myRowCount = 0
         }
     }
@@ -134,19 +148,19 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      */
     fun flushRows() {
         if (myRowCount > 0) {
-            val array: Array<Array<Any>> = arrayOfNulls(myRowCount)
+            val array: Array<Array<Any?>> = arrayOfNulls(myRowCount)
             for (i in array.indices) {
-                array[i] = myLoadArray!![i]
+                array[i] = myLoadData!![i]
             }
-            val temp = myLoadArray!!
+            val temp = myLoadData!!
             // this changes myLoadArray to array for loading
             loadArray(array)
             // now change it back for future loading
-            myLoadArray = temp
+            myLoadData = temp
             myRowCount = 0
             // now clear the array
             for (i in 0 until myMaxRowsInBatch) {
-                myLoadArray!![i] = null
+                myLoadData!![i] = null
             }
         }
     }
@@ -155,9 +169,9 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      * @param array the array of data to load into the file
      * @return the number of executed statements that occurred during the loading process
      */
-    private fun loadArray(array: Array<Array<Any?>>): Int {
-        myLoadArray = array
-TODO("not implemented yet")
+    private fun loadArray(array: MutableList<List<Any?>>): Int {
+        myLoadData = array
+        TODO("not implemented yet")
         return 0
     }
 
@@ -180,7 +194,7 @@ TODO("not implemented yet")
         return sb.toString()
     }
 
-    companion object{
+    companion object {
 
         private const val DEFAULT_PAGE_SIZE = 8192
         private const val MIN_DEFAULT_ROWS_IN_BATCH = 32

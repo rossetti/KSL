@@ -979,7 +979,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             getConnection().use { con ->
                 con.autoCommit = false
                 // make prepared statement for inserts
-                val insertStatement = makeInsertStatement(con, tableName, numColumns, schemaName)
+                val insertStatement = makeInsertPreparedStatement(con, tableName, numColumns, schemaName)
                 var batchCnt = 0
                 var cntBad = 0
                 var rowCnt = 0
@@ -1032,12 +1032,27 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the schema containing the table
      * @return a prepared statement that can perform the insert if given the appropriate column values
      */
-    private fun makeInsertStatement(
+    private fun makeInsertPreparedStatement(
         con: Connection,
         tableName: String,
         numColumns: Int,
         schemaName: String?
     ): PreparedStatement {
+        val sql = createTableInsertStatement(tableName, numColumns, schemaName)
+        return con.prepareStatement(sql)
+    }
+
+    /**
+     * @param tableName the name of the table to be inserted into
+     * @param numColumns the number of columns starting from the left to insert into
+     * @param schemaName the schema containing the table
+     * @return a generic SQL insert statement with appropriate number of parameters for the table
+     */
+    fun createTableInsertStatement(
+        tableName: String,
+        numColumns: Int,
+        schemaName: String?
+    ): String {
         // assume all columns have the same table name and schema name
         require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
         val qm = CharArray(numColumns)
@@ -1048,17 +1063,45 @@ interface DatabaseIfc : DatabaseIOIfc {
         } else {
             "insert into ${schemaName}.${tableName} values $inputs"
         }
-        return con.prepareStatement(sql)
+        return sql
     }
 
-    /** This method inserts the
+    /** This method inserts the data into the prepared statement as a batch insert.
+     *  The statement is not executed.
+     *
      * @param rowData the data to be inserted
      * @param numColumns the column metadata for the row set
-     * @param rowSet a row set to hold the new data
+     * @param preparedStatement the prepared statement to use
      * @return returns true if the data was inserted false if something went wrong and no insert made
      */
-    private fun addBatch(
+    fun addBatch(
         rowData: List<Any?>,
+        numColumns: Int,
+        preparedStatement: PreparedStatement
+    ): Boolean {
+        return try {
+            for (colIndex in 1..numColumns) {
+                //looks like it does the updates
+                preparedStatement.setObject(colIndex, rowData[colIndex - 1])
+                logger.trace { "Updated column $colIndex with data ${rowData[colIndex - 1]}" }
+            }
+            preparedStatement.addBatch()
+            true
+        } catch (e: SQLException) {
+            false
+        }
+    }
+
+    /** This method inserts the data into the prepared statement as a batch insert.
+     *  The statement is not executed.
+     *
+     * @param rowData the data to be inserted
+     * @param numColumns the column metadata for the row set
+     * @param preparedStatement the prepared statement to use
+     * @return returns true if the data was inserted false if something went wrong and no insert made
+     */
+    fun addBatch(
+        rowData: Array<Any?>,
         numColumns: Int,
         preparedStatement: PreparedStatement
     ): Boolean {
@@ -1675,7 +1718,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         /**
          * Provides a mapping of SQL types to the DataFrame types to assist with type inference
          */
-        private fun makeDataFrameColumn(columnMetaData: ColumnMetaData, data: List<Any?>) : ValueColumn<Any?> {
+        private fun makeDataFrameColumn(columnMetaData: ColumnMetaData, data: List<Any?>): ValueColumn<Any?> {
             return when (columnMetaData.type) {
                 Types.BIT, Types.BOOLEAN -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Boolean>())
@@ -1705,7 +1748,9 @@ interface DatabaseIfc : DatabaseIOIfc {
                 Types.VARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<String>())
                 }
-                else -> {DataColumn.createValueColumn(columnMetaData.label, mutableListOf<Any>())}
+                else -> {
+                    DataColumn.createValueColumn(columnMetaData.label, mutableListOf<Any>())
+                }
             }
         }
 

@@ -234,7 +234,7 @@ interface RowGetterIfc : RowIfc {
     /**
      * @return the elements of the row as Objects
      */
-    val elements: Array<Any?>
+    val elements: List<Any?>
 
     /**
      * @param colNum the column number
@@ -413,9 +413,9 @@ class Row(tabularFile: TabularFile) : RowGetterIfc, RowSetterIfc, RowIfc {
 
     // need to copy elements from storage arrays to correct object location
     // go from storage arrays to elements because type is known
-    override val elements: Array<Any?>
+    override val elements: List<Any?>
         get() {
-            val elements = arrayOfNulls<Any>(numberColumns)
+            val elements = mutableListOf<Any?>()
             // need to copy elements from storage arrays to correct object location
             // go from storage arrays to elements because type is known
             for (i in numericData.indices) {

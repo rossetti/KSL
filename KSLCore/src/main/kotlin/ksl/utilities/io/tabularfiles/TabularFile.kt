@@ -32,11 +32,11 @@ data class ColumnType(val name: String, val dataType: DataType)
  * a database.
  *
  */
-abstract class TabularFile(columnTypes: Map<String, DataType>, val path: Path) {
+abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
 //TODO kotlin names and property conventions
 //TODO use a builder pattern to define and add the columns
 
-    protected val myColumnTypes: Map<String, DataType> = columnTypes.toMap()
+    protected val myColumnTypes: Map<String, DataType> = columns.toMap()
     protected var myNameAndIndex: MutableBiMap<String, Int> = HashBiMap()
     protected var myNumericIndices: MutableBiMap<Int, Int> = HashBiMap()
     protected var myTextIndices: MutableBiMap<Int, Int> = HashBiMap()
@@ -44,7 +44,7 @@ abstract class TabularFile(columnTypes: Map<String, DataType>, val path: Path) {
     protected var myDataTypes: MutableList<DataType> = mutableListOf()
 
     init {
-        require(columnTypes.isNotEmpty()) { "The number of columns must be > 0" }
+        require(columns.isNotEmpty()) { "The number of columns must be > 0" }
         for (name in myColumnTypes.keys) {
             myColumnNames.add(name)
         }
