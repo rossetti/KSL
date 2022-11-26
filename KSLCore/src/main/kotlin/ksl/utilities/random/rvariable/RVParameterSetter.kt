@@ -2,7 +2,7 @@ package ksl.utilities.random.rvariable
 
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.Model
-import ksl.utilities.KSLMaps
+import ksl.utilities.maps.KSLMaps
 import ksl.utilities.random.RandomIfc
 
 class RVParameterSetter {
