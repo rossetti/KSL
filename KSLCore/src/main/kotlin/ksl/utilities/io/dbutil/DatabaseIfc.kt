@@ -275,9 +275,14 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @throws SQLException if there is a problem with the connection
      */
     fun getConnection(): Connection {
-        val c = dataSource.connection
-        logger.trace { "Established a connection to Database $label " }
-        return c
+        try {
+            val c = dataSource.connection
+            logger.trace { "Established a connection to Database $label " }
+            return c
+        } catch (ex: SQLException) {
+            KSL.logger.error("Unable to establish connection to $label")
+            throw ex
+        }
     }
 
     val dbURL: String?
@@ -1232,6 +1237,33 @@ interface DatabaseIfc : DatabaseIOIfc {
             query?.close()
         }
         return null
+    }
+
+    /**
+     * @param schemaName the schema containing the table
+     * @param tableName the name of the table within the schema
+     * @return the number of rows in the table
+     */
+    fun numRows(tableName: String, schemaName: String? = defaultSchemaName): Long {
+        val tblName = if (schemaName != null) {
+            "${schemaName}.${tableName}"
+        } else {
+            tableName
+        }
+        try {
+            getConnection().use { connection ->
+                val stmt: Statement = connection.createStatement()
+                val sql = "select count(*) from $tblName"
+                val rs: ResultSet = stmt.executeQuery(sql)
+                rs.next()
+                val count = rs.getLong(1)
+                stmt.close()
+                return count
+            }
+        } catch (e: SQLException) {
+            logger.warn("Could not count the number of rows in $tableName")
+        }
+        return 0
     }
 
     /**
