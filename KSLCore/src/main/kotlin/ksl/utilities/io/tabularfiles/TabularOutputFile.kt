@@ -81,9 +81,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      * to the numeric columns in the file in the order of their appearance.
      * Any text columns will have the value null and cannot be unwritten.
      *
-     *
      * The recommended use is for files that have all numeric columns.
-     *
      *
      * If you have mixed column types, then use getRow() to first
      * set the appropriate columns before writing them.
@@ -100,9 +98,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      * to the text columns in the file in the order of their appearance.
      * Any numeric columns will have the value Double.NaN and cannot be unwritten.
      *
-     *
      * The recommended use is for files that have all text columns.
-     *
      *
      * If you have mixed column types, then use getRow() to first
      * set the appropriate columns before writing them.
@@ -116,17 +112,18 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
 
     /**
      * Writes the data currently in the row to the file. Once
-     * written, the write cannot be undone.
+     * written, the operation cannot be undone.
      *
      * @param rowSetter a rowSetter, provided by getRow()
      */
     fun writeRow(rowSetter: RowSetterIfc) {
         val row = rowSetter as Row
-        myLoadData[myRowCount] = row.elements
+        myLoadData.add(row.elements)
         myRowCount++
         if (myRowCount == myMaxRowsInBatch) {
             loadArray(myLoadData)
             myRowCount = 0
+            //TODO clear myLoadData here?
         }
     }
 
@@ -172,6 +169,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
     private fun loadArray(array: MutableList<List<Any?>>): Int {
         myLoadData = array
         TODO("not implemented yet")
+        //TODO clear myLoadData here?
         return 0
     }
 
