@@ -1051,7 +1051,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     fun createTableInsertStatement(
         tableName: String,
         numColumns: Int,
-        schemaName: String?
+        schemaName: String? = defaultSchemaName
     ): String {
         // assume all columns have the same table name and schema name
         require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }

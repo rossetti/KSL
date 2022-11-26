@@ -12,17 +12,18 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
 
     private val myDb: DatabaseIfc
     private var myMaxRowsInBatch = 0
-    private var myLoadData: MutableList<List<Any?>> = mutableListOf()
+    private var myDataBuffer: MutableList<List<Any?>> = mutableListOf()
     private var myRowCount = 0
     private val myRow: RowSetterIfc
     private val myTableMetaData: List<ColumnMetaData>
+    private val dataTableName: String
 
     init {
         val fileName = path.fileName.toString()
         val dir = path.parent
         myDb = DatabaseFactory.createSQLiteDatabase(fileName, dir)
         val fixedFileName = fileName.replace("[^a-zA-Z]".toRegex(), "")
-        val dataTableName = fixedFileName + "_Data"
+        dataTableName = fixedFileName + "_Data"
         val cmd = createTableCommand(dataTableName)
         val executed = myDb.executeCommand(cmd)
         if (!executed){
@@ -118,10 +119,10 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      */
     fun writeRow(rowSetter: RowSetterIfc) {
         val row = rowSetter as Row
-        myLoadData.add(row.elements)
+        myDataBuffer.add(row.elements)
         myRowCount++
         if (myRowCount == myMaxRowsInBatch) {
-            loadArray(myLoadData)
+            insertData(myDataBuffer)
             myRowCount = 0
             //TODO clear myLoadData here?
         }
@@ -148,17 +149,17 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
             // there is data in the buffer
             val array: Array<Array<Any?>> = arrayOfNulls(myRowCount)
             for (i in array.indices) {
-                array[i] = myLoadData!![i]
+                array[i] = myDataBuffer!![i]
             }
-            val temp = myLoadData!!
+            val temp = myDataBuffer!!
             // this changes myLoadArray to array for loading
-            loadArray(array)
+            insertData(array)
             // now change it back for future loading
-            myLoadData = temp
+            myDataBuffer = temp
             myRowCount = 0
             // now clear the array
             for (i in 0 until myMaxRowsInBatch) {
-                myLoadData!![i] = null
+                myDataBuffer!![i] = null
             }
         }
     }
@@ -167,8 +168,21 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      * @param array the array of data to load into the file
      * @return the number of executed statements that occurred during the loading process
      */
-    private fun loadArray(array: MutableList<List<Any?>>): Int {
-        myLoadData = array
+    private fun insertData(buffer: MutableList<List<Any?>>): Int {
+
+            myDb.getConnection().use{
+                    connection ->
+                connection.autoCommit = false
+                val n = getNumberColumns()
+                val sql = myDb.createTableInsertStatement(dataTableName, n)
+                val ps = connection.prepareStatement(sql)
+                for (row in buffer){
+                    myDb.addBatch(row, n, ps)
+                }
+                val numInserts = ps.execute()
+                connection.commit()
+                numInserts
+            }
         TODO("not implemented yet")
         //TODO clear myLoadData here?
         return 0
