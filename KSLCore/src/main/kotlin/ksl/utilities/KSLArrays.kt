@@ -2042,6 +2042,67 @@ object KSLArrays {
     }
 
     /**
+     * @param data the data to count
+     * @param x    the ordinate to check
+     * @return the number of data points less than or equal to x
+     */
+    fun countLessEqualTo(data: IntArray, x: Int): Int {
+        var cnt = 0
+        for (datum in data) {
+            if (datum <= x) {
+                cnt++
+            }
+        }
+        return cnt
+    }
+
+    /**
+     * @param data the data to count
+     * @param x    the ordinate to check
+     * @return the number of data points less than x
+     */
+    fun countLessThan(data: IntArray, x: Int): Int {
+        var cnt = 0
+        for (datum in data) {
+            if (datum < x) {
+                cnt++
+            }
+        }
+        return cnt
+    }
+
+    /**
+     * @param data the data to count
+     * @param x    the ordinate to check
+     * @return the number of data points greater than or equal to x
+     */
+    fun countGreaterEqualTo(data: IntArray, x: Int): Int {
+        var cnt = 0
+        for (datum in data) {
+            if (datum >= x) {
+                cnt++
+            }
+        }
+        return cnt
+    }
+
+    /**
+     * @param data the data to count
+     * @param x    the ordinate to check
+     * @return the number of data points greater than x
+     */
+    fun countGreaterThan(data: IntArray, x: Int): Int {
+        var cnt = 0
+        for (datum in data) {
+            if (datum > x) {
+                cnt++
+            }
+        }
+        return cnt
+    }
+
+
+    /**
      * @param data the data to sort
      * @return a copy of the sorted array in ascending order representing the order statistics
      */
@@ -2148,6 +2209,38 @@ fun DoubleArray.indexOfMax(): Int {
  */
 fun DoubleArray.max(): Double {
     return KSLArrays.max(this)
+}
+
+/**
+ * @param x    the ordinate to check
+ * @return the number of data points greater than x
+ */
+fun IntArray.countGreaterThan(x: Int): Int {
+    return KSLArrays.countGreaterThan(this, x)
+}
+
+/**
+ * @param x    the ordinate to check
+ * @return the number of data points greater than or equal to x
+ */
+fun IntArray.countGreaterEqualTo(x: Int): Int {
+    return KSLArrays.countGreaterEqualTo(this, x)
+}
+
+/**
+ * @param x    the ordinate to check
+ * @return the number of data points less than x
+ */
+fun IntArray.countLessThan(x: Int): Int {
+    return KSLArrays.countLessThan(this, x)
+}
+
+/**
+ * @param x    the ordinate to check
+ * @return the number of data points less than or equal to x
+ */
+fun IntArray.countLessEqualTo(x: Int): Int {
+    return KSLArrays.countLessEqualTo(this, x)
 }
 
 /**

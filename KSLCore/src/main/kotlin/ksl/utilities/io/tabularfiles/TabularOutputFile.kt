@@ -1,9 +1,14 @@
 package ksl.utilities.io.tabularfiles
 
+import ksl.utilities.countGreaterEqualTo
+import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.ColumnMetaData
 import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.DatabaseIfc
+import java.io.IOException
 import java.nio.file.Path
+import java.sql.BatchUpdateException
+import java.sql.SQLException
 import java.util.*
 import kotlin.math.max
 
@@ -26,7 +31,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
         dataTableName = fixedFileName + "_Data"
         val cmd = createTableCommand(dataTableName)
         val executed = myDb.executeCommand(cmd)
-        if (!executed){
+        if (!executed) {
             throw IllegalStateException("Unable to create tabular file: $path")
         }
         myTableMetaData = myDb.tableMetaData(dataTableName)
@@ -36,20 +41,20 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
         myRow = getRow()
     }
 
-    private fun createTableCommand(name: String) : String {
+    private fun createTableCommand(name: String): String {
         val sb = StringBuilder()
         sb.append("create table $name (")
         var i = 0
-        for(col in myColumnTypes){
+        for (col in myColumnTypes) {
             val type = if (col.value == DataType.NUMERIC) {
                 "double"
             } else {
                 "text"
             }
             i++
-            if (i < myColumnNames.size){
+            if (i < myColumnNames.size) {
                 sb.append("${col.key} $type,")
-            } else{
+            } else {
                 sb.append("${col.key} $type)")
             }
         }
@@ -124,7 +129,6 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
         if (myRowCount == myMaxRowsInBatch) {
             insertData(myDataBuffer)
             myRowCount = 0
-            //TODO clear myLoadData here?
         }
     }
 
@@ -146,46 +150,49 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      */
     fun flushRows() {
         if (myRowCount > 0) {
-            // there is data in the buffer
-            val array: Array<Array<Any?>> = arrayOfNulls(myRowCount)
-            for (i in array.indices) {
-                array[i] = myDataBuffer!![i]
-            }
-            val temp = myDataBuffer!!
-            // this changes myLoadArray to array for loading
-            insertData(array)
-            // now change it back for future loading
-            myDataBuffer = temp
-            myRowCount = 0
-            // now clear the array
-            for (i in 0 until myMaxRowsInBatch) {
-                myDataBuffer!![i] = null
-            }
+            insertData(myDataBuffer)
         }
     }
 
     /**
-     * @param array the array of data to load into the file
+     * @param buffer the array of data to load into the file
      * @return the number of executed statements that occurred during the loading process
      */
     private fun insertData(buffer: MutableList<List<Any?>>): Int {
-
-            myDb.getConnection().use{
-                    connection ->
+        try {
+            myDb.getConnection().use { connection ->
                 connection.autoCommit = false
                 val n = getNumberColumns()
                 val sql = myDb.createTableInsertStatement(dataTableName, n)
                 val ps = connection.prepareStatement(sql)
-                for (row in buffer){
+                for (row in buffer) {
                     myDb.addBatch(row, n, ps)
                 }
-                val numInserts = ps.execute()
+                val numInserts = ps.executeBatch()
+                val k = numInserts.countGreaterEqualTo(0)
+                if (k < buffer.size) {
+                    KSL.logger.error("Unable to write all rows $k of buffer size ${buffer.size} to tabular file $dataTableName")
+                    throw IOException("Unable to write rows to tabular file $dataTableName")
+                } else {
+                    KSL.logger.trace { "Inserted $k rows of batch size ${buffer.size} into file $dataTableName" }
+                }
                 connection.commit()
-                numInserts
+                buffer.clear()
+                ps.clearBatch()
+                ps.close()
+                return k
             }
-        TODO("not implemented yet")
-        //TODO clear myLoadData here?
-        return 0
+        } catch (ex: Exception) {
+            when (ex) {
+                is BatchUpdateException,
+                is SQLException,
+                is IOException -> {
+                    KSL.logger.error("Unable to write all rows to tabular file $dataTableName")
+                    throw IOException("Unable to write all rows to tabular file $dataTableName")
+                }
+                else -> throw ex
+            }
+        }
     }
 
 
