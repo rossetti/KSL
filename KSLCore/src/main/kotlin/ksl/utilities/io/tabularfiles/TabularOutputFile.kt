@@ -145,6 +145,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      */
     fun flushRows() {
         if (myRowCount > 0) {
+            // there is data in the buffer
             val array: Array<Array<Any?>> = arrayOfNulls(myRowCount)
             for (i in array.indices) {
                 array[i] = myLoadData!![i]
