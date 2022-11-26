@@ -34,6 +34,7 @@ data class ColumnType(val name: String, val dataType: DataType)
  */
 abstract class TabularFile(columnTypes: Map<String, DataType>, val path: Path) {
 //TODO kotlin names and property conventions
+//TODO use a builder pattern to define and add the columns
 
     protected val myColumnTypes: Map<String, DataType> = columnTypes.toMap()
     protected var myNameAndIndex: MutableBiMap<String, Int> = HashBiMap()
