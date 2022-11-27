@@ -5,6 +5,8 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.ColumnMetaData
 import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.DatabaseIfc
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import java.io.IOException
 import java.nio.file.Path
 import java.sql.BatchUpdateException
@@ -12,8 +14,21 @@ import java.sql.SQLException
 import java.util.*
 import kotlin.math.max
 
+/**
+ *  An abstraction for writing rows of tabular data. Columns of the tabular
+ *  data can be of numeric or text.  Using this subclass of TabularFile
+ *  users can write rows of data.  The user is responsible for filling rows with
+ *  data of the appropriate type for the column and writing the row to the file.
+ *
+ *  Use the static methods of TabularFile to create and define the columns of the file.
+ *  Use the methods of this class to write rows.  After writing the rows, it is important
+ *  to call the flushRows() method to ensure that all buffered rows are committed to the file.
+ *
+ * @see ksl.utilities.io.tabularfiles.TabularFile
+ * @see ksl.utilities.io.tabularfiles.TestTabularWork  For example code
+ */
+
 class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : TabularFile(columnTypes, path) {
-    //TODO consider permitting the appending of rows to an existing file
 
     private val myDb: DatabaseIfc
 
@@ -149,6 +164,19 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
     fun flushRows() {
         if (myRowCount > 0) {
             insertData(myDataBuffer)
+        }
+    }
+
+    /**
+     *  Converts the columns and rows to a Dataframe.
+     *  @return the data frame or an empty data frame if conversion does not work
+     */
+    fun asDataFrame(): AnyFrame {
+        val resultSet = myDb.selectAllIntoOpenResultSet(dataTableName)
+        return if (resultSet!= null){
+            DatabaseIfc.toDataFrame(resultSet)
+        }else{
+            emptyDataFrame<Nothing>()
         }
     }
 

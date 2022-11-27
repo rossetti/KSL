@@ -8,9 +8,7 @@ import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import java.io.IOException
 import java.io.PrintWriter
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
@@ -18,13 +16,25 @@ import java.sql.Types
 import javax.sql.rowset.CachedRowSet
 import kotlin.math.min
 
+/**
+ * An abstraction for reading rows of tabular data. Columns of the tabular
+ * data can be of numeric or text.  Using this subclass of TabularFile
+ * users can read rows of data.  The user is responsible for iterating rows with
+ * data of the appropriate type for the column and reading the row into their program.
+ *
+ * Use the static methods of TabularFile to create and define the columns of the file.
+ * Use the methods of this class to read rows.
+ *
+ * @see ksl.utilities.io.tabularfiles.TabularFile
+ * @see ksl.utilities.io.tabularfiles.TestTabularWork  For example code
+ */
 class TabularInputFile private constructor(columnTypes: Map<String, DataType>, path: Path) :
     TabularFile(columnTypes, path) {
 
-    constructor(path: Path) : this(getColumnTypes(path), path)
+    constructor(path: Path) : this(columnTypes(path), path)
 
     private val myDb: DatabaseIfc
-    private val myDataTableName: String
+    private val dataTableName: String
 
     var rowBufferSize = DEFAULT_ROW_BUFFER_SIZE // maximum number of records held inside iterators
         set(value) {
@@ -43,15 +53,18 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
         // determine the name of the data table
         val fileName: String = path.fileName.toString()
         val fixedFileName = fileName.replace("[^a-zA-Z]".toRegex(), "")
-        myDataTableName = fixedFileName + "_Data"
+        dataTableName = fixedFileName + "_Data"
         // open up the database file
         myDb = DatabaseFactory.getSQLiteDatabase(path, true)
-        totalNumberRows = myDb.numRows(myDataTableName)
+        totalNumberRows = myDb.numRows(dataTableName)
         myConnection = myDb.getConnection()
-        val rowsSQL = "select * from $myDataTableName where rowid between ? and ?"
+        val rowsSQL = "select * from $dataTableName where rowid between ? and ?"
         myRowSelector = myConnection.prepareStatement(rowsSQL)
     }
 
+    /**
+     * Remember to close the file after all processing
+     */
     fun close() {
         myConnection.close()
         myRowSelector.close()
@@ -166,7 +179,6 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
 
     }
 
-
     // reuse the prepared statement many times
     private fun selectRows(minRowNum: Long, maxRowNum: Long): ResultSet {
         require(minRowNum > 0) { "The minimum row number must be > 0" }
@@ -182,7 +194,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      * @param removeMissing if true, then missing (NaN values) are removed
      * @return a map of the data keyed by column name
      */
-    fun getNumericColumns(maxRows: Int = 0, removeMissing: Boolean = false): Map<String, DoubleArray> {
+    fun numericColumns(maxRows: Int = 0, removeMissing: Boolean = false): Map<String, DoubleArray> {
         val map = mutableMapOf<String, DoubleArray>()
         val names = numericColumnNames
         for (name in names) {
@@ -197,7 +209,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      * @param removeMissing if true, then missing (NaN values) are removed
      * @return a map of the data keyed by column name
      */
-    fun getTextColumns(maxRows: Int = 0, removeMissing: Boolean = false): Map<String, Array<String?>> {
+    fun textColumns(maxRows: Int = 0, removeMissing: Boolean = false): Map<String, Array<String?>> {
         val map = mutableMapOf<String, Array<String?>>()
         val names = textColumnNames
         for (name in names) {
@@ -240,9 +252,9 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
         // build the query
         val colName = myColumnNames[columnNum]
         val sql = if (maxRows <= 0) {
-            "select $colName from $myDataTableName"
+            "select $colName from $dataTableName"
         } else {
-            "select $colName from $myDataTableName limit $maxRows"
+            "select $colName from $dataTableName limit $maxRows"
         }
         val rowSet: CachedRowSet? = myDb.fetchCachedRowSet(sql)
         val list = mutableListOf<Double>()
@@ -297,9 +309,9 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
         // build the query
         val colName = myColumnNames[columnNum]
         val sql = if (maxRows <= 0) {
-            "select $colName from $myDataTableName"
+            "select $colName from $dataTableName"
         } else {
-            "select $colName from $myDataTableName limit $maxRows"
+            "select $colName from $dataTableName limit $maxRows"
         }
         val rowSet: CachedRowSet? = myDb.fetchCachedRowSet(sql)
         val list = mutableListOf<String?>()
@@ -327,7 +339,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      *  @return the data frame or an empty data frame if conversion does not work
      */
     fun asDataFrame(): AnyFrame {
-        val resultSet = myDb.selectAllIntoOpenResultSet(myDataTableName)
+        val resultSet = myDb.selectAllIntoOpenResultSet(dataTableName)
         return if (resultSet!= null){
             DatabaseIfc.toDataFrame(resultSet)
         }else{
@@ -363,7 +375,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      * @param header true means the file will contain a header of column names
      */
     fun exportToCSV(out: PrintWriter, header: Boolean = true){
-        myDb.exportTableAsCSV(myDataTableName, out, schemaName = null, header)
+        myDb.exportTableAsCSV(dataTableName, out, schemaName = null, header)
     }
 
     /**
@@ -375,41 +387,22 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      */
     fun exportToExcelWorkbook(wbName: String, wbDirectory: Path) {
         val names: MutableList<String> = ArrayList()
-        names.add(myDataTableName)
+        names.add(dataTableName)
         myDb.exportToExcel(names, wbName = wbName, wbDirectory = wbDirectory)
     }
 
-    /**
-     * Transforms the file into an SQLite database file
-     *
-     * @return a reference to the database
-     * @throws IOException if something goes wrong
-     */
-    fun asDatabase(): DatabaseIfc {
-        val parent: Path = path.parent
-        val dbFile: Path = parent.resolve(path.fileName.toString() + ".sqlite")
-        Files.copy(path, dbFile, StandardCopyOption.REPLACE_EXISTING)
-        return DatabaseFactory.getSQLiteDatabase(dbFile)
-    }
-
     companion object {
-        //TODO I do not know why sqlite is leaving the shm and wal files every time this class is used
-        // one possible solution is to use DSL.using(connection, SQLDialect.SQLITE) so that the connection can be
-        // explicitly opened and closed. The shm and wal files are probably not being left in TabularOutputFile
-        // execution because those writes are wrapped in a transaction, which is closing the connection
-        // appears to be related to turning on wal option config.setJournalMode(SQLiteConfig.JournalMode.WAL);
-        // in DatabaseFactory
         const val DEFAULT_ROW_BUFFER_SIZE = 100
 
         /**
-         * Gets the meta data for an existing TabularInputFile.  The path must lead
+         * Gets the metadata for an existing TabularInputFile.  The path must lead
          * to a file that has the correct internal representation for tabular data files.
          * Such a file can be created via TabularOutputFile.
          *
          * @param pathToFile the path to the input file, must not be null
-         * @return the meta data for the file column names and data type
+         * @return the metadata for the file column names and data type
          */
-        fun getColumnTypes(pathToFile: Path): Map<String, DataType> {
+        fun columnTypes(pathToFile: Path): Map<String, DataType> {
             check(DatabaseFactory.isSQLiteDatabase(pathToFile)) { "The path does represent a valid TabularInputFile $pathToFile" }
             // determine the name of the data table
             val fileName = pathToFile.fileName.toString()

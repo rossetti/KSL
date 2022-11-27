@@ -1,8 +1,10 @@
 package ksl.utilities.io.tabularfiles
 
 import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.random.rvariable.NormalRV
+import java.io.IOException
 import java.io.PrintWriter
 import java.nio.file.Path
 
@@ -87,11 +89,11 @@ private fun readFile() {
     }
 
     // You can write the data to an Excel workbook
-//    try {
-//        tif.exportToExcelWorkbook("demoData.xlsx", KSL.excelDir)
-//    } catch (e: IOException) {
-//        e.printStackTrace()
-//    }
+    try {
+        tif.exportToExcelWorkbook("demoData.xlsx", KSL.excelDir)
+    } catch (e: IOException) {
+        e.printStackTrace()
+    }
 
     // You can pretty print rows of the data
     //TODO this is not printing to out
@@ -104,11 +106,11 @@ private fun readFile() {
     printWriter.close()
 
     // You can copy the file to a SQLite database
-//    try {
-//        val database: DatabaseIfc = tif.asDatabase()
-//    } catch (e: IOException) {
-//        e.printStackTrace()
-//    }
+    try {
+        val database: DatabaseIfc = tif.asDatabase()
+    } catch (e: IOException) {
+        e.printStackTrace()
+    }
     println()
     println("Printing a data frame version")
     val df = tif.asDataFrame()
