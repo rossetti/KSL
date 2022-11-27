@@ -53,9 +53,10 @@ private fun writeFile() {
 private fun readFile() {
     val path: Path = KSLDatabase.dbDir.resolve("demoFile")
     val tif = TabularInputFile(path)
-    System.out.println(tif)
+    println(tif)
 
     // TabularInputFile is Iterable and foreach construct works across rows
+    println("Printing all rows from an iterator")
     for (row in tif.iterator()) {
         println(row)
     }
@@ -63,6 +64,7 @@ private fun readFile() {
     println()
 
     // You can fetch rows as a list
+    println("Printing a subset of rows")
     val rows: List<RowGetterIfc> = tif.fetchRows(1, 5)
     for (row in rows) {
         println(row)
@@ -71,6 +73,7 @@ private fun readFile() {
     println()
 
     // You can iterate starting at any row
+    println("Print starting at row 9")
     val iterator: TabularInputFile.RowIterator = tif.iterator(9)
     while (iterator.hasNext()) {
         println(iterator.next())
@@ -79,34 +82,38 @@ private fun readFile() {
     println()
 
     // You can grab various columns as arrays
+    println("Printing column 0")
     val numericColumn: DoubleArray = tif.fetchNumericColumn(0, 10, true)
     for (v in numericColumn) {
         println(v)
     }
 
     // You can write the data to an Excel workbook
-    try {
-        tif.exportToExcelWorkbook("demoData.xlsx", KSL.excelDir)
-    } catch (e: IOException) {
-        e.printStackTrace()
-    }
+//    try {
+//        tif.exportToExcelWorkbook("demoData.xlsx", KSL.excelDir)
+//    } catch (e: IOException) {
+//        e.printStackTrace()
+//    }
 
     // You can pretty print rows of the data
+    //TODO this is not printing to out
     tif.printAsText(1, 5)
 
     // You can write the data to CSV
+    //TODO data has quotes
     val printWriter: PrintWriter = KSL.createPrintWriter("data.csv")
     tif.exportToCSV(printWriter, true)
     printWriter.close()
 
     // You can copy the file to a SQLite database
-    try {
-        val database: DatabaseIfc = tif.asDatabase()
-    } catch (e: IOException) {
-        e.printStackTrace()
-    }
+//    try {
+//        val database: DatabaseIfc = tif.asDatabase()
+//    } catch (e: IOException) {
+//        e.printStackTrace()
+//    }
     println()
+    println("Printing a data frame version")
     val df = tif.asDataFrame()
-    System.out.println(df)
+    println(df)
     println("Done with demo example.")
 }
