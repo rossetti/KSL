@@ -182,6 +182,22 @@ interface RowSetterIfc : RowIfc {
     fun setElements(elements: Array<Any?>)
 
     /**
+     * The row is filled with the elements. Numeric elements are saved in
+     * numeric columns in the order presented. Non-numeric elements are all converted
+     * to strings and stored in the order presented. Numeric elements are of types
+     * {Double, Long, Integer, Boolean, Float, Short, Byte}. Any other type is
+     * converted to text via toString().
+     *
+     *
+     * The order and types of the elements must match the order and types associated
+     * with the columns.
+     *
+     * @param elements the elements to add to the row. The number of elements must
+     * be equal to the number of columns
+     */
+    fun setElements(elements: List<Any?>)
+
+    /**
      * @param colNum  the column number to set
      * @param element the element to set
      */
@@ -460,6 +476,16 @@ class Row(tabularFile: TabularFile) : RowGetterIfc, RowSetterIfc, RowIfc {
     override fun setElements(elements: Array<Any?>) {
         require(elements.size == numberColumns) { "The number of elements does not equal the number of columns" }
         require(myTabularFile.checkTypes(elements)) { "The elements do not match the types for each column" }
+        // the type of the elements are unknown and must be tested
+        // must convert numeric elements to doubles, non-numeric to strings
+        for (i in elements.indices) {
+            setElement(i, elements[i])
+        }
+    }
+
+    override fun setElements(elements: List<Any?>) {
+        require(elements.size == numberColumns) { "The number of elements does not equal the number of columns" }
+        require(myTabularFile.checkTypes(elements.toTypedArray())) { "The elements do not match the types for each column" }
         // the type of the elements are unknown and must be tested
         // must convert numeric elements to doubles, non-numeric to strings
         for (i in elements.indices) {

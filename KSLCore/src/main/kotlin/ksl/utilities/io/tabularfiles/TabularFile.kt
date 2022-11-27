@@ -1,8 +1,10 @@
 package ksl.utilities.io.tabularfiles
 
+import ksl.utilities.io.dbutil.ResultSetRowIterator
 import ksl.utilities.maps.HashBiMap
 import ksl.utilities.maps.MutableBiMap
 import java.nio.file.Path
+import java.sql.ResultSet
 
 enum class DataType {
     NUMERIC, TEXT
