@@ -206,8 +206,8 @@ interface RowSetterIfc : RowIfc {
 
 /**
  * An abstraction for getting information and data from a row within a tabular file.
- * The access to the columns is 0-based.  Why? Because most if not all of java's
- * data containers (arrays, lists, etc.) are 0-based.  The the first column has index 0,
+ * The access to the columns is 0-based.  Why? Because most if not all of kotlin's
+ * data containers (arrays, lists, etc.) are 0-based.  The first column has index 0,
  * 2nd column has index 1, etc.
  */
 interface RowGetterIfc : RowIfc {
@@ -273,7 +273,7 @@ interface RowGetterIfc : RowIfc {
 
 /**
  * An abstraction for a row within a tabular file.
- * The access to the columns is 0-based.  Why? Because most if not all of java's
+ * The access to the columns is 0-based.  Why? Because most if not all of kotlin's
  * data containers (arrays, lists, etc.) are 0-based.  The first column has index 0,
  * 2nd column has index 1, etc.
  */
