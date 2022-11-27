@@ -47,8 +47,8 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
 
     init {
         require(columns.isNotEmpty()) { "The number of columns must be > 0" }
-        for (name in myColumnTypes.keys) {
-            myColumnNames.add(name)
+        for ((k,v) in myColumnTypes) {
+            myColumnNames.add(k)
         }
         var i = 0
         var cntNumeric = 0
@@ -56,7 +56,6 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
         for (name in myColumnNames) {
             myNameAndIndex[name] = i
             val type = myColumnTypes[name]!!
-//            println("processing column $name with data type = $type")
             if (type === DataType.NUMERIC) {
                 myNumericIndices[i] = cntNumeric
                 cntNumeric++

@@ -51,7 +51,7 @@ abstract class AbstractBiMap<K : Any, V : Any> protected constructor(
     override val values: MutableSet<V>
         get() = inverse.keys
 
-    constructor() : this(HashMap(), HashMap())
+    constructor() : this(LinkedHashMap(), LinkedHashMap())
 
     override fun forcePut(key: K, value: V): V? {
         val oldValue = direct.put(key, value)
@@ -194,7 +194,7 @@ abstract class AbstractBiMap<K : Any, V : Any> protected constructor(
     }
 }
 
-class HashBiMap<K : Any, V : Any>(capacity: Int = 16) : AbstractBiMap<K, V>(HashMap(capacity), HashMap(capacity)) {
+class HashBiMap<K : Any, V : Any>(capacity: Int = 16) : AbstractBiMap<K, V>(LinkedHashMap(capacity), LinkedHashMap(capacity)) {
     companion object {
         fun <K : Any, V : Any> create(map: Map<K, V>): HashBiMap<K, V> {
             val bimap = HashBiMap<K, V>()
