@@ -56,7 +56,8 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
         for (name in myColumnNames) {
             myNameAndIndex[name] = i
             val type = myColumnTypes[name]!!
-            if (type == DataType.NUMERIC) {
+            println("processing column $name with data type = $type")
+            if (type === DataType.NUMERIC) {
                 myNumericIndices[i] = cntNumeric
                 cntNumeric++
             } else {
@@ -77,11 +78,17 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
         sb.appendLine("Column Types:")
         sb.appendLine(myDataTypes)
         sb.appendLine("Column Indices:")
-        sb.appendLine(myNameAndIndex)
+        for((k,v) in myNameAndIndex){
+            sb.appendLine("$k = $v")
+        }
         sb.appendLine("Numeric Indices:")
-        sb.appendLine(myNumericIndices)
+        for((k,v) in myNumericIndices){
+            sb.appendLine("$k = $v")
+        }
         sb.appendLine("Text Indices:")
-        sb.appendLine(myTextIndices)
+        for((k,v) in myTextIndices){
+            sb.appendLine("$k = $v")
+        }
         return sb.toString()
     }
 

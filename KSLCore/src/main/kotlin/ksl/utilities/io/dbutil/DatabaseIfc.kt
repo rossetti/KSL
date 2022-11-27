@@ -1610,7 +1610,7 @@ interface DatabaseIfc : DatabaseIOIfc {
          * @param writer the writer to use
          */
         fun writeAsCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer) {
-            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }
+//            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }
             //okay because resultSet is only read from
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()

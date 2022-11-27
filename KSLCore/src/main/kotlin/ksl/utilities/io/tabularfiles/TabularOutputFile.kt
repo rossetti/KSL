@@ -249,7 +249,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
             require(numNumericColumns >= 0) { "The number of numeric columns must be >= 0" }
             require(numTextColumns >= 0) { "The number of text columns must be >= 0" }
             require(maxTextLength >= 0) { "The maximum text length must be >= 0" }
-            require((numNumericColumns == 0) && (numTextColumns) != 0) { "The number of numeric columns and the number of text cannot both be zero" }
+            require((numNumericColumns != 0) && (numTextColumns) != 0) { "The number of numeric columns and the number of text cannot both be zero" }
             val nb = numNumericColumns * 8
             val tb = numTextColumns * maxTextLength * 2
             return nb + tb

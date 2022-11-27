@@ -432,6 +432,9 @@ class Row(tabularFile: TabularFile) : RowGetterIfc, RowSetterIfc, RowIfc {
     override val elements: List<Any?>
         get() {
             val elements = mutableListOf<Any?>()
+            for (i in 0 until numberColumns){
+                elements.add(null)
+            }
             // need to copy elements from storage arrays to correct object location
             // go from storage arrays to elements because type is known
             for (i in numericData.indices) {
