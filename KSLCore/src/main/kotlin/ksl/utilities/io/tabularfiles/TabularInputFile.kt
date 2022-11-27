@@ -6,6 +6,7 @@ import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.DatabaseIfc
 import java.io.IOException
 import java.nio.file.Path
+import java.sql.ResultSet
 import java.sql.Types
 import javax.sql.rowset.CachedRowSet
 
@@ -57,7 +58,11 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
 
     }
 
-    private fun selectRows(minRowNum: Long, maxRowNum: Long): CachedRowSet {
+    // make the query string for the prepared statement
+    // then make the prepared statement
+    // then reuse the prepared statement many times
+    
+    private fun selectRows(minRowNum: Long, maxRowNum: Long): ResultSet {
         require(minRowNum > 0) { "The minimum row number must be > 0" }
         require(maxRowNum > 0) { "The maximum row number must be > 0" }
         require(minRowNum <= maxRowNum) { "The minimum row number must be < the maximum row number." }
