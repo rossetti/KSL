@@ -1,10 +1,8 @@
 package ksl.utilities.io.tabularfiles
 
-import ksl.utilities.io.dbutil.ResultSetRowIterator
 import ksl.utilities.maps.HashBiMap
 import ksl.utilities.maps.MutableBiMap
 import java.nio.file.Path
-import java.sql.ResultSet
 
 enum class DataType {
     NUMERIC, TEXT
@@ -35,7 +33,7 @@ data class ColumnType(val name: String, val dataType: DataType)
  *
  */
 abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
-//TODO kotlin names and property conventions
+
 //TODO use a builder pattern to define and add the columns
 
     protected val myColumnTypes: Map<String, DataType> = columns.toMap()
@@ -96,7 +94,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
      * @param colNum the column index
      * @return the assigned storage-index for the numeric value
      */
-    fun getNumericStorageIndex(colNum: Int): Int {
+    fun numericStorageIndex(colNum: Int): Int {
         return myNumericIndices[colNum]!!
     }
 
@@ -105,7 +103,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
      * @param colNum the column index
      * @return the assigned storage-index for the text value
      */
-    fun getTextStorageIndex(colNum: Int): Int {
+    fun textStorageIndex(colNum: Int): Int {
         return myTextIndices[colNum]!!
     }
 
@@ -114,7 +112,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
      * @param storageIndex the storage index to find
      * @return the column index
      */
-    fun getColumnIndexForNumeric(storageIndex: Int): Int {
+    fun columnIndexForNumeric(storageIndex: Int): Int {
         return myNumericIndices.inverse[storageIndex]!!
     }
 
@@ -123,7 +121,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
      * @param storageIndex the storage index to find
      * @return the column index
      */
-    fun getColumnIndexForText(storageIndex: Int): Int {
+    fun columnIndexForText(storageIndex: Int): Int {
         return myTextIndices.inverse[storageIndex]!!
     }
 
@@ -132,7 +130,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
      * @param colNum 0 based indexing
      * @return the name of the column at the index
      */
-    fun getColumnName(colNum: Int): String {
+    fun columnName(colNum: Int): String {
         return myNameAndIndex.inverse[colNum]!!
     }
 
@@ -141,23 +139,24 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
      * @param colNum 0 based indexing
      * @return the data type of the column at the index
      */
-    fun getDataType(colNum: Int): DataType {
-        return getDataTypes().get(colNum)
+    fun dataType(colNum: Int): DataType {
+        return dataTypes[colNum]
     }
 
     /**
      * @return the number of columns of tabular data
      */
-    fun getNumberColumns(): Int {
-        return getColumnTypes().size
-    }
+    val numberColumns: Int
+        get() {
+            return columnTypes.size
+        }
 
     /**
      *
      * @param name the name of the column
      * @return the index or -1 if not found
      */
-    fun getColumn(name: String): Int {
+    fun columnIndex(name: String): Int {
         return myNameAndIndex[name] ?: return -1
     }
 
@@ -183,85 +182,94 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
      *
      * @return the total number of numeric columns
      */
-    fun getNumNumericColumns(): Int {
-        return myNumericIndices.size
-    }
+    val numNumericColumns: Int
+        get() {
+            return myNumericIndices.size
+        }
 
     /**
      *
      * @return the total number of text columns
      */
-    fun getNumTextColumns(): Int {
-        return myTextIndices.size
-    }
+    val numTextColumns: Int
+        get() {
+            return myTextIndices.size
+        }
 
     /**
      *
      * @return the map of columns associated with this tabular file
      */
-    fun getColumnTypes(): Map<String, DataType> {
-        return myColumnTypes.toMap()
-    }
+    val columnTypes: Map<String, DataType>
+        get() {
+            return myColumnTypes.toMap()
+        }
 
     /**
      * @return an ordered list of the column names
      */
-    fun getColumnNames(): List<String> {
-        return myColumnNames
-    }
+    val columnNames: List<String>
+        get() {
+            return myColumnNames
+        }
 
     /**
      *
      * @return  A list of all the numeric column names
      */
-    fun getNumericColumnNames(): List<String> {
-        val theNames: MutableList<String> = ArrayList()
-        val allNames = getColumnNames()
-        for (name in allNames) {
-            if (isNumeric(getColumn(name))) {
-                theNames.add(name)
+    val numericColumnNames: List<String>
+        get() {
+            val theNames: MutableList<String> = ArrayList()
+            val allNames = columnNames
+            for (name in allNames) {
+                if (isNumeric(columnIndex(name))) {
+                    theNames.add(name)
+                }
             }
+            return theNames
         }
-        return theNames
-    }
 
     /**
      *
      * @return  A list of all the text column names
      */
-    fun getTextColumnNames(): List<String> {
-        val theNames: MutableList<String> = ArrayList()
-        val allNames = getColumnNames()
-        for (name in allNames) {
-            if (isText(getColumn(name))) {
-                theNames.add(name)
+    val textColumnNames: List<String>
+        get() {
+            val theNames: MutableList<String> = ArrayList()
+            val allNames = columnNames
+            for (name in allNames) {
+                if (isText(columnIndex(name))) {
+                    theNames.add(name)
+                }
             }
+            return theNames
         }
-        return theNames
-    }
 
     /**
      * @return an ordered list of the column data types
      */
-    fun getDataTypes(): List<DataType> {
-        return myDataTypes
-    }
+    val dataTypes: List<DataType>
+        get() {
+            return myDataTypes
+        }
 
     /**
      *
      * @return true if all columns have type NUMERIC
      */
-    fun isAllNumeric(): Boolean {
-        return myDataTypes.size == getNumNumericColumns()
-    }
+    val isAllNumeric: Boolean
+        get() {
+            return myDataTypes.size == numNumericColumns
+        }
 
     /**
      *
      * @return true if all columns have type TEXT
      */
-    fun isAllText(): Boolean {
-        return myDataTypes.size == getNumTextColumns()
-    }
+    val isAllText: Boolean
+        get() {
+            return myDataTypes.size == numTextColumns
+        }
 
     /**
      *
@@ -269,10 +277,10 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
      * @return true if all elements match the correct types
      */
     fun checkTypes(elements: Array<Any?>): Boolean {
-        if (elements.size != getNumberColumns()) {
+        if (elements.size != numberColumns) {
             return false
         }
-        val dataTypes = getDataTypes()
+        val dataTypes = dataTypes
         for ((i, type) in dataTypes.withIndex()) {
             if (type == DataType.NUMERIC) {
                 if (elements[i] == null){

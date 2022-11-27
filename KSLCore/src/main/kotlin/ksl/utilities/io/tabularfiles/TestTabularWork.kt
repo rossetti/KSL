@@ -1,10 +1,8 @@
 package ksl.utilities.io.tabularfiles
 
 import ksl.utilities.io.KSL
-import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.random.rvariable.NormalRV
-import java.io.IOException
 import java.io.PrintWriter
 import java.nio.file.Path
 
@@ -32,7 +30,7 @@ private fun writeFile() {
     val n = NormalRV(10.0, 1.0)
     val k = 15
     // get a row
-    val row: RowSetterIfc = tif.getRow()
+    val row: RowSetterIfc = tif.row()
     // write some data to each row
     println("Writing rows...")
     for (i in 1..k) {
@@ -116,4 +114,6 @@ private fun readFile() {
     val df = tif.asDataFrame()
     println(df)
     println("Done with demo example.")
+
+    tif.close()
 }

@@ -289,8 +289,8 @@ class Row(tabularFile: TabularFile) : RowGetterIfc, RowSetterIfc, RowIfc {
 
     init {
         myTabularFile = tabularFile
-        textData = arrayOfNulls(tabularFile.getNumTextColumns())
-        numericData = DoubleArray(tabularFile.getNumNumericColumns())
+        textData = arrayOfNulls(tabularFile.numTextColumns)
+        numericData = DoubleArray(tabularFile.numNumericColumns)
         numericData.fill(Double.NaN)
     }
 
@@ -321,37 +321,37 @@ class Row(tabularFile: TabularFile) : RowGetterIfc, RowSetterIfc, RowIfc {
             return n
         }
     override val numNumericColumns: Int
-        get() = myTabularFile.getNumNumericColumns()
+        get() = myTabularFile.numNumericColumns
     override val numTextColumns: Int
-        get() = myTabularFile.getNumTextColumns()
+        get() = myTabularFile.numTextColumns
     override val columnTypes: Map<String, DataType>
-        get() = myTabularFile.getColumnTypes()
+        get() = myTabularFile.columnTypes
     override val columnNames: List<String>
-        get() = myTabularFile.getColumnNames()
+        get() = myTabularFile.columnNames
     override val dataTypes: List<DataType>
-        get() = myTabularFile.getDataTypes()
+        get() = myTabularFile.dataTypes
 
     override fun getDataType(colNum: Int): DataType {
-        return myTabularFile.getDataType(colNum)
+        return myTabularFile.dataType(colNum)
     }
 
     override val numberColumns: Int
-        get() = myTabularFile.getNumberColumns()
+        get() = myTabularFile.numberColumns
     override val isAllNumeric: Boolean
-        get() = myTabularFile.isAllNumeric()
+        get() = myTabularFile.isAllNumeric
     override val isAllText: Boolean
-        get() = myTabularFile.isAllText()
+        get() = myTabularFile.isAllText
 
     override fun getType(col: Int): DataType {
-        return myTabularFile.getDataType(col)
+        return myTabularFile.dataType(col)
     }
 
     override fun getColumnName(col: Int): String {
-        return myTabularFile.getColumnName(col)
+        return myTabularFile.columnName(col)
     }
 
     override fun getColumn(name: String): Int {
-        return myTabularFile.getColumn(name)
+        return myTabularFile.columnIndex(name)
     }
 
     override fun isNumeric(i: Int): Boolean {
@@ -366,19 +366,19 @@ class Row(tabularFile: TabularFile) : RowGetterIfc, RowSetterIfc, RowIfc {
         check(!isText(colNum)) { "The row does not contain a double value at this index" }
         // colNum is the actual index across all columns
         // must store the double at it's appropriate index in the storage array
-        numericData[myTabularFile.getNumericStorageIndex(colNum)] = value
+        numericData[myTabularFile.numericStorageIndex(colNum)] = value
     }
 
     override fun setText(colNum: Int, value: String?) {
         check(!isNumeric(colNum)) { "The row does not contain a text value at this index" }
         // colNum is the actual index across all columns
         // must store the string at it's appropriate index in the storage array
-        textData[myTabularFile.getTextStorageIndex(colNum)] = value
+        textData[myTabularFile.textStorageIndex(colNum)] = value
     }
 
     override fun getNumeric(colNum: Int): Double {
         check(!isText(colNum)) { "The row does not contain a double value at this index" }
-        return numericData[myTabularFile.getNumericStorageIndex(colNum)]
+        return numericData[myTabularFile.numericStorageIndex(colNum)]
     }
 
     override val numeric: DoubleArray
@@ -386,7 +386,7 @@ class Row(tabularFile: TabularFile) : RowGetterIfc, RowSetterIfc, RowIfc {
 
     override fun getText(colNum: Int): String? {
         check(!isNumeric(colNum)) { "The row does not contain a text value at this index" }
-        return textData[myTabularFile.getTextStorageIndex(colNum)]
+        return textData[myTabularFile.textStorageIndex(colNum)]
     }
 
     override val text: Array<String?>
@@ -439,12 +439,12 @@ class Row(tabularFile: TabularFile) : RowGetterIfc, RowSetterIfc, RowIfc {
             // go from storage arrays to elements because type is known
             for (i in numericData.indices) {
                 // look up the index of the column
-                val col: Int = myTabularFile.getColumnIndexForNumeric(i)
+                val col: Int = myTabularFile.columnIndexForNumeric(i)
                 elements[col] = numericData[i]
             }
             for (i in textData.indices) {
                 // look up the index of the column
-                val col: Int = myTabularFile.getColumnIndexForText(i)
+                val col: Int = myTabularFile.columnIndexForText(i)
                 elements[col] = textData[i]
             }
             return elements

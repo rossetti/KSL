@@ -1,12 +1,10 @@
 package ksl.utilities.io.tabularfiles
 
-import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.dbutil.ColumnMetaData
 import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.ResultSetRowIterator
 import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import java.io.IOException
 import java.io.PrintWriter
@@ -186,7 +184,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      */
     fun getNumericColumns(maxRows: Int = 0, removeMissing: Boolean = false): Map<String, DoubleArray> {
         val map = mutableMapOf<String, DoubleArray>()
-        val names = getNumericColumnNames()
+        val names = numericColumnNames
         for (name in names) {
             val values = fetchNumericColumn(name, maxRows, removeMissing)
             map[name] = values
@@ -201,7 +199,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      */
     fun getTextColumns(maxRows: Int = 0, removeMissing: Boolean = false): Map<String, Array<String?>> {
         val map = mutableMapOf<String, Array<String?>>()
-        val names = getTextColumnNames()
+        val names = textColumnNames
         for (name in names) {
             val values: Array<String?> = fetchTextColumn(name, maxRows, removeMissing)
             map[name] = values
@@ -218,7 +216,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      * @return the array of values
      */
     fun fetchNumericColumn(columnName: String, maxRows: Int = 0, removeMissing: Boolean = false): DoubleArray {
-        val columnNum = getColumn(columnName)
+        val columnNum = columnIndex(columnName)
         if (columnNum == -1) {
             return emptyArray<Double>().toDoubleArray()
         }
@@ -234,7 +232,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      * @return the array of values
      */
     fun fetchNumericColumn(columnNum: Int, maxRows: Int = 0, removeMissing: Boolean = false): DoubleArray {
-        require((columnNum >= 0) && (columnNum < getNumberColumns())) { "The supplied column number was out of range" }
+        require((columnNum >= 0) && (columnNum < numberColumns)) { "The supplied column number was out of range" }
         if (!isNumeric(columnNum)) {
             return emptyArray<Double>().toDoubleArray()
         }
@@ -276,7 +274,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      * @return the array of values
      */
     fun fetchTextColumn(columnName: String, maxRows: Int = 0, removeMissing: Boolean = false): Array<String?> {
-        val columnNum = getColumn(columnName)
+        val columnNum = columnIndex(columnName)
         if (columnNum == -1) {
             return emptyArray()
         }
@@ -292,7 +290,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      * @return the array of values
      */
     fun fetchTextColumn(columnNum: Int, maxRows: Int = 0, removeMissing: Boolean = false): Array<String?> {
-        require((columnNum >= 0) && (columnNum < getNumberColumns())) { "The supplied column number was out of range" }
+        require((columnNum >= 0) && (columnNum < numberColumns)) { "The supplied column number was out of range" }
         if (!isText(columnNum)) {
             return emptyArray()
         }
