@@ -95,13 +95,13 @@ interface RowIfc {
 interface RowSetterIfc : RowIfc {
     /**
      * @param colNum the index into the row (0 based)
-     * @param value  the value to set, will throw an exception of the cell is not NUMERIC
+     * @param value  the value to set, will throw an exception if the cell is not NUMERIC
      */
     fun setNumeric(colNum: Int, value: Double)
 
     /**
      * @param colNum the index into the row (0 based)
-     * @param value  the value to set, will throw an exception of the cell is not NUMERIC
+     * @param value  the value to set, will throw an exception if the cell is not NUMERIC
      */
     fun setNumeric(colNum: Int, value: Boolean) {
         if (value) {
@@ -113,7 +113,7 @@ interface RowSetterIfc : RowIfc {
 
     /**
      * @param colNum the index into the row (0 based)
-     * @param value  the value to set, will throw an exception of the cell is not TEXT
+     * @param value  the value to set, will throw an exception if the cell is not TEXT
      */
     fun setText(colNum: Int, value: String?)
 
