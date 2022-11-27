@@ -1614,7 +1614,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             //okay because resultSet is only read from
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
-            csvWriter.writeAll(resultSet, header)
+            csvWriter.writeAll(resultSet,header,false,false)
         }
 
         /**
@@ -1631,6 +1631,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 writer.println(tw.rowSeparator)
             }
             rowSet.beforeFirst()
+            writer.flush()
         }
 
         /**
@@ -1656,6 +1657,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 writer.println(line)
             }
             rowSet.beforeFirst()
+            writer.flush()
         }
 
         /** Populates a CachedRowSet based on the supplied ResultSet

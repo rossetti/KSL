@@ -345,7 +345,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      */
     fun printAsText(minRowNum: Long = 1, maxRowNum: Long = minRowNum + 10){
         val resultSet = selectRows(minRowNum, maxRowNum)
-        DatabaseIfc.writeAsText(DatabaseIfc.createCachedRowSet(resultSet), PrintWriter(System.out))
+        DatabaseIfc.writeAsText(DatabaseIfc.createCachedRowSet(resultSet), PrintWriter(System.out, true))
     }
 
     /**

@@ -43,20 +43,22 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
         val h = StringBuilder()
         val list = mutableListOf<String>()
         for (i in 1..columnCount) {
-            columnMetaData[i-1].label
-            val column = DbColumn(i, columnMetaData[i-1].label, columnMetaData[i-1].type, columnMetaData[i-1].typeName)
+            columnMetaData[i - 1].label
+            val column =
+                DbColumn(i, columnMetaData[i - 1].label, columnMetaData[i - 1].type, columnMetaData[i - 1].typeName)
             list.add(column.name)
             myColumns.add(column)
-            val tn = columnMetaData[i-1].tableName
+            val tn = columnMetaData[i - 1].tableName
             if (!tableNames.contains(tn)) {
                 tableNames.add(tn)
             }
             rs.append("+")
             rs.append("-".repeat(column.width))
             ch.append("|")
-            ch.append(" ".repeat(paddingSize))
-            ch.append(column.name)
-            ch.append(" ".repeat(paddingSize))
+ //           ch.append(" ".repeat(paddingSize))
+            val fmt = "%${column.width}s"
+            ch.append(fmt.format(column.name))
+//            ch.append(" ".repeat(paddingSize))
         }
         rs.append("+")
 //        rs.appendLine()
@@ -92,7 +94,7 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
         return list
     }
 
-    fun rowAsInsertString(rowNum: Int): List<String>{
+    fun rowAsInsertString(rowNum: Int): List<String> {
         if (rowNum !in 1..numRows) {
             return emptyList()
         }
@@ -126,10 +128,10 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
             val v = list[i]
             sb.append("|")
             val fmt = "%${c.width}s"
-            if (v.length >= c.width){
-                val s = v.take(c.width-2*paddingSize).plus("...")
+            if (v.length >= c.width) {
+                val s = v.take(c.width - 2 * paddingSize).plus("...")
                 sb.append(fmt.format(s))
-            } else{
+            } else {
                 sb.append(fmt.format(v))
             }
 //            if (v.length >= c.width) {
@@ -194,10 +196,6 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
     }
 
     companion object {
-        /**
-         * Default maximum number of rows to query and print.
-         */
-        const val DEFAULT_MAX_ROWS = 10
 
         /**
          * Default maximum width for text columns
@@ -206,6 +204,15 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
         var DEFAULT_MAX_COL_WIDTH = 32
 
         var DEFAULT_PADDING = 2
+
+        var DEFAULT_MIN_COL_WIDTH = 12
+            set(value) {
+                field = if (value <= 4){
+                    4
+                } else {
+                    value
+                }
+            }
 
         /** Mapping sql type to text printing type
          * @param type the SQL type via java.sql.Types
@@ -267,7 +274,8 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
         val textType = textType(type)
         val width: Int
             get() {
-                return minOf(name.length + 2 * paddingSize, DEFAULT_MAX_COL_WIDTH)
+                val w = name.length + 2 * paddingSize
+                return minOf(maxOf(w, DEFAULT_MIN_COL_WIDTH), DEFAULT_MAX_COL_WIDTH)
             }
     }
 
@@ -279,7 +287,7 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = n
         return FormattedRowIterator()
     }
 
-    fun insertTextRowIterator(): Iterator<List<String>>{
+    fun insertTextRowIterator(): Iterator<List<String>> {
         return InsertTextRowsIterator()
     }
 
