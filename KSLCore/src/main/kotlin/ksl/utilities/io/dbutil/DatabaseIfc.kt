@@ -1614,7 +1614,8 @@ interface DatabaseIfc : DatabaseIOIfc {
             //okay because resultSet is only read from
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
-            csvWriter.writeAll(resultSet,header,false,false)
+            csvWriter.writeAll(resultSet,header,false,true)
+            csvWriter.flushQuietly()
         }
 
         /**

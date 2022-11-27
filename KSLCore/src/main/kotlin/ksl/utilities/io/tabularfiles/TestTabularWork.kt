@@ -96,7 +96,6 @@ private fun readFile() {
     }
 
     // You can pretty print rows of the data
-    //TODO this is not printing to out
     tif.printAsText(1, 5)
 
     // You can write the data to CSV
