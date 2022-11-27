@@ -50,7 +50,7 @@ interface DatabaseIOIfc {
      * @param header true means column names as the header included
      * @param out       the PrintWriter to write to.  The print writer is not closed.
      */
-    fun writeTableAsCSV(
+    fun exportTableAsCSV(
         tableName: String,
         out: PrintWriter,
         schemaName: String? = defaultSchemaName,
@@ -133,7 +133,7 @@ interface DatabaseIOIfc {
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
      * @param header  true means all files will have the column headers
      */
-    fun writeAllTablesAsCSV(
+    fun exportAllTablesAsCSV(
         pathToOutPutDirectory: Path,
         schemaName: String? = defaultSchemaName,
         header: Boolean = true
@@ -476,7 +476,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param header true means column names as the header included
      * @param out       the PrintWriter to write to.  The print writer is not closed.
      */
-    override fun writeTableAsCSV(
+    override fun exportTableAsCSV(
         tableName: String,
         out: PrintWriter,
         schemaName: String?,
@@ -507,7 +507,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName the name of the table to print
      */
     override fun printTableAsCSV(tableName: String, schemaName: String?, header: Boolean) {
-        writeTableAsCSV(tableName, PrintWriter(System.out), schemaName, header)
+        exportTableAsCSV(tableName, PrintWriter(System.out), schemaName, header)
     }
 
     /**
@@ -642,7 +642,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
      * @param header  true means all files will have the column headers
      */
-    override fun writeAllTablesAsCSV(
+    override fun exportAllTablesAsCSV(
         pathToOutPutDirectory: Path,
         schemaName: String?,
         header: Boolean
@@ -656,7 +656,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         for (table in tables) {
             val path: Path = pathToOutPutDirectory.resolve("$table.csv")
             val writer = KSLFileUtil.createPrintWriter(path)
-            writeTableAsCSV(table, writer, schemaName, header)
+            exportTableAsCSV(table, writer, schemaName, header)
             writer.close()
         }
     }
