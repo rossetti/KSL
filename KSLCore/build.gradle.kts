@@ -41,9 +41,9 @@ dependencies {
     api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    api(group = "ch.qos.logback", name = "logback-classic", version = "1.4.4")
+    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.4.4")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    api(group = "ch.qos.logback", name = "logback-core", version = "1.4.4")
+    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.4.4")
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
@@ -54,13 +54,15 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
-    implementation("org.jetbrains.kotlinx:dataframe-core:0.8.1")
+    api("org.jetbrains.kotlinx:dataframe-core:0.8.1")
 
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.20")
 
     // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
     implementation("org.ktorm:ktorm-core:3.5.0")
+
+    implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
 
     // https://mvnrepository.com/artifact/com.opencsv/opencsv
     implementation("com.opencsv:opencsv:5.7.1") //TODO this vulnerability is not reported on Maven Central
