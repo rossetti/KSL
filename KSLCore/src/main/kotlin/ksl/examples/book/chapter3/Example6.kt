@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,23 +18,27 @@
 
 package ksl.examples.book.chapter3
 
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.randomlySelect
+import ksl.utilities.random.rvariable.UniformRV
+import ksl.utilities.statistic.Statistic
 
 /**
- * This example illustrates how to use the randomlySelect() method
- * of the KSLRandom class to randomly select from a list. The extension
- * function for lists can also be used.
+ * This example illustrates how to perform simple Monte-Carlo
+ * integration on the sqrt(x) over the range from 1 to 4.
  */
 fun main() {
-    // create a list
-    val strings = listOf("A", "B", "C", "D")
-    // randomly pick from the list, with equal probability
-    for (i in 1..5) {
-        println(KSLRandom.randomlySelect(strings))
+    val a = 1.0
+    val b = 4.0
+    val ucdf = UniformRV(a, b)
+    val stat = Statistic("Area Estimator")
+    val n = 100 // sample size
+    for (i in 1..n) {
+        val x = ucdf.value
+        val gx = Math.sqrt(x)
+        val y = (b - a) * gx
+        stat.collect(y)
     }
-    println()
-    for (i in 1..5) {
-        println(strings.randomlySelect())
-    }
+    System.out.printf("True Area = %10.3f %n", 14.0 / 3.0)
+    System.out.printf("Area estimate = %10.3f %n", stat.average)
+    println("Confidence Interval")
+    println(stat.confidenceInterval)
 }

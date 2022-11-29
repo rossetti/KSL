@@ -16,41 +16,20 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.book.chapter6
+package ksl.examples.book.chapter2
 
-import ksl.simulation.Model
+import ksl.utilities.random.rvariable.KSLRandom.rNormal
+import ksl.utilities.random.rvariable.KSLRandom.rPoisson
+import ksl.utilities.random.rvariable.KSLRandom.rUniform
 
 /**
- * This example illustrates the simulation of a Poisson process
- * using the KSL Model class and a constructed ModelElement
- * (SimplePoissonProcess).
+ * This example illustrates that the user can use the static methods
+ * of KSLRandom to generate from any of the defined random variables
+ * as simple function calls.
  */
 fun main() {
-    example2V1()
-
-//    example2V2()
-}
-
-fun example2V1(){
-    val s = Model("Simple PP")
-    SimplePoissonProcess(s.model)
-    s.lengthOfReplication = 20.0
-    s.numberOfReplications = 50
-    s.simulate()
-    println()
-    val r = s.simulationReporter
-    r.printAcrossReplicationSummaryStatistics()
-    println("Done!")
-}
-
-fun example2V2(){
-    val s = Model("Simple PP V2")
-    SimplePoissonProcessV2(s.model)
-    s.lengthOfReplication = 20.0
-    s.numberOfReplications = 50
-    s.simulate()
-    println()
-    val r = s.simulationReporter
-    r.printAcrossReplicationSummaryStatistics()
-    println("Done!")
+    val v = rUniform(10.0, 15.0) // generate a U(10, 15) value
+    val x = rNormal(5.0, 2.0) // generate a Normal(mu=5.0, var= 2.0) value
+    val n = rPoisson(4.0).toDouble() //generate from a Poisson(mu=4.0) value
+    System.out.printf("v = %f, x = %f, n = %f %n", v, x, n)
 }

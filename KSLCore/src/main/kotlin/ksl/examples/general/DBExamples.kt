@@ -1,7 +1,7 @@
 package ksl.examples.general
 
 import kotlinx.datetime.Clock
-import ksl.examples.book.chapter6.DriveThroughPharmacy
+import ksl.examples.book.chapter4.DriveThroughPharmacy
 import ksl.simulation.Model
 import ksl.utilities.io.dbutil.*
 import ksl.utilities.io.KSL

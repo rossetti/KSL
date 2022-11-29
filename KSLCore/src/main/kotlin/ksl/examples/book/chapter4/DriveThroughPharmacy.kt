@@ -15,7 +15,7 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package ksl.examples.book.chapter6
+package ksl.examples.book.chapter4
 
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent

@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,55 +18,20 @@
 
 package ksl.examples.book.chapter3
 
-import ksl.utilities.random.robj.DPopulation
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.permute
+import ksl.utilities.io.StatisticReporter
+import ksl.utilities.random.rvariable.NormalRV
+import ksl.utilities.statistic.Statistic
 
-/**
- * This example illustrates how to define a population of
- * values (DPopulation) and use it to perform sampling operations
- * such as random samples and permutations.  Similar functionality
- * is also demonstrated by directly using the static methods of
- * the KSLRandom class.
- */
 fun main() {
-    // create an array to hold a population of values
-    val y = DoubleArray(10)
-    for (i in 0..9) {
-        y[i] = (i + 1).toDouble()
+    val rv = NormalRV(10.0, 4.0)
+    val estimateX = Statistic("Estimated X")
+    val estOfProb = Statistic("Pr(X>8)")
+    val r = StatisticReporter(mutableListOf(estOfProb, estimateX))
+    val n = 20 // sample size
+    for (i in 1..n) {
+        val x = rv.value
+        estimateX.collect(x)
+        estOfProb.collect(x > 8)
     }
-
-    // create the population
-    val p = DPopulation(y)
-    println(p.contentToString())
-
-    println("Print the permuted population")
-    // permute the population
-    p.permute()
-    println(p.contentToString())
-
-    // directly permute the array using KSLRandom
-    println("Permuting y")
-    KSLRandom.permute(y)
-    println(y.contentToString())
-
-    // sample from the population
-    val x = p.sample(5)
-    println("Sampling 5 from the population")
-    println(x.contentToString())
-
-    // create a string list and permute it
-    val strList: MutableList<String> = ArrayList()
-    strList.add("a")
-    strList.add("b")
-    strList.add("c")
-    strList.add("d")
-    println("The mutable list")
-    println(strList)
-    KSLRandom.permute(strList)
-    println("The permuted list")
-    println(strList)
-    println("Permute using extension function")
-    strList.permute()
-    println(strList)
+    println(r.halfWidthSummaryReport())
 }

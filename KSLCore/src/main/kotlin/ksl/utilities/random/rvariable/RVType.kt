@@ -18,9 +18,11 @@
 
 package ksl.utilities.random.rvariable
 
-//import java.util.*
 import kotlin.reflect.KClass
 
+/**
+ * The set of pre-defined types of random variables
+ */
 enum class RVType(rvClass: KClass<out ParameterizedRV>) {
 
     Bernoulli(BernoulliRV::class) {

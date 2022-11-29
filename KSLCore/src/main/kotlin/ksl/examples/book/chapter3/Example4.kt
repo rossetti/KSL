@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,25 +18,23 @@
 
 package ksl.examples.book.chapter3
 
-import ksl.utilities.random.rvariable.DEmpiricalRV
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.statistic.StateFrequency
 
 /**
- * This example illustrates how to use the classes within the rvariable package.
- * Specifically, a discrete empirical random variable is
- * created and values are obtained via the value property. A discrete
- * empirical random variable requires a set of values and a CDF over the
- * values.
+ * This example illustrates how to define labeled states
+ * and to tabulate observations of those states. The StateFrequency
+ * class generalizes the IntegerFrequency class by allowing the user
+ * to collect observations on labeled states rather than integers.
+ * This also allows for the tabulation of counts and proportions of single
+ * step transitions between states.
  */
 fun main() {
-    // values is the set of possible values
-    val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-    // cdf is the cumulative distribution function over the values
-    val cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
-    //create a discrete empirical random variable
-    val n1 = DEmpiricalRV(values, cdf)
-    println(n1)
-    System.out.printf("%3s %15s %n", "n", "Values")
-    for (i in 1..5) {
-        System.out.printf("%3d %15f %n", i, n1.value)
+    val sf = StateFrequency(6)
+    val states = sf.states
+    for (i in 1..10000) {
+        val state = KSLRandom.randomlySelect(states)
+        sf.collect(state)
     }
+    println(sf)
 }

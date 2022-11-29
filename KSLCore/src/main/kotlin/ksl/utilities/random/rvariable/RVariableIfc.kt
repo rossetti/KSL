@@ -38,15 +38,15 @@ import kotlin.math.*
  */
 interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, DoubleEmitterIfc {
 
-    /**
-     * The set of pre-defined distribution types
-     */
-    enum class RVType {
-        Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma,
-        GeneralizedBeta, Geometric, JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial,
-        Normal, PearsonType5, PearsonType6, Poisson, ShiftedGeometric, Triangular,
-        Uniform, Weibull, DEmpirical, Empirical
-    }
+//    /**
+//     * The set of pre-defined distribution types
+//     */
+//    enum class RVType {
+//        Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma,
+//        GeneralizedBeta, Geometric, JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial,
+//        Normal, PearsonType5, PearsonType6, Poisson, ShiftedGeometric, Triangular,
+//        Uniform, Weibull, DEmpirical, Empirical
+//    }
 
     /**
      * The randomly generated value. Each value

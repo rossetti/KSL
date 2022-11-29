@@ -16,25 +16,28 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.book.chapter6
+package ksl.examples.book.chapter2
 
-import ksl.simulation.Model
-
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.NormalRV
 
 /**
- * This example illustrates the simulation of the up/down component model
- * and the turning on of event tracing and the log report.
+ * This example illustrates how to use the classes within the rvariable package.
+ * Specifically, a Normal(mean=20, variance=4.0) random variable is
+ * created and values are obtained via the getValue() method.
+ *
+ *
+ * In this case, stream 3 is used to generate from the random variable.
  */
 fun main() {
-    // create the simulation model
-    val m = Model("UpDownComponent")
-    // create the model element and attach it to the model
-    val tv = UpDownComponent(m)
-    // set the running parameters of the simulation
-    m.numberOfReplications = 5
-    m.lengthOfReplication = 5000.0
-    // tell the simulation model to run
-    m.simulate()
-
-    m.simulationReporter.printAcrossReplicationSummaryStatistics()
+    // get stream 3
+    val stream = KSLRandom.rnStream(3)
+    // create a normal mean = 20.0, variance = 4.0, with the stream
+    val n = NormalRV(20.0, 4.0, stream)
+    System.out.printf("%3s %15s %n", "n", "Values")
+    for (i in 1..5) {
+        // value property returns generated values
+        val x = n.value
+        System.out.printf("%3d %15f %n", i, x)
+    }
 }

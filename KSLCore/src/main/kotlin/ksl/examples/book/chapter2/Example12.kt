@@ -1,5 +1,5 @@
 /*
- *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -16,20 +16,25 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.book.chapter3
+package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.statistic.Histogram
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.randomlySelect
 
 /**
- * This example illustrates how to make an instance of a Histogram
- * and use it to collect statistics on a randomly generated sample.
+ * This example illustrates how to use the randomlySelect() method
+ * of the KSLRandom class to randomly select from a list. The extension
+ * function for lists can also be used.
  */
 fun main() {
-    val d = ExponentialRV(2.0)
-    val h = Histogram.create(0.0, 20, 0.1)
-    for (i in 1..100) {
-        h.collect(d.value)
+    // create a list
+    val strings = listOf("A", "B", "C", "D")
+    // randomly pick from the list, with equal probability
+    for (i in 1..5) {
+        println(KSLRandom.randomlySelect(strings))
     }
-    println(h)
+    println()
+    for (i in 1..5) {
+        println(strings.randomlySelect())
+    }
 }

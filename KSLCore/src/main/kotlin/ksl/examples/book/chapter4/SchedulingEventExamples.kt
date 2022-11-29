@@ -19,7 +19,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package ksl.examples.book.chapter6
+package ksl.examples.book.chapter4
 
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement

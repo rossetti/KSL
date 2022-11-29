@@ -18,18 +18,39 @@
 
 package ksl.examples.book.chapter4
 
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.statistic.Histogram
+import ksl.simulation.Model
 
 /**
- * This example illustrates how to make an instance of a Histogram
- * and use it to collect statistics on a randomly generated sample.
+ * This example illustrates the simulation of a Poisson process
+ * using the KSL Model class and a constructed ModelElement
+ * (SimplePoissonProcess).
  */
 fun main() {
-    val d = ExponentialRV(2.0)
-    val h = Histogram.create(0.0, 20, 0.1)
-    for (i in 1..100) {
-        h.collect(d.value)
-    }
-    println(h)
+    example2V1()
+
+//    example2V2()
+}
+
+fun example2V1(){
+    val s = Model("Simple PP")
+    SimplePoissonProcess(s.model)
+    s.lengthOfReplication = 20.0
+    s.numberOfReplications = 50
+    s.simulate()
+    println()
+    val r = s.simulationReporter
+    r.printAcrossReplicationSummaryStatistics()
+    println("Done!")
+}
+
+fun example2V2(){
+    val s = Model("Simple PP V2")
+    SimplePoissonProcessV2(s.model)
+    s.lengthOfReplication = 20.0
+    s.numberOfReplications = 50
+    s.simulate()
+    println()
+    val r = s.simulationReporter
+    r.printAcrossReplicationSummaryStatistics()
+    println("Done!")
 }

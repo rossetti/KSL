@@ -16,29 +16,25 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.book.chapter5
+package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.UniformRV
-import ksl.utilities.statistic.Statistic
+import ksl.utilities.random.rvariable.NormalRV
+
 
 /**
- * This example illustrates how to perform simple Monte-Carlo
- * integration on the sqrt(x) over the range from 1 to 4.
+ * This example illustrates how to use the classes within the rvariable package.
+ * Specifically, a Normal(mean=20, variance=4.0) random variable is
+ * created and values are obtained via the value property
  */
+
 fun main() {
-    val a = 1.0
-    val b = 4.0
-    val ucdf = UniformRV(a, b)
-    val stat = Statistic("Area Estimator")
-    val n = 100 // sample size
-    for (i in 1..n) {
-        val x = ucdf.value
-        val gx = Math.sqrt(x)
-        val y = (b - a) * gx
-        stat.collect(y)
+    // create a normal mean = 20.0, variance = 4.0 random variable
+    val n = NormalRV(20.0, 4.0)
+    System.out.printf("%3s %15s %n", "n", "Values")
+    // generate some values
+    for (i in 1..5) {
+        // getValue() method returns generated values
+        val x = n.value
+        System.out.printf("%3d %15f %n", i, x)
     }
-    System.out.printf("True Area = %10.3f %n", 14.0 / 3.0)
-    System.out.printf("Area estimate = %10.3f %n", stat.average)
-    println("Confidence Interval")
-    println(stat.confidenceInterval)
 }

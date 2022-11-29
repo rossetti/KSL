@@ -15,7 +15,7 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package ksl.examples.book.chapter6
+package ksl.examples.book.chapter4
 
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
@@ -55,7 +55,7 @@ class UpDownComponent (parent: ModelElement, name: String? = null) :
         myCountFailures = Counter(this, name = "count failures")
     }
 
-    public override fun initialize() {
+    override fun initialize() {
         // assume that the component starts in the UP state at time 0.0
         myTimeLastUp = 0.0
         myState.value = UP

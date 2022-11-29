@@ -16,22 +16,22 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.book.chapter5
+package ksl.examples.book.chapter2
 
-import ksl.utilities.io.StatisticReporter
-import ksl.utilities.random.rvariable.NormalRV
-import ksl.utilities.statistic.Statistic
+import ksl.utilities.random.rvariable.TriangularRV
 
+/**
+ * This example illustrates how to use the classes within the rvariable package.
+ * Specifically, a Triangular( min = 2.0, mode = 5.0, max = 10.0) random variable is
+ * created and values are obtained via the sample() method.
+ */
 fun main() {
-    val rv = NormalRV(10.0, 4.0)
-    val estimateX = Statistic("Estimated X")
-    val estOfProb = Statistic("Pr(X>8)")
-    val r = StatisticReporter(mutableListOf(estOfProb, estimateX))
-    val n = 20 // sample size
-    for (i in 1..n) {
-        val x = rv.value
-        estimateX.collect(x)
-        estOfProb.collect(x > 8)
+    // create a triangular random variable with min = 2.0, mode = 5.0, max = 10.0
+    val t = TriangularRV(2.0, 5.0, 10.0)
+    // sample 5 values
+    val sample = t.sample(5)
+    System.out.printf("%3s %15s %n", "n", "Values")
+    for (i in sample.indices) {
+        System.out.printf("%3d %15f %n", i + 1, sample[i])
     }
-    println(r.halfWidthSummaryReport())
 }

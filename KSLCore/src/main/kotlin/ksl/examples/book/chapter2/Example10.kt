@@ -16,20 +16,27 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.book.chapter6
+package ksl.examples.book.chapter2
 
-import ksl.simulation.Model
+import ksl.utilities.random.rvariable.DEmpiricalRV
 
 /**
- * This example illustrates how to create a simulation model,
- * attach a new model element, set the run length, and
- * run the simulation. The example use the SchedulingEventExamples
- * class to show how actions are used to implement events.
+ * This example illustrates how to use the classes within the rvariable package.
+ * Specifically, a discrete empirical random variable is
+ * created and values are obtained via the value property. A discrete
+ * empirical random variable requires a set of values and a CDF over the
+ * values.
  */
 fun main() {
-    val m = Model("Scheduling Example")
-    SchedulingEventExamples(m.model)
-    m.lengthOfReplication = 100.0
-//    m.autoPrintSummaryReport = false
-    m.simulate()
+    // values is the set of possible values
+    val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+    // cdf is the cumulative distribution function over the values
+    val cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
+    //create a discrete empirical random variable
+    val n1 = DEmpiricalRV(values, cdf)
+    println(n1)
+    System.out.printf("%3s %15s %n", "n", "Values")
+    for (i in 1..5) {
+        System.out.printf("%3d %15f %n", i, n1.value)
+    }
 }
