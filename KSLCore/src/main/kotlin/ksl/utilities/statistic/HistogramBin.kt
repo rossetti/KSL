@@ -32,6 +32,8 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
 
     val lowerLimit: Double = theLowerLimit
     val upperLimit: Double = theUpperLimit
+    val midPoint
+        get() = (upperLimit - lowerLimit)/2.0
 
     private var count = 0
     /**
@@ -50,7 +52,7 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
     val binNumber: Int = theBinNumber
 
     /**
-     * @return an copy of this bin
+     * @return a copy of this bin
      */
     fun instance(): HistogramBin {
         val bin = HistogramBin(binNumber, lowerLimit, upperLimit)

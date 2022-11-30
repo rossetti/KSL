@@ -107,6 +107,18 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     val binCounts: DoubleArray
 
     /**
+     * @return the mid-point of each bin as an array
+     */
+    val midPoints: DoubleArray
+        get(){
+            val m = DoubleArray(bins.size)
+            for((index, bin) in bins.withIndex()){
+                m[index]= bin.midPoint
+            }
+            return m
+        }
+
+    /**
      * Returns the current bin count for the bin associated with x
      *
      * @param x the data to check
