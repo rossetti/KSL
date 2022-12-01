@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -15,8 +15,10 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package ksl.examples.book.chapter5
+package ksl.examples.book.chapter4
 
+import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
@@ -46,83 +48,72 @@ class DriveThroughPharmacyWithQ(
 ) :
     ModelElement(parent, theName = null) {
 
-    private var numPharmacists = numServers
+    var numPharmacists = numServers
+        set(value) {
+            require(value > 0)
+            require(!model.isRunning) { "Cannot change the number of pharmacists while the model is running!" }
+            field = value
+        }
+
     private var myServiceRV: RandomVariable = RandomVariable(this, sd)
     val serviceRV: RandomSourceCIfc
         get() = myServiceRV
     private var myArrivalRV: RandomVariable = RandomVariable(parent, ad)
     val arrivalRV: RandomSourceCIfc
         get() = myArrivalRV
+
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
+    val numBusyPharmacists: TWResponseCIfc
+        get() = myNumBusy
+
     private val myNS: TWResponse = TWResponse(this, "# in System")
+    val numInSystem: TWResponseCIfc
+        get() = myNS
     private val mySysTime: Response = Response(this, "System Time")
-    private val myArrivalEventAction: ArrivalEventAction = ArrivalEventAction()
-    private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
+    val systemTime: ResponseCIfc
+        get() = mySysTime
+
     private val myNumCustomers: Counter = Counter(this, "Num Served")
+    val numCustomersServed: CounterCIfc
+        get() = myNumCustomers
     private val myWaitingQ: Queue<QObject> = Queue(this, "PharmacyQ")
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
-    private val myTotal: AggregateTWResponse = AggregateTWResponse(this, "aggregate # in system")
     private val mySysTimeHistogram: ResponseHistogram = ResponseHistogram(mySysTime, theBreakPointMinDataSize = 200)
-    private val mySTGT3: IndicatorResponse = IndicatorResponse({ x -> x > 4.0 }, mySysTime, "SysTime>4.0")
     val systemTimeHistogram: HistogramIfc
         get() = mySysTimeHistogram.histogram
 
-    init {
-        myTotal.observe(myWaitingQ.numInQ)
-        myTotal.observe(myNumBusy)
-    }
+    private val mySTGT4: IndicatorResponse = IndicatorResponse({ x -> x >= 4.0 }, mySysTime, "SysTime > 4.0 minutes")
+    val probSystemTimeGT4Minutes: ResponseCIfc
+        get() = mySTGT4
 
-    val systemTimeResponse: ResponseCIfc
-        get() = mySysTime
-    val numInSystemResponse: TWResponseCIfc
-        get() = myNS
-    val numberOfServers: Int
-        get() = numPharmacists
+    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), myArrivalRV, myArrivalRV)
+    private val endServiceEvent = this::endOfService
 
-    fun setNumberOfPharmacists(n: Int) {
-        require(n >= 0)
-        numPharmacists = n
-    }
-
-    protected override fun initialize() {
-        super.initialize()
-        // start the arrivals
-        schedule(myArrivalEventAction, myArrivalRV)
-    }
-
-    private inner class ArrivalEventAction : EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) {
-            //	 schedule the next arrival
-            schedule(myArrivalEventAction, myArrivalRV)
-            enterSystem()
-        }
-    }
-
-    private fun enterSystem() {
-        myNS.increment() // new customer arrived
-        val arrivingCustomer = QObject()
-        myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
-        if (myNumBusy.value < numPharmacists) { // server available
-            myNumBusy.increment() // make server busy
-            val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
-            // schedule end of service, include the customer as the event's message
-            schedule(myEndServiceEventAction, myServiceRV, customer)
-        }
-    }
-
-    private inner class EndServiceEventAction : EventActionIfc<QObject> {
-        override fun action(event: KSLEvent<QObject>) {
-            myNumBusy.decrement() // customer is leaving server is freed
-            if (!myWaitingQ.isEmpty) { // queue is not empty
-                val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
+    private inner class Arrivals : GeneratorActionIfc {
+        override fun generate(generator: EventGenerator) {
+            myNS.increment() // new customer arrived
+            val arrivingCustomer = QObject()
+            myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
+            if (myNumBusy.value < numPharmacists) { // server available
                 myNumBusy.increment() // make server busy
-                // schedule end of service
-                schedule(myEndServiceEventAction, myServiceRV, customer)
+                val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
+                // schedule end of service, include the customer as the event's message
+                schedule(endServiceEvent, myServiceRV, customer)
             }
-            departSystem(event.message!!)
         }
+    }
+
+    private fun endOfService(event: KSLEvent<QObject>) {
+        myNumBusy.decrement() // customer is leaving server is freed
+        if (!myWaitingQ.isEmpty) { // queue is not empty
+            val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
+            myNumBusy.increment() // make server busy
+            // schedule end of service
+            schedule(endServiceEvent, myServiceRV, customer)
+        }
+        departSystem(event.message!!)
     }
 
     private fun departSystem(departingCustomer: QObject) {
@@ -132,19 +123,3 @@ class DriveThroughPharmacyWithQ(
     }
 }
 
-fun main() {
-    val sim = Model("Drive Through Pharmacy")
-    sim.numberOfReplications = 30
-    sim.lengthOfReplication = 20000.0
-    sim.lengthOfReplicationWarmUp = 5000.0
-    // add DriveThroughPharmacy to the main model
-    val dtp = DriveThroughPharmacyWithQ(sim, 1)
-    dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
-    dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
-    sim.simulate()
-    sim.print()
-//    val reporter: SimulationReporter = sim.simulationReporter
-//    reporter.printAcrossReplicationSummaryStatistics()
-
-    println(dtp.systemTimeHistogram)
-}
