@@ -748,4 +748,20 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
         out.print(halfWidthSummaryReport(title, confLevel).toString())
         out.flush()
     }
+
+    /**
+     * @param out       the place to write to
+     * @param title     the title of the report
+     * @param confLevel the confidence level of the report
+     */
+    fun writeHalfWidthSummaryReportAsMarkDown(
+        out: PrintWriter = PrintWriter(System.out),
+        title: String? = null,
+        confLevel: Double = 0.95
+    ) {
+        val list = acrossReplicationStatisticsList().toMutableList()
+        val sr = StatisticReporter(list)
+        out.print(sr.halfWidthSummaryReportAsMarkDown(title, confLevel))
+        out.flush()
+    }
 }

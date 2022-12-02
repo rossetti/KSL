@@ -19,7 +19,9 @@
 package ksl.observers
 
 import ksl.modeling.variable.Counter
+import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 //import java.util.*
@@ -147,6 +149,14 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
     }
 
     /**
+     * @param response the response within the model to collect and store data for, must
+     * not be null
+     */
+    fun addResponse(response: ResponseCIfc) {
+        addResponse(response as Response)
+    }
+
+    /**
      * @param counterName the name of the counter within the model, must be in the model
      */
     fun addCounterResponse(counterName: String) {
@@ -165,6 +175,14 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
             return
         }
         myCounters.add(counter)
+    }
+
+    /**
+     * @param counter the counter within the model to collect and store data for, must
+     * not be null
+     */
+    fun addCounterResponse(counter: CounterCIfc) {
+        addCounterResponse(counter as Counter)
     }
 
     /**

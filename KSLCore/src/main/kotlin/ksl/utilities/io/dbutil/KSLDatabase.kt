@@ -146,6 +146,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     val acrossReplicationViewStatistics: DataFrame<AcrossRepView>
         get() {
             var df = acrossRepViewStats.toList().toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("expName").to(1)
+                .move("statName").to(2)
+                .move("statCount").to(3)
+                .move("average").to(4)
+                .move("stdDev").to(5)
             df = df.remove("entityClass", "properties")
             return df
         }
@@ -153,6 +159,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     val batchViewStatistics: DataFrame<BatchStatView>
         get() {
             var df = batchViewStats.toList().toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("expName").to(1)
+                .move("statName").to(2)
+                .move("statCount").to(3)
+                .move("average").to(4)
+                .move("stdDev").to(5)
             df = df.remove("entityClass", "properties")
             return df
         }

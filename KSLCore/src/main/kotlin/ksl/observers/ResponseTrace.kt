@@ -19,6 +19,7 @@
 package ksl.observers
 
 import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
@@ -31,6 +32,12 @@ class ResponseTrace(
 ) :
     ModelElementObserver(theResponse.name) {
 
+    constructor(
+        theResponse: ResponseCIfc,
+        pathToFile: Path = (theResponse as Response).myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace.csv"),
+        header: Boolean = true
+    ) : this(theResponse as Response, pathToFile, header)
+
     private val printWriter: PrintWriter = KSLFileUtil.createPrintWriter(pathToFile)
     private var count: Double = 0.0
     private var myRepObservationCount: Int = 0
@@ -39,9 +46,9 @@ class ResponseTrace(
     var maxNumReplications: Int = Int.MAX_VALUE
     var maxNumObsPerReplication: Long = Long.MAX_VALUE
     var maxNumObservations: Double = Double.MAX_VALUE
-    
+
     init {
-        if (header){
+        if (header) {
             writeHeader()
         }
         variable.attachModelElementObserver(this)
@@ -75,18 +82,18 @@ class ResponseTrace(
     override fun update(modelElement: ModelElement) {
         val model = variable.model
         count++
-        if (count >= maxNumObservations){
+        if (count >= maxNumObservations) {
             return
         }
         if (myRepNum != model.currentReplicationNumber.toDouble()) {
             myRepObservationCount = 0
         }
         myRepObservationCount++
-        if (myRepObservationCount >= maxNumObsPerReplication){
+        if (myRepObservationCount >= maxNumObsPerReplication) {
             return
         }
         myRepNum = model.currentReplicationNumber.toDouble()
-        if (myRepNum > maxNumReplications){
+        if (myRepNum > maxNumReplications) {
             return
         }
         printWriter.print(count)

@@ -904,7 +904,7 @@ class Model(
                 if (lengthOfReplication.isInfinite()) {
                     if (maximumAllowedExecutionTimePerReplication == Duration.ZERO) {
                         val sb = StringBuilder()
-                        sb.append("Simulation: In initializeIterations(), preparing to run replications:")
+                        sb.append("Model: Preparing to run replications:")
                         sb.appendLine()
                         sb.append("The experiment has an infinite horizon.")
                         sb.appendLine()
