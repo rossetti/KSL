@@ -1,14 +1,27 @@
 package ksl.observers.welch
 
 import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponse
 import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
 import java.nio.file.Path
 import java.util.*
 
+/**
+ * @param responseVariable the response to be observed
+ * @param batchSize the batch size for batching or discretizing the data
+ *
+ */
 class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelElementObserver() {
     private val myWelchDataFileCollector: WelchDataFileCollector
+
+    /**
+     * @param responseVariable the response to be observed
+     * @param batchSize the batch size for batching or discretizing the data
+     *
+     */
+    constructor(responseVariable: ResponseCIfc, batchSize: Double):this(responseVariable as Response, batchSize)
 
     init {
         Objects.requireNonNull<Any>(responseVariable, "The response variable cannot be null")
@@ -27,7 +40,7 @@ class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelEl
         return myWelchDataFileCollector.toString()
     }
 
-    fun makeWelchDataFileAnalyzer(): WelchDataFileAnalyzer {
+    fun createWelchDataFileAnalyzer(): WelchDataFileAnalyzer {
         return myWelchDataFileCollector.makeWelchDataFileAnalyzer()
     }
 

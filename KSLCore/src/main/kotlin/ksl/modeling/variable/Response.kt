@@ -193,7 +193,7 @@ open class Response(
     override var previousTimeOfChange: Double = 0.0
         protected set
 
-    protected val myAcrossReplicationStatistic: Statistic = Statistic(this.name)
+    internal val myAcrossReplicationStatistic: Statistic = Statistic(this.name)
 
     override val acrossReplicationStatistic: StatisticIfc
         get() = myAcrossReplicationStatistic.instance()

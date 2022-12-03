@@ -35,7 +35,7 @@ import ksl.utilities.random.rvariable.UniformRV
  * The default confidence level has been set to 99 percent.
  * @param function the representation of h(x), must not be null
  * @param sampler  the sampler over the interval, must not be null
- * @param antitheticOptionOn  true represents use of antithetic sampling
+ * @param antitheticOption  true represents use of antithetic sampling
  */
 class MC1DIntegration (
     function: FunctionIfc,

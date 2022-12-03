@@ -146,14 +146,14 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
         return myObsComponent.countObservers()
     }
     /**
-     * Makes a file and writes out the welch data to the DataOutputStream. This
+     * Creates a file and writes out the Welch data to the DataOutputStream. This
      * produces a file with the "wpdf" extension. wpdf = Welch Plot Data File
      * Squelches inconvenient IOExceptions
      *
      * @param numObs number of observations to write out
      * @return the file reference
      */
-    fun makeWelchPlotDataFile(numObs: Long = minNumObservationsInReplications): File {
+    fun createWelchPlotDataFile(numObs: Long = minNumObservationsInReplications): File {
         val path = baseDirectory.resolve(responseName + ".wpdf")
         val wpdf: File = KSLFileUtil.createFile(path)
         try {
@@ -188,7 +188,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
         out.close()
     }
     /**
-     * Makes and writes out the welch plot data. Squelches inconvenient IOExceptions
+     * Creates and writes out the Welch plot data. Squelches inconvenient IOExceptions
      * The file is stored in the base directory holding the
      * Welch data files and has the name of the data with _WelchPlotData.csv appended.
      *
@@ -197,7 +197,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @param numObs number of observations to write
      * @return the File reference
      */
-    fun makeCSVWelchPlotDataFile(numObs: Long = minNumObservationsInReplications): File {
+    fun createCSVWelchPlotDataFile(numObs: Long = minNumObservationsInReplications): File {
         val path = baseDirectory.resolve(responseName + "_WelchPlotData.csv")
         val file: File = KSLFileUtil.createFile(path)
         val pw: PrintWriter = KSLFileUtil.createPrintWriter(file)
@@ -249,7 +249,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @param numObs how many to write
      * @throws IOException if problem writing
      */
-    fun makeCSVWelchDataFile(numObs: Long = minNumObservationsInReplications): File {
+    fun createCSVWelchDataFile(numObs: Long = minNumObservationsInReplications): File {
         val path = baseDirectory.resolve(responseName + "_WelchData.csv")
         val file: File = KSLFileUtil.createFile(path)
         val pw: PrintWriter = KSLFileUtil.createPrintWriter(file)

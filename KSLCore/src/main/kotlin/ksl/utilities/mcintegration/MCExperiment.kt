@@ -21,6 +21,7 @@ package ksl.utilities.mcintegration
 import ksl.utilities.distributions.Normal
 import ksl.utilities.statistic.Statistic
 import java.lang.StringBuilder
+import kotlin.math.ceil
 
 /**
  * Provides for the running of a monte-carlo experiment.
@@ -33,7 +34,7 @@ import java.lang.StringBuilder
  * Thus, if m > M, and the error criterion is not met during the macro replications a total of M observations will be observed.
  * Thus, the total number of macro replications will not exceed M.  If the error criteria is met before M is reached, the
  * number of macro replications will be somewhere between k and M. The total number of macro replications can be
- * found by using the statistic() method to get the macro replication statistics and using the cCount() method.
+ * found by using the statistic() method to get the macro replication statistics and using the count() method.
  * Let's call the total number of macro replications executed, n.  The reason that the simulation occurs in two loops is
  * to make it more likely that the observed values for the macro replications are normally distributed because they will
  * be the sample average across the micro replications.  Thus, the theory for the stopping criteria and estimation of
@@ -62,7 +63,7 @@ import java.lang.StringBuilder
  *
  * Be aware that small desired absolute error may result in large execution times.
  *
- * Implementors of sub-classes of this abstract base class are responsible for implementing the abstract method,
+ * Implementors of subclasses of this abstract base class are responsible for implementing the abstract method,
  * replication(int j). This method is responsible for computing a single evaluation of the simulation model.
  */
 abstract class MCExperiment : MCExperimentIfc {
@@ -128,14 +129,14 @@ abstract class MCExperiment : MCExperimentIfc {
         val ao2 = alpha / 2.0
         val z = Normal.stdNormalInvCDF(1.0 - ao2)
         val dn = adjRE * macroReplicationStatistics.average
-        return Math.ceil(`var` * (z * z) / (dn * dn))
+        return ceil(`var` * (z * z) / (dn * dn))
     }
 
     override fun runSimulation(): Double {
         macroReplicationStatistics.reset()
         val numNeeded = runInitialSample()
         val k = maxSampleSize - initialSampleSize
-        val m = Math.min(numNeeded, k.toDouble()).toInt()
+        val m = minOf(numNeeded, k.toDouble()).toInt()
         // error criterion may have been met by initial sample,
         // in which case m = 0 and no further micro-replications will be run
         beforeMacroReplications()
@@ -185,7 +186,7 @@ abstract class MCExperiment : MCExperimentIfc {
         // m is the estimated total needed assuming no sampling has been done
         // it could be possible that m is estimated less than the initial sample size
         // handle that case with max
-        return Math.max(0.0, m - initialSampleSize)
+        return maxOf(0.0, m - initialSampleSize)
     }
 
     /**
@@ -216,7 +217,7 @@ abstract class MCExperiment : MCExperimentIfc {
      * r = 1, 2, ... , getMicroRepSampleSize()
      *
      * @param r the number of the replication in the sequence of replications
-     * @return the simulated results from the replication
+     * @return the simulated result from the replication
      */
     protected abstract fun replication(r: Int): Double
 

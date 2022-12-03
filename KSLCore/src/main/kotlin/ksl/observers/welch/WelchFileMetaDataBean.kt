@@ -58,7 +58,8 @@ data class WelchFileMetaDataBean(
      * @return returns a JSON representation as a String
      */
     fun toJSON(): String {
-        return Json.encodeToString(this)
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(this)
     }
 
     override fun equals(other: Any?): Boolean {

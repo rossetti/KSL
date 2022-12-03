@@ -84,14 +84,10 @@ class WelchDataFileCollector(pathToDirectory: Path, statisticType: StatisticType
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.append("-------------------")
-        sb.append(System.lineSeparator())
-        sb.append("Welch Data File Collector")
-        sb.append(System.lineSeparator())
-       sb.append(welchFileMetaDataBeanAsJson)
-        sb.append(System.lineSeparator())
-        sb.append("-------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine("-------------------")
+        sb.appendLine("Welch Data File Collector")
+        sb.appendLine(welchFileMetaDataBeanAsJson)
+        sb.appendLine("-------------------")
         return sb.toString()
     }
 

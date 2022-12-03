@@ -28,6 +28,7 @@ import ksl.utilities.io.StatisticReporter
 import ksl.utilities.statistic.StatisticIfc
 import java.io.PrintWriter
 import java.nio.file.Path
+import java.text.DecimalFormat
 import java.util.*
 
 /**
@@ -757,11 +758,12 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
     fun writeHalfWidthSummaryReportAsMarkDown(
         out: PrintWriter = PrintWriter(System.out),
         title: String? = null,
-        confLevel: Double = 0.95
+        confLevel: Double = 0.95,
+        df: DecimalFormat? = null
     ) {
         val list = acrossReplicationStatisticsList().toMutableList()
         val sr = StatisticReporter(list)
-        out.print(sr.halfWidthSummaryReportAsMarkDown(title, confLevel))
+        out.print(sr.halfWidthSummaryReportAsMarkDown(title, confLevel, df))
         out.flush()
     }
 }

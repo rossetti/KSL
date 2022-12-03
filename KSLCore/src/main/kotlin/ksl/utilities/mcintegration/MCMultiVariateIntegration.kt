@@ -29,15 +29,12 @@ import ksl.utilities.random.rvariable.UniformRV
  * sample from the provided sampler will evaluate to the desired integral over
  * the range of possible values of the sampler.
  *
- *
  * The sampler must have the same range as the desired integral and the function's domain (inputs) must be consistent
  * with the range (output) of the sampler. There is no checking if the user does not supply appropriate functions or samplers.
- *
  *
  * As an example, suppose we want the evaluation of the integral of g(x) over the range from a to b.
  * If the user selects the sampler as U(a,b) then the function to supply for the integration is NOT g(x).
  * The function should be h(x) = (b-a)*g(x).
- *
  *
  * In general, if the sampler has pdf, w(x), over the range a to b. Then, the function to supply for integration
  * is h(x) = g(x)/w(x). Again, the user is responsible for providing a sampler that provides values over the interval

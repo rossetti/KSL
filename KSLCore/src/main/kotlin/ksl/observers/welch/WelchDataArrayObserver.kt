@@ -1,6 +1,7 @@
 package ksl.observers.welch
 
 import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponse
 import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
@@ -27,6 +28,20 @@ class WelchDataArrayObserver(
     batchSize: Double
 ) :
     ModelElementObserver() {
+
+    /**
+     * @param responseVariable the response to be observed
+     * @param maxNumObs the limit on the number of observations in each replication to store
+     * @param maxNumReps the limit on the number of replications
+     * @param batchSize the batch size for batching or discretizing the data
+     */
+    constructor(responseVariable: ResponseCIfc, maxNumObs: Int = 50000, maxNumReps: Int = 20, batchSize: Double) : this(
+        responseVariable as Response,
+        maxNumObs,
+        maxNumReps,
+        batchSize
+    )
+
     private val myWelchDataArrayCollector: WelchDataArrayCollector
     private val myResponse: Response = responseVariable
 

@@ -64,6 +64,9 @@ dependencies {
 
     implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
 
+    // https://mvnrepository.com/artifact/org.knowm.xchart/xchart
+//    implementation("org.knowm.xchart:xchart:3.8.2")
+    
     // https://mvnrepository.com/artifact/com.opencsv/opencsv
     implementation("com.opencsv:opencsv:5.7.1") //TODO this vulnerability is not reported on Maven Central
 
