@@ -61,9 +61,10 @@ class PalletWorkCenter(
     val probOfOverTime: ResponseCIfc
         get() = myOverTime
 
-    var numToProcess: Int = 0
     private val endServiceEvent = this::endOfService
     private val endTransportEvent = this::endTransport
+
+    var numToProcess: Int = 0
 
     override fun initialize() {
         numToProcess = myNumPalletsRV.value.toInt()

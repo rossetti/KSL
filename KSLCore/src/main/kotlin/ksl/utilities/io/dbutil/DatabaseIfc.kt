@@ -449,6 +449,22 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     * @param viewName the unqualified view name to find as a string
+     * @return true if the database contains the named view
+     */
+    fun containsView(viewName: String): Boolean {
+        val viewNames = views
+        for (name in viewNames) {
+            if (name == viewName) {
+                return true
+            } else if (name.equals(viewName, ignoreCase = true)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
      * Checks if tables exist in the specified schema
      *
      * @param schemaName the name of the schema that should contain the tables
@@ -488,8 +504,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return
             }
         }
-        if (!containsTable(tableName)) {
-            logger.trace { "Table: $tableName does not exist in database $label" }
+        if (!containsTable(tableName) && !containsView(tableName)) {
+            logger.trace { "Table or View: $tableName does not exist in database $label" }
             return
         }
         val resultSet = selectAll(tableName, schemaName)
@@ -523,8 +539,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return
             }
         }
-        if (!containsTable(tableName)) {
-            logger.info { "Table: $tableName does not exist in database $label" }
+        if (!containsTable(tableName) && !containsView(tableName)) {
+            logger.info { "Table or View: $tableName does not exist in database $label" }
             return
         }
         val rowSet = selectAll(tableName, schemaName)
@@ -585,8 +601,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return
             }
         }
-        if (!containsTable(tableName)) {
-            logger.info("Table: {} does not exist in database {}", tableName, label)
+        if (!containsTable(tableName) && !containsView(tableName)) {
+            logger.info("Table or View: {} does not exist in database {}", tableName, label)
             return
         }
         val rowSet = selectAll(tableName, schemaName)
@@ -672,7 +688,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return null
             }
         }
-        if (!containsTable(tableName)) {
+        if (!containsTable(tableName) && !containsView(tableName)) {
             return null
         }
         return if (schemaName != null) {
@@ -699,7 +715,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return null
             }
         }
-        if (!containsTable(tableName)) {
+        if (!containsTable(tableName) && !containsView(tableName)) {
             return null
         }
         val sql: String = if (schemaName == null) {
@@ -869,7 +885,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             logger.info { "Writing database $label to workbook at $path" }
             val workbook = SXSSFWorkbook(100)
             for (tableName in tableNames) {
-                if (containsTable(tableName)) {
+                if (containsTable(tableName) || containsView(tableName)) {
                     // get result set
                     val rs = selectAllIntoOpenResultSet(tableName, schemaName)
                     if (rs != null) {
@@ -1343,7 +1359,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return emptyList()
             }
         }
-        if (!containsTable(tableName)) {
+        if (!containsTable(tableName) && !containsView(tableName)) {
             return emptyList()
         }
         val sql = if (schemaName != null) {

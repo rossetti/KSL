@@ -8,6 +8,7 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
 fun main() {
     val model = Model("Pallet Processing", autoCSVReports = true)
     model.numberOfReplications = 10
+    model.experimentName = "Two Workers"
     // add the model element to the main model
     val palletWorkCenter = PalletWorkCenter(model)
 
@@ -30,9 +31,8 @@ fun main() {
     sr.printHalfWidthSummaryReport(confLevel = .99)
 
     // show that report can be written to MarkDown as a table in the output directory
-    val out = model.outputDirectory.createPrintWriter("hwSummary.md")
+    var out = model.outputDirectory.createPrintWriter("hwSummary.md")
     sr.writeHalfWidthSummaryReportAsMarkDown(out)
-
     println()
 
     //output the collected replication data to prove it was captured
@@ -42,4 +42,10 @@ fun main() {
     val dataFrame = kslDatabaseObserver.db.acrossReplicationViewStatistics
     println(dataFrame)
 
+    model.experimentName = "Three Workers"
+    palletWorkCenter.numWorkers = 3
+    model.simulate()
+
+    out = model.outputDirectory.createPrintWriter("AcrossExperimentResults.md")
+    kslDatabaseObserver.db.writeTableAsMarkdown("ACROSS_REP_VIEW", out)
 }

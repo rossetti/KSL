@@ -355,7 +355,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
             val stats = asArray
             for (i in stats.indices) {
                 if (stats[i].isMissing()) {
-                    println("$name has missing $i")
+                    //println("$name has missing $i")
                     sb.append("")
                 } else {
                     sb.append(stats[i])
