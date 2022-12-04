@@ -12,7 +12,6 @@ fun main() {
     val nv = NewsVendor(dCDF)
     val exp = MCExperiment(nv)
     exp.desiredHWErrorBound = 0.01
-    exp.maxSampleSize = 250
     exp.runSimulation()
     println(exp)
 }

@@ -24,7 +24,13 @@ import ksl.utilities.statistic.Statistic
  * Provides an interface for algorithms that perform Monte-Carlo experiments
  * See the abstract base class MCExperiment for further information.
  */
-interface MCExperimentIfc : MCExperimentSetUpIfc {
+interface MCExperimentIfc : MCExperimentSetUpIfc, MCReplicationIfc {
+
+    /**
+     * Indicates if initial results are printed
+     */
+    var printInitialOption :Boolean
+
     /**
      * @return true if the relative error meets the desired with the appropriate level of confidence
      */
@@ -62,5 +68,5 @@ interface MCExperimentIfc : MCExperimentSetUpIfc {
      *
      * @return the number of additional samples needed
      */
-    fun runInitialSample(): Double
+    fun runInitialSample(printResultsOption: Boolean = printInitialOption): Double
 }

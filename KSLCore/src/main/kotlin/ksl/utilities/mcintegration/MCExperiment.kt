@@ -23,7 +23,15 @@ import ksl.utilities.statistic.Statistic
 import java.lang.StringBuilder
 import kotlin.math.ceil
 
+/**
+ * A functional interface for a single observation of the Monte-Carlo problem.
+ *
+ */
 fun interface MCReplicationIfc {
+    /**
+     * @param j the current replication number. Could be used to implement more advanced
+     * sampling that needs the current replication number. For example, antithetic sampling.
+     */
     fun replication(j: Int): Double
 }
 
@@ -72,13 +80,15 @@ fun interface MCReplicationIfc {
  */
 open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
 
+    override var printInitialOption: Boolean = false
+
     protected val macroReplicationStatistics = Statistic()
 
     protected val replicationStatistics = Statistic()
 
     protected val mcReplication = sampler
 
-    override var initialSampleSize = 10
+    override var initialSampleSize = 30
         set(value) {
             require(value >= 2.0) { "The initial sample size must be >= 2" }
             field = value
@@ -92,13 +102,13 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
 
     override var resetStreamOption = false
 
-    override var microRepSampleSize = 1000
+    override var microRepSampleSize = 100
         set(value) {
             require(value > 0.0) { "The micro replication sample size must be >= 1" }
             field = value
         }
 
-    override var maxSampleSize: Long = 100
+    override var maxSampleSize: Long = 10000
         set(value) {
             require(value >= initialSampleSize) { "The maximum sample size must be >= $initialSampleSize" }
             field = value
@@ -179,7 +189,7 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
 
     override fun statistics(): Statistic = macroReplicationStatistics.instance()
 
-    override fun runInitialSample(): Double {
+    override fun runInitialSample(printResultsOption: Boolean): Double {
         macroReplicationStatistics.reset()
         for (i in 1..initialSampleSize) {
             macroReplicationStatistics.collect(runMicroReplications())
@@ -192,6 +202,15 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
         // m is the estimated total needed assuming no sampling has been done
         // it could be possible that m is estimated less than the initial sample size
         // handle that case with max
+        if (printResultsOption){
+            println("The initial sample of size $initialSampleSize of micro-replications of size $microRepSampleSize was executed.")
+            print("The current estimate is ${macroReplicationStatistics.average}")
+            println("with half-width = ${macroReplicationStatistics.halfWidth}")
+            print("Estimated sample size needed to meet the desired half-width criteria of $desiredHWErrorBound = ")
+            println(m)
+            val k = maxOf(0.0, m - initialSampleSize)
+            println("The simulation will run $k additional micro-replications of size $microRepSampleSize.")
+        }
         return maxOf(0.0, m - initialSampleSize)
     }
 
@@ -222,12 +241,12 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
      * Runs the rth replication for a sequence of replications
      * r = 1, 2, ... , getMicroRepSampleSize()
      *
-     * @param r the number of the replication in the sequence of replications
+     * @param j the number of the replication in the sequence of replications
      * @return the simulated result from the replication
      */
-    open fun replication(r: Int): Double {
+    override fun replication(j: Int): Double {
         if (mcReplication != null) {
-            return mcReplication.replication(r)
+            return mcReplication.replication(j)
         } else {
             TODO("You need to implement the replication method or supply a MCReplicationIfc")
         }
