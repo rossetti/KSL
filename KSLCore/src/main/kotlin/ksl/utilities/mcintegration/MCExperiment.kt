@@ -24,7 +24,7 @@ import java.lang.StringBuilder
 import kotlin.math.ceil
 
 fun interface MCReplicationIfc {
-    fun replication(j: Int) : Double
+    fun replication(j: Int): Double
 }
 
 /**
@@ -76,7 +76,7 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
 
     protected val replicationStatistics = Statistic()
 
-    protected val replication = sampler
+    protected val mcReplication = sampler
 
     override var initialSampleSize = 10
         set(value) {
@@ -225,9 +225,9 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
      * @param r the number of the replication in the sequence of replications
      * @return the simulated result from the replication
      */
-    open fun replication(r: Int): Double{
-        if (replication!= null){
-            return replication(r)
+    open fun replication(r: Int): Double {
+        if (mcReplication != null) {
+            return mcReplication.replication(r)
         } else {
             TODO("You need to implement the replication method or supply a MCReplicationIfc")
         }
