@@ -83,19 +83,3 @@ class MC1DIntegration (
         get() = myAntitheticSampler != null
 
 }
-
-fun main() {
-    class SinFunc : FunctionIfc {
-        override fun f(x: Double): Double {
-            return Math.PI * Math.sin(x)
-        }
-    }
-
-    val f = SinFunc()
-    val mc = MC1DIntegration(f, UniformRV(0.0, Math.PI))
-    mc.runInitialSample();
-    println(mc)
-    println()
-    mc.runSimulation()
-    println(mc)
-}

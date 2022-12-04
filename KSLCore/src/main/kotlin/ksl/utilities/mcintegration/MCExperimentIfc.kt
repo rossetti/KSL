@@ -21,6 +21,18 @@ package ksl.utilities.mcintegration
 import ksl.utilities.statistic.Statistic
 
 /**
+ * A functional interface for a single observation of the Monte-Carlo problem.
+ *
+ */
+fun interface MCReplicationIfc {
+    /**
+     * @param j the current replication number. Could be used to implement more advanced
+     * sampling that needs the current replication number. For example, antithetic sampling.
+     */
+    fun replication(j: Int): Double
+}
+
+/**
  * Provides an interface for algorithms that perform Monte-Carlo experiments
  * See the abstract base class MCExperiment for further information.
  */

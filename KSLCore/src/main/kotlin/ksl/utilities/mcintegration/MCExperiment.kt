@@ -24,18 +24,6 @@ import java.lang.StringBuilder
 import kotlin.math.ceil
 
 /**
- * A functional interface for a single observation of the Monte-Carlo problem.
- *
- */
-fun interface MCReplicationIfc {
-    /**
-     * @param j the current replication number. Could be used to implement more advanced
-     * sampling that needs the current replication number. For example, antithetic sampling.
-     */
-    fun replication(j: Int): Double
-}
-
-/**
  * Provides for the running of a monte-carlo experiment.
  *
  * The simulation is performed in two loops: an outer loop called the macro replications and an inner loop called the micro replications.
@@ -60,9 +48,9 @@ fun interface MCReplicationIfc {
  * the micro replications.
  *
  * By default, the number of macro replications should be relatively small and the number of micro
- * replications large.  Specific settings will be problem dependent.  The default initial sample size, k is 10, with a
- * maximum number of macro replications of M = 100.  The default half-width error bound is 0.0001.  The default setting
- * of the number of micro replications, r, is 1000.  Again, these are all adjustable by the user.
+ * replications large.  Specific settings will be problem dependent.  The default initial sample size, k is 30, with a
+ * maximum number of macro replications of M = 10000.  The default half-width error bound is 0.001.  The default setting
+ * of the number of micro replications, r, is 100.  Again, these are all adjustable by the user.
  *
  * The user can check if the error criteria was met after the evaluation. If it is not met, the user can
  * adjust the initial sample size, desired error, maximum sample size, or number of micro replications and run another evaluation.
@@ -253,7 +241,7 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
     }
 
     override fun toString(): String {
-        val sb = StringBuilder("Monte Carlo Integration Results")
+        val sb = StringBuilder("Monte Carlo Simulation Results")
         sb.appendLine()
         sb.append("initial Sample Size = ").append(initialSampleSize)
         sb.appendLine()
