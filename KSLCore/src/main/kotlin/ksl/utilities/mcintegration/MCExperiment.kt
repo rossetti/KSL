@@ -23,6 +23,10 @@ import ksl.utilities.statistic.Statistic
 import java.lang.StringBuilder
 import kotlin.math.ceil
 
+fun interface MCReplicationIfc {
+    fun replication(j: Int) : Double
+}
+
 /**
  * Provides for the running of a monte-carlo experiment.
  *
@@ -66,11 +70,13 @@ import kotlin.math.ceil
  * Implementors of subclasses of this abstract base class are responsible for implementing the abstract method,
  * replication(int j). This method is responsible for computing a single evaluation of the simulation model.
  */
-abstract class MCExperiment : MCExperimentIfc {
+open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
 
     protected val macroReplicationStatistics = Statistic()
 
     protected val replicationStatistics = Statistic()
+
+    protected val replication = sampler
 
     override var initialSampleSize = 10
         set(value) {
@@ -78,7 +84,7 @@ abstract class MCExperiment : MCExperimentIfc {
             field = value
         }
 
-    override var desiredHWErrorBound = 0.0001
+    override var desiredHWErrorBound = 0.001
         set(value) {
             require(value > 0.0) { "The desired relative precision must be > 0.0" }
             field = value
@@ -219,7 +225,13 @@ abstract class MCExperiment : MCExperimentIfc {
      * @param r the number of the replication in the sequence of replications
      * @return the simulated result from the replication
      */
-    protected abstract fun replication(r: Int): Double
+    open fun replication(r: Int): Double{
+        if (replication!= null){
+            return replication(r)
+        } else {
+            TODO("You need to implement the replication method or supply a MCReplicationIfc")
+        }
+    }
 
     override fun toString(): String {
         val sb = StringBuilder("Monte Carlo Integration Results")
@@ -248,11 +260,11 @@ abstract class MCExperiment : MCExperimentIfc {
             sb.appendLine()
             sb.append("The user should consider one of the following:")
             sb.appendLine()
-            sb.append("1. increase the desired error bound using setDesiredHWErrorBound()")
+            sb.append("1. increase the desired error bound using desiredHWErrorBound")
             sb.appendLine()
-            sb.append("2. increase the number of macro replications using setMaxSampleSize()")
+            sb.append("2. increase the number of macro replications using maxSampleSize")
             sb.appendLine()
-            sb.append("2. increase the number of micro replications using setMicroRepSampleSize()")
+            sb.append("2. increase the number of micro replications using microRepSampleSize")
         } else {
             sb.append("The half-width criteria was met!")
         }

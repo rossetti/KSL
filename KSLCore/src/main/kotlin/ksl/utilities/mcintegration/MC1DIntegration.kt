@@ -45,11 +45,7 @@ class MC1DIntegration (
     protected val myFunction: FunctionIfc
     protected val mySampler: RVariableIfc
     protected var myAntitheticSampler: RVariableIfc? = null
-    /**
-     *
-     * @param function the representation of h(x), must not be null
-     * @param sampler  the sampler over the interval, must not be null
-     */
+
     init {
         myFunction = function
         mySampler = sampler
@@ -97,8 +93,7 @@ fun main() {
 
     val f = SinFunc()
     val mc = MC1DIntegration(f, UniformRV(0.0, Math.PI))
-
-//        mc.runInitialSample();
+    mc.runInitialSample();
     println(mc)
     println()
     mc.runSimulation()
