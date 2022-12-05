@@ -26,6 +26,8 @@ import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 /**
  * Functions used to calculate Rinott constants
@@ -81,17 +83,23 @@ class Rinott {
         .11175139809793769521E3
     )
     private val LNGAM = DoubleArray(50)
+    init{
+        setupLogGammaArray()
+    }
     private val WEX = DoubleArray(32)
-
-    private val myInterval = Interval(0.0, 20.0)
-    private val myRootFinder: RootFinder = BisectionRootFinder(SearchFunction(), myInterval)
+    init{
+        setupWEXArray()
+    }
     private var pStar = 0.975
     private var dof = 50
     private var numTreatments = 10
 
+    private val myInterval = Interval(0.0, 20.0)
+    private val myRootFinder: RootFinder = BisectionRootFinder(SearchFunction(), myInterval)
+
     init {
-        setupWEXArray()
-        setupLogGammaArray()
+//        setupWEXArray()
+//        setupLogGammaArray()
         myRootFinder.maximumIterations = 200
     }
 
@@ -170,7 +178,8 @@ class Rinott {
         myRootFinder.setUpSearch(SearchFunction(), myInterval, 4.0)
         myRootFinder.evaluate()
         if (!myRootFinder.hasConverged()) {
-            KSL.logger.warn("The Rinott constant calculation did not converge")
+            KSL.logger.info("The Rinott constant calculation did not converge")
+ //           println("the Rinott calculation did not converge returning Double.NaN")
             return Double.NaN
         }
         return myRootFinder.result
@@ -210,15 +219,17 @@ class Rinott {
      */
     fun rinottIntegral(x: Double): Double {
         var ans = 0.0
+
         for (j in 1..WEX.size) {
             var tmp = 0.0
             for (i in 1..WEX.size) {
-                val z = x / Math.sqrt(dof * (1.0 / X[i - 1] + 1.0 / X[j - 1]))
+                val z = x / sqrt(dof.toDouble() * (1.0 / X[i - 1] + 1.0 / X[j - 1]))
+//                println(z)
                 val zcdf = Normal.stdNormalCDF(z)
                 val chi2pdf = chiSquaredPDF(dof, X[i - 1])
                 tmp = tmp + WEX[i - 1] * zcdf * chi2pdf
             }
-            tmp = Math.pow(tmp, (numTreatments - 1).toDouble())
+            tmp = tmp.pow((numTreatments - 1))
             ans = ans + WEX[j - 1] * tmp * chiSquaredPDF(dof, X[j - 1])
         }
         return ans
@@ -249,11 +260,11 @@ fun main(){
     val ans = doubleArrayOf(4.045, 6.057, 6.893, 5.488, 6.878, 8.276, 8.352)
     val p = doubleArrayOf(.975, .975, .975, .9, .95, 0.975, 0.975)
     val n = intArrayOf(10, 1000, 10000, 1000, 20000, 800000, 1000000)
-//    for (i in n.indices) {
-//        val result: Double = MultipleComparisonAnalyzer.rinottConstant(n[i], p[i], 50)
-//        System.out.printf("ans[%d] = %f, result = %f %n", i, ans[i], result)
-//        assert(result > ans[i] - 0.01 && result < ans[i] + 0.3)
-//    }
+    for (i in n.indices) {
+        val result: Double = MultipleComparisonAnalyzer.rinottConstant(n[i], p[i], 50)
+        System.out.printf("ans[%d] = %f, result = %f %n", i, ans[i], result)
+        assert(result > ans[i] - 0.01 && result < ans[i] + 0.3)
+    }
 
     println()
 
@@ -277,4 +288,8 @@ fun main(){
     println()
 
     KSLFileUtil.write(rc, KSLFileUtil.SOUT)
+
+    println()
+    val result = r.rinottConstant(8, 0.975, 9)
+    println("rinottConstant(k=8, p=0.975, dof=9) = $result")
 }

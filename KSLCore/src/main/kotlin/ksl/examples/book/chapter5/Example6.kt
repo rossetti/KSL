@@ -18,10 +18,6 @@ fun withoutCommonRandomNumbers(){
     val palletWorkCenter = PalletWorkCenter(model)
     // use a database to capture the response data
     val kslDatabaseObserver = KSLDatabaseObserver(model)
-    // simulate the model
-    model.experimentName = "One Worker"
-    palletWorkCenter.numWorkers = 1
-    model.simulate()
 
     model.experimentName = "Two Workers"
     palletWorkCenter.numWorkers = 2
@@ -34,7 +30,7 @@ fun withoutCommonRandomNumbers(){
     val responseName = palletWorkCenter.totalProcessingTime.name
     val db = kslDatabaseObserver.db
 
-    val expNames = listOf("One Worker","Two Workers", "Three Workers")
+    val expNames = listOf("Two Workers", "Three Workers")
     val comparisonAnalyzer = db.multipleComparisonAnalyzerFor(expNames, responseName)
     println(comparisonAnalyzer)
 }
@@ -46,12 +42,8 @@ fun withCommonRandomNumbers(){
     val palletWorkCenter = PalletWorkCenter(model)
     // use a database to capture the response data
     val kslDatabaseObserver = KSLDatabaseObserver(model)
-    // simulate the model
-    model.experimentName = "One Worker"
-    palletWorkCenter.numWorkers = 1
-    model.resetStartStreamOption = true
-    model.simulate()
 
+    model.resetStartStreamOption = true
     model.experimentName = "Two Workers"
     palletWorkCenter.numWorkers = 2
     model.simulate()
@@ -63,7 +55,7 @@ fun withCommonRandomNumbers(){
     val responseName = palletWorkCenter.totalProcessingTime.name
     val db = kslDatabaseObserver.db
 
-    val expNames = listOf("One Worker","Two Workers", "Three Workers")
+    val expNames = listOf("Two Workers", "Three Workers")
     val comparisonAnalyzer = db.multipleComparisonAnalyzerFor(expNames, responseName)
     println(comparisonAnalyzer)
 }

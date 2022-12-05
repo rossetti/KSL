@@ -22,9 +22,11 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.*
+import ksl.utilities.distributions.StudentT
 import ksl.utilities.distributions.Tukey
 import ksl.utilities.io.StatisticReporter
 import java.io.PrintWriter
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
@@ -319,7 +321,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
             for (f in myPairDiffStats.keys) {
                 val g = myPairDiffStats[f]!!
                 for (s in g.keys) {
-                    list.add(getVarianceOfDifference(f, s))
+                    list.add(varianceOfDifference(f, s))
                 }
             }
             val x = DoubleArray(list.size)
@@ -375,7 +377,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param s2 the name of data set number 2
      * @return variance for the pair of data names given by the strings
      */
-    fun getVarianceOfDifference(s1: String, s2: String): Double {
+    fun varianceOfDifference(s1: String, s2: String): Double {
         return myPairDiffStats[s1]!![s2]!!.variance
     }
 
@@ -674,7 +676,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @return all the intervals
      */
-    val mCBMaxIntervals: List<Interval>
+    val mcbMaxIntervals: List<Interval>
         get() = mcbMaxIntervals(defaultIndifferenceZone)
 
     /**
@@ -911,6 +913,34 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
             }
             return x
         }
+
+    /**
+     *  As per Nelson and Matejcik (1995) computes the second stage sample size
+     *  based on the input parameters using the maximum variance of the differences.
+     *  Assumes that the supplied arrays are the initial samples and specify the number of samples.
+     *
+     *  @param indifference the practical significant difference, problem dependent, must be greater than 0.0
+     *  @param probCS probability of correct selection
+     *  @return the recommended 2nd stage sample size
+     */
+    fun secondStageSampleSizeNM(indifference: Double, probCS: Double = 0.95): Int {
+        require(indifference > 0.0) { "The indifference parameter must be > 0" }
+        require((0.0 < probCS) && (probCS < 1.0)){"The probability of correct selection must be in (0,1)"}
+        val dof = myDataSize - 1.0
+//        println("dof = $dof")
+        val k = numberDatasets
+        val alpha = 1.0 - probCS
+//        println("alpha = $alpha")
+        val upper = alpha / (k - 1.0)
+//        println("upper = $upper")
+        val p = 1.0 - upper
+//        println("p = $p")
+        val t = StudentT.invCDF(dof, p)
+//        println("t = $t")
+        val m = t*t*maxVarianceOfDifferences/(indifference*indifference)
+//        println("m = $m")
+        return maxOf(myDataSize.toDouble(), ceil(m)).toInt()
+    }
 
     /**
      * The data associated with the name. If the name is not in the map, the
@@ -3318,12 +3348,15 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
                 0.90 -> {
                     mvtQuantile90(dof, nDim)
                 }
+
                 0.95 -> {
                     mvtQuantile95(dof, nDim)
                 }
+
                 0.99 -> {
                     mvtQuantile99(dof, nDim)
                 }
+
                 else -> {
                     Double.NaN
                 }
@@ -3386,4 +3419,7 @@ fun main() {
     println(mca)
     println("num data sets: " + mca.numberDatasets)
     println(mca.dataNames.contentToString())
+
+    val r = mca.secondStageSampleSizeNM(2.0, 0.95)
+    println("Second stage sampling recommendation R = $r")
 }
