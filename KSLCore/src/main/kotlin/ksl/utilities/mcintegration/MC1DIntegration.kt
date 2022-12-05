@@ -25,7 +25,6 @@ import ksl.utilities.random.rvariable.UniformRV
 
 /**
  * Provides for the integration of a 1-D function via Monte-Carlo sampling.
- * See the detailed discussion for the class MCExperiment.
  *
  * The evaluation will automatically utilize
  * antithetic sampling to reduce the variance of the estimates unless the user specifies not to do so. In the case of
@@ -33,6 +32,13 @@ import ksl.utilities.random.rvariable.UniformRV
  * will require two function evaluations for each micro replication. The user can consider the implication of the cost of
  * function evaluation versus the variance reduction obtained.
  * The default confidence level has been set to 99 percent.
+ *
+ * Let f(x) be the probability distribution for the random variable supplied by the sampler.
+ * Let g(x) be the function that needs to be integrated.
+ * Let h(x) be a factorization of g(x) such that g(x) = h(x)*f(x), that is h(x) = g(x)/f(x)
+ *
+ * The interval of integration is defined based on the domain of f(x).
+ *
  * @param function the representation of h(x), must not be null
  * @param sampler  the sampler over the interval, must not be null
  * @param antitheticOption  true represents use of antithetic sampling

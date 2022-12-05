@@ -20,6 +20,7 @@ package ksl.examples.book.chapter3
 
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.Statistic
+import kotlin.math.sqrt
 
 /**
  * This example illustrates how to perform simple Monte-Carlo
@@ -33,7 +34,7 @@ fun main() {
     val n = 100 // sample size
     for (i in 1..n) {
         val x = ucdf.value
-        val gx = Math.sqrt(x)
+        val gx = sqrt(x)
         val y = (b - a) * gx
         stat.collect(y)
     }
