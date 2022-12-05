@@ -904,13 +904,13 @@ class Model(
                 if (lengthOfReplication.isInfinite()) {
                     if (maximumAllowedExecutionTimePerReplication == Duration.ZERO) {
                         val sb = StringBuilder()
-                        sb.append("Model: Preparing to run replications:")
+                        sb.append("Model: Preparing to run replications for model = ${model.simulationName}, experiment ${model.experimentName}:")
                         sb.appendLine()
-                        sb.append("The experiment has an infinite horizon.")
+                        sb.append("The experiment has an infinite horizon for each replication.")
                         sb.appendLine()
                         sb.append("There was no maximum real-clock execution time specified.")
                         sb.appendLine()
-                        sb.append("The user is responsible for ensuring that the replication is stopped.")
+                        sb.append("The user is responsible for ensuring that the replications are stopped.")
                         sb.appendLine()
                         logger.warn(sb.toString())
                         println(sb.toString())

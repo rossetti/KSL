@@ -246,6 +246,22 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     /**
+     * Returns the names of the experiments in the SIMULATION_RUN
+     * table. Names may be repeated in the list if the user did not
+     * specify unique experiment names.
+     */
+    val experimentNames : List<String>
+        get()  {
+        val list = mutableListOf<String>()
+        val iterator = simulationRuns.iterator()
+        while(iterator.hasNext()){
+            val sr: SimulationRun = iterator.next()
+            list.add(sr.expName)
+        }
+        return list
+    }
+
+    /**
      * This prepares a map that can be used with MultipleComparisonAnalyzer. If the set of
      * simulation runs does not contain the provided experiment name, then an IllegalArgumentException
      * occurs.  If there are multiple simulation runs with the same experiment name, then
@@ -258,15 +274,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * @return a map with key exp_name containing an array of values, each value from each replication
      */
     fun withinReplicationViewMapForExperiments(expNames: List<String>, responseName: String): Map<String, DoubleArray> {
+        val eNames = experimentNames
+        val uniqueNames = eNames.toSet()
+        if (uniqueNames.size != eNames.size){
+            DatabaseIfc.logger.error { "There were multiple simulation runs with same experiment name" }
+            throw IllegalArgumentException("There were multiple simulation runs with the experiment name")
+        }
         for (name in expNames) {
-            val filter = withinRepViewStats.filter { it.expName.like(name) }
-            if (filter.isEmpty()) {
+            if (!eNames.contains(name)) {
                 DatabaseIfc.logger.error { "There were no simulation runs with the experiment name $name" }
                 throw IllegalArgumentException("There were no simulation runs with the experiment name $name")
-            }
-            if (filter.count() > 1) {
-                DatabaseIfc.logger.error { "There were multiple simulation runs with the experiment name $name" }
-                throw IllegalArgumentException("There were multiple simulation runs with the experiment name $name")
             }
         }
         val theMap = mutableMapOf<String, DoubleArray>()

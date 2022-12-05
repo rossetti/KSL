@@ -814,7 +814,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @return MCB minimum intervals in the form of a map
      */
-    val mcbMinIntervalsAsMap: Map<String?, Interval>
+    val mcbMinIntervalsAsMap: Map<String, Interval>
         get() = mcbMinIntervalsAsMap(defaultIndifferenceZone)
 
     /**
@@ -824,8 +824,8 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return MCB minimum intervals in the form of a map
      */
-    fun mcbMinIntervalsAsMap(delta: Double): Map<String?, Interval> {
-        val map: MutableMap<String?, Interval> = LinkedHashMap()
+    fun mcbMinIntervalsAsMap(delta: Double): Map<String, Interval> {
+        val map: MutableMap<String, Interval> = LinkedHashMap()
         val n = numberDatasets
         val names = dataNames
         val list = mcbMinIntervals(delta)
@@ -854,22 +854,16 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         val n = numberDatasets
         val names = dataNames
         val list = mcbMinIntervals(delta)
-        sb.append("MCB Minimum Intervals")
-        sb.append(System.lineSeparator())
-        sb.append("Indifference delta: ")
-        sb.append(delta)
-        sb.append(System.lineSeparator())
+        sb.appendLine("MCB Minimum Intervals")
+        sb.appendLine("Indifference delta: $delta")
         sb.append("Name")
         sb.append("\t \t")
-        sb.append("Interval")
-        sb.append(System.lineSeparator())
+        sb.appendLine("Interval")
         for (i in 0 until n) {
             sb.append(names[i])
             sb.append("\t \t")
-            sb.append(list[i].toString())
-            sb.append(System.lineSeparator())
+            sb.appendLine(list[i].toString())
         }
-        sb.append(System.lineSeparator())
         return sb
     }
 
@@ -1024,34 +1018,21 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.append("Multiple Comparison Report: ")
-        sb.append(System.lineSeparator())
-        sb.append(this.summaryStatistics("Raw Data"))
-        sb.append(System.lineSeparator())
-        sb.append(confidenceIntervalsOnData())
-        sb.append(System.lineSeparator())
-        sb.append(differenceSummaryStatistics("Difference Data"))
-        sb.append(System.lineSeparator())
-        sb.append(confidenceIntervalsOnDifferenceData())
-        sb.append(System.lineSeparator())
-        sb.append("Max variance = ").append(maxVarianceOfDifferences)
-        sb.append(System.lineSeparator())
-        sb.append("Min performer = ").append(nameOfMinimumAverageOfData)
-        sb.append(System.lineSeparator())
-        sb.append("Min performance = ").append(minimumAverageOfData)
-        sb.append(System.lineSeparator())
-        sb.append("Max performer = ").append(nameOfMaximumAverageOfData)
-        sb.append(System.lineSeparator())
-        sb.append("Max performance = ").append(maximumAverageOfData)
-        sb.append(System.lineSeparator())
-        sb.append("Min difference = ").append(nameOfMinumumAverageOfDifferences)
-        sb.append(System.lineSeparator())
-        sb.append("Min difference value = ").append(minimumOfAveragesOfDifferences)
-        sb.append(System.lineSeparator())
-        sb.append("Max difference = ").append(nameOfMaximumAverageOfDifferences)
-        sb.append(System.lineSeparator())
-        sb.append("Max difference value = ").append(maximumOfAveragesOfDifferences)
-        sb.append(System.lineSeparator())
+        sb.appendLine("Multiple Comparison Report: ")
+        sb.appendLine(this.summaryStatistics("Raw Data"))
+        sb.appendLine(confidenceIntervalsOnData())
+        sb.appendLine(differenceSummaryStatistics("Difference Data"))
+        sb.appendLine(confidenceIntervalsOnDifferenceData())
+        sb.appendLine("Max variance = $maxVarianceOfDifferences")
+        sb.appendLine("Min performer = $nameOfMinimumAverageOfData")
+        sb.appendLine("Min performance = $minimumAverageOfData")
+        sb.appendLine("Max performer = $nameOfMaximumAverageOfData")
+        sb.appendLine("Max performance = $maximumAverageOfData")
+        sb.appendLine("Min difference = $nameOfMinumumAverageOfDifferences")
+        sb.appendLine("Min difference value = $minimumOfAveragesOfDifferences")
+        sb.appendLine("Max difference = $nameOfMaximumAverageOfDifferences")
+        sb.appendLine("Max difference value = $maximumOfAveragesOfDifferences")
+        sb.appendLine()
         sb.append(mcbMaxIntervalsAsSB.toString())
         sb.append(mcbMinIntervalsAsSB.toString())
         return sb.toString()
