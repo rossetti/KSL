@@ -805,22 +805,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  Activates the process. Causes the process to be scheduled to start at the present time or some time
              *  into the future. This schedules an event
              *
-             *  @param activationTime the time into the future at which the process should be activated (started) for
+             *  @param timeUntilActivation the time into the future at which the process should be activated (started) for
              *  the supplied entity
              *  @param priority used to indicate priority of activation if there are activations at the same time.
              *  Lower priority goes first.
              *  @return KSLEvent the event used to schedule the activation
              */
             internal fun activate(
-                activationTime: Double = 0.0,
+                timeUntilActivation: Double = 0.0,
                 priority: Int = KSLEvent.DEFAULT_PRIORITY
             ): KSLEvent<KSLProcess> {
                 check(!hasPendingProcess) { "The $this process cannot be activated for the entity because the entity already has a pending process" }
                 check(!hasCurrentProcess) { "The $this process cannot be activated for the entity because the entity is already running a process" }
                 myPendingProcess = this
                 entity.state.schedule()
-                logger.trace { "time = $time : entity ${entity.id} scheduled to start process $this at time ${time + activationTime}" }
-                return myActivationAction.schedule(activationTime, this, priority)
+                logger.trace { "time = $time : entity ${entity.id} scheduled to start process $this at time ${time + timeUntilActivation}" }
+                return myActivationAction.schedule(timeUntilActivation, this, priority)
             }
 
             private inner class ActivateAction : EventAction<KSLProcess>() {

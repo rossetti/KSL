@@ -56,6 +56,7 @@ class SimpleProcessQ(parent: ModelElement) : ProcessModel(parent, null) {
     private inner class Arrivals: EventAction<Nothing>(){
         override fun action(event: KSLEvent<Nothing>) {
             val c = Customer()
+
             activate(c.mm1)
             schedule(tba)
         }
