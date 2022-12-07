@@ -14,6 +14,12 @@ The KSL has the following functionality:
 - Simulation data collection to Excel, CSV, databases, and data frames
 - Utility extensions for working with arrays and files
 
+## Licensing
+
+The KSL is licensed under the [GPL 3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
+
+Why the GPL and not the LGPL? The KSL has functionality that could be used to form propriety simulation software. Using the GPL rather than the LGPL prevents this from happening.  Developers and companies are free to use the KSL. Nothing prevents its use in performing (in-house) simulation analysis within industry. In fact, this is encouraged. However, developers or companies that want to build and extend the KSL (especially for commercial or proprietary reasons), are not permitted under the GPL. Developers and companies are encouraged to add functionality to the KSL and release the functionality so that everyone can benefit.
+
 ## Cloning and Setting Up a Project
 
 If you are using IntelliJ, you can use its clone repository functionality to 
