@@ -14,8 +14,6 @@ The KSL has the following functionality:
 - Simulation data collection to Excel, CSV, databases, and data frames
 - Utility extensions for working with arrays and files
 
-This is a Gradle based project.
-
 ## Cloning and Setting Up a Project
 
 If you are using IntelliJ, you can use its clone repository functionality to 
