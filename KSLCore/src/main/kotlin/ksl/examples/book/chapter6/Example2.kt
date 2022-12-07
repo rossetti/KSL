@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -16,61 +16,44 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package examplepkg
+package ksl.examples.book.chapter6
 
-import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.entity.ProcessModel
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
-class TestProcessModeling(parent: ModelElement) : ProcessModel(parent, null) {
+class Example2(parent: ModelElement) : ProcessModel(parent, null)  {
 
-    val resource: ResourceWithQ = ResourceWithQ(this, "test resource")
-
-    val holdQueue = HoldQueue(this, "hold")
+    private val holdQueue = HoldQueue(this, "hold")
 
     private val myEventActionOne: EventActionOne = EventActionOne()
 
-    private inner class Customer: Entity() {
-        val someProcess : KSLProcess = process("test") {
-            println("time = $time before the first delay in ${this@Customer}")
+    private inner class Customer: ProcessModel.Entity() {
+        val holdProcess : KSLProcess = process() {
+            println("time = $time : before being held customer = ${this@Customer.name}")
             hold(holdQueue)
+            println("time = $time : after being held customer = ${this@Customer.name}")
             delay(10.0)
-            println("time = $time after the first delay in ${this@Customer}")
-            println("time = $time before the second delay in ${this@Customer}")
+            println("time = $time after the first delay for customer = ${this@Customer.name}")
             delay(20.0)
-            println("time = $time after the second delay in ${this@Customer}")
-        }
-
-        val seizeTest: KSLProcess = process("test seize"){
-            val a  = seize(resource)
-            delay(10.0)
-            release(a)
+            println("time = $time after the second delay for customer = ${this@Customer.name}")
         }
     }
-
-    private var customer: Customer? = null
 
     override fun initialize() {
         val e = Customer()
-        customer = e
-        activate(e.someProcess)
+        activate(e.holdProcess)
         val c = Customer()
-        activate(c.someProcess, 1.0)
-
-//        val t = Customer()
-//        activate(t.seizeTest)
-//        activate(c.seizeTest, 1.0)
+        activate(c.holdProcess, 1.0)
         schedule(myEventActionOne, 5.0)
     }
 
-    private inner class EventActionOne : EventAction<Nothing>() {
+    private inner class EventActionOne : ModelElement.EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
-            println("EventActionOne at time : $time")
-           // customer?.terminateProcess()
+            println("Removing and resuming held entities at time : $time")
             holdQueue.removeAllAndResume()
         }
     }
@@ -78,9 +61,8 @@ class TestProcessModeling(parent: ModelElement) : ProcessModel(parent, null) {
 
 fun main(){
     val m = Model()
-    val test = TestProcessModeling(m)
-
-    m.lengthOfReplication = 100.0
+    Example2(m)
+    m.lengthOfReplication = 50.0
     m.numberOfReplications = 1
     m.simulate()
 }

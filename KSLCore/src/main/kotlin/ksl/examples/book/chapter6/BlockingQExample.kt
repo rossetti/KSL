@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -16,14 +16,13 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package examplepkg
+package ksl.examples.book.chapter6
 
 import ksl.modeling.entity.*
-import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
-class TestBlockingQ(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class BlockingQExample(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
 //    val blockingQ: BlockingQueue<QObject> = BlockingQueue(this)
     val blockingQ: BlockingQueue<QObject> = BlockingQueue(this, capacity = 10)
@@ -33,15 +32,15 @@ class TestBlockingQ(parent: ModelElement, name: String? = null) : ProcessModel(p
     private inner class Receiver: Entity() {
         val receiving : KSLProcess = process("receiving") {
             for (i in 1..15) {
-                println("time = $time before the first delay in ${this@Receiver}")
+                println("$time > before the first delay for receiving entity: ${this@Receiver.name}")
                 delay(1.0)
-                println("time = $time trying to get item")
+                println("$time > trying to get item for receiving entity: ${this@Receiver.name}")
                 waitForItems(blockingQ, 1)
-                println("time = $time after getting item")
+                println("$time > after getting item for receiving entity: ${this@Receiver.name}")
                 delay(5.0)
-                println("time = $time after the second delay in ${this@Receiver}")
+                println("$time > after the second delay for receiving entity: ${this@Receiver.name}")
             }
-            println("time = $time exiting the process in ${this@Receiver}")
+            println("$time > exiting the process of receiving entity: ${this@Receiver.name}")
         }
     }
 
@@ -49,13 +48,13 @@ class TestBlockingQ(parent: ModelElement, name: String? = null) : ProcessModel(p
         val sending : KSLProcess = process("sending") {
             for (i in 1..15){
                 delay(5.0)
-                println("time = $time after the first delay in ${this@Sender}")
+                println("$time > after the first delay for sender ${this@Sender.name}")
                 val item = QObject()
-                println("time = $time before sending an item")
+                println("$time > before sending an item from sender ${this@Sender.name}")
                 send(item, blockingQ)
-                println("time = $time after sending an item")
+                println("$time > after sending an item from sender ${this@Sender.name}")
             }
-            println("time = $time exiting the process in ${this@Sender}")
+            println("$time > exiting the process for sender ${this@Sender.name}")
         }
     }
 
@@ -70,10 +69,10 @@ class TestBlockingQ(parent: ModelElement, name: String? = null) : ProcessModel(p
 
 fun main(){
     val m = Model()
-    val test = TestBlockingQ(m)
+    val test = BlockingQExample(m)
 
     m.lengthOfReplication = 100.0
-    m.numberOfReplications = 2
+    m.numberOfReplications = 1
     m.simulate()
     m.print()
 }
