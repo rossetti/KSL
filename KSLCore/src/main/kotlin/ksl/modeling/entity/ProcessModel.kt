@@ -21,6 +21,7 @@ package ksl.modeling.entity
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.exceptions.IllegalStateException
@@ -177,6 +178,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     final override fun afterReplication() {
         // make a copy of the set
         val set = suspendedEntities.toHashSet()
+        Model.logger.info{"After Replication for $this.name: terminating ${set.size} suspended entities"}
         for (entity in set) {
             entity.terminateProcess()
         }
@@ -1090,7 +1092,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.DELAY
                 // capture the event for possible cancellation
                 entity.state.schedule()
-                myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority)
+                val eName = "Delay Event: duration = $delayDuration suspension name = $suspensionName"
+                myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
                 logger.trace { "time = $time : entity ${entity.id} delaying for $delayDuration, suspending process, ($this) ..." }
                 suspend()

@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package examplepkg
+package ksl.examples.book.chapter6
 
 import ksl.modeling.entity.BlockingQueue
 import ksl.modeling.entity.KSLProcess
@@ -39,10 +39,12 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
     private val myShirtMakingTime = RandomVariable(this, UniformRV(15.0, 25.0))
     private val myPaperWorkTime = RandomVariable(this, UniformRV(8.0, 10.0))
     private val myPackagingTime = RandomVariable(this, TriangularRV(5.0, 10.0, 15.0))
-    private val myShirtMakers: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "ShirtMakers_R")
-    private val myPackager: ResourceWithQ = ResourceWithQ(this, "Packager_R")
+
     private val mySystemTime = Response(this, "System Time")
     private val myNumInSystem = TWResponse(this, "Num in System")
+
+    private val myShirtMakers: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "ShirtMakers_R")
+    private val myPackager: ResourceWithQ = ResourceWithQ(this, "Packager_R")
     private val generator = EntityGenerator(::Order, myTBOrders, myTBOrders)
     private val completedShirtQ: BlockingQueue<Shirt> = BlockingQueue(this, name = "Completed Shirt Q")
 
@@ -83,8 +85,7 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
 
 fun main(){
     val m = Model()
-    val tieDyeTShirts = TieDyeTShirts(m, "Tie-Dye Shirts")
-
+    TieDyeTShirts(m, "Tie-Dye Shirts")
     m.lengthOfReplication = 480.0
     m.numberOfReplications = 30
     m.simulate()

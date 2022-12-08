@@ -1582,6 +1582,10 @@ object KSLRandom {
 fun Boolean.toInt() = if (this) 1 else 0
 fun Boolean.toDouble() = if (this) 1.0 else 0.0
 
+fun Double.toBoolean() = this == 1.0
+
+fun Int.toBoolean() = this == 1
+
 fun <T> List<T>.randomlySelect(stream: RNStreamIfc = KSLRandom.defaultRNStream()): T {
     return KSLRandom.randomlySelect(this, stream)
 }

@@ -22,11 +22,12 @@ import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.Signal
 import ksl.simulation.KSLEvent
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
 class SignalExample(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
-    private val signal = Signal(this, "SignalQ")
+    private val signal = Signal(this, "SignalExample")
 
     private inner class SignaledEntity : Entity() {
         val waitForSignalProcess: KSLProcess = process {
@@ -43,9 +44,20 @@ class SignalExample(parent: ModelElement, name: String? = null) : ProcessModel(p
         for (i in 1..10){
             activate(SignaledEntity().waitForSignalProcess)
         }
+        schedule(this::signalEvent, 3.0)
     }
 
     private fun signalEvent(event: KSLEvent<Nothing>){
         signal.signal(0..4)
+        println("$time > signaling the entities in range 0..4")
     }
+}
+
+fun main(){
+    val m = Model()
+    SignalExample(m)
+    m.numberOfReplications = 1
+    m.lengthOfReplication = 50.0
+    m.simulate()
+    m.print()
 }
