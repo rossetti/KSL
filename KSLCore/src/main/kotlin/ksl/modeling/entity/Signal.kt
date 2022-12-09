@@ -44,6 +44,17 @@ class Signal(
         get() = holdQueue
 
     /**
+     *  An immutable list representation of the holding queue. While the list is
+     *  read-only, the elements can be changed. Thus, some care may be needed to
+     *  understand the effects of such changes.  This view is mainly to provide the abilities
+     *  available in the Kotlin collection classes to working with the waiting entities,
+     *  which may be used to determine which entities to signal.
+     */
+    fun holdingQueueAsList() : List<ProcessModel.Entity>{
+        return holdQueue.toList()
+    }
+
+    /**
      *  Used within the process implementation to hold the entities
      */
     internal fun hold(entity: ProcessModel.Entity, queuePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
