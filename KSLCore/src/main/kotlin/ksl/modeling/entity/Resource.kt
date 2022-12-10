@@ -18,6 +18,7 @@
 
 package ksl.modeling.entity
 
+import ksl.modeling.elements.Schedule
 import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
@@ -451,6 +452,12 @@ open class Resource(
         override fun onExit() {
             resourcedExitedFailure()
         }
+    }
+
+    inner class CapacityChangeNotice {
+        var capacity : Int = 0
+        var duration: Double = Double.POSITIVE_INFINITY
+        var startTime : Double = 0.0
     }
 }
 
