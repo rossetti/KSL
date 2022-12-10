@@ -45,9 +45,6 @@ import ksl.simulation.ModelElement
  * is only relevant if the repeat flag is true and the schedule duration is finite. If there is only one cycle, it is
  * the time that the schedule started.
  *
- * A builder is used to configure the schedule and then items are added to the schedule. If no items are added
- * to the schedule, then there will still be an event to start the schedule.
- *
  * To make a Schedule useful, instances of the ScheduleChangeListenerIfc interface should be added to
  * listen for changes in the schedule.  Instances of ScheduleChangeListenerIfc are notified in the order
  * in which they are added to the schedule.  Instances of ScheduleChangeListenerIfc are notified when the
@@ -183,16 +180,16 @@ class Schedule(
      * @param duration the duration of the item
      * @param priority the priority, (among items) if items start at the same
      * time
-     * @param message a message or datum to attach to the item
+     * @param datum a message or datum to attach to the item
      * @return the created ScheduleItem
     </T> */
     fun <T> addItem(
         startTime: Double = 0.0,
         duration: Double,
         priority: Int = itemStartEventPriority,
-        message: T? = null
+        datum: T? = null
     ): ScheduleItem<T> {
-        val aItem: ScheduleItem<T> = ScheduleItem(startTime, duration, priority, message)
+        val aItem: ScheduleItem<T> = ScheduleItem(startTime, duration, priority, datum)
         require(aItem.endTime <= initialStartTime + scheduleLength) { "The item's end time is past the schedule's end." }
 
         // nothing in the list, just add to beginning
@@ -410,7 +407,7 @@ class Schedule(
      *
      * @param <T> a general message or other object that can be associated with the ScheduleItem
     </T> */
-    inner class ScheduleItem<T>(
+    open inner class ScheduleItem<T>(
         val startTime: Double,
         val duration: Double,
         val priority: Int,
@@ -516,9 +513,9 @@ class Schedule(
 fun main() {
     val m = Model()
     val s = Schedule(m, startTime = 0.0, length = 480.0)
-    s.addItem(60.0 * 2.0, 15.0, message = "break1")
-    s.addItem((60.0 * 4.0), 30.0, message = "lunch")
-    s.addItem((60.0 * 6.0), 15.0, message = "break2")
+    s.addItem(60.0 * 2.0, 15.0, datum = "break1")
+    s.addItem((60.0 * 4.0), 30.0, datum = "lunch")
+    s.addItem((60.0 * 6.0), 15.0, datum = "break2")
     s.addScheduleChangeListener(ScheduleListener())
 
     println(s)

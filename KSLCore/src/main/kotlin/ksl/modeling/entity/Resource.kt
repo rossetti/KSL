@@ -22,6 +22,7 @@ import ksl.modeling.elements.Schedule
 import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
+import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.State
@@ -426,14 +427,14 @@ open class Resource(
 
     protected open fun resourceEnteredFailure() {
         val list = allocations()
-        for(allocation in list){
+        for (allocation in list) {
             allocation.failureActions.beginFailure(allocation)
         }
     }
 
     protected open fun resourcedExitedFailure() {
         val list = allocations()
-        for(allocation in list){
+        for (allocation in list) {
             allocation.failureActions.endFailure(allocation)
         }
     }
@@ -455,9 +456,8 @@ open class Resource(
     }
 
     inner class CapacityChangeNotice {
-        var capacity : Int = 0
+        var capacity: Int = 0
         var duration: Double = Double.POSITIVE_INFINITY
-        var startTime : Double = 0.0
+        var startTime: Double = 0.0
     }
 }
-
