@@ -18,10 +18,7 @@
 
 package ksl.examples.book.chapter6
 
-import ksl.modeling.entity.BlockingQueue
-import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.entity.*
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
@@ -44,6 +41,7 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
     private val myNumInSystem = TWResponse(this, "Num in System")
 
     private val myShirtMakers: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "ShirtMakers_R")
+    private val myOrderQ : RequestQ = RequestQ(this, name = "OrderQ")
     private val myPackager: ResourceWithQ = ResourceWithQ(this, "Packager_R")
     private val generator = EntityGenerator(::Order, myTBOrders, myTBOrders)
     private val completedShirtQ: BlockingQueue<Shirt> = BlockingQueue(this, name = "Completed Shirt Q")
@@ -59,7 +57,7 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
                 val shirt = Shirt(this@Order.id)
                 activate(shirt.shirtMaking)
             }
-            var a = seize(myPackager)
+            var a = seize(myPackager, queue = myOrderQ)
             delay(myPaperWorkTime)
             release(a)
             // wait for shirts
