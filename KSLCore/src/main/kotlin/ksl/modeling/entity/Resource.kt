@@ -460,4 +460,23 @@ open class Resource(
         var duration: Double = Double.POSITIVE_INFINITY
         var startTime: Double = 0.0
     }
+
+    inner class CapacityListener : CapacityChangeListenerIfc {
+        override fun scheduleStarted(schedule: CapacitySchedule) {
+            println("time = ${schedule.time} Schedule Started")
+        }
+
+        override fun scheduleEnded(schedule: CapacitySchedule) {
+            println("time = ${schedule.time} Schedule Ended")
+        }
+
+        override fun scheduleItemStarted(item: CapacitySchedule.CapacityItem) {
+            println("time = ${item.schedule.time} scheduled item ${item.name} started with capacity ${item.capacity}")
+        }
+
+        override fun scheduleItemEnded(item: CapacitySchedule.CapacityItem) {
+            println("time = ${item.schedule.time} scheduled item ${item.name} ended with capacity ${item.capacity}")
+        }
+
+    }
 }
