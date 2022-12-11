@@ -18,15 +18,14 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.elements.Schedule
 import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
-import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
+import java.util.*
 
 interface ResourceCIfc : DefaultReportingOptionIfc {
 
@@ -155,6 +154,8 @@ open class Resource(
 
     override var capacity = capacity
         protected set
+
+    private val mySchedules: MutableMap<CapacitySchedule, CapacityChangeListenerIfc> = mutableMapOf()
 
     override var numTimesSeized: Int = 0
         protected set
@@ -455,6 +456,49 @@ open class Resource(
         }
     }
 
+    /**
+     *
+     * @return true if the resource unit has schedules registered
+     */
+    fun hasSchedules(): Boolean {
+        return !mySchedules.isEmpty()
+    }
+
+    /**
+     * Tells the resource to listen and react to changes in the supplied
+     * Schedule. Any scheduled items on the schedule will be interpreted as
+     * changes to make the resource become inactive.  Note the implications
+     * of having more that one schedule in the class documentation.
+     *
+     * @param schedule the schedule to use, must not be null
+     */
+    fun useSchedule(schedule: CapacitySchedule) {
+        if (isUsingSchedule(schedule)) {
+            return
+        }
+        val scheduleListener = CapacityListener()
+        mySchedules.put(schedule, scheduleListener)
+        schedule.addCapacityChangeListener(scheduleListener)
+    }
+
+    /**
+     * @return true if already using the supplied Schedule
+     */
+    fun isUsingSchedule(schedule: CapacitySchedule): Boolean {
+        return mySchedules.containsKey(schedule)
+    }
+
+    /**
+     * If the resource is using a schedule, the resource stops listening for
+     * schedule changes and is no longer using a schedule
+     */
+    fun stopUsingSchedule(schedule: CapacitySchedule) {
+        if (!isUsingSchedule(schedule)) {
+            return
+        }
+        val listenerIfc: CapacityChangeListenerIfc = mySchedules.remove(schedule)!!
+        schedule.deleteCapacityChangeListener(listenerIfc)
+    }
     inner class CapacityChangeNotice {
         var capacity: Int = 0
         var duration: Double = Double.POSITIVE_INFINITY
