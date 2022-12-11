@@ -161,6 +161,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
 
     var resourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
     var resourceAllocationRule: AllocationRuleIfc = DefaultAllocationRule()
+    protected val waitingRequests : MutableList<ProcessModel.Entity.Request> = mutableListOf()
 
     init {
         for (r in resources) {
@@ -183,6 +184,14 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
         for (i in 1..numResources) {
             addResource(Resource(this, "${this.name}:R${i}"))
         }
+    }
+
+    internal fun addRequest(request: ProcessModel.Entity.Request){
+        waitingRequests.add(request)
+    }
+
+    internal fun removeRequest(request: ProcessModel.Entity.Request){
+        waitingRequests.remove(request)
     }
 
     protected fun addResource(resource: Resource) {
@@ -213,7 +222,18 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
         }
 
     val fractionBusy: Double
-        get() = myNumBusy.value / capacity
+        get() {
+            return if (capacity == 0) {
+                0.0
+            } else {
+                myNumBusy.value / capacity
+            }
+        }
+
+    override fun initialize() {
+        super.initialize()
+        waitingRequests.clear()
+    }
 
     /**
      * @return returns a list of idle resources. It may be empty.

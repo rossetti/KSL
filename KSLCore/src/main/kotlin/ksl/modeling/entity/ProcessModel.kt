@@ -1043,7 +1043,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resource.name} in process, ($this)" }
                     entity.state.waitForResource()
+                    resource.addRequest(request)
                     suspend()
+                    resource.removeRequest(request)
                     entity.state.activate()
                 }
                 // entity has been told to resume
@@ -1073,7 +1075,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resourcePool.name} in process, ($this)" }
                     entity.state.waitForResource()
+                    resourcePool.addRequest(request)
                     suspend()
+                    resourcePool.removeRequest(request)
                     entity.state.activate()
                 }
                 // entity has been told to resume

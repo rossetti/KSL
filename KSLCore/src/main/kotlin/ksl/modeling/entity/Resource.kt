@@ -25,7 +25,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
-import java.util.*
+import kotlin.math.abs
 
 interface ResourceCIfc : DefaultReportingOptionIfc {
 
@@ -96,6 +96,29 @@ interface ResourceFailureActionsIfc {
     fun endFailure(allocation: Allocation)
 }
 
+/**
+ *  A Resource represents a number of common units that can be allocated to entities.  A resource
+ *  has an initial capacity.  The capacity can be changed during a replication; however, the capacity of
+ *  every replication starts at the same initial capacity.
+ *
+ *  A resource is busy if at least 1 unit has been allocated. A resource becomes busy when it has allocations. If
+ *  a seize-request occurs and the resource has capacity to fill it completely, then the request is allocated
+ *  the requested amount.  If insufficient capacity is available at the time of the request, then the request
+ *  waits until the requested units can be allocated.
+ *
+ *  A resource is considered inactive if all of its units of capacity are inactive. That is, a resource is
+ *  inactive if its capacity is zero.  A resource that is inactive can be seized.  If a request for units occurs
+ *  when the resource is inactive, the request waits (as usual) until it can be fulfilled.
+ *
+ *  A resource is idle if it is not failed, and it has capacity but no units have been allocated. If b(t) is the number
+ *  of units allocated at time t, and c(t) is the current capacity of the resource, then the number of available units,
+ *  a(t), is defined as a(t) = c(t) - b(t).  If the resource is failed, then a(t) = 0.  Thus, a resource is idle if
+ *  a(t) = c(t).  Since a resource is busy if b(t) > 0, busy and idle are complements of each other. Provided a
+ *  resource is not failed and c(t) > 0 (not inactive), then the resource is either busy b(t) > 0 or idle b(t) = 0.
+ *  If a(t) > 0, then the resource has units that it can allocate.
+ *
+ *
+ */
 open class Resource(
     parent: ModelElement,
     name: String? = null,
@@ -122,6 +145,13 @@ open class Resource(
     protected val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
 
     protected val allocationListeners: MutableList<AllocationListenerIfc> = mutableListOf()
+
+    /**
+     * holds entity requests that are waiting for the resource in an internal list
+     * with no statistics. This list allows waiting requests to be processed because of
+     * capacity changes and failures
+     */
+    protected val waitingRequests : MutableList<ProcessModel.Entity.Request> = mutableListOf()
 
     fun addAllocationListener(listener: AllocationListenerIfc) {
         allocationListeners.add(listener)
@@ -165,16 +195,15 @@ open class Resource(
 
     override val stateStatisticsOption: Boolean = collectStateStatistics
 
-    /** The busy state, keeps track of when all units are busy
+    /** The busy state, keeps track of when the resource has an allocation
+     *  A resource is busy if any of its units are allocated.
      *
      */
     protected val myBusyState: ResourceState = ResourceState("${this.name}_Busy", collectStateStatistics)
     override val busyState: StateAccessorIfc
         get() = myBusyState
 
-    /** The idle state, keeps track of when there are idle units
-     * i.e. if any unit is idle then the resource as a whole is
-     * considered idle
+    /** The idle state keeps track of when no units have been allocated
      */
     protected val myIdleState: ResourceState = ResourceState("${this.name}Idle", collectStateStatistics)
     override val idleState: StateAccessorIfc
@@ -189,7 +218,7 @@ open class Resource(
         get() = myFailedState
 
     /** The inactive state, keeps track of when no units
-     * are available because the resource is inactive
+     * are available because the resource's capacity is zero.
      */
     protected val myInactiveState: ResourceState = ResourceState("${this.name}_Inactive", collectStateStatistics)
     override val inactiveState: StateAccessorIfc
@@ -254,7 +283,13 @@ open class Resource(
         get() = myNumBusy.value > 0.0
 
     override val fractionBusy: Double
-        get() = myNumBusy.value / capacity
+        get() {
+            return if (capacity == 0) {
+                0.0
+            } else {
+                myNumBusy.value / capacity
+            }
+        }
 
     override fun toString(): String {
         return "$name: state = $myState capacity = $capacity numBusy = $numBusy numAvailable = $numAvailableUnits"
@@ -338,6 +373,7 @@ open class Resource(
 
     override fun initialize() {
         super.initialize()
+        waitingRequests.clear()
         entityAllocations.clear()
         capacity = initialCapacity
         // note that initialize() causes state to not be entered, and clears it accumulators
@@ -351,7 +387,6 @@ open class Resource(
         numTimesSeized = 0
         numTimesReleased = 0
     }
-
 
     /**
      * It is an error to attempt to allocate resource units to an entity if there are insufficient
@@ -461,14 +496,12 @@ open class Resource(
      * @return true if the resource unit has schedules registered
      */
     fun hasSchedules(): Boolean {
-        return !mySchedules.isEmpty()
+        return mySchedules.isNotEmpty()
     }
 
     /**
-     * Tells the resource to listen and react to changes in the supplied
-     * Schedule. Any scheduled items on the schedule will be interpreted as
-     * changes to make the resource become inactive.  Note the implications
-     * of having more that one schedule in the class documentation.
+     * Tells the resource to listen and react to capacity changes in the supplied
+     * Schedule.
      *
      * @param schedule the schedule to use, must not be null
      */
@@ -476,13 +509,13 @@ open class Resource(
         if (isUsingSchedule(schedule)) {
             return
         }
-        val scheduleListener = CapacityListener()
-        mySchedules.put(schedule, scheduleListener)
+        val scheduleListener = CapacityChangeListener()
+        mySchedules[schedule] = scheduleListener
         schedule.addCapacityChangeListener(scheduleListener)
     }
 
     /**
-     * @return true if already using the supplied Schedule
+     * @return true if already using the supplied schedule
      */
     fun isUsingSchedule(schedule: CapacitySchedule): Boolean {
         return mySchedules.containsKey(schedule)
@@ -490,7 +523,7 @@ open class Resource(
 
     /**
      * If the resource is using a schedule, the resource stops listening for
-     * schedule changes and is no longer using a schedule
+     * capacity changes and is no longer using a schedule
      */
     fun stopUsingSchedule(schedule: CapacitySchedule) {
         if (!isUsingSchedule(schedule)) {
@@ -499,27 +532,79 @@ open class Resource(
         val listenerIfc: CapacityChangeListenerIfc = mySchedules.remove(schedule)!!
         schedule.deleteCapacityChangeListener(listenerIfc)
     }
-    inner class CapacityChangeNotice {
-        var capacity: Int = 0
-        var duration: Double = Double.POSITIVE_INFINITY
-        var startTime: Double = 0.0
+
+    inner class CapacityChangeNotice(
+        val capacity: Int = 0,
+        val duration: Double = Double.POSITIVE_INFINITY,
+    ) {
+        init {
+            require(capacity >= 0) { "The capacity cannot be negative" }
+            require(duration > 0.0) { "The duration must be > 0.0" }
+        }
+        val createTime: Double = time
+        var startTime: Double = Double.NaN
     }
 
-    inner class CapacityListener : CapacityChangeListenerIfc {
+    private fun handleCapacityChange(notice: CapacityChangeNotice) {
+        // determine if increase or decrease
+        if (capacity == notice.capacity) {
+            return
+        } else if (notice.capacity > capacity) {
+            // increasing the capacity
+            //TODO need to adjust state when setting capacity
+            capacity = notice.capacity
+            //TODO how can waiting requests be allocated to new capacity
+            // whenever a resource is seized, register something (request?, entity?, queue?) as a listener to resource state changes
+        } else {
+            // notice.capacity < capacity
+            // decreasing the capacity
+            val amountNeeded = capacity - notice.capacity
+            if (numAvailableUnits >= amountNeeded) {
+                // there are enough available units to handle the change
+                //TODO need to adjust state when setting capacity
+                capacity = capacity - amountNeeded
+            }else {
+                // not enough available
+                // numAvailableUnits < amountNeeded
+                // take away all available
+                //TODO need to adjust state when setting capacity
+                capacity = capacity - numAvailableUnits
+                //TODO how and when to allocate the still needed
+                val stillNeeded = amountNeeded - numAvailableUnits
+            }
+        }
+    }
+
+    internal fun addRequest(request: ProcessModel.Entity.Request){
+        waitingRequests.add(request)
+    }
+
+    internal fun removeRequest(request: ProcessModel.Entity.Request){
+        waitingRequests.remove(request)
+    }
+
+    inner class CapacityChangeListener : CapacityChangeListenerIfc {
         override fun scheduleStarted(schedule: CapacitySchedule) {
             println("time = ${schedule.time} Schedule Started")
+            // nothing to do when the schedule starts
         }
 
         override fun scheduleEnded(schedule: CapacitySchedule) {
             println("time = ${schedule.time} Schedule Ended")
+            // nothing to do when the schedule ends
         }
 
         override fun scheduleItemStarted(item: CapacitySchedule.CapacityItem) {
             println("time = ${item.schedule.time} scheduled item ${item.name} started with capacity ${item.capacity}")
+            // make the capacity change notice using information from CapacityItem
+            val notice = CapacityChangeNotice(item.capacity, item.duration)
+            // maybe capacity item indicates whether it can wait or not
+            // tell resource to handle it
         }
 
         override fun scheduleItemEnded(item: CapacitySchedule.CapacityItem) {
             println("time = ${item.schedule.time} scheduled item ${item.name} ended with capacity ${item.capacity}")
+            // nothing to do when the item ends
         }
 
     }
