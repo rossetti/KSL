@@ -326,8 +326,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * @param amountNeeded the amount needed to fill the request
          * @return the constructed Request
          */
-        fun createRequest(amountNeeded: Int = 1): Request {
-            return Request(amountNeeded)
+        fun createRequest(amountNeeded: Int = 1, resource: Resource): Request {
+            val request = Request(amountNeeded)
+            request.resource = resource
+            return request
+        }
+
+        /**
+         * Facilitates the creation of requests for the entity by clients that
+         * have access to a reference to the entity or via the entity itself.
+         *
+         * @param amountNeeded the amount needed to fill the request
+         * @return the constructed Request
+         */
+        fun createRequest(amountNeeded: Int = 1, resourcePool: ResourcePool): Request {
+            val request = Request(amountNeeded)
+            request.resourcePool = resourcePool
+            return request
         }
 
         /**
@@ -339,7 +354,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             init {
                 require(amountNeeded >= 1) { "The amount needed for the request must be >= 1" }
             }
-
+            internal var resource: Resource? = null
+            internal var resourcePool: ResourcePool? = null
             internal val entity = this@Entity
             val amountRequested = amountNeeded
         }
@@ -1037,7 +1053,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //create the request based on the current resource state
-                val request = createRequest(amountNeeded)
+                val request = createRequest(amountNeeded, resource)
                 queue.enqueue(request) // put the request in the queue
                 if (request.amountRequested > resource.numAvailableUnits) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
@@ -1069,7 +1085,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time : entity ${entity.id} seizing $amountNeeded units of ${resourcePool.name} in process, ($this)" }
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //create the request based on the current resource state
-                val request = createRequest(amountNeeded)
+                val request = createRequest(amountNeeded, resourcePool)
                 queue.enqueue(request) // put the request in the queue
                 if (request.amountRequested > resourcePool.numAvailableUnits) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process

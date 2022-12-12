@@ -151,7 +151,7 @@ open class Resource(
      * with no statistics. This list allows waiting requests to be processed because of
      * capacity changes and failures
      */
-    protected val waitingRequests : MutableList<ProcessModel.Entity.Request> = mutableListOf()
+    protected val waitingRequests: MutableList<ProcessModel.Entity.Request> = mutableListOf()
 
     fun addAllocationListener(listener: AllocationListenerIfc) {
         allocationListeners.add(listener)
@@ -175,7 +175,7 @@ open class Resource(
 
     override var initialCapacity = capacity
         set(value) {
-            require(value >= 1) { "The initial capacity of the resource must be >= 1" }
+            require(value >= 0) { "The initial capacity of the resource must be >= 0" }
             if (model.isRunning) {
                 Model.logger.warn { "Changed the initial capacity of $name during replication ${model.currentReplicationNumber}." }
             }
@@ -183,7 +183,13 @@ open class Resource(
         }
 
     override var capacity = capacity
-        protected set
+        protected set(value) {
+            require(value >= 0) { "The capacity must be >= 0" }
+            field = value
+            if (field == 0) {
+                myState = myInactiveState
+            }
+        }
 
     private val mySchedules: MutableMap<CapacitySchedule, CapacityChangeListenerIfc> = mutableMapOf()
 
@@ -541,6 +547,7 @@ open class Resource(
             require(capacity >= 0) { "The capacity cannot be negative" }
             require(duration > 0.0) { "The duration must be > 0.0" }
         }
+
         val createTime: Double = time
         var startTime: Double = Double.NaN
     }
@@ -553,8 +560,21 @@ open class Resource(
             // increasing the capacity
             //TODO need to adjust state when setting capacity
             capacity = notice.capacity
-            //TODO how can waiting requests be allocated to new capacity
-            // whenever a resource is seized, register something (request?, entity?, queue?) as a listener to resource state changes
+            if (waitingRequests.isNotEmpty()) {
+                // there are requests waiting for this resource, and the resource now has more capacity
+                for (request in waitingRequests) {
+                    // find the request that is next in the queue
+                    if (request.isQueued) {
+                        if (request == request.queue!!.peekNext()) {
+                            // if there is now enough capacity, tell the entity to resume
+                            if (numAvailableUnits >= request.amountRequested) {
+                                request.entity.resumeProcess()
+                                break
+                            }
+                        }
+                    }
+                }
+            }
         } else {
             // notice.capacity < capacity
             // decreasing the capacity
@@ -563,7 +583,7 @@ open class Resource(
                 // there are enough available units to handle the change
                 //TODO need to adjust state when setting capacity
                 capacity = capacity - amountNeeded
-            }else {
+            } else {
                 // not enough available
                 // numAvailableUnits < amountNeeded
                 // take away all available
@@ -575,11 +595,11 @@ open class Resource(
         }
     }
 
-    internal fun addRequest(request: ProcessModel.Entity.Request){
+    internal fun addRequest(request: ProcessModel.Entity.Request) {
         waitingRequests.add(request)
     }
 
-    internal fun removeRequest(request: ProcessModel.Entity.Request){
+    internal fun removeRequest(request: ProcessModel.Entity.Request) {
         waitingRequests.remove(request)
     }
 
