@@ -272,7 +272,9 @@ interface KSLProcessBuilder {
      *  @param resource the resource from which the units are being requested.
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
-     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling seize.
      *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
@@ -289,7 +291,9 @@ interface KSLProcessBuilder {
 
     /**
      *  Requests a number of units of the indicated resource.
-     *
+     *  The queue that will hold the entity is internal to the resource.  If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling seize.
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
@@ -318,7 +322,9 @@ interface KSLProcessBuilder {
      *  @param resourcePool the resource pool from which the units are being requested.
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
-     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling seize.
      *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
@@ -335,7 +341,9 @@ interface KSLProcessBuilder {
 
     /**
      *  Requests a number of units from the indicated pool of resources
-     *
+     *  The queue that will hold the entity is internal to the resource pool.  If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling seize.
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource pool from which the units are being requested.
@@ -369,7 +377,9 @@ interface KSLProcessBuilder {
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
-     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
      */
     suspend fun use(
         resource: Resource,
@@ -387,7 +397,9 @@ interface KSLProcessBuilder {
     /**
      *  Uses the resource with the amount of units for the delay and then releases it.
      *  Equivalent to: seize(), delay(), release()
-     *
+     *  The queue that will hold the entity is internal to the resource.  If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
@@ -397,7 +409,6 @@ interface KSLProcessBuilder {
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
-     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
      */
     suspend fun use(
         resource: ResourceWithQ,
@@ -414,7 +425,9 @@ interface KSLProcessBuilder {
     /**
      *  Uses the resource with the amount of units for the delay and then releases it.
      *  Equivalent to: seize(), delay(), release()
-     *
+     *  The queue that will hold the entity is internal to the resource.  If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
@@ -424,7 +437,6 @@ interface KSLProcessBuilder {
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
-     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
      */
     suspend fun use(
         resource: ResourceWithQ,
@@ -451,7 +463,9 @@ interface KSLProcessBuilder {
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
-     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
      */
     suspend fun use(
         resourcePool: ResourcePool,
@@ -469,7 +483,9 @@ interface KSLProcessBuilder {
     /**
      *  Uses the resource with the amount of units for the delay and then releases it.
      *  Equivalent to: seize(), delay(), release()
-     *
+     *  The queue that will hold the entity is internal to the resource pool.  If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
@@ -495,7 +511,9 @@ interface KSLProcessBuilder {
     /**
      *  Uses the resource with the amount of units for the delay and then releases it.
      *  Equivalent to: seize(), delay(), release()
-     *
+     *  The queue that will hold the entity is internal to the resource pool.  If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
@@ -531,7 +549,9 @@ interface KSLProcessBuilder {
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time.
-     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
      */
     suspend fun use(
         resource: Resource,
@@ -582,26 +602,38 @@ interface KSLProcessBuilder {
      *  Releases the allocation of the resource
      *
      *  @param allocation represents an allocation of so many units of a resource to an entity
+     *  @param releasePriority the priority associated with this release. This priority is used
+     *  to order the resumption events associated with the release. If multiple releases occur at the same
+     *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun release(allocation: Allocation)
+    fun release(allocation: Allocation, releasePriority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
      *  Releases ANY(ALL) allocations related to the resource that are allocated
      *  to the entity currently executing this process
      *
      *  @param resource the resource to release
+     *  @param releasePriority the priority associated with this release. This priority is used
+     *  to order the resumption events associated with the release. If multiple releases occur at the same
+     *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun release(resource: Resource)
+    fun release(resource: Resource, releasePriority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
      *  Releases ALL the resources that the entity has currently allocated to it
+     *  @param releasePriority the priority associated with this release. This priority is used
+     *  to order the resumption events associated with the release. If multiple releases occur at the same
+     *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun releaseAllResources()
+    fun releaseAllResources(releasePriority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
      * Releases the allocations associated with using a ResourcePool
+     *  @param releasePriority the priority associated with this release. This priority is used
+     *  to order the resumption events associated with the release. If multiple releases occur at the same
+     *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun release(pooledAllocation: ResourcePoolAllocation)
+    fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /**
      * This method allows a process to interrupt another process while that process is

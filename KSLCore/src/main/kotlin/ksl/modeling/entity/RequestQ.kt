@@ -99,4 +99,26 @@ class RequestQ(
             removeAndTerminate(request!!, waitStats)
         }
     }
+
+    /** The method processes a request queue to allocated units to the next waiting request. If there
+     * is a sufficient amount available for the next request, then the next request in the queue is processed
+     * and its associated entity is resumed from waiting for the request. The entity then proceeds to
+     * have its request allocated.
+     *
+     * @param amountAvailable the amount of units that are available to allocate to the next request
+     * @param resumePriority the priority associated with resuming the waiting entity that gets
+     * its request filled
+     */
+    internal fun processNextRequest(amountAvailable:Int , resumePriority: Int){
+        if (isNotEmpty) {
+            //this is peekNext() because the resumed process removes the request
+            val request = selectRequest(amountAvailable)
+            if (request != null) {
+                if (request.amountRequested <= amountAvailable) {
+                    // resume the entity's process related to the request
+                    request.entity.resumeProcess(0.0, resumePriority)
+                }
+            }
+        }
+    }
 }

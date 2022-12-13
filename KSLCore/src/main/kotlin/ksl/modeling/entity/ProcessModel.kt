@@ -1054,14 +1054,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded, resource)
+                request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
                 if (request.amountRequested > resource.numAvailableUnits) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resource.name} in process, ($this)" }
                     entity.state.waitForResource()
-                    resource.addRequest(request)
                     suspend()
-                    resource.removeRequest(request)
                     entity.state.activate()
                 }
                 // entity has been told to resume
@@ -1086,14 +1085,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded, resourcePool)
+                request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
                 if (request.amountRequested > resourcePool.numAvailableUnits) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "time = $time : entity ${entity.id} waiting for $amountNeeded units of ${resourcePool.name} in process, ($this)" }
                     entity.state.waitForResource()
-                    resourcePool.addRequest(request)
                     suspend()
-                    resourcePool.removeRequest(request)
                     entity.state.activate()
                 }
                 // entity has been told to resume
@@ -1122,58 +1120,38 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            override fun release(allocation: Allocation) {
+            override fun release(allocation: Allocation, releasePriority: Int) {
                 logger.trace { "time = $time : entity ${entity.id} releasing ${allocation.amount} units of ${allocation.resource.name} in process, ($this)" }
                 // we cannot assume that a resource has a queue
                 allocation.resource.deallocate(allocation)
                 // get the queue from the allocation being released
-                val theQ = allocation.queue
-                if (theQ.isNotEmpty) {
-                    //this is peekNext() because the resumed process removes the request
-                    val request = theQ.selectRequest(allocation.resource.numAvailableUnits)
-                    if (request != null) {
-                        if (request.amountRequested <= allocation.resource.numAvailableUnits) {
-                            // resume the entity's process related to the request
-                            request.entity.resumeProcess(0.0, allocation.allocationPriority)
-                        }
-                    }
-                }
+                allocation.queue.processNextRequest(allocation.resource.numAvailableUnits, releasePriority)
             }
 
-            override fun release(resource: Resource) {
+            override fun release(resource: Resource, releasePriority: Int) {
                 logger.trace { "time = $time : entity ${entity.id} releasing all ${entity.totalAmountAllocated(resource)} units of ${resource.name} allocated in process, ($this)" }
                 // get the allocations of this entity for this resource
                 val list = resource.allocations(entity)
                 for (allocation in list) {
-                    release(allocation)
+                    release(allocation, releasePriority)
                 }
             }
 
-            override fun releaseAllResources() {
+            override fun releaseAllResources(releasePriority: Int) {
                 logger.trace { "time = $time : entity ${entity.id} releasing all units of every allocated resource in process, ($this)" }
                 val rList = resourceAllocations.keys.toList()
                 for (r in rList) {
-                    release(r)
+                    release(r, releasePriority)
                 }
             }
 
-            override fun release(pooledAllocation: ResourcePoolAllocation) {
+            override fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int) {
                 logger.trace { "time = $time : entity ${entity.id} releasing ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} in process, ($this)" }
                 // ask the resource pool to deallocate the resources
                 pooledAllocation.resourcePool.deallocate(pooledAllocation)
                 // then check the queue for additional work
                 // get the queue from the allocation being released
-                val theQ = pooledAllocation.queue
-                if (theQ.isNotEmpty) {
-                    //this is peekNext() because the resumed process removes the request
-                    val request = theQ.selectRequest(pooledAllocation.resourcePool.numAvailableUnits)
-                    if (request != null) {
-                        if (request.amountRequested <= pooledAllocation.resourcePool.numAvailableUnits) {
-                            // resume the entity's process related to the request
-                            request.entity.resumeProcess(0.0, pooledAllocation.allocationPriority)
-                        }
-                    }
-                }
+                pooledAllocation.queue.processNextRequest(pooledAllocation.resourcePool.numAvailableUnits, releasePriority)
             }
 
             override suspend fun interruptDelay(

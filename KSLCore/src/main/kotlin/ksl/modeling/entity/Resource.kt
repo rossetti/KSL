@@ -146,13 +146,6 @@ open class Resource(
 
     protected val allocationListeners: MutableList<AllocationListenerIfc> = mutableListOf()
 
-    /**
-     * holds entity requests that are waiting for the resource in an internal list
-     * with no statistics. This list allows waiting requests to be processed because of
-     * capacity changes and failures
-     */
-    protected val waitingRequests: MutableList<ProcessModel.Entity.Request> = mutableListOf()
-
     fun addAllocationListener(listener: AllocationListenerIfc) {
         allocationListeners.add(listener)
     }
@@ -188,10 +181,8 @@ open class Resource(
             field = value
             if (field == 0) {
                 myState = myInactiveState
-            }
+            }//TODO if capacity > 0 after being inactive what is the state now?
         }
-
-    private val mySchedules: MutableMap<CapacitySchedule, CapacityChangeListenerIfc> = mutableMapOf()
 
     override var numTimesSeized: Int = 0
         protected set
@@ -339,7 +330,7 @@ open class Resource(
      */
     fun allocations(): List<Allocation> {
         val list = mutableListOf<Allocation>()
-        for ((entity, aList) in entityAllocations) {
+        for ((_, aList) in entityAllocations) {
             list.addAll(aList)
         }
         return list
@@ -379,7 +370,6 @@ open class Resource(
 
     override fun initialize() {
         super.initialize()
-        waitingRequests.clear()
         entityAllocations.clear()
         capacity = initialCapacity
         // note that initialize() causes state to not be entered, and clears it accumulators
@@ -495,137 +485,5 @@ open class Resource(
         override fun onExit() {
             resourcedExitedFailure()
         }
-    }
-
-    /**
-     *
-     * @return true if the resource unit has schedules registered
-     */
-    fun hasSchedules(): Boolean {
-        return mySchedules.isNotEmpty()
-    }
-
-    /**
-     * Tells the resource to listen and react to capacity changes in the supplied
-     * Schedule.
-     *
-     * @param schedule the schedule to use, must not be null
-     */
-    fun useSchedule(schedule: CapacitySchedule) {
-        if (isUsingSchedule(schedule)) {
-            return
-        }
-        val scheduleListener = CapacityChangeListener()
-        mySchedules[schedule] = scheduleListener
-        schedule.addCapacityChangeListener(scheduleListener)
-    }
-
-    /**
-     * @return true if already using the supplied schedule
-     */
-    fun isUsingSchedule(schedule: CapacitySchedule): Boolean {
-        return mySchedules.containsKey(schedule)
-    }
-
-    /**
-     * If the resource is using a schedule, the resource stops listening for
-     * capacity changes and is no longer using a schedule
-     */
-    fun stopUsingSchedule(schedule: CapacitySchedule) {
-        if (!isUsingSchedule(schedule)) {
-            return
-        }
-        val listenerIfc: CapacityChangeListenerIfc = mySchedules.remove(schedule)!!
-        schedule.deleteCapacityChangeListener(listenerIfc)
-    }
-
-    inner class CapacityChangeNotice(
-        val capacity: Int = 0,
-        val duration: Double = Double.POSITIVE_INFINITY,
-    ) {
-        init {
-            require(capacity >= 0) { "The capacity cannot be negative" }
-            require(duration > 0.0) { "The duration must be > 0.0" }
-        }
-
-        val createTime: Double = time
-        var startTime: Double = Double.NaN
-    }
-
-    private fun handleCapacityChange(notice: CapacityChangeNotice) {
-        // determine if increase or decrease
-        if (capacity == notice.capacity) {
-            return
-        } else if (notice.capacity > capacity) {
-            // increasing the capacity
-            //TODO need to adjust state when setting capacity
-            capacity = notice.capacity
-            if (waitingRequests.isNotEmpty()) {
-                // there are requests waiting for this resource, and the resource now has more capacity
-                for (request in waitingRequests) {
-                    // find the request that is next in the queue
-                    if (request.isQueued) {
-                        if (request == request.queue!!.peekNext()) {
-                            // if there is now enough capacity, tell the entity to resume
-                            if (numAvailableUnits >= request.amountRequested) {
-                                request.entity.resumeProcess()
-                                break
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            // notice.capacity < capacity
-            // decreasing the capacity
-            val amountNeeded = capacity - notice.capacity
-            if (numAvailableUnits >= amountNeeded) {
-                // there are enough available units to handle the change
-                //TODO need to adjust state when setting capacity
-                capacity = capacity - amountNeeded
-            } else {
-                // not enough available
-                // numAvailableUnits < amountNeeded
-                // take away all available
-                //TODO need to adjust state when setting capacity
-                capacity = capacity - numAvailableUnits
-                //TODO how and when to allocate the still needed
-                val stillNeeded = amountNeeded - numAvailableUnits
-            }
-        }
-    }
-
-    internal fun addRequest(request: ProcessModel.Entity.Request) {
-        waitingRequests.add(request)
-    }
-
-    internal fun removeRequest(request: ProcessModel.Entity.Request) {
-        waitingRequests.remove(request)
-    }
-
-    inner class CapacityChangeListener : CapacityChangeListenerIfc {
-        override fun scheduleStarted(schedule: CapacitySchedule) {
-            println("time = ${schedule.time} Schedule Started")
-            // nothing to do when the schedule starts
-        }
-
-        override fun scheduleEnded(schedule: CapacitySchedule) {
-            println("time = ${schedule.time} Schedule Ended")
-            // nothing to do when the schedule ends
-        }
-
-        override fun scheduleItemStarted(item: CapacitySchedule.CapacityItem) {
-            println("time = ${item.schedule.time} scheduled item ${item.name} started with capacity ${item.capacity}")
-            // make the capacity change notice using information from CapacityItem
-            val notice = CapacityChangeNotice(item.capacity, item.duration)
-            // maybe capacity item indicates whether it can wait or not
-            // tell resource to handle it
-        }
-
-        override fun scheduleItemEnded(item: CapacitySchedule.CapacityItem) {
-            println("time = ${item.schedule.time} scheduled item ${item.name} ended with capacity ${item.capacity}")
-            // nothing to do when the item ends
-        }
-
     }
 }
