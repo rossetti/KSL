@@ -160,12 +160,16 @@ class ResourceWithQ(
                 notice.amountNeeded = stillNeeded
                 //TODO determine current state
                 //TODO how and when to allocate the still needed
-                if (capacityChangeRule == CapacityChangeRule.IGNORE){
-                    // handle ignore rule
-                } else {
-                    // handle wait rule
-                }
+                handleWaitingChange(notice)
             }
+        }
+    }
+
+    private fun handleWaitingChange(notice: CapacityChangeNotice){
+        if (capacityChangeRule == CapacityChangeRule.IGNORE){
+            // handle ignore rule
+        } else {
+            // handle wait rule
         }
     }
 
