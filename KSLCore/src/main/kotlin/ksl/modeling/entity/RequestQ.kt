@@ -19,7 +19,6 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
-import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
 interface RequestSelectionRuleIfc {
@@ -27,23 +26,29 @@ interface RequestSelectionRuleIfc {
     /**
      * @param amountAvailable the amount available
      * @param requestQ the queue to search
-     * @return the request that was selected
+     * @return the requests that were selected
      */
-    fun selectRequest(amountAvailable: Int, requestQ: RequestQ): ProcessModel.Entity.Request?
+    fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request>
 
 }
 
 /**
- *  Returns the first request that needs less than or equal to the amount available
+ *  Returns a list of requests that can be allocated at the current time based on the amount
+ *  available criteria. Each request that can be fully allocated by the amount available is
+ *  returned. The list is ordered in the same order as the RequestQ.  No partial filling is
+ *  permitted in this default rule.
  */
 class DefaultRequestSelectionRule : RequestSelectionRuleIfc {
-    override fun selectRequest(amountAvailable: Int, requestQ: RequestQ): ProcessModel.Entity.Request? {
+    override fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request> {
+        val list = mutableListOf<ProcessModel.Entity.Request>()
+        var startingAmount = amountAvailable
         for (request in requestQ) {
-            if (request.amountRequested <= amountAvailable) {
-                return request
+            if (request.amountRequested <= startingAmount) {
+                list.add(request)
+                startingAmount = startingAmount - request.amountRequested
             }
         }
-        return null
+        return list
     }
 }
 
@@ -62,15 +67,7 @@ class RequestQ(
 ) :
     Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
-    var requestSelectionRule: RequestSelectionRuleIfc? = null
-
-    fun selectRequest(amountAvailable: Int): ProcessModel.Entity.Request? {
-        if (requestSelectionRule != null) {
-            return requestSelectionRule!!.selectRequest(amountAvailable, this)
-        } else {
-            return peekNext()
-        }
-    }
+    var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule()
 
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
@@ -109,15 +106,11 @@ class RequestQ(
      * @param resumePriority the priority associated with resuming the waiting entity that gets
      * its request filled
      */
-    internal fun processNextRequest(amountAvailable:Int , resumePriority: Int){
+    internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int) {
         if (isNotEmpty) {
-            //this is peekNext() because the resumed process removes the request
-            val request = selectRequest(amountAvailable)
-            if (request != null) {
-                if (request.amountRequested <= amountAvailable) {
-                    // resume the entity's process related to the request
-                    request.entity.resumeProcess(0.0, resumePriority)
-                }
+            val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
+            for (request in selectedRequests) {
+                request.entity.resumeProcess(0.0, resumePriority)
             }
         }
     }

@@ -214,7 +214,7 @@ class KSLEvent<out T> internal constructor(
         return if (this == other) {
             0
         } else {
-            throw RuntimeException("Id's were equal, but references were not, in JSLEvent compareTo")
+            throw RuntimeException("Id's were equal, but references were not, in KSLEvent compareTo")
         }
     }
 

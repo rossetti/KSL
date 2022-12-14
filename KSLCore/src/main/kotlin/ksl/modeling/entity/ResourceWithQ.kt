@@ -21,9 +21,14 @@ package ksl.modeling.entity
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import java.util.PriorityQueue
 
-interface ResourceWithQCIfc : ResourceCIfc{
-    val waitingQ : QueueCIfc<ProcessModel.Entity.Request>
+enum class CapacityChangeRule {
+    WAIT, IGNORE
+}
+
+interface ResourceWithQCIfc : ResourceCIfc {
+    val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
 }
 
 /**
@@ -41,19 +46,26 @@ class ResourceWithQ(
     name: String? = null,
     capacity: Int = 1,
     queue: RequestQ? = null,
-    collectStateStatistics: Boolean = false
+    collectStateStatistics: Boolean = false,
+    val capacityChangeRule: CapacityChangeRule = CapacityChangeRule.IGNORE
 ) : Resource(parent, name, capacity, collectStateStatistics), ResourceWithQCIfc {
 
-    private val mySchedules: MutableMap<CapacitySchedule, CapacityChangeListenerIfc> = mutableMapOf()
+    private var myNoticeCount = 0
+    private var myCapacitySchedule: CapacitySchedule? = null
+    private var myCapacityChangeListener: CapacityChangeListenerIfc? = null
+    private val myCapacityChangeAction = CapacityChangeAction()
+    private val myWaitingChangeNotices = PriorityQueue<CapacityChangeNotice>()
 
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
     internal val myWaitingQ: RequestQ
+
     init {
         myWaitingQ = queue ?: RequestQ(this, "${this.name}:Q")
     }
-    override val waitingQ : QueueCIfc<ProcessModel.Entity.Request>
+
+    override val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
 
     override var defaultReportingOption: Boolean
@@ -67,8 +79,8 @@ class ResourceWithQ(
      *
      * @return true if the resource unit has schedules registered
      */
-    fun hasSchedules(): Boolean {
-        return mySchedules.isNotEmpty()
+    fun hasSchedule(): Boolean {
+        return myCapacitySchedule != null
     }
 
     /**
@@ -78,72 +90,177 @@ class ResourceWithQ(
      * @param schedule the schedule to use, must not be null
      */
     fun useSchedule(schedule: CapacitySchedule) {
-        if (isUsingSchedule(schedule)) {
-            return
-        }
-        val scheduleListener = CapacityChangeListener()
-        mySchedules[schedule] = scheduleListener
-        schedule.addCapacityChangeListener(scheduleListener)
+        stopUsingSchedule()
+        myCapacityChangeListener = CapacityChangeListener()
+        myCapacitySchedule = schedule
+        schedule.addCapacityChangeListener(myCapacityChangeListener!!)
     }
 
     /**
      * @return true if already using the supplied schedule
      */
     fun isUsingSchedule(schedule: CapacitySchedule): Boolean {
-        return mySchedules.containsKey(schedule)
+        return myCapacitySchedule == schedule
     }
 
     /**
      * If the resource is using a schedule, the resource stops listening for
-     * capacity changes and is no longer using a schedule
+     * capacity changes and is no longer using a schedule. The current capacity
+     * will be used for the remainder of the replication.
      */
-    fun stopUsingSchedule(schedule: CapacitySchedule) {
-        if (!isUsingSchedule(schedule)) {
-            return
+    fun stopUsingSchedule() {
+        if (myCapacitySchedule != null) {
+            myCapacitySchedule!!.deleteCapacityChangeListener(myCapacityChangeListener!!)
+            myCapacityChangeListener = null
+            myCapacitySchedule = null
         }
-        val listenerIfc: CapacityChangeListenerIfc = mySchedules.remove(schedule)!!
-        schedule.deleteCapacityChangeListener(listenerIfc)
     }
 
-    inner class CapacityChangeNotice(
-        val capacity: Int = 0,
-        val duration: Double = Double.POSITIVE_INFINITY,
-        var priority: Int = KSLEvent.DEFAULT_PRIORITY
-    ) {
-        init {
-            require(capacity >= 0) { "The capacity cannot be negative" }
-            require(duration > 0.0) { "The duration must be > 0.0" }
-        }
-
-        val createTime: Double = time
-        var startTime: Double = Double.NaN
+    override fun deallocate(allocation: Allocation) {
+        super.deallocate(allocation)
+        val x = 1
+        //TODO deallocation completed need to check for pending capacity change
     }
 
-    private fun handleCapacityChange(notice: CapacityChangeNotice) {
+    /**
+     *  Handles the start of a change in capacity. If the capacity is increased over its current
+     *  value, then the capacity is immediately increased and requests that are waiting
+     *  for the resource will be processed to receive allocations from the resource.  If the
+     *  capacity is decreased from its current value, then the amount of the decrease is first filled
+     *  from idle units.  If there are not enough idle units to complete the decrease, then the change
+     *  is processes according to the capacity change rule.
+     *
+     *  @param notice the value to which the capacity should be set and the duration of the change
+     */
+    fun changeCapacity(notice: CapacityChangeNotice) {
         // determine if increase or decrease
         if (capacity == notice.capacity) {
             return
         } else if (notice.capacity > capacity) {
             // increasing the capacity
-            //TODO need to adjust state when setting capacity
             capacity = notice.capacity
-            myWaitingQ.processNextRequest(numAvailableUnits, notice.priority)
+            // this causes the newly available capacity to be allocated to any
+            // waiting requests
+            myWaitingQ.processWaitingRequests(numAvailableUnits, notice.priority)
+            //TODO determine the current state
         } else {
             // notice.capacity < capacity
             // decreasing the capacity
             val amountNeeded = capacity - notice.capacity
             if (numAvailableUnits >= amountNeeded) {
                 // there are enough available units to handle the change
-                //TODO need to adjust state when setting capacity
                 capacity = capacity - amountNeeded
+                //TODO determine current state
             } else {
                 // not enough available
                 // numAvailableUnits < amountNeeded
                 // take away all available
-                //TODO need to adjust state when setting capacity
                 capacity = capacity - numAvailableUnits
-                //TODO how and when to allocate the still needed
                 val stillNeeded = amountNeeded - numAvailableUnits
+                notice.amountNeeded = stillNeeded
+                //TODO determine current state
+                //TODO how and when to allocate the still needed
+                if (capacityChangeRule == CapacityChangeRule.IGNORE){
+                    // handle ignore rule
+                } else {
+                    // handle wait rule
+                }
+            }
+        }
+    }
+
+    private inner class CapacityChangeAction : EventAction<CapacityChangeNotice>(){
+        override fun action(event: KSLEvent<CapacityChangeNotice>) {
+            TODO("Not yet implemented")
+        }
+    }
+
+    inner class CapacityChangeNotice(
+        val capacity: Int = 0,
+        val duration: Double = Double.POSITIVE_INFINITY,
+        val priority: Int = KSLEvent.DEFAULT_PRIORITY
+    ) : Comparable<CapacityChangeNotice> {
+        val id = ++myNoticeCount
+
+        init {
+            require(capacity >= 0) { "The capacity cannot be negative" }
+            require(duration > 0.0) { "The duration must be > 0.0" }
+        }
+
+        var changeEvent : KSLEvent<CapacityChangeNotice>? = null
+
+        val createTime: Double = time
+        var amountNeeded: Int = 0
+            internal set(value) {
+                require(value >= 0){"The amount needed must be >= 0"}
+                field = value
+            }
+        var startTime: Double = createTime
+            internal set(value) {
+                require(value >= createTime) { "The start time must be >= to the creation time $createTime" }
+                field = value
+            }
+
+        val endTime
+            get() = startTime + duration
+
+        override fun toString(): String {
+            return "CapacityChangeNotice(capacity=$capacity, duration=$duration, priority=$priority, createTime=$createTime, startTime=$startTime)"
+        }
+
+        /**
+         * Returns a negative integer, zero, or a positive integer if this object is
+         * less than, equal to, or greater than the specified object.
+         *
+         * Natural ordering: time, then priority, then order of creation
+         *
+         * Lower time, lower priority, lower order of creation goes first
+         *
+         * Throws ClassCastException if the specified object's type prevents it from
+         * being compared to this object.
+         *
+         * Throws RuntimeException if the id's of the objects are the same, but the
+         * references are not when compared with equals.
+         *
+         * Note: This class may have a natural ordering that is inconsistent with
+         * equals.
+         *
+         * @param other The event to compare this event to
+         * @return Returns a negative integer, zero, or a positive integer if this
+         * object is less than, equal to, or greater than the specified object.
+         */
+        override operator fun compareTo(other: CapacityChangeNotice): Int {
+            // compare time first
+            if (endTime < other.endTime) {
+                return -1
+            }
+            if (endTime > other.endTime) {
+                return 1
+            }
+
+            // times are equal, check priorities
+            if (priority < other.priority) {
+                return -1
+            }
+            if (priority > other.priority) {
+                return 1
+            }
+
+            // time and priorities are equal, compare ids
+            // lower id, implies created earlier
+            if (id < other.id) {
+                return -1
+            }
+            if (id > other.id) {
+                return 1
+            }
+
+            // if the ids are equal then the object references must be equal
+            // if this is not the case there is a problem
+            return if (this == other) {
+                0
+            } else {
+                throw RuntimeException("Id's were equal, but references were not, in CapacityChangeNotice compareTo")
             }
         }
     }
@@ -162,9 +279,9 @@ class ResourceWithQ(
         override fun scheduleItemStarted(item: CapacitySchedule.CapacityItem) {
             println("time = ${item.schedule.time} scheduled item ${item.name} started with capacity ${item.capacity}")
             // make the capacity change notice using information from CapacityItem
-            val notice = CapacityChangeNotice(item.capacity, item.duration)
-            // maybe capacity item indicates whether it can wait or not
+            val notice = CapacityChangeNotice(item.capacity, item.duration, item.priority)
             // tell resource to handle it
+            changeCapacity(notice)
         }
 
         override fun scheduleItemEnded(item: CapacitySchedule.CapacityItem) {

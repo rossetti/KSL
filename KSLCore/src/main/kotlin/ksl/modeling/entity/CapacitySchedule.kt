@@ -21,6 +21,13 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
+interface CapacityChangeListenerIfc {
+    fun scheduleStarted(schedule: CapacitySchedule)
+    fun scheduleEnded(schedule: CapacitySchedule)
+    fun scheduleItemStarted(item: CapacitySchedule.CapacityItem)
+    fun scheduleItemEnded(item: CapacitySchedule.CapacityItem)
+}
+
 /** A Schedule represents a known set of events that can occur according to a pattern.
  * A schedule contains one or more instances of ScheduleItem.  A ScheduleItem represents an item on a
  * Schedule. It has a start time, relative to the start of the Schedule and a duration.
@@ -523,14 +530,6 @@ fun main() {
 
     m.simulate()
 
-}
-
-
-interface CapacityChangeListenerIfc {
-    fun scheduleStarted(schedule: CapacitySchedule)
-    fun scheduleEnded(schedule: CapacitySchedule)
-    fun scheduleItemStarted(item: CapacitySchedule.CapacityItem)
-    fun scheduleItemEnded(item: CapacitySchedule.CapacityItem)
 }
 
 class CapacityListener : CapacityChangeListenerIfc {

@@ -179,9 +179,6 @@ open class Resource(
         protected set(value) {
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
-            if (field == 0) {
-                myState = myInactiveState
-            }//TODO if capacity > 0 after being inactive what is the state now?
         }
 
     override var numTimesSeized: Int = 0
@@ -270,7 +267,10 @@ open class Resource(
         get() = if (isFailed || isInactive) {//isBusy || isFailed || isInactive
             0
         } else {
-            capacity - numBusy
+            // because capacity can be decrease when there are busy units
+            // we need to prevent the number of available units from being negative
+            // the capacity may be reduced but the state not yet changed to inactive
+            maxOf(0, capacity - numBusy)
         }
 
     override val hasAvailableUnits: Boolean
@@ -281,8 +281,10 @@ open class Resource(
 
     override val fractionBusy: Double
         get() {
-            return if (capacity == 0) {
+            return if (numBusy == 0) {
                 0.0
+            } else if (numBusy >= capacity) {
+                1.0
             } else {
                 myNumBusy.value / capacity
             }
@@ -302,6 +304,8 @@ open class Resource(
 
     /**
      *  Computes the number of different allocations of the resource held by the entity.
+     *  Recall that allocations can be for different amounts.
+     *
      * @param entity the entity that might be using the resource
      * @return the count of the number of distinct allocations
      */
@@ -365,23 +369,20 @@ open class Resource(
         myBusyState.initialize(isBusy)
         myFailedState.initialize(isFailed)
         myInactiveState.initialize(isInactive)
-        myState = myInactiveState // tell it to be in the inactive state (assign prev, exit, assign, enter)
+        // tell it to be in the inactive state (assign prev, exit, assign enter)
+        // thus (just) prior to replication initialization, the resource is inactive
+        myState = myInactiveState
     }
 
     override fun initialize() {
         super.initialize()
         entityAllocations.clear()
-        capacity = initialCapacity
-        // note that initialize() causes state to not be entered, and clears it accumulators
-//        myIdleState.initialize()
-//        myBusyState.initialize()
-//        myFailedState.initialize()
-//        myInactiveState.initialize()
-        myState = myIdleState // will cause myPreviousState to be set to current value of myState
-//        myState.enter(time) // besides setting it, we must enter it
-//        myPreviousState = myInactiveState // make sure that it starts as if it was inactive to idle
         numTimesSeized = 0
         numTimesReleased = 0
+        capacity = initialCapacity
+        // note that initialize() causes state to not be entered, and clears it accumulators
+        // this should be based on capacity, but right now initialCapacity > 1, thus it must be idle
+        myState = myIdleState // will cause myPreviousState to be set to current value of myState
     }
 
     /**
@@ -414,9 +415,7 @@ open class Resource(
         numTimesSeized++
         myUtil.value = fractionBusy
         // resource becomes busy (or stays busy), because an allocation occurred
-//        myState.exit(time)
         myState = myBusyState
-//        myState.enter(time)
         numTimesSeized++
         //need to put this allocation in Entity also
         entity.allocate(allocation)
@@ -428,7 +427,7 @@ open class Resource(
      *
      * @param allocation the allocation to be deallocated
      */
-    fun deallocate(allocation: Allocation) {
+    open fun deallocate(allocation: Allocation) {
         require(allocation.amount >= 1) { "The allocation does not have any amount to deallocate" }
         require(allocation.resource === this) { "The allocations was not on this resource." }
         require(entityAllocations.contains(allocation.entity)) { "The entity associated with the allocation is not using this resource." }
@@ -445,9 +444,7 @@ open class Resource(
         numTimesReleased++
         myUtil.value = fractionBusy
         if (myNumBusy.value == 0.0) {
-//            myState.exit(time)
             myState = myIdleState
-//            myState.enter(time)
         }
         // need to also deallocate from the entity
         allocation.entity.deallocate(allocation)

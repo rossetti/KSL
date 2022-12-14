@@ -1124,8 +1124,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "time = $time : entity ${entity.id} releasing ${allocation.amount} units of ${allocation.resource.name} in process, ($this)" }
                 // we cannot assume that a resource has a queue
                 allocation.resource.deallocate(allocation)
-                // get the queue from the allocation being released
-                allocation.queue.processNextRequest(allocation.resource.numAvailableUnits, releasePriority)
+                // get the queue from the allocation being released and process any waiting requests
+                // note that the released amount may allow multiple requests to proceed
+                allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
             }
 
             override fun release(resource: Resource, releasePriority: Int) {
@@ -1151,7 +1152,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 pooledAllocation.resourcePool.deallocate(pooledAllocation)
                 // then check the queue for additional work
                 // get the queue from the allocation being released
-                pooledAllocation.queue.processNextRequest(pooledAllocation.resourcePool.numAvailableUnits, releasePriority)
+                pooledAllocation.queue.processWaitingRequests(pooledAllocation.resourcePool.numAvailableUnits, releasePriority)
             }
 
             override suspend fun interruptDelay(
