@@ -168,8 +168,13 @@ class ResourceWithQ(
     private fun handleWaitingChange(notice: CapacityChangeNotice){
         if (capacityChangeRule == CapacityChangeRule.IGNORE){
             // handle ignore rule
+            // schedule the completion of the change
+            // add change to list
         } else {
             // handle wait rule
+            // add change to list, end of change does not get scheduled
+            // change occurs when all units necessary become released
+            // problem! if this change is delayed what happens to the next change?
         }
     }
 
