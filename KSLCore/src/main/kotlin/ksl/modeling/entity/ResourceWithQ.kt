@@ -152,21 +152,21 @@ class ResourceWithQ(
                 capacity = capacity - amountNeeded
                 //TODO determine current state
             } else {
-                // not enough available
-                // numAvailableUnits < amountNeeded
-                // take away all available
-                capacity = capacity - numAvailableUnits
-                val stillNeeded = amountNeeded - numAvailableUnits
-                notice.amountNeeded = stillNeeded
-                //TODO determine current state
-                //TODO how and when to allocate the still needed
-                handleWaitingChange(notice)
+                // not enough available, this means that at least part of the change will need to wait
+                // when the capacity is changed depends on the rule!!!!
+                handleWaitingChange(amountNeeded, notice)
             }
         }
     }
 
-    private fun handleWaitingChange(notice: CapacityChangeNotice){
+    private fun handleWaitingChange(amountNeeded: Int, notice: CapacityChangeNotice){
+
+        // numAvailableUnits < amountNeeded
+        // take away all available
+        //TODO when the capacity is changed actually depends on the rule!!!!
         if (capacityChangeRule == CapacityChangeRule.IGNORE){
+            // immediately decrease the capacity by the full amount of the change
+            capacity = capacity - amountNeeded
             // handle ignore rule
             // schedule the completion of the change
             // add change to list
