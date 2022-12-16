@@ -34,7 +34,7 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     val stateStatisticsOption: Boolean
     val busyState: StateAccessorIfc
     val idleState: StateAccessorIfc
-    val failedState: StateAccessorIfc
+//    val failedState: StateAccessorIfc
     val inactiveState: StateAccessorIfc
     val state: StateAccessorIfc
     val previousState: StateAccessorIfc
@@ -49,7 +49,7 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
 
     /** Checks if the resource is failed
      */
-    val isFailed: Boolean
+//    val isFailed: Boolean
 
     /** Checks to see if the resource is inactive
      */
@@ -98,26 +98,27 @@ interface ResourceFailureActionsIfc {
 
 /**
  *  A Resource represents a number of common units that can be allocated to entities.  A resource
- *  has an initial capacity.  The capacity can be changed during a replication; however, the capacity of
- *  every replication starts at the same initial capacity.
+ *  has an initial capacity that cannot be changed during a replication. This base resource class
+ *  can only be busy or idle.
  *
  *  A resource is busy if at least 1 unit has been allocated. A resource becomes busy when it has allocations. If
  *  a seize-request occurs and the resource has capacity to fill it completely, then the request is allocated
  *  the requested amount.  If insufficient capacity is available at the time of the request, then the request
  *  waits until the requested units can be allocated.
  *
- *  A resource is considered inactive if all of its units of capacity are inactive. That is, a resource is
- *  inactive if its capacity is zero.  A resource that is inactive can be seized.  If a request for units occurs
- *  when the resource is inactive, the request waits (as usual) until it can be fulfilled.
+ *  If b(t) is the number of units allocated at time t, and c(t) is the current capacity of the resource, then the number of available units,
+ *  a(t), is defined as a(t) = c(t) - b(t).  Thus, a resource is idle if
+ *  a(t) = c(t).  Since a resource is busy if b(t) > 0, busy and idle are complements of each other. A resource is
+ *  either busy b(t) > 0 or idle b(t) = 0.  If a(t) > 0, then the resource has units that it can be allocated.
  *
- *  A resource is idle if it is not failed, and it has capacity but no units have been allocated. If b(t) is the number
- *  of units allocated at time t, and c(t) is the current capacity of the resource, then the number of available units,
- *  a(t), is defined as a(t) = c(t) - b(t).  If the resource is failed, then a(t) = 0.  Thus, a resource is idle if
- *  a(t) = c(t).  Since a resource is busy if b(t) > 0, busy and idle are complements of each other. Provided a
- *  resource is not failed and c(t) > 0 (not inactive), then the resource is either busy b(t) > 0 or idle b(t) = 0.
- *  If a(t) > 0, then the resource has units that it can allocate.
+ *  Subclasses of Resource implement additional state behavior.
  *
- *
+ *  @param parent the parent holding this resource
+ *  @param name the name of the resource
+ *  @param capacity the initial capacity of the resource.  Cannot be changed during a replication. The default capacity is 1.
+ *  @param collectStateStatistics indicates if detailed statistics are automatically collected on time spent in resource
+ *  states. The default is false.  Utilization and busy statistics are always collected unless specifically turned off
+ *  via TWResponseCIfc references.
  */
 open class Resource(
     parent: ModelElement,
@@ -146,20 +147,33 @@ open class Resource(
 
     protected val allocationListeners: MutableList<AllocationListenerIfc> = mutableListOf()
 
+    /**
+     * Add an allocation listener.  Allocation listeners are notified when (after)
+     * units are allocated to an entity and after units are deallocated.
+     */
     fun addAllocationListener(listener: AllocationListenerIfc) {
         allocationListeners.add(listener)
     }
 
+    /**
+     * Removes the listener
+     */
     fun removeAllocationListener(listener: AllocationListenerIfc) {
         allocationListeners.remove(listener)
     }
 
+    /**
+     * Notifies any attached listeners when units are allocated.
+     */
     protected fun allocationNotification(allocation: Allocation) {
         for (listener in allocationListeners) {
             listener.allocate(allocation)
         }
     }
 
+    /**
+     * Notifies any attached listeners when units are deallocated.
+     */
     protected fun deallocationNotification(allocation: Allocation) {
         for (listener in allocationListeners) {
             listener.deallocate(allocation)
@@ -207,9 +221,9 @@ open class Resource(
      * are available because the resource is failed
      *
      */
-    protected val myFailedState: ResourceState = FailedState("${this.name}_Failed", collectStateStatistics)
-    override val failedState: StateAccessorIfc
-        get() = myFailedState
+//    protected val myFailedState: ResourceState = FailedState("${this.name}_Failed", collectStateStatistics)
+//    override val failedState: StateAccessorIfc
+//        get() = myFailedState
 
     /** The inactive state, keeps track of when no units
      * are available because the resource's capacity is zero.
@@ -245,8 +259,8 @@ open class Resource(
 
     /** Checks if the resource is failed
      */
-    override val isFailed: Boolean
-        get() = myState === myFailedState
+//    override val isFailed: Boolean
+//        get() = myState === myFailedState
 
     /** Checks to see if the resource is inactive
      */
@@ -264,13 +278,10 @@ open class Resource(
         get() = myNumBusy.value.toInt()
 
     override val numAvailableUnits: Int
-        get() = if (isFailed || isInactive) {//isBusy || isFailed || isInactive
+        get() = if (isInactive) {
             0
         } else {
-            // because capacity can be decrease when there are busy units
-            // we need to prevent the number of available units from being negative
-            // the capacity may be reduced but the state not yet changed to inactive
-            maxOf(0, capacity - numBusy)
+            capacity - numBusy
         }
 
     override val hasAvailableUnits: Boolean
@@ -367,7 +378,7 @@ open class Resource(
         //clears the accumulators but keeps the current state thinking that is entered
         myIdleState.initialize(isIdle)
         myBusyState.initialize(isBusy)
-        myFailedState.initialize(isFailed)
+//        myFailedState.initialize(isFailed)
         myInactiveState.initialize(isInactive)
         // tell it to be in the inactive state (assign prev, exit, assign enter)
         // thus (just) prior to replication initialization, the resource is inactive
@@ -381,7 +392,7 @@ open class Resource(
         numTimesReleased = 0
         capacity = initialCapacity
         // note that initialize() causes state to not be entered, and clears it accumulators
-        // this should be based on capacity, but right now initialCapacity > 1, thus it must be idle
+        // this should be based on capacity, but initialCapacity > 1, thus it must be idle
         myState = myIdleState // will cause myPreviousState to be set to current value of myState
     }
 
@@ -454,33 +465,33 @@ open class Resource(
         deallocationNotification(allocation)
     }
 
-    protected open fun resourceEnteredFailure() {
-        val list = allocations()
-        for (allocation in list) {
-            allocation.failureActions.beginFailure(allocation)
-        }
-    }
-
-    protected open fun resourcedExitedFailure() {
-        val list = allocations()
-        for (allocation in list) {
-            allocation.failureActions.endFailure(allocation)
-        }
-    }
+//    protected open fun resourceEnteredFailure() {
+//        val list = allocations()
+//        for (allocation in list) {
+//            allocation.failureActions.beginFailure(allocation)
+//        }
+//    }
+//
+//    protected open fun resourcedExitedFailure() {
+//        val list = allocations()
+//        for (allocation in list) {
+//            allocation.failureActions.endFailure(allocation)
+//        }
+//    }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
         State(name = aName, useStatistic = stateStatistics) {
         //TODO need to have states: idle, busy, inactive?
     }
 
-    protected inner class FailedState(aName: String, stateStatistics: Boolean = false) :
-        ResourceState(aName, stateStatistics) {
-        override fun onEnter() {
-            resourceEnteredFailure()
-        }
-
-        override fun onExit() {
-            resourcedExitedFailure()
-        }
-    }
+//    protected inner class FailedState(aName: String, stateStatistics: Boolean = false) :
+//        ResourceState(aName, stateStatistics) {
+//        override fun onEnter() {
+//            resourceEnteredFailure()
+//        }
+//
+//        override fun onExit() {
+//            resourcedExitedFailure()
+//        }
+//    }
 }
