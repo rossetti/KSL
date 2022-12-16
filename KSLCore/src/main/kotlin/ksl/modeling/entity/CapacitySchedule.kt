@@ -24,53 +24,61 @@ import ksl.simulation.ModelElement
 interface CapacityChangeListenerIfc {
     fun scheduleStarted(schedule: CapacitySchedule)
     fun scheduleEnded(schedule: CapacitySchedule)
-    fun scheduleItemStarted(item: CapacitySchedule.CapacityItem)
-    fun scheduleItemEnded(item: CapacitySchedule.CapacityItem)
+    fun capacityChange(item: CapacitySchedule.CapacityItem)
 }
 
-/** A Schedule represents a known set of events that can occur according to a pattern.
- * A schedule contains one or more instances of ScheduleItem.  A ScheduleItem represents an item on a
- * Schedule. It has a start time, relative to the start of the Schedule and a duration.
- * If more than one schedule item needs to start at
- * the same time, then a priority can be provided to determine the ordering (i.e. the smallest priority goes first).
- * ScheduleItems are not scheduled to occur until the Schedule actually starts.
+/** A CapacitySchedule represents a known set of capacity specifications that last for a duration of time.
  *
- * A Schedule has an auto start flag, which controls whether the schedule should start automatically
- * upon initialization (at the start of the simulation). The default is to start automatically.
+ * A CapacitySchedule has an auto start flag, which controls whether the schedule should start automatically
+ * upon initialization (at the start of the replication). The default is to start automatically.
  *
- * A Schedule has an initial start time, which represents the amount of time after the beginning of
- * the simulation that the schedule is to start. The default start time is zero (at the beginning of the simulation).
+ * A CapacitySchedule has an initial start time, which represents the amount of time after the beginning of
+ * the replication that the schedule is to start. The default start time is zero (at the beginning of the replication).
  *
- * A Schedule as a length (or duration) that represents the total time associated with the schedule. After this
- * time has elapsed the entire schedule can repeat if the repeat option is on. The default length of a schedule
- * is infinite.  The total or maximum duration of scheduled items cannot exceed the schedule duration if it is finite.
+ * A CapacitySchedule as a length (or duration) that represents the total time associated with the schedule. After this
+ * time has elapsed the entire schedule can repeat if the repeat option is on. The length of the schedule
+ * is determined by the durations of the items placed on it.
  *
- * A Schedule has a repeat flag that controls whether it will repeat after its duration has elapsed. The
+ * A CapacitySchedule has a repeat flag that controls whether it will repeat after its duration has elapsed. The
  * default is to repeat the schedule and is only relevant if the schedule duration (length) is finite.
  *
- * A Schedule has a cycle start time that represents when the schedule started its current cycle. Again, this
+ * A CapacitySchedule has a cycle start time that represents when the schedule started its current cycle. Again, this
  * is only relevant if the repeat flag is true and the schedule duration is finite. If there is only one cycle, it is
  * the time that the schedule started.
  *
- * To make a Schedule useful, instances of the ScheduleChangeListenerIfc interface should be added to
- * listen for changes in the schedule.  Instances of ScheduleChangeListenerIfc are notified in the order
- * in which they are added to the schedule.  Instances of ScheduleChangeListenerIfc are notified when the
- * schedule starts, when it ends, and when any ScheduleItem starts and ends.  It is up to the instance
- * of ScheduleChangeListenerIfc to react to the schedule changes that it needs to react to and ignore those
+ * To make a CapacitySchedule useful, instances of the CapacityChangeListenerIfc interface should be added to
+ * listen for changes in the schedule.  Instances of CapacityChangeListenerIfc are notified in the order
+ * in which they are added to the schedule.  Instances of CapacityChangeListenerIfc are notified when the
+ * schedule starts, when it ends, and when any CapacityItem starts.  It is up to the instance
+ * of CapacityChangeListenerIfc to react to the schedule changes that it needs to react to and ignore those
  * that it does not care about.
  *
+ * @param parent the parent model element holding the schedule
+ * @param startTime the time after the start of the replication that the schedule should start. The default is 0.0
+ * @param autoStartOption whether the schedule should start automatically. The default is true.
+ * @param repeatable whether the schedule will automatically repeat. The default is true.
+ * @param eventPriority the default priority of the events used to start each item on the schedule
+ * @param name an optional name for the schedule
  * @author rossetti
  */
 class CapacitySchedule(
     parent: ModelElement,
     startTime: Double = 0.0,
-    length: Double = Double.POSITIVE_INFINITY,
     autoStartOption: Boolean = true,
     repeatable: Boolean = true,
-    startPriority: Int = KSLEvent.DEFAULT_PRIORITY - 5,
-    itemPriority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
+    val eventPriority: Int = KSLEvent.DEFAULT_PRIORITY,
     name: String? = null
 ) : ModelElement(parent, name) {
+
+    /**
+     * The schedule repeat flag controls whether
+     * the entire schedule will repeat after its entire duration
+     * has elapsed. The default is to repeat the schedule. The
+     * use of this flag only makes sense if a finite schedule length is
+     * specified
+     *
+     */
+    val isScheduleRepeatable: Boolean = repeatable
 
     private var idCounter: Long = 0
 
@@ -86,12 +94,12 @@ class CapacitySchedule(
 
     /**
      * Represents the total length of time of the schedule.
-     * The total of the durations added to the schedule cannot exceed this
-     * amount.
+     * The total of the durations determines the length of the schedule.
      * After this time has elapsed the entire schedule can repeat if the
      * schedule repeat flag is true. The default is infinite.
      */
-    val scheduleLength: Double = length
+    var scheduleLength: Double = 0.0
+        private set
 
     /**
      * The time that the schedule started for its current cycle
@@ -100,32 +108,13 @@ class CapacitySchedule(
     var cycleStartTime = 0.0
         private set
 
-    /**
-     * The schedule repeat flag controls whether
-     * the entire schedule will repeat after its entire duration
-     * has elapsed. The default is to repeat the schedule. The
-     * use of this flag only makes sense if a finite schedule length is
-     * specified
-     *
-     */
-    val isScheduleRepeatable: Boolean = repeatable
-
-    /**
-     *
-     * the priority associated with the item's start event
-     */
-    val itemStartEventPriority: Int = itemPriority
-
-    /**
-     *
-     * the priority associated with the schedule's start event
-     */
-    val startEventPriority: Int = startPriority
-
     private val myItems: MutableList<CapacityItem> = mutableListOf()
+    private var myItemIterator = myItems.iterator()
     private val myChangeListeners: MutableList<CapacityChangeListenerIfc> = mutableListOf()
     private var myStartScheduleEvent: KSLEvent<Nothing>? = null
 
+    private var myEndEventPriority = Int.MIN_VALUE
+    private var myStartEventPriority = Int.MAX_VALUE
     /**
      * If scheduled to start, this cancels the start of the schedule.
      */
@@ -180,61 +169,33 @@ class CapacitySchedule(
 
     /**
      * Adds an item to the schedule
-     *
-     * @param <T> the type of the message
-     * @param startTime the time past the start of the schedule to start the
-     * item
      * @param duration the duration of the item
-     * @param priority the priority, (among items) if items start at the same
-     * time
      * @param capacity a message or datum to attach to the item
      * @return the created CapacityItem
      * */
     fun addItem(
-        startTime: Double = 0.0,
-        duration: Double = Double.POSITIVE_INFINITY,
-        capacity: Int = 0,
-        priority: Int = itemStartEventPriority
-    ): CapacityItem {
-        val aItem = CapacityItem(startTime, duration, capacity, priority)
-        require(aItem.endTime <= initialStartTime + scheduleLength) { "The item's end time is past the schedule's end." }
-
-        // nothing in the list, just add to beginning
-        if (myItems.isEmpty()) {
-            myItems.add(aItem)
-            return aItem
+        capacity: Int,
+        duration: Double,
+        itemPriority: Int = eventPriority
+    ) {
+        if (scheduleLength.isInfinite()){
+            // cannot add any more items once an item with infinite duration was added
+            return
         }
-        // might as well check for worse case, if larger than the largest
-        // then put it at the end and return
-        if (aItem.compareTo(myItems[myItems.size - 1]) >= 0) {
-            myItems.add(aItem)
-            return aItem
+        if (myItems.isEmpty()){
+            // first item being added, end event priority must be < first item's priority
+            myEndEventPriority = itemPriority - 5
+            // start event priority must be > end event priority
+            myStartEventPriority = myEndEventPriority + 10
         }
-
-        // now iterate through the list
-        val i: ListIterator<CapacityItem> = myItems.listIterator()
-        while (i.hasNext()) {
-            if (aItem.compareTo(i.next()) < 0) {
-                // next() move the iterator forward, if it is < what was returned by next(), then it
-                // must be inserted at the previous index
-                myItems.add(i.previousIndex(), aItem)
-                break
-            }
-        }
-        return aItem
-    }
-
-    /** Removes the item from the schedule. If the item is null or not on this
-     * schedule nothing happens.
-     *
-     * @param item the item to remove
-     */
-    fun removeItem(item: CapacityItem) {
-        myItems.remove(item)
+        val item = CapacityItem(capacity, duration, itemPriority)
+        item.startTime = scheduleLength
+        scheduleLength = scheduleLength + duration
+        myItems.add(item)
     }
 
     /**
-     * Removes all schedule items from the schedule
+     * Removes all capacity items from the schedule
      */
     fun clearSchedule() {
         myItems.clear()
@@ -246,30 +207,18 @@ class CapacitySchedule(
 
     fun asString(): String {
         val sb = StringBuilder()
-        sb.append("Schedule: ")
-        sb.append(name)
-        sb.append(System.lineSeparator())
-        sb.append("Initial Start Time = ").append(initialStartTime)
-        sb.append(System.lineSeparator())
-        sb.append("Length = ").append(scheduleLength)
-        sb.append(System.lineSeparator())
-        sb.append("Auto start = ").append(isAutoStartFlag)
-        sb.append(System.lineSeparator())
-        sb.append("Repeats = ").append(isScheduleRepeatable)
-        sb.append(System.lineSeparator())
-        sb.append("Start event priority = ").append(startEventPriority)
-        sb.append(System.lineSeparator())
-        sb.append("Item Start event priority = ").append(itemStartEventPriority)
-        sb.append(System.lineSeparator())
-        sb.append("Items:")
-        sb.append(System.lineSeparator())
-        sb.append("-----------------------------------------------------------------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine("Schedule: $name")
+        sb.appendLine("Initial Start Time = $initialStartTime")
+        sb.appendLine("Length = $scheduleLength")
+        sb.appendLine("Auto start = $isAutoStartFlag")
+        sb.appendLine("Repeats = $isScheduleRepeatable")
+        sb.appendLine("Schedule event priority = $eventPriority")
+        sb.appendLine("Items:")
+        sb.appendLine("-----------------------------------------------------------------------------")
         for (i in myItems) {
-            sb.append(i).append(System.lineSeparator())
+            sb.appendLine(i)
         }
-        sb.append("-----------------------------------------------------------------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine("-----------------------------------------------------------------------------")
         return sb.toString()
     }
 
@@ -285,15 +234,9 @@ class CapacitySchedule(
         }
     }
 
-    private fun notifyChangeListenersScheduleItemEnded(item: CapacityItem) {
-        for (listener in myChangeListeners) {
-            listener.scheduleItemEnded(item)
-        }
-    }
-
     private fun notifyChangeListenersScheduleItemStarted(item: CapacityItem) {
         for (listener in myChangeListeners) {
-            listener.scheduleItemStarted(item)
+            listener.capacityChange(item)
         }
     }
 
@@ -315,16 +258,7 @@ class CapacitySchedule(
      */
     fun scheduleStart() {
         if (myStartScheduleEvent == null) {
-            // priority for starting the schedule must be lower than the first
-            // item on the schedule to ensure it goes first
-            var priority = startEventPriority
-            if (myItems.isNotEmpty()) {
-                val p = myItems[0].priority
-                if (p < priority) {
-                    priority = p - 1
-                }
-            }
-            myStartScheduleEvent = schedule(this::startSchedule, initialStartTime, priority = priority)
+            myStartScheduleEvent = schedule(this::startSchedule, initialStartTime, priority = myStartEventPriority)
         }
     }
 
@@ -332,10 +266,25 @@ class CapacitySchedule(
         cycleStartTime = time
         // logic for what to do when schedule is started
         notifyChangeListenersScheduleStarted()
-        for (item in myItems) {
-            scheduleItemStart(item)
+        // schedule the first item if there is one
+        myItemIterator = myItems.iterator()
+        if (myItemIterator.hasNext()){
+            // schedule the first item
+            val firstItem = myItemIterator.next()
+            val e = schedule(this::startItem, 0.0, firstItem, firstItem.priority)
+            firstItem.myStartEvent = e
+            //scheduleItemStart(myItemIterator.next())
         }
-        scheduleEndOfSchedule()
+        // if the length of the schedule is finite, schedule the end event
+        if (scheduleLength.isFinite() && (scheduleLength != 0.0)){
+            // priority for end the schedule must be lower than the start of the schedule to ensure it goes first
+            schedule(this::endSchedule, scheduleLength, priority = myEndEventPriority)
+        }
+    }
+
+    private fun scheduleItemStart(item: CapacityItem) {
+        val e = schedule(this::startItem, item.duration, item, item.priority)
+        item.myStartEvent = e
     }
 
     private fun endSchedule(event: KSLEvent<Nothing>) {
@@ -348,79 +297,26 @@ class CapacitySchedule(
     private fun startItem(event: KSLEvent<CapacityItem>) {
         val item = event.message as CapacityItem
         notifyChangeListenersScheduleItemStarted(item)
-        scheduleItemEnd(item)
-    }
-
-    private fun endItem(event: KSLEvent<CapacityItem>) {
-        val item = event.message as CapacityItem
-        notifyChangeListenersScheduleItemEnded(item)
-    }
-
-    private fun scheduleEndOfSchedule() {
-        // priority for end the schedule must be lower than the first
-        // item and lower than the start of the schedule to ensure it goes first
-        var priority = startEventPriority
-        if (myItems.isNotEmpty()) {
-            val p = myItems[0].priority
-            if (p < priority) {
-                priority = p - 2
-            }
+        if (myItemIterator.hasNext()){
+            scheduleItemStart(myItemIterator.next())
         }
-        schedule(this::endSchedule, scheduleLength, priority = priority)
     }
 
-    private fun scheduleItemStart(item: CapacityItem) {
-        // if the item's start time is 0.0 relative to the start of 
-        // the schedule its priority must be after the start of schedule
-        var priority = item.priority
-        if (item.startTime == 0.0) {
-            // check priority
-            if (item.priority <= startEventPriority) {
-                priority = startEventPriority + 1
-            }
-        }
-        val e: KSLEvent<CapacityItem> = schedule(this::startItem, item.startTime, item, priority)
-        //e.setMessage(item);
-        item.myStartEvent = e
-    }
-
-    private fun scheduleItemEnd(item: CapacityItem) {
-        // if the item's end time is at the same time as the end of the
-        // schedule then it's priority needs to be before the priority
-        // of the end of the schedule
-        var priority = item.priority
-        if (item.endTime == scheduleLength) {
-            // need to adjust priority, compute end priority
-            var endPriority = startEventPriority
-            if (myItems.isNotEmpty()) {
-                val p = myItems[0].priority
-                if (p < endPriority) {
-                    endPriority = p - 2
-                }
-            }
-            priority = endPriority - 1
-        }
-        val event: KSLEvent<CapacityItem> = schedule(this::endItem, item.duration, item, priority - 1)
-        //event.setMessage(item);
-        item.myEndEvent = event
-    }
-
-    /** A ScheduleItem represents an item on a Schedule. It has a start time, relative to the
-     * start of the Schedule and a duration. If more than one schedule item needs to start at
-     * the same time, then a priority can be provided to determine the ordering (i.e. the smallest priority goes first).
-     *
-     * @param <T> a general message or other object that can be associated with the ScheduleItem
-    </T> */
+    /** A CapacityItem represents an item on a CapacitySchedule. CapacityItems are placed
+     * on a CapacitySchedule in the order that they will execute. The first item will start
+     * when the schedule starts and each item will be scheduled sequentially based on the durations
+     * of the previous items.  At the specified start time, the capacity is to be set to the supplied
+     * value.
+     * @param startTime the time of the capacity change
+     * @param capacity the value of the capacity to be specified at the start time
+    */
     inner class CapacityItem(
-        val startTime: Double,
-        val duration: Double,
         val capacity: Int = 0,
-        val priority: Int
-    ) :
-        Comparable<CapacityItem> {
+        val duration: Double,
+        val priority: Int = eventPriority
+    ) {
         init {
-            require(startTime >= 0.0) { "The start time must be >= 0.0" }
-            require(duration > 0.0) { "The duration must be > 0.0" }
+            require(duration > 0.0) { "The start time must be >= 0.0" }
             require(capacity >= 0) { "The capacity must be >= 0" }
             idCounter += 1
         }
@@ -429,10 +325,9 @@ class CapacitySchedule(
         var name: String = "Item:$id"
         val schedule: CapacitySchedule = this@CapacitySchedule
         internal var myStartEvent: KSLEvent<CapacityItem>? = null
-        internal var myEndEvent: KSLEvent<CapacityItem>? = null
 
-        val endTime: Double
-            get() = startTime + duration
+        var startTime: Double = 0.0
+            internal set
 
         override fun toString(): String {
             val sb = StringBuilder()
@@ -440,8 +335,6 @@ class CapacitySchedule(
             sb.append(id)
             sb.append(" | name = ")
             sb.append(name)
-            sb.append(" | Priority = ")
-            sb.append(priority)
             sb.append(" | Start time = ")
             sb.append(startTime)
             sb.append(" | Duration = ")
@@ -450,82 +343,22 @@ class CapacitySchedule(
                 sb.append(" | Start event priority = ")
                 sb.append(myStartEvent?.priority)
             }
-            if (myEndEvent != null) {
-                sb.append(" | End event priority = ")
-                sb.append(myEndEvent?.priority)
-            }
             return sb.toString()
-        }
-
-        /**
-         * Returns a negative integer, zero, or a positive integer if this
-         * object is less than, equal to, or greater than the specified object.
-         *
-         * Natural ordering: time, then priority, then order of creation
-         *
-         * Lower time, lower priority, lower order of creation goes first
-         *
-         * Throws ClassCastException if the specified object's type prevents it
-         * from being compared to this object.
-         *
-         * Throws RuntimeException if the id's of the objects are the same, but
-         * the references are not when compared with equals.
-         *
-         * Note: This class may have a natural ordering that is inconsistent with equals.
-         *
-         * @param other The event to compare this event to
-         * @return Returns a negative integer, zero, or a positive integer if
-         * this object is less than, equal to, or greater than the specified object.
-         */
-        override operator fun compareTo(other: CapacityItem): Int {
-
-            // compare time first
-            if (startTime < other.startTime) {
-                return -1
-            }
-            if (startTime > other.startTime) {
-                return 1
-            }
-
-            // times are equal, check priorities
-            if (priority < other.priority) {
-                return -1
-            }
-            if (priority > other.priority) {
-                return 1
-            }
-
-            // time and priorities are equal, compare ids
-            if (id < other.id) // lower id, implies created earlier
-            {
-                return -1
-            }
-            if (id > other.id) {
-                return 1
-            }
-
-            // if the ids are equal then the object references must be equal
-            // if this is not the case there is a problem
-            return if (this == other) {
-                0
-            } else {
-                throw RuntimeException("Id's were equal, but references were not, in ScheduleItem compareTo")
-            }
         }
     }
 }
 
 fun main() {
     val m = Model()
-    val s = CapacitySchedule(m, startTime = 0.0, length = 480.0)
-    s.addItem(60.0 * 2.0, 15.0, capacity = 2)
-    s.addItem((60.0 * 4.0), 30.0, capacity = 1)
-    s.addItem((60.0 * 6.0), 15.0, capacity = 2)
+    val s = CapacitySchedule(m, startTime = 0.0)
+    s.addItem(capacity = 2, duration = 15.0)
+    s.addItem(capacity = 1, duration = 30.0)
+    s.addItem(capacity = 2, duration = 15.0)
     s.addCapacityChangeListener(CapacityListener())
 
     println(s)
     println()
-    m.lengthOfReplication = 500.0
+    m.lengthOfReplication = 100.0
     m.numberOfReplications = 2
 
     m.simulate()
@@ -534,6 +367,8 @@ fun main() {
 
 class CapacityListener : CapacityChangeListenerIfc {
     override fun scheduleStarted(schedule: CapacitySchedule) {
+        val n = schedule.model.currentReplicationNumber
+        println("Replication: $n")
         println("time = ${schedule.time} Schedule Started")
     }
 
@@ -541,12 +376,8 @@ class CapacityListener : CapacityChangeListenerIfc {
         println("time = ${schedule.time} Schedule Ended")
     }
 
-    override fun scheduleItemStarted(item: CapacitySchedule.CapacityItem) {
-        println("time = ${item.schedule.time} scheduled item ${item.name} started with capacity ${item.capacity}")
-    }
-
-    override fun scheduleItemEnded(item: CapacitySchedule.CapacityItem) {
-        println("time = ${item.schedule.time} scheduled item ${item.name} ended with capacity ${item.capacity}")
+    override fun capacityChange(item: CapacitySchedule.CapacityItem) {
+        println("time = ${item.schedule.time}  : ${item.name} started with capacity ${item.capacity} for duration ${item.duration}")
     }
 
 }

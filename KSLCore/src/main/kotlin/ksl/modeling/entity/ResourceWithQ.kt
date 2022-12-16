@@ -285,17 +285,12 @@ class ResourceWithQ(
             // nothing to do when the schedule ends
         }
 
-        override fun scheduleItemStarted(item: CapacitySchedule.CapacityItem) {
+        override fun capacityChange(item: CapacitySchedule.CapacityItem) {
             println("time = ${item.schedule.time} scheduled item ${item.name} started with capacity ${item.capacity}")
             // make the capacity change notice using information from CapacityItem
-            val notice = CapacityChangeNotice(item.capacity, item.duration, item.priority)
+//TODO            val notice = CapacityChangeNotice(item.capacity, item.duration, item.priority)
             // tell resource to handle it
-            changeCapacity(notice)
-        }
-
-        override fun scheduleItemEnded(item: CapacitySchedule.CapacityItem) {
-            println("time = ${item.schedule.time} scheduled item ${item.name} ended with capacity ${item.capacity}")
-            // nothing to do when the item ends
+//TODO            changeCapacity(notice)
         }
 
     }
