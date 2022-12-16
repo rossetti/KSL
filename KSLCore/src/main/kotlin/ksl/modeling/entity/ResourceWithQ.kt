@@ -184,6 +184,8 @@ class ResourceWithQ(
             capacity = notice.capacity
             // this causes the newly available capacity to be allocated to any waiting requests
             myWaitingQ.processWaitingRequests(numAvailableUnits, notice.priority)
+            // resource could have been busy, idle, or inactive when adding the capacity
+            // adding capacity cannot result in resource being inactive, must be either busy or idle after this
             //TODO how is the current state determined
         } else {
             // notice.capacity < capacity
@@ -192,6 +194,8 @@ class ResourceWithQ(
             if (numAvailableUnits >= amountNeeded) {
                 // there are enough available units to handle the change w/o using busy resources
                 capacity = capacity - amountNeeded
+                // removed idle units, but some may still be idle
+                // may still be busy, idle, or if capacity is zero should be inactive
                 //TODO how is the current state determined
             } else {
                 // not enough available, this means that at least part of the change will need to wait
@@ -222,22 +226,43 @@ class ResourceWithQ(
                 myWaitingChangeNotices.add(notice)
             }
         } else if (capacityChangeRule == CapacityChangeRule.WAIT){
-            val x = 0
-            //TODO
-            // handle wait rule
-            // add change to list, end of change does not get scheduled
-            // change occurs when all units necessary become released
-            // problem! if this change is delayed what happens to the next change?
+            // must decrease capacity, but all required units are busy
+            // must wait for units to be released
+            // if there are no waiting notices, make this the current one
+            if (myWaitingChangeNotices.isEmpty()){
+                myCurrentChangeNotice = notice
+            } else {
+                // if there are already waiting notices, make this new one wait
+                myWaitingChangeNotices.add(notice)
+            }
         }
     }
 
     private fun capacityChangeAction(event: KSLEvent<CapacityChangeNotice>){
+        val endingChangeNotice = event.message!!
         if (capacityChangeRule == CapacityChangeRule.IGNORE) {
-
-        } else {
-
+            // if ending notice is same as current notice, we can stop the change associated with the current notice
+            // if it was not the current, then the ending change notice was previously completed, nothing to do
+            if (myCurrentChangeNotice == endingChangeNotice ){
+                myCurrentChangeNotice = null
+            }
+            if (myWaitingChangeNotices.isNotEmpty()){
+                // note that this notice's end event has already been scheduled,
+                //  we begin its official processing when releases occur
+                myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
+            }
+        } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
+            // finished processing the current change notice
+            myCurrentChangeNotice = null
+            // just completed change in full, check if there is a next one
+            if (myWaitingChangeNotices.isNotEmpty()){
+                //  we begin its official processing when releases occur
+                myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
+                // schedule the end of its processing
+                myEndCapacityChangeEvent = schedule(this::capacityChangeAction, myCurrentChangeNotice!!.duration,
+                    message = myCurrentChangeNotice, priority = myCurrentChangeNotice!!.priority)
+            }
         }
-        TODO("Not yet implemented")
     }
 
     inner class CapacityChangeNotice(

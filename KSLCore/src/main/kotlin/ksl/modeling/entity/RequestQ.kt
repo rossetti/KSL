@@ -107,11 +107,9 @@ class RequestQ(
      * its request filled
      */
     internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int) {
-        if (isNotEmpty) {
-            val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
-            for (request in selectedRequests) {
-                request.entity.resumeProcess(0.0, resumePriority)
-            }
+        val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
+        for (request in selectedRequests) {
+            request.entity.resumeProcess(0.0, resumePriority)
         }
     }
 }
