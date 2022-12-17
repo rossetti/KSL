@@ -48,7 +48,7 @@ interface ResourceWithQCIfc : ResourceCIfc {
  * resources to share request queues.
  * @param collectStateStatistics whether individual state statistics are collected
  */
-class ResourceWithQ(
+open class ResourceWithQ(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1,
@@ -157,8 +157,41 @@ class ResourceWithQ(
 
     override fun deallocate(allocation: Allocation) {
         super.deallocate(allocation)
-        val x = 1
-        //TODO deallocation completed need to check for pending capacity change
+        // deallocation completed need to check for pending capacity change
+        if (isPendingCapacityChange) {
+            // a capacity change is pending and needs units that were deallocated
+            val amountNeeded = myCurrentChangeNotice!!.amountNeeded
+            // capacity needs to go down by amount needed
+            // number busy went down and number available went up by amount released
+            val amountReleased = allocation.amount
+            val amountToDecrease = minOf(amountReleased, amountNeeded)
+            //TODO how is the current state determined
+            capacity = capacity - amountToDecrease
+            // give the units to the pending change
+            myCurrentChangeNotice!!.amountNeeded = myCurrentChangeNotice!!.amountNeeded - amountToDecrease
+            // check if pending change has been completely filled
+            if (myCurrentChangeNotice!!.amountNeeded == 0) {
+                // the capacity change has been filled
+                if (capacityChangeRule == CapacityChangeRule.WAIT) {
+                    // it does not schedule its duration until it gets all the needed change
+                    // schedule the end of its processing
+                    myEndCapacityChangeEvent = schedule(
+                        this::capacityChangeAction, myCurrentChangeNotice!!.duration,
+                        message = myCurrentChangeNotice, priority = myCurrentChangeNotice!!.priority
+                    )
+                }
+                // if the rule was IGNORE, it was previously scheduled, no need to schedule
+                // check if there are more changes
+                if (myWaitingChangeNotices.isEmpty()) {
+                    // no more pending changes
+                    myCurrentChangeNotice = null
+                } else {
+                    // not empty need to process the next one
+                    myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
+                    // if the rule is IGNORE what happens
+                }
+            }
+        }
     }
 
     /**
@@ -188,65 +221,87 @@ class ResourceWithQ(
             // adding capacity cannot result in resource being inactive, must be either busy or idle after this
             //TODO how is the current state determined
         } else {
-            // notice.capacity < capacity
-            // decreasing the capacity
-            val amountNeeded = capacity - notice.capacity
-            if (numAvailableUnits >= amountNeeded) {
+            // notice.capacity < capacity, need to decrease the capacity
+            val decrease = capacity - notice.capacity
+            if (numAvailableUnits >= decrease) {
                 // there are enough available units to handle the change w/o using busy resources
-                capacity = capacity - amountNeeded
+                capacity = capacity - decrease
                 // removed idle units, but some may still be idle
                 // may still be busy, idle, or if capacity is zero should be inactive
                 //TODO how is the current state determined
             } else {
                 // not enough available, this means that at least part of the change will need to wait
                 // the timing of when the capacity occurs depends on the capacity change rule
-                handleWaitingChange(amountNeeded, notice)
+                handleWaitingChange(decrease, notice)
             }
         }
     }
 
-    private fun handleWaitingChange(amountNeeded: Int, notice: CapacityChangeNotice) {
+    protected fun handleWaitingChange(amountNeeded: Int, notice: CapacityChangeNotice) {
         // numAvailableUnits < amountNeeded, we cannot reduce the capacity until busy units are released
         if (capacityChangeRule == CapacityChangeRule.IGNORE) {
-            if (myEndCapacityChangeEvent != null){
-                // a change is scheduled, find end time of newly arriving change notice
-                val endTime = time + notice.duration
-                check(endTime > myEndCapacityChangeEvent!!.time){"In coming capacity change, $notice, will be scheduled to complete before a pending change $myCurrentChangeNotice"}
-            }
-            // ignore takes away all needed, immediately, by decreasing the capacity by the full amount of the change
-            capacity = capacity - amountNeeded
-            //TODO how is the current state determined
-            // schedule the end of the change immediately
-            myEndCapacityChangeEvent = schedule(this::capacityChangeAction, notice.duration, message = notice, priority = notice.priority)
-            // if there are no waiting notices, make this the current one
-            if (myWaitingChangeNotices.isEmpty()){
-                myCurrentChangeNotice = notice
-            } else {
-                // if there are already waiting notices, make this new one wait
-                myWaitingChangeNotices.add(notice)
-            }
-        } else if (capacityChangeRule == CapacityChangeRule.WAIT){
-            // must decrease capacity, but all required units are busy
-            // must wait for units to be released
-            // if there are no waiting notices, make this the current one
-            if (myWaitingChangeNotices.isEmpty()){
-                myCurrentChangeNotice = notice
-            } else {
-                // if there are already waiting notices, make this new one wait
-                myWaitingChangeNotices.add(notice)
-            }
+            handleIgnoreRule(amountNeeded, notice)
+        } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
+            handleWaitRule(amountNeeded, notice)
         }
     }
 
-    private fun capacityChangeAction(event: KSLEvent<CapacityChangeNotice>){
+    /**
+     * Any arriving 
+     * If there is already a notice being processed, the arriving notice's end time must be
+     * after the completion time of the current notice. An incoming notice cannot supersede
+     * a notice that is in process.
+     * @param amountNeeded the amount needed to complete the reduction in capacity
+     * @param notice the capacity change notice that needs the amount
+     */
+    protected fun handleIgnoreRule(amountNeeded: Int, notice: CapacityChangeNotice) {
+        if (myEndCapacityChangeEvent != null) {
+            // a change is scheduled, find end time of newly arriving change notice
+            val endTime = time + notice.duration
+            check(endTime > myEndCapacityChangeEvent!!.time) { "In coming capacity change, $notice, will be scheduled to complete before a pending change $myCurrentChangeNotice" }
+        }
+        // ignore takes away all needed, immediately, by decreasing the capacity by the full amount of the change
+        //TODO how is the current state determined
+        capacity = capacity - amountNeeded
+        // schedule the end of the change immediately
+        myEndCapacityChangeEvent =
+            schedule(this::capacityChangeAction, notice.duration, message = notice, priority = notice.priority)
+        // if there are no waiting notices, make this the current one
+        if (myWaitingChangeNotices.isEmpty()) {
+            myCurrentChangeNotice = notice
+        } else {
+            // if there are already waiting notices, make this new one wait
+            myWaitingChangeNotices.add(notice)
+        }
+    }
+
+    protected fun handleWaitRule(amountNeeded: Int, notice: CapacityChangeNotice) {
+        // must decrease capacity, but all required units are busy
+        // must wait for units to be released
+        // if there are no waiting notices, make this the current one
+        // don't schedule its ending until needed units are released
+        if (myWaitingChangeNotices.isEmpty()) {
+            myCurrentChangeNotice = notice
+        } else {
+            // if there are already waiting notices, make this new one wait
+            myWaitingChangeNotices.add(notice)
+        }
+    }
+
+    /** Represents the actions that occur when a capacity change's duration
+     * is completed.
+     *
+     * @param event the ending event
+     */
+    protected fun capacityChangeAction(event: KSLEvent<CapacityChangeNotice>) {
         val endingChangeNotice = event.message!!
         if (capacityChangeRule == CapacityChangeRule.IGNORE) {
             // if ending notice is same as current notice, we can stop the change associated with the current notice
             // if it was not the current, then the ending change notice was previously completed, nothing to do
-            if (myCurrentChangeNotice == endingChangeNotice ){
+            if (myCurrentChangeNotice == endingChangeNotice) {
                 myCurrentChangeNotice = null
             }
-            if (myWaitingChangeNotices.isNotEmpty()){
+            if (myWaitingChangeNotices.isNotEmpty()) {
                 // note that this notice's end event has already been scheduled,
                 //  we begin its official processing when releases occur
                 myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
@@ -255,12 +310,10 @@ class ResourceWithQ(
             // finished processing the current change notice
             myCurrentChangeNotice = null
             // just completed change in full, check if there is a next one
-            if (myWaitingChangeNotices.isNotEmpty()){
+            if (myWaitingChangeNotices.isNotEmpty()) {
                 //  we begin its official processing when releases occur
                 myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                // schedule the end of its processing
-                myEndCapacityChangeEvent = schedule(this::capacityChangeAction, myCurrentChangeNotice!!.duration,
-                    message = myCurrentChangeNotice, priority = myCurrentChangeNotice!!.priority)
+                // it does not schedule its processing until it gets all the needed change
             }
         }
     }
@@ -369,13 +422,12 @@ class ResourceWithQ(
         }
 
         override fun capacityChange(item: CapacitySchedule.CapacityItem) {
-            println("time = ${item.schedule.time} scheduled item ${item.name} started with capacity ${item.capacity}")
+            println("time = ${item.schedule.time} capacity item ${item.name} started with capacity ${item.capacity}")
             // make the capacity change notice using information from CapacityItem
             val notice = CapacityChangeNotice(item.capacity, item.duration, item.priority)
             notice.capacitySchedule = item.schedule
             // tell resource to handle it
             changeCapacity(notice)
         }
-
     }
 }
