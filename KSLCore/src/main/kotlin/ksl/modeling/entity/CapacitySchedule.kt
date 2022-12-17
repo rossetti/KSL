@@ -271,8 +271,10 @@ class CapacitySchedule(
         if (myItemIterator.hasNext()){
             // schedule the first item
             val firstItem = myItemIterator.next()
+            notifyChangeListenersScheduleItemStarted(firstItem)
+            schedule(this::endItemAction, firstItem.duration, priority = firstItem.priority)
             val e = schedule(this::startItem, 0.0, firstItem, firstItem.priority)
-            firstItem.myStartEvent = e
+            firstItem.endEvent = e
             //scheduleItemStart(myItemIterator.next())
         }
         // if the length of the schedule is finite, schedule the end event
@@ -284,7 +286,7 @@ class CapacitySchedule(
 
     private fun scheduleItemStart(item: CapacityItem) {
         val e = schedule(this::startItem, item.duration, item, item.priority)
-        item.myStartEvent = e
+        item.endEvent = e
     }
 
     private fun endSchedule(event: KSLEvent<Nothing>) {
@@ -297,9 +299,19 @@ class CapacitySchedule(
     private fun startItem(event: KSLEvent<CapacityItem>) {
         val item = event.message as CapacityItem
         notifyChangeListenersScheduleItemStarted(item)
+        // schedule its end
         if (myItemIterator.hasNext()){
             scheduleItemStart(myItemIterator.next())
         }
+    }
+
+    private fun endItemAction(event: KSLEvent<Nothing>){
+        if (myItemIterator.hasNext()){
+            val nextItem = myItemIterator.next()
+            notifyChangeListenersScheduleItemStarted(nextItem)
+            schedule(this::endItemAction, nextItem.duration, priority = nextItem.priority)
+        }
+
     }
 
     /** A CapacityItem represents an item on a CapacitySchedule. CapacityItems are placed
@@ -307,8 +319,9 @@ class CapacitySchedule(
      * when the schedule starts and each item will be scheduled sequentially based on the durations
      * of the previous items.  At the specified start time, the capacity is to be set to the supplied
      * value.
-     * @param startTime the time of the capacity change
      * @param capacity the value of the capacity to be specified at the start time
+     * @param duration the duration of the change
+     * @param priority the priority of the change
     */
     inner class CapacityItem(
         val capacity: Int = 0,
@@ -324,26 +337,13 @@ class CapacitySchedule(
         val id: Long = idCounter
         var name: String = "Item:$id"
         val schedule: CapacitySchedule = this@CapacitySchedule
-        internal var myStartEvent: KSLEvent<CapacityItem>? = null
+        internal var endEvent: KSLEvent<CapacityItem>? = null
 
         var startTime: Double = 0.0
             internal set
 
         override fun toString(): String {
-            val sb = StringBuilder()
-            sb.append("ID = ")
-            sb.append(id)
-            sb.append(" | name = ")
-            sb.append(name)
-            sb.append(" | Start time = ")
-            sb.append(startTime)
-            sb.append(" | Duration = ")
-            sb.append(duration)
-            if (myStartEvent != null) {
-                sb.append(" | Start event priority = ")
-                sb.append(myStartEvent?.priority)
-            }
-            return sb.toString()
+            return ("ID = $id | name = $name | start time = $startTime | duration = $duration | priority $priority")
         }
     }
 }

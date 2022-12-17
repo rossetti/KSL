@@ -193,6 +193,10 @@ open class Resource(
         protected set(value) {
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
+            if (field == 0){
+                // no capacity means inactive
+                myState = myInactiveState
+            }
         }
 
     override var numTimesSeized: Int = 0
@@ -235,9 +239,11 @@ open class Resource(
     protected var myState: ResourceState = myIdleState
         set(nextState) {
             field.exit(time)  // exit the current state
+            ProcessModel.logger.trace{"$time > Resource: $name exited state ${field.name}"}
             myPreviousState = field // remember what the current state was
             field = nextState // transition to next state
             field.enter(time) // enter the current state
+            ProcessModel.logger.trace{"$time > Resource: $name entered state ${field.name}"}
         }
 
     override val state: StateAccessorIfc

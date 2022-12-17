@@ -103,13 +103,14 @@ class RequestQ(
      * have its request allocated.
      *
      * @param amountAvailable the amount of units that are available to allocate to the next request
-     * @param resumePriority the priority associated with resuming the waiting entity that gets
-     * its request filled
+     * @param resumePriority the priority associated with resuming the waiting entity that gets its request filled
+     * @return the number of waiting requests that were processed
      */
-    internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int) {
+    internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int) : Int {
         val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
         for (request in selectedRequests) {
             request.entity.resumeProcess(0.0, resumePriority)
         }
+        return selectedRequests.size
     }
 }
