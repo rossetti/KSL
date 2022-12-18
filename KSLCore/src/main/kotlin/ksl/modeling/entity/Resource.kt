@@ -466,8 +466,7 @@ open class Resource(
         // need to also deallocate from the entity
         allocation.entity.deallocate(allocation)
         // deallocate the allocation, so it can't be used again
-        allocation.amount = 0
-        allocation.timeDeallocated = time
+        allocation.deallocate()
         deallocationNotification(allocation)
     }
 
