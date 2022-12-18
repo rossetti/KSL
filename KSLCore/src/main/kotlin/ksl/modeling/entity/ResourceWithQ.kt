@@ -170,6 +170,7 @@ open class ResourceWithQ(
             ProcessModel.logger.trace{"$time > Resource: $name, decreased capacity by $amountToDecrease"}
             // give the units to the pending change
             myCurrentChangeNotice!!.amountNeeded = myCurrentChangeNotice!!.amountNeeded - amountToDecrease
+            //TODO something wrong here too
             ProcessModel.logger.trace{"$time > Resource: $name, provided $amountToDecrease units to notice $myCurrentChangeNotice"}
             // check if pending change has been completely filled
             if (myCurrentChangeNotice!!.amountNeeded == 0) {
@@ -221,7 +222,9 @@ open class ResourceWithQ(
             ProcessModel.logger.trace{"$time > Resource: $name, change request is increasing the capacity from $capacity to ${notice.capacity}."}
             // increasing the capacity
             capacity = notice.capacity
+            ProcessModel.logger.trace{"$time > Resource: $name, state = $myState, c(t) = $capacity b(t) = $numBusy a(t) = $numAvailableUnits"}
             // this causes the newly available capacity to be allocated to any waiting requests
+            //TODO problem numAvailable is still 0 because change is pending???
             val n = myWaitingQ.processWaitingRequests(numAvailableUnits, notice.priority)
             ProcessModel.logger.trace{"$time > Resource: processed $n waiting requests for new capacity."}
             // resource could have been busy, idle, or inactive when adding the capacity
@@ -371,7 +374,7 @@ open class ResourceWithQ(
             }
 
         override fun toString(): String {
-            return "CapacityChangeNotice(createTime=$createTime, capacity=$capacity, duration=$duration, priority=$priority)"
+            return "CapacityChangeNotice(createTime=$createTime, capacity=$capacity, duration=$duration, amount needed = $amountNeeded priority=$priority)"
         }
     }
 
