@@ -152,6 +152,7 @@ open class ResourceWithQ(
             myCapacitySchedule!!.deleteCapacityChangeListener(myCapacityChangeListener!!)
             myCapacityChangeListener = null
             myCapacitySchedule = null
+            //TODO what about pending changes
         }
     }
 
@@ -164,52 +165,12 @@ open class ResourceWithQ(
             } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
                 handleWaitRuleDeallocation(allocation)
             }
-            // a capacity change is pending and needs units that were deallocated
-            val amountNeeded = myCurrentChangeNotice!!.amountNeeded
-            // capacity needs to go down by amount needed
-            // number busy went down and number available went up by amount released
-            val amountReleased = allocation.amountReleased
-            val amountToDecrease = minOf(amountReleased, amountNeeded)
-            //TODO how is the current state determined
-            //TODO problem! IGNORE rule has already made the decrease
-            capacity = capacity - amountToDecrease
-            ProcessModel.logger.trace { "$time > Resource: $name, decreased capacity by $amountToDecrease" }
-            // give the units to the pending change
-            myCurrentChangeNotice!!.amountNeeded = myCurrentChangeNotice!!.amountNeeded - amountToDecrease
-            //TODO something wrong here too
-            ProcessModel.logger.trace { "$time > Resource: $name, provided $amountToDecrease units to notice $myCurrentChangeNotice" }
-            // check if pending change has been completely filled
-            if (myCurrentChangeNotice!!.amountNeeded == 0) {
-                // the capacity change has been filled
-                ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice has been completed" }
-                if (capacityChangeRule == CapacityChangeRule.WAIT) {
-                    // it does not schedule its duration until it gets all the needed change
-                    // schedule the end of its processing
-                    myCurrentChangeNotice!!.changeEvent = schedule(
-                        this::capacityChangeAction, myCurrentChangeNotice!!.duration,
-                        message = myCurrentChangeNotice, priority = myCurrentChangeNotice!!.priority
-                    )
-                    ProcessModel.logger.trace { "$time > Resource: $name, scheduled the duration for notice $myCurrentChangeNotice" }
-                }
-                // if the rule was IGNORE, it was previously scheduled, no need to schedule
-                // check if there are more changes
-                if (myWaitingChangeNotices.isEmpty()) {
-                    // no more pending changes
-                    myCurrentChangeNotice = null
-                    ProcessModel.logger.trace { "$time > Resource: $name, no more pending capacity changes" }
-                } else {
-                    // not empty need to process the next one
-                    myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                    ProcessModel.logger.trace { "$time > Resource: $name, starting the processing of $myCurrentChangeNotice" }
-                }
-            }
         }
     }
 
-    private fun handeIgnoreRuleDeallocation(allocation: Allocation) {
+    protected fun handeIgnoreRuleDeallocation(allocation: Allocation) {
         // a capacity change is pending and needs units that were deallocated
         val amountNeeded = myCurrentChangeNotice!!.amountNeeded
-        // capacity needs to go down by amount needed
         // number busy went down and number available went up by amount released
         val amountReleased = allocation.amountReleased
         val amountToDecrease = minOf(amountReleased, amountNeeded)
@@ -233,7 +194,7 @@ open class ResourceWithQ(
         }
     }
 
-    private fun handleWaitRuleDeallocation(allocation: Allocation) {
+    protected fun handleWaitRuleDeallocation(allocation: Allocation) {
         // a capacity change is pending and needs units that were deallocated
         // a capacity change is pending and needs units that were deallocated
         val amountNeeded = myCurrentChangeNotice!!.amountNeeded
@@ -310,7 +271,7 @@ open class ResourceWithQ(
                 // there are enough available units to handle the change w/o using busy resources
                 capacity = capacity - decrease
                 ProcessModel.logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
-                // removed idle units, but some may still be idle
+                // removed idle units, but remaining units are (busy or idle) or all units have been removed
                 // may still be busy, idle, or if capacity is zero should be inactive
                 //TODO how is the current state determined
             } else {
@@ -400,12 +361,16 @@ open class ResourceWithQ(
             // if it was not the current, then the ending change notice was previously completed, nothing to do
             if (myCurrentChangeNotice == endingChangeNotice) {
                 myCurrentChangeNotice = null
-            }
-            if (myWaitingChangeNotices.isNotEmpty()) {
-                // note that the waiting notice's end event has already been scheduled,
-                //  we begin its official processing when releases occur
-                myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice is now being processed" }
+                if (myWaitingChangeNotices.isNotEmpty()) {
+                    // note that the waiting notice's end event has already been scheduled,
+                    //  we begin its official processing when releases occur
+                    myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
+                    ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice is now being processed" }
+                }
+            } else {
+                // current notice is not the one that ended.  that means that the ending notice
+                // already finished and when it finished the current notice was set
+                // the current notice is set to finish some time in the future.
             }
         } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
             // finished processing the current change notice

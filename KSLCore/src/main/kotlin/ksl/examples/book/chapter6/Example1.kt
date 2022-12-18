@@ -18,6 +18,7 @@
 
 package ksl.examples.book.chapter6
 
+import ksl.modeling.entity.ProcessModel
 import ksl.simulation.Model
 import ksl.utilities.random.rvariable.ExponentialRV
 

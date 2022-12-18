@@ -18,7 +18,6 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
 import ksl.modeling.variable.AggregateTWResponse
 import ksl.simulation.ModelElement
 
@@ -253,7 +252,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
      * @return true if and only if resources can be selected according to the current resource selection rule
      * that will have sufficient amount available to fill the request
      */
-    fun canFill(amountNeeded: Int): Boolean {
+    fun canAllocate(amountNeeded: Int): Boolean {
         return selectResources(amountNeeded).isNotEmpty()
     }
 

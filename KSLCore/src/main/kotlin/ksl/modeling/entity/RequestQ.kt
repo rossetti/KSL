@@ -41,6 +41,9 @@ interface RequestSelectionRuleIfc {
 class DefaultRequestSelectionRule : RequestSelectionRuleIfc {
     override fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request> {
         val list = mutableListOf<ProcessModel.Entity.Request>()
+        if (amountAvailable <= 0){
+            return list
+        }
         var startingAmount = amountAvailable
         for (request in requestQ) {
             if (request.amountRequested <= startingAmount) {
@@ -107,6 +110,9 @@ class RequestQ(
      * @return the number of waiting requests that were processed
      */
     internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int) : Int {
+        if (amountAvailable <= 0){
+            return 0
+        }
         val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
         for (request in selectedRequests) {
             request.entity.resumeProcess(0.0, resumePriority)

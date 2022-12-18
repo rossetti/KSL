@@ -1047,7 +1047,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): Allocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
-//                require(amountNeeded <= resource.capacity) { "The amount requested, $amountNeeded > resource capacity, ${resource.capacity}" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "$time > entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
@@ -1056,7 +1055,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = createRequest(amountNeeded, resource)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
-                if (request.amountRequested > resource.numAvailableUnits) {
+                if (!resource.canAllocate(request.amountRequested)) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "$time > entity ${entity.id} waiting for $amountNeeded units of ${resource.name} in process, ($this)" }
                     entity.state.waitForResource()
@@ -1087,7 +1086,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = createRequest(amountNeeded, resourcePool)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
-                if (request.amountRequested > resourcePool.numAvailableUnits) {
+                if (!resourcePool.canAllocate(request.amountRequested)) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "$time > entity ${entity.id} waiting for $amountNeeded units of ${resourcePool.name} in process, ($this)" }
                     entity.state.waitForResource()
@@ -1126,6 +1125,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 allocation.resource.deallocate(allocation)
                 // get the queue from the allocation being released and process any waiting requests
                 // note that the released amount may allow multiple requests to proceed
+                //TODO this may be a problem because of how numAvailableUnits is defined
                 allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
             }
 

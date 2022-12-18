@@ -25,18 +25,49 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
-import kotlin.math.abs
 
 interface ResourceCIfc : DefaultReportingOptionIfc {
 
+    /**
+     * The initial capacity of the resource at the start of the replication. The initial
+     * capacity must be greater than 0.
+     */
     var initialCapacity: Int
+
+    /**
+     *  The current capacity of the resource. In general, it can be 0 or greater
+     */
     val capacity: Int
+
+    /**
+     *  Indicates if detailed statistics on time in states are collected
+     */
     val stateStatisticsOption: Boolean
+
+    /**
+     *  Access to the busy state. Busy means at least 1 unit of the resource is allocated.
+     */
     val busyState: StateAccessorIfc
+
+    /**
+     *  Access to the idle state. Idle means that no units of the resource are allocated.
+     */
     val idleState: StateAccessorIfc
 //    val failedState: StateAccessorIfc
+
+    /**
+     * Access to the inactive state. Inactive means that the capacity of the resource is 0
+     */
     val inactiveState: StateAccessorIfc
+
+    /**
+     *  The current state of the resource.
+     */
     val state: StateAccessorIfc
+
+    /**
+     *  The last (previous) state before the current state.
+     */
     val previousState: StateAccessorIfc
 
     /** Checks if the resource is idle, has no units allocated
@@ -54,14 +85,55 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     /** Checks to see if the resource is inactive
      */
     val isInactive: Boolean
+
+    /**
+     * Statistical response representing the number of busy units of the resource.
+     */
     val numBusyUnits: TWResponseCIfc
+
+    /**
+     * Statistical response representing the utilization of the resource.
+     */
     val util: TWResponseCIfc
+
+    /**
+     *  If c(t) is the current capacity and b(t) is the current number busy,
+     *  then a(t) = c(t) - b(t) is the current number of available units.
+     *  Under some capacity change situations, a(t) may be negative.
+     */
     val numAvailableUnits: Int
+
+    /**
+     *  If a(t) is greater than zero
+     */
     val hasAvailableUnits: Boolean
+
+    /**
+     *  If b(t) is greater than zero
+     */
     val hasBusyUnits: Boolean
+
+    /** The fraction of the current capacity that is currently busy.
+     *
+     *  if b(t) = 0, then 0,
+     *  if b(t) greater than or equal to c(t), then 1.0
+     *  else b(t)/c(t)
+     */
     val fractionBusy: Double
+
+    /**
+     *  The number of busy units at any time t, b(t)
+     */
     val numBusy: Int
+
+    /**
+     *  The number of times that the resource has been seized (allocated)
+     */
     val numTimesSeized: Int
+
+    /**
+     *  The number of times that the resource has been released (deallocated)
+     */
     val numTimesReleased: Int
 }
 
@@ -193,10 +265,9 @@ open class Resource(
         protected set(value) {
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
-            if (field == 0){
-                // no capacity means inactive
-                myState = myInactiveState
-            }
+//            if ((capacity == 0) && (numBusy == 0)){
+//                myState = myInactiveState
+//            }
         }
 
     override var numTimesSeized: Int = 0
@@ -280,15 +351,12 @@ open class Resource(
     protected val myUtil = TWResponse(this, "${this.name}:Util")
     override val util: TWResponseCIfc
         get() = myUtil
+
     override val numBusy: Int
         get() = myNumBusy.value.toInt()
 
     override val numAvailableUnits: Int
-        get() = if (isInactive) {
-            0
-        } else {
-            capacity - numBusy
-        }
+        get() = capacity - numBusy
 
     override val hasAvailableUnits: Boolean
         get() = numAvailableUnits > 0
@@ -403,6 +471,24 @@ open class Resource(
     }
 
     /**
+     * A resource may fill a request in many ways.  This function indicates if the
+     * request for the amount needed can be allocated immediately, without any wait based on the current state
+     * of the resource. Since the underlying state of the resource may be more complex than
+     * indicated by the state exposed in the API, it is important to use this method
+     * to determine if the requested amount can be allocated.
+     *
+     * @param amountNeeded the amount needed from the resource
+     * @return true means that the amount needed can be allocated at the current time
+     */
+    fun canAllocate(amountNeeded: Int = 1): Boolean {
+        require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
+        if (isInactive){
+            return false
+        }
+        return amountNeeded <= numAvailableUnits
+    }
+
+    /**
      * It is an error to attempt to allocate resource units to an entity if there are insufficient
      * units available. Thus, the amount requested must be less than or equal to the number of units
      * available at the time of this call.
@@ -421,8 +507,7 @@ open class Resource(
         queue: RequestQ,
         allocationName: String? = null
     ): Allocation {
-        require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
-        check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
+        require(canAllocate(amountNeeded)){ "The amount requested, $amountNeeded cannot currently be allocated" }
         val allocation = Allocation(entity, this, amountNeeded, queue, allocationName)
         if (!entityAllocations.contains(entity)) {
             entityAllocations[entity] = mutableListOf()
@@ -433,7 +518,6 @@ open class Resource(
         myUtil.value = fractionBusy
         // resource becomes busy (or stays busy), because an allocation occurred
         myState = myBusyState
-        numTimesSeized++
         //need to put this allocation in Entity also
         entity.allocate(allocation)
         allocationNotification(allocation)
