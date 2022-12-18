@@ -270,6 +270,37 @@ open class Resource(
 //            }
         }
 
+    protected val myNumBusy = TWResponse(this, "${this.name}:BusyUnits")
+    override val numBusyUnits: TWResponseCIfc
+        get() = myNumBusy
+
+    override val numBusy: Int
+        get() = myNumBusy.value.toInt()
+
+    override val numAvailableUnits: Int
+        get() = capacity - numBusy
+
+    override val hasAvailableUnits: Boolean
+        get() = numAvailableUnits > 0
+
+    override val hasBusyUnits: Boolean
+        get() = myNumBusy.value > 0.0
+
+    override val fractionBusy: Double
+        get() {
+            return if (numBusy == 0) {
+                0.0
+            } else if (numBusy >= capacity) {
+                1.0
+            } else {
+                myNumBusy.value / capacity
+            }
+        }
+
+    protected val myUtil = TWResponse(this, "${this.name}:Util")
+    override val util: TWResponseCIfc
+        get() = myUtil
+
     override var numTimesSeized: Int = 0
         protected set
 
@@ -343,37 +374,6 @@ open class Resource(
      */
     override val isInactive: Boolean
         get() = myState === myInactiveState
-
-    protected val myNumBusy = TWResponse(this, "${this.name}:BusyUnits")
-    override val numBusyUnits: TWResponseCIfc
-        get() = myNumBusy
-
-    protected val myUtil = TWResponse(this, "${this.name}:Util")
-    override val util: TWResponseCIfc
-        get() = myUtil
-
-    override val numBusy: Int
-        get() = myNumBusy.value.toInt()
-
-    override val numAvailableUnits: Int
-        get() = capacity - numBusy
-
-    override val hasAvailableUnits: Boolean
-        get() = numAvailableUnits > 0
-
-    override val hasBusyUnits: Boolean
-        get() = myNumBusy.value > 0.0
-
-    override val fractionBusy: Double
-        get() {
-            return if (numBusy == 0) {
-                0.0
-            } else if (numBusy >= capacity) {
-                1.0
-            } else {
-                myNumBusy.value / capacity
-            }
-        }
 
     override fun toString(): String {
         return "$name: state = $myState capacity = $capacity numBusy = $numBusy numAvailable = $numAvailableUnits"
