@@ -109,7 +109,6 @@ class CapacitySchedule(
         private set
 
     private val myItems: MutableList<CapacityItem> = mutableListOf()
-    private var myItemIterator = myItems.iterator()
     private val myChangeListeners: MutableList<CapacityChangeListenerIfc> = mutableListOf()
     private var myStartScheduleEvent: KSLEvent<Nothing>? = null
 
@@ -267,26 +266,14 @@ class CapacitySchedule(
         // logic for what to do when schedule is started
         notifyChangeListenersScheduleStarted()
         // schedule the first item if there is one
-        myItemIterator = myItems.iterator()
-        if (myItemIterator.hasNext()){
-            // schedule the first item
-            val firstItem = myItemIterator.next()
-            notifyChangeListenersScheduleItemStarted(firstItem)
-            schedule(this::endItemAction, firstItem.duration, priority = firstItem.priority)
-            val e = schedule(this::startItem, 0.0, firstItem, firstItem.priority)
-            firstItem.endEvent = e
-            //scheduleItemStart(myItemIterator.next())
+        for(item in myItems){
+            item.startEvent = schedule(this::startItem, item.startTime, item, item.priority)
         }
         // if the length of the schedule is finite, schedule the end event
         if (scheduleLength.isFinite() && (scheduleLength != 0.0)){
             // priority for end the schedule must be lower than the start of the schedule to ensure it goes first
             schedule(this::endSchedule, scheduleLength, priority = myEndEventPriority)
         }
-    }
-
-    private fun scheduleItemStart(item: CapacityItem) {
-        val e = schedule(this::startItem, item.duration, item, item.priority)
-        item.endEvent = e
     }
 
     private fun endSchedule(event: KSLEvent<Nothing>) {
@@ -299,19 +286,6 @@ class CapacitySchedule(
     private fun startItem(event: KSLEvent<CapacityItem>) {
         val item = event.message as CapacityItem
         notifyChangeListenersScheduleItemStarted(item)
-        // schedule its end
-        if (myItemIterator.hasNext()){
-            scheduleItemStart(myItemIterator.next())
-        }
-    }
-
-    private fun endItemAction(event: KSLEvent<Nothing>){
-        if (myItemIterator.hasNext()){
-            val nextItem = myItemIterator.next()
-            notifyChangeListenersScheduleItemStarted(nextItem)
-            schedule(this::endItemAction, nextItem.duration, priority = nextItem.priority)
-        }
-
     }
 
     /** A CapacityItem represents an item on a CapacitySchedule. CapacityItems are placed
@@ -337,10 +311,14 @@ class CapacitySchedule(
         val id: Long = idCounter
         var name: String = "Item:$id"
         val schedule: CapacitySchedule = this@CapacitySchedule
-        internal var endEvent: KSLEvent<CapacityItem>? = null
+        internal var startEvent: KSLEvent<CapacityItem>? = null
 
         var startTime: Double = 0.0
             internal set
+
+        fun cancelStart(){
+            startEvent?.cancelled = true
+        }
 
         override fun toString(): String {
             return ("ID = $id | name = $name | start time = $startTime | duration = $duration | priority $priority")

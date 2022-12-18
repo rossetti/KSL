@@ -391,7 +391,7 @@ open class ResourceWithQ(
         }
 
         override fun capacityChange(item: CapacitySchedule.CapacityItem) {
-            ProcessModel.logger.trace{"$time > Resource: $name, ${item.schedule.time} capacity item ${item.name} started with capacity ${item.capacity} for duration ${item.duration}."}
+            ProcessModel.logger.trace{"$time > Resource: $name, capacity item ${item.name} started with capacity ${item.capacity} for duration ${item.duration}."}
             println("time = ${item.schedule.time} capacity item ${item.name} started with capacity ${item.capacity} for duration ${item.duration}")
             // make the capacity change notice using information from CapacityItem
             val notice = CapacityChangeNotice(item.capacity, item.duration, item.priority)
