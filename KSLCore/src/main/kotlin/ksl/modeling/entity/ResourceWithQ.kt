@@ -78,6 +78,7 @@ open class ResourceWithQ(
     val isPendingCapacityChange
         get() = myCurrentChangeNotice != null
 
+    //TODO should this be checking state?? should this just be capacity - numBusy?
     override val numAvailableUnits: Int
         get() = if (isInactive || isPendingCapacityChange) {
             0

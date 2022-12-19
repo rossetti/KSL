@@ -266,9 +266,9 @@ open class Resource(
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
             //TODO do something about state??
-//            if ((capacity == 0) && (numBusy == 0)){
-//                myState = myInactiveState
-//            }
+            if ((capacity == 0) && (numBusy == 0)){
+                myState = myInactiveState
+            }
         }
 
     protected val myNumBusy = TWResponse(this, "${this.name}:BusyUnits")
@@ -506,6 +506,7 @@ open class Resource(
      */
     fun canAllocate(amountNeeded: Int = 1): Boolean {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
+        //TODO checking state is an issue
         if (isInactive){
             return false
         }
