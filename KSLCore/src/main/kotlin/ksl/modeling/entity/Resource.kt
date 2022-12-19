@@ -265,6 +265,7 @@ open class Resource(
         protected set(value) {
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
+            //TODO do something about state??
 //            if ((capacity == 0) && (numBusy == 0)){
 //                myState = myInactiveState
 //            }
@@ -274,8 +275,25 @@ open class Resource(
     override val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
 
-    override val numBusy: Int
-        get() = myNumBusy.value.toInt()
+    override var numBusy: Int = 0
+        protected set(newValue) {
+            require(newValue >= 0){"The number busy must be >= 0"}
+            val previousValue = field
+            field = newValue
+            if (newValue > previousValue){
+                // increasing the number busy
+                val increase = newValue - previousValue
+                myNumBusy.increment(increase.toDouble())
+                numTimesSeized++
+            } else if (newValue < previousValue) {
+                // decreasing the number busy
+                val decrease = previousValue - newValue
+                myNumBusy.decrement(decrease.toDouble())
+                numTimesReleased++
+            }
+            myUtil.value = fractionBusy
+            //TODO do something about state??
+        }
 
     override val numAvailableUnits: Int
         get() = capacity - numBusy
@@ -284,7 +302,7 @@ open class Resource(
         get() = numAvailableUnits > 0
 
     override val hasBusyUnits: Boolean
-        get() = myNumBusy.value > 0.0
+        get() = numBusy > 0.0
 
     override val fractionBusy: Double
         get() {
@@ -293,7 +311,7 @@ open class Resource(
             } else if (numBusy >= capacity) {
                 1.0
             } else {
-                myNumBusy.value / capacity
+                numBusy / capacity.toDouble()
             }
         }
 
@@ -445,6 +463,9 @@ open class Resource(
 
     override fun beforeReplication() {
         super.beforeReplication()
+        //TODO I think that there should be no need for this
+        capacity = initialCapacity
+        numBusy = 0
         initializeStates()
     }
 
@@ -456,7 +477,7 @@ open class Resource(
         myInactiveState.initialize(isInactive)
         // tell it to be in the inactive state (assign prev, exit, assign enter)
         // thus (just) prior to replication initialization, the resource is inactive
-        myState = myInactiveState
+        myState = myInactiveState  //TODO no need for this
     }
 
     override fun initialize() {
@@ -464,10 +485,13 @@ open class Resource(
         entityAllocations.clear()
         numTimesSeized = 0
         numTimesReleased = 0
-        capacity = initialCapacity
+        //TODO I think that it can be set the capacity and numBusy and then initialize the states
+//        capacity = initialCapacity
+//        numBusy = 0
+//        initializeStates()
         // note that initialize() causes state to not be entered, and clears it accumulators
         // this should be based on capacity, but initialCapacity > 1, thus it must be idle
-        myState = myIdleState // will cause myPreviousState to be set to current value of myState
+        myState = myIdleState // will cause myPreviousState to be set to current value of myState //TODO state issue
     }
 
     /**
@@ -513,11 +537,12 @@ open class Resource(
             entityAllocations[entity] = mutableListOf()
         }
         entityAllocations[entity]?.add(allocation)
-        myNumBusy.increment(amountNeeded.toDouble())
-        numTimesSeized++
-        myUtil.value = fractionBusy
+        numBusy = numBusy + amountNeeded
+//        myNumBusy.increment(amountNeeded.toDouble())
+//        numTimesSeized++
+//        myUtil.value = fractionBusy
         // resource becomes busy (or stays busy), because an allocation occurred
-        myState = myBusyState
+//        myState = myBusyState
         //need to put this allocation in Entity also
         entity.allocate(allocation)
         allocationNotification(allocation)
@@ -541,12 +566,13 @@ open class Resource(
             entityAllocations.remove(allocation.entity)
         }
         // give back to the resource
-        myNumBusy.decrement(allocation.amount.toDouble())
-        numTimesReleased++
-        myUtil.value = fractionBusy
-        if (myNumBusy.value == 0.0) {
-            myState = myIdleState
-        }
+        numBusy = numBusy - allocation.amount
+//        myNumBusy.decrement(allocation.amount.toDouble())
+//        numTimesReleased++
+//        myUtil.value = fractionBusy
+//        if (myNumBusy.value == 0.0) {
+//            myState = myIdleState
+//        }
         // need to also deallocate from the entity
         allocation.entity.deallocate(allocation)
         // deallocate the allocation, so it can't be used again
