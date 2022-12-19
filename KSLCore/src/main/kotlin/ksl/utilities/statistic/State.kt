@@ -119,10 +119,9 @@ open class State(
 
     override fun toString(): String {
         val sb = StringBuilder("State{")
-        sb.append("id = ").append(id)
-        sb.append(", number = ").append(number)
-        sb.append(", name = '").append(name).append("\'")
-        sb.append("}")
+        sb.append("id = $id ")
+        sb.append(", number = $number")
+        sb.append(", name = $name}")
         return sb.toString()
     }
 

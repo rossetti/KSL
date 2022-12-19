@@ -111,6 +111,7 @@ open class ResourceWithQ(
     override fun afterReplication() {
         super.afterReplication()
         myWaitingChangeNotices.clear()
+        myCurrentChangeNotice = null
     }
 
     /**
@@ -154,6 +155,8 @@ open class ResourceWithQ(
             myCapacityChangeListener = null
             myCapacitySchedule = null
             //TODO what about pending changes
+            // if there is a capacity change in progress its event needs to be cancelled
+            // and current change set to null
         }
     }
 
@@ -203,8 +206,12 @@ open class ResourceWithQ(
         // number busy went down and number available went up by amount released
         val amountReleased = allocation.amountReleased
         val amountToDecrease = minOf(amountReleased, amountNeeded)
-        //TODO how is the current state determined
         capacity = capacity - amountToDecrease
+        //TODO how is the current state determined
+        // decrease in capacity can result in resource being inactive but there still could be busy resources
+        // cannot be inactive if there are busy units
+        // can be inactive if there are no busy units and capacity is now zero
+        // can be idle if there are no busy units and capacity > 0
         ProcessModel.logger.trace { "$time > Resource: $name, decreased capacity by $amountToDecrease" }
         // give the units to the pending change
         myCurrentChangeNotice!!.amountNeeded = myCurrentChangeNotice!!.amountNeeded - amountToDecrease
@@ -255,15 +262,24 @@ open class ResourceWithQ(
             ProcessModel.logger.trace { "$time > Resource: $name, change request is increasing the capacity from $capacity to ${notice.capacity}." }
             // increasing the capacity
             capacity = notice.capacity
+            // resource could have been busy, idle, or inactive when adding the capacity
+            // adding capacity cannot result in resource being inactive, must be either busy or idle after this
+            //TODO how is the current state determined
+            // if busy it stays busy
+            // if inactive, it now can be busy or idle
+            // if idle, it stays idle
+            // transition from inactive to busy or idle
             val available = capacity - numBusy
-            ProcessModel.logger.trace { "$time > Resource: $name, state = $myState, c(t) = $capacity b(t) = $numBusy a(t) = $available" }
+            if (numBusy > 0){
+                myState = myBusyState
+            } else{
+                myState = myIdleState
+            }
+            ProcessModel.logger.trace { "$time > Resource: $name, state = ${myState.name}, c(t) = $capacity b(t) = $numBusy a(t) = $available" }
             // this causes the newly available capacity to be allocated to any waiting requests
             // numAvailable could still 0 because a change notice could be pending, use actual available
             val n = myWaitingQ.processWaitingRequests(available, notice.priority)
             ProcessModel.logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
-            // resource could have been busy, idle, or inactive when adding the capacity
-            // adding capacity cannot result in resource being inactive, must be either busy or idle after this
-            //TODO how is the current state determined
         } else {
             ProcessModel.logger.trace { "$time > Resource: $name, change request is decreasing the capacity from $capacity to ${notice.capacity}." }
             // notice.capacity < capacity, need to decrease the capacity
@@ -271,10 +287,13 @@ open class ResourceWithQ(
             if (numAvailableUnits >= decrease) {
                 // there are enough available units to handle the change w/o using busy resources
                 capacity = capacity - decrease
-                ProcessModel.logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
                 // removed idle units, but remaining units are (busy or idle) or all units have been removed
                 // may still be busy, idle, or if capacity is zero should be inactive
                 //TODO how is the current state determined
+                // if it is busy, it stays busy
+                // if it has no capacity it should be inactive
+                // if it is idle, it stays idle
+                ProcessModel.logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
             } else {
                 // not enough available, this means that at least part of the change will need to wait
                 // the timing of when the capacity occurs depends on the capacity change rule
@@ -323,14 +342,19 @@ open class ResourceWithQ(
             ProcessModel.logger.trace { "$time > Resource: $name, a notice is in progress, incoming notice $notice must wait" }
         } else {
             // no pending change
-            // ignore takes away all needed, immediately, by decreasing the capacity by the full amount of the change
-            //TODO how is the current state determined
-            capacity = capacity - notice.amountNeeded
-            ProcessModel.logger.trace { "$time > Resource: $name, reduced capacity to $capacity because of notice $notice" }
-            // capacity was decreased but change notice still needs those busy units to be released
             // make the notice the current notice for processing
             myCurrentChangeNotice = notice
             ProcessModel.logger.trace { "$time > Resource: $name, notice $notice is now being processed" }
+            capacity = capacity - notice.amountNeeded
+            // ignore takes away all needed, immediately, by decreasing the capacity by the full amount of the change
+            // capacity was decreased but change notice still needs those busy units to be released
+            //TODO how is the current state determined
+            // decrease in capacity can result in resource being inactive but there still could be busy resources
+            // cannot be inactive if there are busy units
+            // can be inactive if there are no busy units and capacity is now zero
+            // can be idle if there are no busy units and capacity > 0
+            ProcessModel.logger.trace { "$time > Resource: $name, reduced capacity to $capacity because of notice $notice" }
+
         }
     }
 
