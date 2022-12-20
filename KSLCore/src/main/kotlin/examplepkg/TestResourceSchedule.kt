@@ -13,7 +13,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
 class TestResourceSchedule(parent: ModelElement) : ProcessModel(parent, null) {
-    private val resource: ResourceWithQ = ResourceWithQ(this, name = "Resource", capacity = 1)
+    private val resource: ResourceWithQ = ResourceWithQ(this, name = "Resource", capacity = 1, collectStateStatistics = true)
     private val tba = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
     private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
     private val wip = TWResponse(this, "${name}:WIP")
@@ -23,7 +23,7 @@ class TestResourceSchedule(parent: ModelElement) : ProcessModel(parent, null) {
 
     init {
         schedule= CapacitySchedule(this, 0.0)
-        schedule.addItem(capacity = 2, duration = 15.0)
+        schedule.addItem(capacity = 0, duration = 15.0)
         schedule.addItem(capacity = 1, duration = 35.0)
         schedule.addItem(capacity = 0, duration = 20.0)
         schedule.addItem(capacity = 2, duration = 30.0)
@@ -59,8 +59,8 @@ class TestResourceSchedule(parent: ModelElement) : ProcessModel(parent, null) {
 fun main(){
     val m = Model()
     val test = TestResourceSchedule(m)
-    m.numberOfReplications = 2
-    m.lengthOfReplication = 100.0
+    m.numberOfReplications = 5
+    m.lengthOfReplication = 1000.0
     m.simulate()
     m.print()
 }

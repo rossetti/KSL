@@ -154,9 +154,18 @@ open class ResourceWithQ(
             myCapacitySchedule!!.deleteCapacityChangeListener(myCapacityChangeListener!!)
             myCapacityChangeListener = null
             myCapacitySchedule = null
-            //TODO what about pending changes
             // if there is a capacity change in progress its event needs to be cancelled
-            // and current change set to null
+            // current change set to null and any waiting changes cleared
+            // in the case of the IGNORE rule a waiting change will have already scheduled
+            // its end of change event.
+            if (isPendingCapacityChange){
+                myCurrentChangeNotice?.changeEvent?.cancelled = true
+                for(notice in myWaitingChangeNotices){
+                    notice.changeEvent?.cancelled = true
+                }
+                myWaitingChangeNotices.clear()
+                myCurrentChangeNotice = null
+            }
         }
     }
 
@@ -207,11 +216,16 @@ open class ResourceWithQ(
         val amountReleased = allocation.amountReleased
         val amountToDecrease = minOf(amountReleased, amountNeeded)
         capacity = capacity - amountToDecrease
-        //TODO how is the current state determined
+        //TODO determine current state
         // decrease in capacity can result in resource being inactive but there still could be busy resources
         // cannot be inactive if there are busy units
         // can be inactive if there are no busy units and capacity is now zero
         // can be idle if there are no busy units and capacity > 0
+        if ((capacity == 0) && (numBusy == 0) ){
+            myState = myInactiveState
+        } else if ((numBusy == 0) && (capacity > 0)){
+            myState = myIdleState
+        }
         ProcessModel.logger.trace { "$time > Resource: $name, decreased capacity by $amountToDecrease" }
         // give the units to the pending change
         myCurrentChangeNotice!!.amountNeeded = myCurrentChangeNotice!!.amountNeeded - amountToDecrease
@@ -264,16 +278,19 @@ open class ResourceWithQ(
             capacity = notice.capacity
             // resource could have been busy, idle, or inactive when adding the capacity
             // adding capacity cannot result in resource being inactive, must be either busy or idle after this
-            //TODO how is the current state determined
-            // if busy it stays busy
-            // if inactive, it now can be busy or idle
-            // if idle, it stays idle
-            // transition from inactive to busy or idle
             val available = capacity - numBusy
-            if (numBusy > 0){
-                myState = myBusyState
-            } else{
-                myState = myIdleState
+            //TODO determine current state
+            // state can only be busy, idle, or inactive
+            // if busy it stays busy, if idle stays idle
+            // if inactive it needs to transition to busy or idle
+            if (myState == myInactiveState){
+                // actually if it was inactive, it should not have any busy units
+                // but just in case, check
+                if (numBusy > 0){
+                    myState = myBusyState
+                } else{
+                    myState = myIdleState
+                }
             }
             ProcessModel.logger.trace { "$time > Resource: $name, state = ${myState.name}, c(t) = $capacity b(t) = $numBusy a(t) = $available" }
             // this causes the newly available capacity to be allocated to any waiting requests
@@ -289,10 +306,14 @@ open class ResourceWithQ(
                 capacity = capacity - decrease
                 // removed idle units, but remaining units are (busy or idle) or all units have been removed
                 // may still be busy, idle, or if capacity is zero should be inactive
-                //TODO how is the current state determined
+                //TODO determine current state
                 // if it is busy, it stays busy
-                // if it has no capacity it should be inactive
                 // if it is idle, it stays idle
+                // if it has no capacity it should be inactive only if there are also no busy units
+                // a resource can be busy if it has no capacity. This may occur if units are busy that are needed for the change
+                if ((capacity == 0) && (numBusy == 0) ){
+                    myState = myInactiveState
+                }
                 ProcessModel.logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
             } else {
                 // not enough available, this means that at least part of the change will need to wait
@@ -348,11 +369,17 @@ open class ResourceWithQ(
             capacity = capacity - notice.amountNeeded
             // ignore takes away all needed, immediately, by decreasing the capacity by the full amount of the change
             // capacity was decreased but change notice still needs those busy units to be released
-            //TODO how is the current state determined
+            //TODO determine current state
             // decrease in capacity can result in resource being inactive but there still could be busy resources
             // cannot be inactive if there are busy units
             // can be inactive if there are no busy units and capacity is now zero
             // can be idle if there are no busy units and capacity > 0
+            // if busy it stays busy
+            if ((capacity == 0) && (numBusy == 0) ){
+                myState = myInactiveState
+            } else if ((numBusy == 0) && (capacity > 0)){
+                myState = myIdleState
+            }
             ProcessModel.logger.trace { "$time > Resource: $name, reduced capacity to $capacity because of notice $notice" }
 
         }

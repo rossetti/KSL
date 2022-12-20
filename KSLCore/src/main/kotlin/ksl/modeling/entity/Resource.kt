@@ -19,6 +19,7 @@
 package ksl.modeling.entity
 
 import ksl.modeling.variable.DefaultReportingOptionIfc
+import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.Model
@@ -135,6 +136,7 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
      *  The number of times that the resource has been released (deallocated)
      */
     val numTimesReleased: Int
+
 }
 
 /**
@@ -199,8 +201,15 @@ open class Resource(
     collectStateStatistics: Boolean = false
 ) : ModelElement(parent, name), ResourceCIfc {
 
+    private var myInactiveProp: Response? = null
+    private var myIdleProp: Response? = null
+
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
+        if (collectStateStatistics) {
+            myInactiveProp = Response(this, name = "${this.name}:PTimeIdle")
+            myIdleProp = Response(this, name = "${this.name}:PTimeInactive")
+        }
     }
 
     override var defaultReportingOption: Boolean = true
@@ -266,7 +275,7 @@ open class Resource(
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
             //TODO do something about state??
-            if ((capacity == 0) && (numBusy == 0)){
+            if ((capacity == 0) && (numBusy == 0)) {
                 myState = myInactiveState
             }
         }
@@ -277,10 +286,10 @@ open class Resource(
 
     override var numBusy: Int = 0
         protected set(newValue) {
-            require(newValue >= 0){"The number busy must be >= 0"}
+            require(newValue >= 0) { "The number busy must be >= 0" }
             val previousValue = field
             field = newValue
-            if (newValue > previousValue){
+            if (newValue > previousValue) {
                 // increasing the number busy
                 val increase = newValue - previousValue
                 myNumBusy.increment(increase.toDouble())
@@ -333,13 +342,37 @@ open class Resource(
      */
     protected val myBusyState: ResourceState = ResourceState("${this.name}_Busy", collectStateStatistics)
     override val busyState: StateAccessorIfc
-        get() = myBusyState
+        get() {
+            if (isBusy) {
+                myState.exit(time)
+                myState.enter(time)
+            }
+            return myBusyState
+        }
+
+    /**
+     * Time when state time accumulation started. May be greater than 0 because of warmup.
+     */
+    var startStateTime: Double = 0.0
+        protected set
+
+    /**
+     *  Total time that the resource has been idle, busy, or inactive
+     */
+    val totalStateTime: Double
+        get() = time - startStateTime
 
     /** The idle state keeps track of when no units have been allocated
      */
     protected val myIdleState: ResourceState = ResourceState("${this.name}Idle", collectStateStatistics)
     override val idleState: StateAccessorIfc
-        get() = myIdleState
+        get() {
+            if (isIdle) {
+                myState.exit(time)
+                myState.enter(time)
+            }
+            return myIdleState
+        }
 
     /** The failed state, keeps track of when no units
      * are available because the resource is failed
@@ -354,16 +387,22 @@ open class Resource(
      */
     protected val myInactiveState: ResourceState = ResourceState("${this.name}_Inactive", collectStateStatistics)
     override val inactiveState: StateAccessorIfc
-        get() = myInactiveState
+        get() {
+            if (isInactive) {
+                myState.exit(time)
+                myState.enter(time)
+            }
+            return myInactiveState
+        }
 
     protected var myState: ResourceState = myIdleState
         set(nextState) {
             field.exit(time)  // exit the current state
-            ProcessModel.logger.trace{"$time > Resource: $name exited state ${field.name}"}
+            ProcessModel.logger.trace { "$time > Resource: $name exited state ${field.name}" }
             myPreviousState = field // remember what the current state was
             field = nextState // transition to next state
             field.enter(time) // enter the current state
-            ProcessModel.logger.trace{"$time > Resource: $name entered state ${field.name}"}
+            ProcessModel.logger.trace { "$time > Resource: $name entered state ${field.name}" }
         }
 
     override val state: StateAccessorIfc
@@ -461,12 +500,34 @@ open class Resource(
         }
     }
 
+    override fun warmUp() {
+        super.warmUp()
+        startStateTime = time
+        myState.exit(time)
+        myBusyState.resetStateCollection()
+        myInactiveState.resetStateCollection()
+        myIdleState.resetStateCollection()
+        myState.enter(time)
+    }
+
     override fun beforeReplication() {
         super.beforeReplication()
         //TODO I think that there should be no need for this
         capacity = initialCapacity
         numBusy = 0
         initializeStates()
+    }
+
+    override fun replicationEnded() {
+        super.replicationEnded()
+        val t = totalStateTime
+        println("totalStateTime = $t")
+        if (t > 0.0) {
+            println("idle totalTimeInState = ${idleState.totalTimeInState}")
+            println("inactive totalTimeInState = ${inactiveState.totalTimeInState}")
+            myIdleProp?.value = idleState.totalTimeInState / t
+            myInactiveProp?.value = inactiveState.totalTimeInState / t
+        }
     }
 
     private fun initializeStates() {
@@ -483,6 +544,7 @@ open class Resource(
     override fun initialize() {
         super.initialize()
         entityAllocations.clear()
+        startStateTime = 0.0
         numTimesSeized = 0
         numTimesReleased = 0
         //TODO I think that it can be set the capacity and numBusy and then initialize the states
@@ -507,7 +569,7 @@ open class Resource(
     fun canAllocate(amountNeeded: Int = 1): Boolean {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
         //TODO checking state is an issue
-        if (isInactive){
+        if (isInactive) {
             return false
         }
         return amountNeeded <= numAvailableUnits
@@ -532,7 +594,7 @@ open class Resource(
         queue: RequestQ,
         allocationName: String? = null
     ): Allocation {
-        require(canAllocate(amountNeeded)){ "The amount requested, $amountNeeded cannot currently be allocated" }
+        require(canAllocate(amountNeeded)) { "The amount requested, $amountNeeded cannot currently be allocated" }
         val allocation = Allocation(entity, this, amountNeeded, queue, allocationName)
         if (!entityAllocations.contains(entity)) {
             entityAllocations[entity] = mutableListOf()
