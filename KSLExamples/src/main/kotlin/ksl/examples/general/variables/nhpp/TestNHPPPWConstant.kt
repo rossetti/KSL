@@ -59,7 +59,7 @@ class TestNHPPPWConstant(parent: ModelElement, f: PiecewiseRateFunction, name: S
     }
 }
 
-fun main(args: Array<String>) {
+fun main() {
 
     // create the experiment to run the model
     val s = Model("TestNHPPWConstant")

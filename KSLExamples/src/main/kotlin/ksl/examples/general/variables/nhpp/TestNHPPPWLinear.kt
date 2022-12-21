@@ -56,7 +56,7 @@ class TestNHPPPWLinear(parent: ModelElement, f: PiecewiseRateFunction, name: Str
     }
 }
 
-fun main(args: Array<String>) {
+fun main() {
     val ar = doubleArrayOf(0.5, 0.5, 0.9, 0.9, 1.2, 0.9, 0.5)
     val dd = doubleArrayOf(200.0, 400.0, 400.0, 200.0, 300.0, 500.0)
 
