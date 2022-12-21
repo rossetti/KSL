@@ -18,10 +18,7 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.variable.DefaultReportingOptionIfc
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.TWResponse
-import ksl.modeling.variable.TWResponseCIfc
+import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.State
@@ -39,11 +36,6 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
      *  The current capacity of the resource. In general, it can be 0 or greater
      */
     val capacity: Int
-
-    /**
-     *  Indicates if detailed statistics on time in states are collected
-     */
-    val stateStatisticsOption: Boolean
 
     /**
      *  Access to the busy state. Busy means at least 1 unit of the resource is allocated.
@@ -95,7 +87,7 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     /**
      * Statistical response representing the utilization of the resource.
      */
-    val util: TWResponseCIfc
+    val util: ResponseCIfc
 
     /**
      *  If c(t) is the current capacity and b(t) is the current number busy,
@@ -113,14 +105,6 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
      *  If b(t) is greater than zero
      */
     val hasBusyUnits: Boolean
-
-    /** The fraction of the current capacity that is currently busy.
-     *
-     *  if b(t) = 0, then 0,
-     *  if b(t) greater than or equal to c(t), then 1.0
-     *  else b(t)/c(t)
-     */
-    val fractionBusy: Double
 
     /**
      *  The number of busy units at any time t, b(t)
@@ -185,37 +169,31 @@ interface ResourceFailureActionsIfc {
  *  a(t) = c(t).  Since a resource is busy if b(t) > 0, busy and idle are complements of each other. A resource is
  *  either busy b(t) > 0 or idle b(t) = 0.  If a(t) > 0, then the resource has units that it can be allocated.
  *
+ *  The utilization of a resource is defined as the ratio of the average number of busy units to the average
+ *  number of active units.  Units are active if they are part of the current capacity of the resource.
+ *
  *  Subclasses of Resource implement additional state behavior.
  *
  *  @param parent the parent holding this resource
  *  @param name the name of the resource
  *  @param capacity the initial capacity of the resource.  Cannot be changed during a replication. The default capacity is 1.
- *  @param collectStateStatistics indicates if detailed statistics are automatically collected on time spent in resource
- *  states. The default is false.  Utilization and busy statistics are always collected unless specifically turned off
- *  via TWResponseCIfc references.
  */
 open class Resource(
     parent: ModelElement,
     name: String? = null,
-    capacity: Int = 1,
-    collectStateStatistics: Boolean = false
+    capacity: Int = 1
 ) : ModelElement(parent, name), ResourceCIfc {
-
-    private var myInactiveProp: Response? = null
-    private var myIdleProp: Response? = null
 
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
-        if (collectStateStatistics) {
-            myInactiveProp = Response(this, name = "${this.name}:PTimeIdle")
-            myIdleProp = Response(this, name = "${this.name}:PTimeInactive")
-        }
     }
 
     override var defaultReportingOption: Boolean = true
         set(value) {
             myNumBusy.defaultReportingOption = value
-            myUtil.defaultReportingOption = value
+            myInactiveProp.defaultReportingOption = value
+            myIdleProp.defaultReportingOption = value
+            myBusyProp.defaultReportingOption = value
             field = value
         }
 
@@ -261,6 +239,16 @@ open class Resource(
         }
     }
 
+    protected val myInactiveProp: Response = Response(this, name = "${this.name}:PTimeInactive")
+    val proportionOfTimeInactive: ResponseCIfc
+        get() = myInactiveProp
+    protected val myIdleProp: Response = Response(this, name = "${this.name}:PTimeIdle")
+    val proportionOfTimeIdle: ResponseCIfc
+        get() = myIdleProp
+    protected val myBusyProp: Response = Response(this, name = "${this.name}:PTimeBusy")
+    val proportionOfTimeBusy: ResponseCIfc
+        get() = myBusyProp
+
     override var initialCapacity = capacity
         set(value) {
             require(value >= 0) { "The initial capacity of the resource must be >= 0" }
@@ -275,14 +263,27 @@ open class Resource(
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
             //TODO do something about state??
-            if ((capacity == 0) && (numBusy == 0)) {
+            if ((numBusy == 0) && (field == 0) ){
                 myState = myInactiveState
+            } else if ((numBusy == 0) && (field > 0)){
+                myState = myIdleState
+            } else if ((numBusy > 0) && (field >= 0)){
+                myState = myBusyState
             }
+            myCapacity.value = field.toDouble()
         }
 
-    protected val myNumBusy = TWResponse(this, "${this.name}:BusyUnits")
+    protected val myCapacity = TWResponse(this, name = "${this.name}:NumActiveUnits", theInitialValue = capacity.toDouble())
+    val numActiveUnits: TWResponseCIfc
+        get() = myCapacity
+
+    protected val myNumBusy = TWResponse(this, "${this.name}:NumBusyUnits")
     override val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
+
+    protected val myFractionBusy : Response = Response(this, name = "${this.name}:Util")
+    override val util: ResponseCIfc
+        get() = myFractionBusy
 
     override var numBusy: Int = 0
         protected set(newValue) {
@@ -300,12 +301,13 @@ open class Resource(
                 myNumBusy.decrement(decrease.toDouble())
                 numTimesReleased++
             }
-            myUtil.value = fractionBusy
             //TODO do something about state??
-            myState = if (field > 0){
-                myBusyState
-            } else {
-                myIdleState
+            if ((field == 0) && (capacity == 0) ){
+                myState = myInactiveState
+            } else if ((field == 0) && (capacity > 0)){
+                myState = myIdleState
+            } else if ((field > 0) && (capacity >= 0)){
+                myState = myBusyState
             }
         }
 
@@ -318,34 +320,17 @@ open class Resource(
     override val hasBusyUnits: Boolean
         get() = numBusy > 0.0
 
-    override val fractionBusy: Double
-        get() {
-            return if (numBusy == 0) {
-                0.0
-            } else if (numBusy >= capacity) {
-                1.0
-            } else {
-                numBusy / capacity.toDouble()
-            }
-        }
-
-    protected val myUtil = TWResponse(this, "${this.name}:Util")
-    override val util: TWResponseCIfc
-        get() = myUtil
-
     override var numTimesSeized: Int = 0
         protected set
 
     override var numTimesReleased: Int = 0
         protected set
 
-    override val stateStatisticsOption: Boolean = collectStateStatistics
-
     /** The busy state, keeps track of when the resource has an allocation
      *  A resource is busy if any of its units are allocated.
      *
      */
-    protected val myBusyState: ResourceState = ResourceState("${this.name}_Busy", collectStateStatistics)
+    protected val myBusyState: ResourceState = ResourceState("${this.name}_Busy")
     override val busyState: StateAccessorIfc
         get() {
             if (isBusy) {
@@ -369,7 +354,7 @@ open class Resource(
 
     /** The idle state keeps track of when no units have been allocated
      */
-    protected val myIdleState: ResourceState = ResourceState("${this.name}Idle", collectStateStatistics)
+    protected val myIdleState: ResourceState = ResourceState("${this.name}Idle")
     override val idleState: StateAccessorIfc
         get() {
             if (isIdle) {
@@ -390,7 +375,7 @@ open class Resource(
     /** The inactive state, keeps track of when no units
      * are available because the resource's capacity is zero.
      */
-    protected val myInactiveState: ResourceState = ResourceState("${this.name}_Inactive", collectStateStatistics)
+    protected val myInactiveState: ResourceState = ResourceState("${this.name}_Inactive")
     override val inactiveState: StateAccessorIfc
         get() {
             if (isInactive) {
@@ -517,14 +502,20 @@ open class Resource(
 
     override fun replicationEnded() {
         super.replicationEnded()
+        val avgNR = myNumBusy.withinReplicationStatistic.weightedAverage
+        val avgMR = numActiveUnits.withinReplicationStatistic.weightedAverage
+        if (avgMR > 0.0){
+            myFractionBusy.value = avgNR/avgMR
+        }
         val t = totalStateTime
         println("totalStateTime = $t")
         if (t > 0.0) {
             println("busy totalTimeInState = ${busyState.totalTimeInState}")
             println("idle totalTimeInState = ${idleState.totalTimeInState}")
             println("inactive totalTimeInState = ${inactiveState.totalTimeInState}")
-            myIdleProp?.value = idleState.totalTimeInState / t
-            myInactiveProp?.value = inactiveState.totalTimeInState / t
+            myIdleProp.value = idleState.totalTimeInState / t
+            myInactiveProp.value = inactiveState.totalTimeInState / t
+            myBusyProp.value = busyState.totalTimeInState/t
         }
     }
 

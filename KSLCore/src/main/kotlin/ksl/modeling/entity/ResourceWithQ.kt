@@ -19,6 +19,7 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.QueueCIfc
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
@@ -36,9 +37,17 @@ interface ResourceWithQCIfc : ResourceCIfc {
  *  every replication starts at the same initial capacity.
  *
  *  A resource is considered inactive if all of its units of capacity are inactive. That is, a resource is
- *  inactive if its capacity is zero.  Capacity can only become 0 via the use of a CapacitySchedule or
+ *  inactive if its capacity is zero and there are no busy units.  Capacity can only become 0 via the use of a CapacitySchedule or
  *  via the use of a CapacityChangeNotice.  A resource that is inactive can be seized.  If a request for units occurs
  *  when the resource is inactive, the request waits (as usual) until it can be fulfilled.
+ *
+ *  Define b(t) as the number of units allocated and c(t) as the current capacity of the resource at time t.
+ *
+ *  If (b(t) = 0 and c(t) = 0) then the resource is considered inactive
+ *  If b(t) > 0 and c(t) >= 0, then the resource is busy
+ *  If b(t) = 0 and c(t) > 0, then the resource is idle
+ *
+ *  Note that a resource may be busy when the capacity is 0 because of the timing of capacity changes.
  *
  * @param parent the containing model element
  * @param capacity the capacity for the resource at the beginning of each replication, must be at least 1
@@ -46,15 +55,13 @@ interface ResourceWithQCIfc : ResourceCIfc {
  * @param queue the queue for waiting entities. If a request for units cannot immediately be met, then this is where
  * the request waits.  If a queue is not supplied, a default queue will be created.  Supplying a queue allows
  * resources to share request queues.
- * @param collectStateStatistics whether individual state statistics are collected
  */
 open class ResourceWithQ(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1,
     queue: RequestQ? = null,
-    collectStateStatistics: Boolean = false,
-) : Resource(parent, name, capacity, collectStateStatistics), ResourceWithQCIfc {
+) : Resource(parent, name, capacity), ResourceWithQCIfc {
 
     private var myNoticeCount = 0
     private var myCapacitySchedule: CapacitySchedule? = null
@@ -286,13 +293,13 @@ open class ResourceWithQ(
             if (myState == myInactiveState){
                 // actually if it was inactive, it should not have any busy units
                 // but just in case, check
-                if (numBusy > 0){
-                    myState = myBusyState
+                myState = if (numBusy > 0){
+                    myBusyState
                 } else{
-                    myState = myIdleState
+                    myIdleState
                 }
             }
-            ProcessModel.logger.trace { "$time > Resource: $name, state = ${myState.name}, c(t) = $capacity b(t) = $numBusy a(t) = $available" }
+            ProcessModel.logger.trace { "$time > Resource: $name, state = ${myState.name}, c(t) = $capacity b(t) = $numBusy a(t) = $available q(t) = ${myWaitingQ.numInQ.value}" }
             // this causes the newly available capacity to be allocated to any waiting requests
             // numAvailable could still 0 because a change notice could be pending, use actual available
             val n = myWaitingQ.processWaitingRequests(available, notice.priority)
