@@ -87,7 +87,7 @@ open class ResourceWithQ(
 
     //TODO should this be checking state?? should this just be capacity - numBusy?
     override val numAvailableUnits: Int
-        get() = if (isInactive || isPendingCapacityChange) {
+        get() = if (isInactive || isPendingCapacityChange ) { //TODO isPendingCapacityChange check causes WAIT rule failure
             0
         } else {
             // because capacity can be decrease when there are busy units
@@ -442,6 +442,10 @@ open class ResourceWithQ(
                 ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice is now being processed" }
             }
         }
+    }
+
+    override fun toString(): String {
+        return super.toString() + " q(t) = ${myWaitingQ.numInQ.value}"
     }
 
     inner class CapacityChangeNotice(

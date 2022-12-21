@@ -423,7 +423,7 @@ open class Resource(
         get() = myState === myInactiveState
 
     override fun toString(): String {
-        return "$name: state = $myState capacity = $capacity numBusy = $numBusy numAvailable = $numAvailableUnits"
+        return "$name: state = ${myState.name} c(t) = $capacity b(t) = $numBusy a(t) = $numAvailableUnits"
     }
 
     /**
@@ -576,7 +576,7 @@ open class Resource(
         queue: RequestQ,
         allocationName: String? = null
     ): Allocation {
-        require(canAllocate(amountNeeded)) { "The amount requested, $amountNeeded cannot currently be allocated" }
+        require(canAllocate(amountNeeded)) { "$this The amount requested, $amountNeeded cannot currently be allocated" }
         val allocation = Allocation(entity, this, amountNeeded, queue, allocationName)
         if (!entityAllocations.contains(entity)) {
             entityAllocations[entity] = mutableListOf()
