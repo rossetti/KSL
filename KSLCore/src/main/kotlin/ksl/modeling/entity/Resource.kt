@@ -515,7 +515,7 @@ open class Resource(
         val t = totalStateTime
         println("totalStateTime = $t")
         if (t > 0.0) {
-            println(idleState)
+            println("busy totalTimeInState = ${busyState.totalTimeInState}")
             println("idle totalTimeInState = ${idleState.totalTimeInState}")
             println("inactive totalTimeInState = ${inactiveState.totalTimeInState}")
             myIdleProp?.value = idleState.totalTimeInState / t
