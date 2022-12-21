@@ -510,35 +510,17 @@ open class Resource(
         myState.enter(time)
     }
 
-    override fun beforeReplication() {
-        super.beforeReplication()
-        //TODO I think that there should be no need for this
-        capacity = initialCapacity
-        numBusy = 0
-        initializeStates()
-    }
-
     override fun replicationEnded() {
         super.replicationEnded()
         val t = totalStateTime
         println("totalStateTime = $t")
         if (t > 0.0) {
+            println(idleState)
             println("idle totalTimeInState = ${idleState.totalTimeInState}")
             println("inactive totalTimeInState = ${inactiveState.totalTimeInState}")
             myIdleProp?.value = idleState.totalTimeInState / t
             myInactiveProp?.value = inactiveState.totalTimeInState / t
         }
-    }
-
-    private fun initializeStates() {
-        //clears the accumulators but keeps the current state thinking that is entered
-        myIdleState.initialize(isIdle)
-        myBusyState.initialize(isBusy)
-//        myFailedState.initialize(isFailed)
-        myInactiveState.initialize(isInactive)
-        // tell it to be in the inactive state (assign prev, exit, assign enter)
-        // thus (just) prior to replication initialization, the resource is inactive
-        myState = myInactiveState  //TODO no need for this
     }
 
     override fun initialize() {
@@ -547,13 +529,17 @@ open class Resource(
         startStateTime = 0.0
         numTimesSeized = 0
         numTimesReleased = 0
-        //TODO I think that it can be set the capacity and numBusy and then initialize the states
-//        capacity = initialCapacity
-//        numBusy = 0
-//        initializeStates()
         // note that initialize() causes state to not be entered, and clears it accumulators
-        // this should be based on capacity, but initialCapacity > 1, thus it must be idle
-        myState = myIdleState // will cause myPreviousState to be set to current value of myState //TODO state issue
+        myIdleState.initialize()
+        myBusyState.initialize()
+        myInactiveState.initialize()
+        // myState is one of the states (idle, busy, inactive)
+        // but now the state thinks we are not in it, make it think we are in it
+        myState.enter(time)
+        // now exit it for the inactive state
+        myState = myInactiveState // will cause previous state to be some arbitrary state from end of last replication
+        // make previous state inactive and current state idle, for start of the replication
+        myState = myIdleState
     }
 
     /**
