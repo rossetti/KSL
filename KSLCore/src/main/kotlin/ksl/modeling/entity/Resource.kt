@@ -302,6 +302,11 @@ open class Resource(
             }
             myUtil.value = fractionBusy
             //TODO do something about state??
+            myState = if (field > 0){
+                myBusyState
+            } else {
+                myIdleState
+            }
         }
 
     override val numAvailableUnits: Int
