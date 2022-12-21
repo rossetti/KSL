@@ -65,9 +65,14 @@ open class ResourceWithQ(
 
     private var myNoticeCount = 0
     private var myCapacitySchedule: CapacitySchedule? = null
+
     private var myCapacityChangeListener: CapacityChangeListenerIfc? = null
     private val myWaitingChangeNotices = mutableListOf<CapacityChangeNotice>()
     private var myCurrentChangeNotice: CapacityChangeNotice? = null
+        set(value) {
+            field = value
+            println("$time > set myCurrentChangeNotice to $field")
+        }
 //    private var myEndCapacityChangeEvent: KSLEvent<CapacityChangeNotice>? = null
 
     /**
@@ -256,7 +261,7 @@ open class ResourceWithQ(
             } else {
                 // not empty need to process the next one
                 myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                ProcessModel.logger.trace { "$time > Resource: $name, starting the processing of $myCurrentChangeNotice" }
+                ProcessModel.logger.trace { "$time > Resource: $name, change notice $myCurrentChangeNotice was waiting but is now being processed" }
             }
         }
     }
@@ -276,11 +281,21 @@ open class ResourceWithQ(
             // then change must come from the attached schedule
             require(notice.capacitySchedule == myCapacitySchedule) { "The capacity notice did not come from the attached schedule!" }
         }
+
+        if (capacityChangeRule == CapacityChangeRule.IGNORE) {
+            handleIncomingChangeNoticeIgnoreRule(notice)
+        } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
+            handleIncomingChangeNoticeWaitRule(notice)
+        }
+
+    }
+
+    protected fun handleIncomingChangeNoticeIgnoreRule(notice: CapacityChangeNotice) {
         // determine if increase or decrease
         if (capacity == notice.capacity) {
             return
         } else if (notice.capacity > capacity) {
-            ProcessModel.logger.trace { "$time > Resource: $name, change request is increasing the capacity from $capacity to ${notice.capacity}." }
+            ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is increasing the capacity from $capacity to ${notice.capacity}." }
             // increasing the capacity
             capacity = notice.capacity
             // resource could have been busy, idle, or inactive when adding the capacity
@@ -302,10 +317,72 @@ open class ResourceWithQ(
             ProcessModel.logger.trace { "$time > Resource: $name, state = ${myState.name}, c(t) = $capacity b(t) = $numBusy a(t) = $available q(t) = ${myWaitingQ.numInQ.value}" }
             // this causes the newly available capacity to be allocated to any waiting requests
             // numAvailable could still 0 because a change notice could be pending, use actual available
+//            if (isPendingCapacityChange){
+//                throw IllegalStateException("something weird: how can a new capacity change come in when there is a pending one?")
+//            }
             val n = myWaitingQ.processWaitingRequests(available, notice.priority)
             ProcessModel.logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
         } else {
-            ProcessModel.logger.trace { "$time > Resource: $name, change request is decreasing the capacity from $capacity to ${notice.capacity}." }
+            ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
+            // notice.capacity < capacity, need to decrease the capacity
+            val decrease = capacity - notice.capacity
+            if (numAvailableUnits >= decrease) {
+                // there are enough available units to handle the change w/o using busy resources
+                capacity = capacity - decrease
+                // removed idle units, but remaining units are (busy or idle) or all units have been removed
+                // may still be busy, idle, or if capacity is zero should be inactive
+                //TODO determine current state
+                // if it is busy, it stays busy
+                // if it is idle, it stays idle
+                // if it has no capacity it should be inactive only if there are also no busy units
+                // a resource can be busy if it has no capacity. This may occur if units are busy that are needed for the change
+                if ((capacity == 0) && (numBusy == 0) ){
+                    myState = myInactiveState
+                }
+                ProcessModel.logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
+            } else {
+                // not enough available, this means that at least part of the change will need to wait
+                // the timing of when the capacity occurs depends on the capacity change rule
+                ProcessModel.logger.trace { "$time > Resource: $name, not enough units idle to reduce capacity by $decrease." }
+                notice.amountNeeded = decrease
+                handleWaitingChange(notice)
+            }
+        }
+    }
+    protected fun handleIncomingChangeNoticeWaitRule(notice: ResourceWithQ.CapacityChangeNotice) {
+        //TODO needs a lot of work
+        if (capacity == notice.capacity) {
+            return
+        } else if (notice.capacity > capacity) {
+            ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is increasing the capacity from $capacity to ${notice.capacity}." }
+            // increasing the capacity
+            capacity = notice.capacity
+            // resource could have been busy, idle, or inactive when adding the capacity
+            // adding capacity cannot result in resource being inactive, must be either busy or idle after this
+            val available = capacity - numBusy
+            //TODO determine current state
+            // state can only be busy, idle, or inactive
+            // if busy it stays busy, if idle stays idle
+            // if inactive it needs to transition to busy or idle
+            if (myState == myInactiveState){
+                // actually if it was inactive, it should not have any busy units
+                // but just in case, check
+                myState = if (numBusy > 0){
+                    myBusyState
+                } else{
+                    myIdleState
+                }
+            }
+            ProcessModel.logger.trace { "$time > Resource: $name, state = ${myState.name}, c(t) = $capacity b(t) = $numBusy a(t) = $available q(t) = ${myWaitingQ.numInQ.value}" }
+            // this causes the newly available capacity to be allocated to any waiting requests
+            // numAvailable could still 0 because a change notice could be pending, use actual available
+            if (isPendingCapacityChange){
+                throw IllegalStateException("something weird: how can a new capacity change come in when there is a pending one?")
+            }
+            val n = myWaitingQ.processWaitingRequests(available, notice.priority)
+            ProcessModel.logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
+        } else {
+            ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
             // notice.capacity < capacity, need to decrease the capacity
             val decrease = capacity - notice.capacity
             if (numAvailableUnits >= decrease) {
@@ -400,7 +477,7 @@ open class ResourceWithQ(
         if (isPendingCapacityChange) {
             // there is a change in progress, make incoming change wait
             myWaitingChangeNotices.add(notice)
-            ProcessModel.logger.trace { "$time > Resource: $name, a notice is in progress, incoming notice $notice must wait" }
+            ProcessModel.logger.trace { "$time > Resource: $name, notice $myWaitingChangeNotices is in progress, incoming notice $notice must wait" }
         } else {
             // there is no pending change, make this incoming change be the one to process
             myCurrentChangeNotice = notice
@@ -424,7 +501,7 @@ open class ResourceWithQ(
                     // note that the waiting notice's end event has already been scheduled,
                     //  we begin its official processing when releases occur
                     myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                    ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice is now being processed" }
+                    ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice was waiting but is now being processed" }
                 }
             } else {
                 // current notice is not the one that ended.  that means that the ending notice
@@ -439,7 +516,7 @@ open class ResourceWithQ(
                 //  we begin its official processing when releases occur
                 myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
                 // it does not schedule its processing until it gets all the needed change
-                ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice is now being processed" }
+                ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice was waiting but is now being processed" }
             }
         }
     }
