@@ -624,6 +624,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         }
 
+        internal fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(requestQ: RequestQ, request: ProcessModel.Entity.Request) {
+            resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(requestQ, request.resource, request.resourcePool, request.amountRequested)
+        }
+
+        protected open fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
+            queue: RequestQ, resource: Resource?, resourcePool: ResourcePool?, amountRequested : Int){
+        }
+
         /**
          *  A state pattern implementation to ensure that the entity only transitions to
          *  valid states from its current state.

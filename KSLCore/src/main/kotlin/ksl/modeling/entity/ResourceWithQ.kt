@@ -62,24 +62,23 @@ open class ResourceWithQ(
     queue: RequestQ? = null,
 ) : Resource(parent, name, capacity), ResourceWithQCIfc {
 
-    private var myNoticeCount = 0
-    private var myCapacitySchedule: CapacitySchedule? = null
+    protected var myNoticeCount = 0
+    protected var myCapacitySchedule: CapacitySchedule? = null
 
-    private var myCapacityChangeListener: CapacityChangeListenerIfc? = null
-    private val myWaitingChangeNotices = mutableListOf<CapacityChangeNotice>()
-    private var myCurrentChangeNotice: CapacityChangeNotice? = null
-        set(value) {
-            field = value
-//            println("$time > set myCurrentChangeNotice to $field")
-        }
-//    private var myEndCapacityChangeEvent: KSLEvent<CapacityChangeNotice>? = null
+    protected var myCapacityChangeListener: CapacityChangeListenerIfc? = null
+    protected val myWaitingChangeNotices = mutableListOf<CapacityChangeNotice>()
+    protected var myCurrentChangeNotice: CapacityChangeNotice? = null
 
     /**
      * The default rule is IGNORE. This can be changed when a CapacitySchedule
      * is used.
      */
     var capacityChangeRule: CapacityChangeRule = CapacityChangeRule.IGNORE
-        private set
+        set(value){
+            require(!isUsingSchedule()){"Cannot change the rule because the resource is already using a capacity change schedule."}
+            require(!isPendingCapacityChange){"Cannot change the rule when there are pending capacity changes."}
+            field = value
+        }
 
     /**
      * Indicates whether capacity changes are pending. The resource cannot
@@ -88,17 +87,6 @@ open class ResourceWithQ(
      */
     val isPendingCapacityChange
         get() = myCurrentChangeNotice != null
-
-    //TODO should this be checking state?? should this just be capacity - numBusy?
-//    override val numAvailableUnits: Int
-//        get() = if (isInactive || isPendingCapacityChange ) { //TODO isPendingCapacityChange check causes WAIT rule failure
-//            0
-//        } else {
-//            // because capacity can be decrease when there are busy units
-//            // we need to prevent the number of available units from being negative
-//            // the capacity may be reduced but the state not yet changed to inactive
-//            maxOf(0, capacity - numBusy)
-//        }
 
     /**
      * Holds the entities that are waiting for allocations of the resource's units
@@ -153,6 +141,13 @@ open class ResourceWithQ(
      */
     fun isUsingSchedule(schedule: CapacitySchedule): Boolean {
         return myCapacitySchedule == schedule
+    }
+
+    /**
+     * @return true if already using a schedule
+     */
+    fun isUsingSchedule(): Boolean {
+        return myCapacitySchedule != null
     }
 
     /**
@@ -248,22 +243,17 @@ open class ResourceWithQ(
             )
             ProcessModel.logger.trace { "$time > Resource: $name, scheduled the duration for notice $myCurrentChangeNotice" }
             ProcessModel.logger.trace { "$time > Resource: $name, notice's original start time = ${myCurrentChangeNotice?.createTime}, new end time ${myCurrentChangeNotice!!.changeEvent!!.time}" }
-//            // check if there are more changes
-//            if (myWaitingChangeNotices.isEmpty()) {
-//                // no more pending changes
-//                myCurrentChangeNotice = null //TODO this will make it null and we will lose the change event
-//                ProcessModel.logger.trace { "$time > Resource: $name, no more pending capacity changes" }
-//            } else {
-//                // not empty need to process the next one
-//                myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-//                ProcessModel.logger.trace { "$time > Resource: $name, change notice $myCurrentChangeNotice was waiting but is now being processed" }
-//            }
         }
     }
 
     /**
+     *  It is an error to try to change the capacity directly via this method if the
+     *  resource is using a capacity change schedule.
+     *
+     *  The changes are handled based on the specified capacity change rule for the resource.
+     *
      *  Handles the start of a change in capacity. If the capacity is increased over its current
-     *  value, then the capacity is immediately increased and requests that are waiting
+     *  value and there are no pending changes, then the capacity is immediately increased and requests that are waiting
      *  for the resource will be processed to receive allocations from the resource.  If the
      *  capacity is decreased from its current value, then the amount of the decrease is first filled
      *  from idle units.  If there are not enough idle units to complete the decrease, then the change
@@ -279,11 +269,9 @@ open class ResourceWithQ(
         if (capacityChangeRule == CapacityChangeRule.IGNORE) {
             ProcessModel.logger.trace { "$time > Resource: $name, handling IGNORE rule" }
             handleIncomingChangeNoticeIgnoreRule(notice)
-//            originalIgnoreCode(notice)
         } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
             ProcessModel.logger.trace { "$time > Resource: $name, handling WAIT rule" }
             handleIncomingChangeNoticeWaitRule(notice)
-//            originalWaitRuleCode(notice)
         }
     }
 
@@ -490,6 +478,13 @@ open class ResourceWithQ(
         }
     }
 
+    override fun resourceBecameInactive() {
+        super.resourceBecameInactive()
+        for(request in myWaitingQ){
+            request.entity.resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(myWaitingQ, request)
+        }
+    }
+
     override fun toString(): String {
         return super.toString() + " q(t) = ${myWaitingQ.numInQ.value}"
     }
@@ -528,21 +523,16 @@ open class ResourceWithQ(
     inner class CapacityChangeListener : CapacityChangeListenerIfc {
         override fun scheduleStarted(schedule: CapacitySchedule) {
             ProcessModel.logger.trace { "$time > Resource: $name schedule ${schedule.name} started." }
-//            val n = schedule.model.currentReplicationNumber
-//            println("Replication: $n")
-//            println("time = ${schedule.time} Schedule Started")
             // nothing to do when the schedule starts
         }
 
         override fun scheduleEnded(schedule: CapacitySchedule) {
             ProcessModel.logger.trace { "$time > Resource: $name schedule ${schedule.name} ended." }
-//            println("time = ${schedule.time} Schedule Ended")
             // nothing to do when the schedule ends
         }
 
         override fun capacityChange(item: CapacitySchedule.CapacityItem) {
             ProcessModel.logger.trace { "$time > Resource: $name, capacity item ${item.name} started with capacity ${item.capacity} for duration ${item.duration}." }
-//            println("time = ${item.schedule.time} capacity item ${item.name} started with capacity ${item.capacity} for duration ${item.duration}")
             // make the capacity change notice using information from CapacityItem
             val notice = CapacityChangeNotice(item.capacity, item.duration, item.priority)
             notice.capacitySchedule = item.schedule

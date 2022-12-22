@@ -262,18 +262,19 @@ open class Resource(
         protected set(value) {
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
-            //TODO do something about state??
-            if ((numBusy == 0) && (field == 0) ){
+            // handle the state change
+            if ((numBusy == 0) && (field == 0)) {
                 myState = myInactiveState
-            } else if ((numBusy == 0) && (field > 0)){
+            } else if ((numBusy == 0) && (field > 0)) {
                 myState = myIdleState
-            } else if ((numBusy > 0) && (field >= 0)){
+            } else if ((numBusy > 0) && (field >= 0)) {
                 myState = myBusyState
             }
             myCapacity.value = field.toDouble()
         }
 
-    protected val myCapacity = TWResponse(this, name = "${this.name}:NumActiveUnits", theInitialValue = capacity.toDouble())
+    protected val myCapacity =
+        TWResponse(this, name = "${this.name}:NumActiveUnits", theInitialValue = capacity.toDouble())
     val numActiveUnits: TWResponseCIfc
         get() = myCapacity
 
@@ -281,7 +282,7 @@ open class Resource(
     override val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
 
-    protected val myFractionBusy : Response = Response(this, name = "${this.name}:Util")
+    protected val myFractionBusy: Response = Response(this, name = "${this.name}:Util")
     override val util: ResponseCIfc
         get() = myFractionBusy
 
@@ -301,12 +302,12 @@ open class Resource(
                 myNumBusy.decrement(decrease.toDouble())
                 numTimesReleased++
             }
-            //TODO do something about state??
-            if ((field == 0) && (capacity == 0) ){
+            // handle the state change
+            if ((field == 0) && (capacity == 0)) {
                 myState = myInactiveState
-            } else if ((field == 0) && (capacity > 0)){
+            } else if ((field == 0) && (capacity > 0)) {
                 myState = myIdleState
-            } else if ((field > 0) && (capacity >= 0)){
+            } else if ((field > 0) && (capacity >= 0)) {
                 myState = myBusyState
             }
         }
@@ -375,7 +376,7 @@ open class Resource(
     /** The inactive state, keeps track of when no units
      * are available because the resource's capacity is zero.
      */
-    protected val myInactiveState: ResourceState = ResourceState("${this.name}_Inactive")
+    protected val myInactiveState: ResourceState = InactiveState("${this.name}_Inactive")
     override val inactiveState: StateAccessorIfc
         get() {
             if (isInactive) {
@@ -504,18 +505,13 @@ open class Resource(
         super.replicationEnded()
         val avgNR = myNumBusy.withinReplicationStatistic.weightedAverage
         val avgMR = numActiveUnits.withinReplicationStatistic.weightedAverage
-        if (avgMR > 0.0){
-            myFractionBusy.value = avgNR/avgMR
+        if (avgMR > 0.0) {
+            myFractionBusy.value = avgNR / avgMR
         }
-        val t = totalStateTime
-//        println("totalStateTime = $t")
-        if (t > 0.0) {
-//            println("busy totalTimeInState = ${busyState.totalTimeInState}")
-//            println("idle totalTimeInState = ${idleState.totalTimeInState}")
-//            println("inactive totalTimeInState = ${inactiveState.totalTimeInState}")
-            myIdleProp.value = idleState.totalTimeInState / t
-            myInactiveProp.value = inactiveState.totalTimeInState / t
-            myBusyProp.value = busyState.totalTimeInState/t
+        if (totalStateTime > 0.0) {
+            myIdleProp.value = idleState.totalTimeInState / totalStateTime
+            myInactiveProp.value = inactiveState.totalTimeInState / totalStateTime
+            myBusyProp.value = busyState.totalTimeInState / totalStateTime
         }
     }
 
@@ -550,7 +546,7 @@ open class Resource(
      */
     fun canAllocate(amountNeeded: Int = 1): Boolean {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
-        //TODO checking state is an issue
+        // checking state is an issue
         if (isInactive) {
             return false
         }
@@ -583,11 +579,6 @@ open class Resource(
         }
         entityAllocations[entity]?.add(allocation)
         numBusy = numBusy + amountNeeded
-//        myNumBusy.increment(amountNeeded.toDouble())
-//        numTimesSeized++
-//        myUtil.value = fractionBusy
-        // resource becomes busy (or stays busy), because an allocation occurred
-//        myState = myBusyState
         //need to put this allocation in Entity also
         entity.allocate(allocation)
         allocationNotification(allocation)
@@ -612,12 +603,6 @@ open class Resource(
         }
         // give back to the resource
         numBusy = numBusy - allocation.amount
-//        myNumBusy.decrement(allocation.amount.toDouble())
-//        numTimesReleased++
-//        myUtil.value = fractionBusy
-//        if (myNumBusy.value == 0.0) {
-//            myState = myIdleState
-//        }
         // need to also deallocate from the entity
         allocation.entity.deallocate(allocation)
         // deallocate the allocation, so it can't be used again
@@ -641,7 +626,26 @@ open class Resource(
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
         State(name = aName, useStatistic = stateStatistics) {
-        //TODO need to have states: idle, busy, inactive?
+        //TODO need to have state implementations for: idle, busy, inactive, failed?
+    }
+
+    protected inner class InactiveState(aName: String, stateStatistics: Boolean = false) :
+        ResourceState(aName, stateStatistics) {
+        override fun onEnter() {
+            resourceBecameInactive()
+        }
+
+        override fun onExit() {
+            resourceBecameActive()
+        }
+    }
+
+    protected open fun resourceBecameActive() {
+
+    }
+
+    protected open fun resourceBecameInactive() {
+
     }
 
 //    protected inner class FailedState(aName: String, stateStatistics: Boolean = false) :
