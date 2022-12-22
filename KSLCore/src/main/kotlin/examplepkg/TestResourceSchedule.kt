@@ -24,8 +24,8 @@ class TestResourceSchedule(parent: ModelElement) : ProcessModel(parent, null) {
         schedule.addItem(capacity = 1, duration = 35.0)
         schedule.addItem(capacity = 0, duration = 20.0)
         schedule.addItem(capacity = 2, duration = 30.0)
-        resource.useSchedule(schedule, changeRule = CapacityChangeRule.WAIT)
-//        resource.useSchedule(schedule, changeRule = CapacityChangeRule.IGNORE)
+//        resource.useSchedule(schedule, changeRule = CapacityChangeRule.WAIT)
+        resource.useSchedule(schedule, changeRule = CapacityChangeRule.IGNORE)
     }
 
     private inner class Customer: Entity() {
@@ -57,7 +57,7 @@ class TestResourceSchedule(parent: ModelElement) : ProcessModel(parent, null) {
 fun main(){
     val m = Model()
     val test = TestResourceSchedule(m)
-    m.numberOfReplications = 1
+    m.numberOfReplications = 2
     m.lengthOfReplication = 1000.0
     m.simulate()
     m.print()

@@ -508,11 +508,11 @@ open class Resource(
             myFractionBusy.value = avgNR/avgMR
         }
         val t = totalStateTime
-        println("totalStateTime = $t")
+//        println("totalStateTime = $t")
         if (t > 0.0) {
-            println("busy totalTimeInState = ${busyState.totalTimeInState}")
-            println("idle totalTimeInState = ${idleState.totalTimeInState}")
-            println("inactive totalTimeInState = ${inactiveState.totalTimeInState}")
+//            println("busy totalTimeInState = ${busyState.totalTimeInState}")
+//            println("idle totalTimeInState = ${idleState.totalTimeInState}")
+//            println("inactive totalTimeInState = ${inactiveState.totalTimeInState}")
             myIdleProp.value = idleState.totalTimeInState / t
             myInactiveProp.value = inactiveState.totalTimeInState / t
             myBusyProp.value = busyState.totalTimeInState/t

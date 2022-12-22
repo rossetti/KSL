@@ -1125,7 +1125,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 allocation.resource.deallocate(allocation)
                 // get the queue from the allocation being released and process any waiting requests
                 // note that the released amount may allow multiple requests to proceed
-                //TODO this may be a problem because of how numAvailableUnits is defined
+                // this may be a problem depending on how numAvailableUnits is defined
                 allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
             }
 
