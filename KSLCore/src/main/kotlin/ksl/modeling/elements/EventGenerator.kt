@@ -99,6 +99,12 @@ open class EventGenerator(
     private val generatorAction: GeneratorActionIfc? = theAction
 
     /**
+     *  Can be used to supply logic to invoke when the generator's
+     *  ending time is finite and the generator is turned off.
+     */
+    var endGeneratorAction: EndGeneratorActionIfc? = null
+
+    /**
      * Determines the priority of the event generator's events The default is
      * DEFAULT_PRIORITY - 1 A lower number implies higher priority.
      */
@@ -270,7 +276,6 @@ open class EventGenerator(
         }
     }
 
-
     override fun turnOnGenerator(t: Double) {
         if (isSuspended) {
             return
@@ -352,6 +357,7 @@ open class EventGenerator(
         protected set
 
     private var myMaxNumEvents: Long = theMaxNumberOfEvents
+
     /**
      * The number of events to generate for the current replication
      */
@@ -417,6 +423,14 @@ open class EventGenerator(
                 scheduleFirstEvent(myTimeUntilFirstEventRV)
             }
         }
+        if (endingTime.isFinite()) {
+            schedule(this::endGeneratorAction, endingTime)
+        }
+    }
+
+    private fun endGeneratorAction(event: KSLEvent<Nothing>) {
+        turnOffGenerator()
+        endGeneration()
     }
 
     /**
@@ -470,11 +484,7 @@ open class EventGenerator(
         override fun action(event: KSLEvent<Nothing>) {
             incrementNumberOfEvents()
             if (!isDone) {
-                if (generatorAction != null){
-                    generatorAction.generate(this@EventGenerator)
-                } else {
-                    generate()
-                }
+                generate()
                 // get the time until next event
                 val t: Double = myTimeBtwEventsRV.value
                 // check if it is past end time
@@ -490,8 +500,12 @@ open class EventGenerator(
         }
     }
 
-    protected open fun generate(){
-        TODO("subclasses of EventGenerator should override generate() if no GeneratorActionIfc action is supplied ")
+    protected open fun generate() {
+        generatorAction?.generate(this)
+    }
+
+    protected open fun endGeneration() {
+        endGeneratorAction?.endGeneration(this)
     }
 
     companion object {
