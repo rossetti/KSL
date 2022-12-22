@@ -635,8 +635,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         /**
          * Subclasses of entity can override this method to provide behavior if a request associated
-         * with the entity has the requested resource become inactive while its request
-         * was waiting in the request queue.
+         * with the entity has its requested resource become inactive while its request
+         * was waiting in the request queue.  This is not a trivial thing to do since the entity
+         * will be suspended after seizing a resource.  If the entity wants to stop waiting, then
+         * the process will have to be terminated and the termination logic will need to handle
+         * what to do after the termination.
+         *
          * @param queue the queue holding the request
          * @param resource the involved resource
          * @param request the involved request
