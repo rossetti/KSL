@@ -354,7 +354,7 @@ open class Resource(
 
     /** The idle state keeps track of when no units have been allocated
      */
-    protected val myIdleState: ResourceState = ResourceState("${this.name}Idle")
+    protected val myIdleState: ResourceState = ResourceState("${this.name}_Idle")
     override val idleState: StateAccessorIfc
         get() {
             if (isIdle) {

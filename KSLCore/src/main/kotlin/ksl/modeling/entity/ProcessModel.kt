@@ -1049,7 +1049,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
-                logger.trace { "$time > entity ${entity.id} seizing $amountNeeded units of ${resource.name} in process, ($this)" }
+                logger.trace { "$time > entity ${entity.id} SEIZE $amountNeeded units of ${resource.name} in process, ($this)" }
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded, resource)
@@ -1080,7 +1080,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
-                logger.trace { "$time > entity ${entity.id} seizing $amountNeeded units of ${resourcePool.name} in process, ($this)" }
+                logger.trace { "$time > entity ${entity.id} SEIZE $amountNeeded units of ${resourcePool.name} in process, ($this)" }
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded, resourcePool)
@@ -1112,7 +1112,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val eName = "Delay Event: duration = $delayDuration suspension name = $suspensionName"
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
-                logger.trace { "$time > entity ${entity.id} delaying for $delayDuration, suspending process, ($this) ..." }
+                logger.trace { "$time > entity ${entity.id} DELAY for $delayDuration, suspending process, ($this) ..." }
                 suspend()
                 entity.state.activate()
                 currentSuspendName = null
@@ -1120,7 +1120,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun release(allocation: Allocation, releasePriority: Int) {
-                logger.trace { "$time > entity ${entity.id} releasing ${allocation.amount} units of ${allocation.resource.name} in process, ($this)" }
+                logger.trace { "$time > entity ${entity.id} RELEASE ${allocation.amount} units of ${allocation.resource.name} in process, ($this)" }
                 // we cannot assume that a resource has a queue
                 allocation.resource.deallocate(allocation)
                 // get the queue from the allocation being released and process any waiting requests

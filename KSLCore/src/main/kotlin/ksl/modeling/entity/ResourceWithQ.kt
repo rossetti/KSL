@@ -90,15 +90,15 @@ open class ResourceWithQ(
         get() = myCurrentChangeNotice != null
 
     //TODO should this be checking state?? should this just be capacity - numBusy?
-    override val numAvailableUnits: Int
-        get() = if (isInactive || isPendingCapacityChange ) { //TODO isPendingCapacityChange check causes WAIT rule failure
-            0
-        } else {
-            // because capacity can be decrease when there are busy units
-            // we need to prevent the number of available units from being negative
-            // the capacity may be reduced but the state not yet changed to inactive
-            maxOf(0, capacity - numBusy)
-        }
+//    override val numAvailableUnits: Int
+//        get() = if (isInactive || isPendingCapacityChange ) { //TODO isPendingCapacityChange check causes WAIT rule failure
+//            0
+//        } else {
+//            // because capacity can be decrease when there are busy units
+//            // we need to prevent the number of available units from being negative
+//            // the capacity may be reduced but the state not yet changed to inactive
+//            maxOf(0, capacity - numBusy)
+//        }
 
     /**
      * Holds the entities that are waiting for allocations of the resource's units
@@ -183,11 +183,19 @@ open class ResourceWithQ(
     override fun deallocate(allocation: Allocation) {
         super.deallocate(allocation)
         // deallocation completed need to check for pending capacity change
+        //TODO still something wrong here when rule is WAIT any time a delayed change occurs
+        // isPendingChange will always report true (until caught up) thus deallocation logic is still being
+        // called DURING the change, can we use the fact that is it scheduled to stop this?
+
         if (isPendingCapacityChange) {
             if (capacityChangeRule == CapacityChangeRule.IGNORE) {
                 handeIgnoreRuleDeallocation(allocation)
             } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
-                handleWaitRuleDeallocation(allocation)
+                // handle releases only until full change gets allocated and scheduled
+                if (myCurrentChangeNotice!!.changeEvent == null){
+                    // once it is not null, the full change has been completed and is being processed
+                    handleWaitRuleDeallocation(allocation)
+                }
             }
         }
     }
@@ -213,6 +221,7 @@ open class ResourceWithQ(
             } else {
                 // not empty need to process the next one
                 myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
+                // no need to schedule because already scheduled upon arrival
                 ProcessModel.logger.trace { "$time > Resource: $name, starting the processing of $myCurrentChangeNotice" }
             }
         }
@@ -227,16 +236,6 @@ open class ResourceWithQ(
         val amountReleased = allocation.amountReleased
         val amountToDecrease = minOf(amountReleased, amountNeeded)
         capacity = capacity - amountToDecrease
-        //TODO determine current state
-        // decrease in capacity can result in resource being inactive but there still could be busy resources
-        // cannot be inactive if there are busy units
-        // can be inactive if there are no busy units and capacity is now zero
-        // can be idle if there are no busy units and capacity > 0
-        if ((capacity == 0) && (numBusy == 0) ){
-            myState = myInactiveState
-        } else if ((numBusy == 0) && (capacity > 0)){
-            myState = myIdleState
-        }
         ProcessModel.logger.trace { "$time > Resource: $name, decreased capacity by $amountToDecrease" }
         // give the units to the pending change
         myCurrentChangeNotice!!.amountNeeded = myCurrentChangeNotice!!.amountNeeded - amountToDecrease
@@ -252,16 +251,17 @@ open class ResourceWithQ(
                 message = myCurrentChangeNotice, priority = myCurrentChangeNotice!!.priority
             )
             ProcessModel.logger.trace { "$time > Resource: $name, scheduled the duration for notice $myCurrentChangeNotice" }
-            // check if there are more changes
-            if (myWaitingChangeNotices.isEmpty()) {
-                // no more pending changes
-                myCurrentChangeNotice = null //TODO this will make it null and we will lose the change event
-                ProcessModel.logger.trace { "$time > Resource: $name, no more pending capacity changes" }
-            } else {
-                // not empty need to process the next one
-                myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                ProcessModel.logger.trace { "$time > Resource: $name, change notice $myCurrentChangeNotice was waiting but is now being processed" }
-            }
+            ProcessModel.logger.trace { "$time > Resource: $name, notice's original start time = ${myCurrentChangeNotice?.createTime}, new end time ${myCurrentChangeNotice!!.changeEvent!!.time}" }
+//            // check if there are more changes
+//            if (myWaitingChangeNotices.isEmpty()) {
+//                // no more pending changes
+//                myCurrentChangeNotice = null //TODO this will make it null and we will lose the change event
+//                ProcessModel.logger.trace { "$time > Resource: $name, no more pending capacity changes" }
+//            } else {
+//                // not empty need to process the next one
+//                myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
+//                ProcessModel.logger.trace { "$time > Resource: $name, change notice $myCurrentChangeNotice was waiting but is now being processed" }
+//            }
         }
     }
 
@@ -286,8 +286,8 @@ open class ResourceWithQ(
 //            originalIgnoreCode(notice)
         } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
             ProcessModel.logger.trace { "$time > Resource: $name, handling WAIT rule" }
-            //handleIncomingChangeNoticeWaitRule(notice)
-            originalWaitRuleCode(notice)
+            handleIncomingChangeNoticeWaitRule(notice)
+//            originalWaitRuleCode(notice)
         }
     }
 
@@ -364,7 +364,7 @@ open class ResourceWithQ(
                 myWaitingChangeNotices.clear()
                 // process the positive change now since there is no pending change anymore
                 if (notice.capacity > capacity){
-                    positiveChangeIgnoreRule(notice)
+                    processPositiveCapacityChange(notice)
                 }
             } else if (notice.capacity < capacity){
                 // negative change with change pending
@@ -387,7 +387,7 @@ open class ResourceWithQ(
             // no capacity change is pending for the IGNORE rule
             if (notice.capacity > capacity){
                 // positive change with no change pending
-                positiveChangeIgnoreRule(notice)
+                processPositiveCapacityChange(notice)
             } else if (notice.capacity < capacity){
                 // negative change with no change pending
                 negativeChangeNoPendingChangeIgnoreRule(notice)
@@ -396,7 +396,7 @@ open class ResourceWithQ(
         }
     }
 
-    protected fun positiveChangeIgnoreRule(notice: CapacityChangeNotice){
+    protected fun processPositiveCapacityChange(notice: CapacityChangeNotice){
         ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is increasing the capacity from $capacity to ${notice.capacity}." }
         // increasing the capacity immediately
         capacity = notice.capacity
@@ -405,6 +405,7 @@ open class ResourceWithQ(
         val available = capacity - numBusy
         ProcessModel.logger.trace { "$time > Resource: $this" }
         // this causes the newly available capacity to be allocated to any waiting requests
+        // this resumes their processes at the current simulated time
         val n = myWaitingQ.processWaitingRequests(available, notice.priority)
         ProcessModel.logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
     }
@@ -497,19 +498,46 @@ open class ResourceWithQ(
     }
     protected fun handleIncomingChangeNoticeWaitRule(notice: ResourceWithQ.CapacityChangeNotice) {
         if (isPendingCapacityChange){
-            // capacity change is pending for the WAIT rule
-            if (notice.capacity > capacity){
-                // positive change with change pending
-            } else if (notice.capacity < capacity){
-                // negative change with change pending
-            }
+            // there is a change in progress, make incoming change wait
+            // a positive change or a negative change must wait for current change to complete
+            myWaitingChangeNotices.add(notice)
+            ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice is in progress." }
+            ProcessModel.logger.trace { "$time > Resource: $name, incoming notice $notice must wait." }
         } else {
             // no capacity change is pending for the WAIT rule
             if (notice.capacity > capacity){
                 // positive change with no change pending
+                processPositiveCapacityChange(notice)
             } else if (notice.capacity < capacity){
                 // negative change with no change pending
+                negativeChangeNoPendingChangeWaitRule(notice)
             }
+        }
+    }
+
+    private fun negativeChangeNoPendingChangeWaitRule(notice: CapacityChangeNotice) {
+        ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
+        // notice.capacity < capacity, need to decrease the capacity
+        val decrease = capacity - notice.capacity
+        if (numAvailableUnits >= decrease) {
+            // there are enough available units to handle the change w/o using busy resources
+            capacity = capacity - decrease
+            // removed idle units, but remaining units are (busy or idle) or all units have been removed
+            // may still be busy, idle, or if capacity is zero should be inactive
+            // all units needed were allocated, no resulting pending notice
+            // change stays until next change arrives
+            ProcessModel.logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
+        } else {
+            // not enough available, this means that at least part of the change will need to wait
+            // must decrease capacity, but all required units are busy
+            // must wait for all needed units to be released
+            // don't schedule its ending until all needed units are released
+            ProcessModel.logger.trace { "$time > Resource: $name, not enough units idle to reduce capacity by $decrease." }
+            notice.amountNeeded = decrease
+            // there is no current pending change, make this incoming change be the one to process
+            // it does not schedule its duration until it gets all the needed change
+            myCurrentChangeNotice = notice
+            ProcessModel.logger.trace { "$time > Resource: $name, notice $notice is now being processed" }
         }
     }
 
@@ -581,7 +609,8 @@ open class ResourceWithQ(
         if (isPendingCapacityChange) {
             // there is a change in progress, make incoming change wait
             myWaitingChangeNotices.add(notice)
-            ProcessModel.logger.trace { "$time > Resource: $name, notice $myWaitingChangeNotices is in progress, incoming notice $notice must wait" }
+            ProcessModel.logger.trace { "$time > Resource: $name, notice $myWaitingChangeNotices is in progress." }
+            ProcessModel.logger.trace { "$time > Resource: $name, incoming notice $notice must wait." }
         } else {
             // there is no pending change, make this incoming change be the one to process
             myCurrentChangeNotice = notice
@@ -617,11 +646,46 @@ open class ResourceWithQ(
             myCurrentChangeNotice = null
             // just completed change in full, check if there is a next one
             if (myWaitingChangeNotices.isNotEmpty()) {
-                //  we begin its official processing when releases occur
+                //  the change could be for positive or negative capacity
                 myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
-                // it does not schedule its processing until it gets all the needed change
                 ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice was waiting but is now being processed" }
-            }
+                if (myCurrentChangeNotice!!.capacity > capacity){
+                    // positive change after completing previous change
+                    processPositiveCapacityChange(myCurrentChangeNotice!!)
+                    // schedule the end of the capacity change, has full duration
+                    myCurrentChangeNotice!!.changeEvent =
+                        schedule(this::capacityChangeAction, myCurrentChangeNotice!!.duration, message = myCurrentChangeNotice!!, priority = myCurrentChangeNotice!!.priority)
+                    ProcessModel.logger.trace { "$time > Resource: $name, scheduled end of capacity change for ${myCurrentChangeNotice!!.changeEvent?.time}" }
+                } else if (myCurrentChangeNotice!!.capacity < capacity){
+                    // negative change after completing previous change
+                    negativeChangeAfterPendingChangeWaitRule(myCurrentChangeNotice!!)
+                }
+             }
+        }
+    }
+
+    protected fun negativeChangeAfterPendingChangeWaitRule(notice: CapacityChangeNotice) {
+        ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
+        // notice.capacity < capacity, need to decrease the capacity
+        val decrease = capacity - notice.capacity
+        if (numAvailableUnits >= decrease) {
+            // there are enough available units to handle the change w/o using busy resources
+            capacity = capacity - decrease
+            // removed idle units, but remaining units are (busy or idle) or all units have been removed
+            // may still be busy, idle, or if capacity is zero should be inactive
+            // all units needed were taken by the process change
+            ProcessModel.logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
+            // schedule the end of the change, wait rule has full change for duration
+            notice.changeEvent =
+                schedule(this::capacityChangeAction, notice.duration, message = notice, priority = notice.priority)
+            ProcessModel.logger.trace { "$time > Resource: $name, scheduled end of capacity change for ${notice.changeEvent?.time}" }
+        } else {
+            // not enough available, this means that at least part of the change will need to be in process
+            // must decrease capacity, but required units are busy, must wait for needed units to be released
+            // don't schedule its duration until all needed units are released
+            ProcessModel.logger.trace { "$time > Resource: $name, not enough units idle to reduce capacity by $decrease." }
+            notice.amountNeeded = decrease
+            ProcessModel.logger.trace { "$time > Resource: $name, notice $notice is now being processed when releases occur." }
         }
     }
 
