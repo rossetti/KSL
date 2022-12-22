@@ -178,7 +178,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     final override fun afterReplication() {
         // make a copy of the set
         val set = suspendedEntities.toHashSet()
-        Model.logger.info{"After Replication for $this.name: terminating ${set.size} suspended entities"}
+        Model.logger.info { "After Replication for $this.name: terminating ${set.size} suspended entities" }
         for (entity in set) {
             entity.terminateProcess()
         }
@@ -354,6 +354,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             init {
                 require(amountNeeded >= 1) { "The amount needed for the request must be >= 1" }
             }
+
             internal var resource: Resource? = null
             internal var resourcePool: ResourcePool? = null
             internal val entity = this@Entity
@@ -439,15 +440,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        protected open fun beginFailure(allocation: Allocation){
+        protected open fun beginFailure(allocation: Allocation) {
             TODO("Not implemented yet")
         }
 
-        protected open fun endFailure(allocation: Allocation){
+        protected open fun endFailure(allocation: Allocation) {
             TODO("Not implemented yet")
         }
 
-        protected inner class DefaultFailureActions : ResourceFailureActionsIfc{
+        protected inner class DefaultFailureActions : ResourceFailureActionsIfc {
             override fun beginFailure(allocation: Allocation) {
                 this@Entity.beginFailure(allocation)
             }
@@ -624,12 +625,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         }
 
-        internal fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(requestQ: RequestQ, request: ProcessModel.Entity.Request) {
-            resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(requestQ, request.resource, request.resourcePool, request.amountRequested)
+        internal fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(
+            requestQ: RequestQ,
+            resourceWithQ: ResourceWithQ,
+            request: ProcessModel.Entity.Request
+        ) {
+            resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(requestQ, resourceWithQ, request)
         }
 
+        /**
+         * Subclasses of entity can override this method to provide behavior if a request associated
+         * with the entity has the requested resource become inactive while its request
+         * was waiting in the request queue.
+         * @param queue the queue holding the request
+         * @param resource the involved resource
+         * @param request the involved request
+         */
         protected open fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
-            queue: RequestQ, resource: Resource?, resourcePool: ResourcePool?, amountRequested : Int){
+            queue: RequestQ, resource: ResourceWithQ, request: ProcessModel.Entity.Request
+        ) {
         }
 
         /**
@@ -1160,7 +1174,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 pooledAllocation.resourcePool.deallocate(pooledAllocation)
                 // then check the queue for additional work
                 // get the queue from the allocation being released
-                pooledAllocation.queue.processWaitingRequests(pooledAllocation.resourcePool.numAvailableUnits, releasePriority)
+                pooledAllocation.queue.processWaitingRequests(
+                    pooledAllocation.resourcePool.numAvailableUnits,
+                    releasePriority
+                )
             }
 
             override suspend fun interruptDelay(
@@ -1237,7 +1254,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptPriority: Int
             ) {
                 val delayEvent = process.entity.myDelayEvent ?: return
-                interruptDelayWithProcess(process, delayName, interruptingProcess, interruptPriority, delayEvent.interEventTime)
+                interruptDelayWithProcess(
+                    process,
+                    delayName,
+                    interruptingProcess,
+                    interruptPriority,
+                    delayEvent.interEventTime
+                )
             }
 
             override suspend fun interruptDelayWithProcessAndContinue(
@@ -1247,7 +1270,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptPriority: Int
             ) {
                 val delayEvent = process.entity.myDelayEvent ?: return
-                interruptDelayWithProcess(process, delayName, interruptingProcess, interruptPriority, delayEvent.timeRemaining)
+                interruptDelayWithProcess(
+                    process,
+                    delayName,
+                    interruptingProcess,
+                    interruptPriority,
+                    delayEvent.timeRemaining
+                )
             }
 
             override fun resumeWith(result: Result<Unit>) {

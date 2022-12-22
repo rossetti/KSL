@@ -481,7 +481,7 @@ open class ResourceWithQ(
     override fun resourceBecameInactive() {
         super.resourceBecameInactive()
         for(request in myWaitingQ){
-            request.entity.resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(myWaitingQ, request)
+            request.entity.resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(myWaitingQ, this, request)
         }
     }
 
