@@ -1,8 +1,9 @@
-package ksl.utilities.io.tabularfiles
+package ksl.examples.general
 
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.tabularfiles.*
 import ksl.utilities.random.rvariable.NormalRV
 import java.io.IOException
 import java.io.PrintWriter
