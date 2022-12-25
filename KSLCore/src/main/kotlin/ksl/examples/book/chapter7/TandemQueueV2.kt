@@ -8,9 +8,8 @@ import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
-class TandemQueueWithBlocking(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class TandemQueueV2(parent: ModelElement, name: String? = null) : ProcessModel(parent, name)  {
 
-    private val buffer: ResourceWithQ = ResourceWithQ(this, "buffer", capacity = 1)
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
     private val worker2: ResourceWithQ = ResourceWithQ(this, "worker2")
 
@@ -33,18 +32,12 @@ class TandemQueueWithBlocking(parent: ModelElement, name: String? = null) : Proc
     val systemTime: ResponseCIfc
         get() = timeInSystem
 
-    private inner class Customer : Entity() {
-        val tandemQProcess: KSLProcess = process {
+    private inner class Customer : Entity(){
+        val tandemQProcess : KSLProcess = process {
             wip.increment()
             timeStamp = time
-            val a1 = seize(worker1)
-            delay(st1)
-            val b = seize(buffer)
-            release(a1)
-            val a2 = seize(worker2)
-            release(b)
-            delay(st2)
-            release(a2)
+            use(worker1, delayDuration = st1)
+            use(worker2, delayDuration = st2)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
