@@ -92,7 +92,7 @@ interface RandomSourceCIfc : StreamOptionIfc, IdentityIfc {
  * <p>
  * WARNING:  For efficiency, this class uses a direct reference to the supplied initial random source.
  * It simply wraps the supplied object reference to a random source so that it can be utilized within
- * the JSL model.  Because of the direct reference to the random source, a change to the state of the
+ * the KSL model.  Because of the direct reference to the random source, a change to the state of the
  * random source will be reflected in the use of that instance within this class.  Thus, mutating
  * the state of the  random source will also see those mutations reflected in the usage of this
  * class.  This may or not be what is expected by the client.  For example, mutating the state of
