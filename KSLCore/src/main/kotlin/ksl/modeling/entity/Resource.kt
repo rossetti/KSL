@@ -54,6 +54,11 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     val inactiveState: StateAccessorIfc
 
     /**
+     *  Indicates if proportion of time spent in states (idle, busy, inactive) is automatically reported
+     */
+    val stateReportingOption: Boolean
+
+    /**
      *  The current state of the resource.
      */
     val state: StateAccessorIfc
@@ -191,9 +196,7 @@ open class Resource(
     override var defaultReportingOption: Boolean = true
         set(value) {
             myNumBusy.defaultReportingOption = value
-            myInactiveProp.defaultReportingOption = value
-            myIdleProp.defaultReportingOption = value
-            myBusyProp.defaultReportingOption = value
+            stateReportingOption = value
             field = value
         }
 
@@ -249,6 +252,15 @@ open class Resource(
     val proportionOfTimeBusy: ResponseCIfc
         get() = myBusyProp
 
+    override var stateReportingOption: Boolean = false
+        set(value) {
+            myCapacity.defaultReportingOption = value
+            myInactiveProp.defaultReportingOption = value
+            myIdleProp.defaultReportingOption = value
+            myBusyProp.defaultReportingOption = value
+            field = value
+        }
+
     override var initialCapacity = capacity
         set(value) {
             require(value >= 0) { "The initial capacity of the resource must be >= 0" }
@@ -277,6 +289,10 @@ open class Resource(
         TWResponse(this, name = "${this.name}:NumActiveUnits", theInitialValue = capacity.toDouble())
     val numActiveUnits: TWResponseCIfc
         get() = myCapacity
+
+    init {
+        stateReportingOption = false
+    }
 
     protected val myNumBusy = TWResponse(this, "${this.name}:NumBusyUnits")
     override val numBusyUnits: TWResponseCIfc

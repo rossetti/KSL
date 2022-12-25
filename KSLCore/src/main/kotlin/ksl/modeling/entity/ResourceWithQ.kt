@@ -129,6 +129,7 @@ open class ResourceWithQ(
      */
     fun useSchedule(schedule: CapacitySchedule, changeRule: CapacityChangeRule = CapacityChangeRule.IGNORE) {
         check(model.isNotRunning) { "$time > Tried to change the schedule of $name during replication ${model.currentReplicationNumber}." }
+        stateReportingOption = true
         stopUsingSchedule()
         capacityChangeRule = changeRule
         myCapacityChangeListener = CapacityChangeListener()
@@ -157,6 +158,7 @@ open class ResourceWithQ(
      */
     fun stopUsingSchedule() {
         if (myCapacitySchedule != null) {
+            stateReportingOption = false
             myCapacitySchedule!!.deleteCapacityChangeListener(myCapacityChangeListener!!)
             myCapacityChangeListener = null
             myCapacitySchedule = null

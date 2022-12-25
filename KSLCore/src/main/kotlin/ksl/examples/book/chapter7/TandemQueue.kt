@@ -13,7 +13,7 @@ class TandemQueue(parent: ModelElement, name: String? = null) : ProcessModel(par
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
     private val worker2: ResourceWithQ = ResourceWithQ(this, "worker2")
 
-    private val tba = ExponentialRV(1.0, 1)
+    private val tba = ExponentialRV(2.0, 1)
 
     private val st1 = RandomVariable(this, ExponentialRV(0.7, 2))
     val service1RV: RandomSourceCIfc
