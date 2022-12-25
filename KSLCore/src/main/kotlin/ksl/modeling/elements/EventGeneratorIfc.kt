@@ -131,7 +131,7 @@ interface EventGeneratorIfc {
      * 0.0, if the current setting of the maximum number of events is infinite
      * (Long.MAX_VALUE).  This is only for the current replication.
      */
-    val timeBetweenEvents: RandomIfc //TODO should be stream control
+    val timeBetweenEvents: RandomIfc
 
     /**
      * Sets the time between events and the maximum number of events for the
@@ -206,7 +206,7 @@ interface EventGeneratorIfc {
      * current value, which by default is Long.Max_Value
      *
      */
-    val initialTimeBtwEvents: RandomIfc //TODO should be stream control
+    val initialTimeBtwEvents: RandomIfc
 
     /**
      *
