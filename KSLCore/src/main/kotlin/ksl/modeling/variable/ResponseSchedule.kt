@@ -168,6 +168,18 @@ class ResponseSchedule(
      *
      * @param response the response to add
      */
+    fun addResponseToAllIntervals(response: ResponseCIfc) {
+        for (item in myScheduleItems) {
+            item.addResponseToInterval(response)
+        }
+    }
+
+    /**
+     * Causes interval statistics to be collected for the response for every
+     * interval in the schedule
+     *
+     * @param response the response to add
+     */
     fun addResponseToAllIntervals(response: Response) {
         for (item in myScheduleItems) {
             item.addResponseToInterval(response)
@@ -184,6 +196,18 @@ class ResponseSchedule(
     fun addResponsesToAllIntervals(responses: Collection<Response>) {
         for (c in responses) {
             addResponseToAllIntervals(c)
+        }
+    }
+
+    /**
+     * Causes interval statistics to be collected for the counter for every
+     * interval in the schedule
+     *
+     * @param counter the counter to add
+     */
+    fun addCounterToAllIntervals(counter: CounterCIfc) {
+        for (item in myScheduleItems) {
+            item.addCounterToInterval(counter)
         }
     }
 

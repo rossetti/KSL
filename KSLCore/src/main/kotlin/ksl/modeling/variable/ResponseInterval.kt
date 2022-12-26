@@ -174,6 +174,19 @@ class ResponseInterval(
      * the interval is empty when observed
      * @return a Response for the interval
      */
+    fun addResponseToInterval(theResponse: ResponseCIfc, intervalEmptyStatOption: Boolean = false): Response {
+        return addResponseToInterval(theResponse as Response, intervalEmptyStatOption)
+    }
+
+    /**
+     * Adds a ResponseVariable to the interval for data collection over the
+     * interval. By default, interval empty statistics are not collected.
+     *
+     * @param theResponse the response to collect interval statistics on
+     * @param intervalEmptyStatOption true means include statistics on whether
+     * the interval is empty when observed
+     * @return a Response for the interval
+     */
     fun addResponseToInterval(
         theResponse: Response,
         intervalEmptyStatOption: Boolean = false
@@ -192,6 +205,16 @@ class ResponseInterval(
         myResponses[theResponse] = data
         theResponse.attachModelElementObserver(myObserver)
         return rv
+    }
+
+    /**
+     * Adds a Counter to the interval for data collection over the interval
+     *
+     * @param theCounter the counter to collect interval statistics on
+     * @return a Response for the interval
+     */
+    fun addCounterToInterval(theCounter: CounterCIfc): Response{
+        return addCounterToInterval(theCounter as Counter)
     }
 
     /**
@@ -238,7 +261,10 @@ class ResponseInterval(
     internal fun scheduleInterval(startTime: Double) {
         check(!isScheduled) { "Attempted to schedule an already scheduled interval" }
         isScheduled = true
+        val t = time + startTime
+//        println("$time > **${this@ResponseInterval.name}** scheduling the start action for time $t")
         myStartEvent = myStartAction.schedule(startTime, priority = START_EVENT_PRIORITY)
+//        println("$myStartEvent")
     }
 
     /**
@@ -247,10 +273,14 @@ class ResponseInterval(
     fun cancelInterval() {
         isScheduled = false
         if (myStartEvent != null) {
-            myStartEvent!!.cancelled = true
+            if (myStartEvent!!.scheduled){
+                myStartEvent!!.cancelled = true
+            }
         }
         if (myEndEvent != null) {
-            myEndEvent!!.cancelled = true
+            if (myEndEvent!!.scheduled){
+                myEndEvent!!.cancelled = true
+            }
         }
         myStartEvent = null
         myEndEvent = null
@@ -328,7 +358,12 @@ class ResponseInterval(
             for ((key, data) in myCounters) {
                 data.myTotalAtStart = key.value
             }
+            myStartEvent = null
+//            println("$time > ${this@ResponseInterval.name} start action")
+            val t = time + duration
+//            println("$time > **${this@ResponseInterval.name}** scheduling the end action for time $t")
             myEndEvent = myEndAction.schedule(duration, priority = END_EVENT_PRIORITY)
+//            println("$myEndEvent")
         }
     }
 
@@ -361,6 +396,8 @@ class ResponseInterval(
                     scheduleInterval(0.0) // schedule it to start again, right now
                 }
             }
+            myEndEvent = null
+//            println("$time > ${this@ResponseInterval.name} end action")
         }
     }
 

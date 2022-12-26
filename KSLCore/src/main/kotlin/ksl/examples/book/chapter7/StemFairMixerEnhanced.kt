@@ -21,10 +21,13 @@ package ksl.examples.book.chapter7
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.nhpp.NHPPTimeBtwEventRV
+import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.*
 
 class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
@@ -65,9 +68,11 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
 
     private val myOverallSystemTime = Response(this, "OverallSystemTime")
     private val myRecruitingOnlySystemTime = Response(this, "RecruitingOnlySystemTime")
+
     init {
         myRecruitingOnlySystemTime.attachIndicator({ x -> x <= 30.0 }, "P(Recruiting Only < 30 minutes)")
     }
+
     private val myMixingStudentSystemTime = Response(this, "MixingStudentSystemTime")
     private val myMixingAndLeavingSystemTime = Response(this, "MixingStudentThatLeavesSystemTime")
     private val myNumInSystem = TWResponse(this, "NumInSystem")
@@ -81,12 +86,33 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
     private val myJHBuntRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "JHBuntR")
     private val myMalWartRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "MalWartR")
 
-    private val myTBArrivals: RVariableIfc = ExponentialRV(2.0, 1)
+    private val myTBArrivals: NHPPTimeBtwEventRV
+//    private val myTBArrivals: RVariableIfc
+
+    init {
+        // set up the generator
+        val durations = doubleArrayOf(
+            30.0, 30.0, 30.0, 30.0, 30.0, 30.0,
+            30.0, 30.0, 30.0, 30.0, 30.0, 30.0
+        )
+        val hourlyRates = doubleArrayOf(
+            5.0, 10.0, 15.0, 25.0, 40.0, 50.0,
+            55.0, 55.0, 60.0, 30.0, 5.0, 5.0
+        )
+        val ratesPerMinute = hourlyRates.divideConstant(60.0)
+        val f = PiecewiseConstantRateFunction(durations, ratesPerMinute)
+        myTBArrivals = NHPPTimeBtwEventRV(this, f, streamNum = 1)
+//        myTBArrivals = ExponentialRV(2.0, 1)
+    }
+
     private val generator = EventGenerator(this, this::createStudents, myTBArrivals, myTBArrivals)
 
-    init{
-        // set up the generator
+    private val hourlyResponseSchedule = ResponseSchedule(this, 0.0, name = "Hourly")
 
+    init {
+        hourlyResponseSchedule.addIntervals(0.0, 6, 60.0)
+        hourlyResponseSchedule.addResponseToAllIntervals(myJHBuntRecruiters.numBusyUnits)
+        hourlyResponseSchedule.addResponseToAllIntervals(myMalWartRecruiters.numBusyUnits)
     }
 
     override fun initialize() {
@@ -94,9 +120,9 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         schedule(this::closeMixer, doorClosingTime)
     }
 
-    private fun createStudents(eventGenerator: EventGenerator){
+    private fun createStudents(eventGenerator: EventGenerator) {
         val student = Student()
-        if (student.isMixer){
+        if (student.isMixer) {
             activate(student.mixingStudentProcess)
         } else {
             activate(student.recruitingOnlyStudentProcess)
@@ -115,16 +141,20 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
     }
 
     private fun decideRecruiter(): ResourceWithQ {
-        if (myJHBuntRecruiters.waitingQ.numInQ.value < myMalWartRecruiters.waitingQ.numInQ.value) {
-            return myJHBuntRecruiters
-        } else if (myJHBuntRecruiters.waitingQ.numInQ.value > myMalWartRecruiters.waitingQ.numInQ.value) {
-            return myMalWartRecruiters
-        } else {
+        // check the equal case first to show no preference
+        val j = myJHBuntRecruiters.waitingQ.size + myJHBuntRecruiters.numBusy
+        val m = myMalWartRecruiters.waitingQ.size + myMalWartRecruiters.numBusy
+        if (j == m ){
             if (myDecideRecruiter.value.toBoolean()) {
                 return myJHBuntRecruiters
             } else {
                 return myMalWartRecruiters
             }
+        } else if (j < m) {
+            return myJHBuntRecruiters
+        } else  {
+            // MalWart must be smaller
+            return myMalWartRecruiters
         }
     }
 
@@ -150,7 +180,7 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
                 } else {
                     // goto the conversation area
                     delay(walkFromNameTagsToConversationArea)
-                    if (isClosed){
+                    if (isClosed) {
                         // closed during walking, must leave
                         delay(walkFromConversationAreaToExit)
                         departMixer(this@Student)
@@ -159,13 +189,13 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
                         myNumInConversationArea.increment()
                         delay(myInteractionTimeRV)
                         myNumInConversationArea.decrement()
-                        if (isClosed){
+                        if (isClosed) {
                             // closed during conversation, must leave
                             delay(walkFromConversationAreaToExit)
                             departMixer(this@Student)
                         } else {
                             // decide to leave or go to recruiting
-                            if (isLeaver){
+                            if (isLeaver) {
                                 delay(walkFromConversationAreaToExit)
                                 departMixer(this@Student)
                             } else {
@@ -245,7 +275,7 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
 
 fun main() {
     val m = Model()
-    StemFairMixerEnhanced(m, "Stem Fair")
+    StemFairMixerEnhanced(m, "Stem Fair Enhanced")
     m.lengthOfReplication = 6.0 * 60.0
     m.numberOfReplications = 400
     m.simulate()
