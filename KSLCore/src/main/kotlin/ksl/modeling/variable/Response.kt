@@ -205,6 +205,10 @@ open class Response(
 
     override var defaultReportingOption: Boolean = true
 
+    fun attachIndicator(predicate: (Double) -> Boolean, name: String? = null): IndicatorResponse {
+        return IndicatorResponse(predicate, this, name)
+    }
+
     override fun beforeExperiment() {
         super.beforeExperiment()
         assignInitialValue(initialValue)

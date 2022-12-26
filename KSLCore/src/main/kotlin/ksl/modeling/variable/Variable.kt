@@ -121,8 +121,7 @@ open class Variable(
     }
     open fun asString(): String {
         val sb = StringBuilder()
-        sb.append(toString())
-        sb.appendLine()
+        sb.appendLine(toString())
         sb.append("Time = ")
         sb.append(time)
         sb.append("\t")

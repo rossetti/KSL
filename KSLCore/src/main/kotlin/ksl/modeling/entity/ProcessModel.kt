@@ -465,17 +465,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  Creates the coroutine and immediately suspends it.  To start executing
          *  the created coroutine use the methods for activating processes.
          *
-         *  Note that by default, a process defined by this function, will automatically be
-         *  added to the entity's processSequence.  If you do not want a defined process to
-         *  be part of the entity's process sequence, then supply false for the addToSequence
-         *  argument.
+         *  Note that by default, a process defined by this function, will not be
+         *  added automatically to the entity's processSequence.  If you want a defined process to
+         *  be part of the entity's process sequence, then set the addToSequence argument to true.
          *
          *  @param processName the name of the process
          *  @param addToSequence whether to add the process to the entity's default process sequence
          */
         protected fun process(
             processName: String? = null,
-            addToSequence: Boolean = true,
+            addToSequence: Boolean = false,
             block: suspend KSLProcessBuilder.() -> Unit
         ): KSLProcess {
             val coroutine = ProcessCoroutine(processName)
