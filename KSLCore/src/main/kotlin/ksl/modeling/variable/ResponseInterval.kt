@@ -27,6 +27,7 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.toDouble
 import ksl.utilities.statistic.WeightedStatisticIfc
+import ksl.utilities.statistic.isMissing
 
 /**
  * This class represents an interval of time over which statistical collection
@@ -213,7 +214,7 @@ class ResponseInterval(
      * @param theCounter the counter to collect interval statistics on
      * @return a Response for the interval
      */
-    fun addCounterToInterval(theCounter: CounterCIfc): Response{
+    fun addCounterToInterval(theCounter: CounterCIfc): Response {
         return addCounterToInterval(theCounter as Counter)
     }
 
@@ -273,12 +274,12 @@ class ResponseInterval(
     fun cancelInterval() {
         isScheduled = false
         if (myStartEvent != null) {
-            if (myStartEvent!!.scheduled){
+            if (myStartEvent!!.scheduled) {
                 myStartEvent!!.cancelled = true
             }
         }
         if (myEndEvent != null) {
-            if (myEndEvent!!.scheduled){
+            if (myEndEvent!!.scheduled) {
                 myEndEvent!!.cancelled = true
             }
         }
@@ -360,7 +361,7 @@ class ResponseInterval(
             }
             myStartEvent = null
 //            println("$time > ${this@ResponseInterval.name} start action")
-            val t = time + duration
+//            val t = time + duration
 //            println("$time > **${this@ResponseInterval.name}** scheduling the end action for time $t")
             myEndEvent = myEndAction.schedule(duration, priority = END_EVENT_PRIORITY)
 //            println("$myEndEvent")
@@ -375,12 +376,23 @@ class ResponseInterval(
                 val sum: Double = w.weightedSum - data.mySumAtStart
                 val denom: Double = w.sumOfWeights - data.mySumOfWeightsAtStart
                 val numObs: Double = w.count - data.myNumObsAtStart
+                if (numObs == 0.0) {
+                    val r = this@ResponseInterval.model.currentReplicationNumber
+                    println("Replication $r: There were no observations for ${w.name}")
+                }
                 if (data.myEmptyResponse != null) {
                     data.myEmptyResponse!!.value = (numObs == 0.0).toDouble()
                 }
+ //               require(!sum.isNaN()){"The sum was NaN"}
+ //               require(!denom.isNaN()){"The denom was NaN"}
+ //               require(denom != 0.0){"the denom was 0.0"}
                 if (denom != 0.0) {
                     val avg = sum / denom
                     data.myResponse.value = avg
+                } else{
+                    //data.myResponse.value = Double.NaN
+                    val r = this@ResponseInterval.model.currentReplicationNumber
+                    println("Replication $r: the denominator was 0.0 for ${w.name}")
                 }
             }
             for ((key, data) in myCounters) {

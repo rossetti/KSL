@@ -54,7 +54,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
     private val suspendedEntities = mutableSetOf<Entity>()
 
-    /**
+    /** Note that an EntityGenerator relies on the entity having at least one process
+     * that has been added to its process sequence via the process() method's addToSequence
+     * parameter being true, which is the default. The generator will create the entity and
+     * start the process that is listed first in its process sequence.  If there are no
+     * processes in the sequence then nothing happens.
+     *
      * @param entityCreator the thing that creates the entities of the particular type. Typically,
      * a reference to the constructor of the class
      * @param timeUntilTheFirstEntity the time until the first entity creation
@@ -77,7 +82,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     ) {
         override fun generate() {
             val entity = entityCreator()
-            startProcessSequence(entity, priority = activationPriority)
+            val event: KSLEvent<KSLProcess>? = startProcessSequence(entity, priority = activationPriority)
+            if (event == null){
+                logger.warn { "The $entity does not have any processes on its process sequence!" }
+            }
         }
 
     }
@@ -465,16 +473,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  Creates the coroutine and immediately suspends it.  To start executing
          *  the created coroutine use the methods for activating processes.
          *
-         *  Note that by default, a process defined by this function, will not be
+         *  Note that by default, a process defined by this function, will be
          *  added automatically to the entity's processSequence.  If you want a defined process to
-         *  be part of the entity's process sequence, then set the addToSequence argument to true.
+         *  not be part of the entity's process sequence, then set the addToSequence argument to false.
          *
          *  @param processName the name of the process
          *  @param addToSequence whether to add the process to the entity's default process sequence
          */
         protected fun process(
             processName: String? = null,
-            addToSequence: Boolean = false,
+            addToSequence: Boolean = true,
             block: suspend KSLProcessBuilder.() -> Unit
         ): KSLProcess {
             val coroutine = ProcessCoroutine(processName)
