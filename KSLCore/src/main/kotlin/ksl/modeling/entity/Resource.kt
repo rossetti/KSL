@@ -252,7 +252,7 @@ open class Resource(
     val proportionOfTimeBusy: ResponseCIfc
         get() = myBusyProp
 
-    override var stateReportingOption: Boolean = false
+    final override var stateReportingOption: Boolean = false
         set(value) {
             myCapacity.defaultReportingOption = value
             myInactiveProp.defaultReportingOption = value

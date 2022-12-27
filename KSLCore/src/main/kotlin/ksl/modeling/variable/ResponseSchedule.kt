@@ -248,14 +248,15 @@ class ResponseSchedule(
      */
     fun addResponseInterval(
         startTime: Double,
-        duration: Double, theLabel: String
+        duration: Double,
+        theLabel: String
     ): ResponseScheduleItem {
         require(startTime >= 0.0) { "The start time must be greater than or equal to zero" }
         require(duration.isFinite()) { "The duration must be finite" }
         require(duration > 0.0) { "The duration must be strictly positive" }
         var label = theLabel
         val n = myScheduleItems.size + 1
-        label = String.format("Interval:%02d", n) + ":" + label
+        label = String.format("%02d", n) + ":" + label
         val item = ResponseScheduleItem(this, startTime, duration, "$name:$label")
         if (startTime + item.duration > length) {
             length = startTime + item.duration

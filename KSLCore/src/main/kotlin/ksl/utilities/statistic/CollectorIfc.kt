@@ -33,11 +33,6 @@ import ksl.utilities.random.rvariable.toDouble
 interface CollectorIfc : LastValueIfc, ValueIfc {
 
     /**
-     * The last value collected
-     */
-//    var value: Double
-
-    /**
      * Collects on the values returned by the supplied GetValueIfc
      *
      * @param v the object that returns the value to be collected

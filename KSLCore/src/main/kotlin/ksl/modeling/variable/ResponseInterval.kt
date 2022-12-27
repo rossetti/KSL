@@ -25,6 +25,7 @@ package ksl.modeling.variable
 import ksl.observers.ModelElementObserver
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.toDouble
 import ksl.utilities.statistic.WeightedStatisticIfc
 import ksl.utilities.statistic.isMissing
@@ -152,7 +153,7 @@ class ResponseInterval(
 
     /**
      * Specifies when the interval is to start. If negative, then the interval
-     * will not be started must not be infinite
+     * will not be started, must not be infinite
      */
     var startTime: Double = Double.NEGATIVE_INFINITY
         set(value) {
@@ -382,15 +383,19 @@ class ResponseInterval(
                 if (numObs == 0.0) {
                     // there were no changes of the variable during the interval
                     // cannot observe Response but can observe TWResponse
-                    if (key is TWResponse){
+                    if (key is TWResponse) {
                         //no observations, value did not change during interval
                         // average = area/time = height*width/width = height
                         data.myResponse.value = key.value
                     }
+                    val r = data.myResponse.model.currentReplicationNumber
+                    println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom")
                 } else {
                     // there were observations, denominator cannot be 0, but just in case
-                    if (denom != 0.0){
+                    if (denom != 0.0) {
                         val avg = sum / denom
+                        val r = data.myResponse.model.currentReplicationNumber
+                        KSL.out.println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom avg = $avg")
                         data.myResponse.value = avg
                     }
                 }

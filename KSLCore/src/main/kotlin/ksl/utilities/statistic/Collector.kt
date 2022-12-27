@@ -36,11 +36,11 @@ abstract class Collector(name: String? = null) : CollectorIfc, IdentityIfc by Id
             collect(value)
         }
 
-    override fun collect(obs: Double) {
-        lastValue = obs
-        notifyObservers(lastValue)
-        emitter.emit(lastValue)
-    }
+//    override fun collect(obs: Double) {
+//        lastValue = obs
+//        notifyObservers(lastValue)
+//        emitter.emit(lastValue)
+//    }
 
     override fun reset() {
         lastValue = Double.NaN

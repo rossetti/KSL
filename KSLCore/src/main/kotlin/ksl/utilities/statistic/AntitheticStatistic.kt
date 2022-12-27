@@ -63,10 +63,16 @@ class AntitheticStatistic(theName: String = "AntitheticStatistic_${++StatCounter
         return myStatistic.leadingDigitRule(multiplier)
     }
 
+    override var value: Double
+        get() = myStatistic.lastValue
+        set(value) {
+            collect(value)
+        }
+
     override fun collect(obs: Double) {
         if (count % 2 == 0.0) { // even
             val avg = (obs + myOddValue) / 2.0
-            collect(avg)
+            myStatistic.collect(avg)
         } else {
             myOddValue = obs // save the odd value
         }

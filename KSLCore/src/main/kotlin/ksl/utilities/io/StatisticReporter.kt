@@ -30,8 +30,8 @@ import ksl.utilities.statistic.StatisticIfc
 import java.text.DecimalFormat
 import java.util.*
 
-const val DEFAULT_ROW_FORMAT = "%-40s \t %12d \t %12.4f \t %12.4f %n"
-const val DEFAULT_HEADER_FORMAT = "%-40s \t %12s \t %12s \t %12s %n"
+const val DEFAULT_ROW_FORMAT = "%-60s \t %12d \t %12.4f \t %12.4f %n"
+const val DEFAULT_HEADER_FORMAT = "%-60s \t %12s \t %12s \t %12s %n"
 val D2FORMAT = DecimalFormat(".##")
 /**
  * A class to help with making useful statistical reports. Creates summary
@@ -44,7 +44,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
     private val myStats: MutableList<StatisticIfc>
     private val myRowFormat: StringBuilder
     private val myHeaderFormat: StringBuilder
-    private val myNumCols = 100
+    private val myNumCols = 120
     private val myNumDecPlaces = 6
     private val myHline: StringBuilder
 

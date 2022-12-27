@@ -86,6 +86,14 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
     private val myJHBuntRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "JHBuntR")
     private val myMalWartRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "MalWartR")
 
+    private val myTotalAtRecruiters: AggregateTWResponse = AggregateTWResponse(this, "StudentsAtRecruiters")
+    init {
+        myTotalAtRecruiters.observe(myJHBuntRecruiters.numBusyUnits)
+        myTotalAtRecruiters.observe(myJHBuntRecruiters.waitingQ.numInQ)
+        myTotalAtRecruiters.observe(myMalWartRecruiters.numBusyUnits)
+        myTotalAtRecruiters.observe(myMalWartRecruiters.waitingQ.numInQ)
+    }
+
     private val myTBArrivals: NHPPTimeBtwEventRV
 //    private val myTBArrivals: RVariableIfc
 
@@ -108,11 +116,16 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
     private val generator = EventGenerator(this, this::createStudents, myTBArrivals, myTBArrivals)
 
     private val hourlyResponseSchedule = ResponseSchedule(this, 0.0, name = "Hourly")
+    private val peakResponseInterval: ResponseInterval = ResponseInterval(this, 120.0, "PeakPeriod:[150.0,270.0]")
 
     init {
         hourlyResponseSchedule.addIntervals(0.0, 6, 60.0)
         hourlyResponseSchedule.addResponseToAllIntervals(myJHBuntRecruiters.numBusyUnits)
         hourlyResponseSchedule.addResponseToAllIntervals(myMalWartRecruiters.numBusyUnits)
+        hourlyResponseSchedule.addResponseToAllIntervals(myJHBuntRecruiters.waitingQ.timeInQ)
+        hourlyResponseSchedule.addResponseToAllIntervals(myMalWartRecruiters.waitingQ.timeInQ)
+        peakResponseInterval.startTime = 150.0
+        peakResponseInterval.addResponseToInterval(myTotalAtRecruiters)
     }
 
     override fun initialize() {
@@ -278,9 +291,6 @@ fun main() {
     StemFairMixerEnhanced(m, "Stem Fair Enhanced")
     m.lengthOfReplication = 6.0 * 60.0
     m.numberOfReplications = 400
- //   m.numberOfReplications = 172
     m.simulate()
     m.print()
-    val r = m.simulationReporter
-    r.printFullAcrossReplicationStatistics()
 }

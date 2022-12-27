@@ -264,13 +264,15 @@ class BatchStatistic constructor(
     }
 
     override fun collect(obs: Double) {
-        super.collect(obs)
         myTotNumObs = myTotNumObs + 1.0
         myValue = obs
         myStatistic.collect(myValue)
         if (myStatistic.count == currentBatchSize.toDouble()) {
             collectBatch()
         }
+        lastValue = obs
+        notifyObservers(lastValue)
+        emitter.emit(lastValue)
     }
 
     /**
