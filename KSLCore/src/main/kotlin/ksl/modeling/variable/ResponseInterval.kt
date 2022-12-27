@@ -376,23 +376,23 @@ class ResponseInterval(
                 val sum: Double = w.weightedSum - data.mySumAtStart
                 val denom: Double = w.sumOfWeights - data.mySumOfWeightsAtStart
                 val numObs: Double = w.count - data.myNumObsAtStart
-                if (numObs == 0.0) {
-                    val r = this@ResponseInterval.model.currentReplicationNumber
-                    println("Replication $r: There were no observations for ${w.name}")
-                }
                 if (data.myEmptyResponse != null) {
                     data.myEmptyResponse!!.value = (numObs == 0.0).toDouble()
                 }
- //               require(!sum.isNaN()){"The sum was NaN"}
- //               require(!denom.isNaN()){"The denom was NaN"}
- //               require(denom != 0.0){"the denom was 0.0"}
-                if (denom != 0.0) {
-                    val avg = sum / denom
-                    data.myResponse.value = avg
-                } else{
-                    //data.myResponse.value = Double.NaN
-                    val r = this@ResponseInterval.model.currentReplicationNumber
-                    println("Replication $r: the denominator was 0.0 for ${w.name}")
+                if (numObs == 0.0) {
+                    // there were no changes of the variable during the interval
+                    // cannot observe Response but can observe TWResponse
+                    if (key is TWResponse){
+                        //no observations, value did not change during interval
+                        // average = area/time = height*width/width = height
+                        data.myResponse.value = key.value
+                    }
+                } else {
+                    // there were observations, denominator cannot be 0, but just in case
+                    if (denom != 0.0){
+                        val avg = sum / denom
+                        data.myResponse.value = avg
+                    }
                 }
             }
             for ((key, data) in myCounters) {
