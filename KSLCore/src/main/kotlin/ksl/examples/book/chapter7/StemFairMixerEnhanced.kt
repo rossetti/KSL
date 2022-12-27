@@ -124,8 +124,12 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         hourlyResponseSchedule.addResponseToAllIntervals(myMalWartRecruiters.numBusyUnits)
         hourlyResponseSchedule.addResponseToAllIntervals(myJHBuntRecruiters.waitingQ.timeInQ)
         hourlyResponseSchedule.addResponseToAllIntervals(myMalWartRecruiters.waitingQ.timeInQ)
+        hourlyResponseSchedule.addResponseToAllIntervals(myJHBuntRecruiters.timeAvgInstantaneousUtil)
+        hourlyResponseSchedule.addResponseToAllIntervals(myMalWartRecruiters.timeAvgInstantaneousUtil)
         peakResponseInterval.startTime = 150.0
         peakResponseInterval.addResponseToInterval(myTotalAtRecruiters)
+        peakResponseInterval.addResponseToInterval(myJHBuntRecruiters.timeAvgInstantaneousUtil)
+        peakResponseInterval.addResponseToInterval(myMalWartRecruiters.timeAvgInstantaneousUtil)
     }
 
     override fun initialize() {
@@ -284,13 +288,4 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
 
         }
     }
-}
-
-fun main() {
-    val m = Model()
-    StemFairMixerEnhanced(m, "Stem Fair Enhanced")
-    m.lengthOfReplication = 6.0 * 60.0
-    m.numberOfReplications = 400
-    m.simulate()
-    m.print()
 }

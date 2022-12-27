@@ -27,8 +27,10 @@ val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
 
 /**
  * Used to exit (terminate) a currently executing ProcessCoroutine.
+ *
+ *  @param afterTermination a function to invoke after the process is successfully terminated
  */
-class ProcessTerminatedException(m: String = "Process Terminated!") : RuntimeException(m)
+class ProcessTerminatedException(val afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null, m: String = "Process Terminated!") : RuntimeException(m)
 
 interface KSLProcess {
     val id: Int

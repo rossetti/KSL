@@ -388,14 +388,14 @@ class ResponseInterval(
                         // average = area/time = height*width/width = height
                         data.myResponse.value = key.value
                     }
-                    val r = data.myResponse.model.currentReplicationNumber
-                    println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom")
+//                    val r = data.myResponse.model.currentReplicationNumber
+//                    println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom")
                 } else {
                     // there were observations, denominator cannot be 0, but just in case
                     if (denom != 0.0) {
                         val avg = sum / denom
-                        val r = data.myResponse.model.currentReplicationNumber
-                        KSL.out.println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom avg = $avg")
+//                        val r = data.myResponse.model.currentReplicationNumber
+//                        KSL.out.println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom avg = $avg")
                         data.myResponse.value = avg
                     }
                 }

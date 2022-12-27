@@ -91,8 +91,10 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
 
     /**
      * Statistical response representing the utilization of the resource.
+     * This is the time average number of busy units divided by the time average
+     * capacity.
      */
-    val util: ResponseCIfc
+    val scheduledUtil: ResponseCIfc
 
     /**
      *  If c(t) is the current capacity and b(t) is the current number busy,
@@ -126,6 +128,20 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
      */
     val numTimesReleased: Int
 
+    /** If b(t) is the number of busy units, and c(t) is the current capacity, then
+     *  the instantaneous utilization iu(t) is
+     *
+     *  if b(t) = 0, then iu(t) = 0.0
+     *  if b(t) greater than or equal to c(t) then iu(t) = 1.0
+     *  else iu(t) = b(t)/c(t)
+     *
+     */
+    val instantaneousUtil: Double
+
+    /**
+     * time average instantaneous utilization
+     */
+    val timeAvgInstantaneousUtil: TWResponseCIfc
 }
 
 /**
@@ -270,6 +286,21 @@ open class Resource(
             field = value
         }
 
+    private val instantUtilTW : TWResponse = TWResponse(this, "${this.name}:InstantaneousUtil")
+    override val timeAvgInstantaneousUtil: TWResponseCIfc
+        get() = instantUtilTW
+
+    override val instantaneousUtil: Double
+        get() {
+            return if (numBusy == 0) {
+                0.0
+            } else if (numBusy >= capacity) {
+                1.0
+            } else {
+                numBusy.toDouble() / capacity.toDouble()
+            }
+        }
+
     override var capacity = capacity
         protected set(value) {
             require(value >= 0) { "The capacity must be >= 0" }
@@ -283,10 +314,12 @@ open class Resource(
                 myState = myBusyState
             }
             myCapacity.value = field.toDouble()
+            instantUtilTW.value = instantaneousUtil
         }
 
     protected val myCapacity =
         TWResponse(this, name = "${this.name}:NumActiveUnits", theInitialValue = capacity.toDouble())
+
     val numActiveUnits: TWResponseCIfc
         get() = myCapacity
 
@@ -298,8 +331,8 @@ open class Resource(
     override val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
 
-    protected val myFractionBusy: Response = Response(this, name = "${this.name}:Util")
-    override val util: ResponseCIfc
+    protected val myFractionBusy: Response = Response(this, name = "${this.name}:ScheduledUtil")
+    override val scheduledUtil: ResponseCIfc
         get() = myFractionBusy
 
     override var numBusy: Int = 0
@@ -326,6 +359,7 @@ open class Resource(
             } else if ((field > 0) && (capacity >= 0)) {
                 myState = myBusyState
             }
+            instantUtilTW.value = instantaneousUtil
         }
 
     override val numAvailableUnits: Int

@@ -78,13 +78,15 @@ class RequestQ(
      * @param request the request to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
+     * @param afterTermination a function to invoke after the process is successfully terminated
      */
     fun removeAndTerminate(
         request: ProcessModel.Entity.Request,
-        waitStats: Boolean = false
-    ) {
+        waitStats: Boolean = false,
+        afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null
+        ) {
         remove(request, waitStats)
-        request.entity.terminateProcess()
+        request.entity.terminateProcess(afterTermination)
     }
 
     /**
@@ -92,11 +94,12 @@ class RequestQ(
      *
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
+     * @param afterTermination a function to invoke after the process is successfully terminated
      */
-    fun removeAllAndTerminate(waitStats: Boolean = false) {
+    fun removeAllAndTerminate(waitStats: Boolean = false, afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null) {
         while (isNotEmpty) {
             val request = peekNext()
-            removeAndTerminate(request!!, waitStats)
+            removeAndTerminate(request!!, waitStats, afterTermination)
         }
     }
 
