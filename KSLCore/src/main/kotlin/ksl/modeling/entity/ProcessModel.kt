@@ -522,10 +522,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  requires specific behavior to occur for the entity after termination, then
          *  the user should override the Entity's handleTerminatedProcess() function to
          *  supply specific logic.  Termination happens immediately, with no time delay.
+         *
+         *  @param afterTermination a function to invoke after the process is successfully terminated
          */
-        fun terminateProcess() {
+        fun terminateProcess(afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null) {
             if (myCurrentProcess != null) {
-                myCurrentProcess!!.terminate()
+                myCurrentProcess!!.terminate(afterTermination)
             }
         }
 
@@ -918,8 +920,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 state.resume()
             }
 
-            internal fun terminate() {
-                state.terminate()
+            /**
+             * @param afterTermination a function to invoke after the process is successfully terminated
+             */
+            internal fun terminate(afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null) {
+                state.terminate(afterTermination)
             }
 
             override suspend fun suspend(suspensionObserver: SuspensionObserver, suspensionName: String?) {
@@ -1345,6 +1350,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         }
                         afterTerminatedProcessCompletion()
                         handleTerminatedProcess(this)
+                        if (it.afterTermination != null){
+                            it.afterTermination.invoke(this@Entity)
+                        }
                     } else {
                         // some other exception, rethrow it
                         throw it
@@ -1418,7 +1426,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     errorMessage("resume process")
                 }
 
-                open fun terminate() {
+                /**
+                 *  @param afterTermination a function to invoke after the process is successfully terminated
+                 */
+                open fun terminate(afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null) {
                     errorMessage("terminate process")
                 }
 
@@ -1471,14 +1482,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     continuation?.resume(Unit)
                 }
 
-                override fun terminate() {
+                /**
+                 *  @param afterTermination a function to invoke after the process is successfully terminated
+                 */
+                override fun terminate(afterTermination : ((entity: ProcessModel.Entity) -> Unit)?) {
                     state = terminated
                     //un-capture suspended entities here
                     suspendedEntities.remove(entity)
                     logger.trace { "$time > entity ${entity.id} terminated process, (${this@ProcessCoroutine}) ..." }
                     //resume with exception
 //                    continuation?.resumeWith(Result.failure(ProcessTerminatedException())) // same as below
-                    continuation?.resumeWithException(ProcessTerminatedException())
+                    continuation?.resumeWithException(ProcessTerminatedException(afterTermination))
                 }
             }
 
