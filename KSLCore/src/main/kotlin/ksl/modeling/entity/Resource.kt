@@ -582,6 +582,7 @@ open class Resource(
         myState = myInactiveState // will cause previous state to be some arbitrary state from end of last replication
         // make previous state inactive and current state idle, for start of the replication
         myState = myIdleState
+        capacity = initialCapacity
     }
 
     /**

@@ -19,9 +19,7 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
-import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.ResourceCIfc
-import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.entity.*
 import ksl.modeling.nhpp.NHPPTimeBtwEventRV
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.variable.*
@@ -31,7 +29,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.*
 
-class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     var lengthOfMixer = 360.0
         set(value) {
@@ -102,6 +100,9 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
     private val myTBArrivals: NHPPTimeBtwEventRV
 //    private val myTBArrivals: RVariableIfc
 
+    private val myJHBuntSchedule : CapacitySchedule = CapacitySchedule(this, 0.0)
+    private val myMalWartSchedule : CapacitySchedule = CapacitySchedule(this, 0.0)
+
     init {
         // set up the generator
         val durations = doubleArrayOf(
@@ -116,6 +117,23 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         val f = PiecewiseConstantRateFunction(durations, ratesPerMinute)
         myTBArrivals = NHPPTimeBtwEventRV(this, f, streamNum = 1)
 //        myTBArrivals = ExponentialRV(2.0, 1)
+
+        myJHBuntSchedule.addItem(capacity = 1, duration = 60.0)
+        myJHBuntSchedule.addItem(capacity = 2, duration = 60.0)
+        myJHBuntSchedule.addItem(capacity = 4, duration = 60.0)
+        myJHBuntSchedule.addItem(capacity = 6, duration = 60.0)
+        myJHBuntSchedule.addItem(capacity = 6, duration = 60.0)
+        myJHBuntSchedule.addItem(capacity = 2, duration = 60.0)
+        myJHBuntRecruiters.useSchedule(myJHBuntSchedule, CapacityChangeRule.WAIT)
+
+        myMalWartSchedule.addItem(capacity = 1, duration = 60.0)
+        myMalWartSchedule.addItem(capacity = 2, duration = 60.0)
+        myMalWartSchedule.addItem(capacity = 4, duration = 60.0)
+        myMalWartSchedule.addItem(capacity = 6, duration = 60.0)
+        myMalWartSchedule.addItem(capacity = 6, duration = 60.0)
+        myMalWartSchedule.addItem(capacity = 2, duration = 60.0)
+        myMalWartRecruiters.useSchedule(myMalWartSchedule, CapacityChangeRule.WAIT)
+
     }
 
     private val generator = EventGenerator(this, this::createStudents, myTBArrivals, myTBArrivals)
