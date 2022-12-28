@@ -146,11 +146,29 @@ open class Queue<T : ModelElement.QObject>(
         IGNORE // ignore the exit or entrance
     }
 
+    /**
+     *  The method of ordering the queue
+     */
     enum class Discipline {
-        FIFO,  // first-in, first out
-        LIFO,  // last-in, first out
-        RANDOM,  // randomly selected over elements
-        RANKED // ordered by QObject priority
+        /**
+         * first-in, first-out
+         */
+        FIFO,
+
+        /**
+         * last-in, last-out
+         */
+        LIFO,
+
+        /**
+         * randomly selected over the elements
+         */
+        RANDOM,
+
+        /**
+         * ordered by QObject priority, lower is higher-priority
+         */
+        RANKED
     }
 
     /**
