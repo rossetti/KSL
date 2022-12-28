@@ -4,7 +4,8 @@ import ksl.simulation.Model
 
 fun main() {
 //    baseCase()
-    infiniteCapacityCase()
+//    infiniteCapacityCase()
+    scheduledCase()
 }
 
 fun baseCase() {
@@ -21,6 +22,16 @@ fun infiniteCapacityCase() {
     mixer.JHBuntRecruiters.initialCapacity = Int.MAX_VALUE
     mixer.MalWartRecruiters.initialCapacity = Int.MAX_VALUE
 //    mixer.warningTime = 30.0
+    m.numberOfReplications = 400
+    m.simulate()
+    m.print()
+}
+
+fun scheduledCase(){
+    val m = Model()
+    val mixer = StemFairMixerEnhancedSched(m, "Stem Fair Scheduled")
+    mixer.warningTime = 30.0
+//    m.lengthOfReplication = 360.0
     m.numberOfReplications = 400
     m.simulate()
     m.print()

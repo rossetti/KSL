@@ -65,7 +65,7 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
     private val walkFromNameTagsToExit = RandomVariable(this, 140.0 / myWalkingSpeedRV)
     private val walkFromConversationAreaToRecruiting = RandomVariable(this, 50.0 / myWalkingSpeedRV)
     private val walkFromConversationAreaToExit = RandomVariable(this, 110.0 / myWalkingSpeedRV)
-    private val walkFromRecruitingToExit = RandomVariable(this, 140.0 / myWalkingSpeedRV)
+    private val walkFromRecruitingToExit = RandomVariable(this, 60.0 / myWalkingSpeedRV)
 
     private val myOverallSystemTime = Response(this, "OverallSystemTime")
     private val myRecruitingOnlySystemTime = Response(this, "RecruitingOnlySystemTime")

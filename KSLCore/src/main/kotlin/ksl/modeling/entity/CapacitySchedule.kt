@@ -56,7 +56,7 @@ interface CapacityChangeListenerIfc {
  * @param parent the parent model element holding the schedule
  * @param startTime the time after the start of the replication that the schedule should start. The default is 0.0
  * @param autoStartOption whether the schedule should start automatically. The default is true.
- * @param repeatable whether the schedule will automatically repeat. The default is true.
+ * @param repeatable whether the schedule will automatically repeat. The default is false.
  * @param eventPriority the default priority of the events used to start each item on the schedule
  * @param name an optional name for the schedule
  * @author rossetti
@@ -65,7 +65,7 @@ class CapacitySchedule(
     parent: ModelElement,
     startTime: Double = 0.0,
     autoStartOption: Boolean = true,
-    repeatable: Boolean = true,
+    repeatable: Boolean = false,
     val eventPriority: Int = KSLEvent.DEFAULT_PRIORITY,
     name: String? = null
 ) : ModelElement(parent, name) {

@@ -63,7 +63,7 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
     private val walkFromNameTagsToExit = RandomVariable(this, 140.0 / myWalkingSpeedRV)
     private val walkFromConversationAreaToRecruiting = RandomVariable(this, 50.0 / myWalkingSpeedRV)
     private val walkFromConversationAreaToExit = RandomVariable(this, 110.0 / myWalkingSpeedRV)
-    private val walkFromRecruitingToExit = RandomVariable(this, 140.0 / myWalkingSpeedRV)
+    private val walkFromRecruitingToExit = RandomVariable(this, 60.0 / myWalkingSpeedRV)
 
     private val myOverallSystemTime = Response(this, "OverallSystemTime")
     private val myRecruitingOnlySystemTime = Response(this, "RecruitingOnlySystemTime")
@@ -121,9 +121,9 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
         myJHBuntSchedule.addItem(capacity = 1, duration = 60.0)
         myJHBuntSchedule.addItem(capacity = 2, duration = 60.0)
         myJHBuntSchedule.addItem(capacity = 4, duration = 60.0)
-        myJHBuntSchedule.addItem(capacity = 6, duration = 60.0)
-        myJHBuntSchedule.addItem(capacity = 6, duration = 60.0)
-        myJHBuntSchedule.addItem(capacity = 2, duration = 60.0)
+        myJHBuntSchedule.addItem(capacity = 7, duration = 60.0)
+        myJHBuntSchedule.addItem(capacity = 7, duration = 60.0)
+        myJHBuntSchedule.addItem(capacity = 3, duration = 60.0)
         myJHBuntRecruiters.useSchedule(myJHBuntSchedule, CapacityChangeRule.WAIT)
 
         myMalWartSchedule.addItem(capacity = 1, duration = 60.0)
@@ -131,7 +131,7 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
         myMalWartSchedule.addItem(capacity = 4, duration = 60.0)
         myMalWartSchedule.addItem(capacity = 6, duration = 60.0)
         myMalWartSchedule.addItem(capacity = 6, duration = 60.0)
-        myMalWartSchedule.addItem(capacity = 2, duration = 60.0)
+        myMalWartSchedule.addItem(capacity = 3, duration = 60.0)
         myMalWartRecruiters.useSchedule(myMalWartSchedule, CapacityChangeRule.WAIT)
 
     }
@@ -167,6 +167,8 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
     }
 
     override fun replicationEnded() {
+//        val r = model.currentReplicationNumber
+//        println("$time> Replication $r ended")
         myEndTime.value = time
     }
 
