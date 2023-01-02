@@ -41,7 +41,7 @@ class TestResourcePool(parent: ModelElement) : ProcessModel(parent, null) {
         val mm1: KSLProcess = process("MM1"){
             wip.increment()
             timeStamp = time
-            val a  = seize(pool, 3)
+            val a  = seize(pool, 1)
             delay(st)
             release(a)
             tip.value = time - timeStamp

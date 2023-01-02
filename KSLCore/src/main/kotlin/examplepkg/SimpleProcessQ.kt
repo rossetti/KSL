@@ -30,7 +30,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
 class SimpleProcessQ(parent: ModelElement) : ProcessModel(parent, null) {
-    private val worker: ResourceWithQ = ResourceWithQ(this, "worker", 1)
+    private val worker: ResourceWithQ = ResourceWithQ(this, "worker", 3)
     private val tba = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
     private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
     private val wip = TWResponse(this, "${name}:WIP")

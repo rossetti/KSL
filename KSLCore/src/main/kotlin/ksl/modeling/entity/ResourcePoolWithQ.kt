@@ -27,6 +27,17 @@ class ResourcePoolWithQ(
     queue: RequestQ? = null,
     name: String? = null
 ) : ResourcePool(parent, resources, name) {
+    /**
+     * Holds the entities that are waiting for allocations of the resource's units
+     */
+    internal val myWaitingQ: RequestQ
+
+    init {
+        myWaitingQ = queue ?: RequestQ(this, "${this.name}:Q")
+    }
+
+    val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
+        get() = myWaitingQ
 
     /** Makes the specified number of single unit resources and includes them in the pool.
      *
@@ -50,17 +61,5 @@ class ResourcePoolWithQ(
             addResource(Resource(this, "${this.name}:R${i}"))
         }
     }
-
-    /**
-     * Holds the entities that are waiting for allocations of the resource's units
-     */
-    internal val myWaitingQ: RequestQ
-
-    init {
-        myWaitingQ = queue ?: RequestQ(this, "${this.name}:Q")
-    }
-
-    val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
-        get() = myWaitingQ
 
 }

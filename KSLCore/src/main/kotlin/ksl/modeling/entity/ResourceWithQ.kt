@@ -332,6 +332,20 @@ open class ResourceWithQ(
         ProcessModel.logger.trace { "$time > Resource: $this" }
         // this causes the newly available capacity to be allocated to any waiting requests
         // this resumes their processes at the current simulated time
+        //TODO this requires there to be only one waiting queue to notify
+        // this causes limitations because the queue of waiting requests
+        // must be known to the resource. Currently, a Resource does not know the queue
+        // until allocations are made and at this point allocations are not involved since the entity is waiting in
+        // some queue. Once the entity receives units from the resource, we get an allocation.
+        // Here, we only know about the requests because ResourceWithQ forces there to be a singular request queue.
+        // If there was no access to a request queue, then the waiting requests could not be informed about the new capacity.
+        // The main issue is that in general, different seize() calls can use different request queues for the
+        // same Resource. Thus, an instance of Resource cannot know what request queues it may be involved with because
+        // currently this is not tracked for the resource. This would involve capturing the queue information everytime
+        // a seize() call occurs for a resource.  If there are more than one request queues involved with the resource,
+        // then what assumptions need to be made to the ordering of their notification of the new capacity must be made?
+        // The allocation records the queue that the entity waited in
+        // so that release can affect waiting entities for the released allocation
         val n = myWaitingQ.processWaitingRequests(available, notice.priority)
         ProcessModel.logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
     }
