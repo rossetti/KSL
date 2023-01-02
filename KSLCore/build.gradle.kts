@@ -22,9 +22,10 @@ plugins {
     `java-library`
     kotlin("jvm") version "1.7.20"
     kotlin("plugin.serialization") version "1.7.20"
+    id("org.jetbrains.dokka") version "1.7.20"
 }
 group = "io.github.rossetti"
-version = "1.0-SNAPSHOT"
+version = "1.0"
 
 repositories {
 
@@ -32,10 +33,6 @@ repositories {
 }
 
 dependencies {
-
-    //TODO probably not needed any more, test it
-//    api(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
-//    api(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
     api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2")
@@ -93,9 +90,6 @@ dependencies {
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
     api(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.3")
 
-//    testImplementation(kotlin("test"))
-//    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
-//    testImplementation(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
     implementation(kotlin("stdlib-jdk8"))
 }
 
