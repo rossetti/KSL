@@ -1,6 +1,8 @@
 package ksl.examples.book.chapter7
 
 import ksl.simulation.Model
+import ksl.utilities.io.KSL
+import ksl.utilities.io.MarkDown
 
 fun main() {
 //    baseCase()
@@ -14,6 +16,8 @@ fun baseCase() {
     m.numberOfReplications = 400
     m.simulate()
     m.print()
+    val r = m.simulationReporter
+    r.writeHalfWidthSummaryReportAsMarkDown(KSL.out, df = MarkDown.D3FORMAT)
 }
 
 fun infiniteCapacityCase() {
@@ -25,6 +29,8 @@ fun infiniteCapacityCase() {
     m.numberOfReplications = 400
     m.simulate()
     m.print()
+    val r = m.simulationReporter
+    r.writeHalfWidthSummaryReportAsMarkDown(KSL.out, df = MarkDown.D3FORMAT)
 }
 
 fun scheduledCase(){
@@ -35,5 +41,8 @@ fun scheduledCase(){
     m.numberOfReplications = 400
     m.simulate()
     m.print()
+    val r = m.simulationReporter
+    r.writeHalfWidthSummaryReportAsMarkDown(KSL.out, df = MarkDown.D3FORMAT)
+
 }
 

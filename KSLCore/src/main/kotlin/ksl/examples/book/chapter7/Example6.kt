@@ -1,42 +1,26 @@
 package ksl.examples.book.chapter7
 
+import ksl.modeling.nhpp.PiecewiseLinearRateFunction
 import ksl.simulation.Model
-import ksl.utilities.random.rvariable.ConstantRV
-import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main() {
-    //test1()
-    test2()
-}
+    val ar = doubleArrayOf(0.5, 0.5, 0.9, 0.9, 1.2, 0.9, 0.5)
+    val dd = doubleArrayOf(200.0, 400.0, 400.0, 200.0, 300.0, 500.0)
 
-fun test1() {
-    val m = Model()
-    val reorderPoint = 4
-    val reorderQty = 2
-    val rqModel = RQInventorySystem(m, reorderPoint, reorderQty, "RQ Inventory Model")
-    rqModel.setInitialOnHand(0)
-    rqModel.timeBetweenDemandRV.initialRandomSource = ExponentialRV(1.0 / 3.6)
-    rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
+    val f = PiecewiseLinearRateFunction(dd, ar)
+    // create the experiment to run the model
+    val s = Model()
+    println("-----")
+    println("intervals")
+    System.out.println(f)
+    NHPPPWLinearExample(s, f)
 
-    m.lengthOfReplication = 110000.0
-    m.lengthOfReplicationWarmUp = 10000.0
-    m.numberOfReplications = 40
-    m.simulate()
-    m.print()
-}
+    // set the parameters of the experiment
+    s.numberOfReplications = 1000
+    s.lengthOfReplication = 2000.0
 
-fun test2() {
-    val m = Model()
-    val reorderPoint = 1
-    val reorderQty = 1
-    val rqModel = RQInventorySystem(m, reorderPoint, reorderQty, "RQ Inventory Model")
-    rqModel.setInitialOnHand(2)
-    rqModel.timeBetweenDemandRV.initialRandomSource = ExponentialRV(1.0 / 3.6)
-    rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
-
-    m.lengthOfReplication = 110000.0
-    m.lengthOfReplicationWarmUp = 10000.0
-    m.numberOfReplications = 30
-    m.simulate()
-    m.print()
+    // tell the simulation to run
+    s.simulate()
+    val r = s.simulationReporter
+    r.printAcrossReplicationSummaryStatistics()
 }
