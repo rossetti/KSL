@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,23 +18,31 @@
 
 package ksl.examples.book.chapter3
 
+import ksl.utilities.io.StatisticReporter
 import ksl.utilities.random.rvariable.NormalRV
-
+import ksl.utilities.statistic.Statistic
 
 /**
- * This example illustrates how to use the classes within the rvariable package.
- * Specifically, a Normal(mean=20, variance=4.0) random variable is
- * created and values are obtained via the value property
+ * This example illustrates how to create instances of the Statistic
+ * class and collect statistics on observations.  In addition, the basic
+ * use of the StatisticReporter class is illustrated to show how to pretty
+ * print the statistical results.
  */
-
 fun main() {
     // create a normal mean = 20.0, variance = 4.0 random variable
     val n = NormalRV(20.0, 4.0)
-    System.out.printf("%3s %15s %n", "n", "Values")
-    // generate some values
-    for (i in 1..5) {
+    // create a Statistic to observe the values
+    val stat = Statistic("Normal Stats")
+    val pGT20 = Statistic("P(X>=20")
+    // generate 100 values
+    for (i in 1..100) {
         // getValue() method returns generated values
         val x = n.value
-        System.out.printf("%3d %15f %n", i, x)
+        stat.collect(x)
+        pGT20.collect(x >= 20.0)
     }
+    println(stat)
+    println(pGT20)
+    val reporter = StatisticReporter(mutableListOf(stat, pGT20))
+    println(reporter.halfWidthSummaryReport())
 }

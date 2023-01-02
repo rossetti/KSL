@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,44 +18,56 @@
 
 package ksl.examples.book.chapter3
 
-import ksl.utilities.distributions.Binomial
+import ksl.utilities.random.rvariable.DUniformRV
+import ksl.utilities.io.StatisticReporter
+import ksl.utilities.statistic.Statistic
 
 /**
- * This example illustrates how to make instances of Distributions.
- * Specifically, a binomial distribution is created, and it is used
- * to compute some properties and to make a random variable. Notice
- * that a distribution is not the same thing as a random variable.
- * Random variables generate values. Distributions describe how the
- * values are distributed. Random variables are immutable. Distributions
- * can have their parameters changed.
+ * This example illustrates how to simulate the dice game "craps".
+ * The example uses discrete random variables, statistics, and logic
+ * to replicate the game outcomes. Statistics on the probability
+ * of winning are reported.
  */
+
 fun main() {
-    // make and use a Binomial(p, n) distribution
-    val n = 10
-    val p = 0.8
-    println("n = $n")
-    println("p = $p")
-    val bnDF = Binomial(p, n)
-    println("mean = " + bnDF.mean())
-    println("variance = " + bnDF.variance())
-    // compute some values
-    System.out.printf("%3s %15s %15s %n", "k", "p(k)", "cdf(k)")
-    for (i in 0..10) {
-        System.out.printf("%3d %15.10f %15.10f %n", i, bnDF.pmf(i), bnDF.cdf(i))
+    val d1 = DUniformRV(1, 6)
+    val d2 = DUniformRV(1, 6)
+    val probOfWinning = Statistic("Prob of winning")
+    val numTosses = Statistic("Number of Toss Statistics")
+    val numGames = 5000
+    for (k in 1..numGames) {
+        var winner = false
+        val point = d1.value.toInt() + d2.value.toInt()
+        var numberoftoss = 1
+        if (point == 7 || point == 11) {
+            // automatic winner
+            winner = true
+        } else if (point == 2 || point == 3 || point == 12) {
+            // automatic loser
+            winner = false
+        } else { // now must roll to get point
+            var continueRolling = true
+            while (continueRolling) {
+                // increment number of tosses
+                numberoftoss++
+                // make next roll
+                val nextRoll = d1.value.toInt() + d2.value.toInt()
+                if (nextRoll == point) {
+                    // hit the point, stop rolling
+                    winner = true
+                    continueRolling = false
+                } else if (nextRoll == 7) {
+                    // crapped out, stop rolling
+                    winner = false
+                    continueRolling = false
+                }
+            }
+        }
+        probOfWinning.collect(winner)
+        numTosses.collect(numberoftoss.toDouble())
     }
-    println()
-    // change the probability and number of trials
-    bnDF.probOfSuccess = 0.5
-    bnDF.numTrials = 20
-    println("mean = " + bnDF.mean())
-    println("variance = " + bnDF.variance())
-    // make random variables based on the distributions
-    val brv = bnDF.randomVariable
-    System.out.printf("%3s %15s %n", "n", "Values")
-    // generate some values
-    for (i in 1..5) {
-        // value property returns generated values
-        val x = brv.value.toInt()
-        System.out.printf("%3d %15d %n", i, x)
-    }
+    val reporter = StatisticReporter()
+    reporter.addStatistic(probOfWinning)
+    reporter.addStatistic(numTosses)
+    println(reporter.halfWidthSummaryReport())
 }

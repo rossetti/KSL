@@ -18,23 +18,26 @@
 
 package ksl.examples.book.chapter4
 
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.statistic.StateFrequency
+import ksl.simulation.Model
+import ksl.utilities.random.rvariable.ExponentialRV
+
 
 /**
- * This example illustrates how to define labeled states
- * and to tabulate observations of those states. The StateFrequency
- * class generalizes the IntegerFrequency class by allowing the user
- * to collect observations on labeled states rather than integers.
- * This also allows for the tabulation of counts and proportions of single
- * step transitions between states.
+ * This example illustrates the running of the DriveThroughPharmacy instance.
+ * The model is run for 30 replications, of length 20,000 minutes, with a
+ * warmup of 5000.0 minutes. The number of servers can be supplied. In
+ * addition, the user can supply the distribution associated with the time
+ * between arrivals and the service time distribution.
  */
 fun main() {
-    val sf = StateFrequency(6)
-    val states = sf.states
-    for (i in 1..10000) {
-        val state = KSLRandom.randomlySelect(states)
-        sf.collect(state)
-    }
-    println(sf)
+    val model = Model("Drive Through Pharmacy", autoCSVReports = true)
+    model.numberOfReplications = 30
+    model.lengthOfReplication = 20000.0
+    model.lengthOfReplicationWarmUp = 5000.0
+    // add DriveThroughPharmacy to the main model
+    val dtp = DriveThroughPharmacy(model, 1)
+    dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
+    dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
+    model.simulate()
+    model.print()
 }

@@ -1,44 +1,51 @@
-/*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
- *
- *     This program is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 package ksl.examples.book.chapter5
 
-import ksl.utilities.random.rvariable.UniformRV
-import ksl.utilities.statistic.Statistic
+import ksl.observers.ReplicationDataCollector
+import ksl.observers.ResponseTrace
+import ksl.simulation.Model
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
-/**
- * This example illustrates how to perform simple Monte-Carlo
- * integration on the sqrt(x) over the range from 1 to 4.
- */
 fun main() {
-    val a = 1.0
-    val b = 4.0
-    val ucdf = UniformRV(a, b)
-    val stat = Statistic("Area Estimator")
-    val n = 100 // sample size
-    for (i in 1..n) {
-        val x = ucdf.value
-        val gx = Math.sqrt(x)
-        val y = (b - a) * gx
-        stat.collect(y)
-    }
-    System.out.printf("True Area = %10.3f %n", 14.0 / 3.0)
-    System.out.printf("Area estimate = %10.3f %n", stat.average)
-    println("Confidence Interval")
-    println(stat.confidenceInterval)
+    val model = Model("Pallet Processing", autoCSVReports = true)
+    model.numberOfReplications = 10
+    model.experimentName = "Two Workers"
+    // add the model element to the main model
+    val palletWorkCenter = PalletWorkCenter(model)
+
+    // demonstrate how to capture a trace of a response variable
+    val trace = ResponseTrace(palletWorkCenter.numInSystem)
+
+    // demonstrate capture of replication data for specific response variables
+    val repData = ReplicationDataCollector(model)
+    repData.addResponse(palletWorkCenter.totalProcessingTime)
+    repData.addResponse(palletWorkCenter.probOfOverTime)
+
+    // demonstrate capturing data to database with an observer
+    val kslDatabaseObserver = KSLDatabaseObserver(model)
+
+    // simulate the model
+    model.simulate()
+
+    // demonstrate that reports can have specified confidence level
+    val sr = model.simulationReporter
+    sr.printHalfWidthSummaryReport(confLevel = .99)
+
+    // show that report can be written to MarkDown as a table in the output directory
+    var out = model.outputDirectory.createPrintWriter("hwSummary.md")
+    sr.writeHalfWidthSummaryReportAsMarkDown(out)
+    println()
+
+    //output the collected replication data to prove it was captured
+    println(repData)
+
+    // use the database to create a Kotlin DataFrame
+    val dataFrame = kslDatabaseObserver.db.acrossReplicationViewStatistics
+    println(dataFrame)
+
+    model.experimentName = "Three Workers"
+    palletWorkCenter.numWorkers = 3
+    model.simulate()
+
+    out = model.outputDirectory.createPrintWriter("AcrossExperimentResults.md")
+    kslDatabaseObserver.db.writeTableAsMarkdown("ACROSS_REP_VIEW", out)
 }

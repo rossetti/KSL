@@ -1,4 +1,4 @@
-package examplepkg
+package ksl.examples.general.misc
 
 import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.Database

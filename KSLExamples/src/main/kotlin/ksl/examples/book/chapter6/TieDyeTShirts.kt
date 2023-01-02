@@ -76,7 +76,7 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
             delay(myShirtMakingTime)
             release(a)
             // send to orders
-            completedShirtQ.sendToChannel(this@Shirt)
+            send(this@Shirt, completedShirtQ)
         }
     }
 }

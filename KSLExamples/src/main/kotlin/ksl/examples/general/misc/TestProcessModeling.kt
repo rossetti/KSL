@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package examplepkg
+package ksl.examples.general.misc
 
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.HoldQueue

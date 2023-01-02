@@ -22,7 +22,7 @@
  */
 package ksl.examples.general.variables
 
-import ksl.examples.book.chapter7.DriveThroughPharmacyWithQ
+import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseInterval
 import ksl.modeling.variable.ResponseSchedule

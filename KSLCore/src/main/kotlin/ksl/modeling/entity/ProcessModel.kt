@@ -363,9 +363,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(amountNeeded >= 1) { "The amount needed for the request must be >= 1" }
             }
 
-            internal var resource: Resource? = null
-            internal var resourcePool: ResourcePool? = null
-            internal val entity = this@Entity
+            var resource: Resource? = null
+                internal set
+            var resourcePool: ResourcePool? = null
+                internal set
+            val entity = this@Entity
             val amountRequested = amountNeeded
         }
 

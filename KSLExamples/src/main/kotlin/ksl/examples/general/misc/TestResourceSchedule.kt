@@ -1,4 +1,4 @@
-package examplepkg
+package ksl.examples.general.misc
 
 import ksl.modeling.entity.*
 import ksl.modeling.variable.RandomVariable

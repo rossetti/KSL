@@ -246,6 +246,28 @@ interface KSLProcessBuilder {
         suspensionName: String? = null
     )
 
+    /** This method will block (suspend) if the blocking queue is full. That is, if the blocking queue
+     * has reached its capacity.  When space for the item
+     * becomes available, then the item is placed within the blocking queue.
+     *
+     * @param collection the items being placed into the blocking queue
+     * @param blockingQ the blocking queue channel that holds the items
+     * @param blockingPriority the priority for the entity that must wait to send if the blocking queue is full
+     * @param suspensionName the name of the possible suspension point. This can be used by the entity to
+     * determine which send blocking it might be experiencing when blocked.  It is up to the client to
+     * ensure the name is meaningful and possibly unique.
+     */
+    suspend fun <T : ModelElement.QObject> sendItems(
+        collection: Collection<T>,
+        blockingQ: BlockingQueue<T>,
+        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ){
+        for(item in collection){
+            send(item, blockingQ, blockingPriority, suspensionName)
+        }
+    }
+
     /**
      * Permits simpler calling syntax when using a blocking queue within a KSLProcess
      * This method will block (suspend) if the blocking queue is full. That is, if the blocking queue

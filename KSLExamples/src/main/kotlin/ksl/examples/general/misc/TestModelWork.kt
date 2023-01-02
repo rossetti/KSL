@@ -16,16 +16,41 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package examplepkg
+package ksl.examples.general.misc
 
-import mu.KotlinLogging
+import ksl.modeling.variable.RandomVariable
+import ksl.simulation.Model
+import ksl.simulation.ModelElement
+import ksl.utilities.io.KSL
+import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.NormalRV
+import ksl.utilities.random.rvariable.UniformRV
 
-private val logger = KotlinLogging.logger {}
+class TestModelWork {
+}
 
 fun main() {
-    logger.trace { "This is trace log" }
-    logger.debug { "This is debug log" }
-    logger.info { "This is info log" }
-    logger.warn { "This is warn log" }
-    logger.error { "This is error log" }
+
+    val m = Model()
+
+    // it is interesting that the rv is actually usable outside the model
+    val rv = RandomVariable(m, ExponentialRV())
+
+    rv.randomSource = NormalRV()
+    rv.initialRandomSource = UniformRV()
+
+    for (i in 1..10){
+        println("$i ${rv.value}")
+    }
+    println()
+
+    println(m.modelElementsAsString)
+
+    m.lengthOfReplication = 10.0
+    m.lengthOfReplicationWarmUp = 5.0
+    m.numberOfReplications = 3
+    m.simulate()
+
+    KSL.logger.info { "Writing to the log!" }
+
 }
