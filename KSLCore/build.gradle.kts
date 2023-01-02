@@ -156,7 +156,7 @@ publishing {
             }
             pom {
                 name.set("KSLCore")
-                description.set("The KSL, an open source library for simulation")
+                description.set("The KSL, an open source kotlin library for simulation")
                 url.set("https://github.com/rossetti/KSL")
                 licenses {
                     license {
