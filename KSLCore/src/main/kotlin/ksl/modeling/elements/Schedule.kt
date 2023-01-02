@@ -45,9 +45,6 @@ import ksl.simulation.ModelElement
  * is only relevant if the repeat flag is true and the schedule duration is finite. If there is only one cycle, it is
  * the time that the schedule started.
  *
- * A builder is used to configure the schedule and then items are added to the schedule. If no items are added
- * to the schedule, then there will still be an event to start the schedule.
- *
  * To make a Schedule useful, instances of the ScheduleChangeListenerIfc interface should be added to
  * listen for changes in the schedule.  Instances of ScheduleChangeListenerIfc are notified in the order
  * in which they are added to the schedule.  Instances of ScheduleChangeListenerIfc are notified when the
@@ -57,18 +54,28 @@ import ksl.simulation.ModelElement
  *
  * @author rossetti
  */
-class Schedule private constructor(builder: Builder) : ModelElement(builder.parent, builder.name) {
+class Schedule(
+    parent: ModelElement,
+    startTime: Double = 0.0,
+    length: Double = Double.POSITIVE_INFINITY,
+    autoStartOption: Boolean = true,
+    repeatable: Boolean = true,
+    startPriority: Int = KSLEvent.DEFAULT_PRIORITY - 5,
+    itemPriority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
+    name: String? = null
+) : ModelElement(parent, name) {
+
     private var idCounter: Long = 0
 
     /**
      * Indicates whether the schedule should be started automatically upon initialization, default is true
      */
-    val isAutoStartFlag: Boolean = builder.autoStartFlag
+    val isAutoStartFlag: Boolean = autoStartOption
 
     /**
      * The time from the beginning of the replication to the time that the schedule is to start
      */
-    val initialStartTime: Double = builder.startTime
+    val initialStartTime: Double = startTime
 
     /**
      * Represents the total length of time of the schedule.
@@ -77,7 +84,7 @@ class Schedule private constructor(builder: Builder) : ModelElement(builder.pare
      * After this time has elapsed the entire schedule can repeat if the
      * schedule repeat flag is true. The default is infinite.
      */
-    val scheduleLength: Double = builder.length
+    val scheduleLength: Double = length
 
     /**
      * The time that the schedule started for its current cycle
@@ -94,120 +101,23 @@ class Schedule private constructor(builder: Builder) : ModelElement(builder.pare
      * specified
      *
      */
-    val isScheduleRepeatable: Boolean = builder.repeatable
+    val isScheduleRepeatable: Boolean = repeatable
 
     /**
      *
      * the priority associated with the item's start event
      */
-    val itemStartEventPriority: Int = builder.itemPriority
+    val itemStartEventPriority: Int = itemPriority
 
     /**
      *
      * the priority associated with the schedule's start event
      */
-    val startEventPriority: Int = builder.priority
+    val startEventPriority: Int = startPriority
 
     private val myItems: MutableList<ScheduleItem<*>> = mutableListOf()
     private val myChangeListeners: MutableList<ScheduleChangeListenerIfc> = mutableListOf()
     private var myStartScheduleEvent: KSLEvent<Nothing>? = null
-
-    /**
-     * A builder for configuring the setup of a Schedule
-     */
-     class Builder(internal val parent: ModelElement) {
-        internal var name: String? = null
-        internal var autoStartFlag = true
-        internal var startTime = 0.0
-        internal var length = Double.POSITIVE_INFINITY
-        internal var repeatable = true
-        internal var priority: Int = KSLEvent.DEFAULT_PRIORITY - 5
-        internal var itemPriority: Int = KSLEvent.DEFAULT_PRIORITY - 4
-
-        /**
-         *
-         * @param name the name of the schedule
-         * @return the builder
-         */
-        fun name(name: String?): Builder {
-            this.name = name
-            return this
-        }
-
-        /**
-         * Specifies that the schedule should not auto start
-         *
-         * @return the builder
-         */
-        fun noAutoStart(): Builder {
-            autoStartFlag = false
-            return this
-        }
-
-        /**
-         * Specifies that the schedule should not repeat
-         *
-         * @return the builder
-         */
-        fun noRepeats(): Builder {
-            repeatable = false
-            return this
-        }
-
-        /**
-         *
-         * @param startTime the time relative to the start of the simulation
-         * that indicates when the schedule should start, must be greater than
-         * or equal to zero. The default is zero.
-         * @return the builder
-         */
-        fun startTime(startTime: Double): Builder {
-            require(startTime >= 0.0) { "The start time must be >= 0.0" }
-            this.startTime = startTime
-            return this
-        }
-
-        /**
-         *
-         * @param length the total length or duration of the schedule
-         * @return the Builder
-         */
-        fun length(length: Double): Builder {
-            require(length > 0.0) { "The length of schedule must be > 0.0" }
-            this.length = length
-            return this
-        }
-
-        /**
-         *
-         * @param priority the priority of the schedule's start event
-         * @return the Builder
-         */
-        fun priority(priority: Int): Builder {
-            this.priority = priority
-            return this
-        }
-
-        /**
-         *
-         * @param priority the default priority associated with the item's
-         * start events
-         * @return
-         */
-        fun itemPriority(priority: Int): Builder {
-            itemPriority = priority
-            return this
-        }
-
-        /**
-         * Builds the schedule
-         *
-         * @return the Schedule
-         */
-        fun build(): Schedule {
-            return Schedule(this)
-        }
-    }
 
     /**
      * If scheduled to start, this cancels the start of the schedule.
@@ -270,11 +180,16 @@ class Schedule private constructor(builder: Builder) : ModelElement(builder.pare
      * @param duration the duration of the item
      * @param priority the priority, (among items) if items start at the same
      * time
-     * @param message a message or datum to attach to the item
+     * @param datum a message or datum to attach to the item
      * @return the created ScheduleItem
     </T> */
-    fun <T> addItem(startTime: Double = 0.0, duration: Double, priority: Int = itemStartEventPriority, message: T? = null): ScheduleItem<T> {
-        val aItem: ScheduleItem<T> = ScheduleItem(startTime, duration, priority, message)
+    fun <T> addItem(
+        startTime: Double = 0.0,
+        duration: Double,
+        priority: Int = itemStartEventPriority,
+        datum: T? = null
+    ): ScheduleItem<T> {
+        val aItem: ScheduleItem<T> = ScheduleItem(startTime, duration, priority, datum)
         require(aItem.endTime <= initialStartTime + scheduleLength) { "The item's end time is past the schedule's end." }
 
         // nothing in the list, just add to beginning
@@ -492,13 +407,19 @@ class Schedule private constructor(builder: Builder) : ModelElement(builder.pare
      *
      * @param <T> a general message or other object that can be associated with the ScheduleItem
     </T> */
-    inner class ScheduleItem<T>(val startTime: Double, val duration: Double, val priority: Int, val message: T? = null) :
+    open inner class ScheduleItem<T>(
+        val startTime: Double,
+        val duration: Double,
+        val priority: Int,
+        val message: T? = null
+    ) :
         Comparable<ScheduleItem<*>> {
-        init{
+        init {
             require(startTime >= 0.0) { "The start time must be >= 0.0" }
             require(duration > 0.0) { "The duration must be > 0.0" }
             idCounter += 1
         }
+
         val id: Long = idCounter
         var name: String = "Item:$id"
         val schedule: Schedule = this@Schedule
@@ -589,13 +510,12 @@ class Schedule private constructor(builder: Builder) : ModelElement(builder.pare
     }
 }
 
-fun main(){
+fun main() {
     val m = Model()
-
-    val s = Schedule.Builder(m).startTime(0.0).length(480.0).build()
-    s.addItem(60.0 * 2.0, 15.0, message = "break1")
-    s.addItem((60.0 * 4.0), 30.0, message = "lunch")
-    s.addItem((60.0 * 6.0), 15.0, message = "break2")
+    val s = Schedule(m, startTime = 0.0, length = 480.0)
+    s.addItem(60.0 * 2.0, 15.0, datum = "break1")
+    s.addItem((60.0 * 4.0), 30.0, datum = "lunch")
+    s.addItem((60.0 * 6.0), 15.0, datum = "break2")
     s.addScheduleChangeListener(ScheduleListener())
 
     println(s)
@@ -607,7 +527,7 @@ fun main(){
 
 }
 
-class ScheduleListener(): ScheduleChangeListenerIfc {
+class ScheduleListener() : ScheduleChangeListenerIfc {
     override fun scheduleStarted(schedule: Schedule) {
         println("time = ${schedule.time} Schedule Started")
     }

@@ -25,8 +25,10 @@ package ksl.modeling.variable
 import ksl.observers.ModelElementObserver
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.toDouble
 import ksl.utilities.statistic.WeightedStatisticIfc
+import ksl.utilities.statistic.isMissing
 
 /**
  * This class represents an interval of time over which statistical collection
@@ -151,7 +153,7 @@ class ResponseInterval(
 
     /**
      * Specifies when the interval is to start. If negative, then the interval
-     * will not be started must not be infinite
+     * will not be started, must not be infinite
      */
     var startTime: Double = Double.NEGATIVE_INFINITY
         set(value) {
@@ -164,6 +166,19 @@ class ResponseInterval(
      * The default is false.
      */
     var repeatFlag = false
+
+    /**
+     * Adds a ResponseVariable to the interval for data collection over the
+     * interval. By default, interval empty statistics are not collected.
+     *
+     * @param theResponse the response to collect interval statistics on
+     * @param intervalEmptyStatOption true means include statistics on whether
+     * the interval is empty when observed
+     * @return a Response for the interval
+     */
+    fun addResponseToInterval(theResponse: ResponseCIfc, intervalEmptyStatOption: Boolean = false): Response {
+        return addResponseToInterval(theResponse as Response, intervalEmptyStatOption)
+    }
 
     /**
      * Adds a ResponseVariable to the interval for data collection over the
@@ -192,6 +207,16 @@ class ResponseInterval(
         myResponses[theResponse] = data
         theResponse.attachModelElementObserver(myObserver)
         return rv
+    }
+
+    /**
+     * Adds a Counter to the interval for data collection over the interval
+     *
+     * @param theCounter the counter to collect interval statistics on
+     * @return a Response for the interval
+     */
+    fun addCounterToInterval(theCounter: CounterCIfc): Response {
+        return addCounterToInterval(theCounter as Counter)
     }
 
     /**
@@ -238,7 +263,10 @@ class ResponseInterval(
     internal fun scheduleInterval(startTime: Double) {
         check(!isScheduled) { "Attempted to schedule an already scheduled interval" }
         isScheduled = true
+        val t = time + startTime
+//        println("$time > **${this@ResponseInterval.name}** scheduling the start action for time $t")
         myStartEvent = myStartAction.schedule(startTime, priority = START_EVENT_PRIORITY)
+//        println("$myStartEvent")
     }
 
     /**
@@ -247,10 +275,14 @@ class ResponseInterval(
     fun cancelInterval() {
         isScheduled = false
         if (myStartEvent != null) {
-            myStartEvent!!.cancelled = true
+            if (myStartEvent!!.scheduled) {
+                myStartEvent!!.cancelled = true
+            }
         }
         if (myEndEvent != null) {
-            myEndEvent!!.cancelled = true
+            if (myEndEvent!!.scheduled) {
+                myEndEvent!!.cancelled = true
+            }
         }
         myStartEvent = null
         myEndEvent = null
@@ -328,7 +360,12 @@ class ResponseInterval(
             for ((key, data) in myCounters) {
                 data.myTotalAtStart = key.value
             }
+            myStartEvent = null
+//            println("$time > ${this@ResponseInterval.name} start action")
+//            val t = time + duration
+//            println("$time > **${this@ResponseInterval.name}** scheduling the end action for time $t")
             myEndEvent = myEndAction.schedule(duration, priority = END_EVENT_PRIORITY)
+//            println("$myEndEvent")
         }
     }
 
@@ -343,9 +380,24 @@ class ResponseInterval(
                 if (data.myEmptyResponse != null) {
                     data.myEmptyResponse!!.value = (numObs == 0.0).toDouble()
                 }
-                if (denom != 0.0) {
-                    val avg = sum / denom
-                    data.myResponse.value = avg
+                if (numObs == 0.0) {
+                    // there were no changes of the variable during the interval
+                    // cannot observe Response but can observe TWResponse
+                    if (key is TWResponse) {
+                        //no observations, value did not change during interval
+                        // average = area/time = height*width/width = height
+                        data.myResponse.value = key.value
+                    }
+//                    val r = data.myResponse.model.currentReplicationNumber
+//                    println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom")
+                } else {
+                    // there were observations, denominator cannot be 0, but just in case
+                    if (denom != 0.0) {
+                        val avg = sum / denom
+//                        val r = data.myResponse.model.currentReplicationNumber
+//                        KSL.out.println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom avg = $avg")
+                        data.myResponse.value = avg
+                    }
                 }
             }
             for ((key, data) in myCounters) {
@@ -361,6 +413,8 @@ class ResponseInterval(
                     scheduleInterval(0.0) // schedule it to start again, right now
                 }
             }
+            myEndEvent = null
+//            println("$time > ${this@ResponseInterval.name} end action")
         }
     }
 

@@ -27,11 +27,22 @@ import ksl.simulation.KSLEvent
  * @author rossetti
  */
 fun interface GeneratorActionIfc {
-    //TODO remove KSLEvent from the method signature
+
     /** The reference to the generator is available to permit control over the
-     * EventGenerator within the defining code.  The event is also available.
+     * EventGenerator within the defining code.
      *
      * @param generator the generator
      */
     fun generate(generator: EventGenerator)
+
+}
+
+fun interface EndGeneratorActionIfc {
+
+    /** The reference to the generator is available to permit control over the
+     * EventGenerator within the defining code.
+     *
+     * @param generator the generator
+     */
+    fun endGeneration(generator: EventGenerator)
 }

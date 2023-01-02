@@ -313,8 +313,17 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
      */
     val obsWeightedSum: Double = myJsum
 
+    override var value: Double
+        get() = lastValue
+        set(value) {
+            collect(value)
+        }
+
     override fun collect(obs: Double) {
-        super.collect(obs)
+        if (obs.isMissing()) {
+            numberMissing++
+            return
+        }
         // update moments
         myNum = myNum + 1
         myJsum = myJsum + myNum * obs
@@ -353,11 +362,15 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             myMin = obs
         }
         myValue = obs
+        lastValue = obs
+        notifyObservers(lastValue)
+        emitter.emit(lastValue)
     }
 
     override fun reset() {
         super.reset()
         myValue = Double.NaN
+//        myValue = 0.0
         myMin = Double.POSITIVE_INFINITY
         myMax = Double.NEGATIVE_INFINITY
         myNum = 0.0

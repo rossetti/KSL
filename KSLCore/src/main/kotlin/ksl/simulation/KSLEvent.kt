@@ -147,6 +147,9 @@ class KSLEvent<out T> internal constructor(
         sb.append("Priority = ")
         sb.append(priority)
         sb.append(" : ")
+        sb.append("is scheduled = ")
+        sb.append(scheduled)
+        sb.append(" : ")
         sb.append("Scheduled by = ")
         sb.append(modelElement.name)
         return sb.toString()
@@ -214,7 +217,7 @@ class KSLEvent<out T> internal constructor(
         return if (this == other) {
             0
         } else {
-            throw RuntimeException("Id's were equal, but references were not, in JSLEvent compareTo")
+            throw RuntimeException("Id's were equal, but references were not, in KSLEvent compareTo")
         }
     }
 

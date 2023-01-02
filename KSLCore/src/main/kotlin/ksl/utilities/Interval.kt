@@ -29,8 +29,10 @@ package ksl.utilities
 class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Double.POSITIVE_INFINITY) :
     NewInstanceIfc<Interval> {
     init {
-        require(xLower <= xUpper) { "The lower limit $xLower must be <= the upper limit $xUpper" }
-    }
+        if (!xLower.isNaN() || !xUpper.isNaN()){
+            require(xLower <= xUpper) { "The lower limit $xLower must be <= the upper limit $xUpper" }
+        }
+   }
 
     /**
      *
@@ -67,7 +69,10 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
      * @param xUpper the upper limit
      */
     fun setInterval(xLower: Double, xUpper: Double) {
-        require(xLower <= xUpper) { "The lower limit must be <= the upper limit" }
+        if (!xLower.isNaN() || !xUpper.isNaN()){
+            require(xLower <= xUpper) { "The lower limit $xLower must be <= the upper limit $xUpper" }
+        }
+//        require(xLower <= xUpper) { "The lower limit must be <= the upper limit" }
         lowerLimit = xLower
         upperLimit = xUpper
     }

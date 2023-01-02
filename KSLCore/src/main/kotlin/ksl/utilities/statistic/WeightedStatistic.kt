@@ -111,6 +111,11 @@ class WeightedStatistic(name: String? = null) : WeightedCollector(name), Weighte
     override val unWeightedSum: Double
         get() = unWeightedSum()
 
+    override var value: Double
+        get() = lastValue
+        set(value) {
+            collect(value, 1.0)
+        }
     /**
      * @param obs      the value to collect
      * @param weight the weight associated with the value

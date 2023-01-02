@@ -18,11 +18,17 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
 import ksl.modeling.variable.AggregateTWResponse
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
+import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.ModelElement
 
-interface ResourceSelectionRuleIfc {
+/**
+ * Provides for a method to select resources from a list such that
+ * the returned list may contain resources that can fill the amount needed
+ */
+fun interface ResourceSelectionRuleIfc {
     /**
      * @param amountNeeded the amount needed from resources
      * @param list of resources to consider selecting from
@@ -36,22 +42,22 @@ interface ResourceSelectionRuleIfc {
  *  a list of resources that have sufficient available units to meet
  *  the amount needed.
  */
-interface AllocationRuleIfc {
+fun interface AllocationRuleIfc {
 
     /** The method assumes that the provided list of resources has
      *  enough units available to satisfy the needs of the request.
      *
      * @param amountNeeded the amount needed from resources
-     * @param resourceList of resources to be allocated from
-     * @return the amount to allocate to each resource as a map
+     * @param resourceList list of resources to be allocated from
+     * @return the amount to allocate from each resource as a map
      */
     fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int>
 }
 
 /**
- *  Returns the first resource that can fully meet the amount needed
+ *  Returns the first resource that can (individually) entirely supply the requested amount
  */
-class DefaultResourceSelectionRule : ResourceSelectionRuleIfc {
+class FirstFullyAvailableResource : ResourceSelectionRuleIfc {
     override fun selectResources(amountNeeded: Int, list: List<Resource>): List<Resource> {
         require(amountNeeded >= 1) { "The amount needed must be >= 1" }
         val rList = mutableListOf<Resource>()
@@ -71,6 +77,15 @@ class DefaultResourceSelectionRule : ResourceSelectionRuleIfc {
 class ResourceSelectionRule : ResourceSelectionRuleIfc {
     override fun selectResources(amountNeeded: Int, list: List<Resource>): List<Resource> {
         require(amountNeeded >= 1) { "The amount needed must be >= 1" }
+        if (list.isEmpty()) {
+            return emptyList()
+        }
+        var sum = 0
+        for (resource in list) {
+            require(resource.numAvailableUnits > 0) { "A supplied resource, ${resource.name} in the resource list does not have any units available." }
+            sum = sum + resource.numAvailableUnits
+        }
+        require(sum >= amountNeeded) { "The resources in the supplied resource list do not have enough units available to meet the amount requested." }
         val rList = mutableListOf<Resource>()
         var needed = amountNeeded
         for (resource in list) {
@@ -92,6 +107,13 @@ class ResourceSelectionRule : ResourceSelectionRuleIfc {
  */
 class DefaultAllocationRule : AllocationRuleIfc {
     override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
+        require(amountNeeded >= 1) { "The amount needed must be >= 1" }
+        var sum = 0
+        for (resource in resourceList) {
+            require(resource.numAvailableUnits > 0) { "A supplied resource, ${resource.name} in the resource list does not have any units available." }
+            sum = sum + resource.numAvailableUnits
+        }
+        require(sum >= amountNeeded) { "The resources in the supplied resource list do not have enough units available to make the allocations." }
         val allocations = mutableMapOf<Resource, Int>()
         var needed = amountNeeded
         for (resource in resourceList) {
@@ -143,8 +165,9 @@ fun findAvailableResources(list: List<Resource>): List<Resource> {
  * The assumption is that any of the resources
  * within the pool may be used to fill the request.
  *
- * If no selection rule is supplied the pool selects the first idle resource
- * that can fully satisfy the request by default.
+ * If no selection rule is supplied the pool selects a list of resources
+ * that can fully satisfy the request and makes allocations to the resources based on
+ * the order in which they are listed in the pool.
  *
  * @param parent the parent model element
  * @param resources a list of resources to be included in the pool
@@ -154,6 +177,13 @@ fun findAvailableResources(list: List<Resource>): List<Resource> {
 open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: String? = null) :
     ModelElement(parent, name) {
     private val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
+    val numBusyUnits: TWResponseCIfc
+        get() = myNumBusy
+
+    protected val myFractionBusy: Response = Response(this, name = "${this.name}:FractionBusy")
+    val fractionBusyUnits: ResponseCIfc
+        get() = myFractionBusy
+
     private val myResources: MutableList<Resource> = mutableListOf()
 
     val resources: List<Resource>
@@ -188,7 +218,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
     protected fun addResource(resource: Resource) {
         myResources.add(resource)
         myNumBusy.observe(resource.numBusyUnits)
-        //TODO stat stuff such as utilization
+        //TODO consider aggregate state collection
     }
 
     val numAvailableUnits: Int
@@ -212,8 +242,35 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
             return sum
         }
 
+    val numBusy: Int
+        get(){
+            var sum = 0
+            for (r in myResources) {
+                sum = sum + r.numBusy
+            }
+            return sum
+        }
+
     val fractionBusy: Double
-        get() = myNumBusy.value / capacity
+        get() {
+            return if (capacity == 0) {
+                0.0
+            } else {
+                numBusy.toDouble() / capacity.toDouble()
+            }
+        }
+
+    override fun initialize() {
+        super.initialize()
+    }
+
+    override fun replicationEnded() {
+        val avgNR = myNumBusy.withinReplicationStatistic.weightedAverage
+        val avgMR = capacity
+        if (avgMR > 0.0) {
+            myFractionBusy.value = avgNR / avgMR
+        }
+    }
 
     /**
      * @return returns a list of idle resources. It may be empty.
@@ -234,7 +291,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
      * @return a list, which may be empty, that has resources that can satisfy the requested amount
      */
     fun selectResources(amountNeeded: Int): List<Resource> {
-        return resourceSelectionRule.selectResources(amountNeeded, myResources)
+        return resourceSelectionRule.selectResources(amountNeeded, findAvailableResources())
     }
 
     /** For use, before calling allocate()
@@ -243,7 +300,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
      * @return true if and only if resources can be selected according to the current resource selection rule
      * that will have sufficient amount available to fill the request
      */
-    fun canFill(amountNeeded: Int): Boolean {
+    fun canAllocate(amountNeeded: Int): Boolean {
         return selectResources(amountNeeded).isNotEmpty()
     }
 
@@ -268,14 +325,17 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
     ): ResourcePoolAllocation {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
         check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
-        // default rule only tries to find a single resource, but numAvailableUnits is based on all contained resources
+        // this should select enough resources to meet the request based on how much they have available
         val list = selectResources(amountNeeded)
         check(list.isNotEmpty()) { "There were no resources selected to allocate the $amountNeeded units requested, using the current selection rule" }
+        ProcessModel.logger.trace { "There were ${list.size} resources selected that can allocate $amountNeeded units to the request, using the current selection rule." }
         val a = ResourcePoolAllocation(entity, this, amountNeeded, queue, allocationName)
         val resourceIntMap = resourceAllocationRule.makeAllocations(amountNeeded, list)
+        ProcessModel.logger.trace { "There were ${resourceIntMap.size} allocations made to meet the $amountNeeded units needed." }
         for ((resource, amt) in resourceIntMap) {
             val ra = resource.allocate(entity, amt, queue, allocationName)
             a.myAllocations.add(ra)
+            ProcessModel.logger.trace { "Resource ${resource.name} was allocated $amt from the pool." }
         }
         return a
     }

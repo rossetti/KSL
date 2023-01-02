@@ -56,13 +56,15 @@ class ExceedanceEstimator(thresholds: DoubleArray = doubleArrayOf(1.0), name: St
     constructor(vararg thresholds: Double) : this(thresholds, null)
 
     override fun collect(obs: Double) {
-        super.collect(obs)
         num = num + 1.0
         for (i in myThresholds.indices) {
             if (obs > myThresholds[i]) {
                 myCounts[i]++
             }
         }
+        lastValue = obs
+        notifyObservers(lastValue)
+        emitter.emit(lastValue)
     }
 
     override fun reset() {

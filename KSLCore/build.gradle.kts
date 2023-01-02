@@ -20,11 +20,16 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `java-library`
+    // uncomment for publishing task
+    `maven-publish`
+    // uncomment for signing the jars during publishing task
+    signing
     kotlin("jvm") version "1.7.20"
     kotlin("plugin.serialization") version "1.7.20"
+    id("org.jetbrains.dokka") version "1.7.20"
 }
 group = "io.github.rossetti"
-version = "1.0-SNAPSHOT"
+version = "R1.0"
 
 repositories {
 
@@ -32,10 +37,6 @@ repositories {
 }
 
 dependencies {
-
-    //TODO probably not needed any more, test it
-//    api(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
-//    api(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
     api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2")
@@ -93,9 +94,6 @@ dependencies {
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
     api(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.3")
 
-//    testImplementation(kotlin("test"))
-//    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
-//    testImplementation(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
     implementation(kotlin("stdlib-jdk8"))
 }
 
@@ -126,4 +124,75 @@ compileKotlin.kotlinOptions {
 val compileTestKotlin: KotlinCompile by tasks
 compileTestKotlin.kotlinOptions {
     jvmTarget = "1.8"
+}
+
+// these extensions are needed when publishing to maven
+// because maven requires javadoc jar, sources jar, and the build jar
+// these jars are placed in build/libs by default
+java {
+    // comment this out to not make jar file with javadocs during normal build
+    withJavadocJar()
+    // comment this out to not make jar file with source during normal build
+    withSourcesJar()
+}
+
+// run the publishing task to generate the signed jars required for maven central
+// jars will be found in build/JSL/releases or build/JSL/snapshots
+publishing {
+    publications {
+        create<MavenPublication>("KSLCore") {
+            groupId = "io.github.rossetti"
+            artifactId = "KSLCore"
+            // update this field when generating new release
+            version = "R1.0"
+            from(components["java"])
+            versionMapping {
+                usage("java-api") {
+                    fromResolutionOf("runtimeClasspath")
+                }
+                usage("java-runtime") {
+                    fromResolutionResult()
+                }
+            }
+            pom {
+                name.set("KSLCore")
+                description.set("The KSL, an open source kotlin library for simulation")
+                url.set("https://github.com/rossetti/KSL")
+                licenses {
+                    license {
+                        name.set("GPL, Version 3.0")
+                        url.set("https://www.gnu.org/licenses/gpl-3.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("rossetti")
+                        name.set("Manuel D. Rossetti")
+                        email.set("rossetti@uark.edu")
+                    }
+                }
+                scm {
+                    connection.set("https://github.com/rossetti/KSL.git")
+                    developerConnection.set("git@github.com:rossetti/KSL.git")
+                    url.set("https://github.com/rossetti/KSL")
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            // change URLs to point to your repos, e.g. http://my.org/repo
+            // this publishes to local folder within build directory
+            // avoids having to log into maven, etc., but requires manual upload of releases
+            val releasesRepoUrl = uri(layout.buildDirectory.dir("KSL/releases"))
+            val snapshotsRepoUrl = uri(layout.buildDirectory.dir("KSL/snapshots"))
+            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
+        }
+    }
+}
+
+// signing requires config information in folder user home directory
+// .gradle/gradle.properties. To publish jars without signing, just comment out
+signing {
+    sign(publishing.publications["KSLCore"])
 }

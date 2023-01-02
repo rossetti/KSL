@@ -1,37 +1,27 @@
-/*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
- *
- *     This program is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 package ksl.examples.book.chapter5
 
-import ksl.utilities.io.StatisticReporter
-import ksl.utilities.random.rvariable.NormalRV
-import ksl.utilities.statistic.Statistic
+import ksl.observers.AcrossReplicationHalfWidthChecker
+import ksl.observers.ReplicationDataCollector
+import ksl.observers.ResponseTrace
+import ksl.simulation.Model
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 fun main() {
-    val rv = NormalRV(10.0, 4.0)
-    val estimateX = Statistic("Estimated X")
-    val estOfProb = Statistic("Pr(X>8)")
-    val r = StatisticReporter(mutableListOf(estOfProb, estimateX))
-    val n = 20 // sample size
-    for (i in 1..n) {
-        val x = rv.value
-        estimateX.collect(x)
-        estOfProb.collect(x > 8)
-    }
-    println(r.halfWidthSummaryReport())
+    val model = Model("Pallet Processing Ex 2")
+    model.numberOfReplications = 10000
+    model.experimentName = "Two Workers"
+    // add the model element to the main model
+    val palletWorkCenter = PalletWorkCenter(model)
+
+    val hwc = AcrossReplicationHalfWidthChecker(palletWorkCenter.totalProcessingTime)
+    hwc.desiredHalfWidth = 5.0
+
+    // simulate the model
+    model.simulate()
+
+    // demonstrate that reports can have specified confidence level
+    val sr = model.simulationReporter
+
+    sr.printHalfWidthSummaryReport()
+
 }

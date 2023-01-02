@@ -29,24 +29,20 @@ import ksl.simulation.ModelElement
  * intervals are added, then the schedule only has its start time and no
  * response collection will occur.
  *
- *
  * The user adds intervals and responses for which statistics need to be collected during the intervals.
  * The intervals within the cycle may overlap in time. The start time
  * of an interval is specified relative to the beginning of the cycle.
  * The length of any interval must be finite.
- *
  *
  * The schedule can be started any time after the start of the simulation.
  * The default starting time of the schedule is time 0.0.
  * The schedule will start automatically at the designated
  * start time.
  *
- *
  * The schedule can be repeated after the cycle length of the schedule is
  * reached. The default is for the schedule to automatically repeat.
  * Note that depending on the simulation run length only a portion of the
  * scheduled intervals may be executed.
- *
  *
  * The classic use case of this class is to collect statistics for each hour of the day.
  * In this case, the user would use the addIntervals() method to add 24 intervals of 1 hour duration.
@@ -56,7 +52,6 @@ import ksl.simulation.ModelElement
  * than one day is simulated and the schedule is allowed to repeat, then statistics are collected
  * across the days.  That is, the statistics of hour 1 on day 1 are averaged with the
  * statistics of hour 1 on all subsequent days.
- *
  *
  * This functionality is built on the ResponseInterval class, which can be used separately. In
  * other words, response intervals do not have to be on a schedule. The schedule facilitates
@@ -168,6 +163,18 @@ class ResponseSchedule(
      *
      * @param response the response to add
      */
+    fun addResponseToAllIntervals(response: ResponseCIfc) {
+        for (item in myScheduleItems) {
+            item.addResponseToInterval(response)
+        }
+    }
+
+    /**
+     * Causes interval statistics to be collected for the response for every
+     * interval in the schedule
+     *
+     * @param response the response to add
+     */
     fun addResponseToAllIntervals(response: Response) {
         for (item in myScheduleItems) {
             item.addResponseToInterval(response)
@@ -184,6 +191,18 @@ class ResponseSchedule(
     fun addResponsesToAllIntervals(responses: Collection<Response>) {
         for (c in responses) {
             addResponseToAllIntervals(c)
+        }
+    }
+
+    /**
+     * Causes interval statistics to be collected for the counter for every
+     * interval in the schedule
+     *
+     * @param counter the counter to add
+     */
+    fun addCounterToAllIntervals(counter: CounterCIfc) {
+        for (item in myScheduleItems) {
+            item.addCounterToInterval(counter)
         }
     }
 
@@ -224,14 +243,15 @@ class ResponseSchedule(
      */
     fun addResponseInterval(
         startTime: Double,
-        duration: Double, theLabel: String
+        duration: Double,
+        theLabel: String
     ): ResponseScheduleItem {
         require(startTime >= 0.0) { "The start time must be greater than or equal to zero" }
         require(duration.isFinite()) { "The duration must be finite" }
         require(duration > 0.0) { "The duration must be strictly positive" }
         var label = theLabel
         val n = myScheduleItems.size + 1
-        label = String.format("Interval:%02d", n) + ":" + label
+        label = String.format("%02d", n) + ":" + label
         val item = ResponseScheduleItem(this, startTime, duration, "$name:$label")
         if (startTime + item.duration > length) {
             length = startTime + item.duration

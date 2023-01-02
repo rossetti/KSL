@@ -62,8 +62,29 @@ class ResponseScheduleItem internal constructor(
      * @param theResponse the response to collect interval statistics on
      * @return a ResponseVariable for the interval
      */
+    fun addResponseToInterval(theResponse: ResponseCIfc): Response{
+        return responseInterval.addResponseToInterval(theResponse)
+    }
+
+    /**
+     * Adds a ResponseVariable to the item for data collection over the
+     * interval
+     *
+     * @param theResponse the response to collect interval statistics on
+     * @return a ResponseVariable for the interval
+     */
     fun addResponseToInterval(theResponse: Response): Response {
         return responseInterval.addResponseToInterval(theResponse)
+    }
+
+    /**
+     * Adds a Counter to the interval for data collection over the interval
+     *
+     * @param theCounter the counter to collect interval statistics on
+     * @return a ResponseVariable for the interval
+     */
+    fun addCounterToInterval(theCounter: CounterCIfc): Response {
+        return responseInterval.addCounterToInterval(theCounter)
     }
 
     /**

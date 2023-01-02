@@ -19,6 +19,7 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
+import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
@@ -33,11 +34,25 @@ import ksl.simulation.ModelElement
  */
 class Signal(
     parent: ModelElement,
-    name: String?,
+    name: String? = null,
     discipline: Queue.Discipline = Queue.Discipline.FIFO
 ) : ModelElement(parent, name) {
 
     private val holdQueue = HoldQueue(this, "${name}:HoldQ", discipline)
+
+    val waitingQ: QueueCIfc<ProcessModel.Entity>
+        get() = holdQueue
+
+    /**
+     *  An immutable list representation of the holding queue. While the list is
+     *  read-only, the elements can be changed. Thus, some care may be needed to
+     *  understand the effects of such changes.  This view is mainly to provide the abilities
+     *  available in the Kotlin collection classes to working with the waiting entities,
+     *  which may be used to determine which entities to signal.
+     */
+    fun holdingQueueAsList() : List<ProcessModel.Entity>{
+        return holdQueue.toList()
+    }
 
     /**
      *  Used within the process implementation to hold the entities
@@ -57,7 +72,7 @@ class Signal(
 
     /** The entity removes itself from the waiting condition.
      *  If there are no entities, or the rank is out of range, then nothing happens (no signal)
-     * @param rank the rank goes from 0 to size
+     * @param rank the rank goes from 0 to size-1
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
     fun signal(rank: Int = 0, resumePriority: Int = KSLEvent.DEFAULT_PRIORITY) {

@@ -20,6 +20,46 @@ package ksl.modeling.elements
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.utilities.random.RandomIfc
 
+interface EventGeneratorCIfc {
+    /**
+     * Sets the flag that indicates whether the generator will
+     * automatically start at the beginning of a replication when initialized
+     *
+     * true indicates automatic start
+     */
+    var startOnInitializeOption: Boolean
+
+    /**
+     * Controls the random variable representing the time until the first event that is
+     * used at the beginning of each replication to generate the time until the
+     * first event. This change becomes effective at the beginning of the next
+     * replication to execute
+     */
+    val initialTimeUntilFirstEvent: RandomSourceCIfc
+
+    /**
+     * This value is used to set the ending time for generating actions for each
+     * replication. Changing this variable during a replication cause the next
+     * replication to use this value for its ending time.
+     *
+     */
+    var initialEndingTime: Double
+
+    /**
+     * Sets the time between events and the maximum number of events to be used
+     * to initialize each replication. These parameters are dependent. The time
+     * between events cannot evaluate to a constant value of 0.0 if the maximum
+     * number of events is infinite (Long.MAX_VALUE)
+     *
+     * @param initialTimeBtwEvents the initial time between events
+     * @param initialMaxNumEvents the initial maximum number of events
+     */
+    fun setInitialTimeBetweenEventsAndMaxNumEvents(
+        initialTimeBtwEvents: RandomIfc,
+        initialMaxNumEvents: Long = Long.MAX_VALUE
+    )
+}
+
 /** An interface to define how event generators operate.  The primary
  * subclass is EventGenerator.  Of particular note is the use of
  * initial parameters:
@@ -37,7 +77,7 @@ import ksl.utilities.random.RandomIfc
  *
  * @author rossetti
  */
-interface EventGeneratorIfc {
+interface EventGeneratorIfc : EventGeneratorCIfc {
     /**
      * If the generator was not started upon initialization at the beginning of
      * a replication, then this method can be used to start the generator
@@ -84,14 +124,6 @@ interface EventGeneratorIfc {
     val isStarted: Boolean
 
     /**
-     * Sets the flag that indicates whether the generator will
-     * automatically start at the beginning of a replication when initialized
-     *
-     * true indicates automatic start
-     */
-    var startOnInitializeOption: Boolean
-
-    /**
      * Suspends the generation of events and cancels the next scheduled event
      * from the generator
      */
@@ -131,7 +163,24 @@ interface EventGeneratorIfc {
      * 0.0, if the current setting of the maximum number of events is infinite
      * (Long.MAX_VALUE).  This is only for the current replication.
      */
-    val timeBetweenEvents: RandomIfc //TODO should be stream control
+    val timeBetweenEvents: RandomIfc
+
+    /**
+     * Controls the maximum number of events to be used to initialize each
+     * replication. The time between events cannot evaluate to a constant value
+     * of 0.0 if the maximum number of events is infinite (Long.MAX_VALUE). Uses
+     * the current value for initial time between events
+     */
+    val initialMaximumNumberOfEvents: Long
+
+    /**
+     * Sets the time between events and the maximum number of events to be used
+     * to initialize each replication. The time between events cannot evaluate
+     * to a constant value of 0.0. The maximum number of events is kept at its
+     * current value, which by default is Long.Max_Value
+     *
+     */
+    val initialTimeBtwEvents: RandomIfc
 
     /**
      * Sets the time between events and the maximum number of events for the
@@ -149,28 +198,6 @@ interface EventGeneratorIfc {
     fun setTimeBetweenEvents(timeBtwEvents: RandomIfc, maxNumEvents: Long = Long.MAX_VALUE)
 
     /**
-     * Sets the time between events and the maximum number of events to be used
-     * to initialize each replication. These parameters are dependent. The time
-     * between events cannot evaluate to a constant value of 0.0 if the maximum
-     * number of events is infinite (Long.MAX_VALUE)
-     *
-     * @param initialTimeBtwEvents the initial time between events
-     * @param initialMaxNumEvents the initial maximum number of events
-     */
-    fun setInitialTimeBetweenEventsAndMaxNumEvents(
-        initialTimeBtwEvents: RandomIfc,
-        initialMaxNumEvents: Long = Long.MAX_VALUE
-    )
-
-    /**
-     * Controls the random variable representing the time until the first event that is
-     * used at the beginning of each replication to generate the time until the
-     * first event. This change becomes effective at the beginning of the next
-     * replication to execute
-     */
-    val initialTimeUntilFirstEvent: RandomSourceCIfc
-
-    /**
      * Controls the ending time for generating events for the current replication. A
      * new ending time will be applied to the generator. If this change results
      * in an ending time that is less than the current time, the generator will
@@ -179,34 +206,9 @@ interface EventGeneratorIfc {
     val endingTime: Double
 
     /**
-     * This value is used to set the ending time for generating actions for each
-     * replication. Changing this variable during a replication cause the next
-     * replication to use this value for its ending time.
-     *
-     */
-    var initialEndingTime: Double
-
-    /**
      * Gets the number of events that have been generated by the generator
      */
     val eventCount: Long
-
-    /**
-     * Controls the maximum number of events to be used to initialize each
-     * replication. The time between events cannot evaluate to a constant value
-     * of 0.0 if the maximum number of events is infinite (Long.MAX_VALUE). Uses
-     * the current value for initial time between events
-     */
-    val initialMaximumNumberOfEvents: Long
-
-    /**
-     * Sets the time between events and the maximum number of events to be used
-     * to initialize each replication. The time between events cannot evaluate
-     * to a constant value of 0.0. The maximum number of events is kept at its
-     * current value, which by default is Long.Max_Value
-     *
-     */
-    val initialTimeBtwEvents: RandomIfc //TODO should be stream control
 
     /**
      *

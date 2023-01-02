@@ -35,8 +35,6 @@ repositories {
 dependencies {
 
     implementation(project(":KSLCore"))
-//TODO uncomment when extensions are done
-//    implementation(project(":KSLExtensions"))
     
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
 //    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "2.1.21")

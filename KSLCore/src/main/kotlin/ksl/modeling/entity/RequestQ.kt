@@ -19,7 +19,6 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
-import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
 interface RequestSelectionRuleIfc {
@@ -27,23 +26,32 @@ interface RequestSelectionRuleIfc {
     /**
      * @param amountAvailable the amount available
      * @param requestQ the queue to search
-     * @return the request that was selected
+     * @return the requests that were selected
      */
-    fun selectRequest(amountAvailable: Int, requestQ: RequestQ): ProcessModel.Entity.Request?
+    fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request>
 
 }
 
 /**
- *  Returns the first request that needs less than or equal to the amount available
+ *  Returns a list of requests that can be allocated at the current time based on the amount
+ *  available criteria. Each request that can be fully allocated by the amount available is
+ *  returned. The list is ordered in the same order as the RequestQ.  No partial filling is
+ *  permitted in this default rule.
  */
 class DefaultRequestSelectionRule : RequestSelectionRuleIfc {
-    override fun selectRequest(amountAvailable: Int, requestQ: RequestQ): ProcessModel.Entity.Request? {
+    override fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request> {
+        val list = mutableListOf<ProcessModel.Entity.Request>()
+        if (amountAvailable <= 0){
+            return list
+        }
+        var startingAmount = amountAvailable
         for (request in requestQ) {
-            if (request.amountRequested <= amountAvailable) {
-                return request
+            if (request.amountRequested <= startingAmount) {
+                list.add(request)
+                startingAmount = startingAmount - request.amountRequested
             }
         }
-        return null
+        return list
     }
 }
 
@@ -62,15 +70,7 @@ class RequestQ(
 ) :
     Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
-    var requestSelectionRule: RequestSelectionRuleIfc? = null
-
-    fun selectRequest(amountAvailable: Int): ProcessModel.Entity.Request? {
-        if (requestSelectionRule != null) {
-            return requestSelectionRule!!.selectRequest(amountAvailable, this)
-        } else {
-            return peekNext()
-        }
-    }
+    var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule()
 
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
@@ -78,13 +78,15 @@ class RequestQ(
      * @param request the request to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
+     * @param afterTermination a function to invoke after the process is successfully terminated
      */
     fun removeAndTerminate(
         request: ProcessModel.Entity.Request,
-        waitStats: Boolean = false
-    ) {
+        waitStats: Boolean = false,
+        afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null
+        ) {
         remove(request, waitStats)
-        request.entity.terminateProcess()
+        request.entity.terminateProcess(afterTermination)
     }
 
     /**
@@ -92,11 +94,32 @@ class RequestQ(
      *
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
+     * @param afterTermination a function to invoke after the process is successfully terminated
      */
-    fun removeAllAndTerminate(waitStats: Boolean = false) {
+    fun removeAllAndTerminate(waitStats: Boolean = false, afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null) {
         while (isNotEmpty) {
             val request = peekNext()
-            removeAndTerminate(request!!, waitStats)
+            removeAndTerminate(request!!, waitStats, afterTermination)
         }
+    }
+
+    /** The method processes a request queue to allocated units to the next waiting request. If there
+     * is a sufficient amount available for the next request, then the next request in the queue is processed
+     * and its associated entity is resumed from waiting for the request. The entity then proceeds to
+     * have its request allocated.
+     *
+     * @param amountAvailable the amount of units that are available to allocate to the next request
+     * @param resumePriority the priority associated with resuming the waiting entity that gets its request filled
+     * @return the number of waiting requests that were processed
+     */
+    internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int) : Int {
+        if (amountAvailable <= 0){
+            return 0
+        }
+        val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
+        for (request in selectedRequests) {
+            request.entity.resumeProcess(0.0, resumePriority)
+        }
+        return selectedRequests.size
     }
 }

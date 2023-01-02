@@ -55,7 +55,7 @@ class Allocation(
      */
     val timeAllocated: Double = resource.time
     var timeDeallocated: Double = Double.NaN
-        internal set
+        private set
 
     /**
      * The total elapsed time since allocation if not yet deallocated.  If
@@ -80,7 +80,7 @@ class Allocation(
      *  The amount of the allocation representing the units allocated of the resource
      */
     var amount: Int = theAmount
-        internal set(value) {
+        private set(value) {
             require(value >= 0) { "The amount allocated must be >= 0" }
             field = value
         }
@@ -96,6 +96,14 @@ class Allocation(
      */
     val isDeallocated: Boolean
         get() = !isAllocated
+
+    var amountReleased = 0
+        private set
+    internal fun deallocate(){
+        amountReleased = amount
+        amount = 0
+        timeDeallocated = resource.time
+    }
 
     override fun toString(): String {
         val sb = StringBuilder()

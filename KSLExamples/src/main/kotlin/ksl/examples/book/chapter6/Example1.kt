@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,18 +18,19 @@
 
 package ksl.examples.book.chapter6
 
+import ksl.modeling.entity.ProcessModel
 import ksl.simulation.Model
+import ksl.utilities.random.rvariable.ExponentialRV
 
-/**
- * This example illustrates how to create a simulation model,
- * attach a new model element, set the run length, and
- * run the simulation. The example use the SchedulingEventExamples
- * class to show how actions are used to implement events.
- */
-fun main() {
-    val m = Model("Scheduling Example")
-    SchedulingEventExamples(m.model)
-    m.lengthOfReplication = 100.0
-//    m.autoPrintSummaryReport = false
+fun main(){
+    val m = Model()
+    val dtp = DriveThroughPharmacy(m, name = "DriveThrough")
+    dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
+    dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
+
+    m.numberOfReplications = 30
+    m.lengthOfReplication = 20000.0
+    m.lengthOfReplicationWarmUp = 5000.0
     m.simulate()
+    m.print()
 }

@@ -39,7 +39,6 @@ open class State(
     theStateNumber: Int = stateCounter + 1,
     name: String = "State:${theStateNumber}",
     useStatistic: Boolean = false,
-    entered: Boolean = false
 ) : IdentityIfc by Identity(name), StateAccessorIfc {
 
     /**
@@ -67,7 +66,7 @@ open class State(
         if(useStatistic){
             sojournTimeCollectionFlag = true
         }
-        initialize(entered)
+        initialize()
     }
 
     /**
@@ -117,14 +116,15 @@ open class State(
     override var totalTimeInState = 0.0
         protected set
 
-    override fun toString(): String {
-        val sb = StringBuilder("State{")
-        sb.append("id = ").append(id)
-        sb.append(", number = ").append(number)
-        sb.append(", name = '").append(name).append("\'")
-        sb.append("}")
-        return sb.toString()
-    }
+//    override fun toString(): String {
+//        val sb = StringBuilder("State{")
+//        sb.append("id = $id ")
+//        sb.append(", number = $number")
+//        sb.append(", name = $name}")
+//        return sb.toString()
+//    }
+
+
 
     /**
      * Causes the state to be entered
@@ -138,7 +138,7 @@ open class State(
         require(!time.isNaN()) { "The supplied time was Double.NaN" }
         require(time.isFinite()) { "The supplied time was Double.Infinity" }
         require(time >= 0.0) { "The supplied time was less than 0.0" }
-        if (isEntered) {
+        if (isEntered && (numberOfTimesEntered > 1.0)) {
             return
         }
         numberOfTimesEntered = numberOfTimesEntered + 1.0
@@ -197,10 +197,9 @@ open class State(
      * - total time in state = 0.0
      * - enter/exited count = 0.0
      * - sojourn statistics reset if turned on
-     * @param entered true indicates that the state starts as if it is entered. false is the default
      */
-    fun initialize(entered: Boolean = false) {
-        isEntered = entered
+    fun initialize() {
+        isEntered = false
         timeStateEntered = Double.NaN
         timeStateExited = Double.NaN
         timeFirstEntered = Double.NaN
@@ -230,6 +229,10 @@ open class State(
         numberOfTimesEntered = 0.0
         numberOfTimesExited = 0.0
         totalTimeInState = 0.0
+    }
+
+    override fun toString(): String {
+        return "State(number=$number, name=$name, isEntered=$isEntered, numberOfTimesEntered=$numberOfTimesEntered, numberOfTimesExited=$numberOfTimesExited, timeStateEntered=$timeStateEntered, timeFirstEntered=$timeFirstEntered, timeStateExited=$timeStateExited, totalTimeInState=$totalTimeInState)"
     }
 
 }

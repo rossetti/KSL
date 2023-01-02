@@ -169,11 +169,15 @@ open class Response(
         set(newValue) = assignValue(newValue)
 
     override fun assignValue(newValue: Double){
+        //TODO NaN is never in range and thus cannot be observed
+        // observing a NaN can be like a missing value
         require(domain.contains(newValue)) { "The value $newValue was not within the limits $domain" }
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue
         timeOfChange = time
+        //TODO  This is not calling the WeightedStatistic's collect method
+        // it is calling WeightedCollector
         myWithinReplicationStatistic.value = myValue
         notifyModelElementObservers(Status.UPDATE)
         if (emissionsOn){
@@ -204,6 +208,10 @@ open class Response(
         get() = myWithinReplicationStatistic.instance()
 
     override var defaultReportingOption: Boolean = true
+
+    fun attachIndicator(predicate: (Double) -> Boolean, name: String? = null): IndicatorResponse {
+        return IndicatorResponse(predicate, this, name)
+    }
 
     override fun beforeExperiment() {
         super.beforeExperiment()

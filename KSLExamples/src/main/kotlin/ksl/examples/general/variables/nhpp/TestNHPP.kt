@@ -63,7 +63,7 @@ class TestNHPP(parent: ModelElement, f: PiecewiseRateFunction, name: String? = n
     }
 }
 
-fun main(args: Array<String>) {
+fun main() {
     runModel1()
 //            runModel2();
 }

@@ -287,11 +287,18 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
             sb.append(event)
             sb.appendLine()
+            if (event.entity != null){
+                sb.appendLine("Entity Information:")
+                sb.appendLine(event.entity)
+                if (event.entity!!.currentProcess != null)
+                    sb.appendLine(event.entity!!.currentProcess)
+            }
+            sb.appendLine()
+            sb.appendLine(event.modelElement.myModel)
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
 
-            sb.append(event.modelElement.myModel)
             Model.logger.error(sb.toString())
             System.out.flush()
             throw e

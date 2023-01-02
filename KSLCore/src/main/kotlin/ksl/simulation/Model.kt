@@ -277,12 +277,18 @@ class Model(
         get() = myReplicationProcess.isInitialized
 
     /**
-     * A simulation is running if it has been told to run (i.e.
-     * run() or runNextReplication()) but has not yet been told to end().
+     * A model is running if it has been told to simulate (i.e.
+     * simulate() or runNextReplication()) but has not yet been told to end().
      *
      */
     val isRunning: Boolean
         get() = myReplicationProcess.isRunning
+
+    /**
+     * The complement of isRunning
+     */
+    val isNotRunning: Boolean
+        get() = !isRunning
 
     /**
      * Checks if the simulation is in the completed step state After the
