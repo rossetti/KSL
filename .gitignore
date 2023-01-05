@@ -260,3 +260,5 @@ KSLExtensions/build
 KSLKotlin/build
 KSLExamples/build
 KSLExampleProject/buil
+KSLProjectTemplate/gradle/wrapper/gradle-wrapper.jar
+KSLProjectTemplate/gradle/wrapper/gradle-wrapper.properties
