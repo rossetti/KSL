@@ -73,7 +73,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * @return true if [element] is associated with this spatial model
      */
     fun isValid(element: SpatialElement) : Boolean {
-        return isValid(element.location)
+        return isValid(element.currentLocation)
     }
 
     /**
@@ -82,7 +82,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * @return the distance between the two elements
      */
     fun distance(firstElement: SpatialElement, secondElement: SpatialElement): Double{
-        return distance(firstElement.location, secondElement.location)
+        return distance(firstElement.currentLocation, secondElement.currentLocation)
     }
 
     /**
@@ -96,7 +96,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * return false.
      */
     fun compareLocations(firstElement: SpatialElement, secondElement: SpatialElement): Boolean{
-        return compareLocations(firstElement.location, secondElement.location)
+        return compareLocations(firstElement.currentLocation, secondElement.currentLocation)
     }
 
     /**

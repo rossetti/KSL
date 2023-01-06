@@ -6,7 +6,7 @@ package ksl.modeling.spatial
 
 open class SpatialElement(initialSpatialModel: SpatialModel, initialLocation: LocationIfc) {
     init {
-        require(initialSpatialModel.isValid(initialLocation)){"The location ${initialLocation.name} is not valid for spatial model ${initialSpatialModel.name}"}
+        require(initialSpatialModel.isValid(initialLocation)) { "The location ${initialLocation.name} is not valid for spatial model ${initialSpatialModel.name}" }
     }
 
     /**
@@ -25,11 +25,31 @@ open class SpatialElement(initialSpatialModel: SpatialModel, initialLocation: Lo
     var currentModel: SpatialModel = initialSpatialModel
         protected set
 
-    var location: LocationIfc = initialLocation
-        set(value) {
-            require(currentModel.isValid(value)){"The location ${value.name} is not valid for spatial model ${currentModel.name}"}
-            field = value
+    var currentLocation: LocationIfc = initialLocation
+        set(nextLocation) {
+            require(currentModel.isValid(nextLocation)) { "The location ${nextLocation.name} is not valid for spatial model ${currentModel.name}" }
+            previousLocation = field
+            field = nextLocation
             field.model.updatingElement = this
         }
+
+    var previousLocation: LocationIfc = initialLocation
+        protected set
+
+    fun distanceTo(location: LocationIfc): Double {
+        return currentLocation.distanceTo(location)
+    }
+
+    fun distanceTo(element: SpatialElement): Double {
+        return currentLocation.distanceTo(element.currentLocation)
+    }
+
+    fun isLocationEqualTo(location: LocationIfc): Boolean {
+        return currentLocation.isLocationEqualTo(location)
+    }
+
+    fun isLocationEqualTo(element: SpatialElement): Boolean {
+        return currentLocation.isLocationEqualTo(element.currentLocation)
+    }
 
 }
