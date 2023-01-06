@@ -65,6 +65,8 @@ dependencies {
 
     implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
 
+    implementation("com.google.guava:guava:31.1-jre")
+
     // https://mvnrepository.com/artifact/org.knowm.xchart/xchart
 //    implementation("org.knowm.xchart:xchart:3.8.2")
     
