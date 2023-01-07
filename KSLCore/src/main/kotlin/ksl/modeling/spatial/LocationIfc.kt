@@ -31,4 +31,5 @@ interface LocationIfc {
         }
         return model.compareLocations(this, location)
     }
+
 }

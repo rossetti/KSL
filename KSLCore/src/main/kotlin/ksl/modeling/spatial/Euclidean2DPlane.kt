@@ -41,5 +41,10 @@ class Euclidean2DPlane(modelElement: ModelElement) : SpatialModel(modelElement) 
         override val id: Int = ++locationCount
         override val name: String = aName ?: "ID_$id"
         override val model: SpatialModel = this@Euclidean2DPlane
+        override fun toString(): String {
+            return "Location(x=$x, y=$y, id=$id, name='$name', spatial model=${model.name})"
+        }
+
+
     }
 }

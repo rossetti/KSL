@@ -147,6 +147,10 @@ class DistancesModel(modelElement: ModelElement) : SpatialModel(modelElement) {
         override val id: Int = ++locationCount
         override val name: String = aName ?: "ID_$id"
         override val model: SpatialModel = this@DistancesModel
+        override fun toString(): String {
+            return "Location(id=$id, name='$name', spatial model=${model.name})"
+        }
+
     }
 
 }
