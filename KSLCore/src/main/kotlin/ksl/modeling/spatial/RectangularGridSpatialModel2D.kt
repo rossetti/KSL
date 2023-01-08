@@ -1,6 +1,7 @@
 package ksl.modeling.spatial
 
 import ksl.simulation.ModelElement
+import ksl.utilities.KSLArrays
 import ksl.utilities.math.KSLMath
 import ksl.utilities.to2DArray
 import java.awt.Shape
@@ -107,6 +108,7 @@ class RectangularGridSpatialModel2D(
     }
 
     private val myUpperLeftCornerPt: Point2D = myPoints[0][0]
+
     /**
      * The upper left corner point for the grid
      */
@@ -114,6 +116,7 @@ class RectangularGridSpatialModel2D(
         get() = Point2D.Double(myUpperLeftCornerPt.x, myUpperLeftCornerPt.y)
 
     private val myLowerLeftCornerPt: Point2D = myPoints[myNumRows][0]
+
     /**
      * The lower left corner point for the grid
      */
@@ -121,6 +124,7 @@ class RectangularGridSpatialModel2D(
         get() = Point2D.Double(myLowerLeftCornerPt.x, myLowerLeftCornerPt.y)
 
     private val myUpperRightCornerPt: Point2D = myPoints[0][myNumCols]
+
     /**
      * The upper right corner point for the grid
      */
@@ -128,6 +132,7 @@ class RectangularGridSpatialModel2D(
         get() = Point2D.Double(myUpperRightCornerPt.x, myUpperRightCornerPt.y)
 
     private val myLowerRightCornerPt: Point2D = myPoints[myNumRows][myNumCols]
+
     /**
      * The lower right corner point for the grid
      */
@@ -244,12 +249,8 @@ class RectangularGridSpatialModel2D(
         }
 
     /**
-     * The cell at this row, col. Null is returned if
+     * The cell at this [row], [col]. Null is returned if
      * the row or column is outside the grid.
-     *
-     * @param row the row
-     * @param col the column
-     * @return the cell or null
      */
     fun cell(row: Int, col: Int): RectangularCell2D? {
         return if ((row < 0) || (row >= myNumRows)) {
@@ -262,11 +263,8 @@ class RectangularGridSpatialModel2D(
     }
 
     /**
-     * The cell that contains this x,y coordinate or null if no cell
-     *
-     * @param x the x coordinate
-     * @param y the y coordinate
-     * @return the cell or null
+     * The cell that contains this ([x],[y]) coordinate or null if no cell
+     * contains the coordinate.
      */
     fun cell(x: Double, y: Double): RectangularCell2D? {
         if (!contains(x, y)) {
@@ -278,10 +276,7 @@ class RectangularGridSpatialModel2D(
     }
 
     /**
-     * Returns the cell that the location is in or null
-     *
-     * @param location
-     * @return the cell or null
+     * Returns the cell that the [location] is in or null
      */
     fun cell(location: LocationIfc): RectangularCell2D? {
         if (!isValid(location)) {
@@ -289,6 +284,64 @@ class RectangularGridSpatialModel2D(
         }
         val loc = location as Location
         return cell(loc.x, loc.y)
+    }
+
+    /**
+     * Returns the cell that the [element] is in or null
+     */
+    fun cell(element: SpatialElementIfc): RectangularCell2D?{
+        if (!isValid(element)) {
+            return null
+        }
+        return cell(element.currentLocation)
+    }
+
+    /**
+     * The number of elements in the cell containing [spatialElement]
+     */
+    fun numElementsInCell(spatialElement: SpatialElementIfc) : Int {
+        val cell = cell(spatialElement) ?: return 0
+        return cell.numSpatialElements
+    }
+
+    /**
+     * The number of elements in the cell containing [location]
+     */
+    fun numElementsInCell(location: LocationIfc) : Int {
+        val cell = cell(location) ?: return 0
+        return cell.numSpatialElements
+    }
+
+    /**
+     * The number of elements in the cell containing [x] and [y]
+     */
+    fun numElementsInCell(x: Double, y:Double) : Int {
+        val cell = cell(x, y) ?: return 0
+        return cell.numSpatialElements
+    }
+
+    /**
+     * The elements in the cell containing [spatialElement] or an empty list.
+     */
+    fun elementsInCell(spatialElement: SpatialElementIfc): List<SpatialElementIfc>{
+        val cell = cell(spatialElement) ?: return emptyList()
+        return cell.spatialElements
+    }
+
+    /**
+     * The elements in the cell containing [location] or an empty list
+     */
+    fun elementsInCell(location: LocationIfc): List<SpatialElementIfc>{
+        val cell = cell(location) ?: return emptyList()
+        return cell.spatialElements
+    }
+
+    /**
+     * The elements in the cell that contains [x] and [y] or an empty list
+     */
+    fun elementsInCell(x: Double, y:Double): List<SpatialElementIfc>{
+        val cell = cell(x, y) ?: return emptyList()
+        return cell.spatialElements
     }
 
     /**
@@ -338,6 +391,30 @@ class RectangularGridSpatialModel2D(
         val b1 = KSLMath.equal(f.x, t.x, defaultLocationPrecision)
         val b2 = KSLMath.equal(f.y, t.y, defaultLocationPrecision)
         return b1 && b2
+    }
+
+    override fun addElementInternal(element: SpatialElement) {
+        // add it to the model
+        super.addElementInternal(element)
+        // add it to the cell within the model
+        val c = element.currentLocation as Location
+        // the location must be related to a cell, since the location was made by this model
+        val cell: RectangularCell2D = cell(c.x, c.y)!!
+        cell.addSpatialElement(element)
+    }
+
+    override fun transferSpatialElement(
+        element: SpatialElement,
+        newSpatialModel: SpatialModel,
+        newLocation: LocationIfc
+    ): SpatialElementIfc {
+        // first remove it from the cell
+        val c = element.currentLocation as Location
+        // the location must be related to a cell, since the location was made by this model
+        val cell: RectangularCell2D = cell(c.x, c.y)!!
+        cell.removeSpatialElement(element)
+        // now make the transfer
+        return super.transferSpatialElement(element, newSpatialModel, newLocation)
     }
 
     /** Represents a location within this spatial model.
@@ -550,6 +627,8 @@ class RectangularGridSpatialModel2D(
             get() = mySpatialElements.size
 
         private val mySpatialElements: MutableList<SpatialElementIfc> = mutableListOf()
+        val spatialElements: List<SpatialElementIfc>
+            get() = mySpatialElements
 
         val rowColName: String = "Cell($rowIndex, $columnIndex)"
 
@@ -626,6 +705,91 @@ class RectangularGridSpatialModel2D(
         val lowerLeft: LocationIfc = grid.Location(x, y + height, "LowerLeft")
 
         val lowerRight: LocationIfc = grid.Location(x + width, y + height, "LowerRight")
+
+        /**
+         * Gets a list of elements of the target class that are in the cell
+         *
+         * @param <T> the type
+         * @param targetClass the class type
+         * @return the list
+        </T> */
+        fun <T> elements(targetClass: Class<T>): List<T> {
+            return KSLArrays.getElements(mySpatialElements, targetClass)
+        }
+
+        /** Gets a list of model elements of the target class that are in the cell
+         * This uses getModelElements() as the basis for the search
+         * @param <T> the type
+         * @param targetClass the class type
+         * @return the list
+        </T> */
+        fun <T> modelElementsOfType(targetClass: Class<T>): List<T> {
+            return KSLArrays.getElements(modelElements, targetClass)
+        }
+
+        /**
+         * Counts the number of ModelElements of the provided class type that are in
+         * the cell. Use X.class for the search, where X is a valid class name.
+         *
+         * @param targetClass
+         * @return the count
+         */
+        fun countModelElements(targetClass: Class<*>): Int {
+            return KSLArrays.countElements(modelElements, targetClass)
+        }
+
+        /**
+         * Counts the number of SpatialElements of the provided class type that are
+         * in the cell. Use X.class for the search, where X is a valid class name.
+         *
+         * @param targetClass
+         * @return the count
+         */
+        fun countSpatialElements(targetClass: Class<*>): Int {
+            return KSLArrays.countElements(mySpatialElements, targetClass)
+        }
+
+        /**
+         * Returns a list of the ModelElements attached to any spatial elements
+         * within the cell.
+         *
+         * @return a list of the ModelElements attached to any spatial elements
+         * within the cell
+         */
+        val modelElements: List<ModelElement>
+            get() {
+                val list: MutableList<ModelElement> = mutableListOf()
+                for (se in mySpatialElements) {
+                    val me = se.modelElement
+                    if (me != null) {
+                        list.add(me)
+                    }
+                }
+                return list
+            }
+
+        fun mooreNeighborhood(): Array<Array<RectangularCell2D?>> {
+            return grid.mooreNeighborhood(this)
+        }
+
+        /**
+         * Add the spatial element to the cell
+         *
+         * @param element
+         */
+        fun addSpatialElement(element: SpatialElementIfc) {
+            mySpatialElements.add(element)
+        }
+
+        /**
+         * Removes the spatial element from the cell
+         *
+         * @param element
+         * @return
+         */
+        fun removeSpatialElement(element: SpatialElementIfc): Boolean {
+            return mySpatialElements.remove(element)
+        }
 
         /**
          * Converts the cell to a string

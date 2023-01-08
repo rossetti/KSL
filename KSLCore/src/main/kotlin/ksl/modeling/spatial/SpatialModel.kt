@@ -5,7 +5,7 @@ import ksl.utilities.observers.Observable
 
 private var countSpatialModel: Int = 0
 
-abstract class SpatialModel(val modelElement: ModelElement) : Observable<SpatialElement>() {
+abstract class SpatialModel(val modelElement: ModelElement) : Observable<SpatialElementIfc>() {
 
     var countElements: Int = 0
         internal set
@@ -32,11 +32,11 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
         }
     }
 
-    protected val myElements: MutableList<SpatialElement> = mutableListOf()
-    val elements: List<SpatialElement>
+    protected val myElements: MutableList<SpatialElementIfc> = mutableListOf()
+    val elements: List<SpatialElementIfc>
         get() = myElements
 
-    internal fun addElement(element: SpatialElement){
+    internal open fun addElementInternal(element: SpatialElement){
         myElements.add(element)
         status = Status.ADDED_ELEMENT
         notifyObservers(element)
@@ -47,10 +47,10 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * when the [element] has updated it location. Observers of the spatial
      * model are notified (automatically) after this function is called.
      */
-    protected fun updatedElementLocation(element: SpatialElement) {
+    protected fun updatedElementLocation(element: SpatialElementIfc) {
     }
 
-    internal fun updatedElement(element: SpatialElement){
+    internal fun updatedElement(element: SpatialElementIfc){
         updatedElementLocation(element)
         status = Status.UPDATED_LOCATION
         notifyObservers(element)
@@ -62,7 +62,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * been added to this spatial model then this method should return true
      *
      */
-    fun contains(element: SpatialElement): Boolean {
+    fun contains(element: SpatialElementIfc): Boolean {
         return myElements.contains(element)
     }
 
@@ -76,11 +76,11 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      *
      *  @return the new spatial element at the new location within the different spatial model.
      */
-    fun transferSpatialElement(
+    open fun transferSpatialElement(
         element: SpatialElement,
         newSpatialModel: SpatialModel,
         newLocation: LocationIfc
-    ): SpatialElement {
+    ): SpatialElementIfc {
         require(contains(element)) { "The transferring element ${element.name} does not belong to the spatial model ${this.name} " }
         require(newSpatialModel.isValid(newLocation)) { "The location ${newLocation.name} is not valid for spatial model ${newSpatialModel.name}" }
         myElements.remove(element)
@@ -100,7 +100,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
     /**
      * @return true if [element] is associated with this spatial model
      */
-    fun isValid(element: SpatialElement): Boolean {
+    fun isValid(element: SpatialElementIfc): Boolean {
         return isValid(element.currentLocation) && contains(element)
     }
 
@@ -109,7 +109,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * the spatial model's distance metric
      * @return the distance between the two elements
      */
-    fun distance(fromElement: SpatialElement, toElement: SpatialElement): Double {
+    fun distance(fromElement: SpatialElementIfc, toElement: SpatialElementIfc): Double {
         require(isValid(fromElement)) { "The element ${fromElement.name} is not a valid element for the spatial model ${this.name}" }
         require(isValid(toElement)) { "The element ${fromElement.name} is not a valid element for the spatial model ${this.name}" }
         return distance(fromElement.currentLocation, toElement.currentLocation)
@@ -125,7 +125,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      *
      * Requirement: The elements must be valid within the spatial model.
      */
-    fun compareLocations(firstElement: SpatialElement, secondElement: SpatialElement): Boolean {
+    fun compareLocations(firstElement: SpatialElementIfc, secondElement: SpatialElementIfc): Boolean {
         require(isValid(firstElement)) { "The element ${firstElement.name} is not a valid element for the spatial model ${this.name}" }
         require(isValid(secondElement)) { "The element ${firstElement.name} is not a valid element for the spatial model ${this.name}" }
         return compareLocations(firstElement.currentLocation, secondElement.currentLocation)

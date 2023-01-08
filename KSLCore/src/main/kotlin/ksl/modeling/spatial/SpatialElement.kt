@@ -1,9 +1,10 @@
 package ksl.modeling.spatial
 
+import ksl.simulation.ModelElement
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObservableIfc
 
-interface SpatialElementIfc {
+interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
     val spatialModel: SpatialModel
     val id: Int
     val name: String
@@ -11,11 +12,14 @@ interface SpatialElementIfc {
     val initialLocation: LocationIfc
     val currentLocation: LocationIfc
     val previousLocation: LocationIfc
+    val modelElement: ModelElement?
+    val observableComponent: ObservableComponent<SpatialElementIfc>
+
     fun distanceTo(location: LocationIfc): Double {
         return currentLocation.distanceTo(location)
     }
 
-    fun distanceTo(element: SpatialElement): Double {
+    fun distanceTo(element: SpatialElementIfc): Double {
         return currentLocation.distanceTo(element.currentLocation)
     }
 
@@ -23,7 +27,7 @@ interface SpatialElementIfc {
         return currentLocation.isLocationEqualTo(location)
     }
 
-    fun isLocationEqualTo(element: SpatialElement): Boolean {
+    fun isLocationEqualTo(element: SpatialElementIfc): Boolean {
         return currentLocation.isLocationEqualTo(element.currentLocation)
     }
 }
@@ -36,12 +40,13 @@ class SpatialElement(
     override val spatialModel : SpatialModel,
     location: LocationIfc,
     aName: String? = null,
-    internal val observableComponent: ObservableComponent<SpatialElementIfc> = ObservableComponent()
+    override val observableComponent: ObservableComponent<SpatialElementIfc> = ObservableComponent()
 ) : ObservableIfc<SpatialElementIfc> by observableComponent, SpatialElementIfc {
     override val id = ++spatialModel.countElements
     override val name = aName ?: ("ID_$id")
     override var status = SpatialModel.Status.NONE
-        internal set
+
+    override var modelElement: ModelElement? = null
 
     override var initialLocation = location
         set(location) {
@@ -63,7 +68,7 @@ class SpatialElement(
         private set
 
     init {
-        spatialModel.addElement(this)
+        spatialModel.addElementInternal(this)
     }
 
 }
