@@ -6,25 +6,6 @@ import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
 import java.util.*
 
-class SpatialElementIfc
-
-interface CoordinateIfc {
-    /**
-     * @return Returns the x1.
-     */
-    val x1: Double
-
-    /**
-     * @return Returns the x2.
-     */
-    val x2: Double
-
-    /**
-     * @return Returns the x3.
-     */
-    val x3: Double
-}
-
 /**
  * Represents a basic unit of a RectangularGridSpatialModel
  *
@@ -207,7 +188,7 @@ class RectangularCell2D internal constructor(grid: RectangularGridSpatialModel2D
      * @param neighborhood
      */
     fun getMooreNeighborhood(neighborhood: Array<Array<RectangularCell2D?>?>?) {
-        myParentRectangularGrid2D.getMooreNeighborhood(this, neighborhood)
+        myParentRectangularGrid2D.mooreNeighborhood(this, neighborhood)
     }
 
     /**
@@ -241,9 +222,9 @@ class RectangularCell2D internal constructor(grid: RectangularGridSpatialModel2D
         s.append(System.lineSeparator())
         for (se in mySpatialElements) {
             s.append(se)
-            s.append(System.lineSeparator())
+            s.appendLine()
         }
-        s.append(System.lineSeparator())
+        s.appendLine()
         return s.toString()
     }
 

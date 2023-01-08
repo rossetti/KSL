@@ -1,12 +1,14 @@
 package ksl.modeling.spatial
 
 import ksl.simulation.ModelElement
+import ksl.utilities.math.KSLMath
 import ksl.utilities.to2DArray
 import java.awt.Shape
 import java.awt.geom.GeneralPath
 import java.awt.geom.Line2D
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
+import kotlin.math.sqrt
 
 /**
  * Creates a grid in the 2D plane. The grid is based on the standard user
@@ -30,6 +32,7 @@ class RectangularGridSpatialModel2D(
     upperX: Double = 0.0,
     upperY: Double = 0.0,
 ) : SpatialModel(modelElement) {
+    private var locationCount = 0
 
     init {
         require(numRows >= 1) { "The number of rows must be >=1" }
@@ -37,6 +40,12 @@ class RectangularGridSpatialModel2D(
         require(width > 0.0) { "The width must be > 0.0" }
         require(height > 0.0) { "The height must be > 0.0" }
     }
+
+    var defaultLocationPrecision = KSLMath.defaultNumericalPrecision
+        set(precision) {
+            require(precision > 0.0) { "The precision must be > 0.0." }
+            field = precision
+        }
 
     /**
      * The width of the grid in user dimensions
@@ -79,7 +88,7 @@ class RectangularGridSpatialModel2D(
      * An 2-d array of points forming the grid, point[0][0] = left upper corner
      * point
      */
-    private var myPoints: Array<Array<Point2D.Double>>
+    private val myPoints: Array<Array<Point2D.Double>>
 
     init {
         var y = upperY
@@ -97,50 +106,64 @@ class RectangularGridSpatialModel2D(
         myPoints = to2DArray(oList)
     }
 
+    private val myUpperLeftCornerPt: Point2D = myPoints[0][0]
     /**
      * The upper left corner point for the grid
      */
-    private var myUpperLeftCornerPt: Point2D = myPoints[0][0]
+    val upperLeftCorner: Point2D
+        get() = Point2D.Double(myUpperLeftCornerPt.x, myUpperLeftCornerPt.y)
 
+    private val myLowerLeftCornerPt: Point2D = myPoints[myNumRows][0]
     /**
      * The lower left corner point for the grid
      */
-    private var myLowerLeftCornerPt: Point2D = myPoints[myNumRows][0]
+    val lowerLeftCorner: Point2D
+        get() = Point2D.Double(myLowerLeftCornerPt.x, myLowerLeftCornerPt.y)
 
+    private val myUpperRightCornerPt: Point2D = myPoints[0][myNumCols]
     /**
      * The upper right corner point for the grid
      */
-    private var myUpperRightCornerPt: Point2D = myPoints[0][myNumCols]
+    val upperRightCorner: Point2D
+        get() = Point2D.Double(myUpperRightCornerPt.x, myUpperRightCornerPt.y)
 
+    private val myLowerRightCornerPt: Point2D = myPoints[myNumRows][myNumCols]
     /**
      * The lower right corner point for the grid
      */
-    private var myLowerRightCornerPt: Point2D = myPoints[myNumRows][myNumCols]
+    val lowerRightCorner: Point2D
+        get() = Point2D.Double(myLowerRightCornerPt.x, myLowerRightCornerPt.y)
 
     /**
      * The line at the top of the grid
      */
-    private var myTopLine: Line2D = Line2D.Double(myUpperLeftCornerPt, myUpperRightCornerPt)
+    val topLine: Line2D
+        get() = Line2D.Double(myUpperLeftCornerPt, myUpperRightCornerPt)
 
     /**
      * The line at the bottom of the grid
      */
-    private var myBottomLine: Line2D = Line2D.Double(myLowerLeftCornerPt, myLowerRightCornerPt)
+    val bottomLine: Line2D
+        get() = Line2D.Double(myLowerLeftCornerPt, myLowerRightCornerPt)
 
     /**
      * The line at the right side of the grid
      */
-    private var myRightLine: Line2D = Line2D.Double(myUpperRightCornerPt, myLowerRightCornerPt)
+    val rightLine: Line2D
+        get() = Line2D.Double(myUpperRightCornerPt, myLowerRightCornerPt)
 
     /**
-     * The line at the left side of the grid
+     * The line on the left side of the grid
      */
-    private var myLeftLine: Line2D = Line2D.Double(myUpperLeftCornerPt, myLowerLeftCornerPt)
+    val leftLine: Line2D
+        get() = Line2D.Double(myUpperLeftCornerPt, myLowerLeftCornerPt)
 
     /**
      * A reference to the path that forms the grid including all line segments
      */
     private var myPath: GeneralPath = GeneralPath()
+    val shape: Shape
+        get() = GeneralPath(myPath)
 
     /**
      * An 2-d array of the horizontal line segments in the grid hline[0][0] =
@@ -164,7 +187,7 @@ class RectangularGridSpatialModel2D(
 
     /**
      * An 2-d array of the cells forming the grid cell[0][0] = upper left most
-     * cell with left corner point point[0][0]
+     * cell with left corner point[0][0]
      */
     private var myCells: Array<Array<RectangularCell2D>> = Array(myNumRows) { row ->
         Array(myNumCols) { col ->
@@ -205,6 +228,70 @@ class RectangularGridSpatialModel2D(
     }
 
     /**
+     * The cells in the grid as a list. The cells are accesses by rows
+     * (row, col): (0,0), then (0,1), etc 0th row first,
+     */
+    val cells: List<RectangularCell2D>
+        get() = myCellList
+
+    /**
+     * An iterator over the cells in the grid. The cells are accesses by rows
+     * (row, col): (0,0), then (0,1), etc 0th row first,
+     */
+    val cellIterator: Iterator<RectangularCell2D>
+        get() {
+            return myCellList.iterator()
+        }
+
+    /**
+     * The cell at this row, col. Null is returned if
+     * the row or column is outside the grid.
+     *
+     * @param row the row
+     * @param col the column
+     * @return the cell or null
+     */
+    fun cell(row: Int, col: Int): RectangularCell2D? {
+        return if ((row < 0) || (row >= myNumRows)) {
+            null
+        } else if ((col < 0) || (col >= myNumCols)) {
+            null
+        } else {
+            myCells[row][col]
+        }
+    }
+
+    /**
+     * The cell that contains this x,y coordinate or null if no cell
+     *
+     * @param x the x coordinate
+     * @param y the y coordinate
+     * @return the cell or null
+     */
+    fun cell(x: Double, y: Double): RectangularCell2D? {
+        if (!contains(x, y)) {
+            return null
+        }
+        val col = (x / myCellWidth).toInt()
+        val row = (y / myCellHeight).toInt()
+        return cell(row.toDouble(), col.toDouble())
+    }
+
+    /**
+     * Returns the cell that the location is in or null
+     *
+     * @param location
+     * @return the cell or null
+     */
+    fun cell(location: LocationIfc): RectangularCell2D? {
+        if (!isValid(location)) {
+            return null
+        }
+        val loc = location as Location
+        return cell(loc.x, loc.y)
+    }
+
+    /**
      * Checks if the x and y values are in the grid
      *
      * @param x the x-coordinate
@@ -215,15 +302,6 @@ class RectangularGridSpatialModel2D(
         val x0 = myOuterRectangle.x
         val y0 = myOuterRectangle.y
         return (x >= x0) && (y >= y0) && (x <= (x0 + myWidth)) && (y <= (y0 + myHeight))
-    }
-
-    /**
-     * Returns the AWT shape representation
-     *
-     * @return
-     */
-    fun shape(): Shape {
-        return myPath
     }
 
     /** The row major index is row(number of columns) + col + 1
@@ -243,29 +321,39 @@ class RectangularGridSpatialModel2D(
     }
 
     override fun distance(fromLocation: LocationIfc, toLocation: LocationIfc): Double {
-        TODO("Not yet implemented")
+        require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
+        require(isValid(toLocation)) { "The location ${toLocation.name} is not a valid location for spatial model ${this.name}" }
+        val f = fromLocation as Location
+        val t = toLocation as Location
+        val dx = f.x - t.x
+        val dy = f.y - t.y
+        return sqrt(dx * dx + dy * dy)
     }
 
     override fun compareLocations(firstLocation: LocationIfc, secondLocation: LocationIfc): Boolean {
-        TODO("Not yet implemented")
+        require(isValid(firstLocation)) { "The location ${firstLocation.name} is not a valid location for spatial model ${this.name}" }
+        require(isValid(secondLocation)) { "The location ${secondLocation.name} is not a valid location for spatial model ${this.name}" }
+        val f = firstLocation as Location
+        val t = secondLocation as Location
+        val b1 = KSLMath.equal(f.x, t.x, defaultLocationPrecision)
+        val b2 = KSLMath.equal(f.y, t.y, defaultLocationPrecision)
+        return b1 && b2
     }
 
-
-    /**
-     * The cell at this row, col. Null is returned if
-     * the row or column is outside the grid.
+    /** Represents a location within this spatial model.
      *
-     * @param row the row
-     * @param col the column
-     * @return the cell or null
+     * @param aName the name of the location, will be assigned based on ID_id if null
      */
-    fun cell(row: Int, col: Int): RectangularCell2D? {
-        return if ((row < 0) || (row >= myNumRows)) {
-            null
-        } else if ((col < 0) || (col >= myNumCols)) {
-            null
-        } else {
-            myCells[row][col]
+    inner class Location(val x: Double, val y: Double, aName: String? = null) : LocationIfc {
+        init {
+            require(contains(x, y)) { "The grid does not contain the supplied x = $x and y = $y" }
+        }
+
+        override val id: Int = ++locationCount
+        override val name: String = aName ?: "ID_$id"
+        override val model: SpatialModel = this@RectangularGridSpatialModel2D
+        override fun toString(): String {
+            return "Location(x=$x, y=$y, id=$id, name='$name', spatial model=${model.name})"
         }
     }
 
@@ -288,6 +376,13 @@ class RectangularGridSpatialModel2D(
      * @param coreCell
      */
     fun mooreNeighborhood(coreCell: RectangularCell2D): Array<Array<RectangularCell2D?>> {
+        if (this != coreCell.grid) {
+            return arrayOf(
+                arrayOfNulls(3),
+                arrayOfNulls(3),
+                arrayOfNulls(3)
+            )
+        }
         // get the core cell's indices
         val i: Int = coreCell.rowIndex
         val j: Int = coreCell.columnIndex
@@ -318,7 +413,7 @@ class RectangularGridSpatialModel2D(
      * @param coreCell
      * @param neighborhood
      */
-    fun getMooreNeighborhood(
+    fun mooreNeighborhood(
         coreCell: RectangularCell2D,
         neighborhood: Array<Array<RectangularCell2D?>>
     ) {
@@ -334,11 +429,13 @@ class RectangularGridSpatialModel2D(
             }
         }
 
+        if (this != coreCell.grid) {
+            return
+        }
+
         // get the core cell's indices
         val i: Int = coreCell.rowIndex
         val j: Int = coreCell.columnIndex
-
-        // set the top row of the neighborhood
 
         // set the top row of the neighborhood
         neighborhood[0][0] = cell(i - 1, j - 1)
@@ -346,13 +443,9 @@ class RectangularGridSpatialModel2D(
         neighborhood[0][2] = cell(i - 1, j + 1)
 
         // set the middle row of the neighborhood
-
-        // set the middle row of the neighborhood
         neighborhood[1][0] = cell(i, j - 1)
         neighborhood[1][1] = cell(i, j)
         neighborhood[1][2] = cell(i, j + 1)
-
-        // set the bottom row of the neighborhood
 
         // set the bottom row of the neighborhood
         neighborhood[2][0] = cell(i + 1, j - 1)
@@ -360,35 +453,52 @@ class RectangularGridSpatialModel2D(
         neighborhood[2][2] = cell(i + 1, j + 1)
     }
 
-//    /**
-//     * Returns a list containing the 1st Moore neighborhood for the cell at row,
-//     * col in the grid
-//     *
-//     * @param coreCell the core cell
-//     * @param includeCore true includes the core in the list, false does not
-//     * @return the list
-//     */
-//    fun getMooreNeighborhoodAsList(
-//        coreCell: RectangularCell2D?,
-//        includeCore: Boolean
-//    ): List<RectangularCell2D> {
-//        return getMooreNeighborhoodAsList(getMooreNeighborhood(coreCell!!), includeCore)
-//    }
-//
-//    /**
-//     * Finds the cell that has the least number of spatial elements
-//     *
-//     * @param coreCell the core cell
-//     * @param includeCore true includes the core in the list, false does not
-//     * @return the minimum cell or null
-//     */
-//    fun findCellWithMinimumElementsInNeighborhood(
-//        coreCell: RectangularCell2D?, includeCore: Boolean
-//    ): RectangularCell2D {
-//        return findCellWithMinimumElements(getMooreNeighborhoodAsList(coreCell, includeCore))
-//    }
+    private fun addCell(i: Int, j: Int, list: MutableList<RectangularCell2D>) {
+        val cell = cell(i, j)
+        if (cell != null) {
+            list.add(cell)
+        }
+    }
+
+    /**
+     * Includes the non-null cells in the neighborhood into a List
+     *
+     * @param coreCell the core cell of the neighborhood to translate
+     * @param includeCore true includes the core in the list, false does not
+     * @return the list of cells in the neighborhood
+     */
+    fun mooreNeighborhoodAsList(coreCell: RectangularCell2D, includeCore: Boolean = false): List<RectangularCell2D> {
+        if (this != coreCell.grid) {
+            return emptyList()
+        }
+        val list = mutableListOf<RectangularCell2D>()
+        // get the core cell's indices
+        val i: Int = coreCell.rowIndex
+        val j: Int = coreCell.columnIndex
+        // set the top row of the neighborhood
+        addCell(i - 1, j - 1, list)
+        addCell(i - 1, j, list)
+        addCell(i - 1, j + 1, list)
+        // set the middle row of the neighborhood
+        addCell(i, j - 1, list)
+        if (includeCore) {
+            addCell(i, j, list)
+        }
+        addCell(i, j + 1, list)
+        // set the bottom row of the neighborhood
+        addCell(i + 1, j - 1, list)
+        addCell(i + 1, j, list)
+        addCell(i + 1, j + 1, list)
+        return list
+    }
 
     inner class RectangularCell2D(row: Int, col: Int) {
+
+        /**
+         * The grid that this cell is from
+         */
+        val grid = this@RectangularGridSpatialModel2D
+
         /**
          * @return Returns the cell's Row Index.
          */
@@ -413,13 +523,24 @@ class RectangularGridSpatialModel2D(
             Rectangle2D.Double(myPoints[row][col].x, myPoints[row][col].y, width, height)
 
         /**
+         * Checks if x and y are in this cell
+         *
+         * @param x
+         * @param y
+         * @return true if (x,y) are in this cell
+         */
+        fun contains(x: Double, y: Double): Boolean {
+            return myRectangle.contains(x, y)
+        }
+
+        /**
          * Can be used to check if the cell is available or not. For example, this
          * can be used to see if the cell is available for traversal.
          *
          * @return true means available
          */
         var isAvailable: Boolean = false
-            private set
+            internal set
 
         /**
          *
@@ -430,6 +551,118 @@ class RectangularGridSpatialModel2D(
 
         private val mySpatialElements: MutableList<SpatialElementIfc> = mutableListOf()
 
+        val rowColName: String = "Cell($rowIndex, $columnIndex)"
+
+        /**
+         * The x-coordinate of the upper left corner of the rectangle for the cell
+         *
+         * @return
+         */
+        val x: Double
+            get() = myRectangle.x
+
+        /**
+         * The y-coordinate of the upper left corner of the rectangle for the cell
+         *
+         * @return
+         */
+        val y: Double
+            get() = myRectangle.y
+
+        /**
+         * The x-coordinate of the center of the cell
+         *
+         * @return
+         */
+        val centerX: Double
+            get() = myRectangle.centerX
+
+        /**
+         * The y-coordinate of the center of the cell
+         *
+         * @return
+         */
+        val centerY: Double
+            get() = myRectangle.centerY
+
+        /**
+         * The x-coordinate of the maximum x still within the cell
+         *
+         * @return
+         */
+        val maxX: Double
+            get() = myRectangle.maxX
+
+        /**
+         * The y-coordinate of the maximum y still within the cell
+         *
+         * @return
+         */
+        val maxY: Double
+            get() = myRectangle.maxY
+
+        /**
+         * The x-coordinate of the minimum x still within the cell
+         *
+         * @return
+         */
+        val minX: Double
+            get() = myRectangle.minX
+
+        /**
+         * The y-coordinate of the minimum y still within the cell
+         *
+         * @return
+         */
+        val minY: Double
+            get() = myRectangle.minY
+
+        val upperLeft: LocationIfc = grid.Location(x, y, "UpperLeft")
+
+        val center: LocationIfc = grid.Location(centerX, centerY, "Center")
+
+        val upperRight: LocationIfc = grid.Location(x + width, y, "UpperRight")
+
+        val lowerLeft: LocationIfc = grid.Location(x, y + height, "LowerLeft")
+
+        val lowerRight: LocationIfc = grid.Location(x + width, y + height, "LowerRight")
+
+        /**
+         * Converts the cell to a string
+         *
+         * @return
+         */
+        override fun toString(): String {
+            val s = StringBuilder()
+            s.append("Cell").appendLine()
+            s.append("row = ").append(rowIndex).append(" : ")
+            s.append("column = ").append(columnIndex).appendLine()
+            s.append("width = ").append(width).append(" : ")
+            s.append("height = ").append(height).appendLine()
+            s.append("minimum x = ").append(minX).append(" : ")
+            s.append("maximum x = ").append(maxX).appendLine()
+            s.append("center x = ").append(centerX).append(" : ")
+            s.append("center y = ").append(centerY).appendLine()
+            s.append("minimum y = ").append(minY).append(" : ")
+            s.append("maximum y = ").append(maxY).appendLine()
+            s.append("Upper Left : ").append(upperLeft).appendLine()
+            s.append("Upper Right : ").append(upperRight).appendLine()
+            s.append("Center : ").append(center).appendLine()
+            s.append("Lower Left : ").append(lowerLeft).appendLine()
+            s.append("Lower Right : ").append(lowerRight).appendLine()
+            s.append("Availability : ").append(isAvailable).appendLine()
+            s.append("Spatial elements in the cell: ")
+            if (mySpatialElements.isEmpty()) {
+                s.append("NONE")
+            }
+            s.appendLine()
+            for (se in mySpatialElements) {
+                s.append(se)
+                s.appendLine()
+            }
+            s.appendLine()
+            return s.toString()
+        }
     }
 
     companion object {

@@ -1,17 +1,14 @@
 package ksl.modeling.spatial
 
 import ksl.simulation.ModelElement
-import ksl.utilities.makeNameFromClass
 import ksl.utilities.observers.Observable
-import ksl.utilities.observers.ObservableComponent
-import ksl.utilities.observers.ObservableIfc
 
 private var countSpatialModel: Int = 0
 
-abstract class SpatialModel(val modelElement: ModelElement) : Observable<SpatialModel.SpatialElement>() {
+abstract class SpatialModel(val modelElement: ModelElement) : Observable<SpatialElement>() {
 
     var countElements: Int = 0
-        protected set
+        internal set
 
     enum class Status {
         NONE, ADDED_ELEMENT, TRANSFERRED_ELEMENT, UPDATED_LOCATION, TRANSFERRED
@@ -39,12 +36,22 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
     val elements: List<SpatialElement>
         get() = myElements
 
+    internal fun addElement(element: SpatialElement){
+        myElements.add(element)
+        status = Status.ADDED_ELEMENT
+        notifyObservers(element)
+    }
+
     /**
      * Subclasses can override this method to provide specific behavior
      * when the [element] has updated it location. Observers of the spatial
      * model are notified (automatically) after this function is called.
      */
     protected fun updatedElementLocation(element: SpatialElement) {
+    }
+
+    internal fun updatedElement(element: SpatialElement){
+        updatedElementLocation(element)
         status = Status.UPDATED_LOCATION
         notifyObservers(element)
     }
@@ -60,7 +67,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
     }
 
     /**
-     *  The [element] is transferred to the spatial model [spatialModel] and located
+     *  The [element] is transferred to the spatial model [newSpatialModel] and located
      *  at the new location [newLocation].  The transferring element must be contained within
      *  this spatial model.  A new element is created within the supplied spatial model
      *  that has the same name and the same observers. The new element is returned. The observers
@@ -71,16 +78,16 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      */
     fun transferSpatialElement(
         element: SpatialElement,
-        spatialModel: SpatialModel,
+        newSpatialModel: SpatialModel,
         newLocation: LocationIfc
     ): SpatialElement {
         require(contains(element)) { "The transferring element ${element.name} does not belong to the spatial model ${this.name} " }
-        require(spatialModel.isValid(newLocation)) { "The location ${newLocation.name} is not valid for spatial model ${spatialModel.name}" }
+        require(newSpatialModel.isValid(newLocation)) { "The location ${newLocation.name} is not valid for spatial model ${newSpatialModel.name}" }
         myElements.remove(element)
         status = Status.TRANSFERRED_ELEMENT
         notifyObservers(element)
         element.status = Status.TRANSFERRED
-        return spatialModel.SpatialElement(newLocation, element.name, element.observableComponent)
+        return SpatialElement(newSpatialModel, newLocation, element.name, element.observableComponent)
     }
 
     /**
@@ -142,64 +149,5 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * Requirement: The locations must be valid within the spatial model.
      */
     abstract fun compareLocations(firstLocation: LocationIfc, secondLocation: LocationIfc): Boolean
-
-    /**
-     * Creates a spatial element at the location within the spatial model
-     *
-     */
-    inner class SpatialElement(
-        location: LocationIfc,
-        aName: String? = null,
-        internal val observableComponent: ObservableComponent<SpatialElement> = ObservableComponent()
-    ) : ObservableIfc<SpatialElement> by observableComponent {
-        val id = ++countElements
-        val name = aName ?: ("ID_$id")
-
-        var status = Status.NONE
-            internal set
-        val spatialModel = this@SpatialModel
-
-        var initialLocation = location
-            set(location) {
-                require(spatialModel.isValid(location)) { "The location ${location.name} is not valid for spatial model ${spatialModel.name}" }
-                field = location
-            }
-
-        var currentLocation: LocationIfc = initialLocation
-            set(nextLocation) {
-                require(spatialModel.isValid(nextLocation)) { "The location ${nextLocation.name} is not valid for spatial model ${spatialModel.name}" }
-                previousLocation = field
-                field = nextLocation
-                spatialModel.updatedElementLocation(this)
-                status = Status.UPDATED_LOCATION
-                observableComponent.notifyAttached(this)
-            }
-
-        var previousLocation: LocationIfc = initialLocation
-            private set
-
-        init {
-            this@SpatialModel.myElements.add(this)
-            status = Status.ADDED_ELEMENT
-            notifyObservers(this)
-        }
-
-        fun distanceTo(location: LocationIfc): Double {
-            return currentLocation.distanceTo(location)
-        }
-
-        fun distanceTo(element: SpatialElement): Double {
-            return currentLocation.distanceTo(element.currentLocation)
-        }
-
-        fun isLocationEqualTo(location: LocationIfc): Boolean {
-            return currentLocation.isLocationEqualTo(location)
-        }
-
-        fun isLocationEqualTo(element: SpatialElement): Boolean {
-            return currentLocation.isLocationEqualTo(element.currentLocation)
-        }
-
-    }
 
 }
