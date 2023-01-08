@@ -8,8 +8,8 @@ interface SpatialElementIfc {
     val id: Int
     val name: String
     val status: SpatialModel.Status
-    var initialLocation: LocationIfc
-    var currentLocation: LocationIfc
+    val initialLocation: LocationIfc
+    val currentLocation: LocationIfc
     val previousLocation: LocationIfc
     fun distanceTo(location: LocationIfc): Double {
         return currentLocation.distanceTo(location)
