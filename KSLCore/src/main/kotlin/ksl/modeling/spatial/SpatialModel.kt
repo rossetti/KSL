@@ -11,7 +11,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
         internal set
 
     enum class Status {
-        NONE, ADDED_ELEMENT, TRANSFERRED_ELEMENT, UPDATED_LOCATION, TRANSFERRED
+        NONE, ADDED_ELEMENT, UPDATED_LOCATION, REMOVED_ELEMENT, TRANSFERRED_ELEMENT,  TRANSFERRED, CELL_CHANGED
     }
 
     var status: Status = Status.NONE
@@ -32,14 +32,42 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
         }
     }
 
-    protected val myElements: MutableList<SpatialElementIfc> = mutableListOf()
+    protected val myElements: MutableList<SpatialElement> = mutableListOf()
     val elements: List<SpatialElementIfc>
         get() = myElements
 
-    internal open fun addElementInternal(element: SpatialElement){
+    /**
+     *  Causes the element to be tracked, held, by the spatial model. The user
+     *  is responsible for maintaining this list
+     */
+    open fun track(element: SpatialElement) {
+        require(isValid(element)){"The element, ${element.name} is not valid for spatial model ${this.name}"}
+        if (myElements.contains(element)){
+            return
+        }
+        element.isTracked = true
         myElements.add(element)
         status = Status.ADDED_ELEMENT
         notifyObservers(element)
+    }
+
+    open fun stopTracking(element: SpatialElement){
+        if (!isValid(element)){
+            return
+        }
+        if (myElements.remove(element)){
+            element.isTracked = false
+            status = Status.REMOVED_ELEMENT
+            notifyObservers(element)
+        }
+    }
+
+    fun stopAllTracking(){
+        val list = ArrayList(myElements)
+        for(e in list){
+            stopTracking(e)
+        }
+        myElements.clear()
     }
 
     /**
@@ -47,10 +75,10 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * when the [element] has updated it location. Observers of the spatial
      * model are notified (automatically) after this function is called.
      */
-    protected fun updatedElementLocation(element: SpatialElementIfc) {
+    protected open fun updatedElementLocation(element: SpatialElementIfc) {
     }
 
-    internal fun updatedElement(element: SpatialElementIfc){
+    internal fun updatedElement(element: SpatialElementIfc) {
         updatedElementLocation(element)
         status = Status.UPDATED_LOCATION
         notifyObservers(element)
@@ -62,33 +90,37 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * been added to this spatial model then this method should return true
      *
      */
-    fun contains(element: SpatialElementIfc): Boolean {
+    fun isTracking(element: SpatialElementIfc): Boolean {
         return myElements.contains(element)
     }
 
-    /**
-     *  The [element] is transferred to the spatial model [newSpatialModel] and located
-     *  at the new location [newLocation].  The transferring element must be contained within
-     *  this spatial model.  A new element is created within the supplied spatial model
-     *  that has the same name and the same observers. The new element is returned. The observers
-     *  of this spatial model are notified that the element was transferred.  The transferring [element]
-     *  will no longer be managed by this spatial model and should not be used.
-     *
-     *  @return the new spatial element at the new location within the different spatial model.
-     */
-    open fun transferSpatialElement(
-        element: SpatialElement,
-        newSpatialModel: SpatialModel,
-        newLocation: LocationIfc
-    ): SpatialElementIfc {
-        require(contains(element)) { "The transferring element ${element.name} does not belong to the spatial model ${this.name} " }
-        require(newSpatialModel.isValid(newLocation)) { "The location ${newLocation.name} is not valid for spatial model ${newSpatialModel.name}" }
-        myElements.remove(element)
-        status = Status.TRANSFERRED_ELEMENT
-        notifyObservers(element)
-        element.status = Status.TRANSFERRED
-        return SpatialElement(newSpatialModel, newLocation, element.name, element.observableComponent)
-    }
+//TODO once associated with a spatial model an element cannot be unassociated
+// this is due to the problem of remembering the initial spatial model
+// and how to return the element to its initial spatial model if a transfer occurred
+
+//    /**
+//     *  The [element] is transferred to the spatial model [newSpatialModel] and located
+//     *  at the new location [newLocation].  The transferring element must be contained within
+//     *  this spatial model.  A new element is created within the supplied spatial model
+//     *  that has the same name and the same observers. The new element is returned. The observers
+//     *  of this spatial model are notified that the element was transferred.  The transferring [element]
+//     *  will no longer be managed by this spatial model and should not be used.
+//     *
+//     *  @return the new spatial element at the new location within the different spatial model.
+//     */
+//    open fun transferSpatialElement(
+//        element: SpatialElement,
+//        newSpatialModel: SpatialModel,
+//        newLocation: LocationIfc
+//    ): SpatialElementIfc {
+//        require(contains(element)) { "The transferring element ${element.name} does not belong to the spatial model ${this.name} " }
+//        require(newSpatialModel.isValid(newLocation)) { "The location ${newLocation.name} is not valid for spatial model ${newSpatialModel.name}" }
+//        myElements.remove(element)
+//        status = Status.TRANSFERRED_ELEMENT
+//        notifyObservers(element)
+//        element.status = Status.TRANSFERRED
+//        return SpatialElement(newSpatialModel, newLocation, element.name, element.observableComponent)
+//    }
 
     /**
      * @return true if [location] is associated with this spatial model
@@ -101,7 +133,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
      * @return true if [element] is associated with this spatial model
      */
     fun isValid(element: SpatialElementIfc): Boolean {
-        return isValid(element.currentLocation) && contains(element)
+        return isValid(element.currentLocation) && element.spatialModel == this
     }
 
     /**

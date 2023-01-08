@@ -6,6 +6,7 @@ import ksl.utilities.observers.ObservableIfc
 
 interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
     val spatialModel: SpatialModel
+    val isTracked: Boolean
     val id: Int
     val name: String
     val status: SpatialModel.Status
@@ -30,10 +31,13 @@ interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
     fun isLocationEqualTo(element: SpatialElementIfc): Boolean {
         return currentLocation.isLocationEqualTo(element.currentLocation)
     }
+
+    fun initialize()
 }
 
 /**
- * Creates a spatial element at the location within the spatial model
+ * Creates a spatial element associated with the spatial model at the location.
+ * A spatial element is something associated with a spatial model that has a location.
  *
  */
 class SpatialElement(
@@ -45,6 +49,8 @@ class SpatialElement(
     override val id = ++spatialModel.countElements
     override val name = aName ?: ("ID_$id")
     override var status = SpatialModel.Status.NONE
+    override var isTracked: Boolean = false
+        internal set
 
     override var modelElement: ModelElement? = null
 
@@ -67,8 +73,11 @@ class SpatialElement(
     override var previousLocation: LocationIfc = initialLocation
         private set
 
+    override fun initialize() {
+        TODO("Not yet implemented")
+    }
     init {
-        spatialModel.addElementInternal(this)
+//        spatialModel.addElementInternal(this)
     }
 
 }

@@ -373,6 +373,21 @@ class RectangularGridSpatialModel2D(
         return row * myNumCols + col + 1
     }
 
+    override fun updatedElementLocation(element: SpatialElementIfc) {
+        super.updatedElementLocation(element)
+        val p = element.previousLocation as Location
+        val c = element.currentLocation as Location
+        val prevCell = cell(p)!!
+        val nextCell = cell(c)!!
+        if (prevCell != nextCell){
+            // change in cell
+            prevCell.removeSpatialElement(element)
+            nextCell.addSpatialElement(element)
+            status = Status.CELL_CHANGED
+            notifyObservers(element)
+        }
+    }
+
     override fun distance(fromLocation: LocationIfc, toLocation: LocationIfc): Double {
         require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
         require(isValid(toLocation)) { "The location ${toLocation.name} is not a valid location for spatial model ${this.name}" }
@@ -393,9 +408,9 @@ class RectangularGridSpatialModel2D(
         return b1 && b2
     }
 
-    override fun addElementInternal(element: SpatialElement) {
+    override fun track(element: SpatialElement) {
         // add it to the model
-        super.addElementInternal(element)
+        super.track(element)
         // add it to the cell within the model
         val c = element.currentLocation as Location
         // the location must be related to a cell, since the location was made by this model
@@ -403,19 +418,28 @@ class RectangularGridSpatialModel2D(
         cell.addSpatialElement(element)
     }
 
-    override fun transferSpatialElement(
-        element: SpatialElement,
-        newSpatialModel: SpatialModel,
-        newLocation: LocationIfc
-    ): SpatialElementIfc {
+    override fun stopTracking(element: SpatialElement) {
+        super.stopTracking(element)
         // first remove it from the cell
         val c = element.currentLocation as Location
         // the location must be related to a cell, since the location was made by this model
         val cell: RectangularCell2D = cell(c.x, c.y)!!
         cell.removeSpatialElement(element)
-        // now make the transfer
-        return super.transferSpatialElement(element, newSpatialModel, newLocation)
     }
+
+//    override fun transferSpatialElement(
+//        element: SpatialElement,
+//        newSpatialModel: SpatialModel,
+//        newLocation: LocationIfc
+//    ): SpatialElementIfc {
+//        // first remove it from the cell
+//        val c = element.currentLocation as Location
+//        // the location must be related to a cell, since the location was made by this model
+//        val cell: RectangularCell2D = cell(c.x, c.y)!!
+//        cell.removeSpatialElement(element)
+//        // now make the transfer
+//        return super.transferSpatialElement(element, newSpatialModel, newLocation)
+//    }
 
     /** Represents a location within this spatial model.
      *
