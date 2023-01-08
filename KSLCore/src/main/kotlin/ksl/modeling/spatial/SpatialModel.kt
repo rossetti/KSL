@@ -97,6 +97,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
 //TODO once associated with a spatial model an element cannot be unassociated
 // this is due to the problem of remembering the initial spatial model
 // and how to return the element to its initial spatial model if a transfer occurred
+// need to deal with tracking, etc.
 
 //    /**
 //     *  The [element] is transferred to the spatial model [newSpatialModel] and located
