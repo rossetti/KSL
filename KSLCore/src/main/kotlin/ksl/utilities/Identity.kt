@@ -29,6 +29,20 @@ interface NameIfc {
 
 open class Name(override val name: String = "defaultName") : NameIfc
 
+fun <T> makeNameFromClass(clazz: Class<T>, id: Int, str: String? = null): String {
+    return if (str == null) {
+        // no name is being passed, construct a default name
+        var s = clazz.simpleName
+        val k = s.lastIndexOf(".")
+        if (k != -1) {
+            s = s.substring(k + 1)
+        }
+        s + "_" + id
+    } else {
+        str
+    }
+}
+
 /** An interface to defining the identity of an object in terms
  * of a name and a number
  */

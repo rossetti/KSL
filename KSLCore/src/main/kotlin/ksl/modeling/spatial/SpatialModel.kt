@@ -1,6 +1,7 @@
 package ksl.modeling.spatial
 
 import ksl.simulation.ModelElement
+import ksl.utilities.makeNameFromClass
 import ksl.utilities.observers.Observable
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObservableIfc
@@ -19,7 +20,20 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
     var status: Status = Status.NONE
         protected set
     val id: Int = ++countSpatialModel
-    var name: String = "ID_$id"
+    var name: String = makeName()
+    private fun makeName(str: String? = null): String {
+        return if (str == null) {
+            // no name is being passed, construct a default name
+            var s = this::class.simpleName!!
+            val k = s.lastIndexOf(".")
+            if (k != -1) {
+                s = s.substring(k + 1)
+            }
+            s + "_" + id
+        } else {
+            str
+        }
+    }
 
     protected val myElements: MutableList<SpatialElement> = mutableListOf()
     val elements: List<SpatialElement>
@@ -140,6 +154,7 @@ abstract class SpatialModel(val modelElement: ModelElement) : Observable<Spatial
     ) : ObservableIfc<SpatialElement> by observableComponent {
         val id = ++countElements
         val name = aName ?: ("ID_$id")
+
         var status = Status.NONE
             internal set
         val spatialModel = this@SpatialModel

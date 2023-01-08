@@ -44,7 +44,5 @@ class Euclidean2DPlane(modelElement: ModelElement) : SpatialModel(modelElement) 
         override fun toString(): String {
             return "Location(x=$x, y=$y, id=$id, name='$name', spatial model=${model.name})"
         }
-
-
     }
 }

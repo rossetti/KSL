@@ -83,6 +83,10 @@ class GreatCircleBasedSpatialModel (modelElement: ModelElement) : SpatialModel(m
         override val id: Int = ++locationCount
         override val name: String = aName ?: "ID_$id"
         override val model: SpatialModel = this@GreatCircleBasedSpatialModel
+        override fun toString(): String {
+            return "Location(latitude=$latitude, longitude=$longitude, id=$id, name='$name', spatial model=${model.name})"
+        }
+
     }
 
     companion object{
