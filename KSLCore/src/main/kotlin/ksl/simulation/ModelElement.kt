@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@ package ksl.simulation
 
 import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.queue.Queue
+import ksl.modeling.spatial.Euclidean2DPlane
+import ksl.modeling.spatial.SpatialModel
 //import ksl.modeling.queue.qObjCounter
 import ksl.modeling.variable.*
 import ksl.observers.ModelElementObserver
@@ -31,6 +33,7 @@ import ksl.utilities.statistic.StateAccessorIfc
 import mu.KLoggable
 
 private var elementCounter: Int = 0
+
 /**
  * incremented to give a running total of the number of model QObject
  * created
@@ -214,6 +217,25 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
     val model
         get() = myModel
 
+    protected open var mySpatialModel: SpatialModel? = parent?.spatialModel
+
+    /**
+     * The spatial model associated with this model element. By default, each model element
+     * uses its parent model element's spatial model unless changed via this property.
+     * This changes the spatial model for this model element and no others.
+     */
+    var spatialModel: SpatialModel
+        get() {
+            return if (mySpatialModel == null) {
+                parent!!.spatialModel
+            } else {
+                mySpatialModel!!
+            }
+        }
+        set(value) {
+            mySpatialModel = value
+        }
+
     /**
      *  A global uniform random number source
      */
@@ -285,7 +307,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      * model element.
      */
     protected var individualElementWarmUpLength = 0.0 // zero means no warm up
-        protected set(warmUpTime){
+        protected set(warmUpTime) {
             require(warmUpTime >= 0.0) { "Individual element warm up event time must be >= 0.0" }
             field = warmUpTime
             warmUpOption = (field == 0.0)
@@ -1930,9 +1952,10 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      * @param aName The name of the QObject
      */
     open inner class QObject(aName: String? = null) : Comparable<QObject>, QObjectIfc {
-        init{
+        init {
             qObjCounter++
         }
+
         /**
          * Gets a uniquely assigned identifier for this QObject. This
          * identifier is assigned when the QObject is created. It may vary if the
@@ -2063,7 +2086,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
          * @param priority the priority
          * @param obj an object to attach
          */
-        internal fun <T:QObject> enterQueue (queue: Queue<T>, time: Double, priority: Int, obj: Any?) {
+        internal fun <T : QObject> enterQueue(queue: Queue<T>, time: Double, priority: Int, obj: Any?) {
             check(isNotQueued) { "The QObject was already queued!" }
             myQueuedState.enter(time)
             this.queue = queue

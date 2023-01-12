@@ -1,3 +1,21 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package ksl.modeling.spatial
 
 import ksl.simulation.ModelElement
@@ -13,7 +31,7 @@ interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
     val initialLocation: LocationIfc
     val currentLocation: LocationIfc
     val previousLocation: LocationIfc
-    val modelElement: ModelElement?
+    val modelElement: ModelElement
     val observableComponent: ObservableComponent<SpatialElementIfc>
 
     fun distanceTo(location: LocationIfc): Double {
@@ -41,18 +59,17 @@ interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
  *
  */
 class SpatialElement(
-    override val spatialModel : SpatialModel,
+    override val modelElement: ModelElement,
     location: LocationIfc,
     aName: String? = null,
     override val observableComponent: ObservableComponent<SpatialElementIfc> = ObservableComponent()
 ) : ObservableIfc<SpatialElementIfc> by observableComponent, SpatialElementIfc {
+    override val spatialModel : SpatialModel = modelElement.spatialModel
     override val id = ++spatialModel.countElements
     override val name = aName ?: ("ID_$id")
     override var status = SpatialModel.Status.NONE
     override var isTracked: Boolean = false
         internal set
-
-    override var modelElement: ModelElement? = null
 
     override var initialLocation = location
         set(location) {
@@ -74,10 +91,9 @@ class SpatialElement(
         private set
 
     override fun initialize() {
-        TODO("Not yet implemented")
+        if (currentLocation != initialLocation){
+            previousLocation = initialLocation
+            currentLocation = initialLocation
+        }
     }
-    init {
-//        spatialModel.addElementInternal(this)
-    }
-
 }

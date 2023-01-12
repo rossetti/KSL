@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@ import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.controls.Controls
 import ksl.modeling.elements.RandomElementIfc
+import ksl.modeling.spatial.Euclidean2DPlane
+import ksl.modeling.spatial.SpatialModel
 import ksl.modeling.variable.*
 import ksl.utilities.io.KSL
 import ksl.utilities.io.LogPrintWriter
@@ -326,6 +328,23 @@ class Model(
 
     private fun addDefaultElements() {
 
+    }
+
+    override var mySpatialModel: SpatialModel? = Euclidean2DPlane()
+
+    /**
+     * This method can be used to ensure that all model elements within the
+     * model use the same spatial model.
+     *
+     * @param model the spatial model
+     */
+    fun setSpatialModelForAllElements(model: SpatialModel) {
+        //set the model's spatial model
+        spatialModel = model
+        // iterate through all elements and set their spatial model
+        for (m in myModelElementMap.values) {
+            m.spatialModel = model
+        }
     }
 
     /**

@@ -1,3 +1,21 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package ksl.modeling.spatial
 
 import ksl.simulation.ModelElement
@@ -25,14 +43,13 @@ import kotlin.math.sqrt
  * @param numCols The number of columns in the grid (0-based)
  */
 class RectangularGridSpatialModel2D(
-    modelElement: ModelElement,
     width: Double = Double.MAX_VALUE,
     height: Double = Double.MAX_VALUE,
     numRows: Int = 1,
     numCols: Int = 1,
     upperX: Double = 0.0,
     upperY: Double = 0.0,
-) : SpatialModel(modelElement) {
+) : SpatialModel() {
     private var locationCount = 0
 
     init {
@@ -184,9 +201,17 @@ class RectangularGridSpatialModel2D(
      * An 2-d array of the vertical line segments in the grid vline[0][0] =
      * point[0][0] -- point[1][0] and so forth
      */
-    private var myVertLines: Array<Array<Line2D>> = Array(myNumCols + 1) { j ->
-        Array(myNumRows) { i ->
+    private var myVertLines: Array<Array<Line2D>> = Array(myNumRows) { i ->
+        Array(myNumCols + 1) { j ->
             Line2D.Double(myPoints[i][j], myPoints[i + 1][j])
+        }
+    }
+
+    init {
+        for (j in 0 until myNumCols + 1) {
+            for (i in 0 until myNumRows) {
+                myVertLines[i][j] = Line2D.Double(myPoints[i][j], myPoints[i + 1][j])
+            }
         }
     }
 
@@ -289,7 +314,7 @@ class RectangularGridSpatialModel2D(
     /**
      * Returns the cell that the [element] is in or null
      */
-    fun cell(element: SpatialElementIfc): RectangularCell2D?{
+    fun cell(element: SpatialElementIfc): RectangularCell2D? {
         if (!isValid(element)) {
             return null
         }
@@ -299,7 +324,7 @@ class RectangularGridSpatialModel2D(
     /**
      * The number of elements in the cell containing [spatialElement]
      */
-    fun numElementsInCell(spatialElement: SpatialElementIfc) : Int {
+    fun numElementsInCell(spatialElement: SpatialElementIfc): Int {
         val cell = cell(spatialElement) ?: return 0
         return cell.numSpatialElements
     }
@@ -307,7 +332,7 @@ class RectangularGridSpatialModel2D(
     /**
      * The number of elements in the cell containing [location]
      */
-    fun numElementsInCell(location: LocationIfc) : Int {
+    fun numElementsInCell(location: LocationIfc): Int {
         val cell = cell(location) ?: return 0
         return cell.numSpatialElements
     }
@@ -315,7 +340,7 @@ class RectangularGridSpatialModel2D(
     /**
      * The number of elements in the cell containing [x] and [y]
      */
-    fun numElementsInCell(x: Double, y:Double) : Int {
+    fun numElementsInCell(x: Double, y: Double): Int {
         val cell = cell(x, y) ?: return 0
         return cell.numSpatialElements
     }
@@ -323,7 +348,7 @@ class RectangularGridSpatialModel2D(
     /**
      * The elements in the cell containing [spatialElement] or an empty list.
      */
-    fun elementsInCell(spatialElement: SpatialElementIfc): List<SpatialElementIfc>{
+    fun elementsInCell(spatialElement: SpatialElementIfc): List<SpatialElementIfc> {
         val cell = cell(spatialElement) ?: return emptyList()
         return cell.spatialElements
     }
@@ -331,7 +356,7 @@ class RectangularGridSpatialModel2D(
     /**
      * The elements in the cell containing [location] or an empty list
      */
-    fun elementsInCell(location: LocationIfc): List<SpatialElementIfc>{
+    fun elementsInCell(location: LocationIfc): List<SpatialElementIfc> {
         val cell = cell(location) ?: return emptyList()
         return cell.spatialElements
     }
@@ -339,7 +364,7 @@ class RectangularGridSpatialModel2D(
     /**
      * The elements in the cell that contains [x] and [y] or an empty list
      */
-    fun elementsInCell(x: Double, y:Double): List<SpatialElementIfc>{
+    fun elementsInCell(x: Double, y: Double): List<SpatialElementIfc> {
         val cell = cell(x, y) ?: return emptyList()
         return cell.spatialElements
     }
@@ -379,7 +404,7 @@ class RectangularGridSpatialModel2D(
         val c = element.currentLocation as Location
         val prevCell = cell(p)!!
         val nextCell = cell(c)!!
-        if (prevCell != nextCell){
+        if (prevCell != nextCell) {
             // change in cell
             prevCell.removeSpatialElement(element)
             nextCell.addSpatialElement(element)
@@ -593,6 +618,57 @@ class RectangularGridSpatialModel2D(
         return list
     }
 
+    override fun toString(): String {
+        val s = StringBuilder()
+        s.append("Grid").appendLine()
+        s.append("width = ").append(myWidth).append(" height = ").append(myHeight).appendLine()
+        s.appendLine()
+        s.append("ULPT = ").append(myUpperLeftCornerPt).append("---->")
+        s.append("URPT = ").append(myUpperRightCornerPt).appendLine()
+        s.append("LLPT = ").append(myLowerLeftCornerPt).append("---->")
+        s.append("LRPT = ").append(myLowerRightCornerPt).appendLine()
+        s.appendLine()
+        s.append("TopLine = ").append(topLine.p1).append("---->").append(topLine.p2)
+        s.appendLine()
+        s.append("BottomLine = ").append(bottomLine.p1).append("---->").append(bottomLine.p2)
+        s.appendLine()
+        s.append("LeftLine = ").append(leftLine.p1).append("---->").append(leftLine.p2)
+        s.appendLine()
+        s.append("RightLine = ").append(rightLine.p1).append("---->").append(rightLine.p2)
+        s.appendLine()
+        s.appendLine()
+        s.appendLine("Points")
+        for (i in 0..myNumRows) {
+            for (j in 0..myNumCols) {
+                s.append("Point[i=").append(i).append("][j=").append(j).append("]= ").append(myPoints[i][j])
+                s.appendLine()
+            }
+        }
+        s.appendLine()
+        s.appendLine("Horizontal lines")
+        for (i in 0 until myNumRows + 1) {
+            for (j in 0 until myNumCols) {
+                s.append(myHorzLines[i][j].p1).append("---->").append(myHorzLines[i][j].p2).appendLine()
+            }
+        }
+        s.appendLine()
+        s.appendLine("Vertical lines")
+        for (j in 0 until myNumCols + 1) {
+            for (i in 0 until myNumRows) {
+                s.append(myVertLines[i][j].p1).append("---->").append(myVertLines[i][j].p2).appendLine()
+            }
+        }
+        s.appendLine()
+        s.append("Cells")
+        s.appendLine()
+        for (i in 0 until myNumRows) {
+            for (j in 0 until myNumCols) {
+                s.append(myCells[i][j]).appendLine()
+            }
+        }
+        return s.toString()
+    }
+
     inner class RectangularCell2D(row: Int, col: Int) {
 
         /**
@@ -640,7 +716,7 @@ class RectangularGridSpatialModel2D(
          *
          * @return true means available
          */
-        var isAvailable: Boolean = false
+        var isAvailable: Boolean = true
             internal set
 
         /**
