@@ -50,7 +50,6 @@ class RectangularGridSpatialModel2D(
     upperX: Double = 0.0,
     upperY: Double = 0.0,
 ) : SpatialModel() {
-    private var locationCount = 0
 
     init {
         require(numRows >= 1) { "The number of rows must be >=1" }
@@ -169,7 +168,7 @@ class RectangularGridSpatialModel2D(
         get() = Line2D.Double(myLowerLeftCornerPt, myLowerRightCornerPt)
 
     /**
-     * The line at the right side of the grid
+     * The line on the right side of the grid
      */
     val rightLine: Line2D
         get() = Line2D.Double(myUpperRightCornerPt, myLowerRightCornerPt)
@@ -307,7 +306,7 @@ class RectangularGridSpatialModel2D(
         if (!isValid(location)) {
             return null
         }
-        val loc = location as Location
+        val loc = location as GridPoint
         return cell(loc.x, loc.y)
     }
 
@@ -400,8 +399,8 @@ class RectangularGridSpatialModel2D(
 
     override fun updatedElementLocation(element: SpatialElementIfc) {
         super.updatedElementLocation(element)
-        val p = element.previousLocation as Location
-        val c = element.currentLocation as Location
+        val p = element.previousLocation as AbstractLocation
+        val c = element.currentLocation as AbstractLocation
         val prevCell = cell(p)!!
         val nextCell = cell(c)!!
         if (prevCell != nextCell) {
@@ -416,8 +415,8 @@ class RectangularGridSpatialModel2D(
     override fun distance(fromLocation: LocationIfc, toLocation: LocationIfc): Double {
         require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
         require(isValid(toLocation)) { "The location ${toLocation.name} is not a valid location for spatial model ${this.name}" }
-        val f = fromLocation as Location
-        val t = toLocation as Location
+        val f = fromLocation as GridPoint
+        val t = toLocation as GridPoint
         val dx = f.x - t.x
         val dy = f.y - t.y
         return sqrt(dx * dx + dy * dy)
@@ -426,8 +425,8 @@ class RectangularGridSpatialModel2D(
     override fun compareLocations(firstLocation: LocationIfc, secondLocation: LocationIfc): Boolean {
         require(isValid(firstLocation)) { "The location ${firstLocation.name} is not a valid location for spatial model ${this.name}" }
         require(isValid(secondLocation)) { "The location ${secondLocation.name} is not a valid location for spatial model ${this.name}" }
-        val f = firstLocation as Location
-        val t = secondLocation as Location
+        val f = firstLocation as GridPoint
+        val t = secondLocation as GridPoint
         val b1 = KSLMath.equal(f.x, t.x, defaultLocationPrecision)
         val b2 = KSLMath.equal(f.y, t.y, defaultLocationPrecision)
         return b1 && b2
@@ -437,7 +436,7 @@ class RectangularGridSpatialModel2D(
         // add it to the model
         super.track(element)
         // add it to the cell within the model
-        val c = element.currentLocation as Location
+        val c = element.currentLocation as GridPoint
         // the location must be related to a cell, since the location was made by this model
         val cell: RectangularCell2D = cell(c.x, c.y)!!
         cell.addSpatialElement(element)
@@ -446,7 +445,7 @@ class RectangularGridSpatialModel2D(
     override fun stopTracking(element: SpatialElement) {
         super.stopTracking(element)
         // first remove it from the cell
-        val c = element.currentLocation as Location
+        val c = element.currentLocation as GridPoint
         // the location must be related to a cell, since the location was made by this model
         val cell: RectangularCell2D = cell(c.x, c.y)!!
         cell.removeSpatialElement(element)
@@ -470,16 +469,14 @@ class RectangularGridSpatialModel2D(
      *
      * @param aName the name of the location, will be assigned based on ID_id if null
      */
-    inner class Location(val x: Double, val y: Double, aName: String? = null) : LocationIfc {
+    inner class GridPoint(val x: Double, val y: Double, aName: String? = null) : AbstractLocation(aName) {
         init {
             require(contains(x, y)) { "The grid does not contain the supplied x = $x and y = $y" }
         }
 
-        override val id: Int = ++locationCount
-        override val name: String = aName ?: "ID_$id"
         override val model: SpatialModel = this@RectangularGridSpatialModel2D
         override fun toString(): String {
-            return "Location(x=$x, y=$y, id=$id, name='$name', spatial model=${model.name})"
+            return "GridPoint(x=$x, y=$y, id=$id, name='$name', spatial model=${model.name})"
         }
     }
 
@@ -796,15 +793,15 @@ class RectangularGridSpatialModel2D(
         val minY: Double
             get() = myRectangle.minY
 
-        val upperLeft: LocationIfc = grid.Location(x, y, "UpperLeft")
+        val upperLeft: GridPoint = grid.GridPoint(x, y, "UpperLeft")
 
-        val center: LocationIfc = grid.Location(centerX, centerY, "Center")
+        val center: GridPoint = grid.GridPoint(centerX, centerY, "Center")
 
-        val upperRight: LocationIfc = grid.Location(x + width, y, "UpperRight")
+        val upperRight: GridPoint = grid.GridPoint(x + width, y, "UpperRight")
 
-        val lowerLeft: LocationIfc = grid.Location(x, y + height, "LowerLeft")
+        val lowerLeft: GridPoint = grid.GridPoint(x, y + height, "LowerLeft")
 
-        val lowerRight: LocationIfc = grid.Location(x + width, y + height, "LowerRight")
+        val lowerRight: GridPoint = grid.GridPoint(x + width, y + height, "LowerRight")
 
         /**
          * Gets a list of elements of the target class that are in the cell
@@ -861,9 +858,7 @@ class RectangularGridSpatialModel2D(
                 val list: MutableList<ModelElement> = mutableListOf()
                 for (se in mySpatialElements) {
                     val me = se.modelElement
-                    if (me != null) {
-                        list.add(me)
-                    }
+                    list.add(me)
                 }
                 return list
             }

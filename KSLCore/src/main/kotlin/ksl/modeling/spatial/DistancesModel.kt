@@ -22,16 +22,16 @@ import com.google.common.collect.BiMap
 import com.google.common.collect.HashBasedTable
 import com.google.common.collect.HashBiMap
 import com.google.common.collect.Table
-import ksl.simulation.ModelElement
+import ksl.utilities.KSLArrays
+import ksl.utilities.isRectangular
 
-data class Distance(val fromLoc: String, val toLoc: String, val distance: Double) {
+data class DistanceData(val fromLoc: String, val toLoc: String, val distance: Double) {
     init {
         require(distance >= 0.0) { "The distance must be >= 0.0" }
     }
 }
 
 class DistancesModel() : SpatialModel() {
-    private var locationCount = 0
 
     /**
      * The default distance from a location to itself, must be greater than or equal to 0.0
@@ -57,17 +57,64 @@ class DistancesModel() : SpatialModel() {
         get() = myLocations.keys
 
     /**
-     *  Adds a list of [distances] to the model.
+     *  Adds the [distance] from location [fromLoc] to location [toLoc] where [fromLoc] and
+     *  [toLoc] are string names of locations.  If a location with the name does not already
+     *  exist in the model, then a new location with the name is created. The flag [symmetric] will cause
+     *  an additional distance to be added going from [toLoc] to location [fromLoc] that has
+     *  the same distance. The default value of the flag is false. The pair must not have already been added to the model.
+     *  @return the pair of locations added
+     */
+    fun addDistance(
+        fromLoc: String,
+        toLoc: String,
+        distance: Double,
+        symmetric: Boolean = false
+    ): Pair<LocationIfc, LocationIfc> {
+        require(distance >= 0.0) { "The distance must be >= 0.0" }
+        val f = if (containsName(fromLoc)) {
+            myLocations[fromLoc]!!
+        } else {
+            Location(fromLoc)
+        }
+        val t = if (containsName(toLoc)) {
+            myLocations[toLoc]!!
+        } else {
+            Location(toLoc)
+        }
+        addDistance(f, t, distance, symmetric)
+        return Pair(f, t)
+    }
+
+    /**
+     *  Adds a list of [distanceData] to the model.
      *  @return a map containing the pairs of locations created by the names
      *  of the distances in the list
      */
-    fun addDistances(distances: List<Distance>): Map<LocationIfc, LocationIfc> {
+    fun addDistances(distanceData: List<DistanceData>): Map<LocationIfc, LocationIfc> {
         val map = mutableMapOf<LocationIfc, LocationIfc>()
-        for (d in distances) {
-            val f = Location(d.fromLoc)
-            val t = Location(d.toLoc)
-            addDistance(f, t, d.distance)
+        for (d in distanceData) {
+            val (f, t) = addDistance(d.fromLoc, d.toLoc, d.distance)
             map[f] = t
+        }
+        return map
+    }
+
+    /**
+     * Assumes that [matrix] is square and contains the from-to distances. Any values on
+     * the diagonal are ignored. No values can be 0.0
+     *  @return a map containing the pairs of locations created. Each location is named Loc_k, where
+     *  k is the index of the location in the array
+     */
+    fun addDistances(matrix: Array<DoubleArray>): Map<LocationIfc, LocationIfc> {
+        require(KSLArrays.isSquare(matrix)){"The supplied distance matrix was not square"}
+        val map = mutableMapOf<LocationIfc, LocationIfc>()
+        for(i in matrix.indices){
+            for (j in matrix[i].indices){
+                if (i != j){
+                    val (f, t) = addDistance("Loc_$i", "Loc_$j", matrix[i][j])
+                    map[f] = t
+                }
+            }
         }
         return map
     }
@@ -80,12 +127,11 @@ class DistancesModel() : SpatialModel() {
     }
 
     /**
-     *  @return the location associated with the supplied [name]. The name must be associated with
-     *  some location in the model.
+     *  @return the location associated with the supplied [name]. Null if the name is not
+     *  associated with a location in the model
      */
-    fun location(name: String): LocationIfc {
-        require(myLocations.containsKey(name)) { "The name $name does not correspond to a valid location" }
-        return myLocations[name]!!
+    fun location(name: String): LocationIfc? {
+        return myLocations[name]
     }
 
     /**
@@ -157,13 +203,24 @@ class DistancesModel() : SpatialModel() {
         return firstLocation == secondLocation
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("Distances")
+        for(x in distances.cellSet()){
+            sb.appendLine("From: ${x.rowKey.name}  ---> To: ${x.columnKey.name}  d = ${x.value}")
+        }
+        return sb.toString()
+    }
+
     /** Represents a location within this spatial model.
      *
      * @param aName the name of the location, will be assigned based on ID_id if null
      */
-    inner class Location(aName: String? = null) : LocationIfc {
-        override val id: Int = ++locationCount
-        override val name: String = aName ?: "ID_$id"
+    inner class Location(aName: String? = null) : AbstractLocation(aName) {
+        init {
+            require(!myLocations.containsKey(aName)) { "The location name $aName already exists" }
+        }
+
         override val model: SpatialModel = this@DistancesModel
         override fun toString(): String {
             return "Location(id=$id, name='$name', spatial model=${model.name})"

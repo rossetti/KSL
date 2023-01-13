@@ -23,7 +23,7 @@ import ksl.utilities.observers.Observable
 private var countSpatialModel: Int = 0
 
 abstract class SpatialModel() : Observable<SpatialElementIfc>() {
-
+    protected var locationCount = 0
     var countElements: Int = 0
         internal set
 
@@ -200,4 +200,13 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      */
     abstract fun compareLocations(firstLocation: LocationIfc, secondLocation: LocationIfc): Boolean
 
+    /** Represents a location within this spatial model.
+     *
+     * @param aName the name of the location, will be assigned based on ID_id if null
+     */
+    abstract inner class AbstractLocation(aName: String? = null) : LocationIfc {
+        final override val id: Int = ++locationCount
+        override val name: String = aName ?: "ID_$id"
+
+    }
 }

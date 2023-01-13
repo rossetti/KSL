@@ -18,22 +18,24 @@
 
 package ksl.examples.general.spatial
 
+import ksl.modeling.spatial.DistancesModel
 import ksl.modeling.spatial.Euclidean2DPlane
 import ksl.modeling.spatial.RectangularGridSpatialModel2D
 import ksl.simulation.Model
+import ksl.utilities.KSLArrays
+import ksl.utilities.random.rvariable.NormalRV
 
 fun main(){
-
- //   val model = Model("SpatialTest 1")
- test2()
-
+// test1()
+// test2()
+test3()
 }
 
 fun test1(){
     val sm = Euclidean2DPlane()
-    val loc1 = sm.Location(2.0, 4.0)
+    val loc1 = sm.Point(2.0, 4.0)
     println(loc1)
-    val loc2 = sm.Location(3.0, 3.0)
+    val loc2 = sm.Point(3.0, 3.0)
     println(loc2)
     val d = sm.distance(loc1, loc2)
     println("distance = $d")
@@ -42,4 +44,12 @@ fun test1(){
 fun test2(){
     val sm = RectangularGridSpatialModel2D(100.0, 100.0, 10, 10)
     println(sm)
+}
+
+fun test3(){
+    val x = NormalRV(50.0, 16.0)
+    val dm = KSLArrays.matrixOfDoubles(5, 5, x)
+    val d = DistancesModel()
+    d.addDistances(dm)
+    println(d)
 }

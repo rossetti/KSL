@@ -22,7 +22,6 @@ import ksl.utilities.math.KSLMath
 import kotlin.math.*
 
 class GreatCircleBasedSpatialModel () : SpatialModel() {
-    private var locationCount = 0
 
     var defaultLocationPrecision = KSLMath.defaultNumericalPrecision
         set(precision) {
@@ -53,8 +52,8 @@ class GreatCircleBasedSpatialModel () : SpatialModel() {
     override fun distance(fromLocation: LocationIfc, toLocation: LocationIfc): Double {
         require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
         require(isValid(toLocation)) { "The location ${toLocation.name} is not a valid location for spatial model ${this.name}" }
-        val f = fromLocation as Location
-        val t = toLocation as Location
+        val f = fromLocation as GPSCoordinate
+        val t = toLocation as GPSCoordinate
         val lat1 = Math.toRadians(f.latitude)
         val lon1 = Math.toRadians(f.longitude)
         val lat2 = Math.toRadians(t.latitude)
@@ -81,8 +80,8 @@ class GreatCircleBasedSpatialModel () : SpatialModel() {
     override fun compareLocations(firstLocation: LocationIfc, secondLocation: LocationIfc): Boolean {
         require(isValid(firstLocation)) { "The location ${firstLocation.name} is not a valid location for spatial model ${this.name}" }
         require(isValid(secondLocation)) { "The location ${secondLocation.name} is not a valid location for spatial model ${this.name}" }
-        val f = firstLocation as Location
-        val t = secondLocation as Location
+        val f = firstLocation as GPSCoordinate
+        val t = secondLocation as GPSCoordinate
         val b1 = KSLMath.equal(f.latitude, t.latitude, defaultLocationPrecision)
         val b2 = KSLMath.equal(f.longitude, t.longitude, defaultLocationPrecision)
         return b1 && b2
@@ -92,13 +91,11 @@ class GreatCircleBasedSpatialModel () : SpatialModel() {
      *
      * @param aName the name of the location, will be assigned based on ID_id if null
      */
-    inner class Location(val latitude: Double, val longitude: Double, aName: String? = null) : LocationIfc {
+    inner class GPSCoordinate(val latitude: Double, val longitude: Double, aName: String? = null) : AbstractLocation(aName) {
         init {
             require(abs(latitude) <= 90.0) { "The latitude must be in range [-90, 90] degrees" }
             require(abs(longitude) <= 180.0) { "The longitude must be in range [-180, 180] degrees" }
         }
-        override val id: Int = ++locationCount
-        override val name: String = aName ?: "ID_$id"
         override val model: SpatialModel = this@GreatCircleBasedSpatialModel
         override fun toString(): String {
             return "Location(latitude=$latitude, longitude=$longitude, id=$id, name='$name', spatial model=${model.name})"
