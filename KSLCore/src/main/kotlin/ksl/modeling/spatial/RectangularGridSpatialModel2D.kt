@@ -50,7 +50,7 @@ class RectangularGridSpatialModel2D(
     upperX: Double = 0.0,
     upperY: Double = 0.0,
 ) : SpatialModel() {
-
+    override var defaultLocation: LocationIfc = GridPoint(0.0, 0.0, "defaultLocation")
     init {
         require(numRows >= 1) { "The number of rows must be >=1" }
         require(numCols >= 1) { "The number of rows must be >=1" }

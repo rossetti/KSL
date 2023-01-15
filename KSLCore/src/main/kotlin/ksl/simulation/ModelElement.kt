@@ -20,7 +20,6 @@ package ksl.simulation
 
 import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.queue.Queue
-import ksl.modeling.spatial.Euclidean2DPlane
 import ksl.modeling.spatial.SpatialModel
 //import ksl.modeling.queue.qObjCounter
 import ksl.modeling.variable.*
@@ -1847,6 +1846,11 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
     }
 
     companion object : KLoggable {
+        private var enumCounter: Int = 0
+
+        fun nextEnumConstant() : Int {
+            return ++enumCounter
+        }
 
         /**
          * A global logger for logging of model elements

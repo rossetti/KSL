@@ -22,6 +22,7 @@ import ksl.utilities.math.KSLMath
 import kotlin.math.*
 
 class GreatCircleBasedSpatialModel () : SpatialModel() {
+    override var defaultLocation: LocationIfc = GPSCoordinate(latitude(), longitude(), "Greenwich")
 
     var defaultLocationPrecision = KSLMath.defaultNumericalPrecision
         set(precision) {
@@ -138,10 +139,10 @@ class GreatCircleBasedSpatialModel () : SpatialModel() {
          * @return
          */
         fun latitude(
-            direction: Direction,
-            degrees: Double,
-            minutes: Double,
-            seconds: Double = 0.0
+            direction: Direction = Direction.NORTH,
+            degrees: Double = 51.0,
+            minutes: Double = 28.0,
+            seconds: Double = 40.5408
         ): Double {
             require(direction != Direction.EAST) { "The direction supplied was EAST, not valid for latitude" }
             require(direction != Direction.WEST) { "The direction supplied was WEST, not valid for latitude" }
@@ -169,10 +170,10 @@ class GreatCircleBasedSpatialModel () : SpatialModel() {
          * @return
          */
         fun longitude(
-            direction: Direction,
-            degrees: Double,
-            minutes: Double,
-            seconds: Double = 0.0
+            direction: Direction = Direction.WEST,
+            degrees: Double = 0.0,
+            minutes: Double = 0.0,
+            seconds: Double = 5.5620
         ): Double {
             require(direction != Direction.NORTH) { "The direction supplied was NORTH, not valid for longitude" }
             require(direction != Direction.SOUTH) { "The direction supplied was SOUTH, not valid for longitude" }

@@ -203,7 +203,7 @@ open class Resource(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1
-) : ModelElement(parent, name), ResourceCIfc {
+) : ProcessModel(parent, name), ResourceCIfc {
 
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }

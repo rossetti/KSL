@@ -19,8 +19,6 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.statistics
-import kotlin.math.sin
 
 class RVUFunction(
     theFirst: RVariableIfc,

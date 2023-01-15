@@ -18,7 +18,9 @@
 
 package ksl.modeling.spatial
 
+import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.Observable
+import ksl.utilities.random.rvariable.ConstantRV
 
 private var countSpatialModel: Int = 0
 
@@ -49,6 +51,13 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
         }
     }
 
+    /**
+     * The default velocity for elements that move within the spatial model
+     */
+    var defaultVelocity: GetValueIfc = ConstantRV.ONE
+
+    abstract var defaultLocation: LocationIfc
+
     protected val myElements: MutableList<SpatialElement> = mutableListOf()
     val elements: List<SpatialElementIfc>
         get() = myElements
@@ -58,7 +67,7 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      *  is responsible for maintaining this list
      */
     open fun track(element: SpatialElement) {
-        require(isValid(element)){"The element, ${element.name} is not valid for spatial model ${this.name}"}
+        require(isValid(element)){"The element, ${element.spatialName} is not valid for spatial model ${this.name}"}
         if (myElements.contains(element)){
             return
         }
@@ -160,8 +169,8 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      * @return the distance between the two elements
      */
     fun distance(fromElement: SpatialElementIfc, toElement: SpatialElementIfc): Double {
-        require(isValid(fromElement)) { "The element ${fromElement.name} is not a valid element for the spatial model ${this.name}" }
-        require(isValid(toElement)) { "The element ${fromElement.name} is not a valid element for the spatial model ${this.name}" }
+        require(isValid(fromElement)) { "The element ${fromElement.spatialName} is not a valid element for the spatial model ${this.name}" }
+        require(isValid(toElement)) { "The element ${fromElement.spatialName} is not a valid element for the spatial model ${this.name}" }
         return distance(fromElement.currentLocation, toElement.currentLocation)
     }
 
@@ -176,8 +185,8 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      * Requirement: The elements must be valid within the spatial model.
      */
     fun compareLocations(firstElement: SpatialElementIfc, secondElement: SpatialElementIfc): Boolean {
-        require(isValid(firstElement)) { "The element ${firstElement.name} is not a valid element for the spatial model ${this.name}" }
-        require(isValid(secondElement)) { "The element ${firstElement.name} is not a valid element for the spatial model ${this.name}" }
+        require(isValid(firstElement)) { "The element ${firstElement.spatialName} is not a valid element for the spatial model ${this.name}" }
+        require(isValid(secondElement)) { "The element ${firstElement.spatialName} is not a valid element for the spatial model ${this.name}" }
         return compareLocations(firstElement.currentLocation, secondElement.currentLocation)
     }
 

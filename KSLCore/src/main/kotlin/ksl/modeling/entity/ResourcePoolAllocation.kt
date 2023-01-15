@@ -18,7 +18,6 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
 
 /**

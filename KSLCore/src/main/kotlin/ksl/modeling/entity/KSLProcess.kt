@@ -18,6 +18,10 @@
 
 package ksl.modeling.entity
 
+import ksl.modeling.spatial.LocationIfc
+import ksl.modeling.spatial.MovableResource
+import ksl.modeling.spatial.MovableResourceWithQ
+import ksl.modeling.spatial.SpatialElement
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -30,7 +34,10 @@ val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
  *
  *  @param afterTermination a function to invoke after the process is successfully terminated
  */
-class ProcessTerminatedException(val afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null, m: String = "Process Terminated!") : RuntimeException(m)
+class ProcessTerminatedException(
+    val afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null,
+    m: String = "Process Terminated!"
+) : RuntimeException(m)
 
 interface KSLProcess {
     val id: Int
@@ -262,8 +269,8 @@ interface KSLProcessBuilder {
         blockingQ: BlockingQueue<T>,
         blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ){
-        for(item in collection){
+    ) {
+        for (item in collection) {
             send(item, blockingQ, blockingPriority, suspensionName)
         }
     }
@@ -623,6 +630,165 @@ interface KSLProcessBuilder {
     }
 
     /**
+     *  Causes movement of the entity from the specified location to the specified location at
+     *  the supplied velocity.  If the entity is not currently at [fromLoc] then its
+     *  current location is quietly set to [fromLoc], without movement before the move commences.
+     *  To move directly from the current location, use moveTo().
+     *  @param fromLoc, the location from which the entity is supposed to move
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun move(
+        fromLoc: LocationIfc,
+        toLoc: LocationIfc,
+        velocity: Double = fromLoc.model.defaultVelocity.value,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    )
+
+    /**
+     *  Causes movement of the entity from the specified location to the specified location at
+     *  the supplied velocity.  If the entity is not currently at [fromLoc] then its
+     *  current location is quietly set to [fromLoc], without movement before the move commences.
+     *  To move directly from the current location, use moveTo().
+     *  @param fromLoc, the location from which the entity is supposed to move
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun move(
+        fromLoc: LocationIfc,
+        toLoc: LocationIfc,
+        velocity: GetValueIfc = fromLoc.model.defaultVelocity,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ){
+        move(fromLoc, toLoc, velocity.value, movePriority, suspensionName)
+    }
+
+    /**
+     *  Causes movement of the spatial element from its current location to the specified location at
+     *  the supplied velocity.
+     *  @param spatialElement, the spatial element that will be moved
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun move(
+        spatialElement: SpatialElement,
+        toLoc: LocationIfc,
+        velocity: Double = spatialElement.velocity.value,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    )
+
+    /**
+     *  Causes movement of the entity and the spatial element from the current location to the specified location at
+     *  the supplied velocity. The entity and the spatial element must be at the same location to start the movement.
+     *  If not specified, the default velocity of the spatial element is used for the movement.
+     *  @param spatialElement, the spatial element that will be moved
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun moveWith(
+        spatialElement: SpatialElement,
+        toLoc: LocationIfc,
+        velocity: Double = spatialElement.velocity.value,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    )
+
+    /**
+     *  Causes movement of the entity and the movable resource from the current location to the specified location at
+     *  the supplied velocity. The entity and the movable resource must be at the same location to start the movement.
+     *  If not specified, the default velocity of the spatial element is used for the movement.
+     *  @param movableResource, the spatial element that will be moved
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun moveWith(
+        movableResource: MovableResource,
+        toLoc: LocationIfc,
+        velocity: Double = movableResource.velocity.value,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    )
+
+    /**
+     *  Causes movement of the entity and the movable resource from the current location to the specified location at
+     *  the supplied velocity. The entity and the movable resource must be at the same location to start the movement.
+     *  If not specified, the default velocity of the spatial element is used for the movement.
+     *  @param movableResourceWithQ, the spatial element that will be moved
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun moveWith(
+        movableResourceWithQ: MovableResourceWithQ,
+        toLoc: LocationIfc,
+        velocity: Double = movableResourceWithQ.velocity.value,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    )
+
+    /**
+     *  Causes movement of the entity from its current location to the specified location at
+     *  the supplied velocity.
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun moveTo(
+        toLoc: LocationIfc,
+        velocity: Double = toLoc.model.defaultVelocity.value,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    )
+
+    /**
+     *  Causes movement of the entity from its current location to the specified location at
+     *  the supplied velocity.
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun moveTo(
+        toLoc: LocationIfc,
+        velocity: GetValueIfc = toLoc.model.defaultVelocity,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ){
+        moveTo(toLoc, velocity.value, movePriority, suspensionName)
+    }
+
+    /**
      *  Releases the allocation of the resource
      *
      *  @param allocation represents an allocation of so many units of a resource to an entity
@@ -705,7 +871,7 @@ interface KSLProcessBuilder {
         interruptTime: GetValueIfc,
         interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         postInterruptDelayTime: GetValueIfc
-    ){
+    ) {
         interruptDelay(process, delayName, interruptTime.value, interruptPriority, postInterruptDelayTime.value)
     }
 
@@ -749,7 +915,7 @@ interface KSLProcessBuilder {
         delayName: String,
         interruptTime: GetValueIfc,
         interruptPriority: Int,
-    ){
+    ) {
         interruptDelayAndRestart(process, delayName, interruptTime.value, interruptPriority)
     }
 
@@ -795,7 +961,7 @@ interface KSLProcessBuilder {
         delayName: String,
         interruptTime: GetValueIfc,
         interruptPriority: Int,
-    ){
+    ) {
         interruptDelayAndContinue(process, delayName, interruptTime.value, interruptPriority)
     }
 
@@ -849,8 +1015,14 @@ interface KSLProcessBuilder {
         interruptingProcess: KSLProcess,
         interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         postInterruptDelayTime: GetValueIfc
-    ){
-        interruptDelayWithProcess(process, delayName, interruptingProcess, interruptPriority, postInterruptDelayTime.value)
+    ) {
+        interruptDelayWithProcess(
+            process,
+            delayName,
+            interruptingProcess,
+            interruptPriority,
+            postInterruptDelayTime.value
+        )
     }
 
     /**

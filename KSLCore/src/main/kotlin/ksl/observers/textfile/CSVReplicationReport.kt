@@ -21,7 +21,6 @@ import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.statistic.WeightedStatistic
 import java.nio.file.Path
 

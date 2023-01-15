@@ -19,10 +19,6 @@ package ksl.utilities.statistic
 
 import ksl.utilities.distributions.Normal
 import ksl.utilities.distributions.StudentT
-import ksl.utilities.indexOfMax
-import ksl.utilities.indexOfMin
-import ksl.utilities.max
-import ksl.utilities.min
 import kotlin.math.*
 
 private var StatCounter: Int = 0

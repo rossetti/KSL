@@ -19,17 +19,19 @@
 package ksl.modeling.spatial
 
 import ksl.simulation.ModelElement
+import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObservableIfc
 
-interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
+interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>, VelocityIfc {
     val spatialModel: SpatialModel
     val isTracked: Boolean
-    val id: Int
-    val name: String
+    var isMoving: Boolean
+    val spatialID: Int
+    val spatialName: String
     val status: SpatialModel.Status
     val initialLocation: LocationIfc
-    val currentLocation: LocationIfc
+    var currentLocation: LocationIfc
     val previousLocation: LocationIfc
     val modelElement: ModelElement
     val observableComponent: ObservableComponent<SpatialElementIfc>
@@ -50,7 +52,7 @@ interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
         return currentLocation.isLocationEqualTo(element.currentLocation)
     }
 
-    fun initialize()
+    fun initializeSpatialElement()
 }
 
 /**
@@ -60,18 +62,20 @@ interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
  */
 class SpatialElement(
     override val modelElement: ModelElement,
-    location: LocationIfc,
+    initLocation: LocationIfc = modelElement.spatialModel.defaultLocation,
     aName: String? = null,
     override val observableComponent: ObservableComponent<SpatialElementIfc> = ObservableComponent()
 ) : ObservableIfc<SpatialElementIfc> by observableComponent, SpatialElementIfc {
     override val spatialModel : SpatialModel = modelElement.spatialModel
-    override val id = ++spatialModel.countElements
-    override val name = aName ?: ("ID_$id")
+    override var velocity: GetValueIfc = spatialModel.defaultVelocity
+    override val spatialID = ++spatialModel.countElements
+    override val spatialName = aName ?: ("ID_$spatialID")
     override var status = SpatialModel.Status.NONE
     override var isTracked: Boolean = false
         internal set
+    override var isMoving: Boolean = false
 
-    override var initialLocation = location
+    override var initialLocation = initLocation
         set(location) {
             require(spatialModel.isValid(location)) { "The location ${location.name} is not valid for spatial model ${spatialModel.name}" }
             field = location
@@ -90,10 +94,8 @@ class SpatialElement(
     override var previousLocation: LocationIfc = initialLocation
         private set
 
-    override fun initialize() {
-        if (currentLocation != initialLocation){
-            previousLocation = initialLocation
-            currentLocation = initialLocation
-        }
+    override fun initializeSpatialElement() {
+        previousLocation = initialLocation
+        currentLocation = initialLocation
     }
 }
