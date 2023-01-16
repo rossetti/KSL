@@ -20,7 +20,7 @@ package ksl.simulation
 
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
-import ksl.utilities.exceptions.JSLEventException
+import ksl.utilities.exceptions.KSLEventException
 import ksl.utilities.observers.Observable
 import kotlin.time.Duration
 
@@ -232,12 +232,12 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
             Model.logger.warn(sb.toString())
             System.out.flush()
-            throw JSLEventException(sb.toString())
+            throw KSLEventException(sb.toString())
         }
         if (interEventTime < 0.0) {
             Model.logger.warn("Attempted to schedule an event before the Current Time!")
             System.out.flush()
-            throw JSLEventException("Attempted to schedule an event before the Current Time!")
+            throw KSLEventException("Attempted to schedule an event before the Current Time!")
         }
         val eventTime = currentTime + interEventTime
         if (eventTime <= scheduledEndTime()) {

@@ -23,4 +23,4 @@ package ksl.utilities.exceptions
  * error message or with the default error message.
  *
  */
-class JSLEventException(msg: String = "JSLEvent Exception!") : RuntimeException(msg)
+class KSLEventException(msg: String = "KSLEvent Exception!") : RuntimeException(msg)

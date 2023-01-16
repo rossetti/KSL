@@ -1676,6 +1676,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      */
     internal fun afterReplicationActions() {
         if (myModelElements.isNotEmpty()) {
+            logger.info { "ModelElement: $name has children, executing their after replication actions" }
             for (m in myModelElements) {
                 m.afterReplicationActions()
             }

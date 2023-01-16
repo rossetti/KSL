@@ -1246,7 +1246,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // get the queue from the allocation being released and process any waiting requests
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined
-                allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
+                if (!executive.isEnded){
+                    allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
+                }
             }
 
             override fun release(resource: Resource, releasePriority: Int) {

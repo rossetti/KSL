@@ -41,7 +41,7 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
     private val mover2 = MovableResource(this, enter, myWalkingSpeedRV, "Mover2")
     private val mover3 = MovableResource(this, enter, myWalkingSpeedRV, "Mover3")
     private val moverList = listOf(mover1, mover2, mover3)
-    private val movers = MovableResourcePoolWithQ(parent, moverList, myWalkingSpeedRV, name = "Movers")
+    private val movers = MovableResourcePoolWithQ(this, moverList, myWalkingSpeedRV, name = "Movers")
 
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
     private val worker2: ResourceWithQ = ResourceWithQ(this, "worker2")
