@@ -236,7 +236,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         var autoDispose = true
 
-        var defaultFailureActions: ResourceFailureActionsIfc = DefaultFailureActions()
+//        var defaultFailureActions: ResourceFailureActionsIfc = DefaultFailureActions()
 
         private var processCounter = 0
         val processModel = this@ProcessModel
@@ -452,24 +452,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        protected open fun beginFailure(allocation: Allocation) {
-            TODO("Not implemented yet")
-        }
+//        protected open fun beginFailure(allocation: Allocation) {
+//            TODO("Not implemented yet")
+//        }
+//
+//        protected open fun endFailure(allocation: Allocation) {
+//            TODO("Not implemented yet")
+//        }
 
-        protected open fun endFailure(allocation: Allocation) {
-            TODO("Not implemented yet")
-        }
-
-        protected inner class DefaultFailureActions : ResourceFailureActionsIfc {
-            override fun beginFailure(allocation: Allocation) {
-                this@Entity.beginFailure(allocation)
-            }
-
-            override fun endFailure(allocation: Allocation) {
-                this@Entity.endFailure(allocation)
-            }
-
-        }
+//        protected inner class DefaultFailureActions : ResourceFailureActionsIfc {
+//            override fun beginFailure(allocation: Allocation) {
+//                this@Entity.beginFailure(allocation)
+//            }
+//
+//            override fun endFailure(allocation: Allocation) {
+//                this@Entity.endFailure(allocation)
+//            }
+//
+//        }
 
         /**
          *  This function is used to define via a builder for a process for the entity.
@@ -908,17 +908,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "$time > entity ${entity.id} has hit the first suspension point of process, ($this)" }
             }
 
-            //TODO how to run a sub-process from within another process (coroutine)?
-            // what happens if the subProcess is placed within a loop? i.e. called more than once
-            private fun runSubProcess(subProcess: KSLProcess) {
-                //TODO check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
-                val p = subProcess as ProcessCoroutine
-                if (p.isCreated) {
-                    // must start it
-                    p.start() // coroutine run until its first suspension point
-                }
-                TODO("not fully implemented/tested 9-14-2022")
-            }
+//            //TODO how to run a sub-process from within another process (coroutine)?
+//            // what happens if the subProcess is placed within a loop? i.e. called more than once
+//            private fun runSubProcess(subProcess: KSLProcess) {
+//                //TODO check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
+//                val p = subProcess as ProcessCoroutine
+//                if (p.isCreated) {
+//                    // must start it
+//                    p.start() // coroutine run until its first suspension point
+//                }
+//                TODO("not fully implemented/tested 9-14-2022")
+//            }
 
             internal fun resume() {
                 state.resume()

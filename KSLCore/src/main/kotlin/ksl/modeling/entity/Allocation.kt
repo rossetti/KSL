@@ -41,7 +41,7 @@ class Allocation(
     theAmount: Int = 1,
     val queue: RequestQ,
     allocationName: String? = null,
-    var failureActions: ResourceFailureActionsIfc = entity.defaultFailureActions
+//    var failureActions: ResourceFailureActionsIfc = entity.defaultFailureActions
 ) {
     init {
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
