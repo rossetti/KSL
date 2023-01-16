@@ -56,7 +56,7 @@ Additional projects are available for illustrating and other work related to the
 
 KSExamples - a project that has example code that illustrates the KSL and contains the examples shown in the textbook.
 
-KSLExampleProject - a pre-configured project using gradle that is setup to use the KSL
+KSLProjectTemplate - a pre-configured project using gradle that is setup to use the KSL
 
 KSLTesting - a separate project that does some basic testing related to the KSL
 
