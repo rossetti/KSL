@@ -3,11 +3,13 @@ package ksl.modeling.spatial
 import ksl.modeling.entity.Resource
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.toDouble
 
 
 /**
@@ -34,7 +36,22 @@ class MovableResource(
         get() = mySpatialElement.isMoving
         set(value) {
             mySpatialElement.isMoving = value
+            myFracTimeMoving.value = value.toDouble()
         }
+    var isTransporting: Boolean = false
+        set(value) {
+            field = value
+            myFracTimeTransporting.value = field.toDouble()
+        }
+    var isMovingEmpty: Boolean = false
+        set(value) {
+            field = value
+            myFracTimeMovingEmpty.value = field.toDouble()
+        }
+    private val myFracTimeMoving =
+        TWResponse(this, name = "${this.name}:FracTimeMoving", theInitialValue = mySpatialElement.isMoving.toDouble())
+    private val myFracTimeTransporting = TWResponse(this, name = "${this.name}:FracTimeTransporting")
+    private val myFracTimeMovingEmpty = TWResponse(this, name = "${this.name}:FracTimeMovingEmpty")
     override val isTracked: Boolean
         get() = mySpatialElement.isTracked
     override val spatialID: Int

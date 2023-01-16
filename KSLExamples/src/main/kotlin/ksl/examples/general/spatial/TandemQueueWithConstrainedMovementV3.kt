@@ -11,9 +11,11 @@ import ksl.modeling.spatial.MovableResourceWithQ
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.distributions.Uniform
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
+import ksl.utilities.random.rvariable.UniformRV
 
 class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
@@ -32,8 +34,8 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
         dm.addDistance(station2, enter, 90.0, symmetric = true)
         dm.addDistance(exit, station1, 90.0, symmetric = true)
         dm.addDistance(exit, enter, 150.0, symmetric = true)
-        // dm.defaultVelocity = myWalkingSpeedRV
-        dm.defaultVelocity = ConstantRV(10000.0)
+         dm.defaultVelocity = myWalkingSpeedRV
+//        dm.defaultVelocity = ConstantRV(10000.0)
         spatialModel = dm
     }
 
@@ -65,20 +67,26 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
     val systemTime: ResponseCIfc
         get() = timeInSystem
 
+    private val myLoadingTime = RandomVariable(this, UniformRV(0.5, 0.8))
+    val loadingTimeRV: RandomSourceCIfc
+        get() = myLoadingTime
+    private val myUnLoadingTime = RandomVariable(this, UniformRV(0.25, 0.5))
+    val unloadingTimeRV: RandomSourceCIfc
+        get() = myUnLoadingTime
     private inner class Customer : Entity() {
         val tandemQProcess: KSLProcess = process {
             currentLocation = enter
             wip.increment()
             timeStamp = time
-            transportWith(movers, station1)
+            transportWith(movers, station1, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
             seize(worker1)
             delay(st1)
             release(worker1)
-            transportWith(movers, station2)
+            transportWith(movers, station2, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
             seize(worker2)
             delay(st2)
             release(worker2)
-            transportWith(movers, exit)
+            transportWith(movers, exit, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }

@@ -202,7 +202,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      * @param aName an optional name for the entity
      */
     open inner class Entity(aName: String? = null) : QObject(aName),
-        SpatialElementIfc by SpatialElement(this@ProcessModel) {
+        SpatialElementIfc by SpatialElement(this@ProcessModel), VelocityIfc {
+
+        /**
+         * The default velocity for the entity's movement within the spatial model
+         * of its ProcessModel
+         */
+        override var velocity: GetValueIfc = this@ProcessModel.spatialModel.defaultVelocity
 
         /**
          *  Controls whether the entity uses an assigned process sequence via the processSequence property
@@ -1225,7 +1231,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ) {
                 require(entity.isUsing(movableResource)){"The entity is not using the movable resource. Thus, it cannot move with it."}
+                movableResource.isTransporting = true
                 moveWith(movableResource as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
+                movableResource.isTransporting = false
             }
 
             override suspend fun moveWith(
@@ -1236,7 +1244,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ) {
                 require(entity.isUsing(movableResourceWithQ)){"The entity is not using the movable resource. Thus, it cannot move with it."}
+                movableResourceWithQ.isTransporting = true
                 moveWith(movableResourceWithQ as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
+                movableResourceWithQ.isTransporting = false
             }
 
             override fun release(allocation: Allocation, releasePriority: Int) {

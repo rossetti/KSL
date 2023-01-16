@@ -22,6 +22,7 @@ import ksl.modeling.spatial.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
+import ksl.utilities.random.rvariable.ConstantRV
 import kotlin.coroutines.*
 
 val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
@@ -690,7 +691,7 @@ interface KSLProcessBuilder {
     suspend fun move(
         fromLoc: LocationIfc,
         toLoc: LocationIfc,
-        velocity: Double,
+        velocity: Double = entity.velocity.value,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     )
@@ -711,7 +712,7 @@ interface KSLProcessBuilder {
     suspend fun move(
         fromLoc: LocationIfc,
         toLoc: LocationIfc,
-        velocity: GetValueIfc,
+        velocity: GetValueIfc = entity.velocity,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ) {
@@ -755,7 +756,9 @@ interface KSLProcessBuilder {
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ) {
+        movableResource.isMovingEmpty = true
         move(movableResource as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
+        movableResource.isMovingEmpty = false
     }
 
     /**
@@ -776,7 +779,9 @@ interface KSLProcessBuilder {
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ) {
+        movableResourceWithQ.isMovingEmpty = true
         move(movableResourceWithQ as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
+        movableResourceWithQ.isMovingEmpty = false
     }
 
     /**
@@ -861,13 +866,23 @@ interface KSLProcessBuilder {
         emptyVelocity: Double = movableResource.velocity.value,
         transportVelocity: Double = movableResource.velocity.value,
         transportQ: RequestQ,
+        loadingDelay: GetValueIfc = ConstantRV.ZERO,
+        unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
         requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
     ) {
         val a = seize(movableResource, seizePriority = requestPriority, queue = transportQ)
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
+        if (loadingDelay != ConstantRV.ZERO){
+            delay(loadingDelay, loadingPriority)
+        }
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
+        if (unLoadingDelay != ConstantRV.ZERO){
+            delay(unLoadingDelay, unLoadingPriority)
+        }
         release(a)
     }
 
@@ -891,13 +906,23 @@ interface KSLProcessBuilder {
         toLoc: LocationIfc,
         emptyVelocity: Double = movableResourceWithQ.velocity.value,
         transportVelocity: Double = movableResourceWithQ.velocity.value,
+        loadingDelay: GetValueIfc = ConstantRV.ZERO,
+        unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
         requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
     ) {
         val a = seize(movableResourceWithQ, seizePriority = requestPriority)
         move(movableResourceWithQ, entity.currentLocation, emptyVelocity, emptyMovePriority)
+        if (loadingDelay != ConstantRV.ZERO){
+            delay(loadingDelay, loadingPriority)
+        }
         moveWith(movableResourceWithQ, toLoc, transportVelocity, transportPriority)
+        if (unLoadingDelay != ConstantRV.ZERO){
+            delay(unLoadingDelay, unLoadingPriority)
+        }
         release(a)
     }
 
@@ -922,15 +947,25 @@ interface KSLProcessBuilder {
         emptyVelocity: Double = fleet.velocity.value,
         transportVelocity: Double = fleet.velocity.value,
         transportQ: RequestQ,
+        loadingDelay: GetValueIfc = ConstantRV.ZERO,
+        unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
         requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
     ){
         val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
         // must be 1 allocation for 1 unit seized
         val movableResource = a.allocations[0].resource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
+        if (loadingDelay != ConstantRV.ZERO){
+            delay(loadingDelay, loadingPriority)
+        }
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
+        if (unLoadingDelay != ConstantRV.ZERO){
+            delay(unLoadingDelay, unLoadingPriority)
+        }
         release(a)
     }
 
@@ -954,15 +989,25 @@ interface KSLProcessBuilder {
         toLoc: LocationIfc,
         emptyVelocity: Double = fleet.velocity.value,
         transportVelocity: Double = fleet.velocity.value,
+        loadingDelay: GetValueIfc = ConstantRV.ZERO,
+        unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
         requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
     ){
         val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ)
         // must be 1 allocation for 1 unit seized because there is only 1 unit in each
         val movableResource = a.allocations[0].resource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
+        if (loadingDelay != ConstantRV.ZERO){
+            delay(loadingDelay, loadingPriority)
+        }
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
+        if (unLoadingDelay != ConstantRV.ZERO){
+            delay(unLoadingDelay, unLoadingPriority)
+        }
         release(a)
     }
 
@@ -978,7 +1023,7 @@ interface KSLProcessBuilder {
      */
     suspend fun moveTo(
         toLoc: LocationIfc,
-        velocity: Double,
+        velocity: Double = entity.velocity.value,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ){
@@ -997,7 +1042,7 @@ interface KSLProcessBuilder {
      */
     suspend fun moveTo(
         toLoc: LocationIfc,
-        velocity: GetValueIfc,
+        velocity: GetValueIfc = entity.velocity,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ) {
