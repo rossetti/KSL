@@ -62,8 +62,8 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.0.0"
+version = "R1.0.1"
 
 ## Release Notes
 
-Latest Release: R0.0.1
+Latest Release: R1.0.1
