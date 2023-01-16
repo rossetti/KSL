@@ -239,7 +239,7 @@
         <appender-ref ref="KSL_SIM" />
     </logger>
 
-    <logger name="ksl.simulation.ModelElement" level="DEBUG" additivity="false">
+    <logger name="ksl.simulation.ModelElement" level="INFO" additivity="false">
         <appender-ref ref="KSL_ME" />
     </logger>
 

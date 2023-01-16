@@ -1396,7 +1396,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         }
 
         if (beforeExperimentOption) {
-            logger.trace { "ModelElement: $name executing beforeExperiment()" }
+            logger.info { "ModelElement: $name executing beforeExperiment()" }
             beforeExperiment()
             currentStatus = Status.BEFORE_EXPERIMENT
         }
@@ -1429,7 +1429,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
 
         // now initialize the model element itself
         if (initializationOption) {
-            logger.trace { "ModelElement: $name executing initialize()" }
+            logger.info { "ModelElement: $name executing initialize()" }
             initialize()
             currentStatus = Status.INITIALIZED
         }
@@ -1500,7 +1500,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (beforeReplicationOption) {
-            logger.trace { "$name executing beforeReplication()" }
+            logger.info { "ModelElement: $name executing beforeReplication()" }
             beforeReplication()
             currentStatus = Status.BEFORE_REPLICATION
         }
@@ -1553,7 +1553,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         if (this == model) {
             Model.logger.info { "Executing the warm up action for the model at time $time" }
         }
-        logger.trace { "$name executing warmUp()" }
+        logger.info { "ModelElement: $name executing warmUp()" }
         warmUp()
         warmUpIndicator = true
         currentStatus = Status.WARMUP
@@ -1656,7 +1656,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (replicationEndedOption) {
-            logger.trace { "$name executing replicationEnded()" }
+            logger.info { "ModelElement: $name executing replicationEnded()" }
             replicationEnded()
             currentStatus = Status.REPLICATION_ENDED
         }
@@ -1681,7 +1681,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (afterReplicationOption) {
-            logger.trace { "$name executing afterReplication()" }
+            logger.info { "ModelElement: $name executing afterReplication()" }
             afterReplication()
             currentStatus = Status.AFTER_REPLICATION
         }
@@ -1708,7 +1708,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (afterExperimentOption) {
-            logger.trace { "$name executing afterExperiment()" }
+            logger.info { "ModelElement: $name executing afterExperiment()" }
             afterExperiment()
             currentStatus = Status.AFTER_EXPERIMENT
         }

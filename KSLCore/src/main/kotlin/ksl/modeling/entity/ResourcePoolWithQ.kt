@@ -21,7 +21,7 @@ package ksl.modeling.entity
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
 
-class ResourcePoolWithQ(
+open class ResourcePoolWithQ(
     parent: ModelElement,
     resources: List<Resource>,
     queue: RequestQ? = null,

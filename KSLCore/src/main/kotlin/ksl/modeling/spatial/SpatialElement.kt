@@ -23,7 +23,7 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObservableIfc
 
-interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>, VelocityIfc {
+interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
     val spatialModel: SpatialModel
     val isTracked: Boolean
     var isMoving: Boolean
@@ -67,7 +67,6 @@ class SpatialElement(
     override val observableComponent: ObservableComponent<SpatialElementIfc> = ObservableComponent()
 ) : ObservableIfc<SpatialElementIfc> by observableComponent, SpatialElementIfc {
     override val spatialModel : SpatialModel = modelElement.spatialModel
-    override var velocity: GetValueIfc = spatialModel.defaultVelocity
     override val spatialID = ++spatialModel.countElements
     override val spatialName = aName ?: ("ID_$spatialID")
     override var status = SpatialModel.Status.NONE
@@ -97,5 +96,6 @@ class SpatialElement(
     override fun initializeSpatialElement() {
         previousLocation = initialLocation
         currentLocation = initialLocation
+        isMoving = false
     }
 }

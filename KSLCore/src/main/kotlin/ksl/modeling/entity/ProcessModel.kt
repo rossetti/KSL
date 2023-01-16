@@ -1184,7 +1184,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override suspend fun move(
-                spatialElement: SpatialElement,
+                spatialElement: SpatialElementIfc,
                 toLoc: LocationIfc,
                 velocity: Double,
                 movePriority: Int,
@@ -1203,7 +1203,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override suspend fun moveWith(
-                spatialElement: SpatialElement,
+                spatialElement: SpatialElementIfc,
                 toLoc: LocationIfc,
                 velocity: Double,
                 movePriority: Int,
@@ -1225,7 +1225,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ) {
                 require(entity.isUsing(movableResource)){"The entity is not using the movable resource. Thus, it cannot move with it."}
-                moveWith(movableResource, toLoc, velocity, movePriority, suspensionName)
+                moveWith(movableResource as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
             }
 
             override suspend fun moveWith(
@@ -1236,16 +1236,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ) {
                 require(entity.isUsing(movableResourceWithQ)){"The entity is not using the movable resource. Thus, it cannot move with it."}
-                moveWith(movableResourceWithQ, toLoc, velocity, movePriority, suspensionName)
-            }
-
-            override suspend fun moveTo(
-                toLoc: LocationIfc,
-                velocity: Double,
-                movePriority: Int,
-                suspensionName: String?
-            ) {
-                move(currentLocation, toLoc, velocity, movePriority, suspensionName)
+                moveWith(movableResourceWithQ as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
             }
 
             override fun release(allocation: Allocation, releasePriority: Int) {

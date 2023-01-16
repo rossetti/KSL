@@ -8,18 +8,23 @@ import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObserverIfc
-import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.random.RandomIfc
 
 class MovableResourceWithQ(
     parent: ModelElement,
-    initLocation: LocationIfc = parent.spatialModel.defaultLocation,
+    initLocation: LocationIfc,
+    defaultVelocity: RandomIfc,
     name: String? = null,
     queue: RequestQ? = null,
-) : ResourceWithQ(parent, name, 1, queue), SpatialElementIfc {
+) : ResourceWithQ(parent, name, 1, queue), SpatialElementIfc, VelocityIfc {
     protected val mySpatialElement = SpatialElement(this, initLocation, name)
-    protected val myVelocity = RandomVariable(this, ConstantRV.ONE)
+
+    protected val myVelocity = RandomVariable(this, defaultVelocity)
     val velocityRV: RandomSourceCIfc
         get() = myVelocity
+    override val velocity: GetValueIfc
+        get() = myVelocity
+
     override var isMoving: Boolean
         get() = mySpatialElement.isMoving
         set(value) {
@@ -79,6 +84,4 @@ class MovableResourceWithQ(
         return mySpatialElement.countObservers()
     }
 
-    override val velocity: GetValueIfc
-        get() = myVelocity
 }

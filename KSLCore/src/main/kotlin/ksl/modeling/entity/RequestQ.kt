@@ -89,6 +89,11 @@ class RequestQ(
         request.entity.terminateProcess(afterTermination)
     }
 
+    override fun afterReplication() {
+        removeAllAndTerminate(false)
+        super.afterReplication()
+    }
+
     /**
      *  Removes and terminates all the requests waiting in the queue
      *

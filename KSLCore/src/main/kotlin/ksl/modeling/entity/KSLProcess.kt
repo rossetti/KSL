@@ -18,10 +18,7 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.spatial.LocationIfc
-import ksl.modeling.spatial.MovableResource
-import ksl.modeling.spatial.MovableResourceWithQ
-import ksl.modeling.spatial.SpatialElement
+import ksl.modeling.spatial.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -93,6 +90,7 @@ interface SuspensionObserver {
  */
 @RestrictsSuspension
 interface KSLProcessBuilder {
+    val entity: ProcessModel.Entity
 
     /**
      *  Suspends the execution of the process.  Since the process cannot resume itself, the client
@@ -343,6 +341,53 @@ interface KSLProcessBuilder {
         suspensionName: String? = null
     ): Allocation {
         return seize(resource, amountNeeded, seizePriority, resource.myWaitingQ, suspensionName)
+    }
+
+    /**
+     *  Requests a number of units of the indicated movable resource.
+     *
+     *  @param resource the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling seize.
+     *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
+     *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
+     *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
+     *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
+     *  all requested units of the resource have been allocated.
+     */
+    suspend fun seize(
+        resource: MovableResource,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        queue: RequestQ,
+        suspensionName: String? = null
+    ): Allocation{
+        return seize(resource, amountNeeded = 1, seizePriority, queue, suspensionName)
+    }
+
+    /**
+     *  Requests a number of units of the indicated movable resource.
+     *
+     *  @param resource the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling seize.
+     *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
+     *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
+     *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
+     *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
+     *  all requested units of the resource have been allocated.
+     */
+    suspend fun seize(
+        resource: MovableResourceWithQ,
+        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ): Allocation{
+        return seize(resource, amountNeeded = 1, seizePriority, resource.myWaitingQ, suspensionName)
     }
 
     /**
@@ -645,7 +690,7 @@ interface KSLProcessBuilder {
     suspend fun move(
         fromLoc: LocationIfc,
         toLoc: LocationIfc,
-        velocity: Double = fromLoc.model.defaultVelocity.value,
+        velocity: Double,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     )
@@ -666,10 +711,10 @@ interface KSLProcessBuilder {
     suspend fun move(
         fromLoc: LocationIfc,
         toLoc: LocationIfc,
-        velocity: GetValueIfc = fromLoc.model.defaultVelocity,
+        velocity: GetValueIfc,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ){
+    ) {
         move(fromLoc, toLoc, velocity.value, movePriority, suspensionName)
     }
 
@@ -685,12 +730,54 @@ interface KSLProcessBuilder {
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun move(
-        spatialElement: SpatialElement,
+        spatialElement: SpatialElementIfc,
         toLoc: LocationIfc,
-        velocity: Double = spatialElement.velocity.value,
+        velocity: Double,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     )
+
+    /**
+     *  Causes movement of the movable resource from its current location to the specified location at
+     *  the supplied velocity.
+     *  @param movableResource, the spatial element that will be moved
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun move(
+        movableResource: MovableResource,
+        toLoc: LocationIfc,
+        velocity: Double = movableResource.velocity.value,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ) {
+        move(movableResource as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
+    }
+
+    /**
+     *  Causes movement of the movable resource from its current location to the specified location at
+     *  the supplied velocity.
+     *  @param movableResourceWithQ, the spatial element that will be moved
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun move(
+        movableResourceWithQ: MovableResourceWithQ,
+        toLoc: LocationIfc,
+        velocity: Double = movableResourceWithQ.velocity.value,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ) {
+        move(movableResourceWithQ as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
+    }
 
     /**
      *  Causes movement of the entity and the spatial element from the current location to the specified location at
@@ -705,9 +792,9 @@ interface KSLProcessBuilder {
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun moveWith(
-        spatialElement: SpatialElement,
+        spatialElement: SpatialElementIfc,
         toLoc: LocationIfc,
-        velocity: Double = spatialElement.velocity.value,
+        velocity: Double,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     )
@@ -753,21 +840,131 @@ interface KSLProcessBuilder {
     )
 
     /**
-     *  Causes movement of the entity from its current location to the specified location at
-     *  the supplied velocity.
+     *  Causes transport of the entity via the movable resource from the entity's current location to the specified location at
+     *  the supplied velocities.
+     *  If not specified, the default velocity of the movable resource is used for the movement.
+     *  @param movableResource, the spatial element that will be moved
      *  @param toLoc the location to which the entity is supposed to move
-     *  @param velocity the velocity associated with the movement
-     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  @param emptyVelocity the velocity associated with the movement to the entity's location
+     *  @param transportVelocity the velocity associated with the movement to the desired location
+     *  @param transportQ the queue that the entity waits in if the resource is busy
+     *  @param requestPriority, a priority can be used to determine the order of events for
+     *  requests for transport
+     *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
-     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
-     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
      */
-    suspend fun moveTo(
+    suspend fun transportWith(
+        movableResource: MovableResource,
         toLoc: LocationIfc,
-        velocity: Double = toLoc.model.defaultVelocity.value,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        suspensionName: String? = null
-    )
+        emptyVelocity: Double = movableResource.velocity.value,
+        transportVelocity: Double = movableResource.velocity.value,
+        transportQ: RequestQ,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ) {
+        val a = seize(movableResource, seizePriority = requestPriority, queue = transportQ)
+        move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
+        moveWith(movableResource, toLoc, transportVelocity, transportPriority)
+        release(a)
+    }
+
+    /**
+     *  Causes transport of the entity via the movable resource from the entity's current location to the specified location at
+     *  the supplied velocities.
+     *  If not specified, the default velocity of the movable resource is used for the movement.
+     *  @param movableResourceWithQ, the spatial element that will be moved
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param emptyVelocity the velocity associated with the movement to the entity's location
+     *  @param transportVelocity the velocity associated with the movement to the desired location
+     *  @param requestPriority, a priority can be used to determine the order of events for
+     *  requests for transport
+     *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     */
+    suspend fun transportWith(
+        movableResourceWithQ: MovableResourceWithQ,
+        toLoc: LocationIfc,
+        emptyVelocity: Double = movableResourceWithQ.velocity.value,
+        transportVelocity: Double = movableResourceWithQ.velocity.value,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ) {
+        val a = seize(movableResourceWithQ, seizePriority = requestPriority)
+        move(movableResourceWithQ, entity.currentLocation, emptyVelocity, emptyMovePriority)
+        moveWith(movableResourceWithQ, toLoc, transportVelocity, transportPriority)
+        release(a)
+    }
+
+    /**
+     *  Causes transport of the entity via a movable resource within the fleet from the entity's current location to the specified location at
+     *  the supplied velocities.
+     *  If not specified, the default velocity of the movable resource is used for the movement.
+     *  @param fleet, the pool of movable resources
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param emptyVelocity the velocity associated with the movement to the entity's location
+     *  @param transportVelocity the velocity associated with the movement to the desired location
+     *  @param requestPriority, a priority can be used to determine the order of events for
+     *  requests for transport
+     *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     */
+    suspend fun transportWith(
+        fleet: MovableResourcePool,
+        toLoc: LocationIfc,
+        emptyVelocity: Double = fleet.velocity.value,
+        transportVelocity: Double = fleet.velocity.value,
+        transportQ: RequestQ,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ){
+        val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
+        // must be 1 allocation for 1 unit seized
+        val movableResource = a.allocations[0].resource as MovableResource
+        move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
+        moveWith(movableResource, toLoc, transportVelocity, transportPriority)
+        release(a)
+    }
+
+    /**
+     *  Causes transport of the entity via a movable resource within the fleet from the entity's current location to the specified location at
+     *  the supplied velocities.
+     *  If not specified, the default velocity of the movable resource is used for the movement.
+     *  @param fleet, the pool of movable resources
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param emptyVelocity the velocity associated with the movement to the entity's location
+     *  @param transportVelocity the velocity associated with the movement to the desired location
+     *  @param requestPriority, a priority can be used to determine the order of events for
+     *  requests for transport
+     *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     */
+    suspend fun transportWith(
+        fleet: MovableResourcePoolWithQ,
+        toLoc: LocationIfc,
+        emptyVelocity: Double = fleet.velocity.value,
+        transportVelocity: Double = fleet.velocity.value,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    ){
+        val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ)
+        // must be 1 allocation for 1 unit seized because there is only 1 unit in each
+        val movableResource = a.allocations[0].resource as MovableResource
+        move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
+        moveWith(movableResource, toLoc, transportVelocity, transportPriority)
+        release(a)
+    }
 
     /**
      *  Causes movement of the entity from its current location to the specified location at
@@ -781,10 +978,29 @@ interface KSLProcessBuilder {
      */
     suspend fun moveTo(
         toLoc: LocationIfc,
-        velocity: GetValueIfc = toLoc.model.defaultVelocity,
+        velocity: Double,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ){
+        move(entity.currentLocation, toLoc, velocity, movePriority, suspensionName)
+    }
+
+    /**
+     *  Causes movement of the entity from its current location to the specified location at
+     *  the supplied velocity.
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param velocity the velocity associated with the movement
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun moveTo(
+        toLoc: LocationIfc,
+        velocity: GetValueIfc,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ) {
         moveTo(toLoc, velocity.value, movePriority, suspensionName)
     }
 

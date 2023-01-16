@@ -32,7 +32,6 @@ data class DistanceData(val fromLoc: String, val toLoc: String, val distance: Do
 }
 
 class DistancesModel() : SpatialModel() {
-    override var defaultLocation: LocationIfc = Location("defaultLocation")
 
     /**
      * The default distance from a location to itself, must be greater than or equal to 0.0
@@ -44,6 +43,8 @@ class DistancesModel() : SpatialModel() {
         }
     private val distances: Table<LocationIfc, LocationIfc, Double> = HashBasedTable.create()
     private val myLocations: BiMap<String, LocationIfc> = HashBiMap.create()
+
+    override var defaultLocation: LocationIfc = Location("defaultLocation")
 
     /**
      * The locations that have been added to the model.
