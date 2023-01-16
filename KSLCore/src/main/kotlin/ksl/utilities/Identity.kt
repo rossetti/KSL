@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,20 @@ interface NameIfc {
 }
 
 open class Name(override val name: String = "defaultName") : NameIfc
+
+fun <T> makeNameFromClass(clazz: Class<T>, id: Int, str: String? = null): String {
+    return if (str == null) {
+        // no name is being passed, construct a default name
+        var s = clazz.simpleName
+        val k = s.lastIndexOf(".")
+        if (k != -1) {
+            s = s.substring(k + 1)
+        }
+        s + "_" + id
+    } else {
+        str
+    }
+}
 
 /** An interface to defining the identity of an object in terms
  * of a name and a number

@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ package ksl.modeling.entity
 
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.queue.Queue
+import ksl.modeling.spatial.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -83,7 +84,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         override fun generate() {
             val entity = entityCreator()
             val event: KSLEvent<KSLProcess>? = startProcessSequence(entity, priority = activationPriority)
-            if (event == null){
+            if (event == null) {
                 logger.warn { "The $entity does not have any processes on its process sequence!" }
             }
         }
@@ -183,7 +184,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
     }
 
-    final override fun afterReplication() {
+    override fun afterReplication() {
         // make a copy of the set
         val set = suspendedEntities.toHashSet()
         Model.logger.info { "After Replication for $this.name: terminating ${set.size} suspended entities" }
@@ -200,7 +201,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      *
      * @param aName an optional name for the entity
      */
-    open inner class Entity(aName: String? = null) : QObject(aName) {
+    open inner class Entity(aName: String? = null) : QObject(aName),
+        SpatialElementIfc by SpatialElement(this@ProcessModel), VelocityIfc {
+
+        /**
+         * The default velocity for the entity's movement within the spatial model
+         * of its ProcessModel
+         */
+        override var velocity: GetValueIfc = this@ProcessModel.spatialModel.defaultVelocity
 
         /**
          *  Controls whether the entity uses an assigned process sequence via the processSequence property
@@ -234,7 +242,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         var autoDispose = true
 
-        var defaultFailureActions: ResourceFailureActionsIfc = DefaultFailureActions()
+//        var defaultFailureActions: ResourceFailureActionsIfc = DefaultFailureActions()
 
         private var processCounter = 0
         val processModel = this@ProcessModel
@@ -450,24 +458,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        protected open fun beginFailure(allocation: Allocation) {
-            TODO("Not implemented yet")
-        }
+//        protected open fun beginFailure(allocation: Allocation) {
+//            TODO("Not implemented yet")
+//        }
+//
+//        protected open fun endFailure(allocation: Allocation) {
+//            TODO("Not implemented yet")
+//        }
 
-        protected open fun endFailure(allocation: Allocation) {
-            TODO("Not implemented yet")
-        }
-
-        protected inner class DefaultFailureActions : ResourceFailureActionsIfc {
-            override fun beginFailure(allocation: Allocation) {
-                this@Entity.beginFailure(allocation)
-            }
-
-            override fun endFailure(allocation: Allocation) {
-                this@Entity.endFailure(allocation)
-            }
-
-        }
+//        protected inner class DefaultFailureActions : ResourceFailureActionsIfc {
+//            override fun beginFailure(allocation: Allocation) {
+//                this@Entity.beginFailure(allocation)
+//            }
+//
+//            override fun endFailure(allocation: Allocation) {
+//                this@Entity.endFailure(allocation)
+//            }
+//
+//        }
 
         /**
          *  This function is used to define via a builder for a process for the entity.
@@ -527,7 +535,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *
          *  @param afterTermination a function to invoke after the process is successfully terminated
          */
-        fun terminateProcess(afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null) {
+        fun terminateProcess(afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null) {
             if (myCurrentProcess != null) {
                 myCurrentProcess!!.terminate(afterTermination)
             }
@@ -906,17 +914,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "$time > entity ${entity.id} has hit the first suspension point of process, ($this)" }
             }
 
-            //TODO how to run a sub-process from within another process (coroutine)?
-            // what happens if the subProcess is placed within a loop? i.e. called more than once
-            private fun runSubProcess(subProcess: KSLProcess) {
-                //TODO check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
-                val p = subProcess as ProcessCoroutine
-                if (p.isCreated) {
-                    // must start it
-                    p.start() // coroutine run until its first suspension point
-                }
-                TODO("not fully implemented/tested 9-14-2022")
-            }
+//            //TODO how to run a sub-process from within another process (coroutine)?
+//            // what happens if the subProcess is placed within a loop? i.e. called more than once
+//            private fun runSubProcess(subProcess: KSLProcess) {
+//                //TODO check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
+//                val p = subProcess as ProcessCoroutine
+//                if (p.isCreated) {
+//                    // must start it
+//                    p.start() // coroutine run until its first suspension point
+//                }
+//                TODO("not fully implemented/tested 9-14-2022")
+//            }
 
             internal fun resume() {
                 state.resume()
@@ -925,7 +933,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             /**
              * @param afterTermination a function to invoke after the process is successfully terminated
              */
-            internal fun terminate(afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null) {
+            internal fun terminate(afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null) {
                 state.terminate(afterTermination)
             }
 
@@ -1159,6 +1167,88 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+            override suspend fun move(
+                fromLoc: LocationIfc,
+                toLoc: LocationIfc,
+                velocity: Double,
+                movePriority: Int,
+                suspensionName: String?
+            ) {
+                require(!isMoving){"The entity ${entity.id} is already moving"}
+                require(velocity > 0.0) { "The velocity of the movement must be > 0.0 in process, ($this)" }
+                if (currentLocation != fromLoc) {
+                    currentLocation = fromLoc
+                }
+                val d = fromLoc.distanceTo(toLoc)
+                val t = d / velocity
+                logger.trace { "$time > entity ${entity.id} MOVING from ${fromLoc.name} to ${toLoc.name} suspending process, ($this) ..." }
+                isMoving = true
+                delay(t, movePriority, suspensionName)
+                currentLocation = toLoc
+                isMoving = false
+                logger.trace { "$time > entity ${entity.id} completed move from ${fromLoc.name} to ${toLoc.name}" }
+            }
+
+            override suspend fun move(
+                spatialElement: SpatialElementIfc,
+                toLoc: LocationIfc,
+                velocity: Double,
+                movePriority: Int,
+                suspensionName: String?
+            ) {
+                require(!spatialElement.isMoving) { "Spatial element ${spatialElement.spatialName} is already moving!" }
+                require(velocity > 0.0) { "The velocity of the movement must be > 0.0 in process, ($this)" }
+                val d = spatialElement.currentLocation.distanceTo(toLoc)
+                val t = d / velocity
+                logger.trace { "$time > entity ${entity.id} is moving ${spatialElement.spatialName} from ${spatialElement.currentLocation.name} to ${toLoc.name} suspending process, ($this) ..." }
+                spatialElement.isMoving = true
+                delay(t, movePriority, suspensionName)
+                spatialElement.currentLocation = toLoc
+                spatialElement.isMoving = false
+                logger.trace { "$time > spatial element ${spatialElement.spatialName} completed move to ${toLoc.name}" }
+            }
+
+            override suspend fun moveWith(
+                spatialElement: SpatialElementIfc,
+                toLoc: LocationIfc,
+                velocity: Double,
+                movePriority: Int,
+                suspensionName: String?
+            ) {
+                require(!isMoving){"The entity ${entity.id} is already moving"}
+                require(currentLocation.isLocationEqualTo(spatialElement.currentLocation)){"The location of the entity and the spatial element must be the same"}
+                isMoving = true
+                move(spatialElement, toLoc, velocity, movePriority, suspensionName)
+                isMoving = false
+                currentLocation = toLoc
+            }
+
+            override suspend fun moveWith(
+                movableResource: MovableResource,
+                toLoc: LocationIfc,
+                velocity: Double,
+                movePriority: Int,
+                suspensionName: String?
+            ) {
+                require(entity.isUsing(movableResource)){"The entity is not using the movable resource. Thus, it cannot move with it."}
+                movableResource.isTransporting = true
+                moveWith(movableResource as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
+                movableResource.isTransporting = false
+            }
+
+            override suspend fun moveWith(
+                movableResourceWithQ: MovableResourceWithQ,
+                toLoc: LocationIfc,
+                velocity: Double,
+                movePriority: Int,
+                suspensionName: String?
+            ) {
+                require(entity.isUsing(movableResourceWithQ)){"The entity is not using the movable resource. Thus, it cannot move with it."}
+                movableResourceWithQ.isTransporting = true
+                moveWith(movableResourceWithQ as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
+                movableResourceWithQ.isTransporting = false
+            }
+
             override fun release(allocation: Allocation, releasePriority: Int) {
                 logger.trace { "$time > entity ${entity.id} RELEASE ${allocation.amount} units of ${allocation.resource.name} in process, ($this)" }
                 // we cannot assume that a resource has a queue
@@ -1166,7 +1256,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // get the queue from the allocation being released and process any waiting requests
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined
-                allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
+                if (!executive.isEnded){
+                    allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
+                }
             }
 
             override fun release(resource: Resource, releasePriority: Int) {
@@ -1352,7 +1444,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         }
                         afterTerminatedProcessCompletion()
                         handleTerminatedProcess(this)
-                        if (it.afterTermination != null){
+                        if (it.afterTermination != null) {
                             it.afterTermination.invoke(this@Entity)
                         }
                     } else {
@@ -1431,7 +1523,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 /**
                  *  @param afterTermination a function to invoke after the process is successfully terminated
                  */
-                open fun terminate(afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null) {
+                open fun terminate(afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null) {
                     errorMessage("terminate process")
                 }
 
@@ -1487,7 +1579,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 /**
                  *  @param afterTermination a function to invoke after the process is successfully terminated
                  */
-                override fun terminate(afterTermination : ((entity: ProcessModel.Entity) -> Unit)?) {
+                override fun terminate(afterTermination: ((entity: ProcessModel.Entity) -> Unit)?) {
                     state = terminated
                     //un-capture suspended entities here
                     suspendedEntities.remove(entity)

@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -294,7 +294,7 @@ object KSLArrays {
      * @param array the array to check
      * @return true if the array as at least one occurrence of the element
      */
-    fun hasElement(element: Double, array: DoubleArray): Boolean{
+    fun hasElement(element: Double, array: DoubleArray): Boolean {
         return findIndex(element, array) >= 0
     }
 
@@ -326,7 +326,7 @@ object KSLArrays {
      * @param array the array to check
      * @return true if the array as at least one occurrence of the element
      */
-    fun hasElement(element: Long, array: LongArray): Boolean{
+    fun hasElement(element: Long, array: LongArray): Boolean {
         return findIndex(element, array) >= 0
     }
 
@@ -335,7 +335,7 @@ object KSLArrays {
      * @param array the array to check
      * @return true if the array as at least one occurrence of the element
      */
-    fun hasElement(element: Int, array: IntArray): Boolean{
+    fun hasElement(element: Int, array: IntArray): Boolean {
         return findIndex(element, array) >= 0
     }
 
@@ -879,7 +879,7 @@ object KSLArrays {
      */
     inline fun <reified T> column(index: Int, matrix: Array<Array<T>>): Array<T> {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
-        return Array(matrix.size) {i -> matrix[i][index]}
+        return Array(matrix.size) { i -> matrix[i][index] }
     }
 
     /**
@@ -2123,18 +2123,72 @@ object KSLArrays {
         s.collect(x)
         return s
     }
+
+    /**
+     * Creates a matrix of Doubles with [nRows] and [nCols] containing the
+     * supplied [value]
+     */
+    fun matrixOfDoubles(nRows: Int, nCols: Int, value: Double): Array<DoubleArray> {
+        require(nRows > 0) { "The number of rows must be >= 1" }
+        require(nCols > 0) { "The number of columns must be >= 1" }
+        return Array(nRows) { i ->
+            DoubleArray(nCols) { j -> value }
+        }
+    }
+
+    /**
+     * Creates a matrix of Ints with [nRows] and [nCols] containing the
+     * supplied [value]
+     */
+    fun matrixOfInts(nRows: Int, nCols: Int, value: Int): Array<IntArray> {
+        require(nRows > 0) { "The number of rows must be >= 1" }
+        require(nCols > 0) { "The number of columns must be >= 1" }
+        return Array(nRows) { i ->
+            IntArray(nCols) { j -> value }
+        }
+    }
+
+    /**
+     * Creates a matrix of Longs with [nRows] and [nCols] containing the
+     * supplied [value]
+     */
+    fun matrixOfLongs(nRows: Int, nCols: Int, value: Long): Array<LongArray> {
+        require(nRows > 0) { "The number of rows must be >= 1" }
+        require(nCols > 0) { "The number of columns must be >= 1" }
+        return Array(nRows) { i ->
+            LongArray(nCols) { j -> value }
+        }
+    }
+
+    /**
+     * Creates a matrix of doubles with [nRows] and [nCols] containing values from the
+     * supplied [x]
+     */
+    fun matrixOfDoubles(nRows: Int, nCols: Int, x: GetValueIfc): Array<DoubleArray> {
+        require(nRows > 0) { "The number of rows must be >= 1" }
+        require(nCols > 0) { "The number of columns must be >= 1" }
+        return Array(nRows) { i ->
+            DoubleArray(nCols) { j -> x.value }
+        }
+    }
 }
 
 /** Extension functions and other functions for working with arrays
  * @author rossetti@uark.edu
  */
 
+inline fun <reified T> matrixOfNulls(n: Int, m: Int) = Array(n) { arrayOfNulls<T>(m) }
+
+inline fun <reified T> to2DArray(lists: List<List<T>>): Array<Array<T>> {
+    return Array(lists.size) { row -> lists[row].toTypedArray() }
+}
+
 /**
  * Returns a statistic that summarizes the array of values
  *
  * @return a Statistic summarizing the data
  */
-fun DoubleArray.statistics():Statistic {
+fun DoubleArray.statistics(): Statistic {
     return KSLArrays.statistics(this)
 }
 
@@ -2625,14 +2679,14 @@ fun Array<LongArray>.copyOf(): Array<LongArray> {
 /**
  *  Fills the array with the value
  */
-fun DoubleArray.fill(theValue : GetValueIfc = ConstantRV.ZERO){
+fun DoubleArray.fill(theValue: GetValueIfc = ConstantRV.ZERO) {
     KSLArrays.fill(this, theValue)
 }
 
 /**
  *  Fills the array with the provided value
  */
-fun Array<DoubleArray>.fill(theValue : GetValueIfc = ConstantRV.ZERO){
+fun Array<DoubleArray>.fill(theValue: GetValueIfc = ConstantRV.ZERO) {
     KSLArrays.fill(this, theValue)
 }
 

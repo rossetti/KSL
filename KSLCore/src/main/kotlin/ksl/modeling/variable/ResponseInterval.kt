@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -25,10 +25,8 @@ package ksl.modeling.variable
 import ksl.observers.ModelElementObserver
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.toDouble
 import ksl.utilities.statistic.WeightedStatisticIfc
-import ksl.utilities.statistic.isMissing
 
 /**
  * This class represents an interval of time over which statistical collection
@@ -263,7 +261,7 @@ class ResponseInterval(
     internal fun scheduleInterval(startTime: Double) {
         check(!isScheduled) { "Attempted to schedule an already scheduled interval" }
         isScheduled = true
-        val t = time + startTime
+//        val t = time + startTime
 //        println("$time > **${this@ResponseInterval.name}** scheduling the start action for time $t")
         myStartEvent = myStartAction.schedule(startTime, priority = START_EVENT_PRIORITY)
 //        println("$myStartEvent")

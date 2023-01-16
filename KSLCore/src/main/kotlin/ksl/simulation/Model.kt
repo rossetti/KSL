@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@ import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.controls.Controls
 import ksl.modeling.elements.RandomElementIfc
+import ksl.modeling.spatial.Euclidean2DPlane
+import ksl.modeling.spatial.SpatialModel
 import ksl.modeling.variable.*
 import ksl.utilities.io.KSL
 import ksl.utilities.io.LogPrintWriter
@@ -326,6 +328,23 @@ class Model(
 
     private fun addDefaultElements() {
 
+    }
+
+    override var mySpatialModel: SpatialModel? = Euclidean2DPlane()
+
+    /**
+     * This method can be used to ensure that all model elements within the
+     * model use the same spatial model.
+     *
+     * @param model the spatial model
+     */
+    fun setSpatialModelForAllElements(model: SpatialModel) {
+        //set the model's spatial model
+        spatialModel = model
+        // iterate through all elements and set their spatial model
+        for (m in myModelElementMap.values) {
+            m.spatialModel = model
+        }
     }
 
     /**
@@ -821,6 +840,7 @@ class Model(
     //called from simulation, so internal
     internal fun setUpExperiment() {
         logger.info { "Setting up experiment $experimentName for the simulation." }
+        ModelElement.logger.info { "Setting up experiment $experimentName for the simulation." }
         executive.initializeCalendar()
         logger.info { "The executive was initialized prior to any experiments. Current time = $time" }
         executive.terminationWarningMsgOption = false
@@ -875,25 +895,31 @@ class Model(
             executive.maximumAllowedExecutionTime = maximumAllowedExecutionTimePerReplication
         }
         logger.info { "Initializing the executive" }
+        ModelElement.logger.info {"Initializing the executive"}
         executive.initialize()
         logger.info { "The executive was initialized prior to the replication. Current time = $time" }
         logger.info { "Setting up the replications for model elements" }
+        ModelElement.logger.info { "Setting up the replications for model elements" }
         setUpReplication()
         logger.info { "Executing the events" }
+        ModelElement.logger.info { "Executing the events" }
         executive.executeAllEvents()
         logger.info { "The executive finished executing events. Current time = $time" }
         logger.info { "Performing end of replication actions for model elements" }
+        ModelElement.logger.info { "Performing end of replication actions for model elements" }
         replicationEndedActions()
         if (advanceNextSubStreamOption) {
             logger.info { "Advancing random number streams to the next sub-stream" }
             advanceToNextSubStream()
         }
         logger.info { "Performing after replication actions for model elements" }
+        ModelElement.logger.info { "Performing after replication actions for model elements" }
         afterReplicationActions()
     }
 
     internal fun endExperiment() {
         logger.info { "Performing after experiment actions for model elements" }
+        ModelElement.logger.info { "Performing after experiment actions for model elements" }
         afterExperimentActions()
     }
 
@@ -947,8 +973,10 @@ class Model(
             myCurrentStep = nextStep()
             myExperiment.incrementCurrentReplicationNumber()
             logger.info { "Running replication $currentReplicationNumber of $numberOfReplications replications" }
+            ModelElement.logger.info { "Running replication $currentReplicationNumber of $numberOfReplications replications" }
             model.runReplication()
             logger.info { "Ended replication $currentReplicationNumber of $numberOfReplications replications" }
+            ModelElement.logger.info { "Ended replication $currentReplicationNumber of $numberOfReplications replications" }
             if (garbageCollectAfterReplicationFlag) {
                 System.gc()
             }

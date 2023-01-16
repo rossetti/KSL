@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
 
 /**
@@ -42,7 +41,7 @@ class Allocation(
     theAmount: Int = 1,
     val queue: RequestQ,
     allocationName: String? = null,
-    var failureActions: ResourceFailureActionsIfc = entity.defaultFailureActions
+//    var failureActions: ResourceFailureActionsIfc = entity.defaultFailureActions
 ) {
     init {
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }

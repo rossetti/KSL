@@ -29,7 +29,7 @@ plugins {
     id("org.jetbrains.dokka") version "1.7.20"
 }
 group = "io.github.rossetti"
-version = "R1.0.0"
+version = "R1.0.1"
 
 repositories {
 
@@ -52,6 +52,7 @@ dependencies {
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+//    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
@@ -64,6 +65,8 @@ dependencies {
     implementation("org.ktorm:ktorm-core:3.5.0")
 
     implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
+
+    implementation("com.google.guava:guava:31.1-jre")
 
     // https://mvnrepository.com/artifact/org.knowm.xchart/xchart
 //    implementation("org.knowm.xchart:xchart:3.8.2")
@@ -119,11 +122,11 @@ tasks.jar {
 }
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.kotlinOptions {
-    jvmTarget = "1.8"
+    jvmTarget = "11"
 }
 val compileTestKotlin: KotlinCompile by tasks
 compileTestKotlin.kotlinOptions {
-    jvmTarget = "1.8"
+    jvmTarget = "11"
 }
 
 // these extensions are needed when publishing to maven
@@ -144,7 +147,7 @@ publishing {
             groupId = "io.github.rossetti"
             artifactId = "KSLCore"
             // update this field when generating new release
-            version = "R1.0.0"
+            version = "R1.0.1"
             from(components["java"])
             versionMapping {
                 usage("java-api") {

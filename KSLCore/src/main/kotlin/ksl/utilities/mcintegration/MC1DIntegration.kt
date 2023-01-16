@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ package ksl.utilities.mcintegration
 
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.RVariableIfc
-import ksl.utilities.random.rvariable.UniformRV
 
 
 /**
@@ -71,7 +70,7 @@ class MC1DIntegration (
         return super.runSimulation()
     }
 
-    override fun replication(r: Int): Double {
+    override fun replication(j: Int): Double {
         return if (isAntitheticOptionOn) {
             val y1 = myFunction.f(mySampler.sample())
             val y2 = myFunction.f(myAntitheticSampler!!.sample())

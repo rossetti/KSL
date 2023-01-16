@@ -1,6 +1,6 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ package ksl.simulation
 
 import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.queue.Queue
+import ksl.modeling.spatial.SpatialModel
 //import ksl.modeling.queue.qObjCounter
 import ksl.modeling.variable.*
 import ksl.observers.ModelElementObserver
@@ -31,6 +32,7 @@ import ksl.utilities.statistic.StateAccessorIfc
 import mu.KLoggable
 
 private var elementCounter: Int = 0
+
 /**
  * incremented to give a running total of the number of model QObject
  * created
@@ -214,6 +216,25 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
     val model
         get() = myModel
 
+    protected open var mySpatialModel: SpatialModel? = parent?.spatialModel
+
+    /**
+     * The spatial model associated with this model element. By default, each model element
+     * uses its parent model element's spatial model unless changed via this property.
+     * This changes the spatial model for this model element and no others.
+     */
+    var spatialModel: SpatialModel
+        get() {
+            return if (mySpatialModel == null) {
+                parent!!.spatialModel
+            } else {
+                mySpatialModel!!
+            }
+        }
+        set(value) {
+            mySpatialModel = value
+        }
+
     /**
      *  A global uniform random number source
      */
@@ -285,7 +306,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      * model element.
      */
     protected var individualElementWarmUpLength = 0.0 // zero means no warm up
-        protected set(warmUpTime){
+        protected set(warmUpTime) {
             require(warmUpTime >= 0.0) { "Individual element warm up event time must be >= 0.0" }
             field = warmUpTime
             warmUpOption = (field == 0.0)
@@ -1375,7 +1396,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         }
 
         if (beforeExperimentOption) {
-            logger.trace { "ModelElement: $name executing beforeExperiment()" }
+            logger.info { "ModelElement: $name executing beforeExperiment()" }
             beforeExperiment()
             currentStatus = Status.BEFORE_EXPERIMENT
         }
@@ -1408,7 +1429,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
 
         // now initialize the model element itself
         if (initializationOption) {
-            logger.trace { "ModelElement: $name executing initialize()" }
+            logger.info { "ModelElement: $name executing initialize()" }
             initialize()
             currentStatus = Status.INITIALIZED
         }
@@ -1479,7 +1500,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (beforeReplicationOption) {
-            logger.trace { "$name executing beforeReplication()" }
+            logger.info { "ModelElement: $name executing beforeReplication()" }
             beforeReplication()
             currentStatus = Status.BEFORE_REPLICATION
         }
@@ -1532,7 +1553,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         if (this == model) {
             Model.logger.info { "Executing the warm up action for the model at time $time" }
         }
-        logger.trace { "$name executing warmUp()" }
+        logger.info { "ModelElement: $name executing warmUp()" }
         warmUp()
         warmUpIndicator = true
         currentStatus = Status.WARMUP
@@ -1635,7 +1656,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (replicationEndedOption) {
-            logger.trace { "$name executing replicationEnded()" }
+            logger.info { "ModelElement: $name executing replicationEnded()" }
             replicationEnded()
             currentStatus = Status.REPLICATION_ENDED
         }
@@ -1655,12 +1676,13 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      */
     internal fun afterReplicationActions() {
         if (myModelElements.isNotEmpty()) {
+            logger.info { "ModelElement: $name has children, executing their after replication actions" }
             for (m in myModelElements) {
                 m.afterReplicationActions()
             }
         }
         if (afterReplicationOption) {
-            logger.trace { "$name executing afterReplication()" }
+            logger.info { "ModelElement: $name executing afterReplication()" }
             afterReplication()
             currentStatus = Status.AFTER_REPLICATION
         }
@@ -1687,7 +1709,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (afterExperimentOption) {
-            logger.trace { "$name executing afterExperiment()" }
+            logger.info { "ModelElement: $name executing afterExperiment()" }
             afterExperiment()
             currentStatus = Status.AFTER_EXPERIMENT
         }
@@ -1825,6 +1847,11 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
     }
 
     companion object : KLoggable {
+        private var enumCounter: Int = 0
+
+        fun nextEnumConstant() : Int {
+            return ++enumCounter
+        }
 
         /**
          * A global logger for logging of model elements
@@ -1930,9 +1957,10 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      * @param aName The name of the QObject
      */
     open inner class QObject(aName: String? = null) : Comparable<QObject>, QObjectIfc {
-        init{
+        init {
             qObjCounter++
         }
+
         /**
          * Gets a uniquely assigned identifier for this QObject. This
          * identifier is assigned when the QObject is created. It may vary if the
@@ -2063,7 +2091,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
          * @param priority the priority
          * @param obj an object to attach
          */
-        internal fun <T:QObject> enterQueue (queue: Queue<T>, time: Double, priority: Int, obj: Any?) {
+        internal fun <T : QObject> enterQueue(queue: Queue<T>, time: Double, priority: Int, obj: Any?) {
             check(isNotQueued) { "The QObject was already queued!" }
             myQueuedState.enter(time)
             this.queue = queue
