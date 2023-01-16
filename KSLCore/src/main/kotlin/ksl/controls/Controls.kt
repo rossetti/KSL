@@ -22,7 +22,7 @@ import ksl.simulation.Model
 
 class Controls(aModel: Model) {
     fun setControlsAsDoubles(cMap: Map<String, Double>): Int {
-        //TODO
+        TODO("Controls not implemented yet")
         return 0
     }
 

@@ -221,7 +221,6 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
                 false
             }
         }
-        return false
     }
 
     private fun dbCreateTaskExecution(): Boolean {

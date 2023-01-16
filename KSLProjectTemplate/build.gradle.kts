@@ -17,7 +17,7 @@ dependencies {
 
     // next line allows use of KSL libraries within the project
     // update the release number when new releases become available
-    api(group = "io.github.rossetti", name = "KSLCore", version = "R1.0.0")
+    api(group = "io.github.rossetti", name = "KSLCore", version = "R1.0.1")
 
 
     testImplementation(kotlin("test"))
@@ -38,10 +38,10 @@ tasks.jar {
 
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.kotlinOptions {
-    jvmTarget = "1.8"
+    jvmTarget = "11"
 }
 
 val compileTestKotlin: KotlinCompile by tasks
 compileTestKotlin.kotlinOptions {
-    jvmTarget = "1.8"
+    jvmTarget = "11"
 }

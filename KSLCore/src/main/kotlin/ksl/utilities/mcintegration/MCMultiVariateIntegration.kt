@@ -86,7 +86,7 @@ class MCMultiVariateIntegration(
         return super.runSimulation()
     }
 
-    override fun replication(r: Int): Double {
+    override fun replication(j: Int): Double {
         return if (isAntitheticOptionOn) {
             val y1: Double = myFunction.fx(mySampler.sample())
             val y2: Double = myFunction.fx(myAntitheticSampler!!.sample())
