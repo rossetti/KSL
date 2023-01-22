@@ -14,7 +14,7 @@ import kotlin.reflect.full.cast
  * @param element the model element that has the method to control, must not be null
  * @param setter  the property that will be used by the control, must not be null
  */
-class Control<T : Any>(val type: KClass<T>, val element: NameIfc, setter: KMutableProperty.Setter<*>) {
+class Control<T : Any>(val type: KClass<T>, initialValue: T, val element: NameIfc, setter: KMutableProperty.Setter<*>) {
 
     init {
         require(hasControlAnnotation(setter)) { "The property ${mySetter.name} does not have a control annotation." }
@@ -27,13 +27,13 @@ class Control<T : Any>(val type: KClass<T>, val element: NameIfc, setter: KMutab
     private val kslControl: KSLControl = controlAnnotation(setter)!!
 
     init {
-        require(kslControl.controlType.asClass().isInstance(type))
-        { "The annotation type ${kslControl.controlType} is not compatible with control type ${type.simpleName} " }
+        require(kslControl.controlType.asClass() == type)
+        { "The annotation type ${kslControl.controlType.asClass().simpleName} is not compatible with control type ${type.simpleName} " }
 
-        logger.info(
-            "Constructed control : {} for property: {} on class {}",
-            this, mySetter.name, element.name
-        )
+//        logger.info(
+//            "Constructed control : {} for property: {} on class {}",
+//            this, mySetter.name, element.name
+//        )
     }
 
     val setterName: String = if (annotationName == "") {
@@ -42,7 +42,7 @@ class Control<T : Any>(val type: KClass<T>, val element: NameIfc, setter: KMutab
         annotationName
     }
 
-    lateinit var lastValue: T
+    var controlValue: T = initialValue
         private set
 
     val key: String
@@ -146,13 +146,13 @@ class Control<T : Any>(val type: KClass<T>, val element: NameIfc, setter: KMutab
             mySetter.call(element, value)
             // record the value last set
             // rather than try to read it from a getter on demand
-            lastValue = value
-            logger.info("Control {} was assigned value {}", key, lastValue)
+            controlValue = value
+            logger.info("Control {} was assigned value {}", key, controlValue)
         } catch (e: IllegalAccessException) {
-            logger.error("Unsuccessful assign for Control {} with value {}", key, lastValue)
+            logger.error("Unsuccessful assign for Control {} with value {}", key, controlValue)
             throw RuntimeException(e)
         } catch (e: InvocationTargetException) {
-            logger.error("Unsuccessful assign for Control {} with value {}", key, lastValue)
+            logger.error("Unsuccessful assign for Control {} with value {}", key, controlValue)
             throw RuntimeException(e)
         }
     }
@@ -188,10 +188,10 @@ class Control<T : Any>(val type: KClass<T>, val element: NameIfc, setter: KMutab
             ControlType.FLOAT,
             ControlType.SHORT,
             ControlType.BYTE -> {
-                lastValue as Double
+                controlValue as Double
             }
             ControlType.BOOLEAN -> {
-                val b = lastValue as Boolean
+                val b = controlValue as Boolean
                 if (b) {
                     1.0
                 } else 0.0
@@ -203,7 +203,7 @@ class Control<T : Any>(val type: KClass<T>, val element: NameIfc, setter: KMutab
         val str = StringBuilder()
         str.append("[key = ").append(key)
         str.append(", control type = ").append(annotationType)
-        str.append(", value = ").append(lastValue)
+        str.append(", value = ").append(controlValue)
         str.append(", lower bound = ").append(lowerBound)
         str.append(", upper bound = ").append(upperBound)
         str.append(", comment = ").append(if (annotationComment == "") "\"\"" else annotationComment)

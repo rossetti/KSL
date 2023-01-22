@@ -21,7 +21,8 @@ import java.lang.annotation.Inherited
 @MustBeDocumented // flag inclusion in documentation
 @Inherited // flag that it is inherited by subclasses
 @Target(
-    AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.PROPERTY
+//    AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.PROPERTY
+            AnnotationTarget.PROPERTY_SETTER
 ) // targets setters ONLY
 annotation class KSLControl (
     /**

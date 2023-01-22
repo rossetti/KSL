@@ -27,6 +27,7 @@ import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.cast
 import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.internal.impl.resolve.calls.inference.CapturedType
 
 class Controls(aModel: Model) {
 
@@ -57,26 +58,43 @@ class Controls(aModel: Model) {
      */
     private fun extractControls(modelElement: ModelElement) {
         val cls: KClass<out ModelElement> = modelElement::class
-        val setters: Collection<KProperty1<out ModelElement, *>> = cls.memberProperties
-        for (setter in setters) {
-            if (setter is KMutableProperty.Setter<*>) {
-                val s = setter as KMutableProperty.Setter<*>
-                if (Control.hasControlAnnotation(s)) {
-                    val kslControl: KSLControl = Control.controlAnnotation(s)!!
+        val properties: Collection<KProperty1<out ModelElement, *>> = cls.memberProperties
+        Control.logger.info{"Extracting controls for model element: ${modelElement.name}"}
+        for (property in properties) {
+            Control.logger.info{"Reviewing member property: ${property.name}"}
+            if (property is KMutableProperty<*>) {
+                Control.logger.info{"Member property, ${property.name}, is mutable property"}
+                if (Control.hasControlAnnotation(property.setter)) {
+                    Control.logger.info{"Member property, ${property.name}, setter has control annotations"}
+                    val kslControl: KSLControl = Control.controlAnnotation(property.setter)!!
+                    Control.logger.info{"Extracted annotation: $kslControl"}
                     if (kslControl.include) {
-                        val control: Control<out Any> = Control(kslControl.controlType.asClass(), modelElement, s)
-                        store(control)
-                        Control.logger.info(
-                            "Control {} from method {} was extracted and added to controls for model: {}",
-                            control.key, s.name, model.name
-                        )
+                        Control.logger.info{"Controls should include annotated setter: ${property.setter.name}"}
+                        val clazz = kslControl.controlType.asClass()
+                        Control.logger.info{"Making control of type ${clazz.simpleName} for property, ${property.setter.name} of model element ${modelElement.name}"}
+                        val value: Any? = property.getter.call()
+                        if (value != null){
+                           val v: Any = value
+                            val control: Control<out Any> = Control(clazz, v, modelElement, property.setter)
+                            Control.logger.info{"Constructed control: $control"}
+                            store(control)
+                            Control.logger.info(
+                                "Control {} from method {} was extracted and added to controls for model: {}",
+                                control.key, property.setter.name, model.name
+                            )
+                        }
+
                     } else {
                         Control.logger.info(
                             "Control {} from method {} was excluded during extraction for model: {}",
-                            kslControl.name, s.name, model.name
+                            kslControl.name, property.setter.name, model.name
                         )
                     }
+                } else{
+                    Control.logger.info{"Member property, ${property.name}, has has no control annotations"}
                 }
+            } else{
+                Control.logger.info{"Member property, ${property.name}, reported as not a mutable property"}
             }
         }
     }

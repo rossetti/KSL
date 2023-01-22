@@ -12,8 +12,6 @@ import ksl.simulation.ModelElement
  */
 class Van(parent: ModelElement) : ModelElement(parent) {
 
-    private var stickShift = false
-
     // numeric control setter with bounds, an alias and a comment
     @set:KSLControl(
         controlType = ControlType.INTEGER,

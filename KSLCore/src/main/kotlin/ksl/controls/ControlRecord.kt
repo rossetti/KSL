@@ -10,7 +10,7 @@ class ControlRecord(c: Control<*>) {
 
     init {
         key = c.key
-        value = c.lastValue
+        value = c.controlValue
         comment = c.annotationComment
         lowerBound = c.lowerBound
         upperBound = c.upperBound
