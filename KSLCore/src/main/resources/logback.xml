@@ -268,7 +268,7 @@
         <appender-ref ref="KSL_STREAMS" />
     </logger>
 
-    <logger name="ksl.controls.Control" level="INFO" additivity="false">
+    <logger name="ksl.controls.Controls" level="INFO" additivity="false">
         <appender-ref ref="KSL_CONTROLS" />
     </logger>
 

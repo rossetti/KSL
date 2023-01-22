@@ -18,20 +18,47 @@
 
 package ksl.controls
 
-//import java.util.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.maps.KSLMaps
+import mu.KLoggable
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty1
-import kotlin.reflect.full.cast
 import kotlin.reflect.full.memberProperties
-import kotlin.reflect.jvm.internal.impl.resolve.calls.inference.CapturedType
+
+interface ControlIfc {
+    val type: ControlType
+    var value: Double
+    val keyName: String
+    val lowerBound: Double
+    val upperBound: Double
+    val elementName: String
+    val propertyName: String
+    val comment: String
+
+    /**
+     * Ensures that the supplied double is within the bounds
+     * associated with the control. This function does
+     * not change the state of the control.
+     *
+     * @param value the value to limit
+     * @return the limited value for future use
+     */
+    fun limitToRange(value: Double): Double {
+        if (value <= lowerBound) {
+            return lowerBound
+        } else if (value >= upperBound) {
+            return upperBound
+        }
+        return value
+    }
+}
 
 class Controls(aModel: Model) {
 
-    private val myControls = mutableMapOf<String, Control<out Any>>()
+    private val myControls = mutableMapOf<String, ControlIfc>()
+
     val model = aModel
 
     init {
@@ -59,42 +86,34 @@ class Controls(aModel: Model) {
     private fun extractControls(modelElement: ModelElement) {
         val cls: KClass<out ModelElement> = modelElement::class
         val properties: Collection<KProperty1<out ModelElement, *>> = cls.memberProperties
-        Control.logger.info{"Extracting controls for model element: ${modelElement.name}"}
+        logger.info { "Extracting controls for model element: ${modelElement.name}" }
         for (property in properties) {
-            Control.logger.info{"Reviewing member property: ${property.name}"}
+            logger.trace { "Reviewing member property: ${property.name}" }
             if (property is KMutableProperty<*>) {
-                Control.logger.info{"Member property, ${property.name}, is mutable property"}
-                if (Control.hasControlAnnotation(property.setter)) {
-                    Control.logger.info{"Member property, ${property.name}, setter has control annotations"}
-                    val kslControl: KSLControl = Control.controlAnnotation(property.setter)!!
-                    Control.logger.info{"Extracted annotation: $kslControl"}
-                    if (kslControl.include) {
-                        Control.logger.info{"Controls should include annotated setter: ${property.setter.name}"}
-                        val clazz = kslControl.controlType.asClass()
-                        Control.logger.info{"Making control of type ${clazz.simpleName} for property, ${property.setter.name} of model element ${modelElement.name}"}
-                        val value: Any? = property.getter.call()
-                        if (value != null){
-                           val v: Any = value
-                            val control: Control<out Any> = Control(clazz, v, modelElement, property.setter)
-                            Control.logger.info{"Constructed control: $control"}
+                logger.trace { "Member property, ${property.name}, is mutable property" }
+                if (hasControlAnnotation(property.setter)) {
+                    logger.info { "Member property, ${property.name}, setter has control annotations" }
+                    val kslControl: KSLControl = controlAnnotation(property.setter)!!
+                    logger.info { "Extracted annotation: $kslControl" }
+                    // check if property type is consistent with annotation type
+                    if (ControlType.validType(property.returnType)) {
+                        logger.trace { "Setter has valid type: ${property.returnType}" }
+                        if (kslControl.include) {
+                            logger.trace { "Controls will include annotated setter: ${property.setter.name}" }
+                            val control = Control(modelElement, property, kslControl)
                             store(control)
-                            Control.logger.info(
-                                "Control {} from method {} was extracted and added to controls for model: {}",
-                                control.key, property.setter.name, model.name
-                            )
+                            logger.info { "Control ${control.keyName} for property ${property.name} was extracted and added to controls" }
+                        } else {
+                            logger.trace { "Control ${kslControl.name} from property ${property.setter.name} was excluded during extraction." }
                         }
-
                     } else {
-                        Control.logger.info(
-                            "Control {} from method {} was excluded during extraction for model: {}",
-                            kslControl.name, property.setter.name, model.name
-                        )
+                        logger.trace { "The property return type, ${property.returnType.classifier.toString()} is not valid for ${kslControl.controlType}" }
                     }
-                } else{
-                    Control.logger.info{"Member property, ${property.name}, has has no control annotations"}
+                } else {
+                    logger.trace { "Member property, ${property.name}, has has no control annotations" }
                 }
-            } else{
-                Control.logger.info{"Member property, ${property.name}, reported as not a mutable property"}
+            } else {
+                logger.trace { "Member property, ${property.name}, reported as not a mutable property" }
             }
         }
     }
@@ -104,8 +123,9 @@ class Controls(aModel: Model) {
      *
      * @param control the control to add
      */
-    private fun store(control: Control<out Any>): Control<out Any> {
-        return myControls.put(control.key, control)!!
+    private fun store(control: ControlIfc) {
+        val kn = control.keyName
+        myControls[kn] = control
     }
 
     /**
@@ -125,58 +145,49 @@ class Controls(aModel: Model) {
     }
 
     /**
-     * The class type should be associated with a valid control type. For example,
-     * List&lt;Control&lt;Double&gt;&gt; list = getControls(Control&lt;Double&gt;.class)
      *
-     * @param clazz the type of control wanted, must not be null.
+     * @return a list of the controls
+     */
+    fun asList(): List<ControlIfc> {
+        val list = mutableListOf<ControlIfc>()
+        for ((_, control) in myControls) {
+            list.add(control)
+        }
+        return list
+    }
+
+    /**
+     * The type should be associated with a valid control type.
+     *
+     * @param controlType the type of control wanted
      * @return a list of the controls associated with the supplied type, may be empty
      */
-    fun <T : Any> getControls(clazz: KClass<Control<T>>): List<Control<T>> {
-        if (!ControlType.classTypesToValidTypesMap.containsKey(clazz)) {
-            return ArrayList()
-        }
-        val type = ControlType.classTypesToValidTypesMap[clazz]
-        val list: MutableList<Control<T>> = ArrayList()
-        for ((_, v) in myControls) {
-            if (v.annotationType === type) {
-                try {
-                    list.add(clazz.cast(v))
-                } catch (ignored: ClassCastException) {
-                }
+    fun asListByType(controlType: ControlType): List<ControlIfc> {
+        val list = mutableListOf<ControlIfc>()
+        for ((_, control) in myControls) {
+            if (control.type == controlType) {
+                list.add(control)
             }
         }
         return list
     }
 
     /**
-     * Gets a control of the name with the specific class type. For example,
-     * Control&lt;Double&gt; getControl(name, Control&lt;Double&gt;.class);
+     * Gets a control of the supplied key name or null
      *
      * @param controlKey the key for the control, must not be null
-     * @param clazz      the class type for the control
-     * @return the control or null if the key does not exist as a control or if
-     * the control with the name cannot be cast to T
      */
-    fun <T : Any> getControl(controlKey: String, clazz: Class<Control<T>>): Control<T>? {
-        try {
-            val v = myControls[controlKey]
-            return if (v == null) {
-                null
-            } else {
-                clazz.cast(v)
-            }
-        } catch (ignored: ClassCastException) {
-        }
-        return null
+    fun control(controlKey: String): ControlIfc? {
+        return myControls[controlKey]
     }
 
     /**
      * @return the set of possible control types held
      */
-    fun getControlTypes(): Set<ControlType> {
-        val set: MutableSet<ControlType> = HashSet()
+    fun controlTypes(): Set<ControlType> {
+        val set = mutableSetOf<ControlType>()
         for ((_, value) in myControls) {
-            set.add(value.annotationType)
+            set.add(value.type)
         }
         return set
     }
@@ -189,12 +200,10 @@ class Controls(aModel: Model) {
      *
      * @return the map
      */
-    fun getControlsAsDoubles(): Map<String, Double> {
+    fun controlsAsDoubles(): Map<String, Double> {
         val map: MutableMap<String, Double> = LinkedHashMap()
         for ((key, c) in myControls) {
-            if (c.isDoubleCompatible()) {
-                map[key] = c.lastValueAsDouble()
-            }
+            map[key] = c.value
         }
         return map
     }
@@ -210,10 +219,10 @@ class Controls(aModel: Model) {
         for ((k, v) in controlMap.entries) {
             if (myControls.containsKey(k)) {
                 val c = myControls[k]
-                c!!.setValue(v)
+                c!!.value = v
                 j++
             } else {
-                Control.logger.warn{"The key $k was not found when trying to set control values for supplied flat map"}
+                logger.warn { "The key $k was not found when trying to set control values for supplied flat map" }
             }
         }
         return j
@@ -239,7 +248,7 @@ class Controls(aModel: Model) {
     fun controlRecords(): ArrayList<ControlRecord> {
         val list = ArrayList<ControlRecord>()
         for ((_, value) in myControls) {
-            list.add(value.getControlRecord())
+            list.add(ControlRecord(value))
         }
         return list
     }
@@ -256,5 +265,21 @@ class Controls(aModel: Model) {
             str.append(System.lineSeparator())
         }
         return str.toString()
+    }
+
+    companion object : KLoggable {
+        /**
+         * A global logger for logging of model elements
+         */
+        override val logger = logger()
+
+        fun <T> controlAnnotation(setter: KMutableProperty.Setter<T>): KSLControl? {
+            return setter.annotations.filterIsInstance<KSLControl>().firstOrNull()
+        }
+
+        fun <T> hasControlAnnotation(setter: KMutableProperty.Setter<T>): Boolean {
+            return setter.annotations.filterIsInstance<KSLControl>().isNotEmpty()
+        }
+
     }
 }

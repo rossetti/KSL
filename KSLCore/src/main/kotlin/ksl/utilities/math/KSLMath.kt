@@ -465,7 +465,7 @@ object KSLMath : KLoggable {
             logger.trace("{} was limited to {} in toShortValue()", value, Short.MIN_VALUE)
             Short.MIN_VALUE
         } else {
-            // in the range of int, convert to the nearest int
+            // in the range of int, convert to the nearest short
             value.roundToInt().toShort()
         }
     }
