@@ -1,36 +1,33 @@
 package ksl.controls
 
+import ksl.utilities.NameIfc
 import java.lang.annotation.Inherited
 
 /**
- * A JSLControl annotation is used to mark single parameter methods within
- * model elements to indicate that those methods should be used to control
+ * A KSLControl annotation is used on the setter method of properties within
+ * model elements to indicate that those properties should be used to control
  * the execution of the simulation model. The annotation field type must be supplied
  * and must be one of the valid control types as specified by the enum ControlType.
  * The user is responsible for making sure that the type field matches (or is consistent with)
- * the type of the parameter of the method.  For this purpose, primitive types and their wrapper
- * types (e.g. double/Double, Integer/int, etc.) are considered the same (interchangeable) as
- * denoted by the valid control types.  Even though the optional annotation fields (lowerBound and upperBound)
+ * the type of the property.  Even though the optional annotation fields (lowerBound and upperBound)
  * are specified as double values, they will be converted to an appropriate value for the specified
- * type.  Boolean/boolean parameters are represented as a 1 (true) and 0 (false) within the numerical
- * conversion for the controls.  If a control is BOOLEAN, then the user can supply a 1 to represent true
- * and a 0 to represent false when setting the control, which will then be set to true or false, appropriately.
+ * type.  Boolean properties are represented as a 1.0 (true) and 0.0 (false) within the numerical
+ * conversion for the controls.  If a control is BOOLEAN, then the user can supply a 1.0 to represent true
+ * and a 0.0 to represent false when setting the control, which will then be set to true or false, appropriately.
  *
- * Current control types are the primitives and their wrappers as well as boolean/Boolean. Future
- * types may be more general object types, in which case, the bounds will be ignored.
+ * Current control types (Double, Int, Long, Short, Byte, Float) and Boolean. Future
+ * types may be more general class types, in which case, the bounds will be ignored.
  */
 @MustBeDocumented // flag inclusion in documentation
 @Inherited // flag that it is inherited by subclasses
 @Target(
-    AnnotationTarget.FUNCTION,
-    AnnotationTarget.PROPERTY_GETTER,
-    AnnotationTarget.PROPERTY_SETTER
-) // targets methods ONLY
-annotation class KSLControl(
+    AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.PROPERTY
+) // targets setters ONLY
+annotation class KSLControl (
     /**
      * the type of the control
      */
-    val type: ControlType,
+    val controlType: ControlType,
     /**
      * the name of the control
      */
@@ -58,9 +55,9 @@ annotation class KSLControl(
      */
     val comment: String = "",
 
-    /** Indicated whether to include in the controls for the model or not. Provides
+    /** Indicates whether to include in the controls for the model or not. Provides
      * a simple mechanism for turning off or not including specific controls.
-     * The default is to include thm control in the extraction process.
+     * The default is to include the control in the extraction process.
      */
     val include: Boolean = true
 )

@@ -18,6 +18,9 @@
 
 package ksl.utilities.maps
 
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.*
 
 object KSLMaps {
@@ -109,4 +112,27 @@ object KSLMaps {
         return outMap
     }
 
+    /**
+     * Converts a JSON [string] representation to a Map
+     * with keys that are strings and values that are doubles.
+     * @return the map from the string
+     */
+    fun stringDoubleMapFromJson(string: String): Map<String, Double>{
+        return Json.decodeFromString(string)
+    }
+
+    /**
+     *  Converts a [map] that has (String, Double) pairs to
+     *  a JSON string
+     *  @return the JSON string
+     */
+    fun stringDoubleMapToJson(map: Map<String, Double>): String {
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(map)
+    }
+
+}
+
+fun Map<String, Double>.toJson(): String {
+    return KSLMaps.stringDoubleMapToJson(this)
 }
