@@ -2,9 +2,7 @@ package ksl.controls
 
 import ksl.simulation.ModelElement
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rvariable.toDouble
 import kotlin.reflect.KMutableProperty
-import kotlin.reflect.full.cast
 
 internal class Control(
     private val modelElement: ModelElement,
@@ -44,20 +42,28 @@ internal class Control(
     private fun setPropertyFromDouble(value: Double){
         val x = limitToRange(value)
         // x is now in valid range for the control type
-        if (type == ControlType.DOUBLE){
-            property.setter.call(modelElement, x)
-        } else if (type == ControlType.INTEGER){
-            property.setter.call(modelElement, KSLMath.toIntValue(x))
-        } else if (type == ControlType.LONG){
-            property.setter.call(modelElement, KSLMath.toLongValue(x))
-        } else if (type == ControlType.FLOAT){
-            property.setter.call(modelElement, KSLMath.toFloatValue(x))
-        } else if (type == ControlType.SHORT){
-            property.setter.call(modelElement, KSLMath.toShortValue(x))
-        } else if (type == ControlType.BYTE){
-            property.setter.call(modelElement, KSLMath.toByteValue(x))
-        } else if (type == ControlType.BOOLEAN){
-            property.setter.call(modelElement, KSLMath.toBooleanValue(x))
+        when (type) {
+            ControlType.DOUBLE -> {
+                property.setter.call(modelElement, x)
+            }
+            ControlType.INTEGER -> {
+                property.setter.call(modelElement, KSLMath.toIntValue(x))
+            }
+            ControlType.LONG -> {
+                property.setter.call(modelElement, KSLMath.toLongValue(x))
+            }
+            ControlType.FLOAT -> {
+                property.setter.call(modelElement, KSLMath.toFloatValue(x))
+            }
+            ControlType.SHORT -> {
+                property.setter.call(modelElement, KSLMath.toShortValue(x))
+            }
+            ControlType.BYTE -> {
+                property.setter.call(modelElement, KSLMath.toByteValue(x))
+            }
+            ControlType.BOOLEAN -> {
+                property.setter.call(modelElement, KSLMath.toBooleanValue(x))
+            }
         }
     }
 }
