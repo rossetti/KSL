@@ -47,11 +47,17 @@ fun main(){
         vans[i] = Van(model)
     }
 
-    println("ModelElements")
-//    println(model.modelElementsAsString)
-
     val controls = model.controls()
 
-    println(controls.controlRecordsAsString())
+ //   println(controls.controlRecordsAsString())
+    val c = controls.control("Van_3.numSeats")
+    c?.value = 100.0
+    println(c)
 
+    val c2 = controls.control("Van_8.isStickShift")
+    c2?.value = 0.0
+    println(c2)
+
+    println()
+    println(controls.controlsAsJsonString())
 }

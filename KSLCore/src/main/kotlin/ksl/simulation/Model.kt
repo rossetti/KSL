@@ -866,7 +866,7 @@ class Model(
             val cMap: Map<String, Double>? = experimentalControls
             if (cMap != null) {
                 // extract controls and apply them
-                val k: Int = controls().setControlsAsDoubles(cMap)
+                val k: Int = controls().setControlsFromMap(cMap)
                 logger.info(
                     "{} out of {} controls were applied to Model {} to setup the experiment.",
                     k,

@@ -21,6 +21,7 @@ package ksl.controls
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.maps.KSLMaps
+import ksl.utilities.maps.toJson
 import mu.KLoggable
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
@@ -36,6 +37,7 @@ interface ControlIfc {
     val elementName: String
     val propertyName: String
     val comment: String
+    val modelName: String
 
     /**
      * Ensures that the supplied double is within the bounds
@@ -55,11 +57,22 @@ interface ControlIfc {
     }
 }
 
+data class ControlData(
+    val key: String,
+    val value: Double,
+    val lowerBound: Double,
+    val upperBound: Double,
+    val comment: String,
+    val controlType: ControlType,
+    val elementName: String,
+    val modelName: String
+)
+
 class Controls(aModel: Model) {
 
     private val myControls = mutableMapOf<String, ControlIfc>()
 
-    val model = aModel
+    private val model = aModel
 
     init {
         extractControls(model)
@@ -200,7 +213,7 @@ class Controls(aModel: Model) {
      *
      * @return the map
      */
-    fun controlsAsDoubles(): Map<String, Double> {
+    fun asMap(): Map<String, Double> {
         val map: MutableMap<String, Double> = LinkedHashMap()
         for ((key, c) in myControls) {
             map[key] = c.value
@@ -214,7 +227,7 @@ class Controls(aModel: Model) {
      * @param controlMap a flat map of control keys and values, must not be null
      * @return the number of control (key, value) pairs that were successfully set
      */
-    fun setControlsAsDoubles(controlMap: Map<String, Double>): Int {
+    fun setControlsFromMap(controlMap: Map<String, Double>): Int {
         var j = 0
         for ((k, v) in controlMap.entries) {
             if (myControls.containsKey(k)) {
@@ -234,35 +247,45 @@ class Controls(aModel: Model) {
      * that contains the control keys and double values for the controls
      * @return the number of control (key, value) pairs that were successfully set
      */
-    fun setControlsAsDoubles(json: String): Int {
-        return setControlsAsDoubles(KSLMaps.stringDoubleMapFromJson(json))
+    fun setControlsFromJson(json: String): Int {
+        return setControlsFromMap(KSLMaps.stringDoubleMapFromJson(json))
     }
 
     /**
-     * Return an ArrayList of ControlDetailsRecords providing
+     *  A JSON representation of the map of pairs (keyName, value) for the
+     *  controls
+     */
+    fun controlsAsJsonString() : String {
+        return asMap().toJson()
+    }
+
+    /**
+     * Return an ArrayList of ControlData providing
      * additional detail on Controls (but without giving
      * direct access to the control)
      *
-     * @return an ArrayList of ControlRecords
+     * @return an ArrayList of ControlData
      */
-    fun controlRecords(): ArrayList<ControlRecord> {
-        val list = ArrayList<ControlRecord>()
-        for ((_, value) in myControls) {
-            list.add(ControlRecord(value))
+    fun controlRecords(): ArrayList<ControlData> {
+        val list = ArrayList<ControlData>()
+        for ((_, control) in myControls) {
+            with(control){
+                val cd = ControlData(keyName, value, lowerBound, upperBound, comment, type, elementName, modelName )
+                list.add(cd)
+            }
         }
         return list
     }
 
     /**
-     * @return the array list of getControlRecords() as a string
+     * @return the array list of controlRecords() as a string
      */
     fun controlRecordsAsString(): String {
         val str = StringBuilder()
         val list = controlRecords()
         if (list.size == 0) str.append("{empty}")
         for (cdr in list) {
-            str.append(cdr)
-            str.append(System.lineSeparator())
+            str.appendLine(cdr)
         }
         return str.toString()
     }

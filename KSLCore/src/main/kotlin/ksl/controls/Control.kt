@@ -27,6 +27,8 @@ internal class Control(
             val sn = propertyName.replace(".", "\\.")
             return "$en.$sn"
         }
+    override val modelName: String
+        get() = modelElement.model.name
 
     override var value: Double
         get() = getDoubleFromProperty()
@@ -65,5 +67,19 @@ internal class Control(
                 property.setter.call(modelElement, KSLMath.toBooleanValue(x))
             }
         }
+    }
+
+    override fun toString(): String {
+        val str = StringBuilder()
+        str.append("[key = ").append(keyName)
+        str.append(", control type = ").append(type)
+        str.append(", value = ").append(value)
+        str.append(", lower bound = ").append(lowerBound)
+        str.append(", upper bound = ").append(upperBound)
+        str.append(", comment = ").append(if (comment == "") "\"\"" else comment)
+        str.append(", element name = ").append(elementName)
+        str.append(", model name = ").append(modelName)
+        str.append("]")
+        return str.toString()
     }
 }

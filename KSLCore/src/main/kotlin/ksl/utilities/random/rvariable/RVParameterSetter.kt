@@ -49,7 +49,7 @@ class RVParameterSetter {
      * Converts double and integer parameters to a Map that holds a Map, with the
      * outer key being the random variable name and the inner map the parameter names
      * as keys and the parameter values as values.  Ignores any double array parameters
-     * and converts any integer parameter values to doubles.
+     * and converts any integer parameter values to double values.
      *
      * @return the parameters as a map of maps
      */
@@ -75,7 +75,7 @@ class RVParameterSetter {
         }
 
     /**
-     * Uses getParametersAsDoubles() to get a map of map, then flattens the map
+     * Uses parametersAsDoubles to get a map of map, then flattens the map
      * to a single map with the key as the concatenated key of the outer and inner keys
      * concatenated with the "_PARAM_" character string. The combined key needs to be unique
      * and not be present within the random variable names.
@@ -86,7 +86,7 @@ class RVParameterSetter {
         get() = flatParametersAsDoubles("_PARAM_")
 
     /**
-     * Uses getParametersAsDoubles() to get a map of map, then flattens the map
+     * Uses parametersAsDoubles to get a map of map, then flattens the map
      * to a single map with the key as the concatenated key of the outer and inner keys
      * concatenated with the supplied character string. The combined key needs to be unique
      * and not be present within the random variable names.
@@ -102,7 +102,6 @@ class RVParameterSetter {
      * A convenience method that will set any Double or Integer parameter to the
      * supplied double value provided that the named random variable is
      * available to be set, and it has the named parameter.
-     *
      *
      * The inner map represents the parameters to change.
      * Double values are coerced to Integer values
