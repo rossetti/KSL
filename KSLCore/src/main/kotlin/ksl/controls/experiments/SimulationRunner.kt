@@ -20,6 +20,7 @@ package ksl.controls.experiments
 
 import kotlinx.datetime.Clock
 import ksl.observers.ReplicationDataCollector
+import ksl.observers.SimulationTimer
 import ksl.simulation.Model
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -44,11 +45,14 @@ class SimulationRunner(
             setupSimulation(simulationRun)
             // run the simulation
             Model.logger.info{"Running simulation: ${model.simulationName} "}
+            val timer = SimulationTimer(model)
             model.simulate()
             Model.logger.info{"Simulation ${model.simulationName} ended, capturing results."}
-            val nr = simulationRun.parameters.numberOfReplications
-//            val reps = IntStream.range(s, n + s)
-//                .mapToDouble { x: Int -> x.toDouble() }.toArray()
+            val reps = DoubleArray(simulationRun.parameters.numberOfReplications)
+            for(i in simulationRun.parameters.replicationRange){
+                val k = i - first
+                reps[k] = i.toDouble()
+            }
 
         } catch (e: RuntimeException) {
             // capture the full stack trace
