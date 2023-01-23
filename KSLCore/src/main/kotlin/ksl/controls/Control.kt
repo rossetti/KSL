@@ -17,6 +17,8 @@ internal class Control(
         get() = kslControl.upperBound
     override val elementName: String
         get() = modelElement.name
+    override val elementId: Int
+        get() = modelElement.id
     override val propertyName: String
         get() = property.name
     override val comment: String

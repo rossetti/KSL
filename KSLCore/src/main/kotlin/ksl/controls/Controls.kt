@@ -35,6 +35,7 @@ interface ControlIfc {
     val lowerBound: Double
     val upperBound: Double
     val elementName: String
+    val elementId: Int
     val propertyName: String
     val comment: String
     val modelName: String
