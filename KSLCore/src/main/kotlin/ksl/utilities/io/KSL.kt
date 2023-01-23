@@ -23,8 +23,11 @@ import mu.KLoggable
 import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
+import java.util.*
 
 object KSL : KLoggable {
+
+    fun randomUUIDString() = UUID.randomUUID().toString()
 
     /**
      * A global logger for logging
