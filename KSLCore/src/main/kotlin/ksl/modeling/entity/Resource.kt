@@ -18,6 +18,8 @@
 
 package ksl.modeling.entity
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -277,6 +279,11 @@ open class Resource(
             field = value
         }
 
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        name = "initialCapacity",
+        lowerBound = 1.0
+    )
     override var initialCapacity = capacity
         set(value) {
             require(value >= 0) { "The initial capacity of the resource must be >= 0" }

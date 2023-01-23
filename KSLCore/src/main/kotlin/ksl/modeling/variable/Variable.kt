@@ -18,6 +18,8 @@
 
 package ksl.modeling.variable
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Interval
@@ -58,6 +60,10 @@ open class Variable(
      * replication. Changing during a replication has no effect until the next
      * replication.
      */
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        name = "initialValue"
+    )
     override var initialValue: Double = theInitialValue
         set(value) {
             require(domain.contains(value)) { "The initial value, $value must be within the specified range for the variable: $domain" }
