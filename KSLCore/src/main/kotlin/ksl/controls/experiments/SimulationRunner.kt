@@ -27,10 +27,24 @@ import java.io.StringWriter
 import java.util.stream.IntStream
 
 class SimulationRunner(
-    private val model: Model,
+    private val model: Model
 ) {
-
-    fun run(simulationRun: SimulationRun) {
+    fun run(runParameters: RunParameters? = null) {
+        val simulationRun: SimulationRun = if (runParameters == null) {
+            // make simulation run from model
+            with(model) {
+                val rp = RunParameters(
+                    1..numberOfReplications,
+                    lengthOfReplication,
+                    lengthOfReplicationWarmUp,
+                    antitheticOption
+                )
+                SimulationRun(runParameters = rp)
+            }
+        } else {
+            // make simulation run from run parameters
+            SimulationRun(runParameters = runParameters)
+        }
         try {
             simulationRun.beginExecutionTime = Clock.System.now()
             // reset streams to their start for all RandomIfc elements in the model
@@ -41,18 +55,19 @@ class SimulationRunner(
             val numAdvances = first - 1
             model.advanceSubStreams(numAdvances)
             // set simulation run parameters and controls
-            Model.logger.info{"Setting up simulation: ${model.simulationName} "}
-            setupSimulation(simulationRun)
+            Model.logger.info { "Setting up simulation: ${model.simulationName} " }
+            setupSimulation()
             // run the simulation
-            Model.logger.info{"Running simulation: ${model.simulationName} "}
+            Model.logger.info { "Running simulation: ${model.simulationName} " }
             val timer = SimulationTimer(model)
             model.simulate()
-            Model.logger.info{"Simulation ${model.simulationName} ended, capturing results."}
+            Model.logger.info { "Simulation ${model.simulationName} ended, capturing results." }
             val reps = DoubleArray(simulationRun.parameters.numberOfReplications)
-            for(i in simulationRun.parameters.replicationRange){
+            for (i in simulationRun.parameters.replicationRange) {
                 val k = i - first
                 reps[k] = i.toDouble()
             }
+            //TODO
 
         } catch (e: RuntimeException) {
             // capture the full stack trace
@@ -69,7 +84,7 @@ class SimulationRunner(
         }
     }
 
-    private fun setupSimulation(simulationRun: SimulationRun) {
+    private fun setupSimulation() {
         TODO("Not yet implemented")
     }
 

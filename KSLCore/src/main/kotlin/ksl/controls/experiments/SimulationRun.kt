@@ -33,7 +33,7 @@ import ksl.utilities.statistic.Statistic
 class SimulationRun(
     runId: String? = null,
     runName: String? = null,
-    runParameters: RunParameters = RunParameters()
+    runParameters: RunParameters
 ) {
     val id: String = runId ?: KSL.randomUUIDString()
     var name: String = runName ?: ("ID_$id")
