@@ -24,6 +24,8 @@ import ksl.observers.SimulationTimer
 import ksl.simulation.Experiment
 import ksl.simulation.ExperimentIfc
 import ksl.simulation.Model
+import ksl.utilities.KSLArrays
+import ksl.utilities.toPrimitives
 import java.io.PrintWriter
 import java.io.StringWriter
 
@@ -57,6 +59,7 @@ class SimulationRunner(
             simulationRun.beginExecutionTime = timer.experimentStartTime
             simulationRun.endExecutionTime = timer.experimentEndTime
             //TODO capture results
+            val repNums: DoubleArray = KSLArrays.toDoubles(model.repIdRange.toList().toPrimitives())
 
         }catch (e: RuntimeException) {
             catchSimulationRunError(simulationRun, e)
