@@ -32,7 +32,7 @@ import ksl.utilities.io.KSL
  */
 class KSLDatabaseObserver(
     private val model: Model,
-    val db: KSLDatabase = KSLDatabase("${model.name}.db".replace(" ","_"), model.outputDirectory.dbDir),
+    val db: KSLDatabase = KSLDatabase("${model.name}.db".replace(" ", "_"), model.outputDirectory.dbDir),
     var clearDataBeforeExperimentOption: Boolean = false
 ) {
 
@@ -61,40 +61,59 @@ class KSLDatabaseObserver(
     private inner class SimulationDatabaseObserver : ModelElementObserver() {
         override fun beforeExperiment(modelElement: ModelElement) {
             super.beforeExperiment(modelElement)
+            val simName: String = model.simulationName
+            val expName: String = model.experimentName
             //handle clearing of database here
             if (clearDataBeforeExperimentOption) {
                 db.clearSimulationData(model)
+                Model.logger.info{"KSLDatabaseObserver cleared data for experiment $expName of simulation $simName"}
             } else {
-                // no clear option specified, need to check if simulation record exists
-                val simName: String = model.simulationName
-                val expName: String = model.experimentName
+                // no clear data option specified, need to check if simulation record exists
                 if (db.doesSimulationRunRecordExist(simName, expName)) {
-                    KSL.logger.error(
-                        "A simulation run record exists for simulation: {}, and experiment: {} in database {}",
-                        simName, expName, db.label
-                    )
-                    KSL.logger.error("You attempted to run a simulation for a run that has ")
-                    KSL.logger.error(" the same name and experiment without allowing its data to be cleared.")
-                    KSL.logger.error("You should consider using the clearDataBeforeExperimentOption property on the observer.")
-                    KSL.logger.error("Or, you might change the name of the experiment before calling model.simulate().")
-                    KSL.logger.error(
-                        "This error is to prevent you from accidentally losing data associated with simulation: {}, and experiment: {} in database {}",
-                        simName, expName, db.label
-                    )
-                    throw DataAccessException("A simulation run record already exists with the name $simName and experiment name $expName. Check the ksl.log for details.")
+                    // record exists, report an error to the user to prevent data loss
+                    reportSimulationRunRecordError(simName, expName)
                 }
+                //TODO future work will need to better handle chunking of experiments
+                // need to redesign database to handle situation
+            }
+            if (model.myExperiment.isChunked){
+                Model.logger.info{"Experiment $expName of simulation $simName is a chunk of a larger experiment"}
+                Model.logger.info{"KSLDatabase results only reflect the results for each individual chunk, not the overall experiment"}
             }
             db.beforeExperiment(model)
+            Model.logger.info{"Before Experiment: KSLDatabaseObserver set up the database for experiment $expName of simulation $simName"}
+        }
+
+        private fun reportSimulationRunRecordError(simName: String, expName: String) {
+            KSL.logger.error(
+                "A simulation run record exists for simulation: {}, and experiment: {} in database {}",
+                simName, expName, db.label
+            )
+            KSL.logger.error("The user attempted to run a simulation for a run that has ")
+            KSL.logger.error(" the same name and experiment without allowing its data to be cleared.")
+            KSL.logger.error("The user should consider using the clearDataBeforeExperimentOption property on the observer.")
+            KSL.logger.error("Or, the user might change the name of the experiment before calling model.simulate().")
+            KSL.logger.error(
+                "This error is to prevent the user from accidentally losing data associated with simulation: {}, and experiment: {} in database {}",
+                simName, expName, db.label
+            )
+            throw DataAccessException("A simulation run record already exists with the name $simName and experiment name $expName. Check the ksl.log for details.")
         }
 
         override fun afterReplication(modelElement: ModelElement) {
             super.afterReplication(modelElement)
             db.afterReplication(model)
+            val simName: String = model.simulationName
+            val expName: String = model.experimentName
+            Model.logger.info{"After replication ${model.currentReplicationId}: KSLDatabaseObserver inserted replication results for experiment $expName of simulation $simName"}
         }
 
         override fun afterExperiment(modelElement: ModelElement) {
             super.afterExperiment(modelElement)
             db.afterExperiment(model)
+            val simName: String = model.simulationName
+            val expName: String = model.experimentName
+            Model.logger.info{"After Experiment: KSLDatabaseObserver inserted across replication results for experiment $expName of simulation $simName"}
         }
     }
 

@@ -21,6 +21,7 @@ package ksl.controls.experiments
 import kotlinx.datetime.Clock
 import ksl.observers.ReplicationDataCollector
 import ksl.observers.SimulationTimer
+import ksl.simulation.Experiment
 import ksl.simulation.ExperimentIfc
 import ksl.simulation.Model
 import java.io.PrintWriter
@@ -43,23 +44,33 @@ class SimulationRunner(
      *  replication. The experiments are ordered in the list such that the replication identifiers
      *  for each experiment are ordered from 1 to the number of replications [numReplications]
      *  @param size the number of replications in each experiment, must be positive. If greater than
-     *  the number of replications, there will be 1 chunk
+     *  the number of replications, there will be 1 chunk containing all replications
      */
-    fun chunkExperiments(numReplications: Int, size: Int) : List<ExperimentIfc>{
+    fun chunkReplications(numReplications: Int, size: Int) : List<Experiment>{
         require(numReplications >= 1){"The number of replications must be >= 1"}
         // make the range for chunking
         val r = 1..numReplications
         val chunks: List<List<Int>> = r.chunked(size)
+        val eList = mutableListOf<Experiment>()
         for(chunk in chunks){
             val s = chunk.first() // starting id of replication in chunk
-            val e = chunk.last()  // ending id of replication in chunk
             val n = chunk.size // number of replications in the chunk
             val experiment = model.experimentInstance()
             experiment.startingRepId = s
             experiment.numberOfReplications = n
+            experiment.numberOfStreamAdvancesPriorToRunning = s - 1
+            experiment.isChunked = true
+            // change name of experiment so db can handle chunking
+            // this treats each chunk as a separate experiment in the database
+            //TODO this is a temporary fix until the database can be designed to hold chunks
+            // as related to an overall experiment
+            // this allows results of a chunk to be added to the database; otherwise,
+            // an error will occur when trying to insert a experiment for a simulation
+            // where the experiment name and simulation name already exist in the database
+            experiment.experimentName = experiment.experimentName + ":" + experiment.chunkLabel
+            eList.add(experiment)
         }
-
-        TODO("Not implemented yet")
+        return eList
     }
 
     fun run(runParameters: RunParameters? = null) {

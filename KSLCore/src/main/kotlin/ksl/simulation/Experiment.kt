@@ -88,6 +88,10 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
             field = value
         }
 
+    override var isChunked: Boolean = false
+
+    override var chunkLabel: String = IntRange(startingRepId, startingRepId + numberOfReplications -1).toString()
+
     override val currentReplicationId: Int
         get() = startingRepId + currentReplicationNumber - 1
 

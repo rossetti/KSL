@@ -984,6 +984,12 @@ class Model(
 
     }
 
+    override val isChunked: Boolean
+        get() = myExperiment.isChunked
+
+    override val chunkLabel: String
+        get() = myExperiment.chunkLabel
+
     override val experimentId: Int
         get() = myExperiment.experimentId
 

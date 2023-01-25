@@ -48,6 +48,18 @@ interface ExperimentIfc {
     fun numberOfReplications(numReps: Int, antitheticOption: Boolean)
 
     /**
+     *  Indicates if the replications associated with this experiment are
+     *  part of set of experiments with the same name.  A chunk is an ordered
+     *  subset of replications for an experiment.
+     */
+    val isChunked : Boolean
+
+    /**
+     *  An optional label for the chunk
+     */
+    val chunkLabel: String
+
+    /**
      * The starting id for the sequence of identifiers used to label
      * the replications of the experiment
      */
