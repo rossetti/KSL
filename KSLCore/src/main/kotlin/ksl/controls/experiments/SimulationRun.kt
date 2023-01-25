@@ -19,46 +19,34 @@
 package ksl.controls.experiments
 
 import kotlinx.datetime.Instant
+import ksl.simulation.Experiment
 import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.statistic.Statistic
 
 /**
- * A ExecutedRun represents the execution of a simulation with inputs (controls and parameters),
+ * A SimulationRun represents the execution of a simulation with inputs (controls and parameters),
  * and output (results).  A run consists of a number of replications that were executed with the
  * same inputs and parameters, which cause the creation of results for each response within
  * each replication. The main purpose of SimulationRun is to transfer data about the execution
  * of a simulation. It acts as a data transfer class.
  */
-class SimulationRun(
-    runId: String? = null,
-    runName: String? = null,
-    runParameters: RunParameters
-) {
-    val id: String = runId ?: KSL.randomUUIDString()
-    var name: String = runName ?: ("ID_$id")
-    var functionError = ""
-    val parameters = runParameters
-    var inputs = mutableMapOf<String, Double>()
-    var results = mutableMapOf<String, DoubleArray>()
-    var beginExecutionTime: Instant = Instant.DISTANT_PAST
+@kotlinx.serialization.Serializable
+class SimulationRun private constructor(
+    val experimentRunParameters: ExperimentRunParameters,
+    val id: String,
+    var name: String,
+    var functionError: String = "",
+    var inputs: Map<String, Double> = mapOf(),
+    var results: Map<String, DoubleArray> = mapOf(),
+    var beginExecutionTime: Instant = Instant.DISTANT_PAST,
     var endExecutionTime: Instant = Instant.DISTANT_FUTURE
-
-    /**
-     * Extract a new SimulationRun for some sub-range of replications
-     *
-     * @param range  the inclusive range covering the replications
-     * @return the created simulation run
-     */
-    fun subTask(range: IntRange): SimulationRun {
-        require(range.first in parameters.replicationRange) { "range $range is not a subset of ${parameters.replicationRange}" }
-        require(range.last in parameters.replicationRange) { "range $range is not a subset of ${parameters.replicationRange}" }
-        val p: RunParameters = parameters.instance()
-        p.replicationRange = range
-        val er = SimulationRun(id, runParameters = p)
-        er.inputs = inputs
-        return er
-    }
+) {
+    constructor(
+        experiment: ExperimentRunParameters,
+        runId: String? = null,
+        runName: String? = null
+    ) : this(experiment, runId ?: KSL.randomUUIDString(), runName ?: ("ID_$runId"))
 
     /** Use primarily for printing out run results
      *

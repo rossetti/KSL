@@ -32,12 +32,14 @@ class SimulationTimer(private val model: Model) {
         startObserving()
     }
     private val timeData: DoubleArraySaver = DoubleArraySaver()
-    private var simStartTime: Instant = Instant.DISTANT_PAST
+    var experimentStartTime: Instant = Instant.DISTANT_PAST
+        private set
     private var repStartTime: Instant = Instant.DISTANT_PAST
-    private var simEndTime: Instant = Instant.DISTANT_FUTURE
+    var experimentEndTime: Instant = Instant.DISTANT_FUTURE
+        private set
 
     val totalElapsedTime: Duration
-        get() = simEndTime - simStartTime
+        get() = experimentEndTime - experimentStartTime
 
     fun startObserving(){
         if (!model.isModelElementObserverAttached(simObserver)){
@@ -65,7 +67,7 @@ class SimulationTimer(private val model: Model) {
     private inner class SimObserver(): ModelElementObserver(){
         override fun beforeExperiment(modelElement: ModelElement) {
             timeData.clearData()
-            simStartTime = Clock.System.now()
+            experimentStartTime = Clock.System.now()
         }
 
         override fun beforeReplication(modelElement: ModelElement) {
@@ -79,7 +81,7 @@ class SimulationTimer(private val model: Model) {
         }
 
         override fun afterExperiment(modelElement: ModelElement) {
-            simEndTime = Clock.System.now()
+            experimentEndTime = Clock.System.now()
         }
     }
 }

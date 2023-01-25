@@ -61,9 +61,18 @@ private var myCounter_: Int = 0
  *
  * @param name The name of the experiment
  */
+
 open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
     init {
         require(startingRepId >= 1) { "The starting replication id number must be >= 1" }
+    }
+
+    /**
+     * Creates an experiment based on the supplied run parameters
+     * @param runParameters the parameters to use
+     */
+    constructor(runParameters: ExperimentRunParametersIfc): this(){
+        changeRunParameters(runParameters)
     }
 
     override val experimentId: Int = ++myCounter_
@@ -90,10 +99,8 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
 
     override var isChunked: Boolean = false
 
-    override var chunkLabel: String = IntRange(startingRepId, startingRepId + numberOfReplications -1).toString()
 
-    override val currentReplicationId: Int
-        get() = startingRepId + currentReplicationNumber - 1
+    override var chunkLabel: String = repIdRange.toString()
 
     /**
      * The current number of replications that have been run for this experiment
@@ -213,14 +220,14 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
      * Holds values for each controllable parameter of the simulation
      * model.
      */
-    override var experimentalControls: Map<String, Double>? = null
+    override var experimentalControls: Map<String, Double> = mapOf()
 
     /**
      *
      * @return true if a control map has been supplied
      */
     override fun hasExperimentalControls(): Boolean {
-        return experimentalControls != null
+        return experimentalControls.isNotEmpty()
     }
 
     /**
@@ -250,35 +257,35 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
     }
 
     /**
-     * Sets all attributes of this experiment to the same values as the supplied
-     * experiment (except for id)
+     *  Changes the experiment run parameters for the experiment.
+     *  This does not include the current number of replications or the experiment's id.
+     *  Any property in ExperimentRunParametersIfc may be changed.
      *
-     * @param e the experiment to copy
      */
-    override fun setExperiment(e: Experiment) {
-        experimentName = e.experimentName
-        startingRepId = e.startingRepId
-        numberOfReplications = e.numberOfReplications
-        currentReplicationNumber = e.currentReplicationNumber
-        lengthOfReplication = e.lengthOfReplication
-        lengthOfReplicationWarmUp = e.lengthOfReplicationWarmUp
-        replicationInitializationOption = e.replicationInitializationOption
-        resetStartStreamOption = e.resetStartStreamOption
-        advanceNextSubStreamOption = e.advanceNextSubStreamOption
-        antitheticOption = e.antitheticOption
-        if (e.numberOfStreamAdvancesPriorToRunning > 0) {
-            numberOfStreamAdvancesPriorToRunning = e.numberOfStreamAdvancesPriorToRunning
+    override fun changeRunParameters(runParameters: ExperimentRunParametersIfc) {
+        experimentName = runParameters.experimentName
+        startingRepId = runParameters.startingRepId
+        numberOfReplications = runParameters.numberOfReplications
+        lengthOfReplication = runParameters.lengthOfReplication
+        lengthOfReplicationWarmUp = runParameters.lengthOfReplicationWarmUp
+        replicationInitializationOption = runParameters.replicationInitializationOption
+        resetStartStreamOption = runParameters.resetStartStreamOption
+        advanceNextSubStreamOption = runParameters.advanceNextSubStreamOption
+        antitheticOption = runParameters.antitheticOption
+        if (runParameters.numberOfStreamAdvancesPriorToRunning > 0) {
+            numberOfStreamAdvancesPriorToRunning = runParameters.numberOfStreamAdvancesPriorToRunning
         }
-        if (e.maximumAllowedExecutionTimePerReplication > Duration.ZERO) {
-            maximumAllowedExecutionTimePerReplication = e.maximumAllowedExecutionTimePerReplication
+        if (runParameters.maximumAllowedExecutionTimePerReplication > Duration.ZERO) {
+            maximumAllowedExecutionTimePerReplication = runParameters.maximumAllowedExecutionTimePerReplication
         }
-        garbageCollectAfterReplicationFlag = e.garbageCollectAfterReplicationFlag
+        garbageCollectAfterReplicationFlag = runParameters.garbageCollectAfterReplicationFlag
     }
 
     /**
      * Returns a new Experiment based on this experiment.
      *
-     * Essentially a clone, except for the id
+     * Essentially a clone, except for the id and the current replication number
+     * being zero
      *
      * @return a new Experiment
      */
@@ -287,7 +294,6 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
         n.experimentName = experimentName
         n.startingRepId = startingRepId
         n.numberOfReplications = numberOfReplications
-        n.currentReplicationNumber = currentReplicationNumber
         n.lengthOfReplication = lengthOfReplication
         n.lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
         n.replicationInitializationOption = replicationInitializationOption
@@ -361,7 +367,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
 
     /**
      * Increments the number of replications that has been executed
-     *
+     * Called internally by Model during the replication process
      */
     internal fun incrementCurrentReplicationNumber() {
         currentReplicationNumber = currentReplicationNumber + 1

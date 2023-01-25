@@ -18,10 +18,10 @@
 
 package ksl.simulation
 
+import ksl.controls.experiments.ExperimentRunParameters
 import kotlin.time.Duration
 
-interface ExperimentIfc {
-
+interface ExperimentRunParametersIfc {
     /**
      *  The name of the experiment
      */
@@ -37,15 +37,6 @@ interface ExperimentIfc {
      *
      */
     var numberOfReplications: Int
-
-    /**
-     * Sets the desired number of replications for the experiment
-     *
-     * @param numReps must be &gt; 0, and even (divisible by 2) if antithetic
-     * option is true
-     * @param antitheticOption controls whether antithetic replications occur
-     */
-    fun numberOfReplications(numReps: Int, antitheticOption: Boolean)
 
     /**
      *  Indicates if the replications associated with this experiment are
@@ -64,18 +55,6 @@ interface ExperimentIfc {
      * the replications of the experiment
      */
     var startingRepId: Int
-
-    /**
-     * The identifier for the current replication. Each replication in the
-     * set of replications for the experiment has a unique identifier.
-     * This returns the identifier for the current replication. An identifier of 0
-     * represents that no replications have been run
-     */
-    val currentReplicationId: Int
-    /**
-     * The current number of replications that have been run for this experiment
-     */
-    val currentReplicationNumber: Int
 
     /**
      * The specified length of each planned replication for this experiment. The
@@ -166,12 +145,45 @@ interface ExperimentIfc {
      *
      */
     var garbageCollectAfterReplicationFlag: Boolean
+}
+
+interface ExperimentIfc : ExperimentRunParametersIfc {
+
+    /**
+     * Sets the desired number of replications for the experiment
+     *
+     * @param numReps must be &gt; 0, and even (divisible by 2) if antithetic
+     * option is true
+     * @param antitheticOption controls whether antithetic replications occur
+     */
+    fun numberOfReplications(numReps: Int, antitheticOption: Boolean)
+
+    /**
+     *  The range of replication identifiers for the experiment based on
+     *  the starting replication identifier and the number of replications to be executed.
+     */
+    val repIdRange: IntRange
+        get() = IntRange(startingRepId, startingRepId + numberOfReplications - 1)
+
+    /**
+     * The identifier for the current replication. Each replication in the
+     * set of replications for the experiment has a unique identifier.
+     * This returns the identifier for the current replication. An identifier of 0
+     * represents that no replications have been run
+     */
+    val currentReplicationId: Int
+        get() = startingRepId + currentReplicationNumber - 1
+
+    /**
+     * The current number of replications that have been run for this experiment
+     */
+    val currentReplicationNumber: Int
 
     /**
      * Holds values for each controllable parameter of the simulation
      * model.
      */
-    var experimentalControls: Map<String, Double>?
+    var experimentalControls: Map<String, Double>
 
     /**
      *
@@ -188,20 +200,43 @@ interface ExperimentIfc {
     fun hasMoreReplications(): Boolean
 
     /**
-     * Sets all attributes of this experiment to the same values as the supplied
-     * experiment (except for id)
-     *
-     * @param e the experiment to copy
-     */
-    fun setExperiment(e: Experiment)
-
-    /**
      * Returns a new Experiment based on this experiment.
      *
-     * Essentially a clone, except for the id
+     * Essentially a clone, except for the id and current replication number
      *
      * @return a new Experiment
      */
     fun experimentInstance(): Experiment
+
+    /**
+     *  Changes the experiment run parameters for the experiment.
+     *  This does not include the current number of replications or the experiment's id.
+     *  Any property in ExperimentRunParametersIfc may be changed.
+     *
+     */
+    fun changeRunParameters(runParameters: ExperimentRunParametersIfc)
+
+    /**
+     *  Extracts a data class representing the experiment's run parameters
+     */
+    fun extractRunParameters(): ExperimentRunParameters{
+        return ExperimentRunParameters(
+            experimentName,
+            experimentId,
+            numberOfReplications,
+            isChunked,
+            chunkLabel,
+            startingRepId,
+            lengthOfReplication,
+            lengthOfReplicationWarmUp,
+            replicationInitializationOption,
+            maximumAllowedExecutionTimePerReplication,
+            resetStartStreamOption,
+            advanceNextSubStreamOption,
+            antitheticOption,
+            numberOfStreamAdvancesPriorToRunning,
+            garbageCollectAfterReplicationFlag
+        )
+    }
 
 }

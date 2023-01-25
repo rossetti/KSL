@@ -31,10 +31,51 @@ class SimulationRunner(
     private val model: Model
 ) {
 
-    fun simulate(experiment: ExperimentIfc, inputs: Map<String, Double>): SimulationRun {
+    /**
+     *  The model will be run with the [experimentRunParameters] and the provided [inputs]. The inputs
+     *  can represent both control (key, value) pairs and random variable parameter
+     *  (key, value) pairs to be applied to the experiment.  The inputs may be empty.
+     *
+     *  @return returns an instance of SimulationRun that holds the experiment, inputs, and results
+     *  associated with the simulation run.
+     */
+    fun simulate(experimentRunParameters: ExperimentRunParameters, inputs: Map<String, Double> = mapOf()): SimulationRun {
+        val simulationRun = SimulationRun(experimentRunParameters)
+        simulationRun.inputs = inputs
+        try{
+            // set simulation run parameters, number of advances, experimental controls, and random variables
+            setupSimulation(experimentRunParameters, inputs) //TODO
+            // attach observers
+            val timer = SimulationTimer(model)
+            val rdc = ReplicationDataCollector(model, true)
+            Model.logger.info { "SimulationRunner: Running simulation: ${model.simulationName} " }
+            model.simulate()
+            Model.logger.info { "SimulationRunner: Simulation ${model.simulationName} ended, capturing results." }
+            // detach the observers
+            rdc.startObserving()
+            timer.stopObserving()
+            simulationRun.beginExecutionTime = timer.experimentStartTime
+            simulationRun.endExecutionTime = timer.experimentEndTime
+            //TODO capture results
 
+        }catch (e: RuntimeException) {
+            catchSimulationRunError(simulationRun, e)
+        }
+        return simulationRun
+    }
 
-        TODO("Not implemented yet")
+    private fun catchSimulationRunError(simulationRun: SimulationRun, e: RuntimeException){
+        // capture the full stack trace
+        // per https://www.baeldung.com/java-stacktrace-to-string
+        val sw = StringWriter()
+        val pw = PrintWriter(sw)
+        e.printStackTrace(pw)
+        simulationRun.functionError = sw.toString()
+        // return an empty HashMap of results
+        simulationRun.results = mutableMapOf()
+        Model.logger.error { "There was a fatal exception during the running of simulation ${model.simulationName} within SimulationRunner." }
+        Model.logger.error("No responses were recorded.")
+        Model.logger.error(sw.toString())
     }
 
     /**
@@ -67,68 +108,19 @@ class SimulationRunner(
             // this allows results of a chunk to be added to the database; otherwise,
             // an error will occur when trying to insert a experiment for a simulation
             // where the experiment name and simulation name already exist in the database
+            // changing the experiment name prevents that error and permits data to be stored in the
+            // current KSLDatabase design
             experiment.experimentName = experiment.experimentName + ":" + experiment.chunkLabel
             eList.add(experiment)
         }
         return eList
     }
 
-    fun run(runParameters: RunParameters? = null) {
-        val simulationRun: SimulationRun = if (runParameters == null) {
-            // make simulation run from model
-            with(model) {
-                val rp = RunParameters(
-                    1..numberOfReplications,
-                    lengthOfReplication,
-                    lengthOfReplicationWarmUp,
-                    antitheticOption
-                )
-                SimulationRun(runParameters = rp)
-            }
-        } else {
-            // make simulation run from run parameters
-            SimulationRun(runParameters = runParameters)
-        }
-        try {
-            simulationRun.beginExecutionTime = Clock.System.now()
-            // reset streams to their start for all RandomIfc elements in the model
-            // and skip ahead to the right replication (advancing sub-streams)
-            val rdc = ReplicationDataCollector(model, true)
-            model.resetStartStream()
-            val first = simulationRun.parameters.replicationRange.first
-            val numAdvances = first - 1
-            model.advanceSubStreams(numAdvances)
-            // set simulation run parameters and controls
-            Model.logger.info { "Setting up simulation: ${model.simulationName} " }
-            setupSimulation()
-            // run the simulation
-            Model.logger.info { "Running simulation: ${model.simulationName} " }
-            val timer = SimulationTimer(model)
-            model.simulate()
-            Model.logger.info { "Simulation ${model.simulationName} ended, capturing results." }
-            val reps = DoubleArray(simulationRun.parameters.numberOfReplications)
-            for (i in simulationRun.parameters.replicationRange) {
-                val k = i - first
-                reps[k] = i.toDouble()
-            }
-            //TODO
-
-        } catch (e: RuntimeException) {
-            // capture the full stack trace
-            // per https://www.baeldung.com/java-stacktrace-to-string
-            val sw = StringWriter()
-            val pw = PrintWriter(sw)
-            e.printStackTrace(pw)
-            simulationRun.functionError = sw.toString()
-            // return an empty HashMap of results
-            simulationRun.results = mutableMapOf()
-            Model.logger.error { "There was a fatal exception during the running of simulation ${model.simulationName} within SimulationRunner." }
-            Model.logger.error("No responses were recorded.")
-            Model.logger.error(sw.toString())
-        }
-    }
-
-    private fun setupSimulation() {
+    private fun setupSimulation(experimentRunParameters: ExperimentRunParameters, inputs: Map<String, Double>) {
+        Model.logger.info { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
+        // reset streams to their start for all RandomIfc elements in the model
+        // and skip ahead to the right replication (advancing sub-streams)
+        model.resetStartStream() //TODO?
         TODO("Not yet implemented")
     }
 

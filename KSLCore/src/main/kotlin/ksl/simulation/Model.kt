@@ -145,7 +145,7 @@ class Model(
      */
     val rvParameterSetter: RVParameterSetter
         get() {
-            if (myRVParameterSetter == null){
+            if (myRVParameterSetter == null) {
                 myRVParameterSetter = RVParameterSetter()
                 myRVParameterSetter!!.extractParameters(this)
             }
@@ -400,7 +400,7 @@ class Model(
     /**
      * @param option true means that streams will have their antithetic property set to true
      */
-    fun antitheticOption(option: Boolean){
+    fun antitheticOption(option: Boolean) {
         for (rs in myStreams) {
             rs.antithetic = option
         }
@@ -700,7 +700,7 @@ class Model(
      *
      * @return all the model elements in the model as a List
      */
-    internal fun getModelElements(): List<ModelElement>{
+    internal fun getModelElements(): List<ModelElement> {
         val list = mutableListOf<ModelElement>()
         getAllModelElements(list)
         return list
@@ -861,19 +861,11 @@ class Model(
         }
 
         //TODO need to apply generic control types here someday
-
         if (hasExperimentalControls()) {
-            val cMap: Map<String, Double>? = experimentalControls
-            if (cMap != null) {
-                // extract controls and apply them
-                val k: Int = controls().setControlsFromMap(cMap)
-                logger.info(
-                    "{} out of {} controls were applied to Model {} to setup the experiment.",
-                    k,
-                    cMap.size,
-                    name
-                )
-            }
+            val cMap: Map<String, Double> = experimentalControls
+            // extract controls and apply them
+            val k: Int = controls().setControlsFromMap(cMap)
+            logger.info { "$k out of ${cMap.size} controls were applied to Model $name to setup the experiment." }
         }
 
         // if the user has asked for the parameters, then they may have changed
@@ -895,7 +887,7 @@ class Model(
             executive.maximumAllowedExecutionTime = maximumAllowedExecutionTimePerReplication
         }
         logger.info { "Initializing the executive" }
-        ModelElement.logger.info {"Initializing the executive"}
+        ModelElement.logger.info { "Initializing the executive" }
         executive.initialize()
         logger.info { "The executive was initialized prior to the replication. Current time = $time" }
         logger.info { "Setting up the replications for model elements" }
@@ -1069,7 +1061,7 @@ class Model(
             myExperiment.garbageCollectAfterReplicationFlag = value
         }
 
-    override var experimentalControls: Map<String, Double>?
+    override var experimentalControls: Map<String, Double>
         get() = myExperiment.experimentalControls
         set(value) {
             myExperiment.experimentalControls = value
@@ -1081,8 +1073,9 @@ class Model(
     override fun hasExperimentalControls() = myExperiment.hasExperimentalControls()
 
     override fun hasMoreReplications() = myExperiment.hasMoreReplications()
-
-    override fun setExperiment(e: Experiment) = myExperiment.setExperiment(e)
+    override fun changeRunParameters(runParameters: ExperimentRunParametersIfc) {
+        myExperiment.changeRunParameters(runParameters)
+    }
 
     override fun experimentInstance(): Experiment = myExperiment.experimentInstance()
 

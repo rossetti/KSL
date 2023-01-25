@@ -74,7 +74,7 @@ class KSLDatabaseObserver(
                     reportSimulationRunRecordError(simName, expName)
                 }
                 //TODO future work will need to better handle chunking of experiments
-                // need to redesign database to handle situation
+                // Need to redesign database to handle chunks being related to an overall experiment.
             }
             if (model.myExperiment.isChunked){
                 Model.logger.info{"Experiment $expName of simulation $simName is a chunk of a larger experiment"}
