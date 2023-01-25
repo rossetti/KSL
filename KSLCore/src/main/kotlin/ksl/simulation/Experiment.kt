@@ -53,9 +53,18 @@ private var myCounter_: Int = 0
  *
  * Constructs an experiment called "name"
  *
+ *  @param startingRepId the starting identifier in the sequence of identifiers used to identify
+ *  the replications of the experiment. The replications of the experiment will be numbered sequentially
+ *  starting at this supplied integer and increasing by 1 for each replication executed.  For example,
+ *  if the starting replication identifier [startingRepId] is 5 and there are 6 replications executed in the experiment,
+ *  the 6 replications will be numbered with identifiers: 5, 6, 7, 8, 9, 10.  The default value is 1.
+ *
  * @param name The name of the experiment
  */
-open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
+open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
+    init {
+        require(startingRepId >= 1) { "The starting replication id number must be >= 1" }
+    }
 
     override val experimentId: Int = ++myCounter_
 
@@ -72,6 +81,15 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         set(value) {
             numberOfReplications(value, false)
         }
+
+    override var startingRepId: Int = startingRepId
+        set(value) {
+            require(value >= 1) { "The starting replication id number must be >= 1" }
+            field = value
+        }
+
+    override val currentReplicationId: Int
+        get() = startingRepId + currentReplicationNumber - 1
 
     /**
      * The current number of replications that have been run for this experiment
@@ -116,7 +134,8 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      * exceeded the maximum time, then the process will be ended
      * (perhaps) not completing other replications.
      */
-    override var maximumAllowedExecutionTimePerReplication: Duration = Duration.ZERO// zero means not used
+    override var maximumAllowedExecutionTimePerReplication: Duration = Duration.ZERO
+        // zero means not used
         set(value) {
             require(value > Duration.ZERO) { "The maximum number of execution time (clock time) must be > 0.0" }
             field = value
@@ -207,7 +226,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      * option is true
      * @param antitheticOption controls whether antithetic replications occur
      */
-    override fun numberOfReplications(numReps: Int, antitheticOption: Boolean)  {
+    override fun numberOfReplications(numReps: Int, antitheticOption: Boolean) {
         require(numReps > 0) { "Number of replications <= 0" }
         if (antitheticOption) {
             require(numReps % 2 == 0) { "Number of replications must be even if antithetic option is on." }
@@ -234,6 +253,7 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      */
     override fun setExperiment(e: Experiment) {
         experimentName = e.experimentName
+        startingRepId = e.startingRepId
         numberOfReplications = e.numberOfReplications
         currentReplicationNumber = e.currentReplicationNumber
         lengthOfReplication = e.lengthOfReplication
@@ -242,10 +262,10 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         resetStartStreamOption = e.resetStartStreamOption
         advanceNextSubStreamOption = e.advanceNextSubStreamOption
         antitheticOption = e.antitheticOption
-        if (e.numberOfStreamAdvancesPriorToRunning > 0){
+        if (e.numberOfStreamAdvancesPriorToRunning > 0) {
             numberOfStreamAdvancesPriorToRunning = e.numberOfStreamAdvancesPriorToRunning
         }
-        if (e.maximumAllowedExecutionTimePerReplication > Duration.ZERO){
+        if (e.maximumAllowedExecutionTimePerReplication > Duration.ZERO) {
             maximumAllowedExecutionTimePerReplication = e.maximumAllowedExecutionTimePerReplication
         }
         garbageCollectAfterReplicationFlag = e.garbageCollectAfterReplicationFlag
@@ -258,9 +278,10 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
      *
      * @return a new Experiment
      */
-    fun instance(): Experiment {
+    override fun experimentInstance(): Experiment {
         val n = Experiment()
         n.experimentName = experimentName
+        n.startingRepId = startingRepId
         n.numberOfReplications = numberOfReplications
         n.currentReplicationNumber = currentReplicationNumber
         n.lengthOfReplication = lengthOfReplication
@@ -269,10 +290,10 @@ open class Experiment(name: String = "Experiment_${++myCounter_}") : ExperimentI
         n.resetStartStreamOption = resetStartStreamOption
         n.advanceNextSubStreamOption = advanceNextSubStreamOption
         n.antitheticOption = antitheticOption
-        if (numberOfStreamAdvancesPriorToRunning > 0){
+        if (numberOfStreamAdvancesPriorToRunning > 0) {
             n.numberOfStreamAdvancesPriorToRunning = numberOfStreamAdvancesPriorToRunning
         }
-        if (maximumAllowedExecutionTimePerReplication > Duration.ZERO){
+        if (maximumAllowedExecutionTimePerReplication > Duration.ZERO) {
             n.maximumAllowedExecutionTimePerReplication = maximumAllowedExecutionTimePerReplication
         }
         n.garbageCollectAfterReplicationFlag = garbageCollectAfterReplicationFlag

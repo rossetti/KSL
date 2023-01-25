@@ -48,6 +48,19 @@ interface ExperimentIfc {
     fun numberOfReplications(numReps: Int, antitheticOption: Boolean)
 
     /**
+     * The starting id for the sequence of identifiers used to label
+     * the replications of the experiment
+     */
+    var startingRepId: Int
+
+    /**
+     * The identifier for the current replication. Each replication in the
+     * set of replications for the experiment has a unique identifier.
+     * This returns the identifier for the current replication. An identifier of 0
+     * represents that no replications have been run
+     */
+    val currentReplicationId: Int
+    /**
      * The current number of replications that have been run for this experiment
      */
     val currentReplicationNumber: Int
@@ -169,5 +182,14 @@ interface ExperimentIfc {
      * @param e the experiment to copy
      */
     fun setExperiment(e: Experiment)
+
+    /**
+     * Returns a new Experiment based on this experiment.
+     *
+     * Essentially a clone, except for the id
+     *
+     * @return a new Experiment
+     */
+    fun experimentInstance(): Experiment
 
 }

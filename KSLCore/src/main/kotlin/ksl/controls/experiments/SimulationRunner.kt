@@ -21,14 +21,47 @@ package ksl.controls.experiments
 import kotlinx.datetime.Clock
 import ksl.observers.ReplicationDataCollector
 import ksl.observers.SimulationTimer
+import ksl.simulation.ExperimentIfc
 import ksl.simulation.Model
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.util.stream.IntStream
 
 class SimulationRunner(
     private val model: Model
 ) {
+
+    fun simulate(experiment: ExperimentIfc, inputs: Map<String, Double>): SimulationRun {
+
+
+        TODO("Not implemented yet")
+    }
+
+    /**
+     *  Splits the number of replications into a list of experiments
+     *  with each experiment having at most [size] replications. A resulting
+     *  experiment may have fewer than the given [size] but at least 1
+     *  replication. The experiments are ordered in the list such that the replication identifiers
+     *  for each experiment are ordered from 1 to the number of replications [numReplications]
+     *  @param size the number of replications in each experiment, must be positive. If greater than
+     *  the number of replications, there will be 1 chunk
+     */
+    fun chunkExperiments(numReplications: Int, size: Int) : List<ExperimentIfc>{
+        require(numReplications >= 1){"The number of replications must be >= 1"}
+        // make the range for chunking
+        val r = 1..numReplications
+        val chunks: List<List<Int>> = r.chunked(size)
+        for(chunk in chunks){
+            val s = chunk.first() // starting id of replication in chunk
+            val e = chunk.last()  // ending id of replication in chunk
+            val n = chunk.size // number of replications in the chunk
+            val experiment = model.experimentInstance()
+            experiment.startingRepId = s
+            experiment.numberOfReplications = n
+        }
+
+        TODO("Not implemented yet")
+    }
+
     fun run(runParameters: RunParameters? = null) {
         val simulationRun: SimulationRun = if (runParameters == null) {
             // make simulation run from model
@@ -94,5 +127,6 @@ class SimulationRunner(
          * Assumed as "_PARAM_" by default
          */
         var rvParamConCatString = "_PARAM_"
+
     }
 }

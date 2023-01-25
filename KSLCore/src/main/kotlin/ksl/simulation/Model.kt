@@ -41,7 +41,7 @@ import kotlin.time.Duration
 private var simCounter: Int = 0
 
 class Model(
-    simulationName: String = "Simulation${++simCounter}",
+    val simulationName: String = "Simulation${++simCounter}",
     pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
     autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
@@ -984,9 +984,6 @@ class Model(
 
     }
 
-    var simulationName: String = simulationName
-        private set
-
     override val experimentId: Int
         get() = myExperiment.experimentId
 
@@ -995,6 +992,15 @@ class Model(
         set(value) {
             myExperiment.experimentName = value
         }
+
+    override var startingRepId: Int
+        get() = myExperiment.startingRepId
+        set(value) {
+            myExperiment.startingRepId = value
+        }
+
+    override val currentReplicationId: Int
+        get() = myExperiment.currentReplicationId
 
     override var numberOfReplications: Int
         get() = myExperiment.numberOfReplications
@@ -1071,6 +1077,8 @@ class Model(
     override fun hasMoreReplications() = myExperiment.hasMoreReplications()
 
     override fun setExperiment(e: Experiment) = myExperiment.setExperiment(e)
+
+    override fun experimentInstance(): Experiment = myExperiment.experimentInstance()
 
     /**
      * Returns true if additional replications need to be run

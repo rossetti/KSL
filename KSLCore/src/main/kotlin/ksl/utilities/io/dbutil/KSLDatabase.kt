@@ -417,7 +417,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         val r = WithinRepStat()
         r.elementIdFk = response.id
         r.simRunIdFk = simId
-        r.repNum = response.model.currentReplicationNumber
+        r.repNum = response.model.currentReplicationId
         val s = response.withinReplicationStatistic
         r.statName = s.name
         if (!s.count.isNaN() && s.count.isFinite()) {
@@ -462,7 +462,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         val r = WithinRepCounterStat()
         r.elementIdFk = counter.id
         r.simRunIdFk = simId
-        r.repNum = counter.model.currentReplicationNumber
+        r.repNum = counter.model.currentReplicationId
         r.statName = counter.name
         if (!counter.value.isNaN() && counter.value.isFinite()) {
             r.lastValue = counter.value
@@ -484,7 +484,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         val r = BatchStat()
         r.elementIdFk = response.id
         r.simRunIdFk = simId
-        r.repNum = response.model.currentReplicationNumber
+        r.repNum = response.model.currentReplicationId
         r.statName = s.name
         if (!s.count.isNaN() && s.count.isFinite()) {
             r.statCount = s.count
