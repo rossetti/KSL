@@ -294,6 +294,10 @@ class Controls(aModel: Model) {
         return str.toString()
     }
 
+    override fun toString(): String {
+        return controlRecordsAsString()
+    }
+
     companion object : KLoggable {
         /**
          * A global logger for logging of model elements

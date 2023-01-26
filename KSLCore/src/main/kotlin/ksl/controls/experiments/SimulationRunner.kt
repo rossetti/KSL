@@ -99,7 +99,7 @@ class SimulationRunner(
         // apply the run parameters to the model
         model.changeRunParameters(simulationRun.experimentRunParameters)
         // apply the inputs to the model
-        if (simulationRun.inputs.isNotEmpty()){
+        if (simulationRun.inputs.isNotEmpty()) {
             // need to apply them to the model, could be controls and random variable parameters
             // get the controls to build what will need to be changed
             val controls: Controls = model.controls()
@@ -111,21 +111,21 @@ class SimulationRunner(
             // and save them for application to the model
             val controlsMap = mutableMapOf<String, Double>()
             val rvParamMap = mutableMapOf<String, Double>()
-            for((keyName, value) in simulationRun.inputs){
-                if (controls.hasControl(keyName)){
+            for ((keyName, value) in simulationRun.inputs) {
+                if (controls.hasControl(keyName)) {
                     controlsMap[keyName] = value
-                } else if (rvParameters.containsKey(keyName)){
+                } else if (rvParameters.containsKey(keyName)) {
                     rvParamMap[keyName] = value
                 } else {
-                    Model.logger.info{"SimulationRunner: input $keyName was not a control or a random variable parameter"}
+                    Model.logger.info { "SimulationRunner: input $keyName was not a control or a random variable parameter" }
                 }
             }
-            if (controlsMap.isNotEmpty()){
+            if (controlsMap.isNotEmpty()) {
                 // controls were found, tell model to use controls when it is simulated
                 model.experimentalControls = controlsMap
                 Model.logger.info { "SimulationRunner: ${controlsMap.size} controls out of ${controls.size} were applied." }
             }
-            if (rvParamMap.isNotEmpty()){
+            if (rvParamMap.isNotEmpty()) {
                 // convert to form used by RVParameterSetter
                 val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatString)
                 // tell the model to use the supplied parameter values
@@ -172,6 +172,7 @@ class SimulationRunner(
             runParameters.numberOfReplications = n
             runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
             runParameters.isChunked = true
+            runParameters.chunkLabel = IntRange(s, s + n - 1).toString()
             // change name of experiment so db can handle chunking
             // this treats each chunk as a separate experiment in the database
             //TODO this is a temporary fix until the database can be designed to hold chunks

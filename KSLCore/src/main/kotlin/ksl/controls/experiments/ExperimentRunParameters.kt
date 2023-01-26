@@ -36,7 +36,7 @@ data class ExperimentRunParameters(
     override val experimentId: Int,
     override var numberOfReplications: Int,
     override var isChunked: Boolean,
-    override val chunkLabel: String,
+    override var chunkLabel: String,
     override var startingRepId: Int,
     override var lengthOfReplication: Double,
     override var lengthOfReplicationWarmUp: Double,
@@ -45,7 +45,7 @@ data class ExperimentRunParameters(
     override var maximumAllowedExecutionTimePerReplication: Duration,
     override var resetStartStreamOption: Boolean,
     override var advanceNextSubStreamOption: Boolean,
-    override val antitheticOption: Boolean,
+    override var antitheticOption: Boolean,
     override var numberOfStreamAdvancesPriorToRunning: Int,
     override var garbageCollectAfterReplicationFlag: Boolean
 ) : ExperimentRunParametersIfc {

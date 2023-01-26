@@ -22,12 +22,24 @@ import ksl.modeling.variable.RandomVariable
 import ksl.simulation.Model
 import ksl.utilities.maps.KSLMaps
 import ksl.utilities.random.RandomIfc
+import java.lang.StringBuilder
 
 class RVParameterSetter {
     private var modelName: String? = null
     private var modelId = 0
     private val rvParameters: LinkedHashMap<String, RVParameters> = linkedMapOf()
 
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("Model: $modelName")
+        sb.appendLine("Model Id: $modelId")
+        sb.appendLine("Parameters:")
+        for((key, value) in rvParameters){
+            sb.appendLine("Random variable: $key")
+            sb.appendLine(value)
+        }
+        return sb.toString()
+    }
     /**
      * @param model the model to process
      * @return the parameters in a map for each parameterized random variable in the model
