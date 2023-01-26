@@ -42,11 +42,19 @@ class SimulationRunner(
      *  associated with the simulation run.
      */
     fun simulate(experimentRunParameters: ExperimentRunParameters, inputs: Map<String, Double> = mapOf()): SimulationRun {
-        val simulationRun = SimulationRun(experimentRunParameters)
-        simulationRun.inputs = inputs
+        val simulationRun = SimulationRun(experimentRunParameters, inputs)
+        simulate(simulationRun)
+        return simulationRun
+    }
+
+    /**
+     * Simulates the model based on the current settings of the experiment run parameters and inputs
+     * associated with the simulation run [simulationRun]
+     */
+    fun simulate(simulationRun: SimulationRun){
         try{
             // set simulation run parameters, number of advances, experimental controls, and random variables
-            setupSimulation(experimentRunParameters, inputs) //TODO
+            setupSimulation(simulationRun)
             // attach observers
             val timer = SimulationTimer(model)
             val rdc = ReplicationDataCollector(model, true)
@@ -54,17 +62,31 @@ class SimulationRunner(
             model.simulate()
             Model.logger.info { "SimulationRunner: Simulation ${model.simulationName} ended, capturing results." }
             // detach the observers
-            rdc.startObserving()
+            rdc.stopObserving()
             timer.stopObserving()
+            //capture results
+            val repNums: DoubleArray = KSLArrays.toDoubles(model.repIdRange.toList().toPrimitives())
+            val results = mutableMapOf<String, DoubleArray>()
+            results["repNumbers"] = repNums
+            results["repTimings"] = timer.replicationTimes()
+            val rdcData = rdc.allReplicationDataAsMap
+            results.putAll(rdcData)
+            simulationRun.results = results
             simulationRun.beginExecutionTime = timer.experimentStartTime
             simulationRun.endExecutionTime = timer.experimentEndTime
-            //TODO capture results
-            val repNums: DoubleArray = KSLArrays.toDoubles(model.repIdRange.toList().toPrimitives())
-
         }catch (e: RuntimeException) {
             catchSimulationRunError(simulationRun, e)
         }
-        return simulationRun
+    }
+
+    private fun setupSimulation(simulationRun: SimulationRun) {
+        Model.logger.info { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
+        val parameters = simulationRun.experimentRunParameters
+        val inputs = simulationRun.inputs
+        // reset streams to their start for all RandomIfc elements in the model
+        // and skip ahead to the right replication (advancing sub-streams)
+        model.resetStartStream() //TODO?
+        TODO("Not yet implemented")
     }
 
     private fun catchSimulationRunError(simulationRun: SimulationRun, e: RuntimeException){
@@ -111,20 +133,12 @@ class SimulationRunner(
             // this allows results of a chunk to be added to the database; otherwise,
             // an error will occur when trying to insert a experiment for a simulation
             // where the experiment name and simulation name already exist in the database
-            // changing the experiment name prevents that error and permits data to be stored in the
+            // changing the experiment name prevents that error and permits data from the chunk to be stored in the
             // current KSLDatabase design
             experiment.experimentName = experiment.experimentName + ":" + experiment.chunkLabel
             eList.add(experiment)
         }
         return eList
-    }
-
-    private fun setupSimulation(experimentRunParameters: ExperimentRunParameters, inputs: Map<String, Double>) {
-        Model.logger.info { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
-        // reset streams to their start for all RandomIfc elements in the model
-        // and skip ahead to the right replication (advancing sub-streams)
-        model.resetStartStream() //TODO?
-        TODO("Not yet implemented")
     }
 
     companion object {

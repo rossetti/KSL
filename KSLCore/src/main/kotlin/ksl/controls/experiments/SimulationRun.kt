@@ -44,9 +44,14 @@ class SimulationRun private constructor(
 ) {
     constructor(
         experiment: ExperimentRunParameters,
+        inputs: Map<String, Double> = mapOf(),
         runId: String? = null,
         runName: String? = null
-    ) : this(experiment, runId ?: KSL.randomUUIDString(), runName ?: ("ID_$runId"))
+    ) : this(experiment,
+        runId ?: KSL.randomUUIDString(),
+        runName ?: ("ID_$runId"),
+        inputs = inputs
+    )
 
     /** Use primarily for printing out run results
      *
