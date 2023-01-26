@@ -18,6 +18,12 @@
 
 package ksl.controls.experiments
 
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import ksl.simulation.ExperimentRunParametersIfc
 import kotlin.time.Duration
 
@@ -29,12 +35,13 @@ data class ExperimentRunParameters(
     override var experimentName: String,
     override val experimentId: Int,
     override var numberOfReplications: Int,
-    override val isChunked: Boolean,
+    override var isChunked: Boolean,
     override val chunkLabel: String,
     override var startingRepId: Int,
     override var lengthOfReplication: Double,
     override var lengthOfReplicationWarmUp: Double,
     override var replicationInitializationOption: Boolean,
+    @Serializable(with = DurationSerializer::class)
     override var maximumAllowedExecutionTimePerReplication: Duration,
     override var resetStartStreamOption: Boolean,
     override var advanceNextSubStreamOption: Boolean,
@@ -48,5 +55,20 @@ data class ExperimentRunParameters(
         require(lengthOfReplication > 0.0) { "Length of replication must be > 0.0" }
         require(lengthOfReplicationWarmUp >= 0.0) { "Length of warm up period must be >= 0.0" }
         require(numberOfReplications >= 1) { "Number of replications must be >= 1" }
+    }
+}
+
+
+object DurationSerializer : KSerializer<Duration> {
+
+    private val serializer = Duration.serializer()
+
+    override val descriptor: SerialDescriptor = serializer.descriptor
+
+    override fun deserialize(decoder: Decoder): Duration =
+        decoder.decodeSerializableValue(serializer)
+
+    override fun serialize(encoder: Encoder, value: Duration) {
+        encoder.encodeSerializableValue(serializer, value)
     }
 }

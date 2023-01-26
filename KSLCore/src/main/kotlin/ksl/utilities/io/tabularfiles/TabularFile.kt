@@ -70,7 +70,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
 
     init {
         require(columns.isNotEmpty()) { "The number of columns must be > 0" }
-        for ((k,v) in myColumnTypes) {
+        for ((k, _) in myColumnTypes) {
             myColumnNames.add(k)
         }
         var i = 0

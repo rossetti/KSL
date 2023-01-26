@@ -18,13 +18,14 @@
 
 package ksl.controls.experiments
 
-import kotlinx.datetime.Clock
+import ksl.controls.Controls
 import ksl.observers.ReplicationDataCollector
 import ksl.observers.SimulationTimer
 import ksl.simulation.Experiment
-import ksl.simulation.ExperimentIfc
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
+import ksl.utilities.maps.KSLMaps
+import ksl.utilities.random.rvariable.RVParameterSetter
 import ksl.utilities.toPrimitives
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -32,6 +33,17 @@ import java.io.StringWriter
 class SimulationRunner(
     private val model: Model
 ) {
+
+    fun simulate(
+        inputs: Map<String, Double> = mapOf(),
+        experiment: Experiment? = null
+    ) {
+        if (experiment == null) {
+            simulate(inputs, model.extractRunParameters())
+        } else {
+            simulate(inputs, experiment.extractRunParameters())
+        }
+    }
 
     /**
      *  The model will be run with the [experimentRunParameters] and the provided [inputs]. The inputs
@@ -41,7 +53,10 @@ class SimulationRunner(
      *  @return returns an instance of SimulationRun that holds the experiment, inputs, and results
      *  associated with the simulation run.
      */
-    fun simulate(experimentRunParameters: ExperimentRunParameters, inputs: Map<String, Double> = mapOf()): SimulationRun {
+    fun simulate(
+        inputs: Map<String, Double> = mapOf(),
+        experimentRunParameters: ExperimentRunParameters = model.extractRunParameters()
+    ): SimulationRun {
         val simulationRun = SimulationRun(experimentRunParameters, inputs)
         simulate(simulationRun)
         return simulationRun
@@ -51,8 +66,8 @@ class SimulationRunner(
      * Simulates the model based on the current settings of the experiment run parameters and inputs
      * associated with the simulation run [simulationRun]
      */
-    fun simulate(simulationRun: SimulationRun){
-        try{
+    fun simulate(simulationRun: SimulationRun) {
+        try {
             // set simulation run parameters, number of advances, experimental controls, and random variables
             setupSimulation(simulationRun)
             // attach observers
@@ -74,22 +89,53 @@ class SimulationRunner(
             simulationRun.results = results
             simulationRun.beginExecutionTime = timer.experimentStartTime
             simulationRun.endExecutionTime = timer.experimentEndTime
-        }catch (e: RuntimeException) {
+        } catch (e: RuntimeException) {
             catchSimulationRunError(simulationRun, e)
         }
     }
 
     private fun setupSimulation(simulationRun: SimulationRun) {
         Model.logger.info { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
-        val parameters = simulationRun.experimentRunParameters
-        val inputs = simulationRun.inputs
-        // reset streams to their start for all RandomIfc elements in the model
-        // and skip ahead to the right replication (advancing sub-streams)
-        model.resetStartStream() //TODO?
-        TODO("Not yet implemented")
+        // apply the run parameters to the model
+        model.changeRunParameters(simulationRun.experimentRunParameters)
+        // apply the inputs to the model
+        if (simulationRun.inputs.isNotEmpty()){
+            // need to apply them to the model, could be controls and random variable parameters
+            // get the controls to build what will need to be changed
+            val controls: Controls = model.controls()
+            // get the random variable parameters
+            val tmpSetter = RVParameterSetter()
+            tmpSetter.extractParameters(model)
+            val rvParameters = tmpSetter.flatParametersAsDoubles(rvParamConCatString)
+            // now check supplied input key is a control or a rv parameter
+            // and save them for application to the model
+            val controlsMap = mutableMapOf<String, Double>()
+            val rvParamMap = mutableMapOf<String, Double>()
+            for((keyName, value) in simulationRun.inputs){
+                if (controls.hasControl(keyName)){
+                    controlsMap[keyName] = value
+                } else if (rvParameters.containsKey(keyName)){
+                    rvParamMap[keyName] = value
+                } else {
+                    Model.logger.info{"SimulationRunner: input $keyName was not a control or a random variable parameter"}
+                }
+            }
+            if (controlsMap.isNotEmpty()){
+                // controls were found, tell model to use controls when it is simulated
+                model.experimentalControls = controlsMap
+                Model.logger.info { "SimulationRunner: ${controlsMap.size} controls out of ${controls.size} were applied." }
+            }
+            if (rvParamMap.isNotEmpty()){
+                // convert to form used by RVParameterSetter
+                val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatString)
+                // tell the model to use the supplied parameter values
+                model.rvParameterSetter.changeParameters(unflattenMap)
+                Model.logger.info { "SimulationRunner: ${rvParamMap.size} parameters out of ${rvParameters.size} were applied." }
+            }
+        }
     }
 
-    private fun catchSimulationRunError(simulationRun: SimulationRun, e: RuntimeException){
+    private fun catchSimulationRunError(simulationRun: SimulationRun, e: RuntimeException) {
         // capture the full stack trace
         // per https://www.baeldung.com/java-stacktrace-to-string
         val sw = StringWriter()
@@ -112,20 +158,20 @@ class SimulationRunner(
      *  @param size the number of replications in each experiment, must be positive. If greater than
      *  the number of replications, there will be 1 chunk containing all replications
      */
-    fun chunkReplications(numReplications: Int, size: Int) : List<Experiment>{
-        require(numReplications >= 1){"The number of replications must be >= 1"}
+    fun chunkReplications(numReplications: Int, size: Int): List<ExperimentRunParameters> {
+        require(numReplications >= 1) { "The number of replications must be >= 1" }
         // make the range for chunking
         val r = 1..numReplications
         val chunks: List<List<Int>> = r.chunked(size)
-        val eList = mutableListOf<Experiment>()
-        for(chunk in chunks){
+        val eList = mutableListOf<ExperimentRunParameters>()
+        for (chunk in chunks) {
             val s = chunk.first() // starting id of replication in chunk
             val n = chunk.size // number of replications in the chunk
-            val experiment = model.experimentInstance()
-            experiment.startingRepId = s
-            experiment.numberOfReplications = n
-            experiment.numberOfStreamAdvancesPriorToRunning = s - 1
-            experiment.isChunked = true
+            val runParameters = model.extractRunParameters()
+            runParameters.startingRepId = s
+            runParameters.numberOfReplications = n
+            runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
+            runParameters.isChunked = true
             // change name of experiment so db can handle chunking
             // this treats each chunk as a separate experiment in the database
             //TODO this is a temporary fix until the database can be designed to hold chunks
@@ -135,8 +181,8 @@ class SimulationRunner(
             // where the experiment name and simulation name already exist in the database
             // changing the experiment name prevents that error and permits data from the chunk to be stored in the
             // current KSLDatabase design
-            experiment.experimentName = experiment.experimentName + ":" + experiment.chunkLabel
-            eList.add(experiment)
+            runParameters.experimentName = runParameters.experimentName + ":" + runParameters.chunkLabel
+            eList.add(runParameters)
         }
         return eList
     }

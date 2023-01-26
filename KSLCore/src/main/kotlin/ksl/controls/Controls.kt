@@ -75,6 +75,9 @@ class Controls(aModel: Model) {
 
     private val model = aModel
 
+    val size: Int
+        get() = myControls.size
+
     init {
         extractControls(model)
     }

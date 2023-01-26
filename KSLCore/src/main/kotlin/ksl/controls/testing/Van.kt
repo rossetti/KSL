@@ -22,7 +22,8 @@ class Van(parent: ModelElement) : ModelElement(parent) {
     )
     var numSeats = 3
         set(n) {
-            field = n ?: numSeats
+            require(n >= 1) { "The number of seats must be >= 1" }
+            field = n
         }
 
     // numeric control setter with bounds
@@ -32,12 +33,13 @@ class Van(parent: ModelElement) : ModelElement(parent) {
     // numeric control setter with all defaults
     @set:KSLControl(controlType = ControlType.DOUBLE)
     var price = 1.2345
+
     @set:KSLControl(controlType = ControlType.BOOLEAN)
     var isStickShift = true
 
 }
 
-fun main(){
+fun main() {
     val model = Model("Van Model")
 
     // make a few Vans (and add them to Model)
@@ -49,7 +51,7 @@ fun main(){
 
     val controls = model.controls()
 
- //   println(controls.controlRecordsAsString())
+    //   println(controls.controlRecordsAsString())
     val c = controls.control("Van_3.numSeats")
     c?.value = 100.0
     println(c)
