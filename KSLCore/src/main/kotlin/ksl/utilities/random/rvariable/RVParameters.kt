@@ -359,10 +359,7 @@ abstract class RVParameters {
         sb.append(System.lineSeparator())
         return sb.toString()
     }
-    //    public String toJSON() {
-    //        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-    //        return gson.toJson(this);
-    //    }
+
     /**
      * Copies from the supplied parameters into this parameters
      *

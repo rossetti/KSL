@@ -26,6 +26,7 @@ import ksl.utilities.maps.KSLMaps
 import ksl.utilities.maps.toJson
 import ksl.utilities.random.RandomIfc
 import java.lang.StringBuilder
+import kotlin.reflect.full.declaredMemberProperties
 
 class RVParameterSetter {
     private var modelName: String? = null
@@ -38,7 +39,7 @@ class RVParameterSetter {
         sb.appendLine("Model Id: $modelId")
         sb.appendLine("Parameters:")
         for((key, value) in rvParameters){
-            sb.appendLine("Random variable: $key")
+            sb.appendLine("Random variable name: $key")
             sb.appendLine(value)
         }
         return sb.toString()
@@ -52,6 +53,8 @@ class RVParameterSetter {
         modelId = model.id
         val rvList: List<RandomVariable> = model.randomVariables()
         for (rv in rvList) {
+            //TODO is it possible to extract the name of the property to which
+            // the random variable is assigned?
             val rs: RandomIfc = rv.initialRandomSource
             if (rs is ParameterizedRV) {
                 rvParameters[rv.name] = rs.parameters

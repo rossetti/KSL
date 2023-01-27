@@ -165,7 +165,7 @@ class Model(
     }
 
     //TODO default stream?
-    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
+    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "${this.name}:DefaultUniformRV")
 
     val simulationReporter: SimulationReporter = SimulationReporter(this, autoCSVReports)
 

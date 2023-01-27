@@ -20,6 +20,7 @@ package ksl.examples.book.chapter6
 
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.entity.ResourceWithQCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
@@ -44,7 +45,13 @@ class StemFairMixer(parent: ModelElement, name: String? = null) : ProcessModel(p
     private val myNumInSystem = TWResponse(this, "NumInSystem")
 
     private val myJHBuntRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "JHBuntR")
+    val jhBuntRecruiters : ResourceWithQCIfc
+        get() = myJHBuntRecruiters
+
     private val myMalWartRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "MalWartR")
+    val malWartRecruiters : ResourceWithQCIfc
+        get() = myMalWartRecruiters
+
     private val generator = EntityGenerator(::Student, myTBArrivals, myTBArrivals)
 
     private inner class Student : Entity() {

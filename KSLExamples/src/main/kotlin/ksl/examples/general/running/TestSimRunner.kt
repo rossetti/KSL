@@ -39,9 +39,18 @@ fun showControls(){
     val kslDatabaseObserver = KSLDatabaseObserver(model)
     // get the controls
     val controls = model.controls()
-    println(controls)
+//    println(controls)
+    println()
+    val control = controls.control("JHBuntR.initialCapacity")
+    println("Control value ${control?.value}")
+    control?.value = 5.0
+    println(control)
+    println(" JHBunt initial capacity = ${stemFairMixer.jhBuntRecruiters.initialCapacity}")
+    println()
     val rvParams = model.rvParameterSetter
     println(rvParams)
+
+   println(rvParams.parametersAsJson())
 
 }
 
