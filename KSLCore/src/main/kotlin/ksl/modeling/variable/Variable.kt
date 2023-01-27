@@ -61,8 +61,7 @@ open class Variable(
      * replication.
      */
     @set:KSLControl(
-        controlType = ControlType.DOUBLE,
-        name = "initialValue"
+        controlType = ControlType.DOUBLE
     )
     override var initialValue: Double = theInitialValue
         set(value) {

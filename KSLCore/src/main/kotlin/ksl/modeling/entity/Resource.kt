@@ -281,7 +281,6 @@ open class Resource(
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
-        name = "initialCapacity",
         lowerBound = 1.0
     )
     override var initialCapacity = capacity

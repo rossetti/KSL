@@ -20,20 +20,21 @@ package ksl.examples.general.running
 
 import ksl.controls.experiments.SimulationRunner
 import ksl.examples.book.chapter5.PalletWorkCenter
+import ksl.examples.book.chapter6.StemFairMixer
 import ksl.simulation.Model
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 fun main(){
-    runWithControls()
+    showControls()
 
 }
 
-fun runWithControls(){
+fun showControls(){
     val model = Model("ControlsTest", autoCSVReports = true)
     model.numberOfReplications = 10
-    model.experimentName = "Two Workers"
+    model.experimentName = "StemFairExp"
     // add the model element to the main model
-    val palletWorkCenter = PalletWorkCenter(model)
+    val stemFairMixer = StemFairMixer(model)
     // demonstrate capturing data to database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
     // get the controls
@@ -45,11 +46,11 @@ fun runWithControls(){
 }
 
 fun testSimulationRunner(){
-    val model = Model("Pallet Processing", autoCSVReports = true)
+    val model = Model("ControlsTest", autoCSVReports = true)
     model.numberOfReplications = 10
-    model.experimentName = "Two Workers"
+    model.experimentName = "StemFairExp"
     // add the model element to the main model
-    val palletWorkCenter = PalletWorkCenter(model)
+    val stemFairMixer = StemFairMixer(model)
 
     // demonstrate capturing data to database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
