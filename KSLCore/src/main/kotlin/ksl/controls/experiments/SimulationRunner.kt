@@ -171,6 +171,7 @@ class SimulationRunner(
             runParameters.startingRepId = s
             runParameters.numberOfReplications = n
             runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
+            runParameters.resetStartStreamOption = true
             runParameters.isChunked = true
             runParameters.chunkLabel = IntRange(s, s + n - 1).toString()
             // change name of experiment so db can handle chunking

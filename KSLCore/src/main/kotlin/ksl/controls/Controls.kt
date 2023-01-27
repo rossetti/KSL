@@ -36,6 +36,7 @@ interface ControlIfc {
     val upperBound: Double
     val elementName: String
     val elementId: Int
+    val elementType: String
     val propertyName: String
     val comment: String
     val modelName: String
@@ -65,6 +66,7 @@ data class ControlData(
     val upperBound: Double,
     val comment: String,
     val controlType: ControlType,
+    val elementType: String,
     val elementName: String,
     val modelName: String
 )
@@ -274,7 +276,7 @@ class Controls(aModel: Model) {
         val list = ArrayList<ControlData>()
         for ((_, control) in myControls) {
             with(control){
-                val cd = ControlData(keyName, value, lowerBound, upperBound, comment, type, elementName, modelName )
+                val cd = ControlData(keyName, value, lowerBound, upperBound, comment, type, elementType, elementName, modelName )
                 list.add(cd)
             }
         }

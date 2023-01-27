@@ -19,6 +19,8 @@ internal class Control(
         get() = modelElement.name
     override val elementId: Int
         get() = modelElement.id
+    override val elementType: String
+        get() = modelElement::class.simpleName!!
     override val propertyName: String
         get() = property.name
     override val comment: String
@@ -79,6 +81,7 @@ internal class Control(
         str.append(", lower bound = ").append(lowerBound)
         str.append(", upper bound = ").append(upperBound)
         str.append(", comment = ").append(if (comment == "") "\"\"" else comment)
+        str.append(", element type = ").append(elementType)
         str.append(", element name = ").append(elementName)
         str.append(", model name = ").append(modelName)
         str.append("]")

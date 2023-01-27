@@ -18,9 +18,12 @@
 
 package ksl.utilities.random.rvariable
 
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.Model
 import ksl.utilities.maps.KSLMaps
+import ksl.utilities.maps.toJson
 import ksl.utilities.random.RandomIfc
 import java.lang.StringBuilder
 
@@ -85,6 +88,23 @@ class RVParameterSetter {
             }
             return theMap
         }
+
+    /**
+     *  Converts the results of the property parametersAsDoubles to a
+     *  Json string
+     */
+    fun parametersAsJson(): String {
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(parametersAsDoubles)
+    }
+
+    /**
+     *  Converts the results of the property flatParametersAsDoubles
+     *  to a Json string
+     */
+    fun flatParametersAsJson() : String {
+        return flatParametersAsDoubles.toJson()
+    }
 
     /**
      * Uses parametersAsDoubles to get a map of map, then flattens the map
