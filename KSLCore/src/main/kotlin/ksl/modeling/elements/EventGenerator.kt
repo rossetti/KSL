@@ -123,7 +123,7 @@ open class EventGenerator(
      */
     private val myTimeUntilFirstEventRV: RandomVariable = RandomVariable(
         this, myInitialTimeUntilFirstEvent,
-        "$name:TimeUntilFirstRV"
+        "$name:TimeUntilFirstEventRV"
     )
     override val initialTimeUntilFirstEvent: RandomSourceCIfc
         get() = myTimeUntilFirstEventRV
