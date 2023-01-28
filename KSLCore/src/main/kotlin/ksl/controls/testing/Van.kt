@@ -61,5 +61,5 @@ fun main() {
     println(c2)
 
     println()
-    println(controls.controlsAsJsonString())
+    println(controls.controlsMapAsJsonString())
 }
