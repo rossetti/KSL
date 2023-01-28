@@ -22,8 +22,10 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
 import ksl.simulation.ExperimentRunParametersIfc
 import kotlin.time.Duration
 
@@ -55,6 +57,32 @@ data class ExperimentRunParameters(
         require(lengthOfReplication > 0.0) { "Length of replication must be > 0.0" }
         require(lengthOfReplicationWarmUp >= 0.0) { "Length of warm up period must be >= 0.0" }
         require(numberOfReplications >= 1) { "Number of replications must be >= 1" }
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("ExperimentRunParameters")
+        sb.appendLine("experimentName='$experimentName'")
+        sb.appendLine("experimentId=$experimentId")
+        sb.appendLine("numberOfReplications=$numberOfReplications")
+        sb.appendLine("isChunked=$isChunked")
+        sb.appendLine("chunkLabel='$chunkLabel'")
+        sb.appendLine("startingRepId=$startingRepId")
+        sb.appendLine("lengthOfReplication=$lengthOfReplication,")
+        sb.appendLine("lengthOfReplicationWarmUp=$lengthOfReplicationWarmUp")
+        sb.appendLine("replicationInitializationOption=$replicationInitializationOption")
+        sb.appendLine("maximumAllowedExecutionTimePerReplication=$maximumAllowedExecutionTimePerReplication")
+        sb.appendLine("resetStartStreamOption=$resetStartStreamOption")
+        sb.appendLine("advanceNextSubStreamOption=$advanceNextSubStreamOption")
+        sb.appendLine("antitheticOption=$antitheticOption")
+        sb.appendLine("numberOfStreamAdvancesPriorToRunning=$numberOfStreamAdvancesPriorToRunning")
+        sb.appendLine("garbageCollectAfterReplicationFlag=$garbageCollectAfterReplicationFlag)")
+        return sb.toString()
+    }
+
+    fun toJson(): String{
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(this)
     }
 }
 

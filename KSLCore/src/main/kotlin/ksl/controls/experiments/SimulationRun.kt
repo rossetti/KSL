@@ -19,6 +19,8 @@
 package ksl.controls.experiments
 
 import kotlinx.datetime.Instant
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import ksl.simulation.Experiment
 import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
@@ -33,23 +35,24 @@ import ksl.utilities.statistic.Statistic
  */
 @kotlinx.serialization.Serializable
 class SimulationRun private constructor(
-    val experimentRunParameters: ExperimentRunParameters,
     val id: String,
     var name: String,
+    val experimentRunParameters: ExperimentRunParameters,
     var functionError: String = "",
-    var inputs: Map<String, Double> = mapOf(),
-    var results: Map<String, DoubleArray> = mapOf(),
     var beginExecutionTime: Instant = Instant.DISTANT_PAST,
-    var endExecutionTime: Instant = Instant.DISTANT_FUTURE
+    var endExecutionTime: Instant = Instant.DISTANT_FUTURE,
+    var inputs: Map<String, Double> = mapOf(),
+    var results: Map<String, DoubleArray> = mapOf()
 ) {
     constructor(
         experiment: ExperimentRunParameters,
         inputs: Map<String, Double> = mapOf(),
         runId: String? = null,
         runName: String? = null
-    ) : this(experiment,
+    ) : this(
         runId ?: KSL.randomUUIDString(),
-        runName ?: ("ID_$runId"),
+        runName ?: (experiment.experimentName),
+        experiment,
         inputs = inputs
     )
 
@@ -63,5 +66,39 @@ class SimulationRun private constructor(
             r.addStatistic(Statistic(key, value))
         }
         return r
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("id = $id")
+        sb.appendLine("name = $name")
+        sb.appendLine(experimentRunParameters)
+        sb.appendLine("functionError $functionError")
+        sb.appendLine("beginExecutionTime = $beginExecutionTime")
+        sb.appendLine("endExecutionTime = $endExecutionTime")
+        sb.appendLine("Inputs:")
+        if (inputs.isEmpty()){
+            sb.appendLine("\t {empty}")
+        } else {
+            for((key, value) in inputs){
+                sb.appendLine("key = $key")
+                sb.appendLine("value = $value")
+            }
+        }
+        sb.appendLine("Results:")
+        if (results.isEmpty()){
+            sb.appendLine("\t {empty}")
+        } else {
+            for((key, value) in results){
+                sb.appendLine("key = $key")
+                sb.appendLine("value = $value")
+            }
+        }
+        return sb.toString()
+    }
+
+    fun toJson(): String{
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(this)
     }
 }

@@ -24,6 +24,8 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.maps.KSLMaps
+
 //import java.util.*
 
 /**
@@ -279,6 +281,13 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
             }
             return dataMap
         }
+
+    /**
+     * Translates property allReplicationDataAsMap to Json string
+     */
+    fun allReplicationDataAsJson() : String{
+        return KSLMaps.stringDoubleArrayMapToJson(allReplicationDataAsMap)
+    }
 
     override fun toString(): String {
         val sb = StringBuilder()

@@ -131,6 +131,16 @@ object KSLMaps {
         return format.encodeToString(map)
     }
 
+    /**
+     *  Converts a [map] that has (String, Double) pairs to
+     *  a JSON string
+     *  @return the JSON string
+     */
+    fun stringDoubleArrayMapToJson(map: Map<String, DoubleArray>): String {
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(map)
+    }
+
 }
 
 fun Map<String, Double>.toJson(): String {
