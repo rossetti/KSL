@@ -249,7 +249,7 @@ class Controls(aModel: Model) {
 
     /**
      *
-     * @param json a valid json string representing a Map&lt;String, Double&gt;
+     * @param json a valid json string representing a Map of (key, value) pairs
      * that contains the control keys and double values for the controls
      * @return the number of control (key, value) pairs that were successfully set
      */
@@ -261,18 +261,18 @@ class Controls(aModel: Model) {
      *  A JSON representation of the map of pairs (keyName, value) for the
      *  controls
      */
-    fun controlsAsJsonString() : String {
+    fun controlsMapAsJsonString() : String {
         return asMap().toJson()
     }
 
     /**
-     * Return an ArrayList of ControlData providing
+     * Return a List of ControlData providing
      * additional detail on Controls (but without giving
      * direct access to the control)
      *
      * @return an ArrayList of ControlData
      */
-    fun controlRecords(): ArrayList<ControlData> {
+    fun controlData(): List<ControlData> {
         val list = ArrayList<ControlData>()
         for ((_, control) in myControls) {
             with(control){
@@ -286,10 +286,10 @@ class Controls(aModel: Model) {
     /**
      * @return the array list of controlRecords() as a string
      */
-    fun controlRecordsAsString(): String {
+    fun controlDataAsString(): String {
         val str = StringBuilder()
-        val list = controlRecords()
-        if (list.size == 0) str.append("{empty}")
+        val list = controlData()
+        if (list.isEmpty()) str.append("{empty}")
         for (cdr in list) {
             str.appendLine(cdr)
         }
@@ -297,7 +297,7 @@ class Controls(aModel: Model) {
     }
 
     override fun toString(): String {
-        return controlRecordsAsString()
+        return controlDataAsString()
     }
 
     companion object : KLoggable {
