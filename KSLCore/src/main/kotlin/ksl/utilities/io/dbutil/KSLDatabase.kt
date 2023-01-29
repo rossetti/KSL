@@ -18,6 +18,7 @@
 
 package ksl.utilities.io.dbutil
 
+import ksl.controls.ControlIfc
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
@@ -29,6 +30,7 @@ import ksl.utilities.io.dbutil.KSLDatabase.DbModelElements.bindTo
 import ksl.utilities.io.dbutil.KSLDatabase.DbModelElements.primaryKey
 import ksl.utilities.io.dbutil.KSLDatabase.SimulationRuns.bindTo
 import ksl.utilities.io.dbutil.KSLDatabase.SimulationRuns.primaryKey
+import ksl.utilities.random.rvariable.RVParameters
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.StatisticIfc
@@ -743,6 +745,20 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var comment = varchar("COMMENT").bindTo { it.comment }
     }
 
+    private fun createDbControlRecord(control: ControlIfc, simId: Int) : DbControl {
+        val c = DbControl()
+        c.simRunIDFk = simId
+        c.elementId = control.elementId
+        c.keyName = control.keyName
+        c.controlValue = control.value
+        c.lowerBound = control.lowerBound
+        c.upperBound = control.upperBound
+        c.propertyName = control.propertyName
+        c.controlType = control.type.toString()
+        c.comment = control.comment
+        return c
+    }
+
     object DbRvParameters : Table<DbRvParameter>("RV_PARAMETER") {
         var id = int("ID").primaryKey().bindTo { it.id }
         var simRunIDFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIDFk }.isNotNull() //not sure how to do references
@@ -752,6 +768,19 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var rvName = varchar("RV_NAME").bindTo { it.rvName }.isNotNull()
         var paramName = varchar("PARAM_NAME").bindTo { it.paramName }.isNotNull()
         var paramValue = double("PARAM_VALUE").bindTo { it.paramValue}.isNotNull()
+    }
+
+    private fun createDbRvParameterRecord(rvParameters: RVParameters, simId: Int): DbRvParameter{
+        val rvp = DbRvParameter()
+        rvp.simRunIDFk = simId
+        //TODO rvp.elementId = rvParameters.
+        rvp.clazzName = rvParameters.className
+        //TODO rvp.dataType = rvParameters.
+        //TODO rvp.rvName = rvParameters
+        //TODO rvp.paramName = rvParameters.
+        //TODO rvp.paramValue = ?
+
+        return rvp
     }
 
     object WithRepStats : Table<WithinRepStat>("WITHIN_REP_STAT") {
