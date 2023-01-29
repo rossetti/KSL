@@ -47,6 +47,9 @@ import java.util.*
  */
 class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
+    //TODO add CONTROL, RV_PARAMETER tables, entities, data frames
+    // add to list of tables in KSL database
+
     /** This constructs a SQLite database on disk and configures it to hold KSL simulation data.
      * The database will be empty.
      *
