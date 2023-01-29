@@ -49,6 +49,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     //TODO add CONTROL, RV_PARAMETER tables, entities, data frames
     // add to list of tables in KSL database
+    // when to add controls, parameters to database? afterExperiment()?  I think beforeExperiment() will work
+    // only if model run with controls, only if model run with parameter setter
 
     /** This constructs a SQLite database on disk and configures it to hold KSL simulation data.
      * The database will be empty.
