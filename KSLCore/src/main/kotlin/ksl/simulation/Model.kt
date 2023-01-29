@@ -137,6 +137,14 @@ class Model(
     private var myRVParameterSetter: RVParameterSetter? = null
 
     /**
+     *  Checks if the model's rvParameterSetter property has been accessed
+     *  and thus that an RVParameterSetter was requested for the model
+     */
+    fun hasParameterSetter(): Boolean {
+        return myRVParameterSetter != null
+    }
+
+    /**
      * If the model parameters change then the user is responsible for
      * calling extractParameters(model) on the returned RVParameterSetter
      *
@@ -146,8 +154,7 @@ class Model(
     val rvParameterSetter: RVParameterSetter
         get() {
             if (myRVParameterSetter == null) {
-                myRVParameterSetter = RVParameterSetter()
-                myRVParameterSetter!!.extractParameters(this)
+                myRVParameterSetter = RVParameterSetter(this)
             }
             return myRVParameterSetter!!
         }

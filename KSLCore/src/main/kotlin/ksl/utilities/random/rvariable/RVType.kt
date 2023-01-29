@@ -132,27 +132,47 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) {
 
     val parametrizedRVClass: KClass<out ParameterizedRV> = rvClass
 
+    /**
+     *  the parameters for this type of random variable
+     */
     abstract val rvParameters: RVParameters
 
     companion object {
 
-         val RVTYPE_SET : Set<RVType> = enumValues<RVType>().toSet()
+        /**
+         *  The set of all possible random variable types for the KSL
+         */
+        val RVTYPE_SET: Set<RVType> = enumValues<RVType>().toSet()
 
-//        val RVTYPE_SET: EnumSet<RVType> = EnumSet.of(
-//            Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma, GeneralizedBeta, Geometric,
-//            JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial, Normal, PearsonType5, PearsonType6,
-//            Poisson, ShiftedGeometric, Triangular, Uniform, Weibull, DEmpirical, Empirical, AR1Normal
-//        )
-
+        /**
+         *  a mapping from parameterized random variables to their RVType (random
+         *  variable type enum)
+         */
         val classToTypeMap: Map<KClass<out ParameterizedRV>, RVType> = mapOf(
-            BernoulliRV::class to Bernoulli, BetaRV::class to Beta, ChiSquaredRV::class to ChiSquared,
-            BinomialRV::class to Binomial, DUniformRV::class to DUniform, ExponentialRV::class to Exponential,
-            GammaRV::class to Gamma, DEmpiricalRV::class to DEmpirical, GeneralizedBetaRV::class to GeneralizedBeta,
-            GeometricRV::class to Geometric, JohnsonBRV::class to JohnsonB, LaplaceRV::class to Laplace,
-            LogLogisticRV::class to LogLogistic, LognormalRV::class to Lognormal, NegativeBinomialRV::class to NegativeBinomial,
-            NormalRV::class to Normal, PearsonType5RV::class to PearsonType5, PearsonType6RV::class to PearsonType6,
-            PoissonRV::class to Poisson, TriangularRV::class to Triangular, UniformRV::class to Uniform,
-            WeibullRV::class to Weibull, EmpiricalRV::class to Empirical, AR1NormalRV::class to AR1Normal,
+            BernoulliRV::class to Bernoulli,
+            BetaRV::class to Beta,
+            ChiSquaredRV::class to ChiSquared,
+            BinomialRV::class to Binomial,
+            DUniformRV::class to DUniform,
+            ExponentialRV::class to Exponential,
+            GammaRV::class to Gamma,
+            DEmpiricalRV::class to DEmpirical,
+            GeneralizedBetaRV::class to GeneralizedBeta,
+            GeometricRV::class to Geometric,
+            JohnsonBRV::class to JohnsonB,
+            LaplaceRV::class to Laplace,
+            LogLogisticRV::class to LogLogistic,
+            LognormalRV::class to Lognormal,
+            NegativeBinomialRV::class to NegativeBinomial,
+            NormalRV::class to Normal,
+            PearsonType5RV::class to PearsonType5,
+            PearsonType6RV::class to PearsonType6,
+            PoissonRV::class to Poisson,
+            TriangularRV::class to Triangular,
+            UniformRV::class to Uniform,
+            WeibullRV::class to Weibull,
+            EmpiricalRV::class to Empirical,
+            AR1NormalRV::class to AR1Normal,
             ConstantRV::class to Constant,
         )
 

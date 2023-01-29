@@ -28,10 +28,26 @@ import ksl.utilities.random.RandomIfc
 import java.lang.StringBuilder
 import kotlin.reflect.full.declaredMemberProperties
 
-class RVParameterSetter {
-    private var modelName: String? = null
-    private var modelId = 0
-    private val rvParameters: LinkedHashMap<String, RVParameters> = linkedMapOf()
+data class RVParameterData(
+    val clazzName: String,
+    val elementId: Int,
+    val dataType: String,
+    val rvName: String,
+    val paramName: String,
+    val paramValue: Double
+)
+
+class RVParameterSetter(private val model: Model) {
+    val rvParameters: Map<String, RVParameters>
+    val rvParametersData: List<RVParameterData>
+    init{
+        val pair = extractParameters()
+        rvParameters = pair.first
+        rvParametersData = pair.second
+    }
+
+    val modelName: String = model.name
+    val modelId = model.id
 
     override fun toString(): String {
         val sb = StringBuilder()
@@ -44,24 +60,26 @@ class RVParameterSetter {
         }
         return sb.toString()
     }
+
     /**
-     * @param model the model to process
-     * @return the parameters in a map for each parameterized random variable in the model
+     * @return the extracted parameters
      */
-    fun extractParameters(model: Model): Map<String, RVParameters> {
-        modelName = model.name
-        modelId = model.id
+    private fun extractParameters() : Pair<Map<String, RVParameters>, List<RVParameterData>> {
         val rvList: List<RandomVariable> = model.randomVariables()
+        val rvDataList = mutableListOf<RVParameterData>()
+        val rvMap = mutableMapOf<String, RVParameters>()
         for (rv in rvList) {
             //TODO is it possible to extract the name of the property to which
             // the random variable is assigned?
             val rs: RandomIfc = rv.initialRandomSource
             if (rs is ParameterizedRV) {
-                rvParameters[rv.name] = rs.parameters
+                rvMap[rv.name] = rs.parameters
+                rvDataList.addAll(rs.parameters.extractParameterData(rv.id, rv.name))
             }
         }
-        return rvParameters
-    }// ignore any double[] parameters
+        // ignores any double[] parameters
+        return Pair(rvMap, rvDataList)
+    }
 
     /**
      * Converts double and integer parameters to a Map that holds a Map, with the

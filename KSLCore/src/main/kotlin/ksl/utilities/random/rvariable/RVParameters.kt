@@ -36,10 +36,17 @@ abstract class RVParameters {
         }
     }
 
-    lateinit var className: String
+    /**
+     *  The simple name of the KSL random variable
+     */
+    lateinit var rvClassName: String
         protected set
 
-    lateinit var type: RVType
+    /**
+     *  The type of random variable from the legal set of random variable types for the KSL
+     *  that are parameterized random variables
+     */
+    lateinit var rvType: RVType
         protected set
 
     /**
@@ -339,9 +346,22 @@ abstract class RVParameters {
      */
     abstract fun createRVariable(rnStream: RNStreamIfc): RVariableIfc
 
+    internal fun extractParameterData(elementId: Int, rvName: String): List<RVParameterData> {
+        val list = mutableListOf<RVParameterData>()
+        for ((k, v) in doubleParameters) {
+            val d = RVParameterData(rvClassName, elementId, DataType.DOUBLE.toString(), rvName, k, v)
+            list.add(d)
+        }
+        for ((k, v) in integerParameters) {
+            val d = RVParameterData(rvClassName, elementId, DataType.INTEGER.toString(), rvName, k, v.toDouble())
+            list.add(d)
+        }
+        return list
+    }
+
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.append("RV Type = ").append(type)
+        sb.append("RV Type = ").append(rvType)
         sb.append(System.lineSeparator())
         sb.append("Double Parameters ")
         sb.append(doubleParameters.toString())
@@ -366,7 +386,7 @@ abstract class RVParameters {
      * @param rvParameters the parameters to copy from
      */
     fun copyFrom(rvParameters: RVParameters) {
-        require(!(type !== rvParameters.type)) { "Cannot copy into with different parameter types" }
+        require(!(rvType !== rvParameters.rvType)) { "Cannot copy into with different parameter types" }
         if (this == rvParameters) {
             return
         }
@@ -382,8 +402,8 @@ abstract class RVParameters {
         if (this === other) return true
         if (other !is RVParameters) return false
         val that = other
-        if (className != that.className) return false
-        if (type !== that.type) return false
+        if (rvClassName != that.rvClassName) return false
+        if (rvType !== that.rvType) return false
         if (doubleParameters != that.doubleParameters) return false
         if (integerParameters != that.integerParameters) return false
         if (dataTypes != that.dataTypes) return false
@@ -401,8 +421,8 @@ abstract class RVParameters {
 
     override fun hashCode(): Int {
         val list: MutableList<Any?> = ArrayList()
-        list.add(className)
-        list.add(type)
+        list.add(rvClassName)
+        list.add(rvType)
         list.add(doubleParameters)
         list.add(integerParameters)
         list.add(dataTypes)
@@ -419,8 +439,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("shape", 1.0)
             addDoubleParameter("scale", 1.0)
-            className = RVType.Weibull.parametrizedRVClass.simpleName!!
-            type = (RVType.Weibull)
+            rvClassName = RVType.Weibull.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Weibull)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -434,8 +454,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("min", 0.0)
             addDoubleParameter("max", 1.0)
-            className = RVType.Uniform.parametrizedRVClass.simpleName!!
-            type = (RVType.Uniform)
+            rvClassName = RVType.Uniform.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Uniform)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -450,8 +470,8 @@ abstract class RVParameters {
             addDoubleParameter("min", 0.0)
             addDoubleParameter("mode", 0.5)
             addDoubleParameter("max", 1.0)
-            type = (RVType.Triangular)
-            className = RVType.Triangular.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Triangular)
+            rvClassName = RVType.Triangular.parametrizedRVClass.simpleName!!
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -465,8 +485,8 @@ abstract class RVParameters {
     internal class ShiftedGeometricRVParameters : RVParameters() {
         override fun fillParameters() {
             addDoubleParameter("probOfSuccess", 0.5)
-            className = RVType.ShiftedGeometric.parametrizedRVClass.simpleName!!
-            type = (RVType.ShiftedGeometric)
+            rvClassName = RVType.ShiftedGeometric.parametrizedRVClass.simpleName!!
+            rvType = (RVType.ShiftedGeometric)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -478,8 +498,8 @@ abstract class RVParameters {
     internal class PoissonRVParameters : RVParameters() {
         override fun fillParameters() {
             addDoubleParameter("mean", 1.0)
-            className = RVType.Poisson.parametrizedRVClass.simpleName!!
-            type = (RVType.Poisson)
+            rvClassName = RVType.Poisson.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Poisson)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -493,8 +513,8 @@ abstract class RVParameters {
             addDoubleParameter("alpha1", 2.0)
             addDoubleParameter("alpha2", 3.0)
             addDoubleParameter("beta", 1.0)
-            className = RVType.PearsonType6.parametrizedRVClass.simpleName!!
-            type = (RVType.PearsonType6)
+            rvClassName = RVType.PearsonType6.parametrizedRVClass.simpleName!!
+            rvType = (RVType.PearsonType6)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -509,8 +529,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("shape", 1.0)
             addDoubleParameter("scale", 1.0)
-            className = RVType.PearsonType5.parametrizedRVClass.simpleName!!
-            type = (RVType.PearsonType5)
+            rvClassName = RVType.PearsonType5.parametrizedRVClass.simpleName!!
+            rvType = (RVType.PearsonType5)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -524,8 +544,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("mean", 0.0)
             addDoubleParameter("variance", 1.0)
-            className = RVType.Normal.parametrizedRVClass.simpleName!!
-            type = (RVType.Normal)
+            rvClassName = RVType.Normal.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Normal)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -539,8 +559,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("probOfSuccess", 0.5)
             addIntegerParameter("numSuccesses", 1)
-            className = RVType.NegativeBinomial.parametrizedRVClass.simpleName!!
-            type = (RVType.NegativeBinomial)
+            rvClassName = RVType.NegativeBinomial.parametrizedRVClass.simpleName!!
+            rvType = (RVType.NegativeBinomial)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -554,8 +574,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("mean", 1.0)
             addDoubleParameter("variance", 1.0)
-            className = RVType.Lognormal.parametrizedRVClass.simpleName!!
-            type = (RVType.Lognormal)
+            rvClassName = RVType.Lognormal.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Lognormal)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -569,8 +589,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("shape", 1.0)
             addDoubleParameter("scale", 1.0)
-            className = RVType.LogLogistic.parametrizedRVClass.simpleName!!
-            type = (RVType.LogLogistic)
+            rvClassName = RVType.LogLogistic.parametrizedRVClass.simpleName!!
+            rvType = (RVType.LogLogistic)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -584,8 +604,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("mean", 0.0)
             addDoubleParameter("scale", 1.0)
-            className = RVType.Laplace.parametrizedRVClass.simpleName!!
-            type = (RVType.Laplace)
+            rvClassName = RVType.Laplace.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Laplace)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -601,8 +621,8 @@ abstract class RVParameters {
             addDoubleParameter("alpha2", 1.0)
             addDoubleParameter("min", 0.0)
             addDoubleParameter("max", 1.0)
-            className = RVType.JohnsonB.parametrizedRVClass.simpleName!!
-            type = (RVType.JohnsonB)
+            rvClassName = RVType.JohnsonB.parametrizedRVClass.simpleName!!
+            rvType = (RVType.JohnsonB)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -617,8 +637,8 @@ abstract class RVParameters {
     internal class GeometricRVParameters : RVParameters() {
         override fun fillParameters() {
             addDoubleParameter("probOfSuccess", 0.5)
-            className = RVType.Geometric.parametrizedRVClass.simpleName!!
-            type = (RVType.Geometric)
+            rvClassName = RVType.Geometric.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Geometric)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -633,8 +653,8 @@ abstract class RVParameters {
             addDoubleParameter("alpha2", 1.0)
             addDoubleParameter("min", 0.0)
             addDoubleParameter("max", 1.0)
-            className = RVType.GeneralizedBeta.parametrizedRVClass.simpleName!!
-            type = (RVType.GeneralizedBeta)
+            rvClassName = RVType.GeneralizedBeta.parametrizedRVClass.simpleName!!
+            rvType = (RVType.GeneralizedBeta)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -650,8 +670,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("shape", 1.0)
             addDoubleParameter("scale", 1.0)
-            className = RVType.Gamma.parametrizedRVClass.simpleName!!
-            type = (RVType.Gamma)
+            rvClassName = RVType.Gamma.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Gamma)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -664,8 +684,8 @@ abstract class RVParameters {
     internal class ExponentialRVParameters : RVParameters() {
         override fun fillParameters() {
             addDoubleParameter("mean", 1.0)
-            className = RVType.Exponential.parametrizedRVClass.simpleName!!
-            type = (RVType.Exponential)
+            rvClassName = RVType.Exponential.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Exponential)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -677,8 +697,8 @@ abstract class RVParameters {
     internal class EmpiricalRVParameters : RVParameters() {
         override fun fillParameters() {
             addDoubleArrayParameter("population", DoubleArray(1))
-            className = RVType.Empirical.parametrizedRVClass.simpleName!!
-            type = (RVType.Empirical)
+            rvClassName = RVType.Empirical.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Empirical)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -691,8 +711,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addIntegerParameter("min", 0)
             addIntegerParameter("max", 1)
-            className = RVType.DUniform.parametrizedRVClass.simpleName!!
-            type = (RVType.DUniform)
+            rvClassName = RVType.DUniform.parametrizedRVClass.simpleName!!
+            rvType = (RVType.DUniform)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -706,8 +726,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleArrayParameter("values", doubleArrayOf(0.0, 1.0))
             addDoubleArrayParameter("cdf", doubleArrayOf(0.5, 1.0))
-            className = RVType.DEmpirical.parametrizedRVClass.simpleName!!
-            type = (RVType.DEmpirical)
+            rvClassName = RVType.DEmpirical.parametrizedRVClass.simpleName!!
+            rvType = (RVType.DEmpirical)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -720,8 +740,8 @@ abstract class RVParameters {
     internal class ConstantRVParameters : RVParameters() {
         override fun fillParameters() {
             addDoubleParameter("value", 1.0)
-            className = RVType.Constant.parametrizedRVClass.simpleName!!
-            type = (RVType.Constant)
+            rvClassName = RVType.Constant.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Constant)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -733,8 +753,8 @@ abstract class RVParameters {
     internal class ChiSquaredRVParameters : RVParameters() {
         override fun fillParameters() {
             addDoubleParameter("dof", 1.0)
-            className = RVType.ChiSquared.parametrizedRVClass.simpleName!!
-            type = (RVType.ChiSquared)
+            rvClassName = RVType.ChiSquared.parametrizedRVClass.simpleName!!
+            rvType = (RVType.ChiSquared)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -747,8 +767,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("probOfSuccess", 0.5)
             addIntegerParameter("numTrials", 2)
-            className = RVType.Binomial.parametrizedRVClass.simpleName!!
-            type = (RVType.Binomial)
+            rvClassName = RVType.Binomial.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Binomial)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -762,8 +782,8 @@ abstract class RVParameters {
         override fun fillParameters() {
             addDoubleParameter("alpha1", 1.0)
             addDoubleParameter("alpha2", 1.0)
-            className = RVType.Beta.parametrizedRVClass.simpleName!!
-            type = (RVType.Beta)
+            rvClassName = RVType.Beta.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Beta)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -776,8 +796,8 @@ abstract class RVParameters {
     internal class BernoulliRVParameters : RVParameters() {
         override fun fillParameters() {
             addDoubleParameter("probOfSuccess", 0.5)
-            className = RVType.Bernoulli.parametrizedRVClass.simpleName!!
-            type = (RVType.Bernoulli)
+            rvClassName = RVType.Bernoulli.parametrizedRVClass.simpleName!!
+            rvType = (RVType.Bernoulli)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
@@ -791,8 +811,8 @@ abstract class RVParameters {
             addDoubleParameter("mean", 0.0)
             addDoubleParameter("variance", 1.0)
             addDoubleParameter("correlation", 0.0)
-            className = RVType.AR1Normal.parametrizedRVClass.simpleName!!
-            type = (RVType.AR1Normal)
+            rvClassName = RVType.AR1Normal.parametrizedRVClass.simpleName!!
+            rvType = (RVType.AR1Normal)
         }
 
         override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

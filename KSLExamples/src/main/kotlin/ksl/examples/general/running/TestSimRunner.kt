@@ -53,6 +53,12 @@ fun showControls(){
 
    println(rvParams.parametersAsJson())
 
+    println()
+    val list = rvParams.rvParametersData
+    for(thing in list){
+        println(thing)
+    }
+
 }
 
 fun testSimulationRunner(){
@@ -64,6 +70,11 @@ fun testSimulationRunner(){
     val stemFairMixer = StemFairMixer(model)
     // demonstrate capturing data to database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
+    val controls = model.controls()
+    val control = controls.control("JHBuntR.initialCapacity")
+    control?.value = 5.0
+    model.experimentalControls = controls.asMap()
+    val rvParams = model.rvParameterSetter
 
     val sr = SimulationRunner(model)
 

@@ -19,17 +19,15 @@
 package ksl.utilities.io.dbutil
 
 import ksl.controls.ControlIfc
+import ksl.controls.Controls
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
-import ksl.utilities.io.dbutil.KSLDatabase.DbControls.bindTo
-import ksl.utilities.io.dbutil.KSLDatabase.DbModelElements.bindTo
-import ksl.utilities.io.dbutil.KSLDatabase.DbModelElements.primaryKey
-import ksl.utilities.io.dbutil.KSLDatabase.SimulationRuns.bindTo
-import ksl.utilities.io.dbutil.KSLDatabase.SimulationRuns.primaryKey
+import ksl.utilities.random.rvariable.RVParameterData
+import ksl.utilities.random.rvariable.RVParameterSetter
 import ksl.utilities.random.rvariable.RVParameters
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
@@ -281,16 +279,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * table. Names may be repeated in the list if the user did not
      * specify unique experiment names.
      */
-    val experimentNames : List<String>
-        get()  {
-        val list = mutableListOf<String>()
-        val iterator = simulationRuns.iterator()
-        while(iterator.hasNext()){
-            val sr: SimulationRun = iterator.next()
-            list.add(sr.expName)
+    val experimentNames: List<String>
+        get() {
+            val list = mutableListOf<String>()
+            val iterator = simulationRuns.iterator()
+            while (iterator.hasNext()) {
+                val sr: SimulationRun = iterator.next()
+                list.add(sr.expName)
+            }
+            return list
         }
-        return list
-    }
 
     /**
      * This prepares a map that can be used with MultipleComparisonAnalyzer. If the set of
@@ -307,7 +305,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     fun withinReplicationViewMapForExperiments(expNames: List<String>, responseName: String): Map<String, DoubleArray> {
         val eNames = experimentNames
         val uniqueNames = eNames.toSet()
-        if (uniqueNames.size != eNames.size){
+        if (uniqueNames.size != eNames.size) {
             DatabaseIfc.logger.error { "There were multiple simulation runs with same experiment name" }
             throw IllegalArgumentException("There were multiple simulation runs with the experiment name")
         }
@@ -349,6 +347,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         // insert the model elements into the database
         val modelElements: List<ModelElement> = model.getModelElements()
         insertModelElements(modelElements)
+        if (model.hasExperimentalControls()){
+            // insert controls if they are there
+            val controls: Controls = model.controls()
+            insertDbControlRecords(controls.asList())
+        }
+        if (model.hasParameterSetter()){
+            // insert the random variable parameters
+            val ps: RVParameterSetter = model.rvParameterSetter
+            insertDbRvParameterRecords(ps.rvParametersData)
+        }
     }
 
     private fun insertModelElements(elements: List<ModelElement>) {
@@ -737,7 +745,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var simRunIDFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIDFk }.isNotNull() //not sure how to do references
         var elementId = int("ELEMENT_ID_FK").bindTo { it.elementId }.isNotNull()
         var keyName = varchar("KEY_NAME").bindTo { it.keyName }.isNotNull()
-        var controlValue = double("CONTROL_VALUE").bindTo { it.controlValue}.isNotNull()
+        var controlValue = double("CONTROL_VALUE").bindTo { it.controlValue }.isNotNull()
         var lowerBound = double("LOWER_BOUND").bindTo { it.lowerBound }
         var upperBound = double("UPPER_BOUND").bindTo { it.upperBound }
         var propertyName = varchar("PROPERTY_NAME").bindTo { it.propertyName }.isNotNull()
@@ -745,7 +753,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var comment = varchar("COMMENT").bindTo { it.comment }
     }
 
-    private fun createDbControlRecord(control: ControlIfc, simId: Int) : DbControl {
+    private fun insertDbControlRecords(controls: List<ControlIfc>){
+        for(c in controls){
+            val r = createDbControlRecord(c, simulationRun!!.id)
+            dbControls.add(r)
+        }
+    }
+
+    private fun createDbControlRecord(control: ControlIfc, simId: Int): DbControl {
         val c = DbControl()
         c.simRunIDFk = simId
         c.elementId = control.elementId
@@ -767,19 +782,25 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var dataType = varchar("DATA_TYPE").bindTo { it.dataType }.isNotNull()
         var rvName = varchar("RV_NAME").bindTo { it.rvName }.isNotNull()
         var paramName = varchar("PARAM_NAME").bindTo { it.paramName }.isNotNull()
-        var paramValue = double("PARAM_VALUE").bindTo { it.paramValue}.isNotNull()
+        var paramValue = double("PARAM_VALUE").bindTo { it.paramValue }.isNotNull()
     }
 
-    private fun createDbRvParameterRecord(rvParameters: RVParameters, simId: Int): DbRvParameter{
+    private fun insertDbRvParameterRecords(pData: List<RVParameterData>){
+        for(param in pData){
+            val r = createDbRvParameterRecord(param, simulationRun!!.id)
+            rvParameters.add(r)
+        }
+    }
+
+    private fun createDbRvParameterRecord(rvParamData: RVParameterData, simId: Int): DbRvParameter {
         val rvp = DbRvParameter()
         rvp.simRunIDFk = simId
-        //TODO rvp.elementId = rvParameters.
-        rvp.clazzName = rvParameters.className
-        //TODO rvp.dataType = rvParameters.
-        //TODO rvp.rvName = rvParameters
-        //TODO rvp.paramName = rvParameters.
-        //TODO rvp.paramValue = ?
-
+        rvp.elementId = rvParamData.elementId
+        rvp.clazzName = rvParamData.clazzName
+        rvp.dataType = rvParamData.dataType
+        rvp.rvName = rvParamData.rvName
+        rvp.paramName = rvParamData.paramName
+        rvp.paramValue = rvParamData.paramValue
         return rvp
     }
 
@@ -941,8 +962,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var rightCount: Int
     }
 
-    interface DbControl: Entity<DbControl>{
+    interface DbControl : Entity<DbControl> {
         companion object : Entity.Factory<DbControl>()
+
         var id: Int
         var simRunIDFk: Int
         var elementId: Int
@@ -955,8 +977,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var comment: String
     }
 
-    interface DbRvParameter: Entity<DbRvParameter>{
+    interface DbRvParameter : Entity<DbRvParameter> {
         companion object : Entity.Factory<DbRvParameter>()
+
         var id: Int
         var simRunIDFk: Int
         var elementId: Int
@@ -966,6 +989,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var paramName: String
         var paramValue: Double
     }
+
     interface WithinRepStat : Entity<WithinRepStat> {
         companion object : Entity.Factory<WithinRepStat>()
 
@@ -1083,7 +1107,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var AminusB: Double
     }
 
-    interface AcrossRepView: Entity<AcrossRepView>{
+    interface AcrossRepView : Entity<AcrossRepView> {
         companion object : Entity.Factory<AcrossRepView>()
 
         var simRunIdFk: Int
@@ -1095,7 +1119,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     }
 
-    interface BatchStatView: Entity<BatchStatView>{
+    interface BatchStatView : Entity<BatchStatView> {
         companion object : Entity.Factory<BatchStatView>()
 
         var simRunIdFk: Int

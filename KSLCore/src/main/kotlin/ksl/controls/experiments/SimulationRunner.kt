@@ -104,8 +104,7 @@ class SimulationRunner(
             // get the controls to build what will need to be changed
             val controls: Controls = model.controls()
             // get the random variable parameters
-            val tmpSetter = RVParameterSetter()
-            tmpSetter.extractParameters(model)
+            val tmpSetter = RVParameterSetter(model)
             val rvParameters = tmpSetter.flatParametersAsDoubles(rvParamConCatString)
             // now check supplied input key is a control or a rv parameter
             // and save them for application to the model
