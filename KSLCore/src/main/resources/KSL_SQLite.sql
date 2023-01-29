@@ -17,7 +17,10 @@
 -- 
 -- Revision: Nov 19, 2022
 -- Updated script to be compatible with SQLite
-
+--
+-- Revised: Jan 28, 2023
+-- Updated script to have controls and random variable parameters
+--
 -- SIMULATION_RUN captures the execution of a simulation experiment and its related options
 
 CREATE TABLE SIMULATION_RUN
@@ -66,6 +69,40 @@ CREATE TABLE MODEL_ELEMENT
 );
 
 CREATE INDEX ME_SIMRUN_FK_INDEX ON MODEL_ELEMENT(SIM_RUN_ID_FK);
+
+-- CONTROL holds the input controls as designated by the user
+-- when annotating with KSLControl
+
+CREATE TABLE CONTROL
+(
+    ID            INTEGER PRIMARY KEY,
+    SIM_RUN_ID_FK INTEGER      NOT NULL,
+    ELEMENT_ID    INTEGER      NOT NULL,
+    KEY_NAME  VARCHAR(510) NOT NULL,
+    CONTROL_VALUE DOUBLE PRECISION,
+    LOWER_BOUND DOUBLE PRECISION,
+    UPPER_BOUND DOUBLE PRECISION,
+    PROPERTY_NAME    VARCHAR(510) NOT NULL,
+    CONTROL_TYPE    VARCHAR(510) NOT NULL,
+    COMMENT   VARCHAR(510),
+    FOREIGN KEY (SIM_RUN_ID_FK) REFERENCES SIMULATION_RUN (ID) ON DELETE CASCADE
+);
+
+-- RV_PARAMETER holds the random variables from the model that implement
+-- the RVParametersIfc interface
+
+CREATE TABLE RV_PARAMETER
+(
+    ID            INTEGER PRIMARY KEY,
+    SIM_RUN_ID_FK INTEGER      NOT NULL,
+    ELEMENT_ID    INTEGER      NOT NULL,
+    CLASS_NAME  VARCHAR(510) NOT NULL,
+    DATA_TYPE VARCHAR(12) NOT NULL,
+    RV_NAME    VARCHAR(510) NOT NULL,
+    PARAM_NAME    VARCHAR(510) NOT NULL,
+    PARAM_VALUE DOUBLE PRECISION,
+    FOREIGN KEY (SIM_RUN_ID_FK) REFERENCES SIMULATION_RUN (ID) ON DELETE CASCADE
+);
 
 -- WITHIN_REP_STAT represents within replication statistics for each replication of
 -- each simulation for each response
