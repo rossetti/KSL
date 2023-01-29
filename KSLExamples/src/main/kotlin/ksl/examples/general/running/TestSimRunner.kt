@@ -26,8 +26,8 @@ import ksl.simulation.Model
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 fun main(){
-    showControls()
-//    testSimulationRunner()
+//    showControls()
+    testSimulationRunner()
 }
 
 fun showControls(){
