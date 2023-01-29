@@ -24,6 +24,11 @@ import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.KSLDatabase.DbControls.bindTo
+import ksl.utilities.io.dbutil.KSLDatabase.DbModelElements.bindTo
+import ksl.utilities.io.dbutil.KSLDatabase.DbModelElements.primaryKey
+import ksl.utilities.io.dbutil.KSLDatabase.SimulationRuns.bindTo
+import ksl.utilities.io.dbutil.KSLDatabase.SimulationRuns.primaryKey
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.StatisticIfc
@@ -47,8 +52,7 @@ import java.util.*
  */
 class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
-    //TODO add CONTROL, RV_PARAMETER tables, entities, data frames
-    // add to list of tables in KSL database
+    //TODO add CONTROL, RV_PARAMETER creation and insertion functions
     // when to add controls, parameters to database? afterExperiment()?  I think beforeExperiment() will work
     // only if model run with controls, only if model run with parameter setter
 
@@ -74,6 +78,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     // expose the encapsulation
     private val simulationRuns get() = kDb.sequenceOf(SimulationRuns, withReferences = false)
     private val dbModelElements get() = kDb.sequenceOf(DbModelElements, withReferences = false)
+    private val dbControls get() = kDb.sequenceOf(DbControls, withReferences = false)
+    private val rvParameters get() = kDb.sequenceOf(DbRvParameters, withReferences = false)
     private val withinRepStats get() = kDb.sequenceOf(WithRepStats, withReferences = false)
     private val acrossRepStats get() = kDb.sequenceOf(AcrossRepStats, withReferences = false)
     private val withinRepCounterStats get() = kDb.sequenceOf(WithinRepCounterStats, withReferences = false)
@@ -193,7 +199,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         }
 
     val tables = listOf(
-        SimulationRuns, DbModelElements, WithRepStats,
+        SimulationRuns, DbModelElements, DbControls, DbRvParameters, WithRepStats,
         AcrossRepStats, WithinRepCounterStats, BatchStats
     )
 
@@ -724,6 +730,30 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var rightCount = int("RIGHT_COUNT").bindTo { it.rightCount }
     }
 
+    object DbControls : Table<DbControl>("CONTROL") {
+        var id = int("ID").primaryKey().bindTo { it.id }
+        var simRunIDFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIDFk }.isNotNull() //not sure how to do references
+        var elementId = int("ELEMENT_ID_FK").bindTo { it.elementId }.isNotNull()
+        var keyName = varchar("KEY_NAME").bindTo { it.keyName }.isNotNull()
+        var controlValue = double("CONTROL_VALUE").bindTo { it.controlValue}.isNotNull()
+        var lowerBound = double("LOWER_BOUND").bindTo { it.lowerBound }
+        var upperBound = double("UPPER_BOUND").bindTo { it.upperBound }
+        var propertyName = varchar("PROPERTY_NAME").bindTo { it.propertyName }.isNotNull()
+        var controlType = varchar("CONTROL_TYPE").bindTo { it.controlType }.isNotNull()
+        var comment = varchar("COMMENT").bindTo { it.comment }
+    }
+
+    object DbRvParameters : Table<DbRvParameter>("RV_PARAMETER") {
+        var id = int("ID").primaryKey().bindTo { it.id }
+        var simRunIDFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIDFk }.isNotNull() //not sure how to do references
+        var elementId = int("ELEMENT_ID_FK").bindTo { it.elementId }.isNotNull()
+        var clazzName = varchar("CLASS_NAME").bindTo { it.clazzName }.isNotNull()
+        var dataType = varchar("DATA_TYPE").bindTo { it.dataType }.isNotNull()
+        var rvName = varchar("RV_NAME").bindTo { it.rvName }.isNotNull()
+        var paramName = varchar("PARAM_NAME").bindTo { it.paramName }.isNotNull()
+        var paramValue = double("PARAM_VALUE").bindTo { it.paramValue}.isNotNull()
+    }
+
     object WithRepStats : Table<WithinRepStat>("WITHIN_REP_STAT") {
         var id = int("ID").primaryKey().bindTo { it.id }
         var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk } //not sure how to do references
@@ -882,6 +912,31 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var rightCount: Int
     }
 
+    interface DbControl: Entity<DbControl>{
+        companion object : Entity.Factory<DbControl>()
+        var id: Int
+        var simRunIDFk: Int
+        var elementId: Int
+        var keyName: String
+        var controlValue: Double
+        var lowerBound: Double?
+        var upperBound: Double?
+        var propertyName: String
+        var controlType: String
+        var comment: String
+    }
+
+    interface DbRvParameter: Entity<DbRvParameter>{
+        companion object : Entity.Factory<DbRvParameter>()
+        var id: Int
+        var simRunIDFk: Int
+        var elementId: Int
+        var clazzName: String
+        var dataType: String
+        var rvName: String
+        var paramName: String
+        var paramValue: Double
+    }
     interface WithinRepStat : Entity<WithinRepStat> {
         companion object : Entity.Factory<WithinRepStat>()
 
@@ -1026,7 +1081,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     companion object {
         val TableNames = listOf(
             "batch_stat", "within_rep_counter_stat",
-            "across_rep_stat", "within_rep_stat", "model_element", "simulation_run"
+            "across_rep_stat", "within_rep_stat", "rv_parameter", "control", "model_element", "simulation_run"
         )
 
         val ViewNames = listOf(
