@@ -28,7 +28,6 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.RVParameterData
 import ksl.utilities.random.rvariable.RVParameterSetter
-import ksl.utilities.random.rvariable.RVParameters
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.StatisticIfc
@@ -71,23 +70,30 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     private val kDb =
         org.ktorm.database.Database.connect(db.dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))
 
-    internal var simulationRun: SimulationRun? = null
+    internal var currentSimRun: SimulationRun? = null
+    internal var currentExperiment : DbExperiment? = null
 
     //TODO consider whether these can be public properties
     // it would permit a lot of functionality that may or may not be necessary or useful, and may
     // expose the encapsulation
+    private val dbExperiments get() = kDb.sequenceOf(DbExperiments, withReferences = false)
     private val simulationRuns get() = kDb.sequenceOf(SimulationRuns, withReferences = false)
     private val dbModelElements get() = kDb.sequenceOf(DbModelElements, withReferences = false)
     private val dbControls get() = kDb.sequenceOf(DbControls, withReferences = false)
-    private val rvParameters get() = kDb.sequenceOf(DbRvParameters, withReferences = false)
-    private val withinRepStats get() = kDb.sequenceOf(WithRepStats, withReferences = false)
+    private val dbRVParameters get() = kDb.sequenceOf(DbRvParameters, withReferences = false)
+    private val withinRepStats get() = kDb.sequenceOf(WithinRepStats, withReferences = false)
     private val acrossRepStats get() = kDb.sequenceOf(AcrossRepStats, withReferences = false)
     private val withinRepCounterStats get() = kDb.sequenceOf(WithinRepCounterStats, withReferences = false)
     private val batchStats get() = kDb.sequenceOf(BatchStats, withReferences = false)
-    private val withinRepViewStats get() = kDb.sequenceOf(WithinRepViewStats, withReferences = false)
-    private val pairWiseDiffViewStats get() = kDb.sequenceOf(PairWiseDiffViewStats, withReferences = false)
-    private val acrossRepViewStats get() = kDb.sequenceOf(AcrossRepViewStats, withReferences = false)
-    private val batchViewStats get() = kDb.sequenceOf(BatchViewStats, withReferences = false)
+
+    // these are all views. it should be safe to expose them as public properties
+    val withRepResponseViewStats get() = kDb.sequenceOf(WithinRepResponseViewStats, withReferences = false)
+    val withRepCounterViewStats get() = kDb.sequenceOf(WithinRepCounterViewStats, withReferences = false)
+    val withinRepViewStats get() = kDb.sequenceOf(WithinRepViewStats, withReferences = false)
+    val expStatRepViewStats get() = kDb.sequenceOf(ExpStatRepViewStats, withReferences = false)
+    val pairWiseDiffViewStats get() = kDb.sequenceOf(PairWiseDiffViewStats, withReferences = false)
+    val acrossRepViewStats get() = kDb.sequenceOf(AcrossRepViewStats, withReferences = false)
+    val batchViewStats get() = kDb.sequenceOf(BatchViewStats, withReferences = false)
 
     val acrossReplicationStatistics: DataFrame<AcrossRepStat>
         get() {
@@ -107,13 +113,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             return df
         }
 
-    val withinReplicationStatistics: DataFrame<WithinRepStat>
+    val withinReplicationResponseStatistics: DataFrame<WithinRepStat>
         get() {
             var df = withinRepStats.toList().toDataFrame()
             df = df.move("simRunIdFk").to(0)
                 .move("id").to(1)
                 .move("statName").to(2)
-                .move("repNum").to(3)
+                .move("repId").to(3)
                 .move("statCount").to(4)
                 .move("average").to(5)
                 .move("minimum").to(6)
@@ -128,7 +134,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             df = df.move("simRunIdFk").to(0)
                 .move("id").to(1)
                 .move("statName").to(2)
-                .move("repNum").to(3)
+                .move("repId").to(3)
                 .move("lastValue").to(4)
                 .remove("entityClass", "properties", "elementIdFk")
             return df
@@ -140,7 +146,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             df = df.move("simRunIdFk").to(0)
                 .move("id").to(1)
                 .move("statName").to(2)
-                .move("repNum").to(3)
+                .move("repId").to(3)
                 .move("statCount").to(4)
                 .move("average").to(5)
                 .move("halfWidth").to(6)
@@ -153,14 +159,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             return df
         }
 
-    val withinReplicationViewStatistics: DataFrame<WithinRepView>
+    val withinReplicationViewStatistics: DataFrame<ExpStatRepView>
         get() {
-            var df = withinRepViewStats.toList().toDataFrame()
-            df = df.move("simRunIdFk").to(0)
+            var df = expStatRepViewStats.toList().toDataFrame()
+            df = df.move("expId").to(0)
                 .move("expName").to(1)
                 .move("statName").to(2)
-                .move("repNum").to(3)
-                .move("value").to(4)
+                .move("repId").to(3)
+                .move("repValue").to(4)
             df = df.remove("entityClass", "properties")
             return df
         }
@@ -168,6 +174,17 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     val pairWiseDiffViewStatistics: DataFrame<PairWiseDiffView>
         get() {
             var df = pairWiseDiffViewStats.toList().toDataFrame()
+            df = df.move("simName").to(0)
+                .move("statName").to(1)
+                .move("repId").to(2)
+                .move("expIdA").to(3)
+                .move("expNameA").to(4)
+                .move("valueA").to(5)
+                .move("expIdB").to(6)
+                .move("expNameB").to(7)
+                .move("valueB").to(8)
+                .move("diffName").to(9)
+                .move("AminusB").to(10)
             df = df.remove("entityClass", "properties")
             return df
         }
@@ -175,7 +192,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     val acrossReplicationViewStatistics: DataFrame<AcrossRepView>
         get() {
             var df = acrossRepViewStats.toList().toDataFrame()
-            df = df.move("simRunIdFk").to(0)
+            df = df.move("expId").to(0)
                 .move("expName").to(1)
                 .move("statName").to(2)
                 .move("statCount").to(3)
@@ -188,7 +205,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     val batchViewStatistics: DataFrame<BatchStatView>
         get() {
             var df = batchViewStats.toList().toDataFrame()
-            df = df.move("simRunIdFk").to(0)
+            df = df.move("expId").to(0)
                 .move("expName").to(1)
                 .move("statName").to(2)
                 .move("statCount").to(3)
@@ -199,8 +216,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         }
 
     val tables = listOf(
-        SimulationRuns, DbModelElements, DbControls, DbRvParameters, WithRepStats,
+        DbExperiments, SimulationRuns, DbModelElements, DbControls, DbRvParameters, WithinRepStats,
         AcrossRepStats, WithinRepCounterStats, BatchStats
+    )
+
+    val views = listOf(
+        WithinRepResponseViewStats, WithinRepCounterViewStats, WithinRepViewStats, ExpStatRepViewStats,
+        PairWiseDiffViewStats, AcrossRepViewStats, BatchViewStats
     )
 
     /**
@@ -282,10 +304,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     val experimentNames: List<String>
         get() {
             val list = mutableListOf<String>()
-            val iterator = simulationRuns.iterator()
+            val iterator = dbExperiments.iterator()
             while (iterator.hasNext()) {
-                val sr: SimulationRun = iterator.next()
-                list.add(sr.expName)
+                val e = iterator.next()
+                list.add(e.expName)
             }
             return list
         }
@@ -342,6 +364,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     internal fun beforeExperiment(model: Model) {
+        // start experiment record
+        insertExperiment(model)
         // start simulation run record
         insertSimulationRun(model)
         // insert the model elements into the database
@@ -359,18 +383,40 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         }
     }
 
+    private fun insertExperiment(model: Model){
+        val record = DbExperiment()
+        record.simName = model.simulationName
+        record.expName = model.experimentName
+        record.modelName = model.name
+        record.numReps = model.numberOfReplications
+        record.isChunked = model.isChunked
+        if (!model.lengthOfReplication.isNaN() && model.lengthOfReplication.isFinite()) {
+            record.lengthOfRep = model.lengthOfReplication
+        }
+        record.lengthOfWarmUp = model.lengthOfReplicationWarmUp
+        record.repAllowedExecTime = model.maximumAllowedExecutionTime.inWholeMilliseconds
+        record.repInitOption = model.replicationInitializationOption
+        record.repResetStartStreamOption = model.resetStartStreamOption
+        record.antitheticOption = model.antitheticOption
+        record.advNextSubStreamOption = model.advanceNextSubStreamOption
+        record.numStreamAdvances = model.numberOfStreamAdvancesPriorToRunning
+        record.gcAfterRepOption = model.garbageCollectAfterReplicationFlag
+        dbExperiments.add(record)
+        currentExperiment = record
+    }
+
     private fun insertModelElements(elements: List<ModelElement>) {
         // it would be nice to know how to make a batch insert rather each individually
         for (element in elements) {
-            val dbModelElement = createDbModelElement(element, simulationRun!!.id)
+            val dbModelElement = createDbModelElement(element, currentExperiment!!.expId)
             dbModelElements.add(dbModelElement)
         }
-        DatabaseIfc.logger.trace { "Inserted model element records into ${db.label} for simulation ${simulationRun?.modelName}" }
+        DatabaseIfc.logger.trace { "Inserted model element records into ${db.label} for model ${currentExperiment?.modelName}" }
     }
 
     private fun createDbModelElement(element: ModelElement, id: Int): DbModelElement {
         val dbm = DbModelElement()
-        dbm.simRunIDFk = id
+        dbm.expIDFk = id
         dbm.elementName = element.name
         dbm.elementId = element.id
         dbm.elementClassName = element::class.simpleName!!
@@ -385,31 +431,20 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     private fun insertSimulationRun(model: Model) {
         val record = SimulationRun()
-        record.simName = model.simulationName
-        record.expName = model.experimentName
-        record.modelName = model.name
-        record.expStartTimeStamp = ZonedDateTime.now().toInstant()
-        record.numReps = model.numberOfReplications
-        if (!model.lengthOfReplication.isNaN() && model.lengthOfReplication.isFinite()) {
-            record.lengthOfRep = model.lengthOfReplication
-        }
-        record.lengthOfWarmUp = model.lengthOfReplicationWarmUp
-        record.repAllowedExecTime = model.maximumAllowedExecutionTime.inWholeMilliseconds
-        record.repInitOption = model.replicationInitializationOption
-        record.repResetStartStreamOption = model.resetStartStreamOption
-        record.antitheticOption = model.antitheticOption
-        record.advNextSubStreamOption = model.advanceNextSubStreamOption
-        record.numStreamAdvances = model.numberOfStreamAdvancesPriorToRunning
+        record.expIDFk = currentExperiment!!.expId
+        //TODO  don't know RUN_NAME, NUM_REPS, START_REP_ID
+
+        record.runStartTimeStamp = ZonedDateTime.now().toInstant()
         simulationRuns.add(record)
-        simulationRun = record
+        currentSimRun = record
     }
 
     private fun finalizeCurrentSimulationRun(model: Model) {
-        simulationRun?.lastRep = model.numberReplicationsCompleted
-        simulationRun?.hasMoreReps = model.hasMoreReplications()
-        simulationRun?.expEndTimeStamp = ZonedDateTime.now().toInstant()
-        simulationRun?.flushChanges()
-        DatabaseIfc.logger.trace { "Finalized SimulationRun record for model: ${model.name}" }
+        currentSimRun?.lastRepId = model.numberReplicationsCompleted
+        currentSimRun?.runEndTimeStamp = ZonedDateTime.now().toInstant()
+        //TODO don't know RUN_ERROR_MSG
+        currentSimRun?.flushChanges()
+        DatabaseIfc.logger.trace { "Finalized SimulationRun record for simulation: ${model.simulationName}" }
     }
 
     internal fun afterReplication(model: Model) {
@@ -428,17 +463,17 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     private fun insertWithinRepResponses(responses: List<Response>) {
         for (response in responses) {
-            val withinRepStatRecord = createWithinRepStatRecord(response, simulationRun!!.id)
+            val withinRepStatRecord = createWithinRepStatRecord(response, currentSimRun!!.runId)
             withinRepStats.add(withinRepStatRecord)
         }
-        DatabaseIfc.logger.trace { "Inserted within replication responses into ${db.label} for simulation ${simulationRun?.modelName}" }
+        DatabaseIfc.logger.trace { "Inserted within replication responses into ${db.label} for simulation ${currentExperiment?.simName}" }
     }
 
     private fun createWithinRepStatRecord(response: Response, simId: Int): WithinRepStat {
         val r = WithinRepStat()
         r.elementIdFk = response.id
         r.simRunIdFk = simId
-        r.repNum = response.model.currentReplicationId
+        r.repId = response.model.currentReplicationId
         val s = response.withinReplicationStatistic
         r.statName = s.name
         if (!s.count.isNaN() && s.count.isFinite()) {
@@ -473,17 +508,17 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     private fun insertWithinRepCounters(counters: List<Counter>) {
         for (counter in counters) {
-            val withinRepCounterRecord = createWithinRepCounterRecord(counter, simulationRun!!.id)
+            val withinRepCounterRecord = createWithinRepCounterRecord(counter, currentSimRun!!.runId)
             withinRepCounterStats.add(withinRepCounterRecord)
         }
-        DatabaseIfc.logger.trace { "Inserted within replication counters into ${db.label} for simulation ${simulationRun?.modelName}" }
+        DatabaseIfc.logger.trace { "Inserted within replication counters into ${db.label} for simulation ${currentExperiment?.simName}" }
     }
 
     private fun createWithinRepCounterRecord(counter: Counter, simId: Int): WithinRepCounterStat {
         val r = WithinRepCounterStat()
         r.elementIdFk = counter.id
         r.simRunIdFk = simId
-        r.repNum = counter.model.currentReplicationId
+        r.repId = counter.model.currentReplicationId
         r.statName = counter.name
         if (!counter.value.isNaN() && counter.value.isFinite()) {
             r.lastValue = counter.value
@@ -495,17 +530,17 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         for (entry in twMap.entries.iterator()) {
             val tw = entry.key
             val bs = entry.value
-            val batchStatRecord = createBatchStatRecord(tw, simulationRun!!.id, bs)
+            val batchStatRecord = createBatchStatRecord(tw, currentSimRun!!.runId, bs)
             batchStats.add(batchStatRecord)
         }
-        DatabaseIfc.logger.trace { "Inserted within time-weighted batch statistics into ${db.label} for simulation ${simulationRun?.modelName}" }
+        DatabaseIfc.logger.trace { "Inserted within time-weighted batch statistics into ${db.label} for simulation ${currentExperiment?.simName}" }
     }
 
     private fun createBatchStatRecord(response: Response, simId: Int, s: BatchStatisticIfc): BatchStat {
         val r = BatchStat()
         r.elementIdFk = response.id
         r.simRunIdFk = simId
-        r.repNum = response.model.currentReplicationId
+        r.repId = response.model.currentReplicationId
         r.statName = s.name
         if (!s.count.isNaN() && s.count.isFinite()) {
             r.statCount = s.count
@@ -553,7 +588,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             r.lag1Corr = s.lag1Correlation
         }
         if (!s.vonNeumannLag1TestStatistic.isNaN() && s.vonNeumannLag1TestStatistic.isFinite()) {
-            r.vonNeumanLag1Stat = s.vonNeumannLag1TestStatistic
+            r.vonNeumannLag1Stat = s.vonNeumannLag1TestStatistic
         }
         if (!s.numberMissing.isNaN() && s.numberMissing.isFinite()) {
             r.numMissingObs = s.numberMissing
@@ -577,10 +612,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         for (entry in rMap.entries.iterator()) {
             val r = entry.key
             val bs = entry.value
-            val batchStatRecord = createBatchStatRecord(r, simulationRun!!.id, bs)
+            val batchStatRecord = createBatchStatRecord(r, currentSimRun!!.runId, bs)
             batchStats.add(batchStatRecord)
         }
-        DatabaseIfc.logger.trace { "Inserted within response batch statistics into ${db.label} for simulation ${simulationRun?.modelName}" }
+        DatabaseIfc.logger.trace { "Inserted within response batch statistics into ${db.label} for simulation ${currentExperiment?.simName}" }
     }
 
     internal fun afterExperiment(model: Model) {
@@ -595,10 +630,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     private fun insertAcrossRepResponses(responses: List<Response>) {
         for (response in responses) {
             val s = response.acrossReplicationStatistic
-            val acrossRepStatRecord = createAcrossRepStatRecord(response, simulationRun!!.id, s)
+            val acrossRepStatRecord = createAcrossRepStatRecord(response, currentSimRun!!.runId, s)
             acrossRepStats.add(acrossRepStatRecord)
         }
-        DatabaseIfc.logger.trace { "Inserted within across replication statistics into ${db.label} for simulation ${simulationRun?.modelName}" }
+        DatabaseIfc.logger.trace { "Inserted within across replication statistics into ${db.label} for simulation ${currentExperiment?.simName}" }
     }
 
     private fun createAcrossRepStatRecord(response: ModelElement, simId: Int, s: StatisticIfc): AcrossRepStat {
@@ -652,7 +687,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             r.lag1Corr = s.lag1Correlation
         }
         if (!s.vonNeumannLag1TestStatistic.isNaN() && s.vonNeumannLag1TestStatistic.isFinite()) {
-            r.vonNeumanLag1Stat = s.vonNeumannLag1TestStatistic
+            r.vonNeumannLag1Stat = s.vonNeumannLag1TestStatistic
         }
         if (!s.numberMissing.isNaN() && s.numberMissing.isFinite()) {
             r.numMissingObs = s.numberMissing
@@ -663,10 +698,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     private fun insertAcrossRepResponsesForCounters(counters: List<Counter>) {
         for (counter in counters) {
             val s = counter.acrossReplicationStatistic
-            val acrossRepCounterRecord = createAcrossRepStatRecord(counter, simulationRun!!.id, s)
+            val acrossRepCounterRecord = createAcrossRepStatRecord(counter, currentSimRun!!.runId, s)
             acrossRepStats.add(acrossRepCounterRecord)
         }
-        DatabaseIfc.logger.trace { "Inserted within across replication counter statistics into ${db.label} for simulation ${simulationRun?.modelName}" }
+        DatabaseIfc.logger.trace { "Inserted within across replication counter statistics into ${db.label} for simulation ${currentExperiment?.simName}" }
     }
 
     /**
@@ -680,57 +715,67 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         val simName = model.simulationName
         val expName = model.experimentName
         // find the record and delete it. This should cascade all related records
-        deleteSimulationRunRecord(simName, expName)
+        deleteExperimentRecord(simName, expName)
     }
 
     /**
      * The combination of simName and expName should be unique within the database. Many
      * experiments can be run with different names for the same simulation. This method
-     * deletes the simulation run record with the provided names AND all related data
-     * associated with that simulation run.  If a SIMULATION_RUN record does not
+     * deletes the experiment record with the provided names AND all related data
+     * associated with that experiment.  If a experiment record does not
      * exist with the simName and expName combination, nothing occurs.
      *
      * @param simName the name of the simulation
      * @param expName the experiment name for the simulation
      * @return true if the record was deleted, false if it was not
      */
-    fun deleteSimulationRunRecord(simName: String, expName: String): Boolean {
-        val sr: SimulationRun? = simulationRuns.find { (it.simName like simName) and (it.expName like expName) }
+    fun deleteExperimentRecord(simName: String, expName: String): Boolean {
+        val sr: DbExperiment? = dbExperiments.find { (it.simName like simName) and (it.expName like expName) }
         if (sr != null) {
             val result = sr.delete()
-            DatabaseIfc.logger.trace { "Deleted SimulationRun for simulation $simName in experiment $expName" }
+            DatabaseIfc.logger.trace { "Deleted Experiment for simulation $simName in experiment $expName" }
             return result == 1
         }
         return false
     }
 
-    fun doesSimulationRunRecordExist(simName: String, expName: String): Boolean {
-        val sr: SimulationRun? = simulationRuns.find { (it.simName like simName) and (it.expName like expName) }
+    fun doesExperimentRecordExist(simName: String, expName: String): Boolean {
+        val sr: DbExperiment? = dbExperiments.find { (it.simName like simName) and (it.expName like expName) }
         return sr != null
     }
 
-    object SimulationRuns : Table<SimulationRun>("SIMULATION_RUN") {
-        var id = int("ID").primaryKey().bindTo { it.id }
+    object DbExperiments: Table<DbExperiment>("EXPERIMENT"){
+        var expId = int("EXP_ID").primaryKey().bindTo { it.expId }
         var simName = varchar("SIM_NAME").bindTo { it.simName }.isNotNull()
         var modelName = varchar("MODEL_NAME").bindTo { it.modelName }.isNotNull()
         var expName = varchar("EXP_NAME").bindTo { it.expName }.isNotNull()
-        var expStartTimeStamp = timestamp("EXP_START_TIME_STAMP").bindTo { it.expStartTimeStamp }
-        var expEndTimeStamp = timestamp("EXP_END_TIME_STAMP").bindTo { it.expEndTimeStamp }
         var numReps = int("NUM_REPS").bindTo { it.numReps }.isNotNull()
-        var lastRep = int("LAST_REP").bindTo { it.lastRep }
+        var isChunked = boolean("IS_CHUNKED").bindTo { it.isChunked }.isNotNull()
         var lengthOfRep = double("LENGTH_OF_REP").bindTo { it.lengthOfRep }
         var lengthOfWarmUp = double("LENGTH_OF_WARM_UP").bindTo { it.lengthOfWarmUp }
-        var hasMoreReps = boolean("HAS_MORE_REPS").bindTo { it.hasMoreReps }
         var repAllowedExecTime = long("REP_ALLOWED_EXEC_TIME").bindTo { it.repAllowedExecTime }
         var repInitOption = boolean("REP_INIT_OPTION").bindTo { it.repInitOption }
         var repResetStartStreamOption = boolean("RESET_START_STREAM_OPTION").bindTo { it.repResetStartStreamOption }
         var antitheticOption = boolean("ANTITHETIC_OPTION").bindTo { it.antitheticOption }
         var advNextSubStreamOption = boolean("ADV_NEXT_SUB_STREAM_OPTION").bindTo { it.advNextSubStreamOption }
         var numStreamAdvances = int("NUM_STREAM_ADVANCES").bindTo { it.numStreamAdvances }
+        var gcAfterRepOption = boolean("GC_AFTER_REP_OPTION").bindTo { it.gcAfterRepOption }
+    }
+
+    object SimulationRuns : Table<SimulationRun>("SIMULATION_RUN") {
+        var runId = int("RUN_ID").primaryKey().bindTo { it.runId }.isNotNull()
+        var expIdFk = int("EXP_ID_FK").primaryKey().bindTo { it.expIDFk }.isNotNull()
+        var runName = varchar("RUN_NAME").bindTo { it.runName }.isNotNull()
+        var numReps = int("NUM_REPS").bindTo { it.numReps }.isNotNull()
+        var startRepId = int("START_REP_ID").bindTo { it.startRepId }
+        var lastRepId = int("LAST_REP_ID").bindTo { it.lastRepId }
+        var runStartTimeStamp = timestamp("RUN_START_TIME_STAMP").bindTo { it.runStartTimeStamp }
+        var runEndTimeStamp = timestamp("RUN_END_TIME_STAMP").bindTo { it.runEndTimeStamp }
+        var runErrorMsg = varchar("RUN_ERROR_MSG").bindTo { it.runErrorMsg }
     }
 
     object DbModelElements : Table<DbModelElement>("MODEL_ELEMENT") {
-        var simRunIDFk = int("SIM_RUN_ID_FK").primaryKey().bindTo { it.simRunIDFk } //not sure how to do references
+        var expIDFk = int("EXP_ID_FK").primaryKey().bindTo { it.expIDFk } //not sure how to do references
         var elementId = int("ELEMENT_ID").primaryKey().bindTo { it.elementId }
         var elementName = varchar("ELEMENT_NAME").bindTo { it.elementName }.isNotNull()
         var elementClassName = varchar("CLASS_NAME").bindTo { it.elementClassName }.isNotNull()
@@ -741,9 +786,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     object DbControls : Table<DbControl>("CONTROL") {
-        var id = int("ID").primaryKey().bindTo { it.id }
-        var simRunIDFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIDFk }.isNotNull() //not sure how to do references
-        var elementId = int("ELEMENT_ID_FK").bindTo { it.elementId }.isNotNull()
+        var controlId = int("CONTROL_ID").primaryKey().bindTo { it.controlId }
+        var expIDFk = int("EXP_ID_FK").bindTo { it.expIdFk }.isNotNull() //not sure how to do references
+        var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk}.isNotNull()
         var keyName = varchar("KEY_NAME").bindTo { it.keyName }.isNotNull()
         var controlValue = double("CONTROL_VALUE").bindTo { it.controlValue }.isNotNull()
         var lowerBound = double("LOWER_BOUND").bindTo { it.lowerBound }
@@ -755,15 +800,15 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     private fun insertDbControlRecords(controls: List<ControlIfc>){
         for(c in controls){
-            val r = createDbControlRecord(c, simulationRun!!.id)
+            val r = createDbControlRecord(c, currentExperiment!!.expId)
             dbControls.add(r)
         }
     }
 
-    private fun createDbControlRecord(control: ControlIfc, simId: Int): DbControl {
+    private fun createDbControlRecord(control: ControlIfc, expId: Int): DbControl {
         val c = DbControl()
-        c.simRunIDFk = simId
-        c.elementId = control.elementId
+        c.expIdFk = expId
+        c.elementIdFk = control.elementId
         c.keyName = control.keyName
         c.controlValue = control.value
         c.lowerBound = control.lowerBound
@@ -775,9 +820,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     object DbRvParameters : Table<DbRvParameter>("RV_PARAMETER") {
-        var id = int("ID").primaryKey().bindTo { it.id }
-        var simRunIDFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIDFk }.isNotNull() //not sure how to do references
-        var elementId = int("ELEMENT_ID_FK").bindTo { it.elementId }.isNotNull()
+        var rvParamId = int("RV_PARAM_ID").primaryKey().bindTo { it.rvParamId }
+        var expIDFk = int("EXP_ID_FK").bindTo { it.expIDFk }.isNotNull() //not sure how to do references
+        var elementId = int("ELEMENT_ID_FK").bindTo { it.elementIdFk}.isNotNull()
         var clazzName = varchar("CLASS_NAME").bindTo { it.clazzName }.isNotNull()
         var dataType = varchar("DATA_TYPE").bindTo { it.dataType }.isNotNull()
         var rvName = varchar("RV_NAME").bindTo { it.rvName }.isNotNull()
@@ -787,15 +832,15 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     private fun insertDbRvParameterRecords(pData: List<RVParameterData>){
         for(param in pData){
-            val r = createDbRvParameterRecord(param, simulationRun!!.id)
-            rvParameters.add(r)
+            val r = createDbRvParameterRecord(param, currentExperiment!!.expId)
+            dbRVParameters.add(r)
         }
     }
 
-    private fun createDbRvParameterRecord(rvParamData: RVParameterData, simId: Int): DbRvParameter {
+    private fun createDbRvParameterRecord(rvParamData: RVParameterData, expId: Int): DbRvParameter {
         val rvp = DbRvParameter()
-        rvp.simRunIDFk = simId
-        rvp.elementId = rvParamData.elementId
+        rvp.expIDFk = expId
+        rvp.elementIdFk = rvParamData.elementId
         rvp.clazzName = rvParamData.clazzName
         rvp.dataType = rvParamData.dataType
         rvp.rvName = rvParamData.rvName
@@ -804,11 +849,11 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return rvp
     }
 
-    object WithRepStats : Table<WithinRepStat>("WITHIN_REP_STAT") {
+    object WithinRepStats : Table<WithinRepStat>("WITHIN_REP_STAT") {
         var id = int("ID").primaryKey().bindTo { it.id }
         var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk } //not sure how to do references
         var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk } //not sure how to do references
-        var repNum = int("REP_NUM").bindTo { it.repNum }
+        var repId = int("REP_ID").bindTo { it.repId }
         var statName = varchar("STAT_NAME").bindTo { it.statName }
         var statCount = double("STAT_COUNT").bindTo { it.statCount }
         var average = double("AVERAGE").bindTo { it.average }
@@ -841,7 +886,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var skewness = double("SKEWNESS").bindTo { it.skewness }
         var lag1Cov = double("LAG1_COV").bindTo { it.lag1Cov }
         var lag1Corr = double("LAG1_CORR").bindTo { it.lag1Corr }
-        var vonNeumanLag1Stat = double("VON_NEUMAN_LAG1_STAT").bindTo { it.vonNeumanLag1Stat }
+        var vonNeumannLag1Stat = double("VON_NEUMANN_LAG1_STAT").bindTo { it.vonNeumannLag1Stat }
         var numMissingObs = double("NUM_MISSING_OBS").bindTo { it.numMissingObs }
     }
 
@@ -849,7 +894,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var id = int("ID").primaryKey().bindTo { it.id }
         var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk } //not sure how to do references
         var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk } //not sure how to do references
-        var repNum = int("REP_NUM").bindTo { it.repNum }
+        var repId = int("REP_ID").bindTo { it.repId }
         var statName = varchar("STAT_NAME").bindTo { it.statName }
         var lastValue = double("LAST_VALUE").bindTo { it.lastValue }
     }
@@ -858,7 +903,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var id = int("ID").primaryKey().bindTo { it.id }
         var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk } //not sure how to do references
         var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk } //not sure how to do references
-        var repNum = int("REP_NUM").bindTo { it.repNum }
+        var repId = int("REP_ID").bindTo { it.repId }
         var statName = varchar("STAT_NAME").bindTo { it.statName }
         var statCount = double("STAT_COUNT").bindTo { it.statCount }
         var average = double("AVERAGE").bindTo { it.average }
@@ -875,7 +920,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var skewness = double("SKEWNESS").bindTo { it.skewness }
         var lag1Cov = double("LAG1_COV").bindTo { it.lag1Cov }
         var lag1Corr = double("LAG1_CORR").bindTo { it.lag1Corr }
-        var vonNeumanLag1Stat = double("VON_NEUMAN_LAG1_STAT").bindTo { it.vonNeumanLag1Stat }
+        var vonNeumannLag1Stat = double("VON_NEUMANN_LAG1_STAT").bindTo { it.vonNeumannLag1Stat }
         var numMissingObs = double("NUM_MISSING_OBS").bindTo { it.numMissingObs }
         var minBatchSize = double("MIN_BATCH_SIZE").bindTo { it.minBatchSize }
         var minNumBatches = double("MIN_NUM_BATCHES").bindTo { it.minNumBatches }
@@ -887,31 +932,70 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var totalNumObs = double("TOTAL_NUM_OBS").bindTo { it.totalNumObs }
     }
 
-    object WithinRepViewStats : Table<WithinRepView>("WITHIN_REP_VIEW") {
-        var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk }
+    object WithinRepResponseViewStats : Table<WithinRepResponseView>("WITHIN_REP_RESPONSE_VIEW") {
+        var expId = int("EXP_ID").bindTo { it.expId }
         var expName = varchar("EXP_NAME").bindTo { it.expName }.isNotNull()
+        var numReps = int("NUM_REPS").bindTo { it.expNumReps }
+        var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk }
+        var runName = varchar("RUN_NAME").bindTo { it.runName }
+        var startRepId = int("START_REP_ID").bindTo { it.startRepId }
+        var lastRepId = int("LAST_REP_ID").bindTo { it.lastRepId }
         var statName = varchar("STAT_NAME").bindTo { it.statName }
-        var repNum = int("REP_NUM").bindTo { it.repNum }
-        var value = double("VALUE").bindTo { it.value }
+        var repId = int("REP_ID").bindTo { it.repId }
+        var average = double("AVERAGE").bindTo { it.average}
+    }
+
+    object WithinRepCounterViewStats : Table<WithinRepCounterView>("WITHIN_REP_COUNTER_VIEW") {
+        var expId = int("EXP_ID").bindTo { it.expId }
+        var expName = varchar("EXP_NAME").bindTo { it.expName }
+        var numReps = int("NUM_REPS").bindTo { it.expNumReps }
+        var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk }
+        var runName = varchar("RUN_NAME").bindTo { it.runName }
+        var startRepId = int("START_REP_ID").bindTo { it.startRepId }
+        var lastRepId = int("LAST_REP_ID").bindTo { it.lastRepId }
+        var statName = varchar("STAT_NAME").bindTo { it.statName }
+        var repId = int("REP_ID").bindTo { it.repId }
+        var lastValue = double("LAST_VALUE").bindTo { it.lastValue}
+    }
+
+    object WithinRepViewStats : Table<WithinRepView>("WITHIN_REP_VIEW") {
+        var expId = int("EXP_ID").bindTo { it.expId }
+        var expName = varchar("EXP_NAME").bindTo { it.expName }
+        var numReps = int("NUM_REPS").bindTo { it.expNumReps }
+        var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk }
+        var runName = varchar("RUN_NAME").bindTo { it.runName }
+        var startRepId = int("START_REP_ID").bindTo { it.startRepId }
+        var lastRepId = int("LAST_REP_ID").bindTo { it.lastRepId }
+        var statName = varchar("STAT_NAME").bindTo { it.statName }
+        var repId = int("REP_ID").bindTo { it.repId }
+        var repValue = double("REP_VALUE").bindTo { it.repValue }
+    }
+
+    object ExpStatRepViewStats : Table<ExpStatRepView>("EXP_STAT_REP_VIEW") {
+        var expId = int("EXP_ID").bindTo { it.expId }
+        var expName = varchar("EXP_NAME").bindTo { it.expName }
+        var statName = varchar("STAT_NAME").bindTo { it.statName }
+        var repId = int("REP_ID").bindTo { it.repId }
+        var repValue = double("REP_VALUE").bindTo { it.repValue }
     }
 
     object PairWiseDiffViewStats : Table<PairWiseDiffView>("PW_DIFF_WITHIN_REP_VIEW") {
-        var simName = varchar("SIM_NAME").bindTo { it.simName }.isNotNull()
-        var simNumA = int("A_SIM_NUM").bindTo { it.simNumA }.isNotNull()
-        var statName = varchar("STAT_NAME").bindTo { it.statName }.isNotNull()
-        var expNameA = varchar("A_EXP_NAME").bindTo { it.expNameA }.isNotNull()
-        var repNum = int("REP_NUM").bindTo { it.repNum }.isNotNull()
+        var simName = varchar("SIM_NAME").bindTo { it.simName }
+        var statName = varchar("STAT_NAME").bindTo { it.statName }
+        var repId = int("REP_ID").bindTo { it.repId }
+        var expIdA = int("A_EXP_ID").bindTo { it.expIdA }
+        var expNameA = varchar("A_EXP_NAME").bindTo { it.expNameA }
         var valueA = double("A_VALUE").bindTo { it.valueA }
-        var simNumB = int("B_SIM_NUM").bindTo { it.simNumB }.isNotNull()
-        var expNameB = varchar("B_EXP_NAME").bindTo { it.expNameB }.isNotNull()
+        var expIdB = int("B_EXP_ID").bindTo { it.expIdB }
+        var expNameB = varchar("B_EXP_NAME").bindTo { it.expNameB }
         var valueB = double("B_VALUE").bindTo { it.valueB }
-        var diffName = varchar("DIFF_NAME").bindTo { it.diffName }.isNotNull()
+        var diffName = varchar("DIFF_NAME").bindTo { it.diffName }
         var AminusB = double("A_MINUS_B").bindTo { it.AminusB }
     }
 
     object AcrossRepViewStats : Table<AcrossRepView>("ACROSS_REP_VIEW") {
-        var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk }
-        var expName = varchar("EXP_NAME").bindTo { it.expName }.isNotNull()
+        var expId = int("EXP_ID").bindTo { it.expId }
+        var expName = varchar("EXP_NAME").bindTo { it.expName }
         var statName = varchar("STAT_NAME").bindTo { it.statName }
         var statCount = double("STAT_COUNT").bindTo { it.statCount }
         var average = double("AVERAGE").bindTo { it.average }
@@ -919,40 +1003,53 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     object BatchViewStats : Table<BatchStatView>("BATCH_STAT_VIEW") {
+        var expId = int("EXP_ID").bindTo { it.expId }
+        var expName = varchar("EXP_NAME").bindTo { it.expName }
         var simRunIdFk = int("SIM_RUN_ID_FK").bindTo { it.simRunIdFk }
-        var expName = varchar("EXP_NAME").bindTo { it.expName }.isNotNull()
         var statName = varchar("STAT_NAME").bindTo { it.statName }
         var statCount = double("STAT_COUNT").bindTo { it.statCount }
         var average = double("AVERAGE").bindTo { it.average }
         var stdDev = double("STD_DEV").bindTo { it.stdDev }
     }
 
-    interface SimulationRun : Entity<SimulationRun> {
-        companion object : Entity.Factory<SimulationRun>()
+    interface DbExperiment: Entity<DbExperiment> {
+        companion object : Entity.Factory<DbExperiment>()
 
-        var id: Int
+        var expId: Int
         var simName: String
         var modelName: String
         var expName: String
-        var expStartTimeStamp: Instant?
-        var expEndTimeStamp: Instant?
         var numReps: Int
-        var lastRep: Int?
+        var isChunked: Boolean
         var lengthOfRep: Double?
         var lengthOfWarmUp: Double?
-        var hasMoreReps: Boolean?
         var repAllowedExecTime: Long?
-        var repInitOption: Boolean?
-        var repResetStartStreamOption: Boolean?
-        var antitheticOption: Boolean?
-        var advNextSubStreamOption: Boolean?
-        var numStreamAdvances: Int?
+        var repInitOption: Boolean
+        var repResetStartStreamOption: Boolean
+        var antitheticOption: Boolean
+        var advNextSubStreamOption: Boolean
+        var numStreamAdvances: Int
+        var gcAfterRepOption: Boolean
+    }
+
+    interface SimulationRun : Entity<SimulationRun> {
+        companion object : Entity.Factory<SimulationRun>()
+
+        var runId: Int
+        var expIDFk: Int
+        var runName: String
+        var numReps: Int
+        var startRepId: Int
+        var lastRepId: Int
+        var runStartTimeStamp: Instant?
+        var runEndTimeStamp: Instant?
+        var runErrorMsg: String?
     }
 
     interface DbModelElement : Entity<DbModelElement> {
         companion object : Entity.Factory<DbModelElement>()
 
-        var simRunIDFk: Int
+        var expIDFk: Int
         var elementId: Int
         var elementName: String
         var elementClassName: String
@@ -965,9 +1062,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     interface DbControl : Entity<DbControl> {
         companion object : Entity.Factory<DbControl>()
 
-        var id: Int
-        var simRunIDFk: Int
-        var elementId: Int
+        var controlId: Int
+        var expIdFk: Int
+        var elementIdFk: Int
         var keyName: String
         var controlValue: Double
         var lowerBound: Double?
@@ -980,9 +1077,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     interface DbRvParameter : Entity<DbRvParameter> {
         companion object : Entity.Factory<DbRvParameter>()
 
-        var id: Int
-        var simRunIDFk: Int
-        var elementId: Int
+        var rvParamId: Int
+        var expIDFk: Int
+        var elementIdFk: Int
         var clazzName: String
         var dataType: String
         var rvName: String
@@ -996,7 +1093,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var id: Int
         var elementIdFk: Int
         var simRunIdFk: Int
-        var repNum: Int
+        var repId: Int
         var statName: String?
         var statCount: Double?
         var average: Double?
@@ -1007,6 +1104,17 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var weightedSSQ: Double?
         var lastValue: Double?
         var lastWeight: Double?
+    }
+
+    interface WithinRepCounterStat : Entity<WithinRepCounterStat> {
+        companion object : Entity.Factory<WithinRepCounterStat>()
+
+        var id: Int
+        var elementIdFk: Int
+        var simRunIdFk: Int
+        var repId: Int
+        var statName: String?
+        var lastValue: Double?
     }
 
     interface AcrossRepStat : Entity<AcrossRepStat> {
@@ -1031,29 +1139,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var skewness: Double
         var lag1Cov: Double
         var lag1Corr: Double
-        var vonNeumanLag1Stat: Double
+        var vonNeumannLag1Stat: Double
         var numMissingObs: Double
-    }
-
-    interface WithinRepCounterStat : Entity<WithinRepCounterStat> {
-        companion object : Entity.Factory<WithinRepCounterStat>()
-
-        var id: Int
-        var elementIdFk: Int
-        var simRunIdFk: Int
-        var repNum: Int
-        var statName: String?
-        var lastValue: Double?
-    }
-
-    interface WithinRepView : Entity<WithinRepView> {
-        companion object : Entity.Factory<WithinRepView>()
-
-        var simRunIdFk: Int
-        var expName: String
-        var statName: String
-        var repNum: Int
-        var value: Double?
     }
 
     interface BatchStat : Entity<BatchStat> {
@@ -1062,7 +1149,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var id: Int
         var elementIdFk: Int
         var simRunIdFk: Int
-        var repNum: Int
+        var repId: Int
         var statName: String?
         var statCount: Double?
         var average: Double?
@@ -1079,7 +1166,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var skewness: Double?
         var lag1Cov: Double?
         var lag1Corr: Double?
-        var vonNeumanLag1Stat: Double?
+        var vonNeumannLag1Stat: Double?
         var numMissingObs: Double?
         var minBatchSize: Double?
         var minNumBatches: Double?
@@ -1091,26 +1178,65 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var totalNumObs: Double?
     }
 
-    interface PairWiseDiffView : Entity<PairWiseDiffView> {
-        companion object : Entity.Factory<PairWiseDiffView>()
+    interface WithinRepResponseView : Entity<WithinRepResponseView> {
+        companion object : Entity.Factory<WithinRepResponseView>()
 
-        var simName: String
-        var simNumA: Int
+        var expId: Int
+        var expName: String
+        var expNumReps: Int
+        var simRunIdFk: Int
+        var runName: String
+        var startRepId: Int
+        var lastRepId: Int
         var statName: String
-        var expNameA: String
-        var repNum: Int
-        var valueA: Double
-        var simNumB: Int
-        var expNameB: String
-        var valueB: Double
-        var diffName: String
-        var AminusB: Double
+        var repId: Int
+        var average: Double?
+    }
+
+    interface WithinRepCounterView : Entity<WithinRepCounterView> {
+        companion object : Entity.Factory<WithinRepCounterView>()
+
+        var expId: Int
+        var expName: String
+        var expNumReps: Int
+        var simRunIdFk: Int
+        var runName: String
+        var startRepId: Int
+        var lastRepId: Int
+        var statName: String
+        var repId: Int
+        var lastValue: Double?
+    }
+
+    interface WithinRepView : Entity<WithinRepView> {
+        companion object : Entity.Factory<WithinRepView>()
+
+        var expId: Int
+        var expName: String
+        var expNumReps: Int
+        var simRunIdFk: Int
+        var runName: String
+        var startRepId: Int
+        var lastRepId: Int
+        var statName: String
+        var repId: Int
+        var repValue: Double?
+    }
+
+    interface ExpStatRepView : Entity<ExpStatRepView> {
+        companion object : Entity.Factory<ExpStatRepView>()
+
+        var expId: Int
+        var expName: String
+        var statName: String
+        var repId: Int
+        var repValue: Double?
     }
 
     interface AcrossRepView : Entity<AcrossRepView> {
         companion object : Entity.Factory<AcrossRepView>()
 
-        var simRunIdFk: Int
+        var expId: Int
         var expName: String
         var statName: String
         var statCount: Double
@@ -1122,13 +1248,31 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     interface BatchStatView : Entity<BatchStatView> {
         companion object : Entity.Factory<BatchStatView>()
 
-        var simRunIdFk: Int
+        var expId: Int
         var expName: String
+        var simRunIdFk: Int
+        var repId: Int
         var statName: String
         var statCount: Double
         var average: Double
         var stdDev: Double
 
+    }
+
+    interface PairWiseDiffView : Entity<PairWiseDiffView> {
+        companion object : Entity.Factory<PairWiseDiffView>()
+
+        var simName: String
+        var statName: String
+        var repId: Int
+        var expIdA: Int
+        var expNameA: String
+        var valueA: Double
+        var expIdB: Int
+        var expNameB: String
+        var valueB: Double
+        var diffName: String
+        var AminusB: Double
     }
 
     companion object {
