@@ -365,7 +365,22 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     internal fun beforeExperiment(model: Model) {
         // start experiment record
-        insertExperiment(model)
+        if (!model.myExperiment.isChunked){
+            // not chunked
+            insertExperiment(model)
+        } else{
+            // chunked find existing experiment
+            val simName = model.simulationName
+            val expName = model.experimentName
+            val sr: DbExperiment? = dbExperiments.find { (it.simName like simName) and (it.expName like expName) }
+            if (sr != null){
+                currentExperiment = sr
+            } else{
+                // not found, make it, could be first chunk...
+                insertExperiment(model)
+            }
+        }
+
         // start simulation run record
         insertSimulationRun(model)
         // insert the model elements into the database

@@ -68,17 +68,18 @@ class KSLDatabaseObserver(
                 db.clearSimulationData(model)
                 Model.logger.info{"KSLDatabaseObserver cleared data for experiment $expName of simulation $simName"}
             } else {
-                // no clear data option specified, need to check if simulation record exists
-                if (db.doesSimulationRunRecordExist(simName, expName)) {
-                    // record exists, report an error to the user to prevent data loss
-                    reportSimulationRunRecordError(simName, expName)
+                // no clear data option specified, need to check if experiment record exists
+                if (db.doesExperimentRecordExist(simName, expName)) {
+                    // record exists, check if experiment is chunked
+                    if (!model.myExperiment.isChunked){
+                        // not chunked but user is trying to run same experiment-simulation name combination w/o clearing
+                        // report an error to the user to prevent data loss
+                        reportSimulationRunRecordError(simName, expName)
+                    } else {
+                        Model.logger.info{"Experiment $expName of simulation $simName is a chunk of a larger experiment"}
+                        Model.logger.info{"KSLDatabase ACROSS_REP_STAT results only reflect the results for each individual chunk, not the overall experiment"}
+                    }
                 }
-                //TODO future work will need to better handle chunking of experiments
-                // Need to redesign database to handle chunks being related to an overall experiment.
-            }
-            if (model.myExperiment.isChunked){
-                Model.logger.info{"Experiment $expName of simulation $simName is a chunk of a larger experiment"}
-                Model.logger.info{"KSLDatabase results only reflect the results for each individual chunk, not the overall experiment"}
             }
             db.beforeExperiment(model)
             Model.logger.info{"Before Experiment: KSLDatabaseObserver set up the database for experiment $expName of simulation $simName"}
