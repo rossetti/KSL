@@ -100,7 +100,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
     override var isChunked: Boolean = false
 
 
-    override var chunkLabel: String = repIdRange.toString()
+    override var runName: String = repIdRange.toString()
 
     /**
      * The current number of replications that have been run for this experiment

@@ -172,7 +172,7 @@ class SimulationRunner(
             runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
             runParameters.resetStartStreamOption = true
             runParameters.isChunked = true
-            runParameters.chunkLabel = IntRange(s, s + n - 1).toString()
+            runParameters.runName = IntRange(s, s + n - 1).toString()
             // change name of experiment so db can handle chunking
             // this treats each chunk as a separate experiment in the database
             //TODO this is a temporary fix until the database can be designed to hold chunks
@@ -182,7 +182,7 @@ class SimulationRunner(
             // where the experiment name and simulation name already exist in the database
             // changing the experiment name prevents that error and permits data from the chunk to be stored in the
             // current KSLDatabase design
-            runParameters.experimentName = runParameters.experimentName + ":" + runParameters.chunkLabel
+            runParameters.experimentName = runParameters.experimentName + ":" + runParameters.runName
             eList.add(runParameters)
         }
         return eList
