@@ -81,6 +81,8 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
 
     private var myDesiredReplications: Int = 1
 
+    override var runErrorMsg: String = ""
+
     /**
      * The number of replications to run for this experiment
      *

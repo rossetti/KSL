@@ -21,7 +21,6 @@ package ksl.controls.experiments
 import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import ksl.simulation.Experiment
 import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.statistic.Statistic
@@ -38,7 +37,7 @@ class SimulationRun private constructor(
     val id: String,
     var name: String,
     val experimentRunParameters: ExperimentRunParameters,
-    var functionError: String = "",
+    var runErrorMsg: String = "",
     var beginExecutionTime: Instant = Instant.DISTANT_PAST,
     var endExecutionTime: Instant = Instant.DISTANT_FUTURE,
     var inputs: Map<String, Double> = mapOf(),
@@ -73,7 +72,7 @@ class SimulationRun private constructor(
         sb.appendLine("id = $id")
         sb.appendLine("name = $name")
         sb.appendLine(experimentRunParameters)
-        sb.appendLine("functionError $functionError")
+        sb.appendLine("functionError $runErrorMsg")
         sb.appendLine("beginExecutionTime = $beginExecutionTime")
         sb.appendLine("endExecutionTime = $endExecutionTime")
         sb.appendLine("Inputs:")

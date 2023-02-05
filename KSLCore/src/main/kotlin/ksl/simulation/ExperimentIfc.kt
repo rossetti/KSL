@@ -149,6 +149,8 @@ interface ExperimentRunParametersIfc {
 
 interface ExperimentIfc : ExperimentRunParametersIfc {
 
+    var runErrorMsg: String
+
     /**
      * Sets the desired number of replications for the experiment
      *

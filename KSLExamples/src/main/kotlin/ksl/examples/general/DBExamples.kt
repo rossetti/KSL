@@ -80,7 +80,7 @@ object DBExamples {
         val file = KSL.createPrintWriter("results.md")
         sdb.writeAllTablesAsMarkdown(out = file)
 
-        val df = kdb.withinReplicationViewStatistics
+        val df = kdb.withinRepViewStatistics
         println(df.schema())
         println(df)
 

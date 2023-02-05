@@ -989,6 +989,12 @@ class Model(
     override val runName: String
         get() = myExperiment.runName
 
+    override var runErrorMsg: String
+        get() = myExperiment.runErrorMsg
+        set(value) {
+            myExperiment.runErrorMsg = value
+        }
+
     override val experimentId: Int
         get() = myExperiment.experimentId
 

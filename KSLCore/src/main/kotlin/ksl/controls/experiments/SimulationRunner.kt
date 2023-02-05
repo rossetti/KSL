@@ -140,7 +140,7 @@ class SimulationRunner(
         val sw = StringWriter()
         val pw = PrintWriter(sw)
         e.printStackTrace(pw)
-        simulationRun.functionError = sw.toString()
+        simulationRun.runErrorMsg = sw.toString()
         // return an empty HashMap of results
         simulationRun.results = mutableMapOf()
         Model.logger.error { "There was a fatal exception during the running of simulation ${model.simulationName} within SimulationRunner." }
