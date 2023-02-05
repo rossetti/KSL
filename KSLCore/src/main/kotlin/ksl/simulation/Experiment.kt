@@ -262,7 +262,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
      *  Any property in ExperimentRunParametersIfc may be changed.
      *
      */
-    override fun changeRunParameters(runParameters: ExperimentRunParametersIfc) {
+    final override fun changeRunParameters(runParameters: ExperimentRunParametersIfc) {
         experimentName = runParameters.experimentName
         startingRepId = runParameters.startingRepId
         numberOfReplications = runParameters.numberOfReplications
