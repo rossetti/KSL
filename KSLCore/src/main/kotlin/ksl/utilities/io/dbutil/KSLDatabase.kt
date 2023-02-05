@@ -52,7 +52,13 @@ import java.util.*
 class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
     //TODO number of replications for experiments is always the number for the simulation run
-    // SimulationRunner is causing an exception
+    // SimulationRunner is still chunking experiments the old way 1 experiment = 1 simulation run
+    // possible solution, sim runner puts overall experiment into database first, then submits
+    // the chunks
+    // issue: a model may have many databases and the runner cannot know this, even the model
+    // does not know this
+    // isChunked is not copying over
+    // need to fix other KSL_DB script
 
     /** This constructs a SQLite database on disk and configures it to hold KSL simulation data.
      * The database will be empty.
@@ -72,7 +78,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     internal var currentSimRun: SimulationRun? = null
     internal var currentExperiment: DbExperiment? = null
 
-    //TODO consider whether these can be public properties
+    // consider whether these can be public properties
     // it would permit a lot of functionality that may or may not be necessary or useful, and may
     // expose the encapsulation
     private val dbExperiments get() = kDb.sequenceOf(DbExperiments, withReferences = false)
@@ -527,7 +533,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     private fun finalizeCurrentSimulationRun(model: Model) {
-        currentSimRun?.lastRepId = model.numberReplicationsCompleted
+        currentSimRun?.lastRepId = model.startingRepId + model.numberReplicationsCompleted - 1
         currentSimRun?.runEndTimeStamp = ZonedDateTime.now().toInstant()
         currentSimRun?.runErrorMsg = model.runErrorMsg
         currentSimRun?.flushChanges()
