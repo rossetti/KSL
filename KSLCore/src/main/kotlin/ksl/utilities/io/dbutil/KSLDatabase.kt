@@ -71,7 +71,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         org.ktorm.database.Database.connect(db.dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))
 
     internal var currentSimRun: SimulationRun? = null
-    internal var currentExperiment : DbExperiment? = null
+    internal var currentExperiment: DbExperiment? = null
 
     //TODO consider whether these can be public properties
     // it would permit a lot of functionality that may or may not be necessary or useful, and may
@@ -365,17 +365,17 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     internal fun beforeExperiment(model: Model) {
         // start experiment record
-        if (!model.myExperiment.isChunked){
+        if (!model.myExperiment.isChunked) {
             // not chunked
             insertExperiment(model)
-        } else{
+        } else {
             // chunked find existing experiment
             val simName = model.simulationName
             val expName = model.experimentName
             val sr: DbExperiment? = dbExperiments.find { (it.simName like simName) and (it.expName like expName) }
-            if (sr != null){
+            if (sr != null) {
                 currentExperiment = sr
-            } else{
+            } else {
                 // not found, make it, could be first chunk...
                 insertExperiment(model)
             }
@@ -386,19 +386,19 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         // insert the model elements into the database
         val modelElements: List<ModelElement> = model.getModelElements()
         insertModelElements(modelElements)
-        if (model.hasExperimentalControls()){
+        if (model.hasExperimentalControls()) {
             // insert controls if they are there
             val controls: Controls = model.controls()
             insertDbControlRecords(controls.asList())
         }
-        if (model.hasParameterSetter()){
+        if (model.hasParameterSetter()) {
             // insert the random variable parameters
             val ps: RVParameterSetter = model.rvParameterSetter
             insertDbRvParameterRecords(ps.rvParametersData)
         }
     }
 
-    private fun insertExperiment(model: Model){
+    private fun insertExperiment(model: Model) {
         val record = DbExperiment()
         record.simName = model.simulationName
         record.expName = model.experimentName
@@ -760,7 +760,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return sr != null
     }
 
-    object DbExperiments: Table<DbExperiment>("EXPERIMENT"){
+    object DbExperiments : Table<DbExperiment>("EXPERIMENT") {
         var expId = int("EXP_ID").primaryKey().bindTo { it.expId }
         var simName = varchar("SIM_NAME").bindTo { it.simName }.isNotNull()
         var modelName = varchar("MODEL_NAME").bindTo { it.modelName }.isNotNull()
@@ -804,7 +804,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     object DbControls : Table<DbControl>("CONTROL") {
         var controlId = int("CONTROL_ID").primaryKey().bindTo { it.controlId }
         var expIDFk = int("EXP_ID_FK").bindTo { it.expIdFk }.isNotNull() //not sure how to do references
-        var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk}.isNotNull()
+        var elementIdFk = int("ELEMENT_ID_FK").bindTo { it.elementIdFk }.isNotNull()
         var keyName = varchar("KEY_NAME").bindTo { it.keyName }.isNotNull()
         var controlValue = double("CONTROL_VALUE").bindTo { it.controlValue }.isNotNull()
         var lowerBound = double("LOWER_BOUND").bindTo { it.lowerBound }
@@ -814,8 +814,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var comment = varchar("COMMENT").bindTo { it.comment }
     }
 
-    private fun insertDbControlRecords(controls: List<ControlIfc>){
-        for(c in controls){
+    private fun insertDbControlRecords(controls: List<ControlIfc>) {
+        for (c in controls) {
             val r = createDbControlRecord(c, currentExperiment!!.expId)
             dbControls.add(r)
         }
@@ -838,7 +838,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     object DbRvParameters : Table<DbRvParameter>("RV_PARAMETER") {
         var rvParamId = int("RV_PARAM_ID").primaryKey().bindTo { it.rvParamId }
         var expIDFk = int("EXP_ID_FK").bindTo { it.expIDFk }.isNotNull() //not sure how to do references
-        var elementId = int("ELEMENT_ID_FK").bindTo { it.elementIdFk}.isNotNull()
+        var elementId = int("ELEMENT_ID_FK").bindTo { it.elementIdFk }.isNotNull()
         var clazzName = varchar("CLASS_NAME").bindTo { it.clazzName }.isNotNull()
         var dataType = varchar("DATA_TYPE").bindTo { it.dataType }.isNotNull()
         var rvName = varchar("RV_NAME").bindTo { it.rvName }.isNotNull()
@@ -846,8 +846,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var paramValue = double("PARAM_VALUE").bindTo { it.paramValue }.isNotNull()
     }
 
-    private fun insertDbRvParameterRecords(pData: List<RVParameterData>){
-        for(param in pData){
+    private fun insertDbRvParameterRecords(pData: List<RVParameterData>) {
+        for (param in pData) {
             val r = createDbRvParameterRecord(param, currentExperiment!!.expId)
             dbRVParameters.add(r)
         }
@@ -958,7 +958,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var lastRepId = int("LAST_REP_ID").bindTo { it.lastRepId }
         var statName = varchar("STAT_NAME").bindTo { it.statName }
         var repId = int("REP_ID").bindTo { it.repId }
-        var average = double("AVERAGE").bindTo { it.average}
+        var average = double("AVERAGE").bindTo { it.average }
     }
 
     object WithinRepCounterViewStats : Table<WithinRepCounterView>("WITHIN_REP_COUNTER_VIEW") {
@@ -971,7 +971,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var lastRepId = int("LAST_REP_ID").bindTo { it.lastRepId }
         var statName = varchar("STAT_NAME").bindTo { it.statName }
         var repId = int("REP_ID").bindTo { it.repId }
-        var lastValue = double("LAST_VALUE").bindTo { it.lastValue}
+        var lastValue = double("LAST_VALUE").bindTo { it.lastValue }
     }
 
     object WithinRepViewStats : Table<WithinRepView>("WITHIN_REP_VIEW") {
@@ -1028,7 +1028,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         var stdDev = double("STD_DEV").bindTo { it.stdDev }
     }
 
-    interface DbExperiment: Entity<DbExperiment> {
+    interface DbExperiment : Entity<DbExperiment> {
         companion object : Entity.Factory<DbExperiment>()
 
         var expId: Int
