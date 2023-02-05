@@ -441,7 +441,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             }
         } else {
             // experiment record does not exist, create it, remember it, and insert it
-            currentExperiment = createExperiment(model)
+            currentExperiment = createExperimentRecord(model)
             dbExperiments.add(currentExperiment!!)
         }
         // start simulation run record
@@ -476,7 +476,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         throw DataAccessException("An experiment record already exists with the experiment name $expName. Check the ksl.log for details.")
     }
 
-    private fun createExperiment(model: Model): DbExperiment {
+    private fun createExperimentRecord(model: Model): DbExperiment {
         val record = DbExperiment()
         record.simName = model.simulationName
         record.expName = model.experimentName
