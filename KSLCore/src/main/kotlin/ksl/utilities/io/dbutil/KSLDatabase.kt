@@ -51,9 +51,8 @@ import java.util.*
  */
 class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
-    //TODO add CONTROL, RV_PARAMETER creation and insertion functions
-    // when to add controls, parameters to database? afterExperiment()?  I think beforeExperiment() will work
-    // only if model run with controls, only if model run with parameter setter
+    //TODO number of replications for experiments is always the number for the simulation run
+    // SimulationRunner is causing an exception
 
     /** This constructs a SQLite database on disk and configures it to hold KSL simulation data.
      * The database will be empty.
