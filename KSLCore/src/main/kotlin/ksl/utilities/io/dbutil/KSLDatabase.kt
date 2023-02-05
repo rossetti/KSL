@@ -447,8 +447,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     private fun insertSimulationRun(model: Model) {
         val record = SimulationRun()
         record.expIDFk = currentExperiment!!.expId
-        //TODO  don't know RUN_NAME, NUM_REPS, START_REP_ID
-
+        record.numReps = model.numberOfReplications
+        record.runName = model.runName
+        record.startRepId = model.startingRepId
         record.runStartTimeStamp = ZonedDateTime.now().toInstant()
         simulationRuns.add(record)
         currentSimRun = record

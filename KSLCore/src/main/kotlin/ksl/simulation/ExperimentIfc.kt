@@ -48,7 +48,7 @@ interface ExperimentRunParametersIfc {
     /**
      *  An optional label for the chunk
      */
-    val chunkLabel: String
+    val runName: String
 
     /**
      * The starting id for the sequence of identifiers used to label
@@ -225,7 +225,7 @@ interface ExperimentIfc : ExperimentRunParametersIfc {
             experimentId,
             numberOfReplications,
             isChunked,
-            chunkLabel,
+            runName,
             startingRepId,
             lengthOfReplication,
             lengthOfReplicationWarmUp,
