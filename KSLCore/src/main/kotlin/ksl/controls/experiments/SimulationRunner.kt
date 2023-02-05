@@ -146,6 +146,7 @@ class SimulationRunner(
         Model.logger.error { "There was a fatal exception during the running of simulation ${model.simulationName} within SimulationRunner." }
         Model.logger.error("No responses were recorded.")
         Model.logger.error(sw.toString())
+        throw e
     }
 
     /**

@@ -989,6 +989,9 @@ class Model(
     override val runName: String
         get() = myExperiment.runName
 
+    override val repIdRange: IntRange
+        get() = myExperiment.repIdRange
+
     override var runErrorMsg: String
         get() = myExperiment.runErrorMsg
         set(value) {

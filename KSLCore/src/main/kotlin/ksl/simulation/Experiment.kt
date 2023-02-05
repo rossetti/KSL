@@ -71,7 +71,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
      * Creates an experiment based on the supplied run parameters
      * @param runParameters the parameters to use
      */
-    constructor(runParameters: ExperimentRunParametersIfc): this(){
+    constructor(runParameters: ExperimentRunParametersIfc) : this() {
         changeRunParameters(runParameters)
     }
 
@@ -101,8 +101,11 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
 
     override var isChunked: Boolean = false
 
+    override val repIdRange: IntRange
+        get() = IntRange(startingRepId, startingRepId + numberOfReplications - 1)
 
-    override var runName: String = repIdRange.toString()
+    override var runName: String = ""
+        get() = field.ifEmpty { repIdRange.toString() }
 
     /**
      * The current number of replications that have been run for this experiment

@@ -165,7 +165,6 @@ interface ExperimentIfc : ExperimentRunParametersIfc {
      *  the starting replication identifier and the number of replications to be executed.
      */
     val repIdRange: IntRange
-        get() = IntRange(startingRepId, startingRepId + numberOfReplications - 1)
 
     /**
      * The identifier for the current replication. Each replication in the
