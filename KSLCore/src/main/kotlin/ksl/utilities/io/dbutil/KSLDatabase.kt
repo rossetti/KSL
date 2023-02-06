@@ -65,12 +65,11 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      *
      * @param dbName the name of the database
      * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+     * @param clearDataOption indicates if the data should be cleared. The default is true.
      * @return an empty embedded SQLite database configured to hold KSL simulation results
      */
     constructor(dbName: String, dbDirectory: Path = dbDir, clearDataOption: Boolean = true) : this(
-        createSQLiteKSLDatabase(dbName, dbDirectory),
-        clearDataOption
-    )
+        createSQLiteKSLDatabase(dbName, dbDirectory), clearDataOption)
 
     private val kDb =
         org.ktorm.database.Database.connect(db.dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))
