@@ -38,10 +38,9 @@ fun main() {
 //    println("*** exampleSPCreationFromFullScript output:")
 //    DBExamples.exampleSPCreationFromFullScript()
 
-//    DBExamples.createKSLDatabases()
-//
+    DBExamples.createKSLDatabases()
 
-    DBExamples.testKSLDatabase()
+//    DBExamples.testKSLDatabase()
 }
 
 object DBExamples {

@@ -22,6 +22,7 @@ fun main() {
 
     // demonstrate capturing data to database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
+//    val kslDatabaseObserver = KSLDatabaseObserver.createDerbyKSLDatabaseObserver(model)
 
     // simulate the model
     model.simulate()

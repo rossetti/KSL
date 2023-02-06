@@ -96,4 +96,16 @@ class KSLDatabaseObserver(
         }
     }
 
+    companion object{
+
+        fun createSQLiteKSLDatabaseObserver(model: Model) : KSLDatabaseObserver {
+            return KSLDatabaseObserver(model)
+        }
+
+        fun createDerbyKSLDatabaseObserver(model: Model) : KSLDatabaseObserver {
+            val db = KSLDatabase.createEmbeddedDerbyKSLDatabase(model.simulationName.replace(" ", "_"), model.outputDirectory.dbDir)
+            val kslDb = KSLDatabase(db, false)
+            return KSLDatabaseObserver(model, kslDb, false)
+        }
+    }
 }

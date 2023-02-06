@@ -835,7 +835,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return sr != null
     }
 
-    object DbExperiments : Table<DbExperiment>("EXPERIMENT") {
+    object DbExperiments : Table<DbExperiment>(tableName = "EXPERIMENT") {
         var expId = int("EXP_ID").primaryKey().bindTo { it.expId }
         var simName = varchar("SIM_NAME").bindTo { it.simName }.isNotNull()
         var modelName = varchar("MODEL_NAME").bindTo { it.modelName }.isNotNull()
@@ -1485,7 +1485,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
         /**
          * Creates a reference to a KSLDatabase. This method assumes that the data source
-         * has a properly configured KSL schema. If it does not, an exception occurs. If it has
+         * has an existing properly configured KSL schema. If it does not, an exception occurs. If it has
          * one the data from previous simulations remains. If the clear data option is
          * set to true then the data WILL be deleted immediately.
          *
@@ -1496,7 +1496,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @param pWord           the password
          * @return a reference to a KSLDatabase
          */
-        fun getPostgresKSLDatabase(
+        fun connectPostgresKSLDatabase(
             clearDataOption: Boolean = false,
             dbServerName: String = "localhost",
             dbName: String,
@@ -1504,14 +1504,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             pWord: String
         ): KSLDatabase {
             val props: Properties = DatabaseFactory.makePostgreSQLProperties(dbServerName, dbName, user, pWord)
-            val kslDatabase: KSLDatabase = getKSLDatabase(clearDataOption, props)
+            val kslDatabase: KSLDatabase = connectKSLDatabase(clearDataOption, props)
             DatabaseIfc.logger.info("Connected to a postgres KSL database {} ", kslDatabase.db.dbURL)
             return kslDatabase
         }
 
         /**
          * Creates a reference to a KSLDatabase. This method assumes that the data source
-         * has a properly configured KSL schema. If it does not, an exception occurs. If it has
+         * has an existing properly configured KSL schema. If it does not, an exception occurs. If it has
          * one the data from previous simulation runs will be deleted if the
          * clear data option is true. The deletion occurs immediately if configured as true.
          *
@@ -1519,7 +1519,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @param dBProperties    appropriately configured HikariCP datasource properties
          * @return a reference to a KSLDatabase
          */
-        fun getKSLDatabase(
+        fun connectKSLDatabase(
             clearDataOption: Boolean = false,
             dBProperties: Properties,
         ): KSLDatabase {
