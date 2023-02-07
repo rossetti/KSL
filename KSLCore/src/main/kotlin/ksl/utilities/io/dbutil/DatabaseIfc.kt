@@ -717,6 +717,33 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *  Deletes all data from the named table
+     *  @param tableName the table to delete from
+     *  @param schemaName the name of the schema containing the table
+     *  @return true if the command executed successfully.
+     */
+    fun deleteAllFrom(tableName: String, schemaName: String? = defaultSchemaName) : Boolean {
+        if (schemaName != null) {
+            if (!containsSchema(schemaName)) {
+                return false
+            }
+        }
+        if (!containsTable(tableName)) {
+            return false
+        }
+        val sql = deleteAllFromTableSQL(tableName, schemaName)
+        return executeCommand(sql)
+    }
+
+    private fun deleteAllFromTableSQL(tableName: String, schemaName: String?): String{
+        return if (schemaName != null) {
+            return "delete from ${schemaName}.$tableName"
+        } else {
+            return "delete from $tableName"
+        }
+    }
+
+    /**
      * @param tableName qualified or unqualified name of an existing table in the database
      */
     private fun selectAllFromTable(tableName: String): CachedRowSet? {
@@ -1071,7 +1098,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the schema containing the table
      * @return a prepared statement that can perform the insert if given the appropriate column values
      */
-    private fun makeInsertPreparedStatement(
+    fun makeInsertPreparedStatement(
         con: Connection,
         tableName: String,
         numColumns: Int,
