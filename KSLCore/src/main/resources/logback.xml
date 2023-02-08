@@ -164,13 +164,13 @@
         </encoder>
     </appender>
 
-<!--    <appender name="JOOQFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <appender name="JOOQFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/jooqLog.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            &lt;!&ndash; daily rollover &ndash;&gt;
+            <!-- daily rollover -->
             <fileNamePattern>logs/jooqLog.%d{yyyy-MM-dd}.log</fileNamePattern>
 
-            &lt;!&ndash; keep 2 days' worth of history capped at 30MB total size &ndash;&gt;
+            <!-- keep 2 days' worth of history capped at 30MB total size -->
             <maxHistory>2</maxHistory>
             <totalSizeCap>30MB</totalSizeCap>
 
@@ -179,7 +179,7 @@
         <encoder>
             <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
         </encoder>
-    </appender>-->
+    </appender>
 
     <appender name="KSLDB" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/kslDbLog.log</file>
@@ -272,13 +272,13 @@
         <appender-ref ref="KSL_CONTROLS" />
     </logger>
 
-<!--    <logger name="org.jooq" level="WARN" additivity="false">
+    <logger name="org.jooq" level="WARN" additivity="false">
         <appender-ref ref="JOOQFILE" />
     </logger>
 
     <logger name="org.jooq.tools.LoggerListener" level="DEBUG" additivity="false">
         <appender-ref ref="JOOQFILE" />
-    </logger>-->
+    </logger>
 
     <logger name="org.apache.poi" level="OFF" additivity="false">
         <appender-ref ref="FILE" />

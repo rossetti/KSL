@@ -81,7 +81,7 @@ dependencies {
     implementation(group = "org.apache.derby", name = "derbyclient", version = "10.15.2.0")
     implementation(group = "org.apache.derby", name = "derbytools", version = "10.15.2.0")
 
-    implementation(group = "org.postgresql", name = "postgresql", version = "42.5.0")
+    implementation(group = "org.postgresql", name = "postgresql", version = "42.5.3")
 
     implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.39.4.0")
 
@@ -96,6 +96,15 @@ dependencies {
     api(group = "org.apache.poi", name = "poi", version = "5.2.3")
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
     api(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.3")
+
+    // https://mvnrepository.com/artifact/org.jooq/jooq
+    api(group = "org.jooq", name = "jooq", version = "3.17.7")
+    // https://mvnrepository.com/artifact/org.jooq/jooq-meta
+    api(group = "org.jooq", name = "jooq-meta", version = "3.17.7")
+    // https://mvnrepository.com/artifact/org.jooq/jooq-codegen
+    api(group = "org.jooq", name = "jooq-codegen", version = "3.17.7")
+    // this is to use jooq code generation from script
+    runtimeOnly(group = "org.jooq", name = "jooq-meta-extensions", version = "3.17.7")
 
     implementation(kotlin("stdlib-jdk8"))
 }
