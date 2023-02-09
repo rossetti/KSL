@@ -36,7 +36,7 @@ class DoubleArraySaver : ObserverIfc<Double> {
         }
 
     /**
-     * A flag to indicate whether or not the saver should save the data as
+     * A flag to indicate whether the saver should save the data as
      * it is collected.  If this flag is true, the data will be saved
      * when the save() method is called.
      */

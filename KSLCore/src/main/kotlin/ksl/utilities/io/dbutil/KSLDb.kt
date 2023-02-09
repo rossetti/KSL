@@ -20,6 +20,9 @@ package ksl.utilities.io.dbutil
 
 import ksl.controls.ControlIfc
 import ksl.controls.Controls
+import ksl.modeling.variable.Counter
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
@@ -27,12 +30,21 @@ import ksl.utilities.io.dbutil.ksldbjooq.tables.records.*
 import ksl.utilities.io.dbutil.ksldbjooq.tables.references.*
 import ksl.utilities.random.rvariable.RVParameterData
 import ksl.utilities.random.rvariable.RVParameterSetter
+import ksl.utilities.statistic.BatchStatisticIfc
+import ksl.utilities.statistic.StatisticIfc
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.move
+import org.jetbrains.kotlinx.dataframe.api.remove
+import org.jetbrains.kotlinx.dataframe.api.to
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import org.jooq.DSLContext
+import org.jooq.Result
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
 import org.ktorm.dsl.like
 import org.ktorm.entity.add
 import org.ktorm.entity.find
+import org.ktorm.entity.toList
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -60,7 +72,8 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      * @return an empty embedded SQLite database configured to hold KSL simulation results
      */
     constructor(dbName: String, dbDirectory: Path = KSLDatabase.dbDir, clearDataOption: Boolean = true) : this(
-        KSLDatabase.createEmbeddedDerbyKSLDatabase(dbName, dbDirectory), clearDataOption)
+        KSLDatabase.createEmbeddedDerbyKSLDatabase(dbName, dbDirectory), clearDataOption
+    )
 
     /**
      *  If true the underlying database was configured as a KSLDatabase
@@ -68,11 +81,11 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
     val configured: Boolean
     private val myDSLContext: DSLContext
     private var currentExpId: Int? = null
-    private var currentSimRun : SimulationRunRecord? = null
+    private var currentSimRun: SimulationRunRecord? = null
 
     init {
         val sqlDialect = JOOQ.getSQLDialect(db.dataSource)
-        if (sqlDialect == SQLDialect.DEFAULT){
+        if (sqlDialect == SQLDialect.DEFAULT) {
             DatabaseIfc.logger.error { "The SQLDialect of database ${db.label} could not be determined." }
             throw KSLDatabaseNotConfigured("The SQLDialect of database ${db.label} could not be determined.")
         }
@@ -88,29 +101,169 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         myDSLContext.settings().withExecuteLogging(false)
     }
 
-    private val dbExperiments: List<ExperimentData>
-        get() = myDSLContext.selectFrom(EXPERIMENT).fetch().into(ExperimentData::class.java)
-    
+//    private val dbExperiments: List<ExperimentData>
+//        get() = myDSLContext.selectFrom(EXPERIMENT).fetch().into(ExperimentData::class.java)
+
     /**
      * Returns the names of the experiments in the EXPERIMENT table.
      */
     val experimentNames: List<String>
         get() {
-            val list = mutableListOf<String>()
-            val iterator = dbExperiments.iterator()
-            while (iterator.hasNext()) {
-                val e = iterator.next()
-                list.add(e.expName)
-            }
-            return list
+            val names: MutableList<String?> = myDSLContext.select(EXPERIMENT.EXP_NAME).from(EXPERIMENT).fetch(EXPERIMENT.EXP_NAME)
+            return names.filterNotNull()
+        }
+
+    val withinRepResponseViewStatistics: DataFrame<WithinRepResponseViewRecord>
+        get() {
+            val records: Result<WithinRepResponseViewRecord> = myDSLContext.selectFrom(WITHIN_REP_RESPONSE_VIEW).fetch()
+            var df: DataFrame<WithinRepResponseViewRecord> = records.toDataFrame()
+            df = df.move("expName").to(0)
+                .move("runName").to(1)
+                .move("expNumReps").to(2)
+                .move("startRepId").to(3)
+                .move("lastRepId").to(4)
+                .move("statName").to(5)
+                .move("repId").to(6)
+                .move("average").to(7)
+ //           df = df.remove("entityClass", "properties")
+            return df
+        }
+
+    val withinRepCounterViewStatistics: DataFrame<WithinRepCounterViewRecord>
+        get() {
+            val records: Result<WithinRepCounterViewRecord> = myDSLContext.selectFrom(WITHIN_REP_COUNTER_VIEW).fetch()
+            var df: DataFrame<WithinRepCounterViewRecord> = records.toDataFrame()
+            df = df.move("expName").to(0)
+                .move("runName").to(1)
+                .move("expNumReps").to(2)
+                .move("startRepId").to(3)
+                .move("lastRepId").to(4)
+                .move("statName").to(5)
+                .move("repId").to(6)
+                .move("lastValue").to(7)
+ //           df = df.remove("entityClass", "properties")
+            return df
+        }
+
+    val withinRepViewStatistics: DataFrame<WithinRepViewRecord>
+        get() {
+            val records: Result<WithinRepViewRecord> = myDSLContext.selectFrom(WITHIN_REP_VIEW).fetch()
+            var df: DataFrame<WithinRepViewRecord> = records.toDataFrame()
+            df = df.move("expName").to(0)
+                .move("runName").to(1)
+                .move("expNumReps").to(2)
+                .move("startRepId").to(3)
+                .move("lastRepId").to(4)
+                .move("statName").to(5)
+                .move("repId").to(6)
+                .move("repValue").to(7)
+ //           df = df.remove("entityClass", "properties")
+            return df
+        }
+
+    val acrossReplicationStatistics: DataFrame<AcrossRepStatRecord>
+        get() {
+            val records: Result<AcrossRepStatRecord> = myDSLContext.selectFrom(ACROSS_REP_STAT).fetch()
+            var df: DataFrame<AcrossRepStatRecord> = records.toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("id").to(1)
+                .move("statName").to(2)
+                .move("statCount").to(3)
+                .move("average").to(4)
+                .move("halfWidth").to(5)
+                .move("stdDev").to(6)
+                .move("stdErr").to(7)
+                .move("minimum").to(8)
+                .move("maximum").to(9)
+                .move("confLevel").to(10)
+//            df = df.remove("entityClass", "properties", "elementIdFk")
+            return df
+        }
+
+
+    val withinReplicationResponseStatistics: DataFrame<WithinRepStatRecord>
+        get() {
+            val records: Result<WithinRepStatRecord> = myDSLContext.selectFrom(WITHIN_REP_STAT).fetch()
+            var df: DataFrame<WithinRepStatRecord> = records.toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("id").to(1)
+                .move("statName").to(2)
+                .move("repId").to(3)
+                .move("statCount").to(4)
+                .move("average").to(5)
+                .move("minimum").to(6)
+                .move("maximum").to(7)
+ //               .remove("entityClass", "properties", "elementIdFk")
+            return df
+        }
+    val withinReplicationCounterStatistics: DataFrame<WithinRepCounterStatRecord>
+        get() {
+            val records: Result<WithinRepCounterStatRecord> = myDSLContext.selectFrom(WITHIN_REP_COUNTER_STAT).fetch()
+            var df: DataFrame<WithinRepCounterStatRecord> = records.toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("id").to(1)
+                .move("statName").to(2)
+                .move("repId").to(3)
+                .move("lastValue").to(4)
+ //               .remove("entityClass", "properties", "elementIdFk")
+            return df
+        }
+
+    val batchingStatistics: DataFrame<BatchStatRecord>
+        get() {
+            val records: Result<BatchStatRecord> = myDSLContext.selectFrom(BATCH_STAT).fetch()
+            var df: DataFrame<BatchStatRecord> = records.toDataFrame()
+            df = df.move("simRunIdFk").to(0)
+                .move("id").to(1)
+                .move("statName").to(2)
+                .move("repId").to(3)
+                .move("statCount").to(4)
+                .move("average").to(5)
+                .move("halfWidth").to(6)
+                .move("stdDev").to(7)
+                .move("stdError").to(8)
+                .move("minimum").to(9)
+                .move("maximum").to(10)
+                .move("confLevel").to(11)
+//            df = df.remove("entityClass", "properties", "elementIdFk")
+            return df
+        }
+
+    val expStatRepViewStatistics: DataFrame<ExpStatRepViewRecord>
+        get() {
+            val records: Result<ExpStatRepViewRecord> = myDSLContext.selectFrom(EXP_STAT_REP_VIEW).fetch()
+            var df: DataFrame<ExpStatRepViewRecord> = records.toDataFrame()
+            df = df.move("expName").to(0)
+                .move("statName").to(1)
+                .move("repId").to(2)
+                .move("repValue").to(3)
+//            df = df.remove("entityClass", "properties")
+            return df
+        }
+
+    val pairWiseDiffViewStatistics: DataFrame<PwDiffWithinRepViewRecord>
+        get() {
+            val records: Result<PwDiffWithinRepViewRecord> = myDSLContext.selectFrom(PW_DIFF_WITHIN_REP_VIEW).fetch()
+            var df: DataFrame<PwDiffWithinRepViewRecord> = records.toDataFrame()
+            df = df.move("simName").to(0)
+                .move("statName").to(1)
+                .move("repId").to(2)
+                .move("expNameA").to(3)
+                .move("valueA").to(4)
+                .move("expNameB").to(5)
+                .move("valueB").to(6)
+                .move("diffName").to(7)
+                .move("AminusB").to(8)
+ //           df = df.remove("entityClass", "properties")
+            return df
         }
 
     fun clearAllData() {
         // remove all data from user tables
         var i = 0
-        for(tblName in TableNames){
+        for (tblName in TableNames) {
             val b = db.deleteAllFrom(tblName, db.defaultSchemaName)
-            if (b){
+            if (b) {
                 i++
             }
         }
@@ -189,10 +342,10 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         return experimentRecord != null
     }
 
-    internal fun beforeExperiment(model: Model){
+    internal fun beforeExperiment(model: Model) {
         var experimentRecord: ExperimentRecord? =
             myDSLContext.selectFrom(EXPERIMENT).where(EXPERIMENT.EXP_NAME.eq(model.experimentName)).fetchOne()
-        if (experimentRecord != null){
+        if (experimentRecord != null) {
             // experiment record exists, this must be a simulation run related to a chunk
             if (model.isChunked) {
                 // run is a chunk, make sure it is not an existing simulation run
@@ -224,6 +377,30 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
             insertDbRvParameterRecords(ps.rvParametersData)
         }
     }
+
+    internal fun afterReplication(model: Model) {
+        // insert the within replication statistics
+        insertWithinRepResponses(model.responses)
+        // insert the within replication counters
+        insertWithinRepCounters(model.counters)
+        // insert the batch statistics if available
+        if (model.batchingElement != null) {
+            val rMap = model.batchingElement!!.allResponseBatchStatisticsAsMap
+            val twMap = model.batchingElement!!.allTimeWeightedBatchStatisticsAsMap
+            insertResponseVariableBatchStatistics(rMap)
+            insertTimeWeightedBatchStatistics(twMap)
+        }
+    }
+
+    internal fun afterExperiment(model: Model) {
+        // finalize current simulation run record
+        finalizeCurrentSimulationRun(model)
+        // insert across replication response statistics
+        insertAcrossRepResponses(model.responses)
+        // insert across replication counter statistics
+        insertAcrossRepResponsesForCounters(model.counters)
+    }
+
     private fun createExperimentRecord(model: Model): ExperimentRecord {
         val record = myDSLContext.newRecord(EXPERIMENT)
         record.simName = model.simulationName
@@ -256,6 +433,14 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         currentSimRun = record
     }
 
+    private fun finalizeCurrentSimulationRun(model: Model) {
+        currentSimRun?.lastRepId = model.startingRepId + model.numberReplicationsCompleted - 1
+        currentSimRun?.runEndTimeStamp = ZonedDateTime.now().toLocalDateTime()
+        currentSimRun?.runErrorMsg = model.runErrorMsg
+        currentSimRun?.store()
+        DatabaseIfc.logger.trace { "Finalized SimulationRun record for simulation: ${model.simulationName}" }
+    }
+
     private fun insertModelElements(elements: List<ModelElement>) {
         // it would be nice to know how to make a batch insert rather each individually
         for (element in elements) {
@@ -264,6 +449,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         }
         DatabaseIfc.logger.trace { "Inserted model element records into ${db.label} for ${currentSimRun?.runName}" }
     }
+
     private fun createDbModelElement(element: ModelElement, expId: Int): ModelElementRecord {
         val dbm = myDSLContext.newRecord(MODEL_ELEMENT)
         dbm.expIdFk = expId
@@ -318,6 +504,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         rvp.paramValue = rvParamData.paramValue
         return rvp
     }
+
     private fun reportExistingExperimentRecordError(model: Model) {
         val simName: String = model.simulationName
         val expName: String = model.experimentName
@@ -333,7 +520,240 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         throw DataAccessException("An experiment record already exists with the experiment name $expName. Check the ksl.log for details.")
     }
 
+    private fun insertWithinRepResponses(responses: List<Response>) {
+        for (response in responses) {
+            val withinRepStatRecord = createWithinRepStatRecord(response, currentSimRun!!.runId!!)
+            withinRepStatRecord.store()
+        }
+        DatabaseIfc.logger.trace { "Inserted within replication responses into ${db.label} for simulation ${currentSimRun?.runName}" }
+    }
 
+    private fun createWithinRepStatRecord(response: Response, simId: Int): WithinRepStatRecord {
+        val r = myDSLContext.newRecord(WITHIN_REP_STAT)
+        r.elementIdFk = response.id
+        r.simRunIdFk = simId
+        r.repId = response.model.currentReplicationId
+        val s = response.withinReplicationStatistic
+        r.statName = s.name
+        if (!s.count.isNaN() && s.count.isFinite()) {
+            r.statCount = s.count
+        }
+        if (!s.weightedAverage.isNaN() && s.weightedAverage.isFinite()) {
+            r.average = s.weightedAverage
+        }
+        if (!s.min.isNaN() && s.min.isFinite()) {
+            r.minimum = s.min
+        }
+        if (!s.max.isNaN() && s.max.isFinite()) {
+            r.maximum = s.max
+        }
+        if (!s.weightedSum.isNaN() && s.weightedSum.isFinite()) {
+            r.weightedSum = s.weightedSum
+        }
+        if (!s.sumOfWeights.isNaN() && s.sumOfWeights.isFinite()) {
+            r.sumOfWeights = s.sumOfWeights
+        }
+        if (!s.weightedSumOfSquares.isNaN() && s.weightedSumOfSquares.isFinite()) {
+            r.weightedSsq = s.weightedSumOfSquares
+        }
+        if (!s.lastValue.isNaN() && s.lastValue.isFinite()) {
+            r.lastValue = s.lastValue
+        }
+        if (!s.lastWeight.isNaN() && s.lastWeight.isFinite()) {
+            r.lastWeight = s.lastWeight
+        }
+        return r
+    }
+
+    private fun insertWithinRepCounters(counters: List<Counter>) {
+        for (counter in counters) {
+            val withinRepCounterRecord = createWithinRepCounterRecord(counter, currentSimRun!!.runId!!)
+            withinRepCounterRecord.store()
+        }
+        DatabaseIfc.logger.trace { "Inserted within replication counters into ${db.label} for simulation ${currentSimRun?.runName}" }
+    }
+
+    private fun createWithinRepCounterRecord(counter: Counter, simId: Int): WithinRepCounterStatRecord {
+        val r = myDSLContext.newRecord(WITHIN_REP_COUNTER_STAT)
+        r.elementIdFk = counter.id
+        r.simRunIdFk = simId
+        r.repId = counter.model.currentReplicationId
+        r.statName = counter.name
+        if (!counter.value.isNaN() && counter.value.isFinite()) {
+            r.lastValue = counter.value
+        }
+        return r
+    }
+
+    private fun insertResponseVariableBatchStatistics(rMap: Map<Response, BatchStatisticIfc>) {
+        for (entry in rMap.entries.iterator()) {
+            val r = entry.key
+            val bs = entry.value
+            val batchStatRecord = createBatchStatRecord(r, currentSimRun!!.runId!!, bs)
+            batchStatRecord.store()
+        }
+        DatabaseIfc.logger.trace { "Inserted within response batch statistics into ${db.label} for simulation ${currentSimRun?.runName}" }
+    }
+
+    private fun insertTimeWeightedBatchStatistics(twMap: Map<TWResponse, BatchStatisticIfc>) {
+        for (entry in twMap.entries.iterator()) {
+            val tw = entry.key
+            val bs = entry.value
+            val batchStatRecord = createBatchStatRecord(tw, currentSimRun!!.runId!!, bs)
+            batchStatRecord.store()
+        }
+        DatabaseIfc.logger.trace { "Inserted within time-weighted batch statistics into ${db.label} for simulation ${currentSimRun?.runName}" }
+    }
+
+    private fun createBatchStatRecord(response: Response, simId: Int, s: BatchStatisticIfc): BatchStatRecord {
+        val r = myDSLContext.newRecord(BATCH_STAT)
+        r.elementIdFk = response.id
+        r.simRunIdFk = simId
+        r.repId = response.model.currentReplicationId
+        r.statName = s.name
+        if (!s.count.isNaN() && s.count.isFinite()) {
+            r.statCount = s.count
+        }
+        if (!s.average.isNaN() && s.average.isFinite()) {
+            r.average = s.average
+        }
+        if (!s.standardDeviation.isNaN() && s.standardDeviation.isFinite()) {
+            r.stdDev = s.standardDeviation
+        }
+        if (!s.standardError.isNaN() && s.standardError.isFinite()) {
+            r.stdErr = s.standardError
+        }
+        if (!s.halfWidth.isNaN() && s.halfWidth.isFinite()) {
+            r.halfWidth = s.halfWidth
+        }
+        if (!s.confidenceLevel.isNaN() && s.confidenceLevel.isFinite()) {
+            r.confLevel = s.confidenceLevel
+        }
+        if (!s.min.isNaN() && s.min.isFinite()) {
+            r.minimum = s.min
+        }
+        if (!s.max.isNaN() && s.max.isFinite()) {
+            r.maximum = s.max
+        }
+        if (!s.sum.isNaN() && s.sum.isFinite()) {
+            r.sumOfObs = s.sum
+        }
+        if (!s.deviationSumOfSquares.isNaN() && s.deviationSumOfSquares.isFinite()) {
+            r.devSsq = s.deviationSumOfSquares
+        }
+        if (!s.lastValue.isNaN() && s.lastValue.isFinite()) {
+            r.lastValue = s.lastValue
+        }
+        if (!s.kurtosis.isNaN() && s.kurtosis.isFinite()) {
+            r.kurtosis = s.kurtosis
+        }
+        if (!s.skewness.isNaN() && s.skewness.isFinite()) {
+            r.skewness = s.skewness
+        }
+        if (!s.lag1Covariance.isNaN() && s.lag1Covariance.isFinite()) {
+            r.lag1Cov = s.lag1Covariance
+        }
+        if (!s.lag1Correlation.isNaN() && s.lag1Correlation.isFinite()) {
+            r.lag1Corr = s.lag1Correlation
+        }
+        if (!s.vonNeumannLag1TestStatistic.isNaN() && s.vonNeumannLag1TestStatistic.isFinite()) {
+            r.vonNeumannLag1Stat = s.vonNeumannLag1TestStatistic
+        }
+        if (!s.numberMissing.isNaN() && s.numberMissing.isFinite()) {
+            r.numMissingObs = s.numberMissing
+        }
+        r.minBatchSize = s.minBatchSize.toDouble()
+        r.minNumBatches = s.minNumBatches.toDouble()
+        r.maxNumBatchesMultiple = s.minNumBatchesMultiple.toDouble()
+        r.maxNumBatches = s.maxNumBatches.toDouble()
+        r.numRebatches = s.numRebatches.toDouble()
+        r.currentBatchSize = s.currentBatchSize.toDouble()
+        if (!s.amountLeftUnbatched.isNaN() && s.amountLeftUnbatched.isFinite()) {
+            r.amtUnbatched = s.amountLeftUnbatched
+        }
+        if (!s.totalNumberOfObservations.isNaN() && s.totalNumberOfObservations.isFinite()) {
+            r.totalNumObs = s.totalNumberOfObservations
+        }
+        return r
+    }
+
+
+    private fun insertAcrossRepResponses(responses: List<Response>) {
+        for (response in responses) {
+            val s = response.acrossReplicationStatistic
+            val acrossRepStatRecord = createAcrossRepStatRecord(response, currentSimRun!!.runId!!, s)
+            acrossRepStatRecord.store()
+        }
+        DatabaseIfc.logger.trace { "Inserted within across replication statistics into ${db.label} for simulation ${currentSimRun?.runName}" }
+    }
+
+    private fun createAcrossRepStatRecord(response: ModelElement, simId: Int, s: StatisticIfc): AcrossRepStatRecord {
+        val r = myDSLContext.newRecord(ACROSS_REP_STAT)
+        r.elementIdFk = response.id
+        r.simRunIdFk = simId
+        r.statName = s.name
+        if (!s.count.isNaN() && s.count.isFinite()) {
+            r.statCount = s.count
+        }
+        if (!s.average.isNaN() && s.average.isFinite()) {
+            r.average = s.average
+        }
+        if (!s.standardDeviation.isNaN() && s.standardDeviation.isFinite()) {
+            r.stdDev = s.standardDeviation
+        }
+        if (!s.standardError.isNaN() && s.standardError.isFinite()) {
+            r.stdErr = s.standardError
+        }
+        if (!s.halfWidth.isNaN() && s.halfWidth.isFinite()) {
+            r.halfWidth = s.halfWidth
+        }
+        if (!s.confidenceLevel.isNaN() && s.confidenceLevel.isFinite()) {
+            r.confLevel = s.confidenceLevel
+        }
+        if (!s.min.isNaN() && s.min.isFinite()) {
+            r.minimum = s.min
+        }
+        if (!s.max.isNaN() && s.max.isFinite()) {
+            r.maximum = s.max
+        }
+        if (!s.sum.isNaN() && s.sum.isFinite()) {
+            r.sumOfObs = s.sum
+        }
+        if (!s.deviationSumOfSquares.isNaN() && s.deviationSumOfSquares.isFinite()) {
+            r.devSsq = s.deviationSumOfSquares
+        }
+        if (!s.lastValue.isNaN() && s.lastValue.isFinite()) {
+            r.lastValue = s.lastValue
+        }
+        if (!s.kurtosis.isNaN() && s.kurtosis.isFinite()) {
+            r.kurtosis = s.kurtosis
+        }
+        if (!s.skewness.isNaN() && s.skewness.isFinite()) {
+            r.skewness = s.skewness
+        }
+        if (!s.lag1Covariance.isNaN() && s.lag1Covariance.isFinite()) {
+            r.lag1Cov = s.lag1Covariance
+        }
+        if (!s.lag1Correlation.isNaN() && s.lag1Correlation.isFinite()) {
+            r.lag1Corr = s.lag1Correlation
+        }
+        if (!s.vonNeumannLag1TestStatistic.isNaN() && s.vonNeumannLag1TestStatistic.isFinite()) {
+            r.vonNeumannLag1Stat = s.vonNeumannLag1TestStatistic
+        }
+        if (!s.numberMissing.isNaN() && s.numberMissing.isFinite()) {
+            r.numMissingObs = s.numberMissing
+        }
+        return r
+    }
+
+    private fun insertAcrossRepResponsesForCounters(counters: List<Counter>) {
+        for (counter in counters) {
+            val s = counter.acrossReplicationStatistic
+            val acrossRepCounterRecord = createAcrossRepStatRecord(counter, currentSimRun!!.runId!!, s)
+            acrossRepCounterRecord.store()
+        }
+        DatabaseIfc.logger.trace { "Inserted within across replication counter statistics into ${db.label} for simulation ${currentSimRun?.runName}" }
+    }
 
     companion object {
         val TableNames = listOf(
@@ -511,7 +931,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         fun connectKSLDatabase(
             clearDataOption: Boolean = false,
             dBProperties: Properties,
-        ): KSLDb{
+        ): KSLDb {
             val db: Database = DatabaseFactory.createDatabaseFromProperties(dBProperties)
             return KSLDb(db, clearDataOption)
         }
