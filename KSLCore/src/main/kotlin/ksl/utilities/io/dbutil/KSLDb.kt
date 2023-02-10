@@ -18,13 +18,21 @@
 
 package ksl.utilities.io.dbutil
 
+import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
-import org.ktorm.dsl.deleteAll
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.time.LocalDateTime
 import java.util.*
+import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
+import kotlin.reflect.KParameter
+import kotlin.reflect.KVisibility
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.jvm.isAccessible
 
 class KSLDb(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
@@ -46,7 +54,8 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      * @return an empty embedded SQLite database configured to hold KSL simulation results
      */
     constructor(dbName: String, dbDirectory: Path = KSLDatabase.dbDir, clearDataOption: Boolean = true) : this(
-        KSLDatabase.createSQLiteKSLDatabase(dbName, dbDirectory), clearDataOption)
+        KSLDatabase.createSQLiteKSLDatabase(dbName, dbDirectory), clearDataOption
+    )
 
     /**
      *  If true the underlying database was configured as a KSLDatabase
@@ -67,9 +76,9 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
     fun clearAllData() {
         // remove all data from user tables
         var i = 0
-        for(tblName in TableNames){
+        for (tblName in TableNames) {
             val b = db.deleteAllFrom(tblName, db.defaultSchemaName)
-            if (b){
+            if (b) {
                 i++
             }
         }
@@ -277,9 +286,229 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         fun connectKSLDatabase(
             clearDataOption: Boolean = false,
             dBProperties: Properties,
-        ): KSLDb{
+        ): KSLDb {
             val db: Database = DatabaseFactory.createDatabaseFromProperties(dBProperties)
             return KSLDb(db, clearDataOption)
         }
+
     }
 }
+
+//TODO match nullability to db, also consider key fields and insert issue
+data class ExperimentData(
+    var expId: Int,
+    var simName: String,
+    var modelName: String,
+    var expName: String,
+    var numReps: Int,
+    var isChunked: Boolean,
+    var lengthOfRep: Double?,
+    var lengthOfWarmUp: Double?,
+    var repAllowedExecTime: Long?,
+    var repInitOption: Boolean,
+    var resetStartStreamOption: Boolean,
+    var antitheticOption: Boolean,
+    var advNextSubStreamOption: Boolean,
+    var numStreamAdvances: Int,
+    var gcAfterRepOption: Boolean
+)
+
+data class SimulationRunData(
+    var runId: Int,
+    var expIdFk: Int,
+    var runName: String,
+    var numReps: Int,
+    var startRepId: Int,
+    var lastRepId: Int,
+    var runStartTimeStamp: LocalDateTime?,
+    var runEndTimeStamp: LocalDateTime?,
+    var runErrorMsg: String?
+)
+
+data class ControlData(
+    var controlId: Int,
+    var expIdFk: Int,
+    var elementIdFk: Int,
+    var keyName: String,
+    var controlValue: Double?,
+    var lowerBound: Double?,
+    var upperBound: Double?,
+    var propertyName: String?,
+    var controlType: String?,
+    var comment: String?
+)
+
+data class RvParameterData(
+    var rvParamId: Int,
+    var expIdFk: Int,
+    var elementIdFk: Int,
+    var className: String,
+    var dataType: String,
+    var rvName: String,
+    var paramName: String,
+    var paramValue: Double
+)
+
+data class ModelElementData(
+    var expIdFk: Int,
+    var elementId: Int,
+    var elementName: String,
+    var className: String,
+    var parentIdFk: Int?,
+    var parentName: String?,
+    var leftCount: Int,
+    var rightCount: Int
+)
+
+data class WithinRepStatData(
+    var id: Int,
+    var elementIdFk: Int,
+    var simRunIdFk: Int,
+    var repId: Int,
+    var statName: String,
+    var statCount: Double?,
+    var average: Double?,
+    var minimum: Double?,
+    var maximum: Double?,
+    var weightedSum: Double?,
+    var sumOfWeights: Double?,
+    var weightedSsq: Double?,
+    var lastValue: Double?,
+    var lastWeight: Double?
+)
+
+data class AcrossRepStatData(
+    var id: Int? = null,
+    var elementIdFk: Int? = null,
+    var simRunIdFk: Int? = null,
+    var statName: String? = null,
+    var statCount: Double? = null,
+    var average: Double? = null,
+    var stdDev: Double? = null,
+    var stdErr: Double? = null,
+    var halfWidth: Double? = null,
+    var confLevel: Double? = null,
+    var minimum: Double? = null,
+    var maximum: Double? = null,
+    var sumOfObs: Double? = null,
+    var devSsq: Double? = null,
+    var lastValue: Double? = null,
+    var kurtosis: Double? = null,
+    var skewness: Double? = null,
+    var lag1Cov: Double? = null,
+    var lag1Corr: Double? = null,
+    var vonNeumannLag1Stat: Double? = null,
+    var numMissingObs: Double? = null
+)
+
+data class BatchStatData(
+    var id: Int? = null,
+    var elementIdFk: Int? = null,
+    var simRunIdFk: Int? = null,
+    var repId: Int? = null,
+    var statName: String? = null,
+    var statCount: Double? = null,
+    var average: Double? = null,
+    var stdDev: Double? = null,
+    var stdErr: Double? = null,
+    var halfWidth: Double? = null,
+    var confLevel: Double? = null,
+    var minimum: Double? = null,
+    var maximum: Double? = null,
+    var sumOfObs: Double? = null,
+    var devSsq: Double? = null,
+    var lastValue: Double? = null,
+    var kurtosis: Double? = null,
+    var skewness: Double? = null,
+    var lag1Cov: Double? = null,
+    var lag1Corr: Double? = null,
+    var vonNeumannLag1Stat: Double? = null,
+    var numMissingObs: Double? = null,
+    var minBatchSize: Double? = null,
+    var minNumBatches: Double? = null,
+    var maxNumBatchesMultiple: Double? = null,
+    var maxNumBatches: Double? = null,
+    var numRebatches: Double? = null,
+    var currentBatchSize: Double? = null,
+    var amtUnbatched: Double? = null,
+    var totalNumObs: Double? = null
+)
+
+data class WithinRepCounterStatData(
+    var id: Int? = null,
+    var elementIdFk: Int? = null,
+    var simRunIdFk: Int? = null,
+    var repId: Int? = null,
+    var statName: String? = null,
+    var lastValue: Double? = null
+)
+
+data class WithinRepResponseViewData(
+    var expName: String? = null,
+    var runName: String? = null,
+    var numReps: Int? = null,
+    var startRepId: Int? = null,
+    var lastRepId: Int? = null,
+    var statName: String? = null,
+    var repId: Int? = null,
+    var average: Double? = null
+)
+
+data class WithinRepCounterViewData(
+    var expName: String? = null,
+    var runName: String? = null,
+    var numReps: Int? = null,
+    var startRepId: Int? = null,
+    var lastRepId: Int? = null,
+    var statName: String? = null,
+    var repId: Int? = null,
+    var lastValue: Double? = null
+)
+
+data class WithinRepViewData(
+    var expName: String? = null,
+    var runName: String? = null,
+    var numReps: Int? = null,
+    var startRepId: Int? = null,
+    var lastRepId: Int? = null,
+    var statName: String? = null,
+    var repId: Int? = null,
+    var repValue: Double? = null
+)
+
+data class ExpStatRepViewData(
+    var expName: String? = null,
+    var statName: String? = null,
+    var repId: Int? = null,
+    var repValue: Double? = null
+)
+
+data class AcrossRepViewData(
+    var expName: String? = null,
+    var statName: String? = null,
+    var statCount: Double? = null,
+    var average: Double? = null,
+    var stdDev: Double? = null
+)
+
+data class BatchStatViewData(
+    var expName: String? = null,
+    var runName: String? = null,
+    var repId: Int? = null,
+    var statName: String? = null,
+    var statCount: Double? = null,
+    var average: Double? = null,
+    var stdDev: Double? = null
+)
+
+data class PWDiffWithinRepViewData(
+    var simName: String? = null,
+    var statName: String? = null,
+    var repId: Int? = null,
+    var aExpName: String? = null,
+    var aValue: Double? = null,
+    var bExpName: String? = null,
+    var bValue: Double? = null,
+    var diffName: String? = null,
+    var aMinusB: Double? = null
+)
