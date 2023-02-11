@@ -103,7 +103,7 @@ dependencies {
     implementation(group = "org.jooq", name = "jooq-meta", version = "3.17.7")
     // https://mvnrepository.com/artifact/org.jooq/jooq-codegen
     implementation(group = "org.jooq", name = "jooq-codegen", version = "3.17.7")
-    implementation(group = "org.jooq", name = "jooq-kotlin", version = "3.17.8")
+//    implementation(group = "org.jooq", name = "jooq-kotlin", version = "3.17.8")
     // this is to use jooq code generation from script
     runtimeOnly(group = "org.jooq", name = "jooq-meta-extensions", version = "3.17.7")
 
@@ -115,7 +115,7 @@ dependencies {
 //}
 
 tasks.withType<KotlinCompile>() {
-    kotlinOptions.jvmTarget = "11"
+    kotlinOptions.jvmTarget = "17"
 }
 
 // this is supposed to exclude the logback.xml resource file from the generated jar
@@ -132,11 +132,11 @@ tasks.jar {
 }
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "17"
 }
 val compileTestKotlin: KotlinCompile by tasks
 compileTestKotlin.kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "17"
 }
 
 // these extensions are needed when publishing to maven
