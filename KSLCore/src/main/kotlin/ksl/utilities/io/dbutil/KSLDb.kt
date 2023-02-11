@@ -18,6 +18,7 @@
 
 package ksl.utilities.io.dbutil
 
+import kotlinx.datetime.LocalDateTime
 import ksl.controls.ControlIfc
 import ksl.controls.Controls
 import ksl.modeling.variable.Counter
@@ -938,6 +939,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
     }
 }
 
+
 data class ExperimentData(
     var expId: Int,
     var simName: String,
@@ -954,4 +956,204 @@ data class ExperimentData(
     var advNextSubStreamOption: Boolean,
     var numStreamAdvances: Int,
     var gcAfterRepOption: Boolean
+)
+
+data class SimulationRunData(
+    var runId: Int,
+    var expIdFk: Int,
+    var runName: String,
+    var numReps: Int,
+    var startRepId: Int,
+    var lastRepId: Int?,
+    var runStartTimeStamp: LocalDateTime?,
+    var runEndTimeStamp: LocalDateTime?,
+    var runErrorMsg: String?
+)
+
+data class ModelElementData(
+    var expIdFk: Int,
+    var elementId: Int,
+    var elementName: String,
+    var className: String,
+    var parentIdFk: Int?,
+    var parentName: String?,
+    var leftCount: Int,
+    var rightCount: Int
+)
+
+data class ControlData(
+    var controlId: Int,
+    var expIdFk: Int,
+    var elementIdFk: Int,
+    var keyName: String,
+    var controlValue: Double,
+    var lowerBound: Double?,
+    var upperBound: Double?,
+    var propertyName: String,
+    var controlType: String,
+    var comment: String?
+)
+
+data class RvParameterData(
+    var rvParamId: Int,
+    var expIdFk: Int,
+    var elementIdFk: Int,
+    var className: String,
+    var dataType: String,
+    var rvName: String,
+    var paramName: String,
+    var paramValue: Double
+)
+
+data class WithinRepStatData(
+    var id: Int,
+    var elementIdFk: Int,
+    var simRunIdFk: Int,
+    var repId: Int,
+    var statName: String,
+    var statCount: Double?,
+    var average: Double?,
+    var minimum: Double?,
+    var maximum: Double?,
+    var weightedSum: Double?,
+    var sumOfWeights: Double?,
+    var weightedSsq: Double?,
+    var lastValue: Double?,
+    var lastWeight: Double?
+)
+
+data class AcrossRepStatData(
+    var id: Int,
+    var elementIdFk: Int,
+    var simRunIdFk: Int,
+    var statName: String,
+    var statCount: Double? = null,
+    var average: Double? = null,
+    var stdDev: Double? = null,
+    var stdErr: Double? = null,
+    var halfWidth: Double? = null,
+    var confLevel: Double? = null,
+    var minimum: Double? = null,
+    var maximum: Double? = null,
+    var sumOfObs: Double? = null,
+    var devSsq: Double? = null,
+    var lastValue: Double? = null,
+    var kurtosis: Double? = null,
+    var skewness: Double? = null,
+    var lag1Cov: Double? = null,
+    var lag1Corr: Double? = null,
+    var vonNeumannLag1Stat: Double? = null,
+    var numMissingObs: Double? = null
+)
+
+data class BatchStatData(
+    var id: Int,
+    var elementIdFk: Int,
+    var simRunIdFk: Int,
+    var repId: Int,
+    var statName: String,
+    var statCount: Double? = null,
+    var average: Double? = null,
+    var stdDev: Double? = null,
+    var stdErr: Double? = null,
+    var halfWidth: Double? = null,
+    var confLevel: Double? = null,
+    var minimum: Double? = null,
+    var maximum: Double? = null,
+    var sumOfObs: Double? = null,
+    var devSsq: Double? = null,
+    var lastValue: Double? = null,
+    var kurtosis: Double? = null,
+    var skewness: Double? = null,
+    var lag1Cov: Double? = null,
+    var lag1Corr: Double? = null,
+    var vonNeumannLag1Stat: Double? = null,
+    var numMissingObs: Double? = null,
+    var minBatchSize: Double? = null,
+    var minNumBatches: Double? = null,
+    var maxNumBatchesMultiple: Double? = null,
+    var maxNumBatches: Double? = null,
+    var numRebatches: Double? = null,
+    var currentBatchSize: Double? = null,
+    var amtUnbatched: Double? = null,
+    var totalNumObs: Double? = null
+)
+
+data class WithinRepCounterStatData(
+    var id: Int,
+    var elementIdFk: Int,
+    var simRunIdFk: Int,
+    var repId: Int,
+    var statName: String,
+    var lastValue: Double? = null
+)
+
+data class WithinRepResponseViewData(
+    var expName: String,
+    var runName: String,
+    var numReps: Int,
+    var startRepId: Int,
+    var lastRepId: Int,
+    var statName: String,
+    var repId: Int,
+    var average: Double? = null
+)
+
+data class WithinRepCounterViewData(
+    var expName: String,
+    var runName: String,
+    var numReps: Int,
+    var startRepId: Int,
+    var lastRepId: Int,
+    var statName: String,
+    var repId: Int,
+    var lastValue: Double? = null
+)
+
+data class WithinRepViewData(
+    var expName: String,
+    var runName: String,
+    var numReps: Int,
+    var startRepId: Int,
+    var lastRepId: Int,
+    var statName: String,
+    var repId: Int,
+    var repValue: Double? = null
+)
+
+data class ExpStatRepViewData(
+    var expName: String,
+    var statName: String,
+    var repId: Int,
+    var repValue: Double? = null
+)
+
+data class AcrossRepViewData(
+    var expName: String,
+    var statName: String,
+    var statCount: Double? = null,
+    var average: Double? = null,
+    var stdDev: Double? = null
+)
+
+data class BatchStatViewData(
+    var expName: String,
+    var runName: String,
+    var repId: Int,
+    var statName: String,
+    var statCount: Double? = null,
+    var average: Double? = null,
+    var stdDev: Double? = null
+)
+
+data class PWDiffWithinRepViewData(
+    var simName: String,
+    var statName: String,
+    var repId: Int,
+    var aExpName: String,
+    var aValue: Double? = null,
+    var bExpName: String,
+    var bValue: Double? = null,
+    var diffName: String,
+    var aMinusB: Double? = null
 )

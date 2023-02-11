@@ -1422,6 +1422,23 @@ interface DatabaseIfc : DatabaseIOIfc {
         return list
     }
 
+    /**
+     *  Checks if the [tableName] table in the named [schemaName] schema
+     *  has an auto-increment type primary key field
+     */
+    fun hasAutoIncrementField(
+        tableName: String,
+        schemaName: String? = defaultSchemaName
+    ): Boolean {
+        val tableMetaData = tableMetaData(tableName)
+        require(tableMetaData.isNotEmpty()) { "The table name $tableName in schema $schemaName has no meta data in the database" }
+        var autoIncField = false
+        for (colMetaData in tableMetaData) {
+            autoIncField = colMetaData.isAutoIncrement
+        }
+        return autoIncField
+    }
+
     companion object : KLoggable {
 
         //TODO create Dataframe from ResultSet
@@ -1856,6 +1873,37 @@ interface DatabaseIfc : DatabaseIOIfc {
         private fun fillFromColumn(column: Int, cachedRowSet: CachedRowSet): List<Any?> {
             val toCollection: MutableCollection<*> = cachedRowSet.toCollection(column)
             return toCollection.toList()
+        }
+
+        /**
+         * @param tableName the name of the table to be inserted into
+         * @param numColumns the number of columns starting from the left to insert into
+         * @param autoIncField indicates that the first field should be skipped because it
+         * is an auto-increment field
+         * @param schemaName the schema containing the table
+         * @return a generic SQL insert statement with appropriate number of parameters for the table
+         */
+        fun createTableInsertStatement(
+            tableName: String,
+            numColumns: Int,
+            autoIncField: Boolean = false,
+            schemaName: String? = null
+        ): String {
+            // assume all columns have the same table name and schema name
+            require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
+            val qm = if (autoIncField) {
+                CharArray(numColumns - 1)
+            } else {
+                CharArray(numColumns)
+            }
+            qm.fill('?', toIndex = numColumns)
+            val inputs = qm.joinToString(", ", prefix = "(", postfix = ")")
+            val sql = if (schemaName == null) {
+                "insert into $tableName values $inputs"
+            } else {
+                "insert into ${schemaName}.${tableName} values $inputs"
+            }
+            return sql
         }
     }
 
