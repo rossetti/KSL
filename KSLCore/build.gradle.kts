@@ -98,11 +98,12 @@ dependencies {
     api(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.3")
 
     // https://mvnrepository.com/artifact/org.jooq/jooq
-    api(group = "org.jooq", name = "jooq", version = "3.17.7")
+    implementation(group = "org.jooq", name = "jooq", version = "3.17.7")
     // https://mvnrepository.com/artifact/org.jooq/jooq-meta
-    api(group = "org.jooq", name = "jooq-meta", version = "3.17.7")
+    implementation(group = "org.jooq", name = "jooq-meta", version = "3.17.7")
     // https://mvnrepository.com/artifact/org.jooq/jooq-codegen
-    api(group = "org.jooq", name = "jooq-codegen", version = "3.17.7")
+    implementation(group = "org.jooq", name = "jooq-codegen", version = "3.17.7")
+    implementation(group = "org.jooq", name = "jooq-kotlin", version = "3.17.8")
     // this is to use jooq code generation from script
     runtimeOnly(group = "org.jooq", name = "jooq-meta-extensions", version = "3.17.7")
 
