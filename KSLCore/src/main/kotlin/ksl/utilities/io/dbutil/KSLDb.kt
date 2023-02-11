@@ -294,7 +294,6 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
     }
 }
 
-//TODO match nullability to db, also consider key fields and insert issue
 data class ExperimentData(
     var expId: Int,
     var simName: String,
@@ -319,10 +318,21 @@ data class SimulationRunData(
     var runName: String,
     var numReps: Int,
     var startRepId: Int,
-    var lastRepId: Int,
+    var lastRepId: Int?,
     var runStartTimeStamp: LocalDateTime?,
     var runEndTimeStamp: LocalDateTime?,
     var runErrorMsg: String?
+)
+
+data class ModelElementData(
+    var expIdFk: Int,
+    var elementId: Int,
+    var elementName: String,
+    var className: String,
+    var parentIdFk: Int?,
+    var parentName: String?,
+    var leftCount: Int,
+    var rightCount: Int
 )
 
 data class ControlData(
@@ -330,11 +340,11 @@ data class ControlData(
     var expIdFk: Int,
     var elementIdFk: Int,
     var keyName: String,
-    var controlValue: Double?,
+    var controlValue: Double,
     var lowerBound: Double?,
     var upperBound: Double?,
-    var propertyName: String?,
-    var controlType: String?,
+    var propertyName: String,
+    var controlType: String,
     var comment: String?
 )
 
@@ -347,17 +357,6 @@ data class RvParameterData(
     var rvName: String,
     var paramName: String,
     var paramValue: Double
-)
-
-data class ModelElementData(
-    var expIdFk: Int,
-    var elementId: Int,
-    var elementName: String,
-    var className: String,
-    var parentIdFk: Int?,
-    var parentName: String?,
-    var leftCount: Int,
-    var rightCount: Int
 )
 
 data class WithinRepStatData(
@@ -378,10 +377,10 @@ data class WithinRepStatData(
 )
 
 data class AcrossRepStatData(
-    var id: Int? = null,
-    var elementIdFk: Int? = null,
-    var simRunIdFk: Int? = null,
-    var statName: String? = null,
+    var id: Int,
+    var elementIdFk: Int,
+    var simRunIdFk: Int,
+    var statName: String,
     var statCount: Double? = null,
     var average: Double? = null,
     var stdDev: Double? = null,
@@ -402,11 +401,11 @@ data class AcrossRepStatData(
 )
 
 data class BatchStatData(
-    var id: Int? = null,
-    var elementIdFk: Int? = null,
-    var simRunIdFk: Int? = null,
-    var repId: Int? = null,
-    var statName: String? = null,
+    var id: Int,
+    var elementIdFk: Int,
+    var simRunIdFk: Int,
+    var repId: Int,
+    var statName: String,
     var statCount: Double? = null,
     var average: Double? = null,
     var stdDev: Double? = null,
@@ -435,80 +434,80 @@ data class BatchStatData(
 )
 
 data class WithinRepCounterStatData(
-    var id: Int? = null,
-    var elementIdFk: Int? = null,
-    var simRunIdFk: Int? = null,
-    var repId: Int? = null,
-    var statName: String? = null,
+    var id: Int,
+    var elementIdFk: Int,
+    var simRunIdFk: Int,
+    var repId: Int,
+    var statName: String,
     var lastValue: Double? = null
 )
 
 data class WithinRepResponseViewData(
-    var expName: String? = null,
-    var runName: String? = null,
-    var numReps: Int? = null,
-    var startRepId: Int? = null,
-    var lastRepId: Int? = null,
-    var statName: String? = null,
-    var repId: Int? = null,
+    var expName: String,
+    var runName: String,
+    var numReps: Int,
+    var startRepId: Int,
+    var lastRepId: Int,
+    var statName: String,
+    var repId: Int,
     var average: Double? = null
 )
 
 data class WithinRepCounterViewData(
-    var expName: String? = null,
-    var runName: String? = null,
-    var numReps: Int? = null,
-    var startRepId: Int? = null,
-    var lastRepId: Int? = null,
-    var statName: String? = null,
-    var repId: Int? = null,
+    var expName: String,
+    var runName: String,
+    var numReps: Int,
+    var startRepId: Int,
+    var lastRepId: Int,
+    var statName: String,
+    var repId: Int,
     var lastValue: Double? = null
 )
 
 data class WithinRepViewData(
-    var expName: String? = null,
-    var runName: String? = null,
-    var numReps: Int? = null,
-    var startRepId: Int? = null,
-    var lastRepId: Int? = null,
-    var statName: String? = null,
-    var repId: Int? = null,
+    var expName: String,
+    var runName: String,
+    var numReps: Int,
+    var startRepId: Int,
+    var lastRepId: Int,
+    var statName: String,
+    var repId: Int,
     var repValue: Double? = null
 )
 
 data class ExpStatRepViewData(
-    var expName: String? = null,
-    var statName: String? = null,
-    var repId: Int? = null,
+    var expName: String,
+    var statName: String,
+    var repId: Int,
     var repValue: Double? = null
 )
 
 data class AcrossRepViewData(
-    var expName: String? = null,
-    var statName: String? = null,
+    var expName: String,
+    var statName: String,
     var statCount: Double? = null,
     var average: Double? = null,
     var stdDev: Double? = null
 )
 
 data class BatchStatViewData(
-    var expName: String? = null,
-    var runName: String? = null,
-    var repId: Int? = null,
-    var statName: String? = null,
+    var expName: String,
+    var runName: String,
+    var repId: Int,
+    var statName: String,
     var statCount: Double? = null,
     var average: Double? = null,
     var stdDev: Double? = null
 )
 
 data class PWDiffWithinRepViewData(
-    var simName: String? = null,
-    var statName: String? = null,
-    var repId: Int? = null,
-    var aExpName: String? = null,
+    var simName: String,
+    var statName: String,
+    var repId: Int,
+    var aExpName: String,
     var aValue: Double? = null,
-    var bExpName: String? = null,
+    var bExpName: String,
     var bValue: Double? = null,
-    var diffName: String? = null,
+    var diffName: String,
     var aMinusB: Double? = null
 )
