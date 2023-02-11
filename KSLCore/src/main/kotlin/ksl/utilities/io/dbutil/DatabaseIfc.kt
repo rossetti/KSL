@@ -1859,7 +1859,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             val toCollection: MutableCollection<*> = cachedRowSet.toCollection(column)
             return toCollection.toList()
         }
-        
+
     }
 
 }
