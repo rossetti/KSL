@@ -20,11 +20,13 @@ object DataClassUtil {
         }
         val list = mutableListOf<String>()
         val parameters: List<KParameter>? = cls.primaryConstructor?.parameters
-        val pairs = extractProperties(data)
+        val pairs = extractMutableProperties(data)
         if (parameters != null) {
             for (param in parameters) {
                 if (pairs.containsKey(param.name!!)) {
-                    list.add(param.name!!)
+                    if (pairs[param.name!!] is KMutableProperty<*>){
+                        list.add(param.name!!)
+                    }
                 }
             }
         }
@@ -45,7 +47,7 @@ object DataClassUtil {
         }
         val list = mutableListOf<Any?>()
         val names = extractPropertyNames(data)
-        val pairs = extractProperties(data)
+        val pairs = extractMutableProperties(data)
         for (name in names) {
             list.add(pairs[name])
         }
@@ -60,14 +62,14 @@ object DataClassUtil {
         val names = extractPropertyNames(data)
         // check the number of properties
         require(names.size == values.size) { "The data class has ${names.size} properties, but ${values.size} values were supplied" }
-        val map = extractPropertiesByName(data)
+        val map = extractPropertyValuesName(data)
         // check the type of the properties
         for ((index, name) in names.withIndex()) {
             val obj1 = map[name]
             val obj2 = values[index]
             require(obj1!!::class == obj2!!::class) { "The type of property $name was not compatible with the corresponding value type" }
         }
-        val properties = extractProperties(data)
+        val properties = extractMutableProperties(data)
         for ((index, name) in names.withIndex()) {
             val property = properties[name]
             if (property is KMutableProperty<*>) {
@@ -77,7 +79,14 @@ object DataClassUtil {
         }
     }
 
-    fun extractProperties(data: Any): Map<String, KProperty1<out Any, *>> {
+    /**
+     *  Extracts the property of the public mutable properties of a data class
+     *  If the supplied object [data] is not an instance of a data class,
+     *  then the returned map will be empty. The map contains the pairs
+     *  of (name, property) where name is the name of the public property
+     *  and is the reflection property
+     */
+    fun extractMutableProperties(data: Any): Map<String, KProperty1<out Any, *>> {
         val cls: KClass<out Any> = data::class
         if (!cls.isData) {
             return emptyMap()
@@ -86,20 +95,22 @@ object DataClassUtil {
         val properties: Collection<KProperty1<out Any, *>> = cls.memberProperties
         for (property in properties) {
             if (property.visibility == KVisibility.PUBLIC) {
-                map[property.name] = property
+                if (property is KMutableProperty<*>) {
+                    map[property.name] = property
+                }
             }
         }
         return map
     }
 
     /**
-     *  Extracts the value of the public properties of a data class
+     *  Extracts the value of the public mutable properties of a data class
      *  If the supplied object [data] is not an instance of a data class,
      *  then the returned map will be empty. The map contains the pairs
      *  of (name, value) where name is the name of the public property
      *  and value is the current value of the property
      */
-    fun extractPropertiesByName(data: Any): Map<String, Any?> {
+    fun extractPropertyValuesName(data: Any): Map<String, Any?> {
         val cls: KClass<out Any> = data::class
         if (!cls.isData) {
             return emptyMap()
@@ -108,8 +119,10 @@ object DataClassUtil {
         val properties: Collection<KProperty1<out Any, *>> = cls.memberProperties
         for (property in properties) {
             if (property.visibility == KVisibility.PUBLIC) {
-                val v: Any? = property.getter.call(data)
-                map[property.name] = v
+                if (property is KMutableProperty<*>) {
+                    val v: Any? = property.getter.call(data)
+                    map[property.name] = v
+                }
             }
         }
         return map
