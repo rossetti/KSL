@@ -109,6 +109,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         return false
     }
 
+    //TODO need update routine for experiment data
     private var currentExp: ExperimentData? = null
     private var currentSimRun: SimulationRunData? = null
 
@@ -173,6 +174,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      * @return true if the record was deleted, false if it was not
      */
     fun deleteExperimentWithName(expName: String): Boolean {
+        //TODO handle connection and exceptions
         val ps = db.makeDeleteFromPreparedStatement(db.getConnection(), "experiment", "expName", defaultSchemaName)
         ps.setString(1, expName)
         val deleted = ps.execute()
@@ -195,6 +197,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      * @return true if the record was deleted, false if it was not
      */
     private fun deleteSimulationRunWithName(expId: Int, runName: String): Boolean {
+        //TODO handle connection and exceptions
         var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "runName", defaultSchemaName)
         sql = "$sql and exp_id_fk = ?"
         val ps = db.getConnection().prepareStatement(sql)

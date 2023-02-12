@@ -37,6 +37,13 @@ abstract class DbData(val tableName: String, val autoIncField: String? = null) {
     }
 
     /**
+     *  The number of columns of data. The number of public mutable properties
+     *  including any auto-increment field
+     */
+    val numColumns: Int
+        get() = extractPropertyNames().size
+
+    /**
      *  Extracts the names of the public, mutable properties of a data class
      *  in the order in which they are declared in the primary constructor.
      *

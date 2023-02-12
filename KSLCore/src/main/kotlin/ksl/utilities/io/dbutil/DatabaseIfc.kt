@@ -1093,7 +1093,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         numColumns: Int,
         schemaName: String?
     ): PreparedStatement {
-        require(containsTable(tableName)){"The database $label does not contain table $tableName"}
+        require(containsTable(tableName)) { "The database $label does not contain table $tableName" }
         val sql = createTableInsertStatementSQL(tableName, numColumns, schemaName)
         return con.prepareStatement(sql)
     }
@@ -1111,7 +1111,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         fieldName: String,
         schemaName: String?
     ): PreparedStatement {
-        require(containsTable(tableName)){"The database $label does not contain table $tableName"}
+        require(containsTable(tableName)) { "The database $label does not contain table $tableName" }
         val sql = deleteFromTableWhereSQL(tableName, fieldName, schemaName)
         return con.prepareStatement(sql)
     }
@@ -1416,21 +1416,61 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  is not connected to the database in any way.
      */
     fun <T : DbData> selectTableDataInto(factory: () -> T): List<T> {
-        val data = factory()
-        val rowSet: CachedRowSet? = selectAll(data.tableName)
+        val template = factory()
+        val rowSet: CachedRowSet? = selectAll(template.tableName)
         val list = mutableListOf<T>()
         if (rowSet != null) {
             val iterator = ResultSetRowIterator(rowSet)
             while (iterator.hasNext()) {
                 val row: List<Any?> = iterator.next()
+                val data = factory()
                 data.setPropertyValues(row)
                 list.add(data)
             }
         }
+        logger.trace { "Database $label: selected DbData data class ${template::class.simpleName} data from table ${template.tableName} " }
         return list
     }
 
-    
+    /**
+     *  Inserts the data from the list into the supplied table. The DbData instance
+     *  must be designed for the table
+     */
+    fun <T : DbData> insertDbDataIntoTable(
+        data: List<T>,
+        tableName: String,
+        schemaName: String?
+    ) {
+        if (data.isEmpty()){
+            return
+        }
+        // data should come from the table
+        val first = data.first()
+        require(first.tableName == tableName){"The supplied data was not from table $tableName"}
+        // use first to set up the prepared statement
+        var nc = first.numColumns
+        val autoInc = first.hasAutoIncrementField()
+        if (autoInc){
+            nc = nc - 1
+        }
+        getConnection().use { con ->
+            con.autoCommit = false
+            val ps = makeInsertPreparedStatement(con, tableName, nc, schemaName)
+            var cntGood = 0
+            for(d in data){
+                val values: List<Any?> = d.extractPropertyValues(autoInc)
+                val success = addBatch(values, nc, ps)
+                if (success) {
+                    cntGood++
+                }
+            }
+            if (cntGood > 0) {
+                val ni = ps.executeBatch()
+                con.commit()
+                logger.trace { "Wrote ${ni.size} data objects out of ${data.size} to table $tableName" }
+            }
+        }
+    }
 
     companion object : KLoggable {
 
@@ -1908,7 +1948,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             val qm = CharArray(numColumns)
             qm.fill('?', toIndex = numColumns)
             val inputs = qm.joinToString(", ", prefix = "(", postfix = ")")
-            return if ((schemaName != null) && (schemaName.isNotEmpty())){
+            return if ((schemaName != null) && (schemaName.isNotEmpty())) {
                 "insert into ${schemaName}.${tableName} values $inputs"
             } else {
                 "insert into $tableName values $inputs"
