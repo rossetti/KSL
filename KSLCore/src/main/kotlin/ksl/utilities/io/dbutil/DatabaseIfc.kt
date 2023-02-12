@@ -719,7 +719,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  @param schemaName the name of the schema containing the table
      *  @return true if the command executed successfully.
      */
-    fun deleteAllFrom(tableName: String, schemaName: String? = defaultSchemaName) : Boolean {
+    fun deleteAllFrom(tableName: String, schemaName: String? = defaultSchemaName): Boolean {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return false
@@ -728,16 +728,8 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (!containsTable(tableName)) {
             return false
         }
-        val sql = deleteAllFromTableSQL(tableName, schemaName)
+        val sql = deleteFromTableSQL(tableName, schemaName)
         return executeCommand(sql)
-    }
-
-    private fun deleteAllFromTableSQL(tableName: String, schemaName: String?): String{
-        return if (schemaName != null) {
-            return "delete from ${schemaName}.$tableName"
-        } else {
-            return "delete from $tableName"
-        }
     }
 
     /**
@@ -1101,32 +1093,27 @@ interface DatabaseIfc : DatabaseIOIfc {
         numColumns: Int,
         schemaName: String?
     ): PreparedStatement {
-        val sql = createTableInsertStatement(tableName, numColumns, schemaName)
+        require(containsTable(tableName)){"The database $label does not contain table $tableName"}
+        val sql = createTableInsertStatementSQL(tableName, numColumns, schemaName)
         return con.prepareStatement(sql)
     }
 
     /**
+     * @param con an active connection to the database
      * @param tableName the name of the table to be inserted into
-     * @param numColumns the number of columns starting from the left to insert into
+     * @param fieldName the field name controlling the where clause
      * @param schemaName the schema containing the table
-     * @return a generic SQL insert statement with appropriate number of parameters for the table
+     * @return a prepared statement that can perform the deletion if given the appropriate condition value
      */
-    fun createTableInsertStatement(
+    fun makeDeleteFromPreparedStatement(
+        con: Connection,
         tableName: String,
-        numColumns: Int,
-        schemaName: String? = defaultSchemaName
-    ): String {
-        // assume all columns have the same table name and schema name
-        require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
-        val qm = CharArray(numColumns)
-        qm.fill('?', toIndex = numColumns)
-        val inputs = qm.joinToString(", ", prefix = "(", postfix = ")")
-        val sql = if (schemaName == null) {
-            "insert into $tableName values $inputs"
-        } else {
-            "insert into ${schemaName}.${tableName} values $inputs"
-        }
-        return sql
+        fieldName: String,
+        schemaName: String?
+    ): PreparedStatement {
+        require(containsTable(tableName)){"The database $label does not contain table $tableName"}
+        val sql = deleteFromTableWhereSQL(tableName, fieldName, schemaName)
+        return con.prepareStatement(sql)
     }
 
     /** This method inserts the data into the prepared statement as a batch insert.
@@ -1696,7 +1683,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             //okay because resultSet is only read from
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
-            csvWriter.writeAll(resultSet,header,false,true)
+            csvWriter.writeAll(resultSet, header, false, true)
             csvWriter.flushQuietly()
         }
 
@@ -1877,6 +1864,53 @@ interface DatabaseIfc : DatabaseIOIfc {
         fun fillFromColumn(column: Int, cachedRowSet: CachedRowSet): List<Any?> {
             val toCollection: MutableCollection<*> = cachedRowSet.toCollection(column)
             return toCollection.toList()
+        }
+
+        /**
+         *  Returns a string SQL to be used to delete all records from a table
+         *
+         *   delete from schemaName.tableName
+         */
+        fun deleteFromTableSQL(tableName: String, schemaName: String?): String {
+            require(tableName.isNotEmpty()) { "The table name was empty when making the delete statement" }
+            return if ((schemaName != null) && (schemaName.isNotEmpty())) {
+                "delete from ${schemaName}.$tableName"
+            } else {
+                "delete from $tableName"
+            }
+        }
+
+        /**
+         *  Returns a string to be used in a prepared statement
+         *   delete from schemaName.tableName where fieldName = ?
+         */
+        fun deleteFromTableWhereSQL(tableName: String, fieldName: String, schemaName: String?): String {
+            require(tableName.isNotEmpty()) { "The table name was empty when making the delete statement" }
+            require(fieldName.isNotEmpty()) { "The field name was empty when making the delete statement" }
+            return deleteFromTableSQL(tableName, schemaName) + " where $fieldName = ?"
+        }
+
+        /**
+         * @param tableName the name of the table to be inserted into
+         * @param numColumns the number of columns starting from the left to insert into
+         * @param schemaName the schema containing the table
+         * @return a generic SQL insert statement with appropriate number of parameters for the table
+         */
+        fun createTableInsertStatementSQL(
+            tableName: String,
+            numColumns: Int,
+            schemaName: String? = null
+        ): String {
+            // assume all columns have the same table name and schema name
+            require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
+            val qm = CharArray(numColumns)
+            qm.fill('?', toIndex = numColumns)
+            val inputs = qm.joinToString(", ", prefix = "(", postfix = ")")
+            return if ((schemaName != null) && (schemaName.isNotEmpty())){
+                "insert into ${schemaName}.${tableName} values $inputs"
+            } else {
+                "insert into $tableName values $inputs"
+            }
         }
 
     }
