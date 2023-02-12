@@ -18,8 +18,11 @@
 
 package ksl.utilities.io.dbutil
 
+import ksl.controls.Controls
 import ksl.simulation.Model
+import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
+import ksl.utilities.random.rvariable.RVParameterSetter
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -106,6 +109,9 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         return false
     }
 
+    private var currentExp: ExperimentData? = null
+    private var currentSimRun: SimulationRunData? = null
+
     /**
      * Returns the names of the experiments in the EXPERIMENT table.
      */
@@ -113,11 +119,25 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         get() {
             val list = mutableSetOf<String>()
             val data: List<ExperimentData> = db.selectTableDataInto(::ExperimentData)
-            for(d in data){
+            for (d in data) {
                 list.add(d.expName)
             }
             return list.toList()
         }
+
+    /**
+     *  Retrieves the data for the named experiment or null if an experiment
+     *  with the provided [expName] name is not found in the database
+     */
+    fun getExperimentData(expName: String): ExperimentData? {
+        val data: List<ExperimentData> = db.selectTableDataInto(::ExperimentData)
+        for (d in data) {
+            if (d.expName == expName) {
+                return d
+            }
+        }
+        return null
+    }
 
     /**
      *  Checks if the supplied experiment name exists within the database.
@@ -156,10 +176,33 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         val ps = db.makeDeleteFromPreparedStatement(db.getConnection(), "experiment", "expName", defaultSchemaName)
         ps.setString(1, expName)
         val deleted = ps.execute()
-        if (deleted){
+        if (deleted) {
             DatabaseIfc.logger.trace { "Deleted Experiment, $expName, for simulation." }
         } else {
             DatabaseIfc.logger.trace { "Experiment, $expName, was not deleted." }
+        }
+        return deleted
+    }
+
+    /**
+     * The expName should be unique within the database. Many
+     * experiments can be run with different names for the same simulation. This method
+     * deletes the experiment record with the provided name AND all related data
+     * associated with that experiment.  If an experiment record does not
+     * exist with the expName, then nothing occurs.
+     *
+     * @param runName the experiment name for the simulation
+     * @return true if the record was deleted, false if it was not
+     */
+    private fun deleteSimulationRunWithName(runName: String): Boolean {
+        var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "runName", defaultSchemaName)
+        val ps = db.makeDeleteFromPreparedStatement(db.getConnection(), "simulation_run", "runName", defaultSchemaName)
+        ps.setString(1, runName)
+        val deleted = ps.execute()
+        if (deleted) {
+            DatabaseIfc.logger.trace { "Deleted SimulationRun, $runName, for simulation." }
+        } else {
+            DatabaseIfc.logger.trace { "SimulationRun, $runName, was not deleted." }
         }
         return deleted
     }
@@ -191,6 +234,56 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
     val pairWiseDiffViewStatistics: DataFrame<PWDiffWithinRepViewData>
         get() = db.selectTableDataInto(::PWDiffWithinRepViewData).toDataFrame()
 
+    internal fun beforeExperiment(model: Model) {
+        val experimentRecord = getExperimentData(model.experimentName)
+        if (experimentRecord != null) {
+            // experiment record exists, this must be a simulation run related to a chunk
+            if (model.isChunked) {
+                // run is a chunk, make sure it is not an existing simulation run
+                // just assume user wants to write over any existing chunks with the same name
+                //TODO delete any related simulation runs
+//                myDSLContext.deleteFrom(SIMULATION_RUN).where(SIMULATION_RUN.RUN_NAME.eq(model.runName)).execute()
+//                currentExpId = experimentRecord.expId!!
+            } else {
+                // not a chunk, same experiment but not chunked, this is a potential user error
+                reportExistingExperimentRecordError(model)
+            }
+        } else {
+            //TODO experiment record does not exist, create it, remember it, and insert it
+//            experimentRecord = createExperimentRecord(model)
+//            experimentRecord.store()
+        }
+        // start simulation run record
+//TODO        insertSimulationRun(model)
+        // insert the model elements into the database
+        val modelElements: List<ModelElement> = model.getModelElements()
+//TODO        insertModelElements(modelElements)
+        if (model.hasExperimentalControls()) {
+            // insert controls if they are there
+            val controls: Controls = model.controls()
+//TODO            insertDbControlRecords(controls.asList())
+        }
+        if (model.hasParameterSetter()) {
+            // insert the random variable parameters
+            val ps: RVParameterSetter = model.rvParameterSetter
+//TODO            insertDbRvParameterRecords(ps.rvParametersData)
+        }
+    }
+
+    private fun reportExistingExperimentRecordError(model: Model) {
+        val simName: String = model.simulationName
+        val expName: String = model.experimentName
+        KSL.logger.error { "An experiment record exists for simulation: $simName, and experiment: $expName in database ${db.label}" }
+        KSL.logger.error("The user attempted to run a simulation for an experiment that has ")
+        KSL.logger.error(" the same name as an existing experiment without allowing its data to be cleared.")
+        KSL.logger.error("The user should consider using the clearDataBeforeExperimentOption property on the observer.")
+        KSL.logger.error("Or, the user might change the name of the experiment before calling model.simulate().")
+        KSL.logger.error(
+            "This error is to prevent the user from accidentally losing data associated with simulation: {}, and experiment: {} in database {}",
+            simName, expName, db.label
+        )
+        throw DataAccessException("An experiment record already exists with the experiment name $expName. Check the ksl.log for details.")
+    }
     companion object {
         val TableNames = listOf(
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
