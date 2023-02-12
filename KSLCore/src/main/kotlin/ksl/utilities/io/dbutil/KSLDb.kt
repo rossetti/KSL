@@ -20,6 +20,7 @@ package ksl.utilities.io.dbutil
 
 import ksl.simulation.ModelElement
 import ksl.utilities.io.DataClassUtil
+import ksl.utilities.io.DbData
 import ksl.utilities.io.KSL
 import java.io.IOException
 import java.nio.file.Files
@@ -327,7 +328,18 @@ data class ExperimentData(
     var advNextSubStreamOption: Boolean = true,
     var numStreamAdvances: Int = -1,
     var gcAfterRepOption: Boolean = false
-)
+): DbData("experiment", autoInc = true)
+
+fun main(){
+    val e = ExperimentData()
+    val names = e.extractPropertyNames()
+    println(names)
+    val values = e.extractPropertyValues()
+    println(values)
+    val sList = listOf<Any?>("a","b" , "c", -1, false, "something", null, null, true, false, false, true, 100, false)
+    e.setPropertyValues(sList)
+    println(e)
+}
 
 data class SimulationRunData(
     var runId: Int = -1,
