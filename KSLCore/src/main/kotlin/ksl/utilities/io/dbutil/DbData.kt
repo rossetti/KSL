@@ -1,138 +1,34 @@
-package ksl.utilities.io
+package ksl.utilities.io.dbutil
 
 import kotlin.reflect.*
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.full.withNullability
-import kotlin.reflect.jvm.javaType
 
-object DataClassUtil {
-
-    /**
-     *  Extracts the names of the public properties of a data class
-     *  in the order in which they are declared in the primary constructor.
-     *
-     *  If the supplied object [data] is not an instance of a data class,
-     *  then the returned list will be empty.
-     */
-    fun extractPropertyNames(data: Any): List<String> {
-        val cls: KClass<out Any> = data::class
-        if (!cls.isData) {
-            return emptyList()
-        }
-        val list = mutableListOf<String>()
-        val parameters: List<KParameter>? = cls.primaryConstructor?.parameters
-        val pairs = extractMutableProperties(data)
-        if (parameters != null) {
-            for (param in parameters) {
-                if (pairs.containsKey(param.name!!)) {
-                    if (pairs[param.name!!] is KMutableProperty<*>) {
-                        list.add(param.name!!)
-                    }
-                }
-            }
-        }
-        return list
-    }
-
-    /**
-     *  Extracts the value of the public properties of a data class in the order
-     *  in which they are declared in the primary constructor.
-     *
-     *  If the supplied object [data] is not an instance of a data class,
-     *  then the returned list will be empty.
-     */
-    fun extractPropertyValues(data: Any): List<Any?> {
-        val cls: KClass<out Any> = data::class
-        if (!cls.isData) {
-            return emptyList()
-        }
-        val list = mutableListOf<Any?>()
-        val names = extractPropertyNames(data)
-        val pairs = extractMutableProperties(data)
-        for (name in names) {
-            list.add(pairs[name])
-        }
-        return list
-    }
-
-    fun setPropertyValues(data: Any, values: List<Any?>) {
-        val cls: KClass<out Any> = data::class
-        if (!cls.isData) {
-            return
-        }
-        val names = extractPropertyNames(data)
-        // check the number of properties
-        require(names.size == values.size) { "The data class has ${names.size} properties, but ${values.size} values were supplied" }
-        val map = extractPropertyValuesName(data)
-        // check the type of the properties
-        for ((index, name) in names.withIndex()) {
-            val obj1 = map[name]
-            val obj2 = values[index]
-            require(obj1!!::class == obj2!!::class) { "The type of property $name was not compatible with the corresponding value type" }
-        }
-        val properties = extractMutableProperties(data)
-        for ((index, name) in names.withIndex()) {
-            val property = properties[name]
-            if (property is KMutableProperty<*>) {
-                val p = property as KMutableProperty<*>
-                p.setter.call(data, values[index])
-            }
-        }
-    }
-
-    /**
-     *  Extracts the property of the public mutable properties of a data class
-     *  If the supplied object [data] is not an instance of a data class,
-     *  then the returned map will be empty. The map contains the pairs
-     *  of (name, property) where name is the name of the public property
-     *  and is the reflection property
-     */
-    fun extractMutableProperties(data: Any): Map<String, KProperty1<out Any, *>> {
-        val cls: KClass<out Any> = data::class
-        if (!cls.isData) {
-            return emptyMap()
-        }
-        val map = mutableMapOf<String, KProperty1<out Any, *>>()
-        val properties: Collection<KProperty1<out Any, *>> = cls.memberProperties
-        for (property in properties) {
-            if (property.visibility == KVisibility.PUBLIC) {
-                if (property is KMutableProperty<*>) {
-                    map[property.name] = property
-                }
-            }
-        }
-        return map
-    }
-
-    /**
-     *  Extracts the value of the public mutable properties of a data class
-     *  If the supplied object [data] is not an instance of a data class,
-     *  then the returned map will be empty. The map contains the pairs
-     *  of (name, value) where name is the name of the public property
-     *  and value is the current value of the property
-     */
-    fun extractPropertyValuesName(data: Any): Map<String, Any?> {
-        val cls: KClass<out Any> = data::class
-        if (!cls.isData) {
-            return emptyMap()
-        }
-        val map = mutableMapOf<String, Any?>()
-        val properties: Collection<KProperty1<out Any, *>> = cls.memberProperties
-        for (property in properties) {
-            if (property.visibility == KVisibility.PUBLIC) {
-                if (property is KMutableProperty<*>) {
-                    val v: Any? = property.getter.call(data)
-                    map[property.name] = v
-                }
-            }
-        }
-        return map
-    }
-}
-
-open class DbData(val tableName: String, val autoInc: Boolean = false) {
+/** DbData represents a base class for constructing data classes
+ * that work with instances of DatabaseIfc.
+ *
+ * Example usage:
+ * ```
+ * data class Person(var name:String, var age:Int): DbData("Persons")
+ * db.selectDbDataInto(::Person)
+ * ```
+ * Assume that db hold an instance to a database that has a table called, Persons,
+ * with the fields name and age as the sole columns, in that order. The data will be extracted
+ * from the database table and instances of the data class created and filled
+ * with the data from the table. As long as the data class properties match
+ * in order and in with compatible types with the fields/columns of the database, then
+ * the instances will be created and filled.
+ *
+ * The [tableName] should be a valid table name or view name within a database if
+ * used with a database. The property [autoInc] indicates if the referenced table
+ * has an auto-increment field as the primary key.  This information is used
+ * when pushing data from the data class into the database to ignore the first
+ * property listed in the constructor of the data class. That is, the first column
+ * is assumed to hold the auto-incremented field, which will not be needed.
+ */
+abstract class DbData(val tableName: String, val autoInc: Boolean = false) {
     /**
      *  Extracts the names of the public, mutable properties of a data class
      *  in the order in which they are declared in the primary constructor.
@@ -155,11 +51,6 @@ open class DbData(val tableName: String, val autoInc: Boolean = false) {
                         list.add(param.name!!)
                     }
                 }
-            }
-        }
-        if (autoInc) {
-            if (list.isNotEmpty()) {
-                list.removeFirst()
             }
         }
         return list
@@ -204,20 +95,6 @@ open class DbData(val tableName: String, val autoInc: Boolean = false) {
         require(names.size == values.size) { "The data class has ${names.size} properties, but ${values.size} values were supplied" }
         val map = extractPropertyValuesByName()
         // check the type of the properties
-//        for ((index, name) in names.withIndex()) {
-//            val obj1 = map[name]
-//            val obj2 = values[index]
-//            if ((obj1 != null) && (obj2 != null)) {
-//                println("$name -> obj1 type = (${obj1::class}) and obj2 type = (${obj2::class})")
-//                println("obj1 ${obj1::class.starProjectedType}")
-//                println("obj2 ${obj2::class.starProjectedType}")
-//            } else if ((obj1 != null)){
-//                println("$name -> obj1 type = (${obj1::class}) and obj2 is null")
-//            } else if ((obj2 != null)){
-//                println("$name -> obj1 is null and obj2 type is ${obj2::class}")
-//            }
-//            //           require(obj1!!::class == obj2!!::class) { "The type of property $name was not compatible with the corresponding value type" }
-//        }
         val properties = extractMutableProperties()
         for ((index, name) in names.withIndex()) {
             val value = values[index]
@@ -300,4 +177,15 @@ open class DbData(val tableName: String, val autoInc: Boolean = false) {
         }
         return map
     }
+}
+
+fun main(){
+    val e = ExperimentData()
+    val names = e.extractPropertyNames()
+    println(names)
+    val values = e.extractPropertyValues()
+    println(values)
+    val sList = listOf<Any?>(-1, "a","b" , "c", -1, false, null, null, null, true, false, false, true, 100, false)
+    e.setPropertyValues(sList)
+    println(e)
 }

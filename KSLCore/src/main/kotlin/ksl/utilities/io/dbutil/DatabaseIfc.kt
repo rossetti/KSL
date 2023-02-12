@@ -22,10 +22,7 @@ import com.opencsv.CSVWriterBuilder
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
-import ksl.utilities.io.ExcelUtil
-import ksl.utilities.io.KSL
-import ksl.utilities.io.KSLFileUtil
-import ksl.utilities.io.MarkDown
+import ksl.utilities.io.*
 import mu.KLoggable
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.xssf.streaming.SXSSFWorkbook
@@ -44,8 +41,6 @@ import javax.sql.DataSource
 import javax.sql.rowset.CachedRowSet
 import javax.sql.rowset.RowSetProvider
 import kotlin.reflect.*
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.primaryConstructor
 
 
 interface DatabaseIOIfc {
@@ -1424,6 +1419,30 @@ interface DatabaseIfc : DatabaseIOIfc {
         return list
     }
 
+    /**
+     *  Selects data from the database and fills a list with instances
+     *  of the data class. The [factory] must produce an instance of a
+     *  subclass, [T] of DbData.  Subclasses of type DbData are
+     *  data classes that have been configured to hold data from a
+     *  named table from the database.  See the documentation on DbData
+     *  for further information. The resulting list of data
+     *  is not connected to the database in any way.
+     */
+    fun <T : DbData> selectTableDataInto(factory: () -> T): List<T> {
+        val data = factory()
+        val rowSet: CachedRowSet? = selectAll(data.tableName)
+        val list = mutableListOf<T>()
+        if (rowSet != null) {
+            val iterator = ResultSetRowIterator(rowSet)
+            while (iterator.hasNext()) {
+                val row: List<Any?> = iterator.next()
+                data.setPropertyValues(row)
+                list.add(data)
+            }
+        }
+        return list
+    }
+
     companion object : KLoggable {
 
         //TODO create Dataframe from ResultSet
@@ -1855,7 +1874,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         /**
          *  Fills a list with the indicated column of the CachedRowSet
          */
-        private fun fillFromColumn(column: Int, cachedRowSet: CachedRowSet): List<Any?> {
+        fun fillFromColumn(column: Int, cachedRowSet: CachedRowSet): List<Any?> {
             val toCollection: MutableCollection<*> = cachedRowSet.toCollection(column)
             return toCollection.toList()
         }

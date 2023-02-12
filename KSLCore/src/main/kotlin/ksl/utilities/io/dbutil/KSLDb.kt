@@ -18,9 +18,7 @@
 
 package ksl.utilities.io.dbutil
 
-import ksl.simulation.ModelElement
-import ksl.utilities.io.DataClassUtil
-import ksl.utilities.io.DbData
+import ksl.simulation.Model
 import ksl.utilities.io.KSL
 import java.io.IOException
 import java.nio.file.Files
@@ -28,14 +26,8 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.time.LocalDateTime
 import java.util.*
-import javax.sql.rowset.CachedRowSet
-import kotlin.reflect.KClass
-import kotlin.reflect.KProperty1
-import kotlin.reflect.KParameter
-import kotlin.reflect.KVisibility
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.jvm.isAccessible
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.*
 
 class KSLDb(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
@@ -114,21 +106,90 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         return false
     }
 
-    fun withinReplicationStatData() : List<WithinRepStatData>{
-        val rowSet: CachedRowSet? = db.selectAll("within_rep_stat")
-        val list = mutableListOf<WithinRepStatData>()
-        if (rowSet != null){
-            val iterator = ResultSetRowIterator(rowSet)
-            while (iterator.hasNext()){
-                val row: List<Any?> = iterator.next()
-                val data = WithinRepStatData()
-                DataClassUtil.setPropertyValues(data, row)
-                list.add(data)
+    /**
+     * Returns the names of the experiments in the EXPERIMENT table.
+     */
+    val experimentNames: List<String>
+        get() {
+            val list = mutableSetOf<String>()
+            val data: List<ExperimentData> = db.selectTableDataInto(::ExperimentData)
+            for(d in data){
+                list.add(d.expName)
             }
+            return list.toList()
         }
-        return list
+
+    /**
+     *  Checks if the supplied experiment name exists within the database.
+     *  Experiment names should be unique within the database
+     *  @param expName the name to check
+     *  @return true if found
+     */
+    fun doesExperimentRecordExist(expName: String): Boolean {
+        return experimentNames.contains(expName)
     }
 
+    /**
+     * Deletes all simulation data associated with the supplied model. In other
+     * words, the simulation run data associated with a simulation with the
+     * name and the experiment with the name.
+     *
+     * @param model the model to clear data from
+     */
+    fun clearSimulationData(model: Model) {
+        val expName = model.experimentName
+        // find the record and delete it. This should cascade all related records
+        deleteExperimentRecord(expName)
+    }
+
+    /**
+     * The expName should be unique within the database. Many
+     * experiments can be run with different names for the same simulation. This method
+     * deletes the experiment record with the provided name AND all related data
+     * associated with that experiment.  If an experiment record does not
+     * exist with the expName, nothing occurs.
+     *
+     * @param expName the experiment name for the simulation
+     * @return true if the record was deleted, false if it was not
+     */
+    fun deleteExperimentRecord(expName: String): Boolean {
+        TODO("Not implemented yet")
+//        val experimentRecord: ExperimentRecord? =
+//            myDSLContext.selectFrom(EXPERIMENT).where(EXPERIMENT.EXP_NAME.eq(expName)).fetchOne()
+//        if (experimentRecord != null) {
+//            DatabaseIfc.logger.trace { "Deleting Experiment, $expName, for simulation ${experimentRecord.simName}." }
+//            val result = experimentRecord.delete()
+//            return result == 1
+//        }
+        return false
+    }
+
+    val withinRepResponseViewStatistics: DataFrame<WithinRepViewData>
+        get() = db.selectTableDataInto(::WithinRepViewData).toDataFrame()
+
+    val withinRepCounterViewStatistics: DataFrame<WithinRepCounterViewData>
+        get() = db.selectTableDataInto(::WithinRepCounterViewData).toDataFrame()
+
+    val withinRepViewStatistics: DataFrame<WithinRepViewData>
+        get() = db.selectTableDataInto(::WithinRepViewData).toDataFrame()
+
+    val acrossReplicationStatistics: DataFrame<AcrossRepViewData>
+        get() = db.selectTableDataInto(::AcrossRepViewData).toDataFrame()
+
+    val withinReplicationResponseStatistics: DataFrame<WithinRepStatData>
+        get() = db.selectTableDataInto(::WithinRepStatData).toDataFrame()
+
+    val withinReplicationCounterStatistics: DataFrame<WithinRepCounterStatData>
+        get() = db.selectTableDataInto(::WithinRepCounterStatData).toDataFrame()
+
+    val batchingStatistics: DataFrame<BatchStatData>
+        get() = db.selectTableDataInto(::BatchStatData).toDataFrame()
+
+    val expStatRepViewStatistics: DataFrame<ExpStatRepViewData>
+        get() = db.selectTableDataInto(::ExpStatRepViewData).toDataFrame()
+
+    val pairWiseDiffViewStatistics: DataFrame<PWDiffWithinRepViewData>
+        get() = db.selectTableDataInto(::PWDiffWithinRepViewData).toDataFrame()
 
     companion object {
         val TableNames = listOf(
@@ -328,18 +389,7 @@ data class ExperimentData(
     var advNextSubStreamOption: Boolean = true,
     var numStreamAdvances: Int = -1,
     var gcAfterRepOption: Boolean = false
-): DbData("experiment", autoInc = true)
-
-fun main(){
-    val e = ExperimentData()
-    val names = e.extractPropertyNames()
-    println(names)
-    val values = e.extractPropertyValues()
-    println(values)
-    val sList = listOf<Any?>("a","b" , "c", -1, false, "something", null, null, true, false, false, true, 100, false)
-    e.setPropertyValues(sList)
-    println(e)
-}
+) : DbData("experiment", autoInc = true)
 
 data class SimulationRunData(
     var runId: Int = -1,
@@ -351,7 +401,7 @@ data class SimulationRunData(
     var runStartTimeStamp: LocalDateTime? = null,
     var runEndTimeStamp: LocalDateTime? = null,
     var runErrorMsg: String? = null
-)
+) : DbData("simulation_run", autoInc = true)
 
 data class ModelElementData(
     var expIdFk: Int = -1,
@@ -362,7 +412,7 @@ data class ModelElementData(
     var parentName: String? = null,
     var leftCount: Int = -1,
     var rightCount: Int = -1
-)
+) : DbData("model_element")
 
 data class ControlData(
     var controlId: Int = -1,
@@ -375,7 +425,7 @@ data class ControlData(
     var propertyName: String = "",
     var controlType: String = "",
     var comment: String? = null
-)
+) : DbData("control", autoInc = true)
 
 data class RvParameterData(
     var rvParamId: Int = -1,
@@ -386,7 +436,7 @@ data class RvParameterData(
     var rvName: String = "",
     var paramName: String = "",
     var paramValue: Double = Double.NaN
-)
+) : DbData("rv_parameter", autoInc = true)
 
 data class WithinRepStatData(
     var id: Int = -1,
@@ -403,7 +453,7 @@ data class WithinRepStatData(
     var weightedSsq: Double? = null,
     var lastValue: Double? = null,
     var lastWeight: Double? = null
-)
+) : DbData("within_rep_stat", autoInc = true)
 
 data class AcrossRepStatData(
     var id: Int = -1,
@@ -427,7 +477,7 @@ data class AcrossRepStatData(
     var lag1Corr: Double? = null,
     var vonNeumannLag1Stat: Double? = null,
     var numMissingObs: Double? = null
-)
+) : DbData("across_rep_stat", autoInc = true)
 
 data class BatchStatData(
     var id: Int = -1,
@@ -460,7 +510,7 @@ data class BatchStatData(
     var currentBatchSize: Double? = null,
     var amtUnbatched: Double? = null,
     var totalNumObs: Double? = null
-)
+) : DbData("batch_stat", autoInc = true)
 
 data class WithinRepCounterStatData(
     var id: Int = -1,
@@ -469,7 +519,7 @@ data class WithinRepCounterStatData(
     var repId: Int = -1,
     var statName: String = "",
     var lastValue: Double? = null
-)
+) : DbData("within_rep_counter_stat", autoInc = true)
 
 data class WithinRepResponseViewData(
     var expName: String = "",
@@ -480,7 +530,7 @@ data class WithinRepResponseViewData(
     var statName: String = "",
     var repId: Int = -1,
     var average: Double? = null
-)
+) : DbData("within_rep_response_view")
 
 data class WithinRepCounterViewData(
     var expName: String = "",
@@ -491,7 +541,7 @@ data class WithinRepCounterViewData(
     var statName: String = "",
     var repId: Int = -1,
     var lastValue: Double? = null
-)
+) : DbData("within_rep_counter_view")
 
 data class WithinRepViewData(
     var expName: String = "",
@@ -502,14 +552,14 @@ data class WithinRepViewData(
     var statName: String = "",
     var repId: Int = -1,
     var repValue: Double? = null
-)
+) : DbData("within_rep_view")
 
 data class ExpStatRepViewData(
     var expName: String = "",
     var statName: String = "",
     var repId: Int = -1,
     var repValue: Double? = null
-)
+) : DbData("exp_stat_rep_view")
 
 data class AcrossRepViewData(
     var expName: String = "",
@@ -517,7 +567,7 @@ data class AcrossRepViewData(
     var statCount: Double? = null,
     var average: Double? = null,
     var stdDev: Double? = null
-)
+) : DbData("across_rep_view")
 
 data class BatchStatViewData(
     var expName: String = "",
@@ -527,7 +577,7 @@ data class BatchStatViewData(
     var statCount: Double? = null,
     var average: Double? = null,
     var stdDev: Double? = null
-)
+) : DbData("batch_stat_view")
 
 data class PWDiffWithinRepViewData(
     var simName: String = "",
@@ -539,4 +589,4 @@ data class PWDiffWithinRepViewData(
     var bValue: Double? = null,
     var diffName: String = "",
     var aMinusB: Double? = null
-)
+) : DbData("pw_diff_within_rep_view")
