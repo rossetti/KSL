@@ -139,7 +139,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
     fun clearSimulationData(model: Model) {
         val expName = model.experimentName
         // find the record and delete it. This should cascade all related records
-        deleteExperimentRecord(expName)
+        deleteExperimentWithName(expName)
     }
 
     /**
@@ -147,21 +147,21 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      * experiments can be run with different names for the same simulation. This method
      * deletes the experiment record with the provided name AND all related data
      * associated with that experiment.  If an experiment record does not
-     * exist with the expName, nothing occurs.
+     * exist with the expName, then nothing occurs.
      *
      * @param expName the experiment name for the simulation
      * @return true if the record was deleted, false if it was not
      */
-    fun deleteExperimentRecord(expName: String): Boolean {
-        TODO("Not implemented yet")
-//        val experimentRecord: ExperimentRecord? =
-//            myDSLContext.selectFrom(EXPERIMENT).where(EXPERIMENT.EXP_NAME.eq(expName)).fetchOne()
-//        if (experimentRecord != null) {
-//            DatabaseIfc.logger.trace { "Deleting Experiment, $expName, for simulation ${experimentRecord.simName}." }
-//            val result = experimentRecord.delete()
-//            return result == 1
-//        }
-        return false
+    fun deleteExperimentWithName(expName: String): Boolean {
+        val ps = db.makeDeleteFromPreparedStatement(db.getConnection(), "experiment", "expName", defaultSchemaName)
+        ps.setString(1, expName)
+        val deleted = ps.execute()
+        if (deleted){
+            DatabaseIfc.logger.trace { "Deleted Experiment, $expName, for simulation." }
+        } else {
+            DatabaseIfc.logger.trace { "Experiment, $expName, was not deleted." }
+        }
+        return deleted
     }
 
     val withinRepResponseViewStatistics: DataFrame<WithinRepViewData>
