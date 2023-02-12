@@ -22,13 +22,20 @@ import kotlin.reflect.full.withNullability
  * the instances will be created and filled.
  *
  * The [tableName] should be a valid table name or view name within a database if
- * used with a database. The property [autoInc] indicates if the referenced table
- * has an auto-increment field as the primary key.  This information is used
- * when pushing data from the data class into the database to ignore the first
- * property listed in the constructor of the data class. That is, the first column
- * is assumed to hold the auto-incremented field, which will not be needed.
+ * used with a database. The property [autoIncField] indicates if the referenced table
+ * has an auto-increment field as the primary key.  This information can be used
+ * when pushing data from the data class into the database to ignore the
+ * property listed in the constructor of the data class.
  */
-abstract class DbData(val tableName: String, val autoInc: Boolean = false) {
+abstract class DbData(val tableName: String, val autoIncField: String? = null) {
+
+    /**
+     * Checks if an autoIncField exists
+     */
+    fun hasAutoIncrementField() : Boolean {
+        return autoIncField != null
+    }
+
     /**
      *  Extracts the names of the public, mutable properties of a data class
      *  in the order in which they are declared in the primary constructor.
@@ -62,15 +69,25 @@ abstract class DbData(val tableName: String, val autoInc: Boolean = false) {
      *
      *  If the object is not an instance of a data class,
      *  then the returned list will be empty.
+     *  @param autoInc if the data class as an auto increment field then
+     *  the values are extracted without the fields value if this parameter is true.
+     *  If false, all values are extracted regardless of auto increment field.
+     *  The default is false.
      */
-    fun extractPropertyValues(): List<Any?> {
+    fun extractPropertyValues(autoInc: Boolean = false): List<Any?> {
         val cls: KClass<out Any> = this::class
         if (!cls.isData) {
             return emptyList()
         }
         val list = mutableListOf<Any?>()
-        val names = extractPropertyNames()
-        val pairs = extractPropertyValuesByName()
+        val names = extractPropertyNames().toMutableList()
+        val pairs = extractPropertyValuesByName().toMutableMap()
+        if (autoInc){
+            if (autoIncField != null){
+                names.remove(autoIncField)
+                pairs.remove(autoIncField)
+            }
+        }
         for (name in names) {
             list.add(pairs[name])
         }

@@ -187,20 +187,22 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
     /**
      * The expName should be unique within the database. Many
      * experiments can be run with different names for the same simulation. This method
-     * deletes the experiment record with the provided name AND all related data
-     * associated with that experiment.  If an experiment record does not
-     * exist with the expName, then nothing occurs.
+     * deletes any simulation runs for the given named experiment
+     * from the simulation_run table
      *
-     * @param runName the experiment name for the simulation
+     * @param expId the experiment name for the simulation
+     * @param runName the related simulation run name
      * @return true if the record was deleted, false if it was not
      */
-    private fun deleteSimulationRunWithName(runName: String): Boolean {
+    private fun deleteSimulationRunWithName(expId: Int, runName: String): Boolean {
         var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "runName", defaultSchemaName)
-        val ps = db.makeDeleteFromPreparedStatement(db.getConnection(), "simulation_run", "runName", defaultSchemaName)
+        sql = "$sql and exp_id_fk = ?"
+        val ps = db.getConnection().prepareStatement(sql)
         ps.setString(1, runName)
+        ps.setInt(2, expId)
         val deleted = ps.execute()
         if (deleted) {
-            DatabaseIfc.logger.trace { "Deleted SimulationRun, $runName, for simulation." }
+            DatabaseIfc.logger.trace { "Deleted SimulationRun, $runName, for experiment $expId." }
         } else {
             DatabaseIfc.logger.trace { "SimulationRun, $runName, was not deleted." }
         }
@@ -239,11 +241,10 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         if (experimentRecord != null) {
             // experiment record exists, this must be a simulation run related to a chunk
             if (model.isChunked) {
-                // run is a chunk, make sure it is not an existing simulation run
-                // just assume user wants to write over any existing chunks with the same name
-                //TODO delete any related simulation runs
-//                myDSLContext.deleteFrom(SIMULATION_RUN).where(SIMULATION_RUN.RUN_NAME.eq(model.runName)).execute()
-//                currentExpId = experimentRecord.expId!!
+                // run is a chunk, make sure there is not an existing simulation run
+                // just assume user wants to write over any existing chunks with the same name for this
+                // simulation execution,
+                deleteSimulationRunWithName(experimentRecord.expId, model.runName)
             } else {
                 // not a chunk, same experiment but not chunked, this is a potential user error
                 reportExistingExperimentRecordError(model)
@@ -482,7 +483,7 @@ data class ExperimentData(
     var advNextSubStreamOption: Boolean = true,
     var numStreamAdvances: Int = -1,
     var gcAfterRepOption: Boolean = false
-) : DbData("experiment", autoInc = true)
+) : DbData("experiment", autoIncField = "expId")
 
 data class SimulationRunData(
     var runId: Int = -1,
@@ -494,7 +495,7 @@ data class SimulationRunData(
     var runStartTimeStamp: LocalDateTime? = null,
     var runEndTimeStamp: LocalDateTime? = null,
     var runErrorMsg: String? = null
-) : DbData("simulation_run", autoInc = true)
+) : DbData("simulation_run", autoIncField = "runId")
 
 data class ModelElementData(
     var expIdFk: Int = -1,
@@ -518,7 +519,7 @@ data class ControlData(
     var propertyName: String = "",
     var controlType: String = "",
     var comment: String? = null
-) : DbData("control", autoInc = true)
+) : DbData("control", autoIncField = "controlId")
 
 data class RvParameterData(
     var rvParamId: Int = -1,
@@ -529,7 +530,7 @@ data class RvParameterData(
     var rvName: String = "",
     var paramName: String = "",
     var paramValue: Double = Double.NaN
-) : DbData("rv_parameter", autoInc = true)
+) : DbData("rv_parameter", autoIncField = "rvParamId")
 
 data class WithinRepStatData(
     var id: Int = -1,
@@ -546,7 +547,7 @@ data class WithinRepStatData(
     var weightedSsq: Double? = null,
     var lastValue: Double? = null,
     var lastWeight: Double? = null
-) : DbData("within_rep_stat", autoInc = true)
+) : DbData("within_rep_stat", autoIncField = "id")
 
 data class AcrossRepStatData(
     var id: Int = -1,
@@ -570,7 +571,7 @@ data class AcrossRepStatData(
     var lag1Corr: Double? = null,
     var vonNeumannLag1Stat: Double? = null,
     var numMissingObs: Double? = null
-) : DbData("across_rep_stat", autoInc = true)
+) : DbData("across_rep_stat", autoIncField = "id")
 
 data class BatchStatData(
     var id: Int = -1,
@@ -603,7 +604,7 @@ data class BatchStatData(
     var currentBatchSize: Double? = null,
     var amtUnbatched: Double? = null,
     var totalNumObs: Double? = null
-) : DbData("batch_stat", autoInc = true)
+) : DbData("batch_stat", autoIncField = "id")
 
 data class WithinRepCounterStatData(
     var id: Int = -1,
@@ -612,7 +613,7 @@ data class WithinRepCounterStatData(
     var repId: Int = -1,
     var statName: String = "",
     var lastValue: Double? = null
-) : DbData("within_rep_counter_stat", autoInc = true)
+) : DbData("within_rep_counter_stat", autoIncField = "id")
 
 data class WithinRepResponseViewData(
     var expName: String = "",
