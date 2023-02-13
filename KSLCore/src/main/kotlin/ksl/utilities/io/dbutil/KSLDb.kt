@@ -131,7 +131,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      *  Retrieves the data for the named experiment or null if an experiment
      *  with the provided [expName] name is not found in the database
      */
-    fun getExperimentData(expName: String): ExperimentData? {
+    fun fetchExperimentData(expName: String): ExperimentData? {
         val data: List<ExperimentData> = db.selectTableDataInto(::ExperimentData)
         for (d in data) {
             if (d.expName == expName) {
@@ -175,7 +175,6 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      * @return true if the record was deleted, false if it was not
      */
     fun deleteExperimentWithName(expName: String): Boolean {
-
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete experiment $expName in database: $label" }
             db.getConnection().use { connection ->
@@ -258,22 +257,22 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         get() = db.selectTableDataInto(::PWDiffWithinRepViewData).toDataFrame()
 
     internal fun beforeExperiment(model: Model) {
-        var experimentRecord = getExperimentData(model.experimentName)
+        val experimentRecord = fetchExperimentData(model.experimentName)
         if (experimentRecord != null) {
             // experiment record exists, this must be a simulation run related to a chunk
             if (model.isChunked) {
                 // run is a chunk, make sure there is not an existing simulation run
                 // just assume user wants to write over any existing chunks with the same name for this
                 // simulation execution,
+                currentExp = experimentRecord
                 deleteSimulationRunWithName(experimentRecord.expId, model.runName)
             } else {
                 // not a chunk, same experiment but not chunked, this is a potential user error
                 reportExistingExperimentRecordError(model)
             }
         } else {
-            //TODO experiment record does not exist, create it, remember it, and insert it
-            experimentRecord = createExperimentData(model)
-//            experimentRecord.store()
+            currentExp = createExperimentData(model)
+            db.insertDbDataIntoTable(currentExp!!)
         }
         // start simulation run record
 //TODO        insertSimulationRun(model)

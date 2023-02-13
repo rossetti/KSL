@@ -1440,8 +1440,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     fun <T: DbData> insertDbDataIntoTable(
         data: T,
-        tableName: String,
-        schemaName: String?
+        tableName: String = data.tableName,
+        schemaName: String? = defaultSchemaName
     ) : Int {
         return insertDbDataIntoTable(listOf(data), tableName, schemaName)
     }
@@ -1449,13 +1449,13 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      *  Inserts the [data] from the list into the supplied table [tableName] and schema [schemaName].
      *  The DbData instance must be designed for the table.
-     *  
+     *
      *  @return the number of rows inserted
      */
     fun <T : DbData> insertDbDataIntoTable(
         data: List<T>,
         tableName: String,
-        schemaName: String?
+        schemaName: String? = defaultSchemaName
     ) : Int  {
         if (data.isEmpty()){
             return 0
