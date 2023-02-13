@@ -31,6 +31,7 @@ import java.time.LocalDateTime
 import java.util.*
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
+import java.sql.SQLException
 
 class KSLDb(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
@@ -174,16 +175,25 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      * @return true if the record was deleted, false if it was not
      */
     fun deleteExperimentWithName(expName: String): Boolean {
-        //TODO handle connection and exceptions
-        val ps = db.makeDeleteFromPreparedStatement(db.getConnection(), "experiment", "expName", defaultSchemaName)
-        ps.setString(1, expName)
-        val deleted = ps.execute()
-        if (deleted) {
-            DatabaseIfc.logger.trace { "Deleted Experiment, $expName, for simulation." }
-        } else {
-            DatabaseIfc.logger.trace { "Experiment, $expName, was not deleted." }
+
+        try {
+            DatabaseIfc.logger.trace { "Getting a connection to delete experiment $expName in database: $label" }
+            db.getConnection().use { connection ->
+                val ps = db.makeDeleteFromPreparedStatement(connection, "experiment", "expName", defaultSchemaName)
+                ps.setString(1, expName)
+                val deleted = ps.execute()
+                if (deleted) {
+                    DatabaseIfc.logger.trace { "Deleted Experiment, $expName, for simulation." }
+                } else {
+                    DatabaseIfc.logger.trace { "PreparedStatement: Experiment, $expName, was not deleted." }
+                }
+                return deleted
+            }
+        } catch (e: SQLException) {
+            DatabaseIfc.logger.warn {"There was an SQLException when trying to delete experiment $expName"}
+            DatabaseIfc.logger.warn {"SQLException: $e"}
+            return false
         }
-        return deleted
     }
 
     /**
@@ -197,19 +207,27 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      * @return true if the record was deleted, false if it was not
      */
     private fun deleteSimulationRunWithName(expId: Int, runName: String): Boolean {
-        //TODO handle connection and exceptions
-        var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "runName", defaultSchemaName)
-        sql = "$sql and exp_id_fk = ?"
-        val ps = db.getConnection().prepareStatement(sql)
-        ps.setString(1, runName)
-        ps.setInt(2, expId)
-        val deleted = ps.execute()
-        if (deleted) {
-            DatabaseIfc.logger.trace { "Deleted SimulationRun, $runName, for experiment $expId." }
-        } else {
-            DatabaseIfc.logger.trace { "SimulationRun, $runName, was not deleted." }
+        try {
+            DatabaseIfc.logger.trace { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
+            db.getConnection().use { connection ->
+                var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "runName", defaultSchemaName)
+                sql = "$sql and exp_id_fk = ?"
+                val ps = connection.prepareStatement(sql)
+                ps.setString(1, runName)
+                ps.setInt(2, expId)
+                val deleted = ps.execute()
+                if (deleted) {
+                    DatabaseIfc.logger.trace { "Deleted SimulationRun, $runName, for experiment $expId." }
+                } else {
+                    DatabaseIfc.logger.trace { "PreparedStatement: SimulationRun, $runName, was not deleted." }
+                }
+                return deleted
+            }
+        } catch (e: SQLException) {
+            DatabaseIfc.logger.warn {"There was an SQLException when trying to delete simulation run: $runName"}
+            DatabaseIfc.logger.warn {"SQLException: $e"}
+            return false
         }
-        return deleted
     }
 
     val withinRepResponseViewStatistics: DataFrame<WithinRepViewData>
@@ -240,7 +258,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         get() = db.selectTableDataInto(::PWDiffWithinRepViewData).toDataFrame()
 
     internal fun beforeExperiment(model: Model) {
-        val experimentRecord = getExperimentData(model.experimentName)
+        var experimentRecord = getExperimentData(model.experimentName)
         if (experimentRecord != null) {
             // experiment record exists, this must be a simulation run related to a chunk
             if (model.isChunked) {
@@ -254,7 +272,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
             }
         } else {
             //TODO experiment record does not exist, create it, remember it, and insert it
-//            experimentRecord = createExperimentRecord(model)
+            experimentRecord = createExperimentData(model)
 //            experimentRecord.store()
         }
         // start simulation run record
@@ -287,6 +305,27 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
             simName, expName, db.label
         )
         throw DataAccessException("An experiment record already exists with the experiment name $expName. Check the ksl.log for details.")
+    }
+
+    private fun createExperimentData(model: Model): ExperimentData {
+        val record = ExperimentData()
+        record.simName = model.simulationName
+        record.expName = model.experimentName
+        record.modelName = model.name
+        record.numReps = model.numberOfReplications
+        record.isChunked = model.isChunked
+        if (!model.lengthOfReplication.isNaN() && model.lengthOfReplication.isFinite()) {
+            record.lengthOfRep = model.lengthOfReplication
+        }
+        record.lengthOfWarmUp = model.lengthOfReplicationWarmUp
+        record.repAllowedExecTime = model.maximumAllowedExecutionTime.inWholeMilliseconds
+        record.repInitOption = model.replicationInitializationOption
+        record.resetStartStreamOption = model.resetStartStreamOption
+        record.antitheticOption = model.antitheticOption
+        record.advNextSubStreamOption = model.advanceNextSubStreamOption
+        record.numStreamAdvances = model.numberOfStreamAdvancesPriorToRunning
+        record.gcAfterRepOption = model.garbageCollectAfterReplicationFlag
+        return record
     }
     companion object {
         val TableNames = listOf(

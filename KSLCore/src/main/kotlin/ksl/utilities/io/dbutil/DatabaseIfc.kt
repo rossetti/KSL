@@ -1433,16 +1433,32 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     *  Inserts the data from the list into the supplied table. The DbData instance
-     *  must be designed for the table
+     *  Inserts the data from the DbData instance into the  supplied table [tableName] and schema [schemaName].
+     *  The DbData instance must be designed for the table.
+     *
+     *  @return the number of rows inserted
+     */
+    fun <T: DbData> insertDbDataIntoTable(
+        data: T,
+        tableName: String,
+        schemaName: String?
+    ) : Int {
+        return insertDbDataIntoTable(listOf(data), tableName, schemaName)
+    }
+
+    /**
+     *  Inserts the [data] from the list into the supplied table [tableName] and schema [schemaName].
+     *  The DbData instance must be designed for the table.
+     *  
+     *  @return the number of rows inserted
      */
     fun <T : DbData> insertDbDataIntoTable(
         data: List<T>,
         tableName: String,
         schemaName: String?
-    ) {
+    ) : Int  {
         if (data.isEmpty()){
-            return
+            return 0
         }
         // data should come from the table
         val first = data.first()
@@ -1453,22 +1469,31 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (autoInc){
             nc = nc - 1
         }
-        getConnection().use { con ->
-            con.autoCommit = false
-            val ps = makeInsertPreparedStatement(con, tableName, nc, schemaName)
-            var cntGood = 0
-            for(d in data){
-                val values: List<Any?> = d.extractPropertyValues(autoInc)
-                val success = addBatch(values, nc, ps)
-                if (success) {
-                    cntGood++
+        try {
+            getConnection().use { con ->
+                con.autoCommit = false
+                val ps = makeInsertPreparedStatement(con, tableName, nc, schemaName)
+                var cntGood = 0
+                for(d in data){
+                    val values: List<Any?> = d.extractPropertyValues(autoInc)
+                    val success = addBatch(values, nc, ps)
+                    if (success) {
+                        cntGood++
+                    }
+                }
+                if (cntGood > 0) {
+                    val ni = ps.executeBatch()
+                    con.commit()
+                    logger.trace { "Wrote ${ni.size} data objects out of ${data.size} to table $tableName" }
+                    return ni.size
+                } else {
+                    return 0
                 }
             }
-            if (cntGood > 0) {
-                val ni = ps.executeBatch()
-                con.commit()
-                logger.trace { "Wrote ${ni.size} data objects out of ${data.size} to table $tableName" }
-            }
+        } catch (e: SQLException) {
+            logger.warn {"There was an SQLException when trying insert DbData data into : $tableName"}
+            logger.warn {"SQLException: $e"}
+            return 0
         }
     }
 
