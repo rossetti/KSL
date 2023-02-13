@@ -1497,6 +1497,9 @@ interface DatabaseIfc : DatabaseIOIfc {
         }
     }
 
+
+    //TODO select * from table where field = ?
+    
     companion object : KLoggable {
 
         //TODO create Dataframe from ResultSet
