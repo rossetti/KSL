@@ -1415,7 +1415,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  for further information. The resulting list of data
      *  is not connected to the database in any way.
      */
-    fun <T : DbData> selectTableDataInto(factory: () -> T): List<T> {
+    fun <T : DbDataView> selectTableDataInto(factory: () -> T): List<T> {
         val template = factory()
         val rowSet: CachedRowSet? = selectAll(template.tableName)
         val list = mutableListOf<T>()

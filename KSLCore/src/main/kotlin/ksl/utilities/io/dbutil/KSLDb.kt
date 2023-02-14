@@ -840,7 +840,7 @@ data class ExperimentData(
     var advNextSubStreamOption: Boolean = true,
     var numStreamAdvances: Int = -1,
     var gcAfterRepOption: Boolean = false
-) : DbData("experiment", autoIncField = "expId")
+) : DbData("experiment", keyFields = listOf("expId"), autoIncField = true)
 
 data class SimulationRunData(
     var runId: Int = -1,
@@ -852,7 +852,7 @@ data class SimulationRunData(
     var runStartTimeStamp: LocalDateTime? = null,
     var runEndTimeStamp: LocalDateTime? = null,
     var runErrorMsg: String? = null
-) : DbData("simulation_run", autoIncField = "runId")
+) : DbData("simulation_run", keyFields = listOf("runId"), autoIncField = true)
 
 data class ModelElementData(
     var expIdFk: Int = -1,
@@ -863,7 +863,7 @@ data class ModelElementData(
     var parentName: String? = null,
     var leftCount: Int = -1,
     var rightCount: Int = -1
-) : DbData("model_element")
+) : DbData("model_element", keyFields = listOf("expIdFk","elementId"))
 
 data class ControlData(
     var controlId: Int = -1,
@@ -876,7 +876,7 @@ data class ControlData(
     var propertyName: String = "",
     var controlType: String = "",
     var comment: String? = null
-) : DbData("control", autoIncField = "controlId")
+) : DbData("control", keyFields = listOf("controlId"), autoIncField = true)
 
 data class RvParameterData(
     var rvParamId: Int = -1,
@@ -887,7 +887,7 @@ data class RvParameterData(
     var rvName: String = "",
     var paramName: String = "",
     var paramValue: Double = Double.NaN
-) : DbData("rv_parameter", autoIncField = "rvParamId")
+) : DbData("rv_parameter", keyFields = listOf("rvParamId"), autoIncField = true)
 
 data class WithinRepStatData(
     var id: Int = -1,
@@ -904,7 +904,7 @@ data class WithinRepStatData(
     var weightedSsq: Double? = null,
     var lastValue: Double? = null,
     var lastWeight: Double? = null
-) : DbData("within_rep_stat", autoIncField = "id")
+) : DbData("within_rep_stat", keyFields = listOf("id"), autoIncField = true)
 data class WithinRepCounterStatData(
     var id: Int = -1,
     var elementIdFk: Int = -1,
@@ -912,7 +912,7 @@ data class WithinRepCounterStatData(
     var repId: Int = -1,
     var statName: String = "",
     var lastValue: Double? = null
-) : DbData("within_rep_counter_stat", autoIncField = "id")
+) : DbData("within_rep_counter_stat", keyFields = listOf("id"), autoIncField = true)
 data class AcrossRepStatData(
     var id: Int = -1,
     var elementIdFk: Int = -1,
@@ -935,7 +935,7 @@ data class AcrossRepStatData(
     var lag1Corr: Double? = null,
     var vonNeumannLag1Stat: Double? = null,
     var numMissingObs: Double? = null
-) : DbData("across_rep_stat", autoIncField = "id")
+) : DbData("across_rep_stat", keyFields = listOf("id"), autoIncField = true)
 data class BatchStatData(
     var id: Int = -1,
     var elementIdFk: Int = -1,
@@ -967,8 +967,9 @@ data class BatchStatData(
     var currentBatchSize: Double? = null,
     var amtUnbatched: Double? = null,
     var totalNumObs: Double? = null
-) : DbData("batch_stat", autoIncField = "id")
+) : DbData("batch_stat", keyFields = listOf("id"), autoIncField = true)
 
+//TODO not used?
 data class WithinRepResponseViewData(
     var expName: String = "",
     var runName: String = "",
@@ -978,7 +979,7 @@ data class WithinRepResponseViewData(
     var statName: String = "",
     var repId: Int = -1,
     var average: Double? = null
-) : DbData("within_rep_response_view") //TODO not used?
+) : DbDataView("within_rep_response_view")
 
 data class WithinRepCounterViewData(
     var expName: String = "",
@@ -989,7 +990,7 @@ data class WithinRepCounterViewData(
     var statName: String = "",
     var repId: Int = -1,
     var lastValue: Double? = null
-) : DbData("within_rep_counter_view")
+) : DbDataView("within_rep_counter_view")
 
 data class WithinRepViewData(
     var expName: String = "",
@@ -1000,14 +1001,14 @@ data class WithinRepViewData(
     var statName: String = "",
     var repId: Int = -1,
     var repValue: Double? = null
-) : DbData("within_rep_view")
+) : DbDataView("within_rep_view")
 
 data class ExpStatRepViewData(
     var expName: String = "",
     var statName: String = "",
     var repId: Int = -1,
     var repValue: Double? = null
-) : DbData("exp_stat_rep_view")
+) : DbDataView("exp_stat_rep_view")
 
 data class AcrossRepViewData(
     var expName: String = "",
@@ -1015,7 +1016,7 @@ data class AcrossRepViewData(
     var statCount: Double? = null,
     var average: Double? = null,
     var stdDev: Double? = null
-) : DbData("across_rep_view")
+) : DbDataView("across_rep_view")
 
 data class BatchStatViewData(
     var expName: String = "",
@@ -1025,7 +1026,7 @@ data class BatchStatViewData(
     var statCount: Double? = null,
     var average: Double? = null,
     var stdDev: Double? = null
-) : DbData("batch_stat_view") //TODO not used?
+) : DbDataView("batch_stat_view") //TODO not used?
 
 data class PWDiffWithinRepViewData(
     var simName: String = "",
@@ -1037,4 +1038,4 @@ data class PWDiffWithinRepViewData(
     var bValue: Double? = null,
     var diffName: String = "",
     var aMinusB: Double? = null
-) : DbData("pw_diff_within_rep_view")
+) : DbDataView("pw_diff_within_rep_view")
