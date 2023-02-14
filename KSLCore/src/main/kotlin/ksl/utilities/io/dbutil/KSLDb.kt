@@ -18,11 +18,18 @@
 
 package ksl.utilities.io.dbutil
 
+import ksl.controls.ControlIfc
 import ksl.controls.Controls
+import ksl.modeling.variable.Counter
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
+import ksl.utilities.random.rvariable.RVParameterData
 import ksl.utilities.random.rvariable.RVParameterSetter
+import ksl.utilities.statistic.BatchStatisticIfc
+import ksl.utilities.statistic.StatisticIfc
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -32,6 +39,7 @@ import java.util.*
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
 import java.sql.SQLException
+import java.time.ZonedDateTime
 
 class KSLDb(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
@@ -110,8 +118,8 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         return false
     }
 
-    //TODO need update routine for experiment data
-    private var currentExp: ExperimentData? = null
+    //TODO need update routine for simulation run data
+    private lateinit var currentExp: ExperimentData
     private var currentSimRun: SimulationRunData? = null
 
     /**
@@ -272,7 +280,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
             }
         } else {
             currentExp = createExperimentData(model)
-            db.insertDbDataIntoTable(currentExp!!)
+            db.insertDbDataIntoTable(currentExp)
         }
         // start simulation run record
 //TODO        insertSimulationRun(model)
@@ -326,6 +334,314 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         record.gcAfterRepOption = model.garbageCollectAfterReplicationFlag
         return record
     }
+
+    private fun createSimulationRunData(model: Model): SimulationRunData{
+        val record: SimulationRunData = SimulationRunData()
+        record.expIdFk = currentExp.expId
+        record.numReps = model.numberOfReplications
+        record.runName = model.runName
+        record.startRepId = model.startingRepId
+        record.runStartTimeStamp = ZonedDateTime.now().toLocalDateTime()
+        return record
+    }
+
+    private fun createDbModelElement(element: ModelElement, expId: Int): ModelElementData {
+        val dbm = ModelElementData()
+        dbm.expIdFk = expId
+        dbm.elementName = element.name
+        dbm.elementId = element.id
+        dbm.className = element::class.simpleName!!
+        if (element.myParentModelElement != null) {
+            dbm.parentIdFk = element.myParentModelElement!!.id
+            dbm.parentName = element.myParentModelElement!!.name
+        }
+        dbm.leftCount = element.leftTraversalCount
+        dbm.rightCount = element.rightTraversalCount
+        return dbm
+    }
+
+    private fun createDbControlRecord(control: ControlIfc, expId: Int): ControlData {
+        val c = ControlData()
+        c.expIdFk = expId
+        c.elementIdFk = control.elementId
+        c.keyName = control.keyName
+        c.controlValue = control.value
+        c.lowerBound = control.lowerBound
+        c.upperBound = control.upperBound
+        c.propertyName = control.propertyName
+        c.controlType = control.type.toString()
+        c.comment = control.comment
+        return c
+    }
+
+    private fun createDbRvParameterRecord(rvParamData: RVParameterData, expId: Int): RvParameterData {
+        val rvp = RvParameterData()
+        rvp.expIdFk = expId
+        rvp.elementIdFk = rvParamData.elementId
+        rvp.className = rvParamData.clazzName
+        rvp.dataType = rvParamData.dataType
+        rvp.rvName = rvParamData.rvName
+        rvp.paramName = rvParamData.paramName
+        rvp.paramValue = rvParamData.paramValue
+        return rvp
+    }
+
+    private fun createWithinRepStatRecord(response: Response, simId: Int): WithinRepStatData {
+        val r = WithinRepStatData()
+        r.elementIdFk = response.id
+        r.simRunIdFk = simId
+        r.repId = response.model.currentReplicationId
+        val s = response.withinReplicationStatistic
+        r.statName = s.name
+        if (!s.count.isNaN() && s.count.isFinite()) {
+            r.statCount = s.count
+        }
+        if (!s.weightedAverage.isNaN() && s.weightedAverage.isFinite()) {
+            r.average = s.weightedAverage
+        }
+        if (!s.min.isNaN() && s.min.isFinite()) {
+            r.minimum = s.min
+        }
+        if (!s.max.isNaN() && s.max.isFinite()) {
+            r.maximum = s.max
+        }
+        if (!s.weightedSum.isNaN() && s.weightedSum.isFinite()) {
+            r.weightedSum = s.weightedSum
+        }
+        if (!s.sumOfWeights.isNaN() && s.sumOfWeights.isFinite()) {
+            r.sumOfWeights = s.sumOfWeights
+        }
+        if (!s.weightedSumOfSquares.isNaN() && s.weightedSumOfSquares.isFinite()) {
+            r.weightedSsq = s.weightedSumOfSquares
+        }
+        if (!s.lastValue.isNaN() && s.lastValue.isFinite()) {
+            r.lastValue = s.lastValue
+        }
+        if (!s.lastWeight.isNaN() && s.lastWeight.isFinite()) {
+            r.lastWeight = s.lastWeight
+        }
+        return r
+    }
+
+    private fun createWithinRepCounterRecord(counter: Counter, simId: Int): WithinRepCounterStatData {
+        val r = WithinRepCounterStatData()
+        r.elementIdFk = counter.id
+        r.simRunIdFk = simId
+        r.repId = counter.model.currentReplicationId
+        r.statName = counter.name
+        if (!counter.value.isNaN() && counter.value.isFinite()) {
+            r.lastValue = counter.value
+        }
+        return r
+    }
+
+    private fun createAcrossRepStatRecord(response: ModelElement, simId: Int, s: StatisticIfc): AcrossRepStatData {
+        val r = AcrossRepStatData()
+        r.elementIdFk = response.id
+        r.simRunIdFk = simId
+        r.statName = s.name
+        if (!s.count.isNaN() && s.count.isFinite()) {
+            r.statCount = s.count
+        }
+        if (!s.average.isNaN() && s.average.isFinite()) {
+            r.average = s.average
+        }
+        if (!s.standardDeviation.isNaN() && s.standardDeviation.isFinite()) {
+            r.stdDev = s.standardDeviation
+        }
+        if (!s.standardError.isNaN() && s.standardError.isFinite()) {
+            r.stdErr = s.standardError
+        }
+        if (!s.halfWidth.isNaN() && s.halfWidth.isFinite()) {
+            r.halfWidth = s.halfWidth
+        }
+        if (!s.confidenceLevel.isNaN() && s.confidenceLevel.isFinite()) {
+            r.confLevel = s.confidenceLevel
+        }
+        if (!s.min.isNaN() && s.min.isFinite()) {
+            r.minimum = s.min
+        }
+        if (!s.max.isNaN() && s.max.isFinite()) {
+            r.maximum = s.max
+        }
+        if (!s.sum.isNaN() && s.sum.isFinite()) {
+            r.sumOfObs = s.sum
+        }
+        if (!s.deviationSumOfSquares.isNaN() && s.deviationSumOfSquares.isFinite()) {
+            r.devSsq = s.deviationSumOfSquares
+        }
+        if (!s.lastValue.isNaN() && s.lastValue.isFinite()) {
+            r.lastValue = s.lastValue
+        }
+        if (!s.kurtosis.isNaN() && s.kurtosis.isFinite()) {
+            r.kurtosis = s.kurtosis
+        }
+        if (!s.skewness.isNaN() && s.skewness.isFinite()) {
+            r.skewness = s.skewness
+        }
+        if (!s.lag1Covariance.isNaN() && s.lag1Covariance.isFinite()) {
+            r.lag1Cov = s.lag1Covariance
+        }
+        if (!s.lag1Correlation.isNaN() && s.lag1Correlation.isFinite()) {
+            r.lag1Corr = s.lag1Correlation
+        }
+        if (!s.vonNeumannLag1TestStatistic.isNaN() && s.vonNeumannLag1TestStatistic.isFinite()) {
+            r.vonNeumannLag1Stat = s.vonNeumannLag1TestStatistic
+        }
+        if (!s.numberMissing.isNaN() && s.numberMissing.isFinite()) {
+            r.numMissingObs = s.numberMissing
+        }
+        return r
+    }
+    private fun createBatchStatRecord(response: Response, simId: Int, s: BatchStatisticIfc): BatchStatData {
+        val r = BatchStatData()
+        r.elementIdFk = response.id
+        r.simRunIdFk = simId
+        r.repId = response.model.currentReplicationId
+        r.statName = s.name
+        if (!s.count.isNaN() && s.count.isFinite()) {
+            r.statCount = s.count
+        }
+        if (!s.average.isNaN() && s.average.isFinite()) {
+            r.average = s.average
+        }
+        if (!s.standardDeviation.isNaN() && s.standardDeviation.isFinite()) {
+            r.stdDev = s.standardDeviation
+        }
+        if (!s.standardError.isNaN() && s.standardError.isFinite()) {
+            r.stdErr = s.standardError
+        }
+        if (!s.halfWidth.isNaN() && s.halfWidth.isFinite()) {
+            r.halfWidth = s.halfWidth
+        }
+        if (!s.confidenceLevel.isNaN() && s.confidenceLevel.isFinite()) {
+            r.confLevel = s.confidenceLevel
+        }
+        if (!s.min.isNaN() && s.min.isFinite()) {
+            r.minimum = s.min
+        }
+        if (!s.max.isNaN() && s.max.isFinite()) {
+            r.maximum = s.max
+        }
+        if (!s.sum.isNaN() && s.sum.isFinite()) {
+            r.sumOfObs = s.sum
+        }
+        if (!s.deviationSumOfSquares.isNaN() && s.deviationSumOfSquares.isFinite()) {
+            r.devSsq = s.deviationSumOfSquares
+        }
+        if (!s.lastValue.isNaN() && s.lastValue.isFinite()) {
+            r.lastValue = s.lastValue
+        }
+        if (!s.kurtosis.isNaN() && s.kurtosis.isFinite()) {
+            r.kurtosis = s.kurtosis
+        }
+        if (!s.skewness.isNaN() && s.skewness.isFinite()) {
+            r.skewness = s.skewness
+        }
+        if (!s.lag1Covariance.isNaN() && s.lag1Covariance.isFinite()) {
+            r.lag1Cov = s.lag1Covariance
+        }
+        if (!s.lag1Correlation.isNaN() && s.lag1Correlation.isFinite()) {
+            r.lag1Corr = s.lag1Correlation
+        }
+        if (!s.vonNeumannLag1TestStatistic.isNaN() && s.vonNeumannLag1TestStatistic.isFinite()) {
+            r.vonNeumannLag1Stat = s.vonNeumannLag1TestStatistic
+        }
+        if (!s.numberMissing.isNaN() && s.numberMissing.isFinite()) {
+            r.numMissingObs = s.numberMissing
+        }
+        r.minBatchSize = s.minBatchSize.toDouble()
+        r.minNumBatches = s.minNumBatches.toDouble()
+        r.maxNumBatchesMultiple = s.minNumBatchesMultiple.toDouble()
+        r.maxNumBatches = s.maxNumBatches.toDouble()
+        r.numRebatches = s.numRebatches.toDouble()
+        r.currentBatchSize = s.currentBatchSize.toDouble()
+        if (!s.amountLeftUnbatched.isNaN() && s.amountLeftUnbatched.isFinite()) {
+            r.amtUnbatched = s.amountLeftUnbatched
+        }
+        if (!s.totalNumberOfObservations.isNaN() && s.totalNumberOfObservations.isFinite()) {
+            r.totalNumObs = s.totalNumberOfObservations
+        }
+        return r
+    }
+
+    private fun insertModelElementRecords(elements: List<ModelElement>) {
+        val list = mutableListOf<ModelElementData>()
+        for (element in elements) {
+            val dbModelElement = createDbModelElement(element, currentExp.expId)
+            list.add(dbModelElement)
+        }
+        db.insertDbDataIntoTable(list, "model_element")
+    }
+
+    private fun insertDbControlRecords(controls: List<ControlIfc>) {
+        val list = mutableListOf<ControlData>()
+        for (c in controls) {
+            val cr = createDbControlRecord(c, currentExp.expId)
+            list.add(cr)
+        }
+        db.insertDbDataIntoTable(list, "control")
+    }
+
+    private fun insertDbRvParameterRecords(pData: List<RVParameterData>) {
+        val list = mutableListOf<RvParameterData>()
+        for (param in pData) {
+            val r = createDbRvParameterRecord(param, currentExp.expId)
+            list.add(r)
+        }
+        db.insertDbDataIntoTable(list, "rv_parameter")
+    }
+
+    private fun insertWithinRepResponses(responses: List<Response>) {
+        val list = mutableListOf<WithinRepStatData>()
+        for (response in responses) {
+            val withinRepStatRecord = createWithinRepStatRecord(response, currentSimRun!!.runId)
+            list.add(withinRepStatRecord)
+        }
+        db.insertDbDataIntoTable(list, "within_rep_stat")
+     }
+
+    private fun insertWithinRepCounters(counters: List<Counter>) {
+        val list = mutableListOf<WithinRepCounterStatData>()
+        for (counter in counters) {
+            val withinRepCounterRecord = createWithinRepCounterRecord(counter, currentSimRun!!.runId)
+            list.add(withinRepCounterRecord)
+        }
+        db.insertDbDataIntoTable(list, "within_rep_counter_stat")
+     }
+
+    private fun insertAcrossRepResponses(responses: List<Response>) {
+        val list = mutableListOf<AcrossRepStatData>()
+        for (response in responses) {
+            val s = response.acrossReplicationStatistic
+            val acrossRepStatRecord = createAcrossRepStatRecord(response, currentSimRun!!.runId, s)
+            list.add(acrossRepStatRecord)
+        }
+        db.insertDbDataIntoTable(list, "across_rep_stat")
+    }
+
+    private fun insertResponseVariableBatchStatistics(rMap: Map<Response, BatchStatisticIfc>) {
+        val list = mutableListOf<BatchStatData>()
+        for (entry in rMap.entries.iterator()) {
+            val r = entry.key
+            val bs = entry.value
+            val batchStatRecord = createBatchStatRecord(r, currentSimRun!!.runId, bs)
+            list.add(batchStatRecord)
+        }
+        db.insertDbDataIntoTable(list, "batch_stat")
+    }
+
+    private fun insertTimeWeightedBatchStatistics(twMap: Map<TWResponse, BatchStatisticIfc>) {
+        val list = mutableListOf<BatchStatData>()
+        for (entry in twMap.entries.iterator()) {
+            val tw = entry.key
+            val bs = entry.value
+            val batchStatRecord = createBatchStatRecord(tw, currentSimRun!!.runId, bs)
+            list.add(batchStatRecord)
+        }
+        db.insertDbDataIntoTable(list, "batch_stat")
+    }
+
     companion object {
         val TableNames = listOf(
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
@@ -589,7 +905,14 @@ data class WithinRepStatData(
     var lastValue: Double? = null,
     var lastWeight: Double? = null
 ) : DbData("within_rep_stat", autoIncField = "id")
-
+data class WithinRepCounterStatData(
+    var id: Int = -1,
+    var elementIdFk: Int = -1,
+    var simRunIdFk: Int = -1,
+    var repId: Int = -1,
+    var statName: String = "",
+    var lastValue: Double? = null
+) : DbData("within_rep_counter_stat", autoIncField = "id")
 data class AcrossRepStatData(
     var id: Int = -1,
     var elementIdFk: Int = -1,
@@ -613,7 +936,6 @@ data class AcrossRepStatData(
     var vonNeumannLag1Stat: Double? = null,
     var numMissingObs: Double? = null
 ) : DbData("across_rep_stat", autoIncField = "id")
-
 data class BatchStatData(
     var id: Int = -1,
     var elementIdFk: Int = -1,
@@ -647,15 +969,6 @@ data class BatchStatData(
     var totalNumObs: Double? = null
 ) : DbData("batch_stat", autoIncField = "id")
 
-data class WithinRepCounterStatData(
-    var id: Int = -1,
-    var elementIdFk: Int = -1,
-    var simRunIdFk: Int = -1,
-    var repId: Int = -1,
-    var statName: String = "",
-    var lastValue: Double? = null
-) : DbData("within_rep_counter_stat", autoIncField = "id")
-
 data class WithinRepResponseViewData(
     var expName: String = "",
     var runName: String = "",
@@ -665,7 +978,7 @@ data class WithinRepResponseViewData(
     var statName: String = "",
     var repId: Int = -1,
     var average: Double? = null
-) : DbData("within_rep_response_view")
+) : DbData("within_rep_response_view") //TODO not used?
 
 data class WithinRepCounterViewData(
     var expName: String = "",
@@ -712,7 +1025,7 @@ data class BatchStatViewData(
     var statCount: Double? = null,
     var average: Double? = null,
     var stdDev: Double? = null
-) : DbData("batch_stat_view")
+) : DbData("batch_stat_view") //TODO not used?
 
 data class PWDiffWithinRepViewData(
     var simName: String = "",

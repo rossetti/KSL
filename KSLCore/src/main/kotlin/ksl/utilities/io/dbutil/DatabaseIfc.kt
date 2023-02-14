@@ -1484,7 +1484,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 if (cntGood > 0) {
                     val ni = ps.executeBatch()
                     con.commit()
-                    logger.trace { "Wrote ${ni.size} data objects out of ${data.size} to table $tableName" }
+                    logger.trace { "Inserted ${ni.size} data objects out of ${data.size} to table $tableName" }
                     return ni.size
                 } else {
                     return 0
@@ -1498,11 +1498,12 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
 
-    //TODO select * from table where field = ?
+    //TODO select * from table where field = ?, updatable RowSet
+    //TODO prepared statement to update fields from DbData
+    //TODO updateDbDataIn(DbData, tableName, schemaName)
+    //TODO updateAllDbDataIn(List<DbData>, tableName, schemaName)
 
     companion object : KLoggable {
-
-        //TODO create Dataframe from ResultSet
 
         override val logger = logger()
 
@@ -1818,7 +1819,6 @@ interface DatabaseIfc : DatabaseIOIfc {
          * the result set from left to right (0 is column 1, etc.)
          */
         fun columnMetaData(resultSet: ResultSet): List<ColumnMetaData> {
-//TODO            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }  maybe Derby does not support this!
             val list = mutableListOf<ColumnMetaData>()
             val md = resultSet.metaData
             if (md != null) {
