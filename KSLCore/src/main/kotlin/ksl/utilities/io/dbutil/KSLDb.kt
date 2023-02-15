@@ -683,7 +683,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * Returns the observations for the named experiment and the named statistical response
      * from within
      */
-    private fun withinReplicationObservationsFor(expNameStr: String, statNameStr: String): DoubleArray {
+    fun withinReplicationObservationsFor(expNameStr: String, statNameStr: String): DoubleArray {
         var df = withinRepViewStatistics
         val expName by column<String>()
         val statName by column<String>()

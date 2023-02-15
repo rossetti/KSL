@@ -105,8 +105,8 @@ abstract class DbData(val tableName: String) {
             return emptyList()
         }
         val list = mutableListOf<Any?>()
-        val names = extractPropertyNames().toMutableList()
-        val pairs = extractPropertyValuesByName().toMutableMap()
+        val names = extractPropertyNames()
+        val pairs = extractPropertyValuesByName()
         for (name in names) {
             list.add(pairs[name])
         }

@@ -1466,6 +1466,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         // use first to set up the prepared statement
         var nc = first.numColumns
+        println("num columns: = $nc")
         val autoInc = first.hasAutoIncrementField()
         if (autoInc) {
             nc = nc - 1
@@ -2122,7 +2123,7 @@ data class ColumnMetaData(
  */
 class ResultSetRowIterator(private val resultSet: ResultSet) : Iterator<List<Any?>> {
     init {
-        require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
+//TODO cause SQL not supported error        require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
     }
 
     var currentRow: Int = 0
@@ -2173,7 +2174,7 @@ class ResultSetRowIterator(private val resultSet: ResultSet) : Iterator<List<Any
  */
 class ResultSetRowMapIterator(private val resultSet: ResultSet) : Iterator<Map<String, Any?>> {
     init {
-        require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
+//TODO cause SQL not supported error       require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
     }
 
     var currentRow: Int = 0

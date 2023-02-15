@@ -40,7 +40,7 @@ fun main() {
     println(repData)
 
     // use the database to create a Kotlin DataFrame
-    val dataFrame = kslDatabaseObserver.db.acrossReplicationViewStatistics
+    val dataFrame = kslDatabaseObserver.db.acrossReplicationStatistics
     println(dataFrame)
 
     model.experimentName = "Three Workers"
