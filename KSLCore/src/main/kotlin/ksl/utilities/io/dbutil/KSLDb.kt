@@ -721,11 +721,6 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      */
     fun withinReplicationViewMapForExperiments(expNames: List<String>, responseName: String): Map<String, DoubleArray> {
         val eNames = experimentNames
-//        val uniqueNames = eNames.toSet()
-//        if (uniqueNames.size != eNames.size) {
-//            DatabaseIfc.logger.error { "There were multiple simulation runs with same experiment name" }
-//            throw IllegalArgumentException("There were multiple simulation runs with the experiment name")
-//        }
         for (name in expNames) {
             if (!eNames.contains(name)) {
                 DatabaseIfc.logger.error { "There were no simulation runs with the experiment name $name" }
