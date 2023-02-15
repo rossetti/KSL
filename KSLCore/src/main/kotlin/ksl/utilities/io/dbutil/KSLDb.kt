@@ -275,7 +275,11 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             }
         } else {
             currentExp = createExperimentData(model)
-            db.insertDbDataIntoTable(currentExp)
+            println(currentExp)
+            val k = db.insertDbDataIntoTable(currentExp)
+            if (k==0){
+                throw DataAccessException("The experiment was not inserted")
+            }
         }
         // start simulation run record
         currentSimRun = createSimulationRunData(model)

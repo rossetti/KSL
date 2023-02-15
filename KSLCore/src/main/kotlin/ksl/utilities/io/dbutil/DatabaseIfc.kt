@@ -1478,6 +1478,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 var cntGood = 0
                 for (d in data) {
                     val values: List<Any?> = d.extractPropertyValues(autoInc)
+                    println("values.size = ${values.size}")
                     val success = addBatch(values, nc, ps)
                     if (success) {
                         cntGood++
