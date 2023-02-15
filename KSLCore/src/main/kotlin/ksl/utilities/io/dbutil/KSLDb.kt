@@ -686,7 +686,6 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         db.insertDbDataIntoTable(list, "batch_stat")
     }
 
-    //TODO start
     /**
      * Returns the observations for the named experiment and the named statistical response
      * from within
@@ -720,6 +719,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
      * @return a map with key exp_name containing an array of values, each value from each replication
      */
     fun withinReplicationViewMapForExperiments(expNames: List<String>, responseName: String): Map<String, DoubleArray> {
+        require(expNames.isNotEmpty()){"The list of experiment names was empty"}
         val eNames = experimentNames
         for (name in expNames) {
             if (!eNames.contains(name)) {
@@ -752,8 +752,7 @@ class KSLDb(private val db: Database, clearDataOption: Boolean = false) : Databa
         mca.name = responseName
         return mca
     }
-
-    //TODO end
+    
     companion object {
         val TableNames = listOf(
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
