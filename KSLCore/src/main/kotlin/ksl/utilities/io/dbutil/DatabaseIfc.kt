@@ -728,7 +728,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (!containsTable(tableName)) {
             return false
         }
-        val sql = deleteFromTableSQL(tableName, schemaName)
+        val sql = deleteAllFromTableSQL(tableName, schemaName)
         return executeCommand(sql)
     }
 
@@ -1094,7 +1094,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         schemaName: String?
     ): PreparedStatement {
         require(containsTable(tableName)) { "The database $label does not contain table $tableName" }
-        val sql = createTableInsertStatementSQL(tableName, numColumns, schemaName)
+        val sql = insertIntoTableStatementSQL(tableName, numColumns, schemaName)
         return con.prepareStatement(sql)
     }
 
@@ -1415,7 +1415,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  for further information. The resulting list of data
      *  is not connected to the database in any way.
      */
-    fun <T : DbDataView> selectTableDataInto(factory: () -> T): List<T> {
+    fun <T : DbData> selectTableDataIntoDbData(factory: () -> T): List<T> {
         val template = factory()
         val rowSet: CachedRowSet? = selectAll(template.tableName)
         val list = mutableListOf<T>()
@@ -1438,11 +1438,11 @@ interface DatabaseIfc : DatabaseIOIfc {
      *
      *  @return the number of rows inserted
      */
-    fun <T: DbData> insertDbDataIntoTable(
+    fun <T : DbTableData> insertDbDataIntoTable(
         data: T,
         tableName: String = data.tableName,
         schemaName: String? = defaultSchemaName
-    ) : Int {
+    ): Int {
         return insertDbDataIntoTable(listOf(data), tableName, schemaName)
     }
 
@@ -1452,21 +1452,22 @@ interface DatabaseIfc : DatabaseIOIfc {
      *
      *  @return the number of rows inserted
      */
-    fun <T : DbData> insertDbDataIntoTable(
+    fun <T : DbTableData> insertDbDataIntoTable(
         data: List<T>,
         tableName: String,
         schemaName: String? = defaultSchemaName
-    ) : Int  {
-        if (data.isEmpty()){
+    ): Int {
+        if (data.isEmpty()) {
             return 0
         }
+        require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
         // data should come from the table
         val first = data.first()
-        require(first.tableName == tableName){"The supplied data was not from table $tableName"}
+        require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         // use first to set up the prepared statement
         var nc = first.numColumns
         val autoInc = first.hasAutoIncrementField()
-        if (autoInc){
+        if (autoInc) {
             nc = nc - 1
         }
         try {
@@ -1474,7 +1475,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 con.autoCommit = false
                 val ps = makeInsertPreparedStatement(con, tableName, nc, schemaName)
                 var cntGood = 0
-                for(d in data){
+                for (d in data) {
                     val values: List<Any?> = d.extractPropertyValues(autoInc)
                     val success = addBatch(values, nc, ps)
                     if (success) {
@@ -1491,17 +1492,76 @@ interface DatabaseIfc : DatabaseIOIfc {
                 }
             }
         } catch (e: SQLException) {
-            logger.warn {"There was an SQLException when trying insert DbData data into : $tableName"}
-            logger.warn {"SQLException: $e"}
+            logger.warn { "There was an SQLException when trying insert DbData data into : $tableName" }
+            logger.warn { "SQLException: $e" }
             return 0
         }
     }
 
+    /**
+     *  Updates the table based on the supplied [data].
+     *  The DbData instance must be designed for the table.
+     *
+     *  @return the number of rows updated
+     */
+    fun <T : DbTableData> updateDbDataInTable(
+        data: T,
+        tableName: String = data.tableName,
+        schemaName: String? = defaultSchemaName
+    ): Int {
+        return updateDbDataInTable(listOf(data), tableName, schemaName)
+    }
+
+    /**
+     *  Updates the table based on the [data] from the list.
+     *  The DbData instance must be designed for the table.
+     *
+     *  @return the number of rows updated
+     */
+    fun <T : DbTableData> updateDbDataInTable(
+        data: List<T>,
+        tableName: String,
+        schemaName: String? = defaultSchemaName
+    ): Int {
+        if (data.isEmpty()) {
+            return 0
+        }
+        require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
+        // data should come from the table
+        val first = data.first()
+        require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
+        // use first to set up the prepared statement
+        val sql = first.updateDataSQLStatement()
+        val nc = first.numUpdateFields
+        try {
+            getConnection().use { con ->
+                con.autoCommit = false
+                val ps = con.prepareStatement(sql)
+                for (d in data) {
+                    val values: List<Any?> = d.extractUpdateValues()
+                    for (colIndex in 1..nc) {
+                        ps.setObject(colIndex, values[colIndex - 1])
+                    }
+                    // need to set key fields for where clause
+                    val wv = d.extractKeyValues()
+                    for ((i, v) in wv.withIndex()) {
+                        ps.setObject(nc + i + 1, v)
+                    }
+                    ps.addBatch()
+                }
+                val ni = ps.executeBatch()
+                con.commit()
+                logger.trace { "Updated ${ni.size} data objects out of ${data.size} in table $tableName" }
+                return ni.size
+            }
+        } catch (e: SQLException) {
+            logger.warn { "There was an SQLException when trying update DbData data in : $tableName" }
+            logger.warn { "SQLException: $e" }
+            return 0
+        }
+    }
 
     //TODO select * from table where field = ?, updatable RowSet
-    //TODO prepared statement to update fields from DbData
-    //TODO updateDbDataIn(DbData, tableName, schemaName)
-    //TODO updateAllDbDataIn(List<DbData>, tableName, schemaName)
 
     companion object : KLoggable {
 
@@ -1897,31 +1957,40 @@ interface DatabaseIfc : DatabaseIOIfc {
                 Types.BIT, Types.BOOLEAN -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Boolean>())
                 }
+
                 Types.DECIMAL, Types.DOUBLE, Types.FLOAT, Types.NUMERIC, Types.REAL -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Double>())
                 }
+
                 Types.TIMESTAMP -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Instant>())
                 }
+
                 Types.INTEGER -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Int>())
                 }
+
                 Types.DATE -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<LocalDate>())
                 }
+
                 Types.TIME -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<LocalTime>())
                 }
+
                 Types.BIGINT -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Long>())
                 }
+
                 Types.SMALLINT, Types.TINYINT -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Short>())
                 }
+
                 Types.BINARY, Types.CHAR, Types.NCHAR, Types.NVARCHAR,
                 Types.VARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<String>())
                 }
+
                 else -> {
                     DataColumn.createValueColumn(columnMetaData.label, mutableListOf<Any>())
                 }
@@ -1941,9 +2010,9 @@ interface DatabaseIfc : DatabaseIOIfc {
          *
          *   delete from schemaName.tableName
          */
-        fun deleteFromTableSQL(tableName: String, schemaName: String?): String {
+        fun deleteAllFromTableSQL(tableName: String, schemaName: String?): String {
             require(tableName.isNotEmpty()) { "The table name was empty when making the delete statement" }
-            return if ((schemaName != null) && (schemaName.isNotEmpty())) {
+            return if (!schemaName.isNullOrEmpty()) {
                 "delete from ${schemaName}.$tableName"
             } else {
                 "delete from $tableName"
@@ -1957,16 +2026,21 @@ interface DatabaseIfc : DatabaseIOIfc {
         fun deleteFromTableWhereSQL(tableName: String, fieldName: String, schemaName: String?): String {
             require(tableName.isNotEmpty()) { "The table name was empty when making the delete statement" }
             require(fieldName.isNotEmpty()) { "The field name was empty when making the delete statement" }
-            return deleteFromTableSQL(tableName, schemaName) + " where $fieldName = ?"
+            return deleteAllFromTableSQL(tableName, schemaName) + " where $fieldName = ?"
         }
 
-        /**
+        /** Creates an SQL string that can be used to insert data into the table
+         *
+         *  insert into schemaName.tableName values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         *
+         *  The number of parameter values is controlled by the number of columns parameter.
+         *
          * @param tableName the name of the table to be inserted into
          * @param numColumns the number of columns starting from the left to insert into
          * @param schemaName the schema containing the table
          * @return a generic SQL insert statement with appropriate number of parameters for the table
          */
-        fun createTableInsertStatementSQL(
+        fun insertIntoTableStatementSQL(
             tableName: String,
             numColumns: Int,
             schemaName: String? = null
@@ -1981,6 +2055,39 @@ interface DatabaseIfc : DatabaseIOIfc {
             } else {
                 "insert into $tableName values $inputs"
             }
+        }
+
+        /**
+         * Creates an SQL string for a prepared statement to update records in a table.
+         * The update and where field lists should have unique elements and at least 1 element.
+         * ```
+         *     val fields = listOf("A", "B", "C")
+         *     val where = listOf("D", "E")
+         *     val sql = DatabaseIfc.updateTableStatementSQL("baseball", fields, where, "league")
+         *
+         *     Produces:
+         *     update league.baseball set A = ?, B = ?, C = ? where D = ? and E = ?
+         * ```
+         */
+        fun updateTableStatementSQL(
+            tableName: String,
+            updateFields: List<String>,
+            whereFields: List<String>,
+            schemaName: String?
+        ): String {
+            require(tableName.isNotEmpty()) { "The table name was empty when making the delete statement" }
+            require(updateFields.isNotEmpty()) { "The fields to update was empty" }
+            require(whereFields.isNotEmpty()) { "The where clause fields were empty" }
+            val start = if (!schemaName.isNullOrEmpty()) {
+                "update ${schemaName}.$tableName set "
+            } else {
+                "update $tableName set "
+            }
+            val sql = StringBuilder(start)
+            sql.append(updateFields.joinToString(separator = " = ?, ", postfix = " = ? "))
+            sql.append("where ")
+            sql.append(whereFields.joinToString(separator = " = ? and ", postfix = " = ? "))
+            return sql.toString()
         }
 
     }
@@ -2053,6 +2160,67 @@ class ResultSetRowIterator(private val resultSet: ResultSet) : Iterator<List<Any
             }
         }
         return list
+    }
+
+}
+
+
+/**
+ * The user can convert the returned rows based on ColumnMetaData.
+ * The rows contain a map that is indexed by the column name and the value of the column
+ *
+ * @param resultSet the result set to iterate. It must be open and will be closed after iteration.
+ */
+class ResultSetRowMapIterator(private val resultSet: ResultSet) : Iterator<Map<String, Any?>> {
+    init {
+        require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
+    }
+
+    var currentRow: Int = 0
+        private set
+    private var didNext: Boolean = false
+    private var hasNext: Boolean = false
+    val columnCount: Int
+    val columnNames: List<String>
+
+    init {
+        val metaData: ResultSetMetaData = resultSet.metaData
+        columnCount = metaData.columnCount
+        val list = mutableListOf<String>()
+        for (i in 1..columnCount) {
+            list.add(metaData.getColumnName(i))
+        }
+        columnNames = list.toList()
+    }
+
+    override fun hasNext(): Boolean {
+        if (!didNext) {
+            hasNext = resultSet.next()
+            if (!hasNext) resultSet.close()
+            didNext = true
+        }
+        return hasNext
+    }
+
+    override fun next(): Map<String, Any?> {
+        if (!didNext) {
+            resultSet.next()
+        }
+        didNext = false
+        currentRow++
+        return makeRow(resultSet)
+    }
+
+    private fun makeRow(resultSet: ResultSet): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        for (i in 1..columnCount) {
+            try {
+                map[columnNames[i - 1]] = resultSet.getObject(i)
+            } catch (e: RuntimeException) {
+                DatabaseIfc.logger.warn { "There was a problem accessing column $i of the result set. Set value to null" }
+            }
+        }
+        return map
     }
 
 }

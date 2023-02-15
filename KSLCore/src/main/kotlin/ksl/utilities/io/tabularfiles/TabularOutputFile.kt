@@ -207,7 +207,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
             myDb.getConnection().use { connection ->
                 connection.autoCommit = false
                 val n = numberColumns
-                val sql = DatabaseIfc.createTableInsertStatementSQL(dataTableName, n, schemaName = myDb.defaultSchemaName)
+                val sql = DatabaseIfc.insertIntoTableStatementSQL(dataTableName, n, schemaName = myDb.defaultSchemaName)
                 val ps = connection.prepareStatement(sql)
                 for (row in buffer) {
                     myDb.addBatch(row, n, ps)

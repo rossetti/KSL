@@ -27,7 +27,13 @@ import kotlin.reflect.full.withNullability
  * The [tableName] should be a valid table name or view name within a database if
  * used with a database.
  */
-abstract class DbDataView(val tableName: String) {
+abstract class DbData(val tableName: String) {
+
+    /**
+     *  The optional name of the schema holding the table for the related data
+     */
+    var schemaName: String? = null
+
     /**
      *  The number of columns of data. The number of public mutable properties
      *  including any auto-increment field
@@ -87,15 +93,11 @@ abstract class DbDataView(val tableName: String) {
     }
 
     /**
-     *  Extracts the value of the public, mutable properties of a data class in the order
+     *  Extracts the values of the public, mutable properties of a data class in the order
      *  in which they are declared in the primary constructor.
      *
      *  If the object is not an instance of a data class,
      *  then the returned list will be empty.
-     *  @param autoInc if the data class as an auto increment field then
-     *  the values are extracted without the fields value if this parameter is true.
-     *  If false, all values are extracted regardless of auto increment field.
-     *  The default is false.
      */
     fun extractPropertyValues(): List<Any?> {
         val cls: KClass<out Any> = this::class
@@ -157,24 +159,24 @@ abstract class DbDataView(val tableName: String) {
         val properties = extractMutableProperties()
         for ((index, name) in names.withIndex()) {
             val value = values[index]
-            if (value != null){
+            if (value != null) {
                 // get the property's return type
                 val rt: KType? = properties[name]?.returnType
-                if (rt != null){
+                if (rt != null) {
                     val vc: KClass<out Any> = value::class
-                    val vcKType = if (rt.isMarkedNullable){
+                    val vcKType = if (rt.isMarkedNullable) {
                         vc.starProjectedType.withNullability(true)
                     } else {
                         vc.starProjectedType
                     }
-                    require (rt == vcKType){ "The type ($rt) of property $name was not compatible with the corresponding type ($vcKType) of value $value at index $index" }
+                    require(rt == vcKType) { "The type ($rt) of property $name was not compatible with the corresponding type ($vcKType) of value $value at index $index" }
                 }
             } else {
                 // value was null, check if property was marked nullable
                 // get the property's return type
                 val rt: KType? = properties[name]?.returnType
-                if (rt != null){
-                    require(rt.isMarkedNullable){"The value at index $index was null and the property $name was not nullable"}
+                if (rt != null) {
+                    require(rt.isMarkedNullable) { "The value at index $index was null and the property $name was not nullable" }
                 }
             }
         }
@@ -189,25 +191,25 @@ abstract class DbDataView(val tableName: String) {
     }
 }
 
-/** DbData represents a base class for constructing data classes
- * that work with instances of DatabaseIfc.  Specifically, DbData
- * provide the ability to push data into a table. Thus, subclasses of DbData
+/** DbTableData represents a base class for constructing data classes
+ * that work with instances of DatabaseIfc.  Specifically, DbTableData
+ * provide the ability to push data into a table. Thus, subclasses of DbTableData
  * must provide information about the primary key of the table and whether
  * the key is an auto-increment type field.
  *
  * Example usage:
  * ```
- * data class Person(var id: Int, var name:String, var age:Int): DbData("Persons", listOf("id"), true)
+ * data class Person(var id: Int, var name:String, var age:Int): DbTableData("Persons", listOf("id"), true)
  * db.selectDbDataInto(::Person)
  * ```
- * Assume that db hold an instance to a database that has a table called, Persons,
+ * Assume that db hold an instance to a database that has a table called, Person,
  * with the fields (id, name and age) as the sole columns, in that order. The data will be extracted
  * from the database table and instances of the data class created and filled
  * with the data from the table. As long as the data class properties match
- * in order and in with compatible types with the fields/columns of the database, then
+ * in order and with compatible types with the fields/columns of the database, then
  * the instances will be created and filled.
  *
- * The [tableName] should be a valid table name or view name within a database if
+ * The [tableName] should be a valid table name within a database if
  * used with a database.
  *
  * The property [keyFields] holds the names of the fields involved within the primary key.
@@ -219,22 +221,36 @@ abstract class DbDataView(val tableName: String) {
  * when pushing data from the data class into the database to ignore the
  * property listed in the constructor of the data class.
  */
-abstract class DbData(
+abstract class DbTableData(
     tblName: String,
     val keyFields: List<String>,
     val autoIncField: Boolean = false
-) : DbDataView(tblName){
+) : DbData(tblName) {
     init {
-        require(keyFields.isNotEmpty()){"The list of key fields must have at least 1 element"}
-        if (autoIncField){
-            require(keyFields.size==1){"An auto-increment field was indicated but the number of key fields was not 1"}
+        require(keyFields.isNotEmpty()) { "The list of key fields must have at least 1 element" }
+        if (autoIncField) {
+            require(keyFields.size == 1) { "An auto-increment field was indicated but the number of key fields was not 1" }
         }
     }
 
     /**
+     *  The number of fields to insert.  If there is an auto-increment field
+     *  then it is not included.
+     */
+    val numInsertFields: Int
+        get() = if (autoIncField) (numColumns - 1) else numColumns
+
+    /**
+     *  The number of fields to update. This does not include the fields within the
+     *  primary key
+     */
+    val numUpdateFields: Int
+        get() = numColumns - keyFields.size
+
+    /**
      * Checks if an autoIncField exists
      */
-    fun hasAutoIncrementField() : Boolean {
+    fun hasAutoIncrementField(): Boolean {
         return autoIncField
     }
 
@@ -257,8 +273,8 @@ abstract class DbData(
         val list = mutableListOf<Any?>()
         val names = extractPropertyNames().toMutableList()
         val pairs = extractPropertyValuesByName().toMutableMap()
-        if (autoInc){
-            if (autoIncField){
+        if (autoInc) {
+            if (autoIncField) {
                 names.remove(keyFields[0])
                 pairs.remove(keyFields[0])
             }
@@ -269,15 +285,94 @@ abstract class DbData(
         return list
     }
 
+    /**
+     *  Extracts the value of the public, mutable properties of a data class in the order
+     *  in which they are declared in the primary constructor not including the
+     *  fields designated as being within the primary key. We assume that the values
+     *  returned correspond to data that must be used to update a record within
+     *  the database table.  Thus, we assume that the user will not update
+     *  the values of the fields within the primary key. The returned
+     *  values are in the order of the properties listed in the DbTableData
+     *  class, not including the primary key fields.
+     *
+     *  If the object is not an instance of a data class,
+     *  then the returned list will be empty.
+     */
+    fun extractUpdateValues(): List<Any?> {
+        val cls: KClass<out Any> = this::class
+        if (!cls.isData) {
+            return emptyList()
+        }
+        val list = mutableListOf<Any?>()
+        val updateFields = extractPropertyNames().toMutableList()
+        for (field in keyFields) {
+            updateFields.remove(field)
+        }
+        val pairs = extractPropertyValuesByName().toMutableMap()
+        for (field in updateFields) {
+            list.add(pairs[field])
+        }
+        return list
+    }
+
+    /**
+     *  Extracts the current value of the fields that are designated
+     *  as part of the primary key in the order in which the properties
+     *  are listed within the class definition
+     */
+    fun extractKeyValues(): List<Any?> {
+        val cls: KClass<out Any> = this::class
+        if (!cls.isData) {
+            return emptyList()
+        }
+        val list = mutableListOf<Any?>()
+        val names = extractPropertyNames().toMutableList()
+        val pairs = extractPropertyValuesByName()
+        for(name in names){
+            if (keyFields.contains(name)){
+                list.add(pairs[name])
+            }
+        }
+        return list
+    }
+
+    fun updateDataSQLStatement(): String {
+        val updateFields = extractPropertyNames().toMutableList()
+        for (field in keyFields) {
+            updateFields.remove(field)
+        }
+        return DatabaseIfc.updateTableStatementSQL(tableName, updateFields, keyFields, schemaName)
+    }
+
+    fun insertDataSQLStatement(): String {
+        val insertFields = extractPropertyNames().toMutableList()
+        var nc = numColumns
+        if (autoIncField) {
+            nc = nc - 1
+        }
+        return DatabaseIfc.insertIntoTableStatementSQL(tableName, nc, schemaName)
+    }
+
 }
 
-fun main(){
-    val e = ExperimentData()
+fun main() {
+    val e = ExperimentTableData()
     val names = e.extractPropertyNames()
     println(names)
     val values = e.extractPropertyValues()
     println(values)
-    val sList = listOf<Any?>(-1, "a","b" , "c", -1, false, null, null, null, true, false, false, true, 100, false)
+    val sList = listOf<Any?>(-1, "a", "b", "c", -1, false, null, null, null, true, false, false, true, 100, false)
     e.setPropertyValues(sList)
     println(e)
+
+    val fields = listOf("A", "B", "C")
+    val where = listOf("D", "E")
+    val sql = DatabaseIfc.updateTableStatementSQL("baseball", fields, where, "league")
+    println(sql)
+
+    println("INSERT statement:")
+    println(e.insertDataSQLStatement())
+    println()
+    println("UPDATE statement:")
+    println(e.updateDataSQLStatement())
 }
