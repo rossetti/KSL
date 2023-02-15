@@ -49,7 +49,7 @@ import java.util.*
  * @param db the database that is configured to hold KSL simulation data
  * @param clearDataOption to clear any old data upon construction. The default is false
  */
-class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
+class KSLDatabaseV2(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
     //TODO number of replications for experiments is always the number for the simulation run
     // SimulationRunner is still chunking experiments the old way 1 experiment = 1 simulation run
@@ -1419,9 +1419,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          *
          * @return an empty embedded SQLite database configured to hold KSL simulation results
          */
-        fun createKSLDatabase(dbName: String, dbDirectory: Path = dbDir): KSLDatabase {
+        fun createKSLDatabase(dbName: String, dbDirectory: Path = dbDir): KSLDatabaseV2 {
             val db = createSQLiteKSLDatabase(dbName, dbDirectory)
-            return KSLDatabase(db)
+            return KSLDatabaseV2(db)
         }
 
         /** This method creates the database on disk and configures it to hold KSL simulation data.
@@ -1474,13 +1474,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             dbName: String,
             user: String,
             pWord: String
-        ): KSLDatabase {
+        ): KSLDatabaseV2 {
             val props: Properties = DatabaseFactory.makePostgreSQLProperties(dbServerName, dbName, user, pWord)
             val db = DatabaseFactory.createDatabaseFromProperties(props)
             db.executeCommand("DROP SCHEMA IF EXISTS ksl_db CASCADE")
             executeKSLDbCreationScriptOnDatabase(db)
             db.defaultSchemaName = "ksl_db"
-            return KSLDatabase(db)
+            return KSLDatabaseV2(db)
         }
 
         /**
@@ -1502,9 +1502,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             dbName: String,
             user: String,
             pWord: String
-        ): KSLDatabase {
+        ): KSLDatabaseV2 {
             val props: Properties = DatabaseFactory.makePostgreSQLProperties(dbServerName, dbName, user, pWord)
-            val kslDatabase: KSLDatabase = connectKSLDatabase(clearDataOption, props)
+            val kslDatabase: KSLDatabaseV2 = connectKSLDatabase(clearDataOption, props)
             DatabaseIfc.logger.info("Connected to a postgres KSL database {} ", kslDatabase.db.dbURL)
             return kslDatabase
         }
@@ -1522,9 +1522,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         fun connectKSLDatabase(
             clearDataOption: Boolean = false,
             dBProperties: Properties,
-        ): KSLDatabase {
+        ): KSLDatabaseV2 {
             val db: Database = DatabaseFactory.createDatabaseFromProperties(dBProperties)
-            return KSLDatabase(db, clearDataOption)
+            return KSLDatabaseV2(db, clearDataOption)
         }
     }
 }
