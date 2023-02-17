@@ -1443,6 +1443,11 @@ interface DatabaseIfc : DatabaseIOIfc {
         tableName: String = data.tableName,
         schemaName: String? = defaultSchemaName
     ): Int {
+        require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
+        require(data.tableName == tableName) { "The supplied data was not from table $tableName" }
+
+
+
         return insertDbDataIntoTable(listOf(data), tableName, schemaName)
     }
 
@@ -2056,6 +2061,37 @@ interface DatabaseIfc : DatabaseIOIfc {
                 "insert into ${schemaName}.${tableName} values $inputs"
             } else {
                 "insert into $tableName values $inputs"
+            }
+        }
+
+        /** Creates an SQL string that can be used to insert data into the table
+         *
+         *  insert into schemaName.tableName (fieldName1, fieldName2, fieldName3) values (?, ?, ?)
+         *
+         *  The number of parameter values is controlled by the size of the field array.
+         *  This assumes that the supplied field names are valid for the supplied table name.
+         *
+         * @param tableName the name of the table to be inserted into
+         * @param fields the names of the fields that will receive data within the table
+         * @param schemaName the schema containing the table
+         * @return a generic SQL insert statement with appropriate number of parameters for the table
+         */
+        fun insertIntoTableStatementSQL(
+            tableName: String,
+            fields: List<String>,
+            schemaName: String? = null
+        ): String {
+            // assume all columns have the same table name and schema name
+            require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
+            require(fields.isNotEmpty()){ "The insert fields was empty when making the insert statement" }
+            val qm = CharArray(fields.size)
+            qm.fill('?', toIndex = fields.size)
+            val inputStr = qm.joinToString(", ", prefix = "(", postfix = ")")
+            val fieldStr = fields.joinToString (", ", prefix = "(", postfix = ")")
+            return if (!schemaName.isNullOrEmpty()) {
+                "insert into ${schemaName}.${tableName} $fieldStr values $inputStr"
+            } else {
+                "insert into $tableName $fieldStr values $inputStr"
             }
         }
 

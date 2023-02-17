@@ -106,7 +106,7 @@ abstract class DbData(val tableName: String) {
         }
         val list = mutableListOf<Any?>()
         val names = extractPropertyNames()
-        val pairs = extractPropertyValuesByName()
+        val pairs = extractAllPropertyValuesByName()
         for (name in names) {
             list.add(pairs[name])
         }
@@ -120,7 +120,7 @@ abstract class DbData(val tableName: String) {
      *  of (name, value) where name is the name of the public, mutable property
      *  and value is the current value of the property
      */
-    fun extractPropertyValuesByName(): Map<String, Any?> {
+    fun extractAllPropertyValuesByName(): Map<String, Any?> {
         val cls: KClass<out Any> = this::class
         if (!cls.isData) {
             return emptyMap()
@@ -154,7 +154,7 @@ abstract class DbData(val tableName: String) {
         val names = extractPropertyNames()
         // check the number of properties
         require(names.size == values.size) { "The data class has ${names.size} properties, but ${values.size} values were supplied" }
-        val map = extractPropertyValuesByName()
+        val map = extractAllPropertyValuesByName()
         // check the type of the properties
         val properties = extractMutableProperties()
         for ((index, name) in names.withIndex()) {
@@ -189,6 +189,8 @@ abstract class DbData(val tableName: String) {
             }
         }
     }
+
+    //TODO set by map
 }
 
 /** DbTableData represents a base class for constructing data classes
@@ -255,6 +257,71 @@ abstract class DbTableData(
     }
 
     /**
+     *  Extracts the names of the fields that can be updated by
+     *  accounting for an auto-increment key field
+     */
+    fun extractUpdatableFieldNames(): List<String> {
+        val names = extractPropertyNames().toMutableList()
+        if (autoIncField) {
+            // must have only 1 key field, remove it because it cannot be updated
+            names.remove(keyFields.first())
+        }
+        return names
+    }
+
+    /**
+     *  The map will contain the fields and their values that
+     *  are designated as part of the primary key
+     */
+    fun extractKeyPropertyValuesByName(): Map<String, Any?> {
+        val cls: KClass<out Any> = this::class
+        if (!cls.isData) {
+            return emptyMap()
+        }
+        val map = extractAllPropertyValuesByName().toMutableMap()
+        for (field in keyFields) {
+            if (!map.containsKey(field)) {
+                map.remove(field)
+            }
+        }
+        return map
+    }
+
+    /**
+     *  The map will contain the fields and their values that
+     *  are not designated as part of the primary key
+     */
+    fun extractNonKeyPropertyValuesByName(): Map<String, Any?> {
+        val cls: KClass<out Any> = this::class
+        if (!cls.isData) {
+            return emptyMap()
+        }
+        val map = extractAllPropertyValuesByName().toMutableMap()
+        for (field in keyFields) {
+            if (map.containsKey(field)) {
+                map.remove(field)
+            }
+        }
+        return map
+    }
+
+    /**
+     *  The map will contain all the fields by name with their
+     *  values without an auto-increment field if it exists
+     */
+    fun extractNonAutoIncPropertyValuesByName(): Map<String, Any?> {
+        val cls: KClass<out Any> = this::class
+        if (!cls.isData) {
+            return emptyMap()
+        }
+        val map = extractAllPropertyValuesByName().toMutableMap()
+        if (autoIncField){
+            map.remove(keyFields.first())
+        }
+        return map
+    }
+
+    /**
      *  Extracts the value of the public, mutable properties of a data class in the order
      *  in which they are declared in the primary constructor.
      *
@@ -272,7 +339,7 @@ abstract class DbTableData(
         }
         val list = mutableListOf<Any?>()
         val names = extractPropertyNames().toMutableList()
-        val pairs = extractPropertyValuesByName().toMutableMap()
+        val pairs = extractAllPropertyValuesByName().toMutableMap()
         if (autoInc) {
             if (autoIncField) {
                 names.remove(keyFields[0])
@@ -308,7 +375,7 @@ abstract class DbTableData(
         for (field in keyFields) {
             updateFields.remove(field)
         }
-        val pairs = extractPropertyValuesByName().toMutableMap()
+        val pairs = extractAllPropertyValuesByName().toMutableMap()
         for (field in updateFields) {
             list.add(pairs[field])
         }
@@ -327,9 +394,9 @@ abstract class DbTableData(
         }
         val list = mutableListOf<Any?>()
         val names = extractPropertyNames().toMutableList()
-        val pairs = extractPropertyValuesByName()
-        for(name in names){
-            if (keyFields.contains(name)){
+        val pairs = extractAllPropertyValuesByName()
+        for (name in names) {
+            if (keyFields.contains(name)) {
                 list.add(pairs[name])
             }
         }
