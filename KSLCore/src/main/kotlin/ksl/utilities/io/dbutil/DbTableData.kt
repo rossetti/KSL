@@ -189,7 +189,7 @@ abstract class DbData(val tableName: String) {
             }
         }
     }
-    
+
 }
 
 /** DbTableData represents a base class for constructing data classes
