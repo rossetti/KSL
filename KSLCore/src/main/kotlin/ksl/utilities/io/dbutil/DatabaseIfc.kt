@@ -1445,10 +1445,36 @@ interface DatabaseIfc : DatabaseIOIfc {
     ): Int {
         require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
         require(data.tableName == tableName) { "The supplied data was not from table $tableName" }
-
-
-
-        return insertDbDataIntoTable(listOf(data), tableName, schemaName)
+        val sql = data.insertDataSQLStatement()
+        try {
+            getConnection().use { con ->
+                con.autoCommit = false
+                val stmt = if (data.autoIncField){
+                    val autoIdKey: Array<String> = data.keyFields.toTypedArray()
+                    con.prepareStatement(sql, autoIdKey)
+                } else {
+                    con.prepareStatement(sql)
+                }
+                val dataMap = data.extractNonAutoIncPropertyValuesByName()
+                val insertFields = data.extractUpdatableFieldNames()
+                for((i, field) in insertFields.withIndex()){
+                    stmt.setObject(i+1, dataMap[field])
+                }
+                stmt.executeUpdate()
+                con.commit()
+                if (data.autoIncField){
+                    val rs = stmt.generatedKeys
+                    rs.next()
+                    val autoId = rs.getObject(1)
+                    data.setAutoIncField(autoId)
+                }
+                return 1
+            }
+        } catch (e: SQLException) {
+            logger.warn { "There was an SQLException when trying insert DbData data into : $tableName" }
+            logger.warn { "SQLException: $e" }
+            return 0
+        }
     }
 
     /**
@@ -1470,33 +1496,24 @@ interface DatabaseIfc : DatabaseIOIfc {
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         // use first to set up the prepared statement
-        var nc = first.numColumns
-        println("num columns: = $nc")
-        val autoInc = first.hasAutoIncrementField()
-        if (autoInc) {
-            nc = nc - 1
-        }
+        val sql = first.insertDataSQLStatement()
         try {
             getConnection().use { con ->
                 con.autoCommit = false
-                val ps = makeInsertPreparedStatement(con, tableName, nc, schemaName)
+                val stmt = con.prepareStatement(sql)
                 var cntGood = 0
                 for (d in data) {
-                    val values: List<Any?> = d.extractPropertyValues(autoInc)
-                    println("values.size = ${values.size}")
-                    val success = addBatch(values, nc, ps)
-                    if (success) {
-                        cntGood++
+                    val dataMap = d.extractNonAutoIncPropertyValuesByName()
+                    val insertFields = d.extractUpdatableFieldNames()
+                    for((i, field) in insertFields.withIndex()){
+                        stmt.setObject(i+1, dataMap[field])
                     }
+                    stmt.addBatch()
                 }
-                if (cntGood > 0) {
-                    val ni = ps.executeBatch()
-                    con.commit()
-                    logger.trace { "Inserted ${ni.size} data objects out of ${data.size} to table $tableName" }
-                    return ni.size
-                } else {
-                    return 0
-                }
+                val ni = stmt.executeBatch()
+                con.commit()
+                logger.trace { "Inserted ${ni.size} data objects out of ${data.size} to table $tableName" }
+                return ni.size
             }
         } catch (e: SQLException) {
             logger.warn { "There was an SQLException when trying insert DbData data into : $tableName" }

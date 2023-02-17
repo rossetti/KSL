@@ -191,6 +191,8 @@ abstract class DbData(val tableName: String) {
     }
 
     //TODO set by map
+
+
 }
 
 /** DbTableData represents a base class for constructing data classes
@@ -257,7 +259,7 @@ abstract class DbTableData(
     }
 
     /**
-     *  Extracts the names of the fields that can be updated by
+     *  Extracts the names of the fields that can be updated or inserted by
      *  accounting for an auto-increment key field
      */
     fun extractUpdatableFieldNames(): List<String> {
@@ -412,14 +414,20 @@ abstract class DbTableData(
     }
 
     fun insertDataSQLStatement(): String {
-        val insertFields = extractPropertyNames().toMutableList()
-        var nc = numColumns
-        if (autoIncField) {
-            nc = nc - 1
-        }
-        return DatabaseIfc.insertIntoTableStatementSQL(tableName, nc, schemaName)
+        val insertFields = extractUpdatableFieldNames()
+        return DatabaseIfc.insertIntoTableStatementSQL(tableName, insertFields, schemaName)
     }
 
+    fun setAutoIncField(value: Any?){
+        if (autoIncField){
+            val properties = extractMutableProperties()
+            val property = properties[keyFields.first()]
+            if (property is KMutableProperty<*>) {
+                val p = property as KMutableProperty<*>
+                p.setter.call(this, value)
+            }
+        }
+    }
 }
 
 fun main() {
