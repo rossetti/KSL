@@ -113,7 +113,7 @@ interface DatabaseIOIfc {
      * @param out        the PrintWriter to write to
      */
     fun writeAllTablesAsText(
-        out: PrintWriter,
+        out: PrintWriter = outputDirectory.createPrintWriter("${label}.txt"),
         schemaName: String? = defaultSchemaName)
 
     /**
