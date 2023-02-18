@@ -39,30 +39,35 @@ object KSL : KLoggable {
      */
     private var myEnumCounter = 0
 
-    private val myOutputDir = OutputDirectory("kslOutput", "kslOutput.txt")
+    internal val myOutputDir = OutputDirectory("kslOutput", "kslOutput.txt")
 
     /**
-     *  Use like System.out, but it goes to a file called jslOutput.txt
+     *  Use with println(), but it goes to a file called kslOutput.txt
      */
     val out = myOutputDir.out
 
     /**
      *
-     * @return the path to the base directory
+     * the path to the base directory
      */
     val outDir = myOutputDir.outDir
 
     /**
      *
-     * @return the path to the default excel directory
+     * the path to the default excel directory
      */
     val excelDir = myOutputDir.excelDir
 
     /**
      *
-     * @return the path to the default database directory
+     * the path to the default database directory
      */
     val dbDir = myOutputDir.dbDir
+
+    /**
+     *  the path to the default comma separated value file directory
+     */
+    val csvDir = myOutputDir.csvDir
 
     /**
      * Should be used by classes to get the next constant

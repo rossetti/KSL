@@ -59,7 +59,8 @@ object DBExamples {
 
         // this creates and attaches a KSLDatabase
 //        val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
-        val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb")
+        val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb", model.outputDirectory.dbDir)
+//        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
         val kdb = KSLDatabase(sdb)
         KSLDatabaseObserver(model, kdb)
         // this also creates and attached another KSLDatabase, using the defaults
@@ -68,17 +69,7 @@ object DBExamples {
         model.simulate()
         model.print()
 
-//        val records = kdb.acrossReplicationRecords()
-//        println("number of records = ${records.query.totalRecords}")
-//
-//        val cachedRowSet = DatabaseIfc.createCachedRowSet(records)
-//        println("size of cachedRowSet = ${cachedRowSet.size()}")
-//        cachedRowSet.first()
-//        DatabaseIfc.writeAsText(cachedRowSet, KSL.out)
-
-//    sdb.printAllTablesAsText()
-        val file = KSL.createPrintWriter("results.md")
-        sdb.writeAllTablesAsMarkdown(out = file)
+        sdb.writeAllTablesAsMarkdown()
 
         val df = kdb.withinRepViewStatistics
         println(df.schema())
@@ -99,6 +90,11 @@ object DBExamples {
             val r = DatabaseIfc.toDataFrame(rs)
             println(r)
         }
+
+        sdb.exportAllTablesAsCSV()
+
+        sdb.exportToExcel()
+
         println("Done!")
     }
 

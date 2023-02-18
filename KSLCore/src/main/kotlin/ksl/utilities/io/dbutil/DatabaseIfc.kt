@@ -45,11 +45,13 @@ import kotlin.reflect.*
 
 interface DatabaseIOIfc {
 
+    var outputDirectory: OutputDirectory
+
     /**
      * identifying string representing the database. This has no relation to
      * the name of the database on disk or in the dbms. The sole purpose is for labeling of output
      */
-    val label: String
+    var label: String
 
     /**
      * Sets the name of the default schema
@@ -67,7 +69,7 @@ interface DatabaseIOIfc {
      */
     fun exportTableAsCSV(
         tableName: String,
-        out: PrintWriter,
+        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.csv"),
         schemaName: String? = defaultSchemaName,
         header: Boolean = true
     )
@@ -85,7 +87,10 @@ interface DatabaseIOIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsText(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun writeTableAsText(
+        tableName: String,
+        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.txt"),
+        schemaName: String? = defaultSchemaName)
 
     /**
      * Prints the table as prettified text to the console
@@ -107,7 +112,9 @@ interface DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsText(out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun writeAllTablesAsText(
+        out: PrintWriter,
+        schemaName: String? = defaultSchemaName)
 
     /**
      * Writes the table as prettified text.
@@ -115,7 +122,10 @@ interface DatabaseIOIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsMarkdown(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun writeTableAsMarkdown(
+        tableName: String,
+        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.md"),
+        schemaName: String? = defaultSchemaName)
 
     /**
      * Prints the table as prettified text to the console
@@ -137,7 +147,9 @@ interface DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsMarkdown(out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun writeAllTablesAsMarkdown(
+        out: PrintWriter = outputDirectory.createPrintWriter("${label}.md"),
+        schemaName: String? = defaultSchemaName)
 
     /**
      * Writes all tables as separate comma separated value files into the supplied
@@ -149,7 +161,7 @@ interface DatabaseIOIfc {
      * @param header  true means all files will have the column headers
      */
     fun exportAllTablesAsCSV(
-        pathToOutPutDirectory: Path,
+        pathToOutPutDirectory: Path = outputDirectory.csvDir,
         schemaName: String? = defaultSchemaName,
         header: Boolean = true
     )
@@ -167,7 +179,10 @@ interface DatabaseIOIfc {
      * @param tableName the unqualified name of the table
      * @param out       the PrintWriter to write to
      */
-    fun exportInsertQueries(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun exportInsertQueries(
+        tableName: String,
+        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.sql"),
+        schemaName: String? = defaultSchemaName)
 
     /**
      * Prints all table data as insert queries to the console
@@ -195,7 +210,7 @@ interface DatabaseIOIfc {
     fun exportToExcel(
         schemaName: String? = defaultSchemaName,
         wbName: String = label,
-        wbDirectory: Path = KSL.excelDir
+        wbDirectory: Path = outputDirectory.excelDir
     )
 
     /** Writes each table in the list to an Excel workbook with each table being placed
@@ -211,7 +226,7 @@ interface DatabaseIOIfc {
         tableNames: List<String>,
         schemaName: String? = defaultSchemaName,
         wbName: String = label.substringBeforeLast("."),
-        wbDirectory: Path = KSL.excelDir
+        wbDirectory: Path = outputDirectory.excelDir
     )
 
     /**
@@ -259,7 +274,7 @@ interface DatabaseIOIfc {
         schemaName: String? = defaultSchemaName,
         numRowsToSkip: Int = 1,
         rowBatchSize: Int = 100,
-        unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
+        unCompatibleRows: PrintWriter = outputDirectory.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
     ): Boolean
 }
 
@@ -1396,13 +1411,14 @@ interface DatabaseIfc : DatabaseIOIfc {
         } else {
             "select * from $tableName"
         }
-        val rs = fetchOpenResultSet(sql)
-        val list = if (rs != null) {
-            columnMetaData(rs)
-        } else {
-            emptyList()
+        var list : List<ColumnMetaData>
+        val rs = fetchOpenResultSet(sql).use {
+            list = if (it != null) {
+                columnMetaData(it)
+            } else {
+                emptyList()
+            }
         }
-        rs?.close()
         return list
     }
 
@@ -1450,19 +1466,19 @@ interface DatabaseIfc : DatabaseIOIfc {
         try {
             getConnection().use { con ->
                 con.autoCommit = false
-                val stmt = if (data.autoIncField){
+                val stmt = if (data.autoIncField) {
                     con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
                 } else {
                     con.prepareStatement(sql)
                 }
                 val dataMap = data.extractNonAutoIncPropertyValuesByName()
                 val insertFields = data.extractUpdatableFieldNames()
-                for((i, field) in insertFields.withIndex()){
-                    stmt.setObject(i+1, dataMap[field])
+                for ((i, field) in insertFields.withIndex()) {
+                    stmt.setObject(i + 1, dataMap[field])
                 }
                 stmt.executeUpdate()
                 con.commit()
-                if (data.autoIncField){
+                if (data.autoIncField) {
                     val rs = stmt.generatedKeys
                     rs.next()
                     //val autoId = rs.getObject(1)
@@ -1507,8 +1523,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                 for (d in data) {
                     val dataMap = d.extractNonAutoIncPropertyValuesByName()
                     val insertFields = d.extractUpdatableFieldNames()
-                    for((i, field) in insertFields.withIndex()){
-                        stmt.setObject(i+1, dataMap[field])
+                    for ((i, field) in insertFields.withIndex()) {
+                        stmt.setObject(i + 1, dataMap[field])
                     }
                     stmt.addBatch()
                 }
@@ -2103,11 +2119,11 @@ interface DatabaseIfc : DatabaseIOIfc {
         ): String {
             // assume all columns have the same table name and schema name
             require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
-            require(fields.isNotEmpty()){ "The insert fields was empty when making the insert statement" }
+            require(fields.isNotEmpty()) { "The insert fields was empty when making the insert statement" }
             val qm = CharArray(fields.size)
             qm.fill('?', toIndex = fields.size)
             val inputStr = qm.joinToString(", ", prefix = "(", postfix = ")")
-            val fieldStr = fields.joinToString (", ", prefix = "(", postfix = ")")
+            val fieldStr = fields.joinToString(", ", prefix = "(", postfix = ")")
             return if (!schemaName.isNullOrEmpty()) {
                 "insert into ${schemaName}.${tableName} $fieldStr values $inputStr"
             } else {

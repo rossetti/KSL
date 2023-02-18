@@ -86,7 +86,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
 
     private fun createExcelDirectory(): Path {
         return try {
-            Files.createDirectories(outDir.resolve("excel"))
+            Files.createDirectories(outDir.resolve("excelDir"))
         } catch (e: IOException) {
             KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
                 outDir.resolve("excel"))
@@ -98,10 +98,22 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
 
     private fun createDatabaseDirectory(): Path {
         return try {
-            Files.createDirectories(outDir.resolve("db"))
+            Files.createDirectories(outDir.resolve("dbDir"))
         } catch (e: IOException) {
             KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
                 outDir.resolve("db"))
+            KSLFileUtil.programLaunchDirectory
+        }
+    }
+
+    val csvDir: Path = createCSVDirectory()
+    
+    private fun createCSVDirectory(): Path {
+        return try {
+            Files.createDirectories(outDir.resolve("csvDir"))
+        } catch (e: IOException) {
+            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
+                outDir.resolve("excel"))
             KSLFileUtil.programLaunchDirectory
         }
     }

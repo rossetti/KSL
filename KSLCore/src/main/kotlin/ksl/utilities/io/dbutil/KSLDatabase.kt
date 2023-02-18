@@ -53,8 +53,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * @param clearDataOption indicates if the data should be cleared. The default is true.
      * @return an empty embedded SQLite database configured to hold KSL simulation results
      */
-    constructor(dbName: String, dbDirectory: Path = KSLDatabase.dbDir, clearDataOption: Boolean = true) : this(
-        KSLDatabase.createSQLiteKSLDatabase(dbName, dbDirectory), clearDataOption
+    constructor(dbName: String, dbDirectory: Path = dbDir, clearDataOption: Boolean = true) : this(
+        createSQLiteKSLDatabase(dbName, dbDirectory), clearDataOption
     )
 
     /**
@@ -94,7 +94,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         } else {
             db.userDefinedTables
         }
-        for (name in KSLDatabase.TableNames) {
+        for (name in TableNames) {
             if (!containsTableName(name, tableNames)) {
                 return false
             }
@@ -790,6 +790,18 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return mca
     }
 
+//    fun exportAllTablesAsCSV(schemaName: String?, header: Boolean) {
+//        TODO("Not yet implemented")
+//    }
+//
+//    fun exportToExcel(schemaName: String?, wbName: String) {
+//        TODO("Not yet implemented")
+//    }
+//
+//    fun exportToExcel(tableNames: List<String>, schemaName: String?, wbName: String) {
+//        TODO("Not yet implemented")
+//    }
+
     companion object {
         val TableNames = listOf(
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
@@ -912,17 +924,17 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @return a reference to a KSLDatabase
          */
         fun createPostgreSQLKSLDatabase(
-            dbServerName: String = "localhost",
             dbName: String,
-            user: String,
-            pWord: String
-        ): KSLDatabase {
+            dbServerName: String = "localhost",
+            user: String = "postgres",
+            pWord: String = ""
+        ): Database {
             val props: Properties = DatabaseFactory.makePostgreSQLProperties(dbServerName, dbName, user, pWord)
             val db = DatabaseFactory.createDatabaseFromProperties(props)
             db.executeCommand("DROP SCHEMA IF EXISTS ksl_db CASCADE")
             executeKSLDbCreationScriptOnDatabase(db)
             db.defaultSchemaName = "ksl_db"
-            return KSLDatabase(db)
+            return db
         }
 
         /**
@@ -940,10 +952,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          */
         fun connectPostgresKSLDatabase(
             clearDataOption: Boolean = false,
-            dbServerName: String = "localhost",
             dbName: String,
-            user: String,
-            pWord: String
+            dbServerName: String = "localhost",
+            user: String = "postgres",
+            pWord: String = ""
         ): KSLDatabase {
             val props: Properties = DatabaseFactory.makePostgreSQLProperties(dbServerName, dbName, user, pWord)
             val kslDatabase: KSLDatabase = connectKSLDatabase(clearDataOption, props)

@@ -20,18 +20,22 @@ package ksl.utilities.io.dbutil
 
 //import org.ktorm.database.Database
 //import org.ktorm.logging.Slf4jLoggerAdapter
+import ksl.utilities.io.KSL
+import ksl.utilities.io.OutputDirectory
 import java.sql.Connection
 import javax.sql.DataSource
 
 open class Database(
     final override val dataSource: DataSource,
-    final override val label: String,
+    final override var label: String,
     final override var defaultSchemaName: String? = null
 ) : DatabaseIfc {
 
+    override var outputDirectory: OutputDirectory = KSL.myOutputDir
+
     final override fun getConnection(): Connection = super.getConnection()
 
-    override val dbURL: String? = getConnection().metaData?.url
+    override val dbURL: String? = getConnection().use { it.metaData?.url }
 
     init {
         DatabaseIfc.logger.info { "Constructed DatabaseImp $label via $dbURL" }

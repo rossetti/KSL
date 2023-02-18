@@ -53,7 +53,7 @@ class Model(
      *
      * @return the defined OutputDirectory for the simulation
      */
-    val outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
+    var outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
 
     var autoPrintSummaryReport: Boolean = false
 
