@@ -1445,6 +1445,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     ): Int {
         require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
         require(data.tableName == tableName) { "The supplied data was not from table $tableName" }
+        data.schemaName = schemaName
         val sql = data.insertDataSQLStatement()
         try {
             getConnection().use { con ->
@@ -1464,7 +1465,9 @@ interface DatabaseIfc : DatabaseIOIfc {
                 if (data.autoIncField){
                     val rs = stmt.generatedKeys
                     rs.next()
-                    val autoId = rs.getObject(1)
+                    //val autoId = rs.getObject(1)
+                    val autoId = rs.getInt(1)
+                    //println("autoId = $autoId  class = ${autoId::class}")
                     data.setAutoIncField(autoId)
                 }
                 return 1
@@ -1495,6 +1498,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         // use first to set up the prepared statement
+        first.schemaName = schemaName
         val sql = first.insertDataSQLStatement()
         try {
             getConnection().use { con ->
@@ -1548,11 +1552,12 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (data.isEmpty()) {
             return 0
         }
-        require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
+        require(containsTable(tableName)) { "Database $label does not contain table $tableName for updating data!" }
         // data should come from the table
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         // use first to set up the prepared statement
+        first.schemaName = schemaName
         val sql = first.updateDataSQLStatement()
         val nc = first.numUpdateFields
         try {

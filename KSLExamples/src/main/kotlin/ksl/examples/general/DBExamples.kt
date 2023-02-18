@@ -58,7 +58,8 @@ object DBExamples {
         dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
 
         // this creates and attaches a KSLDatabase
-        val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
+//        val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
+        val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb")
         val kdb = KSLDatabase(sdb)
         KSLDatabaseObserver(model, kdb)
         // this also creates and attached another KSLDatabase, using the defaults
@@ -83,14 +84,12 @@ object DBExamples {
         println(df.schema())
         println(df)
 
-        val simRunIdFk by column<Int>()
-        val expName by column<String>()
-        println(expName.name())
-        val filter = df.filter { expName().equals("Experiment_1") }.values { simRunIdFk }
+        val stat_name by column<String>()
+        val exp_name by column<String>()
+        println(exp_name.name())
+        val filter = df.filter { exp_name().equals("Experiment_1") }.values { stat_name }
 
         println("Found = " + filter.count())
-//    val c: DataColumn<String> = df[statName]
-//    println(c)
 
         val observations = kdb.withinReplicationObservationsFor("Experiment_1", "# in System")
         println(observations.toList())

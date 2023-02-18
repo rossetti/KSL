@@ -314,7 +314,7 @@ abstract class DbTableData(
             return emptyMap()
         }
         val map = extractAllPropertyValuesByName().toMutableMap()
-        if (autoIncField){
+        if (autoIncField) {
             map.remove(keyFields.first())
         }
         return map
@@ -415,8 +415,8 @@ abstract class DbTableData(
         return DatabaseIfc.insertIntoTableStatementSQL(tableName, insertFields, schemaName)
     }
 
-    fun setAutoIncField(value: Any?){
-        if (autoIncField){
+    fun setAutoIncField(value: Any?) {
+        if (autoIncField) {
             val properties = extractMutableProperties()
             val property = properties[keyFields.first()]
             if (property is KMutableProperty<*>) {
