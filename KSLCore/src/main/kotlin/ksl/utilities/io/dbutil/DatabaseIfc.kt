@@ -1454,10 +1454,10 @@ interface DatabaseIfc : DatabaseIOIfc {
                 } else {
                     con.prepareStatement(sql)
                 }
-                val values = data.extractPropertyValues(data.autoIncField)
+                val dataMap = data.extractNonAutoIncPropertyValuesByName()
                 val insertFields = data.extractUpdatableFieldNames()
                 for((i, field) in insertFields.withIndex()){
-                    stmt.setObject(i+1, values[i])
+                    stmt.setObject(i+1, dataMap[field])
                 }
                 stmt.executeUpdate()
                 con.commit()
@@ -1500,12 +1500,11 @@ interface DatabaseIfc : DatabaseIOIfc {
             getConnection().use { con ->
                 con.autoCommit = false
                 val stmt = con.prepareStatement(sql)
-                var cntGood = 0
                 for (d in data) {
-                    val values = d.extractPropertyValues(d.autoIncField)
+                    val dataMap = d.extractNonAutoIncPropertyValuesByName()
                     val insertFields = d.extractUpdatableFieldNames()
                     for((i, field) in insertFields.withIndex()){
-                        stmt.setObject(i+1, values[i])
+                        stmt.setObject(i+1, dataMap[field])
                     }
                     stmt.addBatch()
                 }
