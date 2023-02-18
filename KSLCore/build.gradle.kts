@@ -62,7 +62,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
 
     // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
-    implementation("org.ktorm:ktorm-core:3.5.0")
+//    implementation("org.ktorm:ktorm-core:3.5.0")
 
     implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
 
