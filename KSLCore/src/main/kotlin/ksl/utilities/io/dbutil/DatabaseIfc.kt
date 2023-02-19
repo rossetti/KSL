@@ -301,6 +301,12 @@ interface DatabaseIfc : DatabaseIOIfc {
      * This method calls the DataSource for a connection from the underlying DataSource.
      * You are responsible for closing the connection.
      *
+     * ```
+     * getConnection().use { con ->
+     *
+     * }
+     * ```
+     *
      * @return a connection to the database
      * @throws SQLException if there is a problem with the connection
      */
@@ -388,10 +394,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn(
-                    "Unable to get database user defined tables. The meta data was not available for database $label",
-                    e
-                )
+                logger.warn{"Unable to get database user defined tables. The meta data was not available for database $label"}
+                logger.warn("$e")
             }
             return list
         }
@@ -413,7 +417,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn("Unable to get database schemas. The meta data was not available for database $label", e)
+                logger.warn{"Unable to get database schemas. The meta data was not available for database $label"}
+                logger.warn("$e")
             }
             return list
         }
@@ -435,7 +440,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn("Unable to get database views. The meta data was not available for database $label", e)
+                logger.warn{"Unable to get database views. The meta data was not available for database $label"}
+                logger.warn("$e")
             }
             return list
         }

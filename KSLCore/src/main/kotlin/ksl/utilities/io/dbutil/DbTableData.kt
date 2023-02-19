@@ -169,7 +169,7 @@ abstract class DbData(val tableName: String) {
                     } else {
                         vc.starProjectedType
                     }
-                    require(rt == vcKType) { "The type ($rt) of property $name was not compatible with the corresponding type ($vcKType) of value $value at index $index" }
+                    require(rt == vcKType) { "${tableName} : The type ($rt) of property $name was not compatible with the corresponding type ($vcKType) of value $value at index $index" }
                 }
             } else {
                 // value was null, check if property was marked nullable
