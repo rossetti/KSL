@@ -435,9 +435,15 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         c.exp_id_fk = expId
         c.element_id_fk = control.elementId
         c.key_name = control.keyName
-        c.control_value = control.value
-        c.lower_bound = control.lowerBound
-        c.upper_bound = control.upperBound
+        if (!control.value.isNaN() && control.value.isFinite()){
+            c.control_value = control.value
+        }
+        if (!control.lowerBound.isNaN() && control.lowerBound.isFinite()){
+            c.lower_bound = control.lowerBound
+        }
+        if (!control.upperBound.isNaN() && control.upperBound.isFinite()){
+            c.upper_bound = control.upperBound
+        }
         c.property_name = control.propertyName
         c.control_type = control.type.toString()
         c.comment = control.comment
@@ -790,18 +796,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return mca
     }
 
-//    fun exportAllTablesAsCSV(schemaName: String?, header: Boolean) {
-//        TODO("Not yet implemented")
-//    }
-//
-//    fun exportToExcel(schemaName: String?, wbName: String) {
-//        TODO("Not yet implemented")
-//    }
-//
-//    fun exportToExcel(tableNames: List<String>, schemaName: String?, wbName: String) {
-//        TODO("Not yet implemented")
-//    }
-
     companion object {
         val TableNames = listOf(
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
@@ -906,6 +900,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                     val executed = db.executeScript(dbScriptsDir.resolve("KSL_Db.sql"))
                     if (!executed) {
                         throw DataAccessException("The execution script KSL_Db.sql did not fully execute")
+                    } else {
+                        DatabaseIfc.logger.info("Executed the creation script KSL_Db.sql for ${db.label}")
                     }
                 } catch (e: IOException) {
                     DatabaseIfc.logger.error("Unable to execute KSL_Db.sql creation script")
@@ -1030,7 +1026,7 @@ data class ControlTableData(
     var exp_id_fk: Int = -1,
     var element_id_fk: Int = -1,
     var key_name: String = "",
-    var control_value: Double = Double.NaN,
+    var control_value: Double? = null,
     var lower_bound: Double? = null,
     var upper_bound: Double? = null,
     var property_name: String = "",

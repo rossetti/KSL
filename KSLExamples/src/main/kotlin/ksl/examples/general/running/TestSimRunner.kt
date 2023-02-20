@@ -23,6 +23,7 @@ import ksl.controls.experiments.SimulationRunner
 import ksl.examples.book.chapter5.PalletWorkCenter
 import ksl.examples.book.chapter6.StemFairMixer
 import ksl.simulation.Model
+import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 fun main(){
@@ -70,6 +71,11 @@ fun testSimulationRunner(){
     val stemFairMixer = StemFairMixer(model)
     // demonstrate capturing data to database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
+    val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb", model.outputDirectory.dbDir)
+//        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
+    val kdb = KSLDatabase(sdb)
+    KSLDatabaseObserver(model, kdb)
+
     val controls = model.controls()
     val control = controls.control("JHBuntR.initialCapacity")
     control?.value = 5.0

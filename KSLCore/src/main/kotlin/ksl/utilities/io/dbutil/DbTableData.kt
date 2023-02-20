@@ -1,10 +1,10 @@
 package ksl.utilities.io.dbutil
 
+import ksl.controls.ControlType
+import ksl.utilities.io.tabularfiles.TabularFile
+import ksl.utilities.math.KSLMath
 import kotlin.reflect.*
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.full.starProjectedType
-import kotlin.reflect.full.withNullability
+import kotlin.reflect.full.*
 
 /** DbDataView represents a base class for constructing data classes
  * that work with instances of DatabaseIfc. Subclasses of this base class
@@ -158,34 +158,132 @@ abstract class DbData(val tableName: String) {
         // check the type of the properties
         val properties = extractMutableProperties()
         for ((index, name) in names.withIndex()) {
-            val value = values[index]
-            if (value != null) {
-                // get the property's return type
-                val rt: KType? = properties[name]?.returnType
-                if (rt != null) {
-                    val vc: KClass<out Any> = value::class
-                    val vcKType = if (rt.isMarkedNullable) {
-                        vc.starProjectedType.withNullability(true)
+            val property = properties[name]
+            if (property is KMutableProperty<*>) {
+                val p = property as KMutableProperty<*>
+                val value: Any? = values[index]
+                val rt = p.returnType
+                if (rt.isMarkedNullable && (value == null)) {
+                    // property can be null and the value was null, can just set it
+                    p.setter.call(this, null)
+                } else {
+                    // property should not be null, value cannot be null
+                    require(value != null) { "$tableName : The value at index $index was null and the property $name was not nullable" }
+                    // value is not null, determine if types are the same
+                    if (rt.classifier == value::class) {
+                        p.setter.call(this, value)
                     } else {
-                        vc.starProjectedType
+                        // not of the same type, can it be converted for the assignment of value to property?
+                        if (isNumericConvertable(rt, value)) {
+                            p.setter.call(this, convertToNonNullableType(rt, value))
+                        } else {
+                            val msg =
+                                "$tableName : the property ${p.name} of type ${rt.classifier} could not be converted to type ${value::class}"
+                            DatabaseIfc.logger.error { msg }
+                            throw IllegalStateException(msg)
+                        }
                     }
-                    require(rt == vcKType) { "${tableName} : The type ($rt) of property $name was not compatible with the corresponding type ($vcKType) of value $value at index $index" }
                 }
-            } else {
-                // value was null, check if property was marked nullable
-                // get the property's return type
-                val rt: KType? = properties[name]?.returnType
-                if (rt != null) {
-                    require(rt.isMarkedNullable) { "The value at index $index was null and the property $name was not nullable" }
+            }
+        }
+    }
+
+    companion object {
+
+        /**
+         *  Checks if the KType can be converted to a numeric value.  For the purposes
+         *  of this method, Boolean can be converted to number 1 = true and 0 = false
+         */
+        fun isNumericConvertable(kType: KType): Boolean {
+            when (kType.classifier) {
+                Double::class -> {
+                    return true
+                }
+                Int::class -> {
+                    return true
+                }
+                Long::class -> {
+                    return true
+                }
+                Boolean::class -> {
+                    return true
+                }
+                Short::class -> {
+                    return true
+                }
+                Byte::class -> {
+                    return true
+                }
+                Float::class -> {
+                    return true
+                }
+                else -> {
+                    return false
                 }
             }
         }
 
-        for ((index, name) in names.withIndex()) {
-            val property = properties[name]
-            if (property is KMutableProperty<*>) {
-                val p = property as KMutableProperty<*>
-                p.setter.call(this, values[index])
+        /**
+         *  For the purposes of this method, Double, Int, Float, Long, Short, Byte,
+         *  and Boolean are all numerically convertable
+         */
+        fun isNumericConvertable(value: Any): Boolean {
+            return TabularFile.isNumeric(value)
+        }
+
+        /**
+         *  Checks if the value can be converted to the KType
+         *  If the types are not the same then we check if they
+         *  are numbers. We assume, perhaps with some coercion that
+         *  numbers can be converted to each other. There may be loss of precision during
+         *  the conversion process. Also, we assume that Boolean can be
+         *  converted to 1 or 0 and numbers can be converted to Boolean where
+         *  value >=1 --> true, value < 1 --> false.  If the underlying types are the
+         *  same then this method will always return true.
+         */
+        fun isNumericConvertable(kType: KType, value: Any): Boolean {
+            return isNumericConvertable(kType) && isNumericConvertable(value)
+        }
+
+        fun convertToNonNullableType(kType: KType, value: Any): Any {
+            if (kType.classifier == value::class) {
+                // same type, no conversion needed
+                return value
+            }
+            require(
+                isNumericConvertable(
+                    kType,
+                    value
+                )
+            ) { "The KType (${kType.classifier}) and the value type ${value::class} cannot be converted" }
+            // convert the value to Double
+            val x: Double = TabularFile.asDouble(value)
+            // now need to convert the double value based on the type of KType
+            when (kType.classifier) {
+                Double::class -> {
+                    return x
+                }
+                Int::class -> {
+                    return KSLMath.toIntValue(x)
+                }
+                Long::class -> {
+                    return KSLMath.toLongValue(x)
+                }
+                Boolean::class -> {
+                    return KSLMath.toBooleanValue(x)
+                }
+                Short::class -> {
+                    return KSLMath.toShortValue(x)
+                }
+                Byte::class -> {
+                    return KSLMath.toByteValue(x)
+                }
+                Float::class -> {
+                    return KSLMath.toFloatValue(x)
+                }
+                else -> {
+                    throw IllegalStateException("The value of type (${value::class}) cannot be converted to type ($kType) ")
+                }
             }
         }
     }
