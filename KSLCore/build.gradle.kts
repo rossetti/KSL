@@ -81,7 +81,7 @@ dependencies {
     implementation(group = "org.apache.derby", name = "derbyclient", version = "10.15.2.0")
     implementation(group = "org.apache.derby", name = "derbytools", version = "10.15.2.0")
 
-    implementation(group = "org.postgresql", name = "postgresql", version = "42.5.0")
+    implementation(group = "org.postgresql", name = "postgresql", version = "42.5.1")
 
     implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.39.4.0")
 

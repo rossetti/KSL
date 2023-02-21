@@ -183,7 +183,7 @@ class SimulationRunner(
             // where the experiment name and simulation name already exist in the database
             // changing the experiment name prevents that error and permits data from the chunk to be stored in the
             // current KSLDatabase design
-            runParameters.experimentName = runParameters.experimentName + ":" + runParameters.runName
+            // runParameters.experimentName = runParameters.experimentName + ":" + runParameters.runName
             eList.add(runParameters)
         }
         return eList
