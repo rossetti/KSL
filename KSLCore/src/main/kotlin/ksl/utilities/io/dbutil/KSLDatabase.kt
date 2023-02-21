@@ -209,7 +209,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
             db.getConnection().use { connection ->
-                var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "runName", defaultSchemaName)
+                var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "run_name", defaultSchemaName)
                 sql = "$sql and exp_id_fk = ?"
                 val ps = connection.prepareStatement(sql)
                 ps.setString(1, runName)
@@ -324,6 +324,11 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         currentSimRun = createSimulationRunData(model)
         db.insertDbDataIntoTable(currentSimRun!!)
         // insert the model elements into the database
+
+        //TODO issue: when experiment is chunked, we do not need to re-insert model elements
+        // should also not need to insert controls and parameters
+        // need to delete them when deleting run or not try to re-insert them here
+        
         val modelElements: List<ModelElement> = model.getModelElements()
         insertModelElementRecords(modelElements)
         if (model.hasExperimentalControls()) {

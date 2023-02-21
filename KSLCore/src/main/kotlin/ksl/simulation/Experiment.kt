@@ -277,6 +277,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
         resetStartStreamOption = runParameters.resetStartStreamOption
         advanceNextSubStreamOption = runParameters.advanceNextSubStreamOption
         antitheticOption = runParameters.antitheticOption
+        isChunked = runParameters.isChunked
         if (runParameters.numberOfStreamAdvancesPriorToRunning > 0) {
             numberOfStreamAdvancesPriorToRunning = runParameters.numberOfStreamAdvancesPriorToRunning
         }

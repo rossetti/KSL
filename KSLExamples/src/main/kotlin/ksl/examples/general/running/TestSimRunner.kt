@@ -87,7 +87,9 @@ fun testSimulationRunner(){
     val reps = sr.chunkReplications(10, 4)
     val srList = mutableListOf<SimulationRun>()
     for(rep in reps){
+        println("simulating simulation run = ${rep.runName}  ...")
         val simulationRun = sr.simulate(experimentRunParameters = rep)
+        println("Completed simulation run = ${rep.runName}")
         srList.add(simulationRun)
     }
 
