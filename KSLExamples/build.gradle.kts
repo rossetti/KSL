@@ -22,7 +22,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `java-library`
-    kotlin("jvm") version "1.8.0"
+    kotlin("jvm") version "1.7.20"
 }
 group = "io.github.rossetti"
 version = "1.0-SNAPSHOT"

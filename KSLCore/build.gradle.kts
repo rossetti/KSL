@@ -24,7 +24,7 @@ plugins {
     `maven-publish`
     // uncomment for signing the jars during publishing task
     signing
-    kotlin("jvm") version "1.8.0"
+    kotlin("jvm") version "1.7.20"
     kotlin("plugin.serialization") version "1.7.20"
     id("org.jetbrains.dokka") version "1.7.20"
 }
