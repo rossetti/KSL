@@ -328,7 +328,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         //TODO issue: when experiment is chunked, we do not need to re-insert model elements
         // should also not need to insert controls and parameters
         // need to delete them when deleting run or not try to re-insert them here
-        
+
         val modelElements: List<ModelElement> = model.getModelElements()
         insertModelElementRecords(modelElements)
         if (model.hasExperimentalControls()) {
