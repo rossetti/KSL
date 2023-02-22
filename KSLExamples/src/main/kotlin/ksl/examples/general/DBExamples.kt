@@ -4,7 +4,7 @@ import kotlinx.datetime.Clock
 import ksl.examples.book.chapter4.DriveThroughPharmacy
 import ksl.simulation.Model
 import ksl.utilities.io.dbutil.*
-import ksl.utilities.io.KSL
+import ksl.utilities.io.writeMarkDownTable
 import ksl.utilities.random.rvariable.ExponentialRV
 import org.jetbrains.kotlinx.dataframe.api.column
 import org.jetbrains.kotlinx.dataframe.api.filter
@@ -74,6 +74,8 @@ object DBExamples {
         val df = kdb.withinRepViewStatistics
         println(df.schema())
         println(df)
+
+        df.writeMarkDownTable()
 
         val stat_name by column<String>()
         val exp_name by column<String>()
