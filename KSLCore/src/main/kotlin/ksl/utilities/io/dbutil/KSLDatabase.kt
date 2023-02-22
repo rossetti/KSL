@@ -301,6 +301,54 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     internal fun beforeExperiment(model: Model) {
         val experimentRecord = fetchExperimentData(model.experimentName)
+        if (experimentRecord == null){
+            // this is a new experiment
+            // create and insert the new experiment
+            currentExp = createExperimentData(model)
+            val k = db.insertDbDataIntoTable(currentExp)
+            if (k == 0) {
+                throw DataAccessException("The experiment was not inserted")
+            }
+            // create the simulation run associated with the new experiment
+            // start simulation run record
+            currentSimRun = createSimulationRunData(model)
+            db.insertDbDataIntoTable(currentSimRun!!)
+            // a new experiment requires capturing the model elements, controls, and rv parameters
+            // capture the model elements associated with the experiment
+            val modelElements: List<ModelElement> = model.getModelElements()
+            insertModelElementRecords(modelElements)
+            // if the model has controls, capture them
+            if (model.hasExperimentalControls()) {
+                // insert controls if they are there
+                val controls: Controls = model.controls()
+                insertDbControlRecords(controls.asList())
+            }
+            // if the model has a rv parameter setter, capture the parameters
+            if (model.hasParameterSetter()) {
+                // insert the random variable parameters
+                val ps: RVParameterSetter = model.rvParameterSetter
+                insertDbRvParameterRecords(ps.rvParametersData)
+            }
+        } else {
+            // there was already and existing record for this experiment
+            // the experiment must be chunked or there is a potential user error
+            if (model.isChunked){
+                // run is a chunk, make sure there is not an existing simulation run
+                // just assume user wants to write over any existing simulation runs with the same name for this
+                // experiment during this simulation execution
+                currentExp = experimentRecord
+                deleteSimulationRunWithName(experimentRecord.exp_id, model.runName)
+                // create the simulation run associated with the chunked experiment
+                // because if it was there by mistake, we just deleted it
+                // start simulation run record
+                currentSimRun = createSimulationRunData(model)
+                db.insertDbDataIntoTable(currentSimRun!!)
+            } else {
+                // not a chunk, same experiment but not chunked, this is a potential user error
+                reportExistingExperimentRecordError(model)
+            }
+        }
+        /*
         if (experimentRecord != null) {
             // experiment record exists, this must be a simulation run related to a chunk
             if (model.isChunked) {
@@ -341,6 +389,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val ps: RVParameterSetter = model.rvParameterSetter
             insertDbRvParameterRecords(ps.rvParametersData)
         }
+
+         */
     }
 
     internal fun afterReplication(model: Model) {
@@ -394,7 +444,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         record.sim_name = model.simulationName
         record.exp_name = model.experimentName
         record.model_name = model.name
-        record.num_reps = model.numberOfReplications
         record.is_chunked = model.isChunked
         if (!model.lengthOfReplication.isNaN() && model.lengthOfReplication.isFinite()) {
             record.length_of_rep = model.lengthOfReplication
@@ -990,7 +1039,6 @@ data class ExperimentTableData(
     var sim_name: String = "",
     var model_name: String = "",
     var exp_name: String = "",
-    var num_reps: Int = -1,
     var is_chunked: Boolean = false,
     var length_of_rep: Double? = null,
     var length_of_warm_up: Double? = null,

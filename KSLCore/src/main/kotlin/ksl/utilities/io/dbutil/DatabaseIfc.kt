@@ -152,6 +152,14 @@ interface DatabaseIOIfc {
         schemaName: String? = defaultSchemaName)
 
     /**
+     * Writes all tables as text
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param out        the PrintWriter to write to
+     */
+    fun writeAllViewsAsMarkdown(out: PrintWriter, schemaName: String?)
+
+    /**
      * Writes all tables as separate comma separated value files into the supplied
      * directory. The files are written to text files using the same name as
      * the tables in the database
@@ -164,6 +172,21 @@ interface DatabaseIOIfc {
         pathToOutPutDirectory: Path = outputDirectory.csvDir,
         schemaName: String? = defaultSchemaName,
         header: Boolean = true
+    )
+
+    /**
+     * Writes all tables as separate comma separated value files into the supplied
+     * directory. The files are written to text files using the same name as
+     * the tables in the database
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param pathToOutPutDirectory the path to the output directory to hold the csv files
+     * @param header  true means all files will have the column headers
+     */
+    fun exportAllViewsAsCSV(
+        pathToOutPutDirectory: Path,
+        schemaName: String?,
+        header: Boolean
     )
 
     /**
@@ -674,6 +697,23 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
+    override fun writeAllViewsAsMarkdown(out: PrintWriter, schemaName: String?) {
+        val viewList = if (schemaName != null) {
+            viewNames(schemaName)
+        } else {
+            views
+        }
+        for (view in viewList) {
+            writeTableAsMarkdown(view, out, schemaName)
+        }
+    }
+
+    /**
+     * Writes all tables as text
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param out        the PrintWriter to write to
+     */
     override fun writeAllTablesAsMarkdown(out: PrintWriter, schemaName: String?) {
         val tables = if (schemaName != null) {
             tableNames(schemaName)
@@ -709,6 +749,34 @@ interface DatabaseIfc : DatabaseIOIfc {
             val path: Path = pathToOutPutDirectory.resolve("$table.csv")
             val writer = KSLFileUtil.createPrintWriter(path)
             exportTableAsCSV(table, writer, schemaName, header)
+            writer.close()
+        }
+    }
+
+    /**
+     * Writes all tables as separate comma separated value files into the supplied
+     * directory. The files are written to text files using the same name as
+     * the tables in the database
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param pathToOutPutDirectory the path to the output directory to hold the csv files
+     * @param header  true means all files will have the column headers
+     */
+    override fun exportAllViewsAsCSV(
+        pathToOutPutDirectory: Path,
+        schemaName: String?,
+        header: Boolean
+    ) {
+        Files.createDirectories(pathToOutPutDirectory)
+        val viewList = if (schemaName != null) {
+            viewNames(schemaName)
+        } else {
+            views
+        }
+        for (view in viewList) {
+            val path: Path = pathToOutPutDirectory.resolve("$view.csv")
+            val writer = KSLFileUtil.createPrintWriter(path)
+            exportTableAsCSV(view, writer, schemaName, header)
             writer.close()
         }
     }
@@ -903,7 +971,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                 }
                 return
             }
-            val tables = tableNames(schemaName)
+            val tables = tableNames(schemaName).toMutableList()
+            tables.addAll(viewNames(schemaName))
             logger.info { "Exporting $schemaName to $wbName at $wbDirectory" }
             exportToExcel(tables, schemaName, wbName, wbDirectory)
         } else {
@@ -937,6 +1006,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         }
         val path = wbDirectory.resolve(wbn)
         FileOutputStream(path.toFile()).use {
+            ExcelUtil.logger.info { "Opened workbook $path for writing database $label output" }
             logger.info { "Writing database $label to workbook at $path" }
             val workbook = SXSSFWorkbook(100)
             for (tableName in tableNames) {
@@ -955,6 +1025,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             workbook.write(it)
             workbook.close()
             workbook.dispose()
+            ExcelUtil.logger.info { "Closed workbook $path after writing database $label output" }
             logger.info { "Completed database $label export to workbook at $path" }
         }
     }
