@@ -476,6 +476,11 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             return recommendBreakPoints(statistic)
         }
 
+        /**
+         * http://www.fmrib.ox.ac.uk/analysis/techrep/tr00mj2/tr00mj2/node24.html
+         * @param statistic the statistics associated with the data are used to form the breakpoints
+         * @return the set of break points
+         */
         fun recommendBreakPoints(statistic: StatisticIfc) : DoubleArray {
             if (statistic.count == 1.0){
                 val b = DoubleArray(1)
