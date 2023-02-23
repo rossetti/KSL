@@ -18,7 +18,6 @@
 
 package ksl.utilities.io
 
-import ksl.utilities.io.dbutil.DbResultsAsText
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.rows
 import java.io.PrintWriter
