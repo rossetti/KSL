@@ -983,8 +983,8 @@ class Model(
 
     }
 
-    override val isChunked: Boolean
-        get() = myExperiment.isChunked
+    override val numChunks: Int
+        get() = myExperiment.numChunks
 
     override val runName: String
         get() = myExperiment.runName

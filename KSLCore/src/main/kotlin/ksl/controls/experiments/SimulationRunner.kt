@@ -172,7 +172,7 @@ class SimulationRunner(
             runParameters.numberOfReplications = n
             runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
             runParameters.resetStartStreamOption = true
-            runParameters.isChunked = true
+            runParameters.numChunks = chunks.size
             runParameters.runName = IntRange(s, s + n - 1).toString()
             eList.add(runParameters)
         }

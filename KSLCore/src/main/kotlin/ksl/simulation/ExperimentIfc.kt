@@ -41,9 +41,12 @@ interface ExperimentRunParametersIfc {
     /**
      *  Indicates if the replications associated with this experiment are
      *  part of set of experiments with the same name.  A chunk is an ordered
-     *  subset of replications for an experiment.
+     *  subset of replications for an experiment.  This field indicates
+     *  the number of chunks within the experiment. There should be at least 1
+     *  chunk.  If there is 1 chunk then all replications of the experiment are run
+     *  as one chunk (simulation run)
      */
-    val isChunked : Boolean
+    val numChunks : Int
 
     /**
      *  An optional label for the chunk
@@ -225,7 +228,7 @@ interface ExperimentIfc : ExperimentRunParametersIfc {
             experimentName,
             experimentId,
             numberOfReplications,
-            isChunked,
+            numChunks,
             runName,
             startingRepId,
             lengthOfReplication,

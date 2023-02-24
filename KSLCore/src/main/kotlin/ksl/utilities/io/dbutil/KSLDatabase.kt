@@ -332,7 +332,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         } else {
             // there was already and existing record for this experiment
             // the experiment must be chunked or there is a potential user error
-            if (model.isChunked){
+            if (model.numChunks > 1){
                 // run is a chunk, make sure there is not an existing simulation run
                 // just assume user wants to write over any existing simulation runs with the same name for this
                 // experiment during this simulation execution
@@ -444,7 +444,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         record.sim_name = model.simulationName
         record.exp_name = model.experimentName
         record.model_name = model.name
-        record.is_chunked = model.isChunked
+        record.num_chunks = model.numChunks
         if (!model.lengthOfReplication.isNaN() && model.lengthOfReplication.isFinite()) {
             record.length_of_rep = model.lengthOfReplication
         }
@@ -1039,7 +1039,7 @@ data class ExperimentTableData(
     var sim_name: String = "",
     var model_name: String = "",
     var exp_name: String = "",
-    var is_chunked: Boolean = false,
+    var num_chunks: Int = 1,
     var length_of_rep: Double? = null,
     var length_of_warm_up: Double? = null,
     var rep_allowed_exec_time: Long? = null,

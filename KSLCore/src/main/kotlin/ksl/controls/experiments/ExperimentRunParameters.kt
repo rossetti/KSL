@@ -37,7 +37,7 @@ data class ExperimentRunParameters(
     override var experimentName: String,
     override val experimentId: Int,
     override var numberOfReplications: Int,
-    override var isChunked: Boolean,
+    override var numChunks: Int,
     override var runName: String,
     override var startingRepId: Int,
     override var lengthOfReplication: Double,
@@ -65,7 +65,7 @@ data class ExperimentRunParameters(
         sb.appendLine("experimentName='$experimentName'")
         sb.appendLine("experimentId=$experimentId")
         sb.appendLine("numberOfReplications=$numberOfReplications")
-        sb.appendLine("isChunked=$isChunked")
+        sb.appendLine("numChunks=$numChunks")
         sb.appendLine("chunkLabel='$runName'")
         sb.appendLine("startingRepId=$startingRepId")
         sb.appendLine("lengthOfReplication=$lengthOfReplication,")

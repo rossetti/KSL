@@ -99,7 +99,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
             field = value
         }
 
-    override var isChunked: Boolean = false
+    override var numChunks: Int = 1
 
     override val repIdRange: IntRange
         get() = IntRange(startingRepId, startingRepId + numberOfReplications - 1)
@@ -277,7 +277,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
         resetStartStreamOption = runParameters.resetStartStreamOption
         advanceNextSubStreamOption = runParameters.advanceNextSubStreamOption
         antitheticOption = runParameters.antitheticOption
-        isChunked = runParameters.isChunked
+        numChunks = runParameters.numChunks
         if (runParameters.numberOfStreamAdvancesPriorToRunning > 0) {
             numberOfStreamAdvancesPriorToRunning = runParameters.numberOfStreamAdvancesPriorToRunning
         }
@@ -306,6 +306,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
         n.resetStartStreamOption = resetStartStreamOption
         n.advanceNextSubStreamOption = advanceNextSubStreamOption
         n.antitheticOption = antitheticOption
+        n.numChunks = numChunks
         if (numberOfStreamAdvancesPriorToRunning > 0) {
             n.numberOfStreamAdvancesPriorToRunning = numberOfStreamAdvancesPriorToRunning
         }
@@ -318,48 +319,26 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.append("Experiment Name: ")
-        sb.append(experimentName)
-        sb.appendLine()
-        sb.append("Experiment ID: ")
-        sb.append(experimentId)
-        sb.appendLine()
-        sb.append("Planned number of replications: ")
-        sb.append(numberOfReplications)
-        sb.appendLine()
-        sb.append("Replication initialization option: ")
-        sb.append(replicationInitializationOption)
-        sb.appendLine()
-        sb.append("Antithetic option: ")
-        sb.append(antitheticOption)
-        sb.appendLine()
-        sb.append("Reset start stream option: ")
-        sb.append(resetStartStreamOption)
-        sb.appendLine()
-        sb.append("Reset next sub-stream option: ")
-        sb.append(advanceNextSubStreamOption)
-        sb.appendLine()
-        sb.append("Number of stream advancements: ")
-        sb.append(numberOfStreamAdvancesPriorToRunning)
-        sb.appendLine()
-        sb.append("Planned time horizon for replication: ")
-        sb.append(lengthOfReplication)
-        sb.appendLine()
-        sb.append("Warm up time period for replication: ")
-        sb.append(lengthOfReplicationWarmUp)
-        sb.appendLine()
+        sb.appendLine("Experiment Name: $experimentName")
+        sb.appendLine("Experiment ID: $experimentId")
+        sb.appendLine("Planned number of replications: $numberOfReplications")
+        sb.appendLine("Number of chunks: $numChunks")
+        sb.appendLine("Replication initialization option: $replicationInitializationOption")
+        sb.appendLine("Antithetic option: $antitheticOption")
+        sb.appendLine("Reset start stream option: $resetStartStreamOption")
+        sb.appendLine("Reset next sub-stream option: $advanceNextSubStreamOption")
+        sb.appendLine("Number of stream advancements: $numberOfStreamAdvancesPriorToRunning")
+        sb.appendLine("Planned time horizon for replication: $lengthOfReplication")
+        sb.appendLine("Warm up time period for replication: $lengthOfReplicationWarmUp")
         val et = maximumAllowedExecutionTimePerReplication
         if (et == Duration.ZERO) {
-            sb.append("Maximum allowed replication execution time not specified.")
+            sb.appendLine("Maximum allowed replication execution time not specified.")
         } else {
             sb.append("Maximum allowed replication execution time: ")
             sb.append(et)
-            sb.append(" nanoseconds.")
+            sb.appendLine(" nanoseconds.")
         }
-        sb.appendLine()
-        sb.append("Current Replication Number: ")
-        sb.append(currentReplicationNumber)
-//        sb.appendLine()
+        sb.appendLine("Current Replication Number: $currentReplicationNumber")
         return sb.toString()
     }
 
