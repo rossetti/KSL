@@ -279,6 +279,28 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         val isWaitingForProcess: Boolean
             get() = state == myWaitForProcessState
 
+        /**
+         * If the entity is in a HoldQueue return the queue
+         */
+        val holdQueue : HoldQueue?
+            get() {
+                return if (isInHoldQueue){
+                    when (this.queue) {
+                        null -> {
+                            null
+                        }
+                        is HoldQueue -> {
+                            this.queue as HoldQueue
+                        }
+                        else -> {
+                            null
+                        }
+                    }
+                } else {
+                    null
+                }
+            }
+
         val isSuspended: Boolean
             get() {
                 if (myCurrentProcess != null) {
