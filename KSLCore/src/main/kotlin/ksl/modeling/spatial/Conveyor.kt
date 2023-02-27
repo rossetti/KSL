@@ -1,5 +1,6 @@
 package ksl.modeling.spatial
 
+import ksl.modeling.entity.HoldQueue
 import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
@@ -37,6 +38,24 @@ class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         mySegments.add(SegmentData(lastLoc, next, length))
         lastLoc = next
     }
+
+    val entryLocations: List<IdentityIfc>
+        get() {
+            val list = mutableListOf<IdentityIfc>()
+            for(seg in mySegments){
+                list.add(seg.start)
+            }
+            return list
+        }
+
+    val exitLocations: List<IdentityIfc>
+        get() {
+            val list = mutableListOf<IdentityIfc>()
+            for(seg in mySegments){
+                list.add(seg.end)
+            }
+            return list
+        }
 
     val isCircular : Boolean
         get() = firstLocation == lastLocation
@@ -77,20 +96,43 @@ class Conveyor(
 
     private val mySegmentMap = mutableMapOf<IdentityIfc, Segment>()
     private val mySegmentList = mutableListOf<Segment>()
-    private val mySegmentData = segmentData
+    private val mySegmentData : Segments
+
+    /**
+     *  This holds the entities that are suspended because they are currently
+     *  riding on (moving) the conveyor to their destination.  This is used to resume the entity's process
+     *  after the entity reaches its destination on the conveyor. The process is
+     *  then resumed and the entity can decide to exit the conveyor, experience
+     *  a process while on the conveyor, or continue riding to another destination.
+     *  Statistics are not collected on this queue.
+     *
+     */
+    private val myEntityHoldQ = HoldQueue(this, "${this.name}:HoldQ")
     init {
         require(velocity > 0.0) { "The velocity of the conveyor must be > 0.0" }
         require(segmentData.isNotEmpty()) { "The segment data must not be empty." }
-        for((i, seg) in segmentData.segments.withIndex()){
+        mySegmentData = segmentData
+        for((i, seg) in mySegmentData.segments.withIndex()){
             val segment = Segment(seg, "${this.name}:Seg:$i")
             mySegmentMap[seg.start] = segment
             mySegmentList.add(segment)
         }
+        myEntityHoldQ.waitTimeStatOption = false
+        myEntityHoldQ.defaultReportingOption = false
     }
 
+    /**
+     *  Indicates if the conveyor's segments form a loop such that
+     *  the location associated with the first segment is the same
+     *  as the ending location of the last segment
+     */
     val isCircular = mySegmentData.isCircular
 
-    val cellSize = segmentData.cellSize
+    val entryLocations = mySegmentData.entryLocations
+
+    val exitLocations = mySegmentData.exitLocations
+
+    val cellSize = mySegmentData.cellSize
 
     val cellTravelTime: Double = cellSize / velocity
 
