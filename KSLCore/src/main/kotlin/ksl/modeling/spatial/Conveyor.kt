@@ -1,6 +1,7 @@
 package ksl.modeling.spatial
 
 import ksl.modeling.queue.Queue
+import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Identity
@@ -103,10 +104,24 @@ class Conveyor(
         val numCells: Int = segmentData.length/cellSize
 
         //TODO make the cells, need cell events, transfer from one segment to the next
+        // should each cell have the events or should events handle any cell
+        // first cell action, last cell action, intermediate cell action
 
         fun itemArrival(item: Conveyable){
             // enter the queue
             // if the first cell is not occupied
+        }
+
+        private open inner class Cell : EventAction<Conveyable>(){
+
+            fun arrive(item: Conveyable){
+                //TODO arrive to regular cell
+            }
+            override fun action(event: KSLEvent<Conveyable>) {
+                TODO("Not yet implemented")
+                //TODO depart from regular cell
+            }
+
         }
 
     }
