@@ -108,6 +108,7 @@ class Conveyor(
      *
      */
     private val myEntityHoldQ = HoldQueue(this, "${this.name}:HoldQ")
+
     init {
         require(velocity > 0.0) { "The velocity of the conveyor must be > 0.0" }
         require(segmentData.isNotEmpty()) { "The segment data must not be empty." }
