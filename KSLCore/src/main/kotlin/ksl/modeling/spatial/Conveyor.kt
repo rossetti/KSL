@@ -1,5 +1,6 @@
 package ksl.modeling.spatial
 
+import ksl.modeling.queue.Queue
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Identity
@@ -30,16 +31,19 @@ class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
 
     fun toLocation(next: IdentityIfc, length: Int) {
         require(length >= 1) { "The length ($length) of the segment must be >= 1 unit" }
-        require(next != lastLoc) {"The next location (${next.name}) as the last location (${lastLoc.name})"}
+        require(next != lastLoc) { "The next location (${next.name}) as the last location (${lastLoc.name})" }
         require(length % cellSize == 0) { "The length of the segment ($length) was not an integer multiple of the cell size ($cellSize)" }
         mySegments.add(SegmentData(lastLoc, next, length))
         lastLoc = next
     }
 
+    val isCircular : Boolean
+        get() = firstLocation == lastLocation
+
     val totalLength: Int
         get() {
             var sum = 0
-            for(seg in mySegments){
+            for (seg in mySegments) {
                 sum = sum + seg.length
             }
             return sum
@@ -55,8 +59,8 @@ class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         val sb = StringBuilder()
         sb.appendLine("first location = ${firstLocation.name}")
         sb.appendLine("last location = ${lastLocation.name}")
-        for((i, segment) in mySegments.withIndex()){
-            sb.appendLine("Segment: ${(i+1)} = $segment")
+        for ((i, segment) in mySegments.withIndex()) {
+            sb.appendLine("Segment: ${(i + 1)} = $segment")
         }
         sb.appendLine("total length = $totalLength")
         return sb.toString()
@@ -66,25 +70,45 @@ class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
 class Conveyor(
     parent: ModelElement,
     val velocity: Double = 1.0,
-    private val segments: Segments,
+    segmentData: Segments,
     name: String? = null
 ) : ModelElement(parent, name) {
+
+    private val mySegmentMap = mutableMapOf<IdentityIfc, Segment>()
+    private val mySegmentList = mutableListOf<Segment>()
+    private val mySegmentData = segmentData
     init {
         require(velocity > 0.0) { "The velocity of the conveyor must be > 0.0" }
-        require(segments.isNotEmpty()) { "The segment data must not be empty." }
+        require(segmentData.isNotEmpty()) { "The segment data must not be empty." }
+        for((i, seg) in segmentData.segments.withIndex()){
+            val segment = Segment(seg, "${this.name}:Seg:$i")
+            mySegmentMap[seg.start] = segment
+            mySegmentList.add(segment)
+        }
     }
 
-    val cellSize = segments.cellSize
+    val isCircular = mySegmentData.isCircular
+
+    val cellSize = segmentData.cellSize
 
     val cellTravelTime: Double = cellSize / velocity
 
+    inner class Conveyable(): QObject() {
+        //TODO attach the entity, destination, size, current cell, current segment
+        // need to know when destination is reached, how about when fully on the conveyor
+    }
 
+    inner class Segment(val segmentData: SegmentData, name: String?) : ModelElement(this@Conveyor, name) {
+        val accessQ = Queue<Conveyable>(this, "${this.name}:AccessQ")
+        val numCells: Int = segmentData.length/cellSize
 
-    inner class Segment(val start: IdentityIfc, val end: IdentityIfc, val length: Int) {
-        init {
-            require(length >= 1) { "The length of the segment must be >= 1 unit" }
-            require(length % cellSize == 0)
+        //TODO make the cells, need cell events, transfer from one segment to the next
+
+        fun itemArrival(item: Conveyable){
+            // enter the queue
+            // if the first cell is not occupied
         }
+
     }
 
     companion object {
@@ -154,12 +178,12 @@ class Conveyor(
         sb.appendLine("cellSize = $cellSize")
         sb.appendLine("cell Travel Time = $cellTravelTime")
         sb.appendLine("Segments:")
-        sb.append(segments)
+        sb.append(mySegmentData)
         return sb.toString()
     }
 }
 
-fun main(){
+fun main() {
     val i1 = Identity()
     val i2 = Identity()
     val i3 = Identity()
