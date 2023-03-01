@@ -282,8 +282,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          * If the entity is in a HoldQueue return the queue
          */
-        val holdQueue : HoldQueue?
-            get() {
+        fun holdQueue() : HoldQueue? {
                 return if (isInHoldQueue){
                     when (this.queue) {
                         null -> {

@@ -27,7 +27,7 @@ import ksl.simulation.ModelElement
 
 class Example2(parent: ModelElement) : ProcessModel(parent, null)  {
 
-    private val holdQueue = HoldQueue(this, "hold")
+    private val holdQueue: HoldQueue = HoldQueue(this, "hold")
 
     private val myEventActionOne: EventActionOne = EventActionOne()
 

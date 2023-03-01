@@ -30,7 +30,7 @@ class TestProcessModeling(parent: ModelElement) : ProcessModel(parent, null) {
 
     val resource: ResourceWithQ = ResourceWithQ(this, "test resource")
 
-    val holdQueue = HoldQueue(this, "hold")
+    val holdQueue: HoldQueue = HoldQueue(this, "Hold")
 
     private val myEventActionOne: EventActionOne = EventActionOne()
 

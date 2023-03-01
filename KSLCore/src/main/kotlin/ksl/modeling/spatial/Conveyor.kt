@@ -1,12 +1,16 @@
 package ksl.modeling.spatial
 
 import ksl.modeling.entity.HoldQueue
+import ksl.modeling.entity.ProcessModel
 import ksl.modeling.queue.Queue
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
+import org.apache.poi.ss.format.CellNumberFormatter
+import org.jetbrains.kotlinx.dataframe.impl.asList
 import kotlin.properties.Delegates
 
 
@@ -24,25 +28,28 @@ data class SegmentData(val start: IdentityIfc, val end: IdentityIfc, val length:
 
 class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     private val mySegments = mutableListOf<SegmentData>()
-    private var lastLoc: IdentityIfc = firstLocation
-    val lastLocation: IdentityIfc
-        get() = lastLoc
-
+    var lastLocation: IdentityIfc = firstLocation
+        private set
+    var minimumSegmentLength = Integer.MAX_VALUE
+        private set
     val segments: List<SegmentData>
         get() = mySegments
 
     fun toLocation(next: IdentityIfc, length: Int) {
         require(length >= 1) { "The length ($length) of the segment must be >= 1 unit" }
-        require(next != lastLoc) { "The next location (${next.name}) as the last location (${lastLoc.name})" }
+        require(next != lastLocation) { "The next location (${next.name}) as the last location (${lastLocation.name})" }
         require(length % cellSize == 0) { "The length of the segment ($length) was not an integer multiple of the cell size ($cellSize)" }
-        mySegments.add(SegmentData(lastLoc, next, length))
-        lastLoc = next
+        mySegments.add(SegmentData(lastLocation, next, length))
+        if (length <= minimumSegmentLength) {
+            minimumSegmentLength = length
+        }
+        lastLocation = next
     }
 
     val entryLocations: List<IdentityIfc>
         get() {
             val list = mutableListOf<IdentityIfc>()
-            for(seg in mySegments){
+            for (seg in mySegments) {
                 list.add(seg.start)
             }
             return list
@@ -51,13 +58,13 @@ class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     val exitLocations: List<IdentityIfc>
         get() {
             val list = mutableListOf<IdentityIfc>()
-            for(seg in mySegments){
+            for (seg in mySegments) {
                 list.add(seg.end)
             }
             return list
         }
 
-    val isCircular : Boolean
+    val isCircular: Boolean
         get() = firstLocation == lastLocation
 
     val totalLength: Int
@@ -70,7 +77,7 @@ class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         }
 
     fun isEmpty(): Boolean {
-        return mySegments.isEmpty() || lastLoc == firstLocation
+        return mySegments.isEmpty() || lastLocation == firstLocation
     }
 
     fun isNotEmpty() = !isEmpty()
@@ -91,12 +98,13 @@ class Conveyor(
     parent: ModelElement,
     val velocity: Double = 1.0,
     segmentData: Segments,
+    val maxEntityCellsAllowed: Int = 1,
     name: String? = null
 ) : ModelElement(parent, name) {
 
     private val mySegmentMap = mutableMapOf<IdentityIfc, Segment>()
     private val mySegmentList = mutableListOf<Segment>()
-    private val mySegmentData : Segments
+    private val mySegmentData: Segments
 
     /**
      *  This holds the entities that are suspended because they are currently
@@ -104,22 +112,23 @@ class Conveyor(
      *  after the entity reaches its destination on the conveyor. The process is
      *  then resumed and the entity can decide to exit the conveyor, experience
      *  a process while on the conveyor, or continue riding to another destination.
-     *  Statistics are not collected on this queue.
+     *  Because this queue is internal to the conveyor, statistics are not collected.
      *
      */
-    private val myEntityHoldQ = HoldQueue(this, "${this.name}:HoldQ")
+    internal val conveyorHoldQ = HoldQueue(this, "${this.name}:HoldQ")
 
     init {
+        require(maxEntityCellsAllowed >= 1) { "The maximum number of cells that can be occupied by an entity must be >= 1" }
         require(velocity > 0.0) { "The velocity of the conveyor must be > 0.0" }
         require(segmentData.isNotEmpty()) { "The segment data must not be empty." }
         mySegmentData = segmentData
-        for((i, seg) in mySegmentData.segments.withIndex()){
+        for ((i, seg) in mySegmentData.segments.withIndex()) {
             val segment = Segment(seg, "${this.name}:Seg:$i")
             mySegmentMap[seg.start] = segment
             mySegmentList.add(segment)
         }
-        myEntityHoldQ.waitTimeStatOption = false
-        myEntityHoldQ.defaultReportingOption = false
+        conveyorHoldQ.waitTimeStatOption = false
+        conveyorHoldQ.defaultReportingOption = false
     }
 
     /**
@@ -129,42 +138,141 @@ class Conveyor(
      */
     val isCircular = mySegmentData.isCircular
 
+    /**
+     *  The locations that can be used to enter (get on) the conveyor.
+     */
     val entryLocations = mySegmentData.entryLocations
 
+    /**
+     *  The locations that can be used as points of exit on the conveyor.
+     */
     val exitLocations = mySegmentData.exitLocations
 
     val cellSize = mySegmentData.cellSize
 
     val cellTravelTime: Double = cellSize / velocity
 
-    inner class Conveyable(): QObject() {
+    /**
+     *  This method should be called
+     */
+    internal fun accessConveyor(
+        entity: ProcessModel.Entity,
+        numCellsNeeded: Int,
+        origin: IdentityIfc,
+        destination: IdentityIfc
+    ) {
+        require(numCellsNeeded <= maxEntityCellsAllowed) { "The entity requested more cells ($numCellsNeeded) than the allowed maximum ($maxEntityCellsAllowed" }
+        require(entryLocations.contains(origin)) { "The origin ($origin) is not a valid entry point on the conveyor" }
+        require(exitLocations.contains(destination)) { "The destination ($destination) is not a valid entry point on the conveyor" }
+        // make the conveyable
+        val item = Conveyable(entity, numCellsNeeded, origin, destination)
+        // send the item to the correct segment
+        val segment = mySegmentMap[origin]!!
+        segment.conveyItem(item)
+
+    }
+
+    //TODO how to stop and start the conveyor?
+
+
+    inner class Conveyable(
+        val entity: ProcessModel.Entity,
+        val numCellsNeeded: Int = 1,
+        val origin: IdentityIfc,
+        val destination: IdentityIfc
+    ) : QObject() {
+        val cellsOccupied: ArrayDeque<Segment.Cell> = ArrayDeque()
+
+        fun addCell(cell: Segment.Cell) {
+            require(cellsOccupied.size <= numCellsNeeded) { "Tried to add unneeded cell." }
+            cellsOccupied.add(cell)
+            cell.item = this
+        }
+
+        fun pushCell(cell: Segment.Cell) {
+           if (cellsOccupied.size <= numCellsNeeded) {
+                addCell(cell)
+            } else {
+                val first = cellsOccupied.removeFirst()
+                first.item = null
+                addCell(cell)
+            }
+        }
+
+        fun popCell(): Boolean {
+            return if (cellsOccupied.isNotEmpty()) {
+                val first = cellsOccupied.removeFirst()
+                first.item = null
+                true
+            } else {
+                false
+            }
+        }
+
         //TODO attach the entity, destination, size, current cell, current segment
         // need to know when destination is reached, how about when fully on the conveyor
+        // need to know which cells it is currently occupying
     }
 
     inner class Segment(val segmentData: SegmentData, name: String?) : ModelElement(this@Conveyor, name) {
+        /**
+         *  This queue holds items that are waiting at the start of the segment for the appropriate number of cells on the
+         *  conveyor in order to ride (move) to their destination
+         */
         val accessQ = Queue<Conveyable>(this, "${this.name}:AccessQ")
-        val numCells: Int = segmentData.length/cellSize
+
+        /**
+         *  The total number of cells on this segment of the conveyor
+         */
+        val numCells: Int = segmentData.length / cellSize
+        val myCells : List<Cell>
+        init{
+            val list = mutableListOf<Cell>()
+            for (i in 1..numCells){
+                list.add(Cell(i))
+            }
+            myCells = list.asList()
+        }
+
+        /**
+         * The number of available (unoccupied) consecutive cells starting from
+         * the beginning of the segment.
+         */
+        val numAvailableCells: Int
+            get() {
+                var sum = 0
+                for(cell in myCells){
+                    if (!cell.occupied){
+                        sum++
+                    }else{
+                        return sum
+                    }
+                }
+                return sum
+            }
+
+        private val myNumCellsOccupied = TWResponse(this, "${this.name}:NumCellsOccupied")
 
         //TODO make the cells, need cell events, transfer from one segment to the next
         // should each cell have the events or should events handle any cell
         // first cell action, last cell action, intermediate cell action
 
-        fun itemArrival(item: Conveyable){
-            // enter the queue
-            // if the first cell is not occupied
+        override fun initialize() {
+            for(cell in myCells){
+                cell.item = null
+            }
+        }
+        fun conveyItem(item: Conveyor.Conveyable) {
+            // enter the accessQ
+            accessQ.enqueue(item)
+            //TODO if first cell is
         }
 
-        private open inner class Cell : EventAction<Conveyable>(){
+        inner class Cell(val cellNumber: Int) {
+            val occupied: Boolean
+                get() = item != null
 
-            fun arrive(item: Conveyable){
-                //TODO arrive to regular cell
-            }
-            override fun action(event: KSLEvent<Conveyable>) {
-                TODO("Not yet implemented")
-                //TODO depart from regular cell
-            }
-
+            var item: Conveyor.Conveyable? = null
         }
 
     }
@@ -177,9 +285,10 @@ class Conveyor(
 
     private class Builder(val parent: ModelElement, val name: String? = null) : VelocityStepIfc, CellSizeStepIfc,
         FirstSegmentStepIfc, SegmentStepIfc {
-        var velocity: Double by Delegates.notNull()
-        var cellSize: Int by Delegates.notNull()
-        lateinit var segments: Segments
+        private var velocity: Double = 1.0
+        private var cellSize: Int = 1
+        private var maxEntityCellsAllowed: Int = 1
+        private lateinit var segments: Segments
 
         override fun velocity(value: Double): CellSizeStepIfc {
             require(value > 0.0) { "The velocity of the conveyor must be > 0.0" }
@@ -188,7 +297,14 @@ class Conveyor(
         }
 
         override fun cellSize(value: Int): FirstSegmentStepIfc {
+            require(value >= 1) { "The cell size must >= 1" }
             cellSize = value
+            return this
+        }
+
+        override fun maxCellsAllowed(value: Int): FirstSegmentStepIfc {
+            require(value >= 1) { "The maximum number of cells allowed to occupy must be >= 1" }
+            maxEntityCellsAllowed = value
             return this
         }
 
@@ -206,7 +322,7 @@ class Conveyor(
         }
 
         override fun build(): Conveyor {
-            return Conveyor(parent, velocity, segments, name)
+            return Conveyor(parent, velocity, segments, maxEntityCellsAllowed, name)
         }
 
     }
@@ -220,6 +336,8 @@ class Conveyor(
     }
 
     interface FirstSegmentStepIfc {
+
+        fun maxCellsAllowed(value: Int): FirstSegmentStepIfc
         fun firstSegment(start: IdentityIfc, end: IdentityIfc, length: Int): SegmentStepIfc
     }
 
@@ -249,7 +367,8 @@ fun main() {
         .velocity(3.0)
         .cellSize(1)
         .firstSegment(i1, i2, 10)
-        .nextSegment(i3, 20).build()
+        .nextSegment(i3, 20)
+        .build()
 
     println(c)
 
