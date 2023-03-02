@@ -172,6 +172,21 @@ class Conveyor(
 
     }
 
+    fun canConvey(
+        numCellsNeeded: Int,
+        origin: IdentityIfc,
+        destination: IdentityIfc
+    ): Boolean {
+        if (numCellsNeeded >= maxEntityCellsAllowed)
+            return false
+        if (!entryLocations.contains(origin))
+            return false
+        if (!exitLocations.contains(destination))
+            return false
+        val segment = mySegmentMap[origin]!!
+        return segment.canConvey(numCellsNeeded)
+    }
+
     //TODO how to stop and start the conveyor?
 
 
@@ -190,7 +205,7 @@ class Conveyor(
         }
 
         fun pushCell(cell: Segment.Cell) {
-           if (cellsOccupied.size <= numCellsNeeded) {
+            if (cellsOccupied.size <= numCellsNeeded) {
                 addCell(cell)
             } else {
                 val first = cellsOccupied.removeFirst()
@@ -225,14 +240,21 @@ class Conveyor(
          *  The total number of cells on this segment of the conveyor
          */
         val numCells: Int = segmentData.length / cellSize
-        val myCells : List<Cell>
-        init{
+        private val myCells: List<Cell>
+
+        init {
             val list = mutableListOf<Cell>()
-            for (i in 1..numCells){
+            for (i in 1..numCells) {
                 list.add(Cell(i))
             }
             myCells = list.asList()
         }
+
+        val firstCell: Cell
+            get() = myCells.first()
+
+        val lastCell: Cell
+            get() = myCells.last()
 
         /**
          * The number of available (unoccupied) consecutive cells starting from
@@ -241,10 +263,10 @@ class Conveyor(
         val numAvailableCells: Int
             get() {
                 var sum = 0
-                for(cell in myCells){
-                    if (!cell.occupied){
+                for (cell in myCells) {
+                    if (!cell.occupied) {
                         sum++
-                    }else{
+                    } else {
                         return sum
                     }
                 }
@@ -258,14 +280,26 @@ class Conveyor(
         // first cell action, last cell action, intermediate cell action
 
         override fun initialize() {
-            for(cell in myCells){
+            for (cell in myCells) {
                 cell.item = null
             }
         }
+
+        fun canConvey(numCellsNeeded: Int): Boolean {
+            return numAvailableCells >= numCellsNeeded
+        }
+
         fun conveyItem(item: Conveyor.Conveyable) {
             // enter the accessQ
             accessQ.enqueue(item)
             //TODO if first cell is
+        }
+
+        private inner class EndOfCellTraversal : EventAction<Conveyable>() {
+            override fun action(event: KSLEvent<Conveyable>) {
+                TODO("Not yet implemented")
+            }
+
         }
 
         inner class Cell(val cellNumber: Int) {
@@ -273,6 +307,7 @@ class Conveyor(
                 get() = item != null
 
             var item: Conveyor.Conveyable? = null
+            val segment: Segment = this@Segment
         }
 
     }
