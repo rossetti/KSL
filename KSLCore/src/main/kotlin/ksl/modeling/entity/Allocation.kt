@@ -32,7 +32,6 @@ import ksl.simulation.KSLEvent
  *  @param theAmount the amount allocated of the resource to the entity
  *  @param queue the queue that the entity had to wait in when requesting the allocation
  *  @param allocationName the name of the allocation
- *  @param failureActions the actions to take if the resource fails while the allocation is being
  *  processed by the resource. The default actions are supplied by the entity associated with the allocation.
  */
 class Allocation(
@@ -41,7 +40,6 @@ class Allocation(
     theAmount: Int = 1,
     val queue: RequestQ,
     allocationName: String? = null,
-//    var failureActions: ResourceFailureActionsIfc = entity.defaultFailureActions
 ) {
     init {
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }

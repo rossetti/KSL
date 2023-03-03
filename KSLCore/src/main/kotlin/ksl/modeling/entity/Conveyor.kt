@@ -1,7 +1,23 @@
-package ksl.modeling.spatial
+/*
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-import ksl.modeling.entity.HoldQueue
-import ksl.modeling.entity.ProcessModel
+package ksl.modeling.entity
+
 import ksl.modeling.queue.Queue
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
@@ -9,9 +25,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import org.apache.poi.ss.format.CellNumberFormatter
 import org.jetbrains.kotlinx.dataframe.impl.asList
-import kotlin.properties.Delegates
 
 
 data class SegmentData(val start: IdentityIfc, val end: IdentityIfc, val length: Int) {
@@ -94,6 +108,28 @@ class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     }
 }
 
+class ConveyorAllocation(
+    val conveyable: Conveyor.Conveyable,
+    val allocationName: String?
+) {
+
+    val numCellsAllocated: Int
+        get() = conveyable.numCellsOccupied
+
+    /**
+     *  True if the allocation has the number of cells
+     *  needed to move on the conveyor
+     */
+    val isAllocated: Boolean
+        get() = conveyable.isConveyable
+
+    /**
+     *  True if insufficient cells are allocated
+     */
+    val isDeallocated: Boolean
+        get() = !isAllocated
+}
+
 class Conveyor(
     parent: ModelElement,
     val velocity: Double = 1.0,
@@ -161,7 +197,10 @@ class Conveyor(
         origin: IdentityIfc,
         destination: IdentityIfc
     ) {
-        require(numCellsNeeded <= maxEntityCellsAllowed) { "The entity requested more cells ($numCellsNeeded) than the allowed maximum ($maxEntityCellsAllowed" }
+        require(numCellsNeeded <= maxEntityCellsAllowed) {
+            "The entity requested more cells ($numCellsNeeded) than " +
+                    "the allowed maximum ($maxEntityCellsAllowed for for conveyor (${this.name}"
+        }
         require(entryLocations.contains(origin)) { "The origin ($origin) is not a valid entry point on the conveyor" }
         require(exitLocations.contains(destination)) { "The destination ($destination) is not a valid entry point on the conveyor" }
         // make the conveyable
@@ -172,19 +211,55 @@ class Conveyor(
 
     }
 
-    fun canConvey(
-        numCellsNeeded: Int,
-        origin: IdentityIfc,
-        destination: IdentityIfc
-    ): Boolean {
-        if (numCellsNeeded >= maxEntityCellsAllowed)
-            return false
-        if (!entryLocations.contains(origin))
-            return false
-        if (!exitLocations.contains(destination))
-            return false
+    /**
+     *  Checks if the number of cells needed [numCellsNeeded] can be
+     *  allocated at the origin [origin] of the segment of the conveyor.
+     *  True means that the amount of cells needed at the start of the segment can be allocated at this
+     *  instant in time.
+     */
+    fun canAllocateCells(numCellsNeeded: Int, origin: IdentityIfc): Boolean {
+        require(entryLocations.contains(origin)) { "The origin ($origin) is not a valid entry point on the conveyor" }
+        require(numCellsNeeded <= maxEntityCellsAllowed) {
+            "The entity requested more cells ($numCellsNeeded) than " +
+                    "the allowed maximum ($maxEntityCellsAllowed for for conveyor (${this.name}"
+        }
         val segment = mySegmentMap[origin]!!
-        return segment.canConvey(numCellsNeeded)
+        return segment.canAllocate(numCellsNeeded)
+    }
+
+    /**
+     * It is an error to attempt to allocate cells to an entity if there are insufficient
+     * cells available at the origin. Thus, the number of cells needed must be less than or equal to the number of cells
+     * available at the origin point at the time of this call.
+     *
+     * @param entity the entity that is requesting the units
+     * @param numCellsNeeded that amount to allocate, must be greater than or equal to 1
+     * @param origin the origin associated with the allocation.  That is, where the entities are trying
+     * to get on the conveyor
+     * @param allocationName an optional name for the allocation
+     * @return an allocation representing that the cells have been allocated to the entity. The reference
+     * to this allocation is necessary in order to deallocate the allocated cells.
+     */
+    fun allocateCells(
+        conveyable: Conveyable,
+        allocationName: String? = null
+    ): ConveyorAllocation {
+        require(canAllocateCells(conveyable.numCellsNeeded, conveyable.origin))
+        { "Cannot allocate ${conveyable.numCellsNeeded} at origin ${conveyable.origin.name} to the entity." }
+        //TODO change the state of the conveyor to account for the allocation
+        // allocate cells to the conveyable
+        // update the conveyable
+
+        //make the allocation
+        val ca = ConveyorAllocation(conveyable, allocationName)
+        // attach it to the entity
+        conveyable.entity.conveyorAllocation = ca
+        // return the allocation
+        return ca
+    }
+
+    fun deallocateCells(allocation: ConveyorAllocation) {
+
     }
 
     //TODO how to stop and start the conveyor?
@@ -194,29 +269,34 @@ class Conveyor(
         val entity: ProcessModel.Entity,
         val numCellsNeeded: Int = 1,
         val origin: IdentityIfc,
-        val destination: IdentityIfc
+        val destination: IdentityIfc? = null
     ) : QObject() {
-        val cellsOccupied: ArrayDeque<Segment.Cell> = ArrayDeque()
+        private val myCellsOccupied: ArrayDeque<Segment.Cell> = ArrayDeque()
+        val numCellsOccupied: Int
+            get() = myCellsOccupied.size
 
-        fun addCell(cell: Segment.Cell) {
-            require(cellsOccupied.size <= numCellsNeeded) { "Tried to add unneeded cell." }
-            cellsOccupied.add(cell)
-            cell.item = this
-        }
+        val isConveyable: Boolean
+            get() = numCellsOccupied == numCellsNeeded
 
-        fun pushCell(cell: Segment.Cell) {
-            if (cellsOccupied.size <= numCellsNeeded) {
-                addCell(cell)
+        val conveyor = this@Conveyor
+
+        val segment : Conveyor.Segment?
+            get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied[0].segment else null
+
+        internal fun pushCell(cell: Segment.Cell) {
+            if (myCellsOccupied.size < numCellsNeeded) {
+                myCellsOccupied.add(cell)
+                cell.item = this
             } else {
-                val first = cellsOccupied.removeFirst()
-                first.item = null
-                addCell(cell)
+                popCell()
+                myCellsOccupied.add(cell)
+                cell.item = this
             }
         }
 
-        fun popCell(): Boolean {
-            return if (cellsOccupied.isNotEmpty()) {
-                val first = cellsOccupied.removeFirst()
+        internal fun popCell(): Boolean {
+            return if (myCellsOccupied.isNotEmpty()) {
+                val first = myCellsOccupied.removeFirst()
                 first.item = null
                 true
             } else {
@@ -285,11 +365,18 @@ class Conveyor(
             }
         }
 
-        fun canConvey(numCellsNeeded: Int): Boolean {
+        fun canAllocate(numCellsNeeded: Int): Boolean {
             return numAvailableCells >= numCellsNeeded
         }
 
-        fun conveyItem(item: Conveyor.Conveyable) {
+        internal fun allocateCells(conveyable: Conveyable) {
+            require(canAllocate(conveyable.numCellsNeeded)) { "Tried to allocate cells when insufficient amount of celle was available" }
+            for (i in 0 until conveyable.numCellsNeeded) {
+                conveyable.pushCell(myCells[i])
+            }
+        }
+
+        fun conveyItem(item: Conveyable) {
             // enter the accessQ
             accessQ.enqueue(item)
             //TODO if first cell is
@@ -306,7 +393,7 @@ class Conveyor(
             val occupied: Boolean
                 get() = item != null
 
-            var item: Conveyor.Conveyable? = null
+            var item: Conveyable? = null
             val segment: Segment = this@Segment
         }
 

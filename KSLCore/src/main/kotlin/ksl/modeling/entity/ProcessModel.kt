@@ -479,6 +479,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
+        var conveyorAllocation: ConveyorAllocation? = null
+            internal set
+
 //        protected open fun beginFailure(allocation: Allocation) {
 //            TODO("Not implemented yet")
 //        }
