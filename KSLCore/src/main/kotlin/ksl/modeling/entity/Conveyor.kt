@@ -18,7 +18,7 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
+import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
@@ -28,6 +28,11 @@ import ksl.utilities.IdentityIfc
 import org.jetbrains.kotlinx.dataframe.impl.asList
 
 
+/**
+ * This data class represents the origin [start] and destination [end] of a [length]
+ * of a segment for a conveyor. See the class Conveyor for more
+ * details on how segments are used to represent a conveyor.
+ */
 data class SegmentData(val start: IdentityIfc, val end: IdentityIfc, val length: Int) {
     init {
         require(start != end) { "The start and the end of the segment must be different!" }
@@ -40,7 +45,12 @@ data class SegmentData(val start: IdentityIfc, val end: IdentityIfc, val length:
 
 }
 
-class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
+/**
+ * This class represents the data associated with segments of a conveyor and facilitates
+ * the specification of segments for a conveyor.  See the class Conveyor for more
+ * details on how segments are used to represent a conveyor.
+ */
+class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     private val mySegments = mutableListOf<SegmentData>()
     var lastLocation: IdentityIfc = firstLocation
         private set
@@ -130,17 +140,46 @@ class ConveyorAllocation(
         get() = !isAllocated
 }
 
+/** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location
+ * (destination) and is associated with a conveyor. The start and end of each segment represent locations along
+ * the conveyor where entities can get on and off.  A conveyor has a cell size, which represents the length of
+ * each cell on any segment of the conveyor. A conveyor also has a maximum permitted number of cells that can be
+ * occupied by an item riding on the conveyor.  A conveyor has a [velocity].  Each segment moves at the same
+ * velocity.  Each segment has a specified length that is divided into a number of equally sized contiguous cells.
+ * The length of any segment must be an integer multiple of the conveyor's cell size so that each segment will have
+ * an integer number of cells to represent its length. If a segment consists of 12 cells and the length of the conveyor
+ * is 12 feet then each cell represents 1 foot. If a segment consists of 4 cells and the length of the segment is 12 feet,
+ * then each cell of the segment represents 3 feet.  Thus, a cell represents a generalized unit of distance along the segment.
+ * Segments may have a different number of cells because they may have different lengths.
+ * Items that ride on the segment must be allocated cells and then occupy the cells while moving on the segment.  Items
+ * can occupy more than one cell while riding on the conveyor.  An item trying to access the conveyor at a start of a
+ * segment, waits until its required number of contiguous cells are available.  Then, the item is permitted to ride
+ * on the conveyor by occupying cells on the conveyor. To occupy a cell, the item must move the distance represented by
+ * the cell (essentially covering the cell).  An item occupies a cell during the time it traverses the cell's length.
+ * Thus, assuming a single item, the time to move from the start of a segment
+ * to the end of the segment is the time that it takes to travel through all the cells of the segment.
+ *
+ * A conveyor is considered circular if the start of the first segment is the same as the end of the last segment.
+ *
+ * To construct a conveyor use the supplied builder or specify the segment data.
+ *
+ * @param parent the containing model element
+ * @param velocity the velocity of the conveyor
+ * @param segmentData the specification of the segments
+ * @param maxEntityCellsAllowed the maximum number of cells that an entity can occupy while riding on the conveyor
+ * @param name the name of the conveyor
+ */
 class Conveyor(
     parent: ModelElement,
     val velocity: Double = 1.0,
-    segmentData: Segments,
+    segmentData: SegmentsData,
     val maxEntityCellsAllowed: Int = 1,
     name: String? = null
 ) : ModelElement(parent, name) {
 
     private val mySegmentMap = mutableMapOf<IdentityIfc, Segment>()
     private val mySegmentList = mutableListOf<Segment>()
-    private val mySegmentData: Segments
+    private val mySegmentData: SegmentsData
 
     /**
      *  This holds the entities that are suspended because they are currently
@@ -207,6 +246,7 @@ class Conveyor(
         val item = Conveyable(entity, numCellsNeeded, origin, destination)
         // send the item to the correct segment
         val segment = mySegmentMap[origin]!!
+        //TODO
         segment.conveyItem(item)
 
     }
@@ -228,16 +268,13 @@ class Conveyor(
     }
 
     /**
-     * It is an error to attempt to allocate cells to an entity if there are insufficient
-     * cells available at the origin. Thus, the number of cells needed must be less than or equal to the number of cells
+     * It is an error to attempt to allocate cells if there are insufficient
+     * cells available. Thus, the number of cells needed must be less than or equal to the number of cells
      * available at the origin point at the time of this call.
      *
-     * @param entity the entity that is requesting the units
-     * @param numCellsNeeded that amount to allocate, must be greater than or equal to 1
-     * @param origin the origin associated with the allocation.  That is, where the entities are trying
-     * to get on the conveyor
+     * @param conveyable a representation of the item that will rid on the conveyor
      * @param allocationName an optional name for the allocation
-     * @return an allocation representing that the cells have been allocated to the entity. The reference
+     * @return an allocation representing that the cells have been allocated to the item. The reference
      * to this allocation is necessary in order to deallocate the allocated cells.
      */
     fun allocateCells(
@@ -262,7 +299,7 @@ class Conveyor(
 
     }
 
-    //TODO how to stop and start the conveyor?
+    //TODO how to stop and start the conveyor? also changing the velocity
 
 
     inner class Conveyable(
@@ -272,49 +309,65 @@ class Conveyor(
         val destination: IdentityIfc? = null
     ) : QObject() {
         private val myCellsOccupied: ArrayDeque<Segment.Cell> = ArrayDeque()
+
+        var numCellsAllocated: Int = 0
+            internal set
+
         val numCellsOccupied: Int
             get() = myCellsOccupied.size
 
         val isConveyable: Boolean
-            get() = numCellsOccupied == numCellsNeeded
+            get() = numCellsAllocated == numCellsNeeded
 
         val conveyor = this@Conveyor
 
         val segment : Conveyor.Segment?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied[0].segment else null
 
-        internal fun pushCell(cell: Segment.Cell) {
+        val frontCell: Segment.Cell?
+            get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.first() else null
+
+        internal fun occupyCell(cell: Segment.Cell) {
             if (myCellsOccupied.size < numCellsNeeded) {
                 myCellsOccupied.add(cell)
-                cell.item = this
+                cell.occupyingItem = this
             } else {
-                popCell()
+                popFrontCell()
                 myCellsOccupied.add(cell)
-                cell.item = this
+                cell.occupyingItem = this
             }
         }
 
-        internal fun popCell(): Boolean {
+        internal fun popFrontCell(): Boolean {
             return if (myCellsOccupied.isNotEmpty()) {
                 val first = myCellsOccupied.removeFirst()
-                first.item = null
+                first.occupyingItem = null
                 true
             } else {
                 false
             }
         }
 
-        //TODO attach the entity, destination, size, current cell, current segment
-        // need to know when destination is reached, how about when fully on the conveyor
-        // need to know which cells it is currently occupying
     }
 
+    /**
+     * A segment consists of a number of equally sized contiguous cells with each cell representing some unit of distance along
+     * the segment.  If a segment consists of 12 cells and the length of the conveyor is 12 feet then each cell
+     * represents 1 foot. If a segment consists of 4 cells and the length of the conveyor is 12 feet, then each
+     * cell represents 3 feet.  Thus, a cell represents a generalized unit of distance along the segment. Items that
+     * ride on the segment must be allocated cells and then occupy the cells while moving on the segment.  A segment
+     * has a starting location (origin) and an ending location (destination) and is associated with a conveyor. A series
+     * of segments represents the conveyor.
+     */
     inner class Segment(val segmentData: SegmentData, name: String?) : ModelElement(this@Conveyor, name) {
         /**
          *  This queue holds items that are waiting at the start of the segment for the appropriate number of cells on the
-         *  conveyor in order to ride (move) to their destination
+         *  conveyor in order to ride (move) to their destination. An item should be in the
+         *  access queue until a sufficient number of cells are available for the item to begin moving onto the conveyor
          */
-        val accessQ = Queue<Conveyable>(this, "${this.name}:AccessQ")
+        internal val myAccessQ = ConveyorQ(this, "${this.name}:AccessQ")
+        val accessQ: QueueCIfc<Conveyor.Conveyable>
+            get() = myAccessQ
 
         /**
          *  The total number of cells on this segment of the conveyor
@@ -337,14 +390,14 @@ class Conveyor(
             get() = myCells.last()
 
         /**
-         * The number of available (unoccupied) consecutive cells starting from
+         * The number of available (unallocated) consecutive cells starting from
          * the beginning of the segment.
          */
         val numAvailableCells: Int
             get() {
                 var sum = 0
                 for (cell in myCells) {
-                    if (!cell.occupied) {
+                    if (!cell.allocated) {
                         sum++
                     } else {
                         return sum
@@ -361,7 +414,7 @@ class Conveyor(
 
         override fun initialize() {
             for (cell in myCells) {
-                cell.item = null
+                cell.occupyingItem = null
             }
         }
 
@@ -369,16 +422,24 @@ class Conveyor(
             return numAvailableCells >= numCellsNeeded
         }
 
+        /**
+         * This method only allocates the cells to the conveyable. There is no movement
+         * associated with the allocation. Allocation means that the conveyable has control
+         * over the cells.
+         */
         internal fun allocateCells(conveyable: Conveyable) {
             require(canAllocate(conveyable.numCellsNeeded)) { "Tried to allocate cells when insufficient amount of celle was available" }
             for (i in 0 until conveyable.numCellsNeeded) {
-                conveyable.pushCell(myCells[i])
+                myCells[i].allocated = true
+                conveyable.numCellsAllocated = conveyable.numCellsAllocated + 1
             }
+            //TODO should entity be removed from access queue and process resumed here?
         }
 
-        fun conveyItem(item: Conveyable) {
-            // enter the accessQ
-            accessQ.enqueue(item)
+        internal fun conveyItem(item: Conveyable) {
+            // maybe pass in the conveyor allocation instead
+            // the item should be conveyable, it needs to have a destination
+            // the entity associated with the item should be suspended
             //TODO if first cell is
         }
 
@@ -389,11 +450,36 @@ class Conveyor(
 
         }
 
+        /**
+         *  A cell represents a length of space along the conveyor segment that
+         *  can be allocated to and occupied by conveyable items.  A segment is divided
+         *  into a set of cells to represent its length.  A cell acts like a general
+         *  unit of distance along the segment.
+         */
         inner class Cell(val cellNumber: Int) {
-            val occupied: Boolean
-                get() = item != null
+            /**
+             *  A cell can be allocated but not yet occupied
+             */
+            var allocated: Boolean = false
+                internal set(value){
+                    require(occupyingItem == null){"Tried to allocate an already occupied cell"}
+                    field = value
+                }
 
-            var item: Conveyable? = null
+            /**
+             *  A cell is occupied if it is covered by an item, and it is allocated.
+             */
+            val occupied: Boolean
+                get() = (occupyingItem != null) && (allocated)
+
+            var occupyingItem: Conveyable? = null
+                internal set(value) {
+                    require(allocated){"Tried to occupy the cell without it be allocated"}
+                    field = value
+                    if (value == null){
+                        allocated = false
+                    }
+                }
             val segment: Segment = this@Segment
         }
 
@@ -410,7 +496,7 @@ class Conveyor(
         private var velocity: Double = 1.0
         private var cellSize: Int = 1
         private var maxEntityCellsAllowed: Int = 1
-        private lateinit var segments: Segments
+        private lateinit var segmentsData: SegmentsData
 
         override fun velocity(value: Double): CellSizeStepIfc {
             require(value > 0.0) { "The velocity of the conveyor must be > 0.0" }
@@ -432,19 +518,19 @@ class Conveyor(
 
         override fun firstSegment(start: IdentityIfc, end: IdentityIfc, length: Int): SegmentStepIfc {
             require(length >= 1) { "The length of the segment must be >= 1 unit" }
-            segments = Segments(cellSize, start)
-            segments.toLocation(end, length)
+            segmentsData = SegmentsData(cellSize, start)
+            segmentsData.toLocation(end, length)
             return this
         }
 
         override fun nextSegment(next: IdentityIfc, length: Int): SegmentStepIfc {
             require(length >= 1) { "The length of the segment must be >= 1 unit" }
-            segments.toLocation(next, length)
+            segmentsData.toLocation(next, length)
             return this
         }
 
         override fun build(): Conveyor {
-            return Conveyor(parent, velocity, segments, maxEntityCellsAllowed, name)
+            return Conveyor(parent, velocity, segmentsData, maxEntityCellsAllowed, name)
         }
 
     }
