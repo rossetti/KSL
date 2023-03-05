@@ -479,7 +479,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        var conveyorAllocation: ConveyorAllocation? = null
+        var conveyable: ConveyableIfc? = null
             internal set
 
 //        protected open fun beginFailure(allocation: Allocation) {
