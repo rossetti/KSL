@@ -288,6 +288,13 @@ class Conveyor(
         return item
     }
 
+    internal fun conveyItem(item: Conveyable, destination: IdentityIfc){
+        // the item should be conveyable, it needs to have a destination
+        require(item.isConveyable) { "Tried to convey an item that is not conveyable" }
+        require(item.conveyor == this){"Item is not from this conveyor"}
+        require(exitLocations.contains(destination)){"The destination is not on this conveyor"}
+
+    }
     internal fun deallocateCells(conveyable: Conveyable) {
         //TODO all calls to conveyable, thus maybe put this logic there
         require(conveyable.conveyor == this) { "The allocation was not from this conveyor" }
@@ -464,7 +471,9 @@ class Conveyor(
             // the item should be conveyable, it needs to have a destination
             require(item.isConveyable) { "Tried to convey an item that is not conveyable" }
             require(item.destination != null) { "The destination of the item was not set" }
-            // the entity associated with the item should be suspended
+
+            //TODO the entity associated with the item should be suspended, where/when is it suspended
+
             // if the conveyor is empty, then we need to start the movement and have the item
             // occupy the first cell
             if (myConveyables.isEmpty()){
