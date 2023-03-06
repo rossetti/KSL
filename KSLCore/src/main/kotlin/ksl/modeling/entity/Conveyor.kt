@@ -127,7 +127,7 @@ interface ConveyableIfc {
     val numCellsOccupied: Int
     val isConveyable: Boolean
     val conveyor: Conveyor
-    val segment: Conveyor.Segment?
+    val segment: Conveyor.Segment
     val frontCell: Conveyor.Segment.Cell?
 }
 
@@ -170,6 +170,7 @@ class Conveyor(
     init {
         require(velocity > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
     }
+
     private val mySegmentMap = mutableMapOf<IdentityIfc, Segment>()
     private val mySegmentList = mutableListOf<Segment>()
     private val mySegmentData: SegmentsData
@@ -190,6 +191,7 @@ class Conveyor(
             require(value > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
             field = value
         }
+
     init {
         require(maxEntityCellsAllowed >= 1) { "The maximum number of cells that can be occupied by an entity must be >= 1" }
         require(segmentData.isNotEmpty()) { "The segment data must not be empty." }
@@ -259,13 +261,13 @@ class Conveyor(
      * @param entity the entity to which the cells need to be allocated for riding on the conveyor
      * @param numCellsNeeded the number of cells needed to ride on the conveyor by the entity
      * @param origin the location at which the entity wants the cells to get on the conveyor
-     * @return an allocation representing that the cells have been allocated to the item. The reference
-     * to this allocation is necessary in order to deallocate the allocated cells.
+     * @return a conveyable representing that the item holding the cells and the entity while using the conveyor.
+     * The reference to this conveyable is necessary in order to deallocate the allocated cells.
      */
     internal fun allocateCells(
         entity: ProcessModel.Entity,
         numCellsNeeded: Int,
-        origin: IdentityIfc,
+        origin: IdentityIfc
     ): Conveyable {
         require(entity.conveyable == null) { "The entity already has a conveyor allocation" }
         require(numCellsNeeded <= maxEntityCellsAllowed) {
@@ -275,27 +277,30 @@ class Conveyor(
         require(entryLocations.contains(origin)) { "The origin ($origin) is not a valid entry point on the conveyor" }
         require(canAllocateCells(numCellsNeeded, origin))
         { "Cannot allocate $numCellsNeeded at origin ${origin.name} to the entity at this time instant." }
-        // make the conveyable
-        val item = Conveyable(entity, numCellsNeeded, origin)
-        // attach it to the entity, to ensure that an entity cannot be on more than one conveyor at a time
-        item.entity.conveyable = item
         // get the segment for entry onto the conveyor
         val segment = mySegmentMap[origin]!!
-        // ask the segment to allocate cells to the conveyable
-        segment.allocateCells(item)
+        // ask the segment to allocate cells to the entity and make the conveyable
+        val item = segment.allocateCells(entity, numCellsNeeded, origin)
         // return the conveyable to use when ready to convey
         // TODO when should the entity be removed from the access queue and its process resumed?
         return item
     }
 
-    internal fun conveyItem(item: Conveyable, destination: IdentityIfc){
+    internal fun conveyItem(item: Conveyable, destination: IdentityIfc) {
         // the item should be conveyable, it needs to have a destination
         require(item.isConveyable) { "Tried to convey an item that is not conveyable" }
-        require(item.conveyor == this){"Item is not from this conveyor"}
-        require(exitLocations.contains(destination)){"The destination is not on this conveyor"}
+        require(item.conveyor == this) { "Item is not from this conveyor" }
+        require(exitLocations.contains(destination)) { "The destination is not on this conveyor" }
 
     }
-    internal fun deallocateCells(conveyable: Conveyable) {
+
+    internal fun exitConveyor(entity: ProcessModel.Entity) {
+        require(entity.conveyable != null) { "The entity does not have conveyor allocation" }
+        deallocateCells(entity.conveyable as Conveyable)
+
+    }
+
+    private fun deallocateCells(conveyable: Conveyable) {
         //TODO all calls to conveyable, thus maybe put this logic there
         require(conveyable.conveyor == this) { "The allocation was not from this conveyor" }
         require(conveyable.numCellsAllocated > 0) { "There were no cells allocated to deallocate." }
@@ -315,9 +320,11 @@ class Conveyor(
     inner class Conveyable(
         override val entity: ProcessModel.Entity,
         override val numCellsNeeded: Int = 1,
+        startingSegment: Segment,
         override val origin: IdentityIfc,
-        override val destination: IdentityIfc? = null
+        override var destination: IdentityIfc? = null
     ) : QObject(), ConveyableIfc {
+        //TODO not sure if this data structure should be used
         private val myCellsOccupied: ArrayDeque<Segment.Cell> = ArrayDeque()
 
         override var numCellsAllocated: Int = 0
@@ -331,34 +338,51 @@ class Conveyor(
 
         override val conveyor = this@Conveyor
 
-        override val segment: Conveyor.Segment?
-            get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied[0].segment else null
+        override var segment: Conveyor.Segment = startingSegment
+            internal set
 
+        /**
+         *  The cell that is occupied by the item that is the furthest forward on the segment
+         *  that the item is currently on.  Null means that the item is not occupying any cells.
+         *  The items will occupy 1 or more cells depending on the number of cells that it
+         *  needs while riding on the conveyor
+         */
         override val frontCell: Segment.Cell?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.first() else null
 
-//        val reachedDestination: Boolean
-//            get(){
-//                if (frontCell == null){
-//                    return false
-//                } else {
-//                    return frontCell.
-//                }
-//
-//            }
+        /**
+         *  Causes an item already on the segment to move forward by one cell.  This
+         *  causes the cells that the item occupies to be updated to the next cell.
+         */
+        internal fun moveForwardOneCell() {
+            require(isConveyable){"The item cannot move forward because it has no allocated cells"}
+            require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
+            // the front cell cannot be null, safe to use
+            require(frontCell!!.isNotLast) {"The item cannot move forward because it has reached the end of the segment"}
+            // the front cell is not the last cell of the segment
+            // this means that there must be a next cell
+            // each occupied cell becomes the next occupied cell
+            for(cell in myCellsOccupied){
+                occupyCell(cell.nextCell!!)//TODO
+            }
+        }
 
-        internal fun occupyCell(cell: Segment.Cell) {
+        /**
+         *  Causes the item to occupy the supplied cell.  No checking of the contiguous nature of cells
+         *  is performed.
+         */
+        private fun occupyCell(cell: Segment.Cell) {
             if (myCellsOccupied.size < numCellsNeeded) {
                 myCellsOccupied.add(cell)
                 cell.occupyingItem = this
             } else {
-                popFrontCell()
-                myCellsOccupied.add(cell)
+                popFrontCell() //TODO
+                myCellsOccupied.add(cell)  //TODO this is adding it to the end of the list
                 cell.occupyingItem = this
             }
         }
 
-        internal fun popFrontCell(): Boolean {
+        private fun popFrontCell(): Boolean {
             return if (myCellsOccupied.isNotEmpty()) {
                 val first = myCellsOccupied.removeFirst()
                 first.occupyingItem = null
@@ -407,7 +431,7 @@ class Conveyor(
         init {
             val list = mutableListOf<Cell>()
             for (i in 1..numCells) {
-                list.add(Cell(i))
+                Cell(list)
             }
             myCells = list.asList()
         }
@@ -453,18 +477,27 @@ class Conveyor(
         }
 
         /**
-         * This method only allocates the cells to the conveyable. There is no movement
+         * This method only allocates the cells on the segment. There is no movement
          * associated with the allocation. Allocation means that the conveyable has control
          * over the cells.  This method is called from the conveyor when a conveyable requests
          * cells for allocation.
          */
-        internal fun allocateCells(conveyable: Conveyable) {
-            require(canAllocate(conveyable.numCellsNeeded)) { "Tried to allocate cells when insufficient amount of celle was available" }
-            for (i in 0 until conveyable.numCellsNeeded) {
+        internal fun allocateCells(
+            entity: ProcessModel.Entity,
+            numCellsNeeded: Int,
+            origin: IdentityIfc
+        ) : Conveyable {
+            require(canAllocate(numCellsNeeded)) { "Tried to allocate cells when an insufficient amount of cells was available" }
+            val item = Conveyable(entity, numCellsNeeded, this, origin)
+            // cells are only allocated at the start of the segment, start with cell 0
+            // attach it to the entity, to ensure that an entity cannot be on more than one conveyor at a time
+            entity.conveyable = item
+            for (i in 0 until numCellsNeeded) {
                 myCells[i].allocated = true
-                conveyable.numCellsAllocated = conveyable.numCellsAllocated + 1
+                item.numCellsAllocated = item.numCellsAllocated + 1
             }
             // TODO when should the entity be removed from the access queue and its process resumed?
+            return item
         }
 
         internal fun conveyItem(item: Conveyable) {
@@ -476,16 +509,23 @@ class Conveyor(
 
             // if the conveyor is empty, then we need to start the movement and have the item
             // occupy the first cell
-            if (myConveyables.isEmpty()){
-                item.occupyCell(firstCell)
+            if (myConveyables.isEmpty()) {
+                TODO("not done yet")
+           //item.occupyCell(firstCell)
                 endCellTraversalAction.schedule(cellTravelTime, firstCell)
             }
             // add it to the conveyor
             myConveyables.add(item)
         }
 
-        private fun endCellTraversal(cell: Cell){
+        private fun endCellTraversal(cell: Cell) {
             // the cell that was traversed should always be the "lead" cell
+            if (cell.isLast) {
+                // item associated with the cell has reached the end of the segment
+            } else {
+                // not at end of the segment, move every item forward by one cell
+
+            }
             // move every item forward that is on the conveyor by one cell
 
             // if lead cell has not reached last cell, then schedule its movement forward
@@ -494,6 +534,12 @@ class Conveyor(
 
             // this is where accumulating and non-accumulating behavior will need to be addressed
             TODO("working on it")
+        }
+
+        private fun moveItemsForwardOneCell() {
+            for (item in myConveyables) {
+
+            }
         }
 
         private inner class EndOfCellTraversalAction : EventAction<Cell>() {
@@ -509,7 +555,38 @@ class Conveyor(
          *  into a set of cells to represent its length.  A cell acts like a general
          *  unit of distance along the segment.
          */
-        inner class Cell(val cellNumber: Int) {
+        inner class Cell(private val cellList: MutableList<Cell>) {
+
+            val cellNumber: Int
+
+            init {
+                cellList.add(this)
+                cellNumber = cellList.size
+            }
+
+            val isFirst: Boolean
+                get() = cellList.first() == this
+
+            val isLast: Boolean
+                get() = cellList.last() == this
+
+            val isNotLast: Boolean
+                get() = !isLast
+
+            val nextCell: Cell?
+                get() {
+                    return if (isLast) null
+                    else
+                        cellList[cellNumber] // because cells are numbered starting at 1, but list is 0 index based
+                }
+
+            val previousCell: Cell?
+                get() {
+                    return if (isFirst) null
+                    else
+                        cellList[cellNumber - 1] // because cells are numbered starting at 1, but list is 0 index based
+                }
+
             /**
              *  A cell can be allocated but not yet occupied
              */
@@ -533,6 +610,7 @@ class Conveyor(
                         allocated = false
                     }
                 }
+
             val segment: Segment = this@Segment
         }
 
