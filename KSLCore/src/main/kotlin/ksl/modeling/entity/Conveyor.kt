@@ -130,6 +130,8 @@ interface ConveyableIfc {
     val segment: Conveyor.Segment
     val frontCell: Conveyor.Segment.Cell?
     val endCell: Conveyor.Segment.Cell?
+    val hasReachedEndOfSegment: Boolean
+    var resumePriority: Int
 }
 
 /** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location
@@ -333,8 +335,13 @@ class Conveyor(
         override val origin: IdentityIfc,
         override var destination: IdentityIfc? = null
     ) : QObject(), ConveyableIfc {
+
+        override var resumePriority: Int = KSLEvent.DEFAULT_PRIORITY
+
         //TODO not sure if this data structure should be used
         private val myCellsOccupied: ArrayDeque<Segment.Cell> = ArrayDeque()
+        val occupiedCells: List<Segment.Cell>
+            get() = myCellsOccupied
 
         override var numCellsAllocated: Int = 0
             internal set
@@ -349,6 +356,15 @@ class Conveyor(
 
         override var segment: Conveyor.Segment = startingSegment
             internal set
+
+        override val hasReachedEndOfSegment: Boolean
+            get() {
+                return if (frontCell != null){
+                    frontCell == segment.lastCell
+                } else{
+                    false
+                }
+            }
 
         /**
          *  The cell that is occupied by the item that is the furthest forward (closest to the end) on the segment
@@ -438,13 +454,16 @@ class Conveyor(
             get() = myAccessQ
 
         /**
-         *  Holds the items that are on the segment
+         *  Holds the items that are on the segment as the progress
+         *  along the segment
          */
         private val myConveyables = mutableListOf<Conveyable>()
 
         private val endCellTraversalAction = EndOfCellTraversalAction()
+        private val exitSegmentAction = ExitSegmentAction()
 
         private var cellTraversalEvent: KSLEvent<Conveyable>? = null
+        private var exitSegmentEvent: KSLEvent<Conveyable>? = null
 
         /**
          *  The total number of cells on this segment of the conveyor
@@ -485,9 +504,7 @@ class Conveyor(
 
         private val myNumCellsOccupied = TWResponse(this, "${this.name}:NumCellsOccupied")//TODO
 
-        //TODO make the cells, need cell events, transfer from one segment to the next
-        // should each cell have the events or should events handle any cell
-        // first cell action, last cell action, intermediate cell action
+        //TODO transfer from one segment to the next
 
         override fun initialize() {
             for (cell in myCells) {
@@ -543,29 +560,54 @@ class Conveyor(
             myConveyables.add(item)
         }
 
+        /**
+         * The leading item is the item at the front of the segment, furthest
+         * from the origin and closest to the end of the segment.
+         * The leading item occupies the cell that is the furthest along on the segment.
+         * The leading item has just traversed (in time) the physical space
+         * associated with the next cell. The next cell is the cell that is
+         * in front of its current front cell.  We need to move the cells
+         * forward through their cells so that they occupy the next cell.
+         *
+         * The leading item may have reached the end of the segment. That is
+         * the front cell occupied by the item may be the last cell of the segment.
+         * If not at the end of the segment, then schedule the next traversal.
+         * If at the end of the segment, ...
+         */
         private fun endCellTraversal(leadingItem: Conveyable) {
-            // The leading item is the item at the front of the conveyor, furthest
-            // from the origin and closest to the end of the conveyor.
-            // The leading item has just traversed its front cell.
-            val cell = leadingItem.frontCell
-//            if (cell.isLast) {
-//                // item associated with the cell has reached the end of the segment
-//                TODO("working on it")
-//            } else {
-//                // not at end of the segment, move every item forward by one cell
-//                for(item in myConveyables){
-//                    item.moveForwardOneCell()
-//                }
-//                // need to traverse the lead cell
-//                endCellTraversalAction.schedule(cellTravelTime, cell)
-//            }
-            // this is where accumulating and non-accumulating behavior will need to be addressed
-            TODO("working on it")
+
+            // move all the items on the segment forward by one cell
+            // the first item in the conveyable list should be the leading item
+            for (item in myConveyables) {
+                item.moveForwardOneCell()
+            }
+
+            if (leadingItem.hasReachedEndOfSegment){
+                // coordinate with the entity to allow it to decide what to do
+                // the entity is resumed (at the current time), but its conveyable is
+                // still on the segment
+                conveyorHoldQ.removeAndResume(leadingItem.entity, leadingItem.resumePriority)
+            } else {
+                endCellTraversalAction.schedule(cellTravelTime, leadingItem)
+            }
+        }
+
+        private fun exitSegment(exitingItem: Conveyable){
+            TODO("handle exiting the segment")
+            //TODO exiting the conveyor actually takes time to move through the occupied cells
         }
 
         private inner class EndOfCellTraversalAction : EventAction<Conveyable>() {
             override fun action(event: KSLEvent<Conveyable>) {
                 endCellTraversal(event.message!!)
+            }
+
+        }
+
+        private inner class ExitSegmentAction : EventAction<Conveyable>() {
+            override fun action(event: KSLEvent<Conveyable>) {
+
+                exitSegment(event.message!!)
             }
 
         }
