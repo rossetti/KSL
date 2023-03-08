@@ -354,7 +354,8 @@ class Conveyor(
     /**
      * It is an error to attempt to allocate cells if there are insufficient
      * cells available. Thus, the number of cells needed must be less than or equal to the number of cells
-     * available at the origin point at the time of this call.
+     * available at the origin point at the time of this call. This function
+     * should only be called from the access() suspend function.
      *
      * @param item the conveyable item that wants the cells
      */
@@ -373,7 +374,8 @@ class Conveyor(
      * Conveying an item may cause events to be scheduled to move the lead item forward.
      * If it cannot be immediately conveyed the item is held until the move event executes.
      * The entity associated with the item should be suspended, placed in the
-     * conveyor's HoldQ, after this call
+     * conveyor's HoldQ, after this call from the ride() suspend function of the process.
+     * This function should only be called from the ride() suspend function.
      */
     internal fun conveyItem(item: Conveyable, destination: IdentityIfc) {
         // the item should be conveyable, it needs to have a destination
@@ -384,23 +386,18 @@ class Conveyor(
         item.destination = destination
         item.segment!!.conveyItem(item)
         // the entity associated with the item should be suspended, after this call
-        //TODO here or in the process?
     }
 
-    internal fun exitConveyor(entity: ProcessModel.Entity) {
-        require(entity.conveyable != null) { "The entity does not have conveyor allocation" }
-        deallocateCells(entity.conveyable as Conveyable)
+    internal fun exitConveyor(item: Conveyable) {
+        require(item.isConveyable) { "Tried to exit a conveyor for an item that is not conveyable" }
+        require(item.conveyor == this) { "Item is not from this conveyor" }
+        require(item.numCellsAllocated > 0) { "There were no cells allocated to deallocate." }
+        require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
+        require(exitLocations.contains(item.destination)) { "The destination is not on this conveyor" }
+        require(item.segment != null) { "The item was not using a segment" }
 
-    }
-
-    private fun deallocateCells(conveyable: Conveyable) {
-        //TODO all calls to conveyable, thus maybe put this logic there
-        require(conveyable.conveyor == this) { "The allocation was not from this conveyor" }
-        require(conveyable.numCellsAllocated > 0) { "There were no cells allocated to deallocate." }
-        require(conveyable.isConveyable) { "The allocation has already been deallocated" }
-        require(conveyable.destination != null) { "The destination of the conveyable was not set" }
-        // current location must be a valid destination
-        //TODO how to give the cells back
+        //TODO delegate to the segment and return control back to the entity
+//TODO how to give the cells back
     }
 
     //TODO how to stop and start the conveyor? also changing the velocity at start time
@@ -434,8 +431,6 @@ class Conveyor(
             internal set
 
         private val myCellsOccupied: ArrayDeque<Segment.Cell> = ArrayDeque()
-//        val occupiedCells: List<Segment.Cell>
-//            get() = myCellsOccupied
 
         override val occupiesCells: Boolean
             get() = myCellsOccupied.isNotEmpty()
