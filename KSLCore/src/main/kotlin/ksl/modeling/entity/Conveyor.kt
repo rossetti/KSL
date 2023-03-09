@@ -666,11 +666,14 @@ class Conveyor(
             // the entity associated with the item should be suspended, after this call to convey
         }
 
+        //TODO the leading item concept will need to change for accumulating conveyors
+
         /**
-         * The leading item is the item at the front of the segment, furthest
-         * from the origin and closest to the end of the segment.
-         * The leading item occupies the cell that is the furthest along on the segment.
-         * The leading item has just traversed (in time) the physical space
+         * The lead item is the item that pulls all items behind it forward
+         * when it moves forward.  When the lead item moves forward through its next cell, all
+         * items behind it also move through their next cells.
+         *
+         * The lead item has just traversed (in time) the physical space
          * associated with the next cell. The next cell is the cell that is
          * in front of the item's current front cell.  We need to move the items
          * forward through their cells so that they occupy their next cells.
@@ -680,26 +683,32 @@ class Conveyor(
          * If not at the end of the segment, then schedule the next traversal.
          * If at the end of the segment, ...
          */
-        private fun endCellTraversal(leadingItem: Conveyable) {
+        private fun endCellTraversal(leadItem: Conveyable) {
 
             // move all the items on the segment forward by one cell
             // the first item in the conveyable list should be the leading item
+            //TODO this needs to start with the lead item and only include
+            // those items behind the lead item.
             for (item in myConveyables) {
                 item.moveForwardOneCell()
             }
 
-            if (leadingItem.hasReachedEndOfSegment) {
+            if (leadItem.hasReachedEndOfSegment) {
                 // coordinate with the entity to allow it to decide what to do
                 // the entity is resumed (at the current time), but its conveyable is
                 // still on the segment
-                conveyorHoldQ.removeAndResume(leadingItem.entity, leadingItem.resumePriority)
+                conveyorHoldQ.removeAndResume(leadItem.entity, leadItem.resumePriority)
             } else {
                 //TODO only schedule the next traversal if the next cell is not occupied
-                endCellTraversalAction.schedule(cellTravelTime, leadingItem)
+                // one of the keys of accumulating conveyors is that the lead item may change
+                // when it becomes blocked
+                endCellTraversalAction.schedule(cellTravelTime, leadItem)
             }
         }
 
         private fun exitSegment(exitingItem: Conveyable) {
+            // if an item exits the segment, then all items can move forward
+            // TODO how to handle case of using more than one cell?
             for (item in myConveyables) {
                 item.moveForwardOneCell()
             }
