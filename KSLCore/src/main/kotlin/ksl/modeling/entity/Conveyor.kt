@@ -397,11 +397,13 @@ class Conveyor(
         require(item.segment != null) { "The item was not using a segment" }
 
         //TODO delegate to the segment and return control back to the entity
-//TODO how to give the cells back
+//TODO how to give the cells back, what happens to the lead item?
     }
 
     //TODO how to stop and start the conveyor? also changing the velocity at start time
     //TODO accumulating conveyors allow the item after the leading item to continue moving if the leading item is blocked
+    //TODO what happens if lead item is blocked
+
     /**
      *  An object that is conveyable can be allocated cells on a conveyor and occupy cells
      *  on a segment of a conveyor.
@@ -556,8 +558,7 @@ class Conveyor(
             get() = myAccessQ
 
         /**
-         *  Holds the items that are on the segment as the progress
-         *  along the segment
+         *  Holds the items that need to move along (use cells) associated with the segment
          */
         private val myConveyables = mutableListOf<Conveyable>()
 
@@ -610,7 +611,7 @@ class Conveyor(
 
         private val myNumCellsOccupied = TWResponse(this, "${this.name}:NumCellsOccupied")//TODO
 
-        //TODO transfer from one segment to the next
+        //TODO how to transfer from one segment to the next
 
         override fun initialize() {
             for (cell in myCells) {
@@ -634,16 +635,20 @@ class Conveyor(
             // cells are only allocated at the start of the segment, start with cell 0
             // attach it to the entity, to ensure that an entity cannot be on more than one conveyor at a time
             item.entity.conveyable = item
+            // make the cells allocated and give them to the item
             for (i in 0 until item.numCellsNeeded) {
                 myCells[i].allocated = true
                 item.numCellsAllocated = item.numCellsAllocated + 1
             }
-            item.segment = this // now using this segment
+            // indicate that the item is using this segment
+            item.segment = this
         }
 
         /**
          *  This is called from the enclosing conveyor. The enclosing conveyor
          *  is responsible for ensuring that the item can be conveyed.
+         *  The entity associated with the item should be suspended after this call.
+         *  This function does not do the suspension.
          */
         internal fun conveyItem(item: Conveyable) {
             // if the conveyor is empty, then we need to start the movement and have the item
@@ -653,7 +658,10 @@ class Conveyor(
                 // this item becomes the lead item
                 cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, item)
             }
-            // add it to the conveyor, when the lead item moves forward all items on the conveyor will move forward
+            // add it to the list of items managed by the segment
+            // notice that the item may not be occupying any cells
+            // when the lead item moves forward all items associated with the segment will move forward
+            // make the item associated with the segment
             myConveyables.add(item)
             // the entity associated with the item should be suspended, after this call to convey
         }
@@ -664,8 +672,8 @@ class Conveyor(
          * The leading item occupies the cell that is the furthest along on the segment.
          * The leading item has just traversed (in time) the physical space
          * associated with the next cell. The next cell is the cell that is
-         * in front of its current front cell.  We need to move the cells
-         * forward through their cells so that they occupy the next cell.
+         * in front of the item's current front cell.  We need to move the items
+         * forward through their cells so that they occupy their next cells.
          *
          * The leading item may have reached the end of the segment. That is
          * the front cell occupied by the item may be the last cell of the segment.
@@ -686,6 +694,7 @@ class Conveyor(
                 // still on the segment
                 conveyorHoldQ.removeAndResume(leadingItem.entity, leadingItem.resumePriority)
             } else {
+                //TODO only schedule the next traversal if the next cell is not occupied
                 endCellTraversalAction.schedule(cellTravelTime, leadingItem)
             }
         }
