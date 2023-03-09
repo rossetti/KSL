@@ -683,15 +683,13 @@ class Conveyor(
             // the entity associated with the item should be suspended, after this call to convey
         }
 
-        //TODO the leading item concept will need to change for accumulating conveyors
-
         /**
          * The lead item is the item that pulls all items behind it forward
          * when it moves forward.  When the lead item moves forward through its next cell, all
          * items behind it also move through their next cells.
          *
          * This function is associated with the end of the traversal through the cell that was
-         * unoccupied in front of the item.  When this function is called, the lead item has
+         * unoccupied in front of the lead item.  When this function is called, the lead item has
          * just traversed (in time) the physical space
          * associated with the next cell. The next cell is the cell that is
          * in front of the item's current front cell.  We need to move the items
@@ -700,37 +698,43 @@ class Conveyor(
          * The leading item may have reached the end of the segment. That is
          * the front cell occupied by the item may be the last cell of the segment.
          * If not at the end of the segment, then schedule the next traversal.
-         * If at the end of the segment, ...
+         * If at the end of the segment, the item ends its trip.
          */
         private fun endCellTraversal(leadItem: Conveyable) {
             // this needs to start with the lead item and only include itself and
             // those items behind the lead item.
             // move all the items on the segment forward by one cell
-            val i = myConveyables.indexOf(leadItem)
-            val itr = myConveyables.listIterator(i)
-            while (itr.hasNext()){
-                itr.next().moveForwardOneCell()
-            }
-
+            moveItemsForward(leadItem)
             if (leadItem.hasReachedEndOfSegment) {
                 // coordinate with the entity to allow it to decide what to do
                 // the entity is resumed (at the current time), but its conveyable is
                 // still on the segment
                 conveyorHoldQ.removeAndResume(leadItem.entity, leadItem.resumePriority)
             } else {
-                //TODO only schedule the next traversal if the next cell is not occupied
-                // one of the keys of accumulating conveyors is that the lead item may change
-                // when it becomes blocked
-                endCellTraversalAction.schedule(cellTravelTime, leadItem)
+                if (leadItem.isNextCellOccupied){
+                    // lead item can not move forward if the next cell is occupied
+                    //TODO what to do if lead item becomes blocked?
+                } else {
+                    // lead item can move forward
+                    // if the next cell is not occupied, schedule the next traversal
+                    endCellTraversalAction.schedule(cellTravelTime, leadItem)
+                }
+            }
+        }
+
+        private fun moveItemsForward(leadItem: Conveyable){
+            val i = myConveyables.indexOf(leadItem)
+            val itr = myConveyables.listIterator(i)
+            while (itr.hasNext()){
+                itr.next().moveForwardOneCell()
             }
         }
 
         internal fun exitSegment(exitingItem: Conveyable) {
             // if an item exits the segment, then all items can move forward
-            // TODO how to handle case of using more than one cell?
-            for (item in myConveyables) {
-                item.moveForwardOneCell()
-            }
+            moveItemsForward(exitingItem)
+            // TODO how to handle case of using more than one cell when exiting?
+
             TODO("handle exiting the segment")
             // move all the items on the segment forward by one cell
             // the first item in the conveyable list should be the leading item
