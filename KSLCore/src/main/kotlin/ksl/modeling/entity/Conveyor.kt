@@ -388,16 +388,22 @@ class Conveyor(
         // the entity associated with the item should be suspended, after this call
     }
 
+    /**
+     *  Causes the item to exit the conveyor at its destination.  Exiting the conveyor
+     *  causes the item to travel through the final cells that it occupies. Thus,
+     *  this call will take simulated time.  The process (entity) calling this should be
+     *  suspended until the exiting time is completed.
+     */
     internal fun exitConveyor(item: Conveyable) {
-        require(item.isConveyable) { "Tried to exit a conveyor for an item that is not conveyable" }
         require(item.conveyor == this) { "Item is not from this conveyor" }
-        require(item.numCellsAllocated > 0) { "There were no cells allocated to deallocate." }
-        require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
-        require(exitLocations.contains(item.destination)) { "The destination is not on this conveyor" }
         require(item.segment != null) { "The item was not using a segment" }
-
-        //TODO delegate to the segment and return control back to the entity
-//TODO how to give the cells back, what happens to the lead item?
+        require(item.isConveyable) { "Tried to exit a conveyor for an item that is not conveyable" }
+        require(item.numCellsAllocated > 0) { "There were no cells allocated when attempting to exit the conveyor." }
+        require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
+        require(item.destination != null) {"The item had no destination set"}
+        require(exitLocations.contains(item.destination)) { "The destination is not on this conveyor" }
+        // delegate to the segment
+        item.segment!!.exitSegment(item)// this will schedule an event
     }
 
     //TODO how to stop and start the conveyor? also changing the velocity at start time
@@ -467,6 +473,17 @@ class Conveyor(
                     false
                 } else {
                     destination == plannedLocation
+                }
+            }
+
+        val isNextCellOccupied: Boolean
+            get() {
+                val fc = frontCell
+                return if (fc == null){
+                    false
+                } else {
+                    val nc = fc.nextCell
+                    nc?.isOccupied ?: false
                 }
             }
 
@@ -673,7 +690,9 @@ class Conveyor(
          * when it moves forward.  When the lead item moves forward through its next cell, all
          * items behind it also move through their next cells.
          *
-         * The lead item has just traversed (in time) the physical space
+         * This function is associated with the end of the traversal through the cell that was
+         * unoccupied in front of the item.  When this function is called, the lead item has
+         * just traversed (in time) the physical space
          * associated with the next cell. The next cell is the cell that is
          * in front of the item's current front cell.  We need to move the items
          * forward through their cells so that they occupy their next cells.
@@ -684,13 +703,13 @@ class Conveyor(
          * If at the end of the segment, ...
          */
         private fun endCellTraversal(leadItem: Conveyable) {
-
-            // move all the items on the segment forward by one cell
-            // the first item in the conveyable list should be the leading item
-            //TODO this needs to start with the lead item and only include
+            // this needs to start with the lead item and only include itself and
             // those items behind the lead item.
-            for (item in myConveyables) {
-                item.moveForwardOneCell()
+            // move all the items on the segment forward by one cell
+            val i = myConveyables.indexOf(leadItem)
+            val itr = myConveyables.listIterator(i)
+            while (itr.hasNext()){
+                itr.next().moveForwardOneCell()
             }
 
             if (leadItem.hasReachedEndOfSegment) {
@@ -706,7 +725,7 @@ class Conveyor(
             }
         }
 
-        private fun exitSegment(exitingItem: Conveyable) {
+        internal fun exitSegment(exitingItem: Conveyable) {
             // if an item exits the segment, then all items can move forward
             // TODO how to handle case of using more than one cell?
             for (item in myConveyables) {
@@ -783,7 +802,7 @@ class Conveyor(
             /**
              *  A cell is occupied if it is covered by an item, and it is allocated.
              */
-            val occupied: Boolean
+            val isOccupied: Boolean
                 get() = (occupyingItem != null) && (allocated)
 
             var occupyingItem: Conveyable? = null
