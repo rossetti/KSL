@@ -249,9 +249,10 @@ class Conveyor(
     name: String? = null
 ) : ModelElement(parent, name) {
 
-    enum class Type{
+    enum class Type {
         ACCUMULATING, NON_ACCUMULATING
     }
+
     init {
         require(velocity > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
     }
@@ -278,10 +279,13 @@ class Conveyor(
             field = value
         }
 
+    val cellSize: Int
+
     init {
         require(maxEntityCellsAllowed >= 1) { "The maximum number of cells that can be occupied by an entity must be >= 1" }
         require(segmentData.isNotEmpty()) { "The segment data must not be empty." }
         mySegmentData = segmentData
+        cellSize = mySegmentData.cellSize
         for ((i, seg) in mySegmentData.segments.withIndex()) {
             val segment = Segment(seg, "${this.name}:Seg:$i")
             mySegmentMap[seg.start] = segment
@@ -291,7 +295,6 @@ class Conveyor(
         conveyorHoldQ.defaultReportingOption = false
     }
 
-    val cellSize = mySegmentData.cellSize
 
     var velocity: Double = velocity
         set(value) {
@@ -409,7 +412,7 @@ class Conveyor(
         require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
         // has allocated cells and is occupying cells on the conveyor
         // TODO need to make sure that the item's current location matches the exit location
-        require(item.destination != null) {"The item had no destination set"}
+        require(item.destination != null) { "The item had no destination set" }
         require(exitLocations.contains(item.destination)) { "The destination is not on this conveyor" }
         // delegate to the segment
         // this will schedule an event to start the exiting process
@@ -489,7 +492,7 @@ class Conveyor(
         val isNextCellOccupied: Boolean
             get() {
                 val fc = frontCell
-                return if (fc == null){
+                return if (fc == null) {
                     false
                 } else {
                     val nc = fc.nextCell
@@ -651,20 +654,20 @@ class Conveyor(
             return numAvailableCells >= numCellsNeeded
         }
 
-        internal fun stopMovement(){
-            if (cellTraversalEvent != null){
+        internal fun stopMovement() {
+            if (cellTraversalEvent != null) {
                 cellTraversalEvent!!.cancelled = true
             }
-            if (exitSegmentEvent != null){
+            if (exitSegmentEvent != null) {
                 exitSegmentEvent!!.cancelled = true
             }
         }
 
-        internal fun reStartMovement(){
-            if (cellTraversalEvent != null){
+        internal fun reStartMovement() {
+            if (cellTraversalEvent != null) {
                 //cellTraversalEvent!!.cancelled = true
             }
-            if (exitSegmentEvent != null){
+            if (exitSegmentEvent != null) {
                 //exitSegmentEvent!!.cancelled = true
             }
         }
@@ -739,7 +742,7 @@ class Conveyor(
                 // still on the segment
                 conveyorHoldQ.removeAndResume(leadItem.entity, leadItem.resumePriority)
             } else {
-                if (leadItem.isNextCellOccupied){
+                if (leadItem.isNextCellOccupied) {
                     // lead item can not move forward if the next cell is occupied
                     //TODO what to do if lead item becomes blocked?
                 } else {
@@ -750,26 +753,26 @@ class Conveyor(
             }
         }
 
-        private fun moveItemsForward(leadItem: Conveyable){
+        private fun moveItemsForward(leadItem: Conveyable) {
             val i = myConveyables.indexOf(leadItem)
             val itr = myConveyables.listIterator(i)
-            while (itr.hasNext()){
+            while (itr.hasNext()) {
                 itr.next().moveForwardOneCell()
             }
         }
 
-        internal fun scheduleConveyorExit(exitingItem: Conveyable){
+        internal fun scheduleConveyorExit(exitingItem: Conveyable) {
             exitSegmentAction.schedule(cellTravelTime, exitingItem)
         }
 
         private fun exitSegmentEventActions(exitingItem: Conveyable) {
             // if an item exits the segment, then all items can move forward
             moveItemsForward(exitingItem)
-            if (exitingItem.occupiesCells){
+            if (exitingItem.occupiesCells) {
                 // exiting item still has cells on the conveyor
                 // need to delay to travel through the next cell
                 exitSegmentAction.schedule(cellTravelTime, exitingItem)
-            } else{
+            } else {
 
             }
             // TODO how to handle case of using more than one cell when exiting?
@@ -866,14 +869,15 @@ class Conveyor(
         }
     }
 
-    private class Builder(val parent: ModelElement, val name: String? = null) : ConveyorTypeStepIfc, VelocityStepIfc, CellSizeStepIfc,
+    private class Builder(val parent: ModelElement, val name: String? = null) : ConveyorTypeStepIfc, VelocityStepIfc,
+        CellSizeStepIfc,
         FirstSegmentStepIfc, SegmentStepIfc {
         private var conveyorType = Type.ACCUMULATING
         private var velocity: Double = 1.0
         private var cellSize: Int = 1
         private var maxEntityCellsAllowed: Int = 1
         private lateinit var segmentsData: SegmentsData
-        override fun conveyorType(type: Type) : VelocityStepIfc{
+        override fun conveyorType(type: Type): VelocityStepIfc {
             conveyorType = type
             return this
         }
@@ -915,7 +919,7 @@ class Conveyor(
 
     }
 
-    interface ConveyorTypeStepIfc{
+    interface ConveyorTypeStepIfc {
         fun conveyorType(type: Type): VelocityStepIfc
     }
 
@@ -943,6 +947,7 @@ class Conveyor(
         val sb = StringBuilder()
         sb.appendLine("Conveyor : $name")
         sb.appendLine("type = $conveyorType")
+        sb.appendLine("is circular = $isCircular")
         sb.appendLine("velocity = $initialVelocity")
         sb.appendLine("cellSize = $cellSize")
         sb.appendLine("cell Travel Time = $cellTravelTime")
