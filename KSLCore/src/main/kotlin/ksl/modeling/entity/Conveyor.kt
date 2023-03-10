@@ -328,27 +328,27 @@ class Conveyor(
 
     /**
      *  Checks if the number of cells needed [numCellsNeeded] can be
-     *  allocated at the origin [origin] of the segment of the conveyor.
-     *  True means that the amount of cells needed at the start of the segment can be allocated at this
+     *  allocated at the supplied [location] associated with the conveyor.
+     *  True means that the amount of cells needed at the conveyor entry location be allocated at this
      *  instant in time.
      */
-    fun canAllocateCells(origin: IdentityIfc, numCellsNeeded: Int = 1): Boolean {
-        require(entryLocations.contains(origin)) { "The origin ($origin) is not a valid entry point on the conveyor" }
+    fun canAllocateCells(location: IdentityIfc, numCellsNeeded: Int = 1): Boolean {
+        require(entryLocations.contains(location)) { "The origin ($location) is not a valid entry point on the conveyor" }
         require(numCellsNeeded <= maxEntityCellsAllowed) {
             "The entity requested more cells ($numCellsNeeded) than " +
                     "the allowed maximum ($maxEntityCellsAllowed for for conveyor (${this.name}"
         }
-        val segment = mySegmentMap[origin]!!
+        val segment = mySegmentMap[location]!!
         return segment.canAllocate(numCellsNeeded)
     }
 
     /**
      * Creates an object that can request cells to be allocated on the conveyor.
      *
-     * @param entity the entity to which the cells need to be allocated for riding on the conveyor
-     * @param numCellsNeeded the number of cells needed to ride on the conveyor by the entity
-     * @param origin the location at which the entity wants the cells to get on the conveyor
-     * @return a conveyable representing that the item that can be used to request cells on the conveyor.
+     * @param entity the entity to which the cells need to be allocated on the conveyor
+     * @param numCellsNeeded the number of cells needed at the entry point of the conveyor by the entity
+     * @param origin the entry location at which the entity wants the cells on the conveyor
+     * @return a conveyable representing the entity's potential request for cells on the conveyor.
      * At this point, the object does not have cells allocated, but is now able to request cells.
      */
     internal fun createConveyable(
@@ -376,6 +376,9 @@ class Conveyor(
         val segment = mySegmentMap[item.origin]!!
         // ask the segment to allocate cells to the entity and make the conveyable
         segment.allocateCells(item)
+        if (conveyorType == Type.NON_ACCUMULATING){
+            segment.stopMovement()
+        }
     }
 
     /**
@@ -650,10 +653,17 @@ class Conveyor(
             myConveyables.clear()
         }
 
+        /**
+         *  Checks if the number of available cells at the beginning of the segment
+         *  are sufficient to allow allocation
+         */
         fun canAllocate(numCellsNeeded: Int): Boolean {
             return numAvailableCells >= numCellsNeeded
         }
 
+        /**
+         *  Causes the events associated with the movement of time
+         */
         internal fun stopMovement() {
             if (cellTraversalEvent != null) {
                 cellTraversalEvent!!.cancelled = true
@@ -663,12 +673,24 @@ class Conveyor(
             }
         }
 
+        /**
+         * Causes movement associated with the segment to continue
+         */
         internal fun reStartMovement() {
+            // if the scheduled event times occur after the current time
+            // then reschedule the events using the time remaining
+            //TODO this assumes that the lead item did not change.  Is that true???
             if (cellTraversalEvent != null) {
-                //cellTraversalEvent!!.cancelled = true
+                val e = cellTraversalEvent!!
+                if (e.time >= time){
+                    cellTraversalEvent = endCellTraversalAction.schedule(e.timeRemaining, message = e.message)
+                }
             }
             if (exitSegmentEvent != null) {
-                //exitSegmentEvent!!.cancelled = true
+                val e = exitSegmentEvent!!
+                if (e.time >= time){
+                    exitSegmentEvent = exitSegmentAction.schedule(e.timeRemaining, message = e.message)
+                }
             }
         }
 
