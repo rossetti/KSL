@@ -426,6 +426,13 @@ class Conveyor(
         require(item.isConveyable) { "Tried to exit a conveyor for an item that is not conveyable" }
         // since it is conveyable, it has at least 1 allocated cell
         //TODO handle the case of when item exits without occupying any cells, there will not be any time delay
+        if (!item.occupiesCells){
+            // item does not occupy any cells, exiting without being on segment
+            // just deallocate the cells
+            item.segment!!.deallocateCells(item)
+        } else {
+
+        }
 
         // make sure that the item occupies cells
         require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
@@ -475,7 +482,7 @@ class Conveyor(
         override val occupiesCells: Boolean
             get() = myCellsOccupied.isNotEmpty()
 
-        override var numCellsAllocated: Int = 0 //TODO where is this reduced
+        override var numCellsAllocated: Int = 0 //TODO where is this reduced, tie into statistics??
             internal set
 
         override val numCellsOccupied: Int
@@ -642,14 +649,14 @@ class Conveyor(
             get() = myCells.last()
 
         /**
-         * The number of available (unallocated) consecutive cells starting from
+         * The number of available (unoccupied) consecutive cells starting from
          * the beginning of the segment.
          */
         val numAvailableCells: Int
             get() {
                 var sum = 0
                 for (cell in myCells) {
-                    if (!cell.allocated) {
+                    if (!cell.isOccupied) {
                         sum++
                     } else {
                         return sum
@@ -822,6 +829,22 @@ class Conveyor(
             //TODO exiting the conveyor actually takes time to move through the occupied cells
         }
 
+        fun deallocateCells(item: Conveyable) {
+            require(!item.occupiesCells){"Cannot deallocate cells associated with the item because it still occupies cells"}
+            //TODO give cells back
+            item.numCellsAllocated = 0
+
+            // check queue
+            if (myAccessQ.isNotEmpty){
+                val nextItem = myAccessQ.peekNext()!!
+                if (canAllocate(nextItem.numCellsNeeded)){
+                    myAccessQ.removeNext()
+                    conveyorHoldQ.removeAndResume(nextItem.entity, nextItem.resumePriority)
+                }
+            }
+            TODO("handle de-allocation of cells")
+        }
+
         private inner class EndOfCellTraversalAction : EventAction<Conveyable>() {
             override fun action(event: KSLEvent<Conveyable>) {
                 endCellTraversalEventActions(event.message!!)
@@ -874,9 +897,9 @@ class Conveyor(
                 }
 
             /**
-             *  A cell can be allocated but not yet occupied
+             *  A cell can be allocated but not yet occupied //TODO is this really true
              */
-            var allocated: Boolean = false
+            var allocated: Boolean = false //TODO is this really needed??
                 internal set(value) {
                     require(occupyingItem == null) { "Tried to allocate an already occupied cell" }
                     field = value
