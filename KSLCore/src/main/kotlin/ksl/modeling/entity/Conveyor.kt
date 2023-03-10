@@ -243,10 +243,15 @@ interface ConveyableIfc {
 class Conveyor(
     parent: ModelElement,
     segmentData: SegmentsData,
+    val conveyorType: Type = Type.ACCUMULATING,
     velocity: Double = 1.0,
     val maxEntityCellsAllowed: Int = 1,
     name: String? = null
 ) : ModelElement(parent, name) {
+
+    enum class Type{
+        ACCUMULATING, NON_ACCUMULATING
+    }
     init {
         require(velocity > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
     }
@@ -646,6 +651,24 @@ class Conveyor(
             return numAvailableCells >= numCellsNeeded
         }
 
+        internal fun stopMovement(){
+            if (cellTraversalEvent != null){
+                cellTraversalEvent!!.cancelled = true
+            }
+            if (exitSegmentEvent != null){
+                exitSegmentEvent!!.cancelled = true
+            }
+        }
+
+        internal fun reStartMovement(){
+            if (cellTraversalEvent != null){
+                //cellTraversalEvent!!.cancelled = true
+            }
+            if (exitSegmentEvent != null){
+                //exitSegmentEvent!!.cancelled = true
+            }
+        }
+
         /**
          * This method only allocates the cells on the segment. There is no movement
          * associated with the allocation. Allocation means that the conveyable has control
@@ -838,17 +861,22 @@ class Conveyor(
     }
 
     companion object {
-        fun builder(parent: ModelElement, name: String? = null): VelocityStepIfc {
+        fun builder(parent: ModelElement, name: String? = null): ConveyorTypeStepIfc {
             return Builder(parent, name)
         }
     }
 
-    private class Builder(val parent: ModelElement, val name: String? = null) : VelocityStepIfc, CellSizeStepIfc,
+    private class Builder(val parent: ModelElement, val name: String? = null) : ConveyorTypeStepIfc, VelocityStepIfc, CellSizeStepIfc,
         FirstSegmentStepIfc, SegmentStepIfc {
+        private var conveyorType = Type.ACCUMULATING
         private var velocity: Double = 1.0
         private var cellSize: Int = 1
         private var maxEntityCellsAllowed: Int = 1
         private lateinit var segmentsData: SegmentsData
+        override fun conveyorType(type: Type) : VelocityStepIfc{
+            conveyorType = type
+            return this
+        }
 
         override fun velocity(value: Double): CellSizeStepIfc {
             require(value > 0.0) { "The velocity of the conveyor must be > 0.0" }
@@ -882,9 +910,13 @@ class Conveyor(
         }
 
         override fun build(): Conveyor {
-            return Conveyor(parent, segmentsData, velocity, maxEntityCellsAllowed, name)
+            return Conveyor(parent, segmentsData, conveyorType, velocity, maxEntityCellsAllowed, name)
         }
 
+    }
+
+    interface ConveyorTypeStepIfc{
+        fun conveyorType(type: Type): VelocityStepIfc
     }
 
     interface VelocityStepIfc {
@@ -910,6 +942,7 @@ class Conveyor(
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Conveyor : $name")
+        sb.appendLine("type = $conveyorType")
         sb.appendLine("velocity = $initialVelocity")
         sb.appendLine("cellSize = $cellSize")
         sb.appendLine("cell Travel Time = $cellTravelTime")
@@ -924,6 +957,7 @@ fun main() {
     val i2 = Identity()
     val i3 = Identity()
     val c = Conveyor.builder(Model())
+        .conveyorType(Conveyor.Type.ACCUMULATING)
         .velocity(3.0)
         .cellSize(1)
         .firstSegment(i1, i2, 10)
