@@ -869,7 +869,10 @@ class Conveyor(
         }
     }
 
-    private class Builder(val parent: ModelElement, val name: String? = null) : ConveyorTypeStepIfc, VelocityStepIfc,
+    private class Builder(
+        val parent: ModelElement,
+        val name: String? = null
+    ) : ConveyorTypeStepIfc, VelocityStepIfc,
         CellSizeStepIfc,
         FirstSegmentStepIfc, SegmentStepIfc {
         private var conveyorType = Type.ACCUMULATING
