@@ -135,7 +135,13 @@ interface ConveyableIfc {
     val origin: IdentityIfc
 
     /**
-     * The location where the entity wants to visit on the conveyor
+     * The current location of the entity. This is assigned
+     * when the entity arrives at the end of a segment
+     */
+    val currentLocation: IdentityIfc?
+
+    /**
+     * The final location where the entity wants to visit on the conveyor
      */
     val destination: IdentityIfc?
 
@@ -195,11 +201,19 @@ interface ConveyableIfc {
      *  While riding this is the location where the entity is heading
      */
     val plannedLocation: IdentityIfc?
+        get() {
+            return if (segment == null){
+                null
+            } else {
+                segment!!.end
+            }
+        }
 
     /**
      *  True if the entity has reached its destination
      */
     val hasReachedDestination: Boolean
+
     val occupiesCells: Boolean
 }
 
@@ -369,14 +383,14 @@ class Conveyor(
      */
     internal fun allocateCells(item: Conveyable) {
         require(item.conveyor == this) { "Item is not from this conveyor" }
-        //TODO make sure that the item has not already been allocated
+        require(!item.isConveyable) { "The item already has its requested number of cells" }
         require(canAllocateCells(item.origin, item.numCellsNeeded))
         { "Cannot allocate ${item.numCellsNeeded} at origin ${item.origin.name} to the entity at this time instant." }
         // get the segment for entry onto the conveyor
         val segment = mySegmentMap[item.origin]!!
         // ask the segment to allocate cells to the entity and make the conveyable
         segment.allocateCells(item)
-        if (conveyorType == Type.NON_ACCUMULATING){
+        if (conveyorType == Type.NON_ACCUMULATING) {
             segment.stopMovement()
         }
     }
@@ -411,6 +425,8 @@ class Conveyor(
         // conveyable means that the item has its required allocated cells
         require(item.isConveyable) { "Tried to exit a conveyor for an item that is not conveyable" }
         // since it is conveyable, it has at least 1 allocated cell
+        //TODO handle the case of when item exits without occupying any cells, there will not be any time delay
+
         // make sure that the item occupies cells
         require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
         // has allocated cells and is occupying cells on the conveyor
@@ -451,7 +467,7 @@ class Conveyor(
         override var resumePriority: Int = KSLEvent.DEFAULT_PRIORITY
             internal set //TODO when to allow changes
 
-        override var plannedLocation: IdentityIfc? = null
+        override var currentLocation: IdentityIfc? = null
             internal set
 
         private val myCellsOccupied: ArrayDeque<Segment.Cell> = ArrayDeque()
@@ -483,12 +499,12 @@ class Conveyor(
 
         override val hasReachedDestination: Boolean
             get() {
-                return if (plannedLocation == null) {
+                return if (currentLocation == null) {
                     false
                 } else if (destination == null) {
                     false
                 } else {
-                    destination == plannedLocation
+                    destination == currentLocation
                 }
             }
 
@@ -682,13 +698,13 @@ class Conveyor(
             //TODO this assumes that the lead item did not change.  Is that true???
             if (cellTraversalEvent != null) {
                 val e = cellTraversalEvent!!
-                if (e.time >= time){
+                if (e.time >= time) {
                     cellTraversalEvent = endCellTraversalAction.schedule(e.timeRemaining, message = e.message)
                 }
             }
             if (exitSegmentEvent != null) {
                 val e = exitSegmentEvent!!
-                if (e.time >= time){
+                if (e.time >= time) {
                     exitSegmentEvent = exitSegmentAction.schedule(e.timeRemaining, message = e.message)
                 }
             }
