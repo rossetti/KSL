@@ -397,13 +397,18 @@ class Conveyor(
     internal fun exitConveyor(item: Conveyable) {
         require(item.conveyor == this) { "Item is not from this conveyor" }
         require(item.segment != null) { "The item was not using a segment" }
+        // conveyable means that the item has its required allocated cells
         require(item.isConveyable) { "Tried to exit a conveyor for an item that is not conveyable" }
-        require(item.numCellsAllocated > 0) { "There were no cells allocated when attempting to exit the conveyor." }
+        // since it is conveyable, it has at least 1 allocated cell
+        // make sure that the item occupies cells
         require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
+        // has allocated cells and is occupying cells on the conveyor
+        // TODO need to make sure that the item's current location matches the exit location
         require(item.destination != null) {"The item had no destination set"}
         require(exitLocations.contains(item.destination)) { "The destination is not on this conveyor" }
         // delegate to the segment
-        item.segment!!.exitSegment(item)// this will schedule an event
+        // this will schedule an event to start the exiting process
+        item.segment!!.scheduleConveyorExit(item)
     }
 
     //TODO how to stop and start the conveyor? also changing the velocity at start time
@@ -700,7 +705,7 @@ class Conveyor(
          * If not at the end of the segment, then schedule the next traversal.
          * If at the end of the segment, the item ends its trip.
          */
-        private fun endCellTraversal(leadItem: Conveyable) {
+        private fun endCellTraversalEventActions(leadItem: Conveyable) {
             // this needs to start with the lead item and only include itself and
             // those items behind the lead item.
             // move all the items on the segment forward by one cell
@@ -730,9 +735,20 @@ class Conveyor(
             }
         }
 
-        internal fun exitSegment(exitingItem: Conveyable) {
+        internal fun scheduleConveyorExit(exitingItem: Conveyable){
+            exitSegmentAction.schedule(cellTravelTime, exitingItem)
+        }
+
+        private fun exitSegmentEventActions(exitingItem: Conveyable) {
             // if an item exits the segment, then all items can move forward
             moveItemsForward(exitingItem)
+            if (exitingItem.occupiesCells){
+                // exiting item still has cells on the conveyor
+                // need to delay to travel through the next cell
+                exitSegmentAction.schedule(cellTravelTime, exitingItem)
+            } else{
+
+            }
             // TODO how to handle case of using more than one cell when exiting?
 
             TODO("handle exiting the segment")
@@ -744,15 +760,14 @@ class Conveyor(
 
         private inner class EndOfCellTraversalAction : EventAction<Conveyable>() {
             override fun action(event: KSLEvent<Conveyable>) {
-                endCellTraversal(event.message!!)
+                endCellTraversalEventActions(event.message!!)
             }
 
         }
 
         private inner class ExitSegmentAction : EventAction<Conveyable>() {
             override fun action(event: KSLEvent<Conveyable>) {
-
-                exitSegment(event.message!!)
+                exitSegmentEventActions(event.message!!)
             }
 
         }
