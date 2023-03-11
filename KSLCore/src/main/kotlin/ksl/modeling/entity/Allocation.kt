@@ -39,7 +39,7 @@ class Allocation(
     val resource: Resource,
     theAmount: Int = 1,
     val queue: RequestQ,
-    allocationName: String? = null,
+    allocationName: String? = null
 ) {
     init {
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
