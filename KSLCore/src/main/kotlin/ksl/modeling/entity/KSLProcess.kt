@@ -1405,7 +1405,7 @@ interface KSLProcessBuilder {
     suspend fun exit(
         cellAllocation: CellAllocationIfc,
         suspensionName: String? = null
-    ): ConveyorItemIfc
+    )
 
     /**
      * This suspending function combines access(), ride(), and exit() into one suspending function.
@@ -1433,12 +1433,13 @@ interface KSLProcessBuilder {
         numCellsNeeded: Int = 1,
         accessPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ) : ConveyorItemIfc {
+    ) : CellAllocationIfc {
         val ca = access(conveyor, entryLocation, numCellsNeeded, accessPriority, suspensionName)
         delay(loadingTime)
         ride(ca, destination)
         delay(unloadingTime)
-        return exit(ca)
+        exit(ca)
+        return ca
     }
 
     /**

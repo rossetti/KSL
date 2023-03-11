@@ -119,10 +119,12 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
 }
 
 interface CellAllocationIfc {
+    //TODO capture request creation time and time of allocation
     val entity: ProcessModel.Entity
+    val entryLocation: IdentityIfc
     val conveyor: Conveyor
     val numberCells: Int
-
+    val item: ConveyorItemIfc?
     /**
      *  True if the allocation is currently allocated some cells
      */
@@ -136,6 +138,8 @@ interface CellAllocationIfc {
 }
 
 interface ConveyorItemIfc {
+    //TODO review and remove unneeded properties, add time related properties
+
     /**
      * The entity that needs to use the conveyor
      */
@@ -466,6 +470,10 @@ class Conveyor(
         item.segment!!.scheduleConveyorExit(item)
     }
 
+    internal fun startConveyance(cellAllocation: CellAllocationIfc, destination: IdentityIfc): ConveyorItemIfc {
+        TODO("Not yet implemented")
+    }
+
     //TODO how to stop and start the conveyor? also changing the velocity at start time
     //TODO accumulating conveyors allow the item after the leading item to continue moving if the leading item is blocked
     //TODO what happens if lead item is blocked
@@ -525,12 +533,13 @@ class Conveyor(
     inner class CellAllocation(
         override val entity: ProcessModel.Entity,
         theAmount: Int = 1,
+        override val entryLocation: IdentityIfc
     ) : CellAllocationIfc {
         init {
             require(theAmount >= 1) { "The number of cells allocated must be >= 1" }
         }
 
-        var item: Item? = null
+        override var item: Item? = null
             internal set
 
         override val conveyor = this@Conveyor
@@ -1152,6 +1161,7 @@ class Conveyor(
         sb.append(mySegmentData)
         return sb.toString()
     }
+
 }
 
 fun main() {

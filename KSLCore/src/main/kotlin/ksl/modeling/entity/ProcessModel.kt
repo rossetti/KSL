@@ -253,6 +253,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private val myInHoldQueueState = InHoldQueue()
         private val myActiveState = Active()
         private val myWaitingForResourceState = WaitingForResource()
+        private val myWaitingForConveyorState = WaitingForConveyor()
         private val myProcessEndedState = ProcessEndedState()
         private val myBlockedReceivingState = BlockedReceiving()
         private val myBlockedSendingState = BlockedSending()
@@ -271,6 +272,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myActiveState
         val isWaitingForResource: Boolean
             get() = state == myWaitingForResourceState
+        val isWaitingForConveyor: Boolean
+            get() = state == myWaitingForConveyorState
         val isProcessEnded: Boolean
             get() = state == myProcessEndedState
         val isBlockedSending: Boolean
@@ -707,6 +710,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 errorMessage("wait for resource for the entity")
             }
 
+            open fun waitForConveyor() {
+                errorMessage("wait for resource for the entity")
+            }
+
             open fun processEnded() {
                 errorMessage("end process of the entity")
             }
@@ -773,6 +780,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 state = myWaitingForResourceState
             }
 
+            override fun waitForConveyor() {
+                state = myWaitingForConveyorState
+            }
+
             override fun processEnded() {
                 state = myProcessEndedState
             }
@@ -809,6 +820,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         private inner class WaitingForResource : EntityState("WaitingForResource") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        private inner class WaitingForConveyor : EntityState("WaitingForConveyor") {
             override fun activate() {
                 state = myActiveState
             }
@@ -1417,7 +1434,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (request.isNotFillable){
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "$time > entity ${entity.id} waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
-                    entity.state.waitForResource() //TODO change to wait for conveyor
+                    entity.state.waitForConveyor()
                     suspend()
                     entity.state.activate()
                 }
@@ -1440,18 +1457,32 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.RIDE
                 val conveyor = cellAllocation.conveyor
                 require(conveyor.exitLocations.contains(destination)){"The conveyor (${conveyor.name}) does not have destination (${destination.name})"}
-
-
- //               logger.trace { "$time > entity ${entity.id} riding $cellAllocation units of ${conveyor.name} in process, ($this)" }
+                logger.trace { "$time > entity ${entity.id} riding conveyor () from ${cellAllocation.entryLocation.name} to ${destination.name} suspending process, ($this) ..." }
+                isMoving = true
+                val item = conveyor.startConveyance(cellAllocation, destination)
+                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:${conveyor.conveyorHoldQ.name}")
+                isMoving = false
+                logger.trace { "$time > entity ${entity.id} completed ride from ${cellAllocation.entryLocation.name} to ${destination.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                TODO("Not yet implemented")
+                return item
             }
 
-            override suspend fun exit(cellAllocation: CellAllocationIfc, suspensionName: String?): ConveyorItemIfc {
+            override suspend fun exit(
+                cellAllocation: CellAllocationIfc,
+                suspensionName: String?
+            ) {
+                require(cellAllocation.isAllocated){"The supplied cell allocation was not allocated any cells"}
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.EXIT
-                //               logger.trace { "$time > entity ${entity.id} riding $cellAllocation units of ${conveyor.name} in process, ($this)" }
+                val conveyor = cellAllocation.conveyor
+                logger.trace { "$time > entity ${entity.id} is exiting ${conveyor.name}" }
+                //TODO
+                // if allocation does not have an item, just deallocate the cells
+                // if allocation has an item then start the exiting process
+                logger.trace { "$time > entity ${entity.id} exited ${conveyor.name}" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
                 TODO("Not yet implemented")
             }
 
