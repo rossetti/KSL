@@ -1468,7 +1468,7 @@ interface KSLProcessBuilder {
         numCellsNeeded: Int = 1,
         accessPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ) : ConveyorItemIfc {
+    ) : CellAllocationIfc{
         return convey(conveyor, entryLocation, loadingTime.value, destination, unloadingTime.value, numCellsNeeded, accessPriority, suspensionName)
     }
 }
