@@ -25,6 +25,7 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
+import ksl.utilities.IdentityIfc
 import ksl.utilities.exceptions.IllegalStateException
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
@@ -479,30 +480,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        var cellAllocation: Conveyor.Segment.CellAllocation? = null //TODO
+        var cellAllocation: Conveyor.CellAllocation? = null //TODO
             internal set
 
-        var conveyable: ConveyableIfc? = null //TODO
+        var conveyable: ConveyorItemIfc? = null //TODO
             internal set
-
-//        protected open fun beginFailure(allocation: Allocation) {
-//            TODO("Not implemented yet")
-//        }
-//
-//        protected open fun endFailure(allocation: Allocation) {
-//            TODO("Not implemented yet")
-//        }
-
-//        protected inner class DefaultFailureActions : ResourceFailureActionsIfc {
-//            override fun beginFailure(allocation: Allocation) {
-//                this@Entity.beginFailure(allocation)
-//            }
-//
-//            override fun endFailure(allocation: Allocation) {
-//                this@Entity.endFailure(allocation)
-//            }
-//
-//        }
 
         /**
          *  This function is used to define via a builder for a process for the entity.
@@ -1414,6 +1396,63 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     interruptPriority,
                     delayEvent.timeRemaining
                 )
+            }
+
+            override suspend fun access(
+                conveyor: Conveyor,
+                entryLocation: IdentityIfc,
+                numCellsNeeded: Int,
+                accessPriority: Int,
+                suspensionName: String?
+            ): CellAllocationIfc {
+                require(numCellsNeeded >= 1) { "The amount of cells to allocate must be >= 1" }
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.ACCESS
+                logger.trace { "$time > entity ${entity.id} ACCESSING $numCellsNeeded units of ${conveyor.name} in process, ($this)" }
+                delay(0.0, accessPriority, "$suspensionName:AccessDelay")
+                // make the conveyor request
+                val request = conveyor.createRequest(entity, numCellsNeeded, entryLocation)
+                conveyor.enqueueRequest(request)
+                // if request is not filled then suspend
+                if (request.isNotFillable){
+                    // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
+                    logger.trace { "$time > entity ${entity.id} waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                    entity.state.waitForResource() //TODO change to wait for conveyor
+                    suspend()
+                    entity.state.activate()
+                }
+                // entity has been told to resume, or cells were available at this time instant
+                conveyor.dequeueRequest(request)
+                logger.trace { "$time > entity ${entity.id} allocated $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                // make the cell allocation and return it
+                return conveyor.allocateCells(request)
+            }
+
+            override suspend fun ride(
+                cellAllocation: CellAllocationIfc,
+                destination: IdentityIfc,
+                suspensionName: String?
+            ): ConveyorItemIfc {
+                require(cellAllocation.isAllocated){"The supplied cell allocation was not allocated any cells"}
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.RIDE
+                val conveyor = cellAllocation.conveyor
+                require(conveyor.exitLocations.contains(destination)){"The conveyor (${conveyor.name}) does not have destination (${destination.name})"}
+
+
+ //               logger.trace { "$time > entity ${entity.id} riding $cellAllocation units of ${conveyor.name} in process, ($this)" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                TODO("Not yet implemented")
+            }
+
+            override suspend fun exit(cellAllocation: CellAllocationIfc, suspensionName: String?): ConveyorItemIfc {
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.EXIT
+                //               logger.trace { "$time > entity ${entity.id} riding $cellAllocation units of ${conveyor.name} in process, ($this)" }
+                TODO("Not yet implemented")
             }
 
             override fun resumeWith(result: Result<Unit>) {

@@ -118,7 +118,24 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     }
 }
 
-interface ConveyableIfc {
+interface CellAllocationIfc {
+    val entity: ProcessModel.Entity
+    val conveyor: Conveyor
+    val numberCells: Int
+
+    /**
+     *  True if the allocation is currently allocated some cells
+     */
+    val isAllocated: Boolean
+
+    /**
+     *  True if no units are allocated
+     */
+    val isDeallocated: Boolean
+    override fun toString(): String
+}
+
+interface ConveyorItemIfc {
     /**
      * The entity that needs to use the conveyor
      */
@@ -372,6 +389,11 @@ class Conveyor(
         return Item(entity, numCellsNeeded, origin)
     }
 
+    internal fun allocateCells(request: CellRequest): CellAllocation {
+        TODO("not implemented yet")
+        // need to assign entity to have allocation
+    }
+
     /**
      * It is an error to attempt to allocate cells if there are insufficient
      * cells available. Thus, the number of cells needed must be less than or equal to the number of cells
@@ -460,19 +482,82 @@ class Conveyor(
         val entity: ProcessModel.Entity,
         val numCellsNeeded: Int = 1,
         val entryLocation: IdentityIfc,
-        requestPriority: Int = entity.priority
     ) : QObject() {
+        var segment: Conveyor.Segment
+            internal set
+
         init {
             require(numCellsNeeded >= 1) { "The number of cells requested must be >= 1" }
             require(numCellsNeeded <= maxEntityCellsAllowed) {
                 "The entity requested more cells ($numCellsNeeded) than " +
                         "the allowed maximum ($maxEntityCellsAllowed for for conveyor (${this.name})"
             }
-            require(entryLocations.contains(entryLocation)){"The location (${entryLocation.name}) of requested cells is not on conveyor (${conveyor.name})"}
-            priority = requestPriority
+            require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) of requested cells is not on conveyor (${conveyor.name})" }
+            priority = entity.priority
+            segment = mySegmentMap[entryLocation]!!
         }
 
+        val isFillable: Boolean
+            get() = segment.canAllocate(numCellsNeeded)
+
+        val isNotFillable: Boolean
+            get() = !isFillable
+
         val conveyor = this@Conveyor
+    }
+
+    internal fun createRequest(
+        entity: ProcessModel.Entity,
+        numCellsNeeded: Int = 1,
+        entryLocation: IdentityIfc,
+    ): CellRequest {
+        return CellRequest(entity, numCellsNeeded, entryLocation)
+    }
+
+    internal fun enqueueRequest(request: CellRequest) {
+        request.segment.enqueueRequest(request)
+    }
+
+    internal fun dequeueRequest(request: CellRequest) {
+        request.segment.dequeueRequest(request)
+    }
+
+    inner class CellAllocation(
+        override val entity: ProcessModel.Entity,
+        theAmount: Int = 1,
+    ) : CellAllocationIfc {
+        init {
+            require(theAmount >= 1) { "The number of cells allocated must be >= 1" }
+        }
+
+        var item: Item? = null
+            internal set
+
+        override val conveyor = this@Conveyor
+        override var numberCells = theAmount
+            private set
+
+        /**
+         *  True if the allocation is currently allocated some cells
+         */
+        override val isAllocated: Boolean
+            get() = numberCells > 0
+
+        /**
+         *  True if no units are allocated
+         */
+        override val isDeallocated: Boolean
+            get() = !isAllocated
+
+        internal fun deallocate() {
+            numberCells = 0
+        }
+
+        override fun toString(): String {
+            val sb = StringBuilder()
+            sb.appendLine("Entity ${entity.id} holds $numberCells cells of conveyor (${conveyor.name}")
+            return sb.toString()
+        }
     }
 
     /**
@@ -483,7 +568,7 @@ class Conveyor(
         override val numCellsNeeded: Int = 1,
         override val origin: IdentityIfc,
         override var destination: IdentityIfc? = null
-    ) : QObject(), ConveyableIfc {
+    ) : QObject(), ConveyorItemIfc {
         init {
             require(entity.conveyable == null) { "The entity already has a conveyor allocation" }
             require(numCellsNeeded <= maxEntityCellsAllowed) {
@@ -630,44 +715,6 @@ class Conveyor(
      */
     inner class Segment(segmentData: SegmentData, name: String?) : ModelElement(this@Conveyor, name) {
 
-        inner class CellAllocation(
-            val entity: ProcessModel.Entity,
-            theAmount: Int = 1,
-        ) {
-            init {
-                require(theAmount >= 1) { "The number of cells allocated must be >= 1" }
-            }
-
-            var item: Item? = null
-                internal set
-
-            val conveyor = this@Conveyor
-            val segment = this@Segment
-            var numberCells = theAmount
-                private set
-            /**
-             *  True if the allocation is currently allocated some cells
-             */
-            val isAllocated: Boolean
-                get() = numberCells > 0
-
-            /**
-             *  True if no units are allocated
-             */
-            val isDeallocated: Boolean
-                get() = !isAllocated
-
-            internal fun deallocate(){
-                numberCells = 0
-            }
-
-            override fun toString(): String {
-                val sb = StringBuilder()
-                sb.appendLine("Entity ${entity.id} holds $numberCells cells of segment (${segment.name}) of conveyor (${conveyor.name}")
-                return sb.toString()
-            }
-        }
-
         /**
          *  This queue holds items that are waiting at the start of the segment for the appropriate number of cells on the
          *  conveyor in order to ride (move) to their destination. An item should be in the
@@ -752,6 +799,14 @@ class Conveyor(
                 cell.occupyingItem = null
             }
             myItems.clear()
+        }
+
+        internal fun enqueueRequest(request: CellRequest) {
+            myAccessQ.enqueue(request)
+        }
+
+        internal fun dequeueRequest(request: CellRequest) {
+            myAccessQ.remove(request)
         }
 
         /**
