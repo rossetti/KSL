@@ -1478,8 +1478,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val conveyor = cellAllocation.conveyor
                 logger.trace { "$time > entity ${entity.id} is exiting ${conveyor.name}" }
                 //TODO
-                // if allocation does not have an item, just deallocate the cells
-                // if allocation has an item then start the exiting process
+                if (cellAllocation.item == null){
+                    // if allocation does not have an item, just deallocate the cells
+                } else {
+                    // if allocation has an item then start the exiting process
+                }
                 logger.trace { "$time > entity ${entity.id} exited ${conveyor.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
