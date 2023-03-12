@@ -1457,10 +1457,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.RIDE
                 val conveyor = cellAllocation.conveyor
                 require(conveyor.exitLocations.contains(destination)){"The conveyor (${conveyor.name}) does not have destination (${destination.name})"}
-                logger.trace { "$time > entity ${entity.id} riding conveyor () from ${cellAllocation.entryLocation.name} to ${destination.name} suspending process, ($this) ..." }
+                logger.trace { "$time > entity ${entity.id} riding conveyor (${conveyor.name}) from ${cellAllocation.entryLocation.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
-                val item = conveyor.startConveyance(cellAllocation, destination)
-                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:${conveyor.conveyorHoldQ.name}")
+                val item = conveyor.startConveyance(cellAllocation as Conveyor.CellAllocation, destination)
+                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
                 logger.trace { "$time > entity ${entity.id} completed ride from ${cellAllocation.entryLocation.name} to ${destination.name}" }
                 currentSuspendName = null
@@ -1477,16 +1477,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = cellAllocation.conveyor
                 logger.trace { "$time > entity ${entity.id} is exiting ${conveyor.name}" }
-                //TODO
                 if (cellAllocation.item == null){
                     // if allocation does not have an item, just deallocate the cells
+                    conveyor.deallocateCells(cellAllocation)
+                    logger.trace { "$time > EXITING entity ${entity.id} did not occupy any cells and deallocated cells for (${conveyor.name})" }
                 } else {
                     // if allocation has an item then start the exiting process
+                    isMoving = true
+                    conveyor.startExitingProcess(cellAllocation)
+                    logger.trace { "$time > EXITING entity ${entity.id} started exiting process for (${conveyor.name}) at location (${cellAllocation.item!!.destination})" }
+                    logger.trace { "$time > EXITING entity ${entity.id} suspending for exiting process" }
+                    hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
+                    isMoving = false
                 }
                 logger.trace { "$time > entity ${entity.id} exited ${conveyor.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                TODO("Not yet implemented")
             }
 
             override fun resumeWith(result: Result<Unit>) {
