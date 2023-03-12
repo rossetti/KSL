@@ -1457,9 +1457,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.RIDE
                 val conveyor = cellAllocation.conveyor
                 require(conveyor.exitLocations.contains(destination)){"The conveyor (${conveyor.name}) does not have destination (${destination.name})"}
+                val item = conveyor.startConveyance(cellAllocation as Conveyor.CellAllocation, destination)
                 logger.trace { "$time > entity ${entity.id} riding conveyor (${conveyor.name}) from ${cellAllocation.entryLocation.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
-                val item = conveyor.startConveyance(cellAllocation as Conveyor.CellAllocation, destination)
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
                 logger.trace { "$time > entity ${entity.id} completed ride from ${cellAllocation.entryLocation.name} to ${destination.name}" }

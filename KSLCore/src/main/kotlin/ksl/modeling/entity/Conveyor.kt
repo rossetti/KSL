@@ -407,6 +407,7 @@ class Conveyor(
         // destination has already been checked to be valid
         // get the segment associated with the allocation
         //TODO what about already being at the destination?
+        // is destination reachable from the entry location
         val segment = mySegmentMap[cellAllocation.entryLocation]!!
         // delegate the work to the segment
         // the entity associated with the item should be suspended, after this call
