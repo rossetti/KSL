@@ -491,12 +491,12 @@ class Conveyor(
     }
 
     internal fun deallocateCells(cellAllocation: CellAllocationIfc) {
-        TODO("Not yet implemented")
+        TODO("Conveyor.deallocateCells() Not yet implemented")
         // need to cause blocking??
     }
 
     internal fun startExitingProcess(cellAllocation: CellAllocationIfc) {
-        TODO("Not yet implemented")
+        TODO("Conveyor.startExitingProcess() Not yet implemented")
     }
 
     /**
@@ -543,7 +543,6 @@ class Conveyor(
         }
     }
 
-    //TODO how to stop and start the conveyor? also changing the velocity at start time
     //TODO accumulating conveyors allow the item after the leading item to continue moving if the leading item is blocked
     //TODO what happens if lead item is blocked
 
@@ -983,6 +982,8 @@ class Conveyor(
                 item.segment = this
                 myItems.add(item)
                 item.occupyCell(firstCell)
+                //TODO difference between accumulating and non-accumulating
+                // can the segment be moving?
                 val leadItem = findLeadItem()
                 if (leadItem != null) {
                     cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, leadItem)
