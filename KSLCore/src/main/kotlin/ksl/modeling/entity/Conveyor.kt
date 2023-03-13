@@ -101,12 +101,12 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         get() = firstLocation == lastLocation
 
     fun isReachable(start: IdentityIfc, end: IdentityIfc): Boolean {
-        if (isCircular)
-            return true
         if (!entryLocations.contains(start))
             return false
         if (!exitLocations.contains(end))
             return false
+        if (isCircular)
+            return true
         return myDownStreamLocations[start]!!.contains(end)
     }
 
@@ -415,8 +415,23 @@ class Conveyor(
      */
     val exitLocations = mySegmentData.exitLocations
 
+    /**
+     *  Determines if the [end] location is reachable from the [start] location.
+     *  A location is reachable if the item can ride on the conveyor from
+     *  the start location to the end location without exiting the conveyor.
+     */
     fun isReachable(start: IdentityIfc, end: IdentityIfc): Boolean {
         return mySegmentData.isReachable(start, end)
+    }
+
+    /**
+     *  Determines the lead item on the segment that starts at the supplied location.
+     *  The lead item is the item that is the furthest forward that is not blocked.
+     *  An item is not blocked if the cell in front of it exists and is not occupied.
+     */
+    fun findLeadItem(entryLocation: IdentityIfc): ConveyorItemIfc? {
+        require(entryLocations.contains(entryLocation)) { "The location is not on the conveyor" }
+        return mySegmentMap[entryLocation]?.findLeadItem()
     }
 
     override fun initialize() {
@@ -458,48 +473,30 @@ class Conveyor(
     }
 
     /**
-     *  The allocation is either on the conveyor or it is waiting to get on the conveyor.
-     *   This method should only be called from the ride() suspend function. The behavior
-     *   is  delegated to the appropriate segment.
-     *   The entity associated with the item should be suspended, after this call.
+     * The allocation is either on the conveyor or it is waiting to get on the conveyor.
+     * The behavior is  delegated to the appropriate segment.
+     * Conveying an item may cause events to be scheduled to move the lead item forward.
+     * The entity associated with the item should be suspended, placed in the
+     * conveyor's HoldQ, after this call from the ride() suspend function of the process.
+     * This function should only be called from the ride() suspend function.
      */
     internal fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc): ConveyorItemIfc {
         // cell allocation is already checked to be allocated
         // destination has already been checked to be valid
         // get the segment associated with the allocation
-        //TODO what about already being at the destination?
-        // is destination reachable from the entry location
         val segment = mySegmentMap[cellAllocation.entryLocation]!!
         // delegate the work to the segment
         // the entity associated with the item should be suspended, after this call
         return segment.startConveyance(cellAllocation, destination)
     }
 
-    fun deallocateCells(cellAllocation: CellAllocationIfc) {
+    internal fun deallocateCells(cellAllocation: CellAllocationIfc) {
         TODO("Not yet implemented")
         // need to cause blocking??
     }
 
-    fun startExitingProcess(cellAllocation: CellAllocationIfc) {
+    internal fun startExitingProcess(cellAllocation: CellAllocationIfc) {
         TODO("Not yet implemented")
-    }
-
-    /**
-     * Conveying an item may cause events to be scheduled to move the lead item forward.
-     * If it cannot be immediately conveyed the item is held until the move event executes.
-     * The entity associated with the item should be suspended, placed in the
-     * conveyor's HoldQ, after this call from the ride() suspend function of the process.
-     * This function should only be called from the ride() suspend function.
-     */
-    internal fun conveyItem(item: Item, destination: IdentityIfc) {
-        // the item should be conveyable, it needs to have a destination
-        require(item.isConveyable) { "Tried to convey an item that is not conveyable" }
-        require(item.conveyor == this) { "Item is not from this conveyor" }
-        require(exitLocations.contains(destination)) { "The destination is not on this conveyor" }
-        require(item.segment != null) { "The item was not using a segment" }
-        item.destination = destination
-        item.segment!!.conveyItem(item)
-        // the entity associated with the item should be suspended, after this call
     }
 
     /**
@@ -534,6 +531,17 @@ class Conveyor(
         item.segment!!.scheduleConveyorExit(item)
     }
 
+    fun startConveyor(){
+        for(segment in mySegmentList){
+            segment.startMovement()
+        }
+    }
+
+    fun stopConveyor(){
+        for(segment in mySegmentList){
+            segment.stopMovement()
+        }
+    }
 
     //TODO how to stop and start the conveyor? also changing the velocity at start time
     //TODO accumulating conveyors allow the item after the leading item to continue moving if the leading item is blocked
@@ -910,7 +918,7 @@ class Conveyor(
         }
 
         /**
-         *  Causes the events associated with the movement of time
+         *  Causes the events associated with the movement of time to be cancelled.
          */
         internal fun stopMovement() {
             if (cellTraversalEvent != null) {
@@ -924,7 +932,7 @@ class Conveyor(
         /**
          * Causes movement associated with the segment to continue
          */
-        internal fun reStartMovement() {
+        internal fun startMovement() {
             // if the scheduled event times occur after the current time
             // then reschedule the events using the time remaining
             //TODO this assumes that the lead item did not change.  Is that true???
@@ -961,41 +969,24 @@ class Conveyor(
         }
 
         /**
-         * This method only allocates the cells on the segment. There is no movement
-         * associated with the allocation. Allocation means that the conveyable has control
-         * over the cells.  This method is called from the conveyor when a conveyable requests
-         * cells for allocation.
-         */
-        internal fun allocateCells(item: Item) {
-            require(canAllocate(item.numberOfCells)) { "Tried to allocate cells when an insufficient amount of cells was available" }
-            // cells are only allocated at the start of the segment, start with cell 0
-            // attach it to the entity, to ensure that an entity cannot be on more than one conveyor at a time
-            item.entity.conveyable = item
-            // make the cells allocated and give them to the item
-            for (i in 0 until item.numberOfCells) {
-                myCells[i].allocated = true
-                item.numCellsAllocated = item.numCellsAllocated + 1
-            }
-            // indicate that the item is using this segment
-            item.segment = this
-        }
-
-        /**
          *  This is called from the enclosing conveyor. The enclosing conveyor
          *  is responsible for ensuring that inputs are valid
          *  The entity associated with the item should be suspended after this call.
          *  This function does not do the suspension.
          */
         fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc): ConveyorItemIfc {
-            //TODO what about already being at the destination?
-
             // two cases 1) waiting to get on the conveyor or 2) already on the conveyor
             if (cellAllocation.isWaitingToConvey) {
                 // need to create the item, attach the item, put it in the item list, start the movement
                 val item = Item(cellAllocation, destination)
                 cellAllocation.item = item // attach the item
+                item.segment = this
                 myItems.add(item)
-                //TODO how to start the movement
+                item.occupyCell(firstCell)
+                val leadItem = findLeadItem()
+                if (leadItem != null) {
+                    cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, leadItem)
+                }
             } else {
                 // already on the conveyor and reached the end of a segment associated with destination
                 // user want to continue riding to another destination, w/o getting off
