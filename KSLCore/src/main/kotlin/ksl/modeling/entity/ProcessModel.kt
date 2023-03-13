@@ -1456,13 +1456,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.RIDE
                 val conveyor = cellAllocation.conveyor
-                require(conveyor.exitLocations.contains(destination)){"The conveyor (${conveyor.name}) does not have destination (${destination.name})"}
+                val origin = cellAllocation.entryLocation
+                require(conveyor.isReachable(origin, destination)){"The destination (${destination.name} is not reachable from entry location (${origin.name})"}
                 val item = conveyor.startConveyance(cellAllocation as Conveyor.CellAllocation, destination)
-                logger.trace { "$time > entity ${entity.id} riding conveyor (${conveyor.name}) from ${cellAllocation.entryLocation.name} to ${destination.name} suspending process, ($this) ..." }
+                logger.trace { "$time > entity ${entity.id} riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
-                logger.trace { "$time > entity ${entity.id} completed ride from ${cellAllocation.entryLocation.name} to ${destination.name}" }
+                logger.trace { "$time > entity ${entity.id} completed ride from ${origin.name} to ${destination.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return item
