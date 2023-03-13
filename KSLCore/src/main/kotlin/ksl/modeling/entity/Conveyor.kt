@@ -118,6 +118,23 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     }
 }
 
+/**
+ *  A cell allocation represents the holding of cells on a conveyor and acts as
+ *  a "ticket" to use the conveyor.  Once an entity has a cell allocation, the entity
+ *  has control over the cells at the start of the segment associated with the entry
+ *  point along the conveyor.  After receiving the cell allocation from a request to
+ *  access the conveyor the entity can either ride on the conveyor or exit. The cell
+ *  allocation blocks at the point of access until riding or exiting. When the entity
+ *  asks to ride the conveyor then the item property is set to indicate
+ *  that the allocation represents an item occupying cells on the conveyor. If the entity
+ *  never rides the conveyor, then the item property stays null.  The property isWaitingToConvey
+ *  indicates that the cell allocation has not asked to convey, but still has control
+ *  over the front cells of the conveyor segment at the access point. Once the cell
+ *  allocation is used to ride the conveyor, the isWaitingToConvey property will
+ *  report false. The isAllocated property will report true until the cells are deallocated
+ *  when exiting the conveyor.  Once the cell allocation has been deallocated,
+ *  it cannot be used for further process interaction with the conveyor.
+ */
 interface CellAllocationIfc {
     //TODO capture request creation time and time of allocation
     val entity: ProcessModel.Entity
@@ -139,6 +156,15 @@ interface CellAllocationIfc {
     override fun toString(): String
 }
 
+/**
+ *  A conveyor item represents something that occupies cells on a segment
+ *  of a conveyor.  A conveyor item remembers its entry point (origin) on the
+ *  conveyor and tracks its current location on the conveyor.  While moving
+ *  on the conveyor the item has no current location. The current location is
+ *  set when the item arrives at the end of a segment of the conveyor. The planned
+ *  location represents the next exit location along the conveyor that the item is
+ *  moving towards.
+ */
 interface ConveyorItemIfc {
     //TODO review and remove unneeded properties, add time related properties
 
@@ -202,13 +228,13 @@ interface ConveyorItemIfc {
      * and an end (facing where it originated). This cell is the furthermost cell
      * occupied towards the front (in the direction of travel)
      */
-    val frontCell: Conveyor.Segment.Cell?
+    val firstCell: Conveyor.Segment.Cell?
 
     /**
      *  This cell is the furthermost cell occupied by the object towards the where
      *  it originated.
      */
-    val endCell: Conveyor.Segment.Cell?
+    val lastCell: Conveyor.Segment.Cell?
 
     /**
      *  True if the item has reached the last cell of the current segment
@@ -617,8 +643,8 @@ class Conveyor(
             get() {
                 return if (segment == null) {
                     false
-                } else if (frontCell != null) {
-                    frontCell == segment!!.lastCell
+                } else if (firstCell != null) {
+                    firstCell == segment!!.lastCell
                 } else {
                     false
                 }
@@ -637,7 +663,7 @@ class Conveyor(
 
         val isNextCellOccupied: Boolean
             get() {
-                val fc = frontCell
+                val fc = firstCell
                 return if (fc == null) {
                     false
                 } else {
@@ -648,12 +674,12 @@ class Conveyor(
 
         /**
          *  The cell that is occupied by the item that is the furthest forward (closest to the end) on the segment
-         *  that the item is currently on.  Null means that the item is not occupying any cells.
+         *  that the item is currently occupying.  Null means that the item is not occupying any cells.
          *  An item may occupy 1 or more cells depending on the number of cells that it
          *  needs while riding on the conveyor.  If the segment has 5 cells (1, 2, 3, 4, 5) and
-         *  the item needs 2 cells and is occupying cells 2 and 3, then the front cell is 3.
+         *  the item needs 2 cells and is occupying cells 2 and 3, then its first cell is 3.
          */
-        override val frontCell: Segment.Cell?
+        override val firstCell: Segment.Cell?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.last() else null
 
         /**
@@ -661,9 +687,9 @@ class Conveyor(
          *  that the item is currently on.  Null means that the item is not occupying any cells.
          *  An item may occupy 1 or more cells depending on the number of cells that it
          *  needs while riding on the conveyor. If the segment has 5 cells (1, 2, 3, 4, 5) and
-         *  the item needs 2 cells and is occupying cells 2 and 3, then the end cell is 2.
+         *  the item needs 2 cells and is occupying cells 2 and 3, then its last cell is 2.
          */
-        override val endCell: Segment.Cell?
+        override val lastCell: Segment.Cell?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.first() else null
 
         /**
@@ -672,13 +698,13 @@ class Conveyor(
          */
         internal fun moveForwardOneCell() {
             require(isConveyable) { "The item cannot move forward because it has no allocated cells" }
-            require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
+            require(firstCell != null) { "The item cannot move forward because it does not occupy any cells" }
             // the front cell cannot be null, safe to use
-            require(frontCell!!.isNotLast) { "The item cannot move forward because it has reached the end of the segment" }
+            require(firstCell!!.isNotLast) { "The item cannot move forward because it has reached the end of the segment" }
             // the front cell is not the last cell of the segment
             // this means that there must be a next cell
             // each occupied cell becomes the next occupied cell
-            occupyCell(frontCell!!.nextCell!!)
+            occupyCell(firstCell!!.nextCell!!)
         }
 
         /**
@@ -814,6 +840,22 @@ class Conveyor(
                 cell.occupyingItem = null
             }
             myItems.clear()
+        }
+
+        /**
+         *  Determines the lead item on the segment.  The lead item
+         *  is the item that is the furthest forward that is not blocked.
+         *  An item is not blocked if the cell in front of it exists and
+         *  is not occupied.
+         */
+        fun findLeadItem(): Item? {
+            for (item in myItems.reversed()) {
+                val nextCell = item.firstCell?.nextCell
+                if ((nextCell != null) && !nextCell.isOccupied) {
+                    return item
+                }
+            }
+            return null
         }
 
         internal fun enqueueRequest(request: CellRequest) {
@@ -1074,6 +1116,9 @@ class Conveyor(
             val isNotLast: Boolean
                 get() = !isLast
 
+            /**
+             *  The cell in front of this cell (towards the end of the segment)
+             */
             val nextCell: Cell?
                 get() {
                     return if (isLast) null
@@ -1081,6 +1126,9 @@ class Conveyor(
                         cellList[cellNumber] // because cells are numbered starting at 1, but list is 0 index based
                 }
 
+            /**
+             *  The cell immediately behind this cell (towards the front of the segment)
+             */
             val previousCell: Cell?
                 get() {
                     return if (isFirst) null
