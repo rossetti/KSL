@@ -52,6 +52,8 @@ data class SegmentData(val start: IdentityIfc, val end: IdentityIfc, val length:
  */
 class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     private val mySegments = mutableListOf<SegmentData>()
+    private val myDownStreamLocations: MutableMap<IdentityIfc, MutableList<IdentityIfc>> = mutableMapOf()
+
     var lastLocation: IdentityIfc = firstLocation
         private set
     var minimumSegmentLength = Integer.MAX_VALUE
@@ -63,11 +65,18 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         require(length >= 1) { "The length ($length) of the segment must be >= 1 unit" }
         require(next != lastLocation) { "The next location (${next.name}) as the last location (${lastLocation.name})" }
         require(length % cellSize == 0) { "The length of the segment ($length) was not an integer multiple of the cell size ($cellSize)" }
-        mySegments.add(SegmentData(lastLocation, next, length))
+        val sd = SegmentData(lastLocation, next, length)
+        mySegments.add(sd)
         if (length <= minimumSegmentLength) {
             minimumSegmentLength = length
         }
         lastLocation = next
+        if (!myDownStreamLocations.containsKey(sd.start)) {
+            myDownStreamLocations[sd.start] = mutableListOf()
+        }
+        for (loc in entryLocations) {
+            myDownStreamLocations[loc]?.add(sd.end)
+        }
     }
 
     val entryLocations: List<IdentityIfc>
@@ -90,6 +99,16 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
 
     val isCircular: Boolean
         get() = firstLocation == lastLocation
+
+    fun isReachable(start: IdentityIfc, end: IdentityIfc): Boolean {
+        if (isCircular)
+            return true
+        if (!entryLocations.contains(start))
+            return false
+        if (!exitLocations.contains(end))
+            return false
+        return myDownStreamLocations[start]!!.contains(end)
+    }
 
     val totalLength: Int
         get() {
@@ -114,6 +133,18 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
             sb.appendLine("Segment: ${(i + 1)} = $segment")
         }
         sb.appendLine("total length = $totalLength")
+        sb.appendLine("Downstream locations:")
+        for ((loc, list) in myDownStreamLocations) {
+            sb.appendLine(
+                "${loc.name} : ${
+                    list.joinToString(
+                        separator = " -> ",
+                        prefix = "[",
+                        postfix = "]",
+                        transform = { it.name })
+                }"
+            )
+        }
         return sb.toString()
     }
 }
@@ -383,6 +414,10 @@ class Conveyor(
      *  The locations that can be used as points of exit on the conveyor.
      */
     val exitLocations = mySegmentData.exitLocations
+
+    fun isReachable(start: IdentityIfc, end: IdentityIfc): Boolean {
+        return mySegmentData.isReachable(start, end)
+    }
 
     override fun initialize() {
         velocity = initialVelocity
