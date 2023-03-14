@@ -477,8 +477,11 @@ class Conveyor(
      * The behavior is  delegated to the appropriate segment.
      * Conveying an item may cause events to be scheduled to move the lead item forward.
      * The entity associated with the item should be suspended, placed in the
-     * conveyor's HoldQ, after this call from the ride() suspend function of the process.
-     * This function should only be called from the ride() suspend function.
+     * conveyor's HoldQ, after this call from the ride() suspend function of the process. The item
+     * will remain on the conveyor until the entity indicates that the cells are to be released by using
+     * the exit function. The behavior of the conveyor during the ride and when the item reaches its
+     * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+     * while the entity occupies the final cells before exiting or riding again.
      */
     internal fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc): ConveyorItemIfc {
         // cell allocation is already checked to be allocated
@@ -490,13 +493,35 @@ class Conveyor(
         return segment.startConveyance(cellAllocation, destination)
     }
 
+    /**
+     * This function should deallocate the cells associated with the cell allocation
+     * and cause any blockage associated with the allocation to be removed. This
+     * function should be called only from the exit() function of the entity process.
+     * There should not be any time delay associated with this function, but it may cause
+     * events to be scheduled and processes to be resumed as the allocation is released.
+     * The work is delegated to the segment associated with the cell allocation.
+     */
     internal fun deallocateCells(cellAllocation: CellAllocationIfc) {
-        TODO("Conveyor.deallocateCells() Not yet implemented")
-        // need to cause blocking??
+        // cell allocation is already checked to be valid
+        // get the segment associated with the allocation
+        val segment = mySegmentMap[cellAllocation.entryLocation]!!
+        segment.deallocateCells(cellAllocation)
     }
 
+    /**
+     * This function should start the exiting process for the entity holding
+     * the cell allocation.  The cells associated with the cell allocation should be deallocated
+     * and any blockage associated with the allocation to be removed. This
+     * function should be called only from the exit() function of the entity process.
+     * There may be time delay associated with this function. It may cause
+     * events to be scheduled and processes to be resumed as the allocation is released.
+     * The work is delegated to the segment associated with the cell allocation.
+     */
     internal fun startExitingProcess(cellAllocation: CellAllocationIfc) {
-        TODO("Conveyor.startExitingProcess() Not yet implemented")
+        // cell allocation is already checked to be valid
+        // get the segment associated with the allocation
+        val segment = mySegmentMap[cellAllocation.entryLocation]!!
+        segment.startExitingProcess(cellAllocation)
     }
 
     /**
@@ -971,7 +996,11 @@ class Conveyor(
          *  This is called from the enclosing conveyor. The enclosing conveyor
          *  is responsible for ensuring that inputs are valid
          *  The entity associated with the item should be suspended after this call.
-         *  This function does not do the suspension.
+         *  This function does not do the suspension.  The item
+         * will remain on the conveyor until the entity indicates that the cells are to be released by using
+         * the exit function. The behavior of the conveyor during the ride and when the item reaches its
+         * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+         * while the entity occupies the final cells before exiting or riding again.
          */
         fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc): ConveyorItemIfc {
             // two cases 1) waiting to get on the conveyor or 2) already on the conveyor
@@ -1103,6 +1132,14 @@ class Conveyor(
                 }
             }
             TODO("handle de-allocation of cells")
+        }
+
+        fun deallocateCells(item: CellAllocationIfc) {
+            TODO("Conveyor.Segment.deallocateCells()")
+        }
+
+        fun startExitingProcess(cellAllocation: CellAllocationIfc) {
+            TODO("Conveyor.Segment.startExitingProcess()")
         }
 
 
