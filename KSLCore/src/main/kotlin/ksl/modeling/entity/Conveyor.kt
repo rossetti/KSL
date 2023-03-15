@@ -241,6 +241,8 @@ interface ConveyorItemIfc {
      */
     val numCellsOccupied: Int
 
+    val occupiesCells: Boolean
+
     /**
      *  True if the number of cells allocated is equal to the
      *  number of cells needed.
@@ -297,9 +299,11 @@ interface ConveyorItemIfc {
      *  True if the entity has reached its destination
      */
     val hasReachedDestination: Boolean
-
-    val occupiesCells: Boolean
 }
+
+//TODO accumulating conveyors allow the item after the leading item to continue moving if the leading item is blocked
+//TODO what happens if lead item is blocked
+
 
 /** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location
  * (destination) and is associated with a conveyor. The start and end of each segment represent locations along
@@ -571,9 +575,6 @@ class Conveyor(
             segment.stopMovement()
         }
     }
-
-    //TODO accumulating conveyors allow the item after the leading item to continue moving if the leading item is blocked
-    //TODO what happens if lead item is blocked
 
     /**
      *  Represents a request for space on a conveyor by an entity.
@@ -1170,7 +1171,7 @@ class Conveyor(
             TODO("handle de-allocation of cells")
         }
 
-        fun deallocateCells(item: CellAllocationIfc) {
+        fun deallocateCells(cellAllocation: CellAllocationIfc) {
             TODO("Conveyor.Segment.deallocateCells()")
         }
 
