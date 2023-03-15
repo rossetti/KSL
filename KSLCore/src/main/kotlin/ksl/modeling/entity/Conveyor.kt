@@ -721,8 +721,6 @@ class Conveyor(
             get() {
                 return if (currentLocation == null) {
                     false
-                } else if (destination == null) {
-                    false
                 } else {
                     destination == currentLocation
                 }
@@ -806,6 +804,10 @@ class Conveyor(
 
     }
 
+    enum class SegmentStatus{
+        MOVING, BLOCKED_ENTERING, BLOCKED_EXITING, IDLE
+    }
+
     /**
      * A segment consists of a number of equally sized contiguous cells with each cell representing some unit of distance along
      * the segment.  If a segment consists of 12 cells and the length of the conveyor is 12 feet then each cell
@@ -817,6 +819,12 @@ class Conveyor(
      * n at the destination where n is the number of cells on the segment.
      */
     inner class Segment(segmentData: SegmentData, name: String?) : ModelElement(this@Conveyor, name) {
+
+        var status: SegmentStatus = SegmentStatus.IDLE
+            internal set(value) {
+                field = value
+                this@Conveyor.segmentStatusChange(value)
+            }
 
         /**
          *  This queue holds items that are waiting at the start of the segment for the appropriate number of cells on the
@@ -903,6 +911,7 @@ class Conveyor(
         //TODO how to transfer from one segment to the next
 
         override fun initialize() {
+            status = SegmentStatus.IDLE
             for (cell in myCells) {
                 cell.occupyingItem = null
             }
@@ -986,6 +995,8 @@ class Conveyor(
             ca.isWaitingToConvey = true
             request.entity.cellAllocation = ca
             entryCellAllocation = ca
+            status = SegmentStatus.BLOCKED_ENTERING
+            //TODO probably delegate to main conveyor, because entire conveyor stops for non-accumulating
             if (conveyorType == Type.NON_ACCUMULATING) {
                 stopMovement() // causes all movement forward of the entry location to stop
             }
@@ -1005,18 +1016,17 @@ class Conveyor(
         fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc): ConveyorItemIfc {
             // two cases 1) waiting to get on the conveyor or 2) already on the conveyor
             if (cellAllocation.isWaitingToConvey) {
+                // the cell allocation is causing a blockage at the entry point of the segment
                 // need to create the item, attach the item, put it in the item list, start the movement
                 val item = Item(cellAllocation, destination)
-                cellAllocation.item = item // attach the item
-                item.segment = this
-                myItems.add(item)
-                item.occupyCell(firstCell)
-                //TODO difference between accumulating and non-accumulating
-                // can the segment be moving?
-                val leadItem = findLeadItem()
-                if (leadItem != null) {
-                    cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, leadItem)
-                }
+                cellAllocation.item = item // attach the item to the allocation
+                item.segment = this // the item is using this segment
+                myItems.add(item) // the segment is managing the movement of the item
+                item.occupyCell(firstCell) // the item now occupies the first cell of the segment
+                // allocation is ready to convey on this segment, moving may depend on other segments
+                // let conveyor decide what to do
+
+
             } else {
                 // already on the conveyor and reached the end of a segment associated with destination
                 // user want to continue riding to another destination, w/o getting off
@@ -1228,6 +1238,12 @@ class Conveyor(
 
     }
 
+    private fun segmentStatusChange(value: SegmentStatus) {
+        TODO("Conveyor.segmentStatusChange()")
+        // need to have the entire conveyor react to individual segment status changes
+
+    }
+
     companion object {
         fun builder(parent: ModelElement, name: String? = null): ConveyorTypeStepIfc {
             return Builder(parent, name)
@@ -1341,3 +1357,23 @@ fun main() {
     println(c)
 
 }
+
+
+//if (conveyorType == Type.NON_ACCUMULATING){
+//    // all movement on the conveyor must have been stopped
+//    // need to start or restart movement!!
+//
+//    val leadItem = findLeadItem()
+//    if (leadItem != null) {
+//        cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, leadItem)
+//    }
+//} else {
+//    // items on the segment continued to move forward during blockage
+//
+//}
+////TODO difference between accumulating and non-accumulating
+//// can the segment be moving?  can there be events pending
+//val leadItem = findLeadItem()
+//if (leadItem != null) {
+//    cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, leadItem)
+//}
