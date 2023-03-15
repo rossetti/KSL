@@ -1237,28 +1237,13 @@ class Conveyor(
                 }
 
             /**
-             *  A cell can be allocated but not yet occupied //TODO is this really true
-             */
-            var allocated: Boolean = false //TODO is this really needed??
-                internal set(value) {
-                    require(occupyingItem == null) { "Tried to allocate an already occupied cell" }
-                    field = value
-                }
-
-            /**
              *  A cell is occupied if it is covered by an item, and it is allocated.
              */
             val isOccupied: Boolean
-                get() = (occupyingItem != null) && (allocated)
+                get() = (occupyingItem != null)
 
             var occupyingItem: Item? = null
-                internal set(value) {
-                    require(allocated) { "Tried to occupy the cell without it be allocated" }
-                    field = value
-                    if (value == null) {
-                        allocated = false
-                    }
-                }
+                internal set
 
         }
 
