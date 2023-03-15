@@ -167,12 +167,12 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
  *  it cannot be used for further process interaction with the conveyor.
  */
 interface CellAllocationIfc {
-    //TODO capture request creation time and time of allocation
     val entity: ProcessModel.Entity
     val entryLocation: IdentityIfc
     val conveyor: Conveyor
     val numberOfCells: Int
     val isWaitingToConvey: Boolean
+    val creationTime: Double
     val item: ConveyorItemIfc?
 
     /**
@@ -197,7 +197,11 @@ interface CellAllocationIfc {
  *  moving towards.
  */
 interface ConveyorItemIfc {
-    //TODO review and remove unneeded properties, add time related properties
+    //TODO review and remove unneeded properties
+    /**
+     * The time that the item first occupied a cell on the conveyor
+     */
+    val createTime: Double
 
     /**
      * The entity that needs to use the conveyor
@@ -483,14 +487,14 @@ class Conveyor(
      * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
      * while the entity occupies the final cells before exiting or riding again.
      */
-    internal fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc): ConveyorItemIfc {
+    internal fun conveyItem(cellAllocation: CellAllocation, destination: IdentityIfc) {
         // cell allocation is already checked to be allocated
         // destination has already been checked to be valid
         // get the segment associated with the allocation
         val segment = mySegmentMap[cellAllocation.entryLocation]!!
         // delegate the work to the segment
         // the entity associated with the item should be suspended, after this call
-        return segment.startConveyance(cellAllocation, destination)
+        segment.conveyItem(cellAllocation, destination)
     }
 
     /**
@@ -556,14 +560,14 @@ class Conveyor(
         item.segment!!.scheduleConveyorExit(item)
     }
 
-    fun startConveyor(){
-        for(segment in mySegmentList){
+    fun startConveyor() {
+        for (segment in mySegmentList) {
             segment.startMovement()
         }
     }
 
-    fun stopConveyor(){
-        for(segment in mySegmentList){
+    fun stopConveyor() {
+        for (segment in mySegmentList) {
             segment.stopMovement()
         }
     }
@@ -632,6 +636,8 @@ class Conveyor(
             require(theAmount >= 1) { "The number of cells allocated must be >= 1" }
         }
 
+        override val creationTime: Double = time
+
         override var item: Item? = null
             internal set
 
@@ -665,15 +671,15 @@ class Conveyor(
         }
     }
 
-    //TODO Item definition
     /**
-     *  An object that is conveyable occupies cells on a conveyor segment
+     *  An item occupies cells on some segment of a conveyor. Items are created
+     *  when a ride() occurs.
      */
     inner class Item(
         cellAllocation: CellAllocation,
         desiredLocation: IdentityIfc
     ) : QObject(), ConveyorItemIfc {
-        //TODO review the necessity of various properties
+        //TODO review and remove unneeded properties
 
         override val entity: ProcessModel.Entity = cellAllocation.entity
         override val numberOfCells: Int = cellAllocation.numberOfCells
@@ -804,8 +810,8 @@ class Conveyor(
 
     }
 
-    enum class SegmentStatus{
-        MOVING, BLOCKED_ENTERING, BLOCKED_EXITING, IDLE
+    enum class SegmentStatus {
+        MOVING, BLOCKED_ENTERING, BLOCKED_EXITING, IDLE, UNBLOCKED_ENTERING
     }
 
     /**
@@ -823,7 +829,7 @@ class Conveyor(
         var status: SegmentStatus = SegmentStatus.IDLE
             internal set(value) {
                 field = value
-                this@Conveyor.segmentStatusChange(value)
+                this@Conveyor.segmentStatusChange(this)
             }
 
         /**
@@ -842,12 +848,12 @@ class Conveyor(
          */
         private var cellTraversalEvent: KSLEvent<Item>? = null
 
-        private val exitSegmentAction = ExitSegmentAction() //TODO need to schedule
+        private val exitSegmentAction = ExitSegmentAction()
 
         /**
          *  The event associated with the movement of the item exiting at the end of the segment
          */
-        private var exitSegmentEvent: KSLEvent<Item>? = null //TODO need to capture
+        private var exitSegmentEvent: KSLEvent<Item>? = null
 
         /**
          *  Holds the items that occupy cells on the segment
@@ -855,6 +861,14 @@ class Conveyor(
         private val myItems = mutableListOf<Item>()
 
         var entryCellAllocation: CellAllocation? = null
+            internal set(value) {
+                field = value
+                status = if (value == null){
+                    SegmentStatus.UNBLOCKED_ENTERING
+                } else {
+                    SegmentStatus.BLOCKED_ENTERING
+                }
+            }
 
         val firstItem: Item?
             get() = myItems.firstOrNull()
@@ -994,12 +1008,11 @@ class Conveyor(
             val ca = CellAllocation(request.entity, request.numCellsNeeded, request.entryLocation)
             ca.isWaitingToConvey = true
             request.entity.cellAllocation = ca
-            entryCellAllocation = ca
-            status = SegmentStatus.BLOCKED_ENTERING
-            //TODO probably delegate to main conveyor, because entire conveyor stops for non-accumulating
-            if (conveyorType == Type.NON_ACCUMULATING) {
-                stopMovement() // causes all movement forward of the entry location to stop
-            }
+            entryCellAllocation = ca // causes segment status to change to BLOCKED_ENTRY
+//            //TODO probably delegate to main conveyor, because entire conveyor stops for non-accumulating
+//            if (conveyorType == Type.NON_ACCUMULATING) {
+//                stopMovement() // causes all movement forward of the entry location to stop
+//            }
             return ca
         }
 
@@ -1008,32 +1021,45 @@ class Conveyor(
          *  is responsible for ensuring that inputs are valid
          *  The entity associated with the item should be suspended after this call.
          *  This function does not do the suspension.  The item
-         * will remain on the conveyor until the entity indicates that the cells are to be released by using
-         * the exit function. The behavior of the conveyor during the ride and when the item reaches its
-         * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
-         * while the entity occupies the final cells before exiting or riding again.
+         *  will remain on the conveyor until the entity indicates that the cells are to be released by using
+         *  the exit function. The behavior of the conveyor during the ride and when the item reaches its
+         *  destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+         *  while the entity occupies the final cells before exiting or riding again.
          */
-        fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc): ConveyorItemIfc {
+        internal fun conveyItem(cellAllocation: CellAllocation, destination: IdentityIfc) {
             // two cases 1) waiting to get on the conveyor or 2) already on the conveyor
             if (cellAllocation.isWaitingToConvey) {
-                // the cell allocation is causing a blockage at the entry point of the segment
-                // need to create the item, attach the item, put it in the item list, start the movement
-                val item = Item(cellAllocation, destination)
-                cellAllocation.item = item // attach the item to the allocation
-                item.segment = this // the item is using this segment
-                myItems.add(item) // the segment is managing the movement of the item
-                item.occupyCell(firstCell) // the item now occupies the first cell of the segment
-                // allocation is ready to convey on this segment, moving may depend on other segments
-                // let conveyor decide what to do
-
-
+                startConveyance(cellAllocation, destination)
             } else {
-                // already on the conveyor and reached the end of a segment associated with destination
-                // user want to continue riding to another destination, w/o getting off
-                //
-                //TODO need to transition to next segment
+                continueConveyance(cellAllocation, destination)
             }
+        }
+
+        private fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
+            // the cell allocation is causing a blockage at the entry point of the segment
+            // need to create the item, attach the item, put it in the item list, start the movement
+            val item = Item(cellAllocation, destination)
+            cellAllocation.item = item // attach the item to the allocation
+            item.segment = this // the item is using this segment
+            myItems.add(item) // the segment is managing the movement of the item
+            item.occupyCell(firstCell) // the item now occupies the first cell of the segment
+            // segment does not become unblocked until entire item is on the conveyor
+
+//            entryCellAllocation = null // unblock the entry
+//            cellAllocation.isWaitingToConvey = false
+            // item is ready to convey on this segment, moving may depend on other segments
+            // let conveyor decide what to do
+            this@Conveyor.scheduleMovement()
+
             TODO("Conveyor.Segment.startConveyance()")
+        }
+
+        private fun continueConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
+            // already on the conveyor and reached the end of a segment associated with destination
+            // user want to continue riding to another destination, w/o getting off
+            //
+            //TODO need to transition to next segment
+            TODO("Conveyor.Segment.continueConveyance()")
         }
 
         /**
@@ -1238,7 +1264,12 @@ class Conveyor(
 
     }
 
-    private fun segmentStatusChange(value: SegmentStatus) {
+    private fun scheduleMovement() {
+        TODO("Not yet implemented")
+    }
+
+    private fun segmentStatusChange(segment: Segment) {
+        val s = segment.status
         TODO("Conveyor.segmentStatusChange()")
         // need to have the entire conveyor react to individual segment status changes
 

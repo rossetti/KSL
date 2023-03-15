@@ -1458,7 +1458,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val conveyor = cellAllocation.conveyor
                 val origin = cellAllocation.entryLocation
                 require(conveyor.isReachable(origin, destination)){"The destination (${destination.name} is not reachable from entry location (${origin.name})"}
-                val item = conveyor.startConveyance(cellAllocation as Conveyor.CellAllocation, destination)
+                conveyor.conveyItem(cellAllocation as Conveyor.CellAllocation, destination)
                 logger.trace { "$time > entity ${entity.id} riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
@@ -1466,7 +1466,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "$time > entity ${entity.id} completed ride from ${origin.name} to ${destination.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                return item
+                return cellAllocation.item!!
             }
 
             override suspend fun exit(
