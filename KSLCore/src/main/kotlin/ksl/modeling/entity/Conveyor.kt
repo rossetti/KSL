@@ -203,6 +203,8 @@ interface ConveyorItemIfc {
      */
     val createTime: Double
 
+    val status: Conveyor.ItemStatus
+
     /**
      * The entity that needs to use the conveyor
      */
@@ -532,37 +534,6 @@ class Conveyor(
         segment.startExitingProcess(cellAllocation)
     }
 
-    /**
-     *  Causes the item to exit the conveyor at its destination.  Exiting the conveyor
-     *  causes the item to travel through the final cells that it occupies. Thus,
-     *  this call will take simulated time.  The process (entity) calling this should be
-     *  suspended until the exiting time is completed.
-     */
-    internal fun exitConveyor(item: Item) {
-        require(item.conveyor == this) { "Item is not from this conveyor" }
-        require(item.segment != null) { "The item was not using a segment" }
-        // conveyable means that the item has its required allocated cells
-        require(item.isConveyable) { "Tried to exit a conveyor for an item that is not conveyable" }
-        // since it is conveyable, it has at least 1 allocated cell
-        //TODO handle the case of when item exits without occupying any cells, there will not be any time delay
-        if (!item.occupiesCells) {
-            // item does not occupy any cells, exiting without being on segment
-            // just deallocate the cells
-            item.segment!!.deallocateCells(item)
-        } else {
-
-        }
-
-        // make sure that the item occupies cells
-        require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
-        // has allocated cells and is occupying cells on the conveyor
-        // TODO need to make sure that the item's current location matches the exit location
-        require(item.destination != null) { "The item had no destination set" }
-        require(exitLocations.contains(item.destination)) { "The destination is not on this conveyor" }
-        // delegate to the segment
-        // this will schedule an event to start the exiting process
-        item.segment!!.scheduleConveyorExit(item)
-    }
 
     fun startConveyor() {
         for (segment in mySegmentList) {
@@ -672,6 +643,10 @@ class Conveyor(
         }
     }
 
+    enum class ItemStatus {
+        OFF, ENTERING, EXITING, ON
+    }
+
     /**
      *  An item occupies cells on some segment of a conveyor. Items are created
      *  when a ride() occurs.
@@ -681,6 +656,7 @@ class Conveyor(
         desiredLocation: IdentityIfc
     ) : QObject(), ConveyorItemIfc {
         //TODO review and remove unneeded properties
+        override var status: ItemStatus = ItemStatus.OFF
 
         override val entity: ProcessModel.Entity = cellAllocation.entity
         override val numberOfCells: Int = cellAllocation.numberOfCells
@@ -864,7 +840,7 @@ class Conveyor(
         var entryCellAllocation: CellAllocation? = null
             internal set(value) {
                 field = value
-                status = if (value == null){
+                status = if (value == null) {
                     SegmentStatus.UNBLOCKED_ENTERING
                 } else {
                     SegmentStatus.BLOCKED_ENTERING
@@ -1044,6 +1020,7 @@ class Conveyor(
             item.segment = this // the item is using this segment
             myItems.add(item) // the segment is managing the movement of the item
             item.occupyCell(firstCell) // the item now occupies the first cell of the segment
+
             // segment does not become unblocked until entire item is on the conveyor
 
 //            entryCellAllocation = null // unblock the entry
@@ -1171,10 +1148,28 @@ class Conveyor(
             TODO("handle de-allocation of cells")
         }
 
+        /**
+         * This function should deallocate the cells associated with the cell allocation
+         * and cause any blockage associated with the allocation to be removed. This
+         * function is called from the outer conveyor class to delegate the work to
+         * the segment associated with the cells.
+         * There should not be any time delay associated with this function, but it may cause
+         * events to be scheduled and processes to be resumed as the allocation is released.
+         */
         fun deallocateCells(cellAllocation: CellAllocationIfc) {
             TODO("Conveyor.Segment.deallocateCells()")
         }
 
+        /**
+         * This function should start the exiting process for the entity holding
+         * the cell allocation.  The cells associated with the cell allocation should be deallocated
+         * and any blockage associated with the allocation to be removed. This
+         * function is called from the outer conveyor class to delegate the work
+         * to the segment associated with the cells.
+         *
+         * There may be time delay associated with this function. It may cause
+         * events to be scheduled and processes to be resumed as the allocation is released.
+         */
         fun startExitingProcess(cellAllocation: CellAllocationIfc) {
             TODO("Conveyor.Segment.startExitingProcess()")
         }
@@ -1388,9 +1383,41 @@ fun main() {
 //    // items on the segment continued to move forward during blockage
 //
 //}
-////TODO difference between accumulating and non-accumulating
+////
 //// can the segment be moving?  can there be events pending
 //val leadItem = findLeadItem()
 //if (leadItem != null) {
 //    cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, leadItem)
+//}
+
+/**
+ *  Causes the item to exit the conveyor at its destination.  Exiting the conveyor
+ *  causes the item to travel through the final cells that it occupies. Thus,
+ *  this call will take simulated time.  The process (entity) calling this should be
+ *  suspended until the exiting time is completed.
+ */
+//internal fun exitConveyor(item: Conveyor.Item) {
+//    require(item.conveyor == this) { "Item is not from this conveyor" }
+//    require(item.segment != null) { "The item was not using a segment" }
+//    // conveyable means that the item has its required allocated cells
+//    require(item.isConveyable) { "Tried to exit a conveyor for an item that is not conveyable" }
+//    // since it is conveyable, it has at least 1 allocated cell
+//    // handle the case of when item exits without occupying any cells, there will not be any time delay
+//    if (!item.occupiesCells) {
+//        // item does not occupy any cells, exiting without being on segment
+//        // just deallocate the cells
+//        item.segment!!.deallocateCells(item)
+//    } else {
+//
+//    }
+//
+//    // make sure that the item occupies cells
+//    require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
+//    // has allocated cells and is occupying cells on the conveyor
+//    // need to make sure that the item's current location matches the exit location
+//    require(item.destination != null) { "The item had no destination set" }
+//    require(exitLocations.contains(item.destination)) { "The destination is not on this conveyor" }
+//    // delegate to the segment
+//    // this will schedule an event to start the exiting process
+//    item.segment!!.scheduleConveyorExit(item)
 //}
