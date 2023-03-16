@@ -29,18 +29,18 @@ import org.jetbrains.kotlinx.dataframe.impl.asList
 
 
 /**
- * This data class represents the origin [start] and destination [end] of a [length]
+ * This data class represents the origin [entryLocation] and destination [exitLocation] of a [length]
  * of a segment for a conveyor. See the class Conveyor for more
  * details on how segments are used to represent a conveyor.
  */
-data class SegmentData(val start: IdentityIfc, val end: IdentityIfc, val length: Int) {
+data class SegmentData(val entryLocation: IdentityIfc, val exitLocation: IdentityIfc, val length: Int) {
     init {
-        require(start != end) { "The start and the end of the segment must be different!" }
+        require(entryLocation != exitLocation) { "The start and the end of the segment must be different!" }
         require(length >= 1) { "The length of the segment must be >= 1 unit" }
     }
 
     override fun toString(): String {
-        return "(start = ${start.name} --> end = ${end.name} : length = $length)"
+        return "(start = ${entryLocation.name} --> end = ${exitLocation.name} : length = $length)"
     }
 
 }
@@ -71,11 +71,11 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
             minimumSegmentLength = length
         }
         lastLocation = next
-        if (!myDownStreamLocations.containsKey(sd.start)) {
-            myDownStreamLocations[sd.start] = mutableListOf()
+        if (!myDownStreamLocations.containsKey(sd.entryLocation)) {
+            myDownStreamLocations[sd.entryLocation] = mutableListOf()
         }
         for (loc in entryLocations) {
-            myDownStreamLocations[loc]?.add(sd.end)
+            myDownStreamLocations[loc]?.add(sd.exitLocation)
         }
     }
 
@@ -83,7 +83,7 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         get() {
             val list = mutableListOf<IdentityIfc>()
             for (seg in mySegments) {
-                list.add(seg.start)
+                list.add(seg.entryLocation)
             }
             return list
         }
@@ -92,7 +92,7 @@ class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         get() {
             val list = mutableListOf<IdentityIfc>()
             for (seg in mySegments) {
-                list.add(seg.end)
+                list.add(seg.exitLocation)
             }
             return list
         }
@@ -293,7 +293,7 @@ interface ConveyorItemIfc {
             return if (segment == null) {
                 null
             } else {
-                segment!!.end
+                segment!!.exitLocation
             }
         }
 
@@ -392,7 +392,7 @@ class Conveyor(
         cellSize = mySegmentData.cellSize
         for ((i, seg) in mySegmentData.segments.withIndex()) {
             val segment = Segment(seg, "${this.name}:Seg:$i")
-            mySegmentMap[seg.start] = segment
+            mySegmentMap[seg.entryLocation] = segment
             mySegmentList.add(segment)
         }
         conveyorHoldQ.waitTimeStatOption = false
@@ -695,7 +695,7 @@ class Conveyor(
                 return if (segment == null) {
                     false
                 } else if (firstCell != null) {
-                    firstCell == segment!!.lastCell
+                    firstCell == segment!!.exitCell
                 } else {
                     false
                 }
@@ -744,6 +744,9 @@ class Conveyor(
         /**
          *  Causes an item already on the segment to move forward by one cell.  This
          *  causes the cells that the item occupies to be updated to the next cell.
+         *  We assume that moving forward has been triggered by a time delay that
+         *  represent the item moving through the cell. This represents the completion
+         *  of that movement.
          */
         internal fun moveForwardOneCell() {
             require(isConveyable) { "The item cannot move forward because it has no allocated cells" }
@@ -754,9 +757,9 @@ class Conveyor(
             // this means that there must be a next cell
             // each occupied cell becomes the next occupied cell
             occupyCell(firstCell!!.nextCell!!)
-            if (segment != null){
+            if (segment != null) {
                 // all cells acquired and last cell is the first cell of the segment, then it completed loading
-                if ((lastCell!! == segment!!.firstCell) && (myCellsOccupied.size == numberOfCells)){
+                if ((lastCell!! == segment!!.entryCell) && (myCellsOccupied.size == numberOfCells)) {
                     // item is now fully on the segment, notify segment
                     segment!!.itemFullyLoaded(this)
                     status = ItemStatus.ON
@@ -843,7 +846,9 @@ class Conveyor(
         private var exitSegmentEvent: KSLEvent<Item>? = null
 
         /**
-         *  Holds the items that occupy cells on the segment
+         *  Holds the items that occupy cells on the segment. The items are held in the list
+         *  based on order of entry, with the first item being the oldest and furthest forward towards the end
+         *  of the segment and the last item being in the newest and closest to the entry of the conveyor.
          */
         private val myItems = mutableListOf<Item>()
 
@@ -863,9 +868,9 @@ class Conveyor(
         val lastItem: Item?
             get() = myItems.lastOrNull()
 
-        val start: IdentityIfc = segmentData.start
+        val entryLocation: IdentityIfc = segmentData.entryLocation
 
-        val end: IdentityIfc = segmentData.end
+        val exitLocation: IdentityIfc = segmentData.exitLocation
 
         /**
          *  The total number of cells on this segment of the conveyor
@@ -881,10 +886,10 @@ class Conveyor(
             myCells = list.asList()
         }
 
-        val firstCell: Cell
+        val entryCell: Cell
             get() = myCells.first()
 
-        val lastCell: Cell
+        val exitCell: Cell
             get() = myCells.last()
 
         /**
@@ -923,12 +928,26 @@ class Conveyor(
          *  Determines the lead item on the segment.  The lead item
          *  is the item that is the furthest forward that is not blocked.
          *  An item is not blocked if the cell in front of it exists and
-         *  is not occupied.
+         *  is not occupied.  The lead item may be an item that is waiting to convey, but
+         *  that is not yet occupying cells on the conveyor.
          */
         fun findLeadItem(): Item? {
             for (item in myItems.reversed()) {
-                val nextCell = item.firstCell?.nextCell
-                if ((nextCell != null) && !nextCell.isOccupied) {
+                if (item.occupiesCells){
+                    val nextCell = item.firstCell?.nextCell
+                    if ((nextCell != null) && !nextCell.isOccupied) {
+                        return item
+                    }
+                } else {
+                    // if the item does not occupy any cells, it must be the last item of the list
+                    // and must be associated with the cell allocation that is waiting to get on the conveyor
+                    require(item == myItems.last()) {"The found lead item does not occupy any cells but is not the last item."}
+                    require(item.segment?.entryCellAllocation?.item == item){"The found lead item was not associated with " +
+                            "the cell allocation waiting to get on the conveyor"}
+                    if (entryCell.isOccupied){
+                        // if the first cell is occupied, then this waiting item cannot be the lead item
+                        return null
+                    }
                     return item
                 }
             }
@@ -1022,6 +1041,19 @@ class Conveyor(
             }
         }
 
+        /**
+         *  This method creates an item that can use the cells of the segment and adds
+         *  the item to the list of items that are controlled by the movement along the conveyor
+         */
+        private fun createConveyorItem(cellAllocation: CellAllocation, destination: IdentityIfc): Item {
+            // need to create the item, attach the item, put it in the item list, start the movement
+            val item = Item(cellAllocation, destination)
+            cellAllocation.item = item // attach the item to the allocation
+            item.segment = this // the item is using this segment
+            myItems.add(item) // the segment is managing the movement of the item
+            return item
+        }
+
         private fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
             // the cell allocation is causing a blockage at the entry point of the segment
             // need to create the item, attach the item, put it in the item list, start the movement
@@ -1029,7 +1061,7 @@ class Conveyor(
             cellAllocation.item = item // attach the item to the allocation
             item.segment = this // the item is using this segment
             myItems.add(item) // the segment is managing the movement of the item
-            item.occupyCell(firstCell) // the item now occupies the first cell of the segment
+            item.occupyCell(entryCell) // the item now occupies the first cell of the segment
 
             // segment does not become unblocked until entire item is on the conveyor
 
@@ -1060,7 +1092,7 @@ class Conveyor(
             // if the conveyor is empty, then we need to start the movement and have the item
             // occupy the first cell
             if (myItems.isEmpty()) {
-                item.occupyCell(firstCell)
+                item.occupyCell(entryCell)
                 // this item becomes the lead item
                 cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, item)
             }
