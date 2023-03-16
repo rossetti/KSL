@@ -761,7 +761,7 @@ class Conveyor(
                     segment!!.itemFullyLoaded(this)
                     status = ItemStatus.ON
                 }
-                // how to tell if entering (loading)?, exiting (unloading)?, off?
+                //TODO how to tell if entering (loading)?, exiting (unloading)?, off?
             }
         }
 
