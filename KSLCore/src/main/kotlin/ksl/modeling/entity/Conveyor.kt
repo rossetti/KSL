@@ -657,6 +657,7 @@ class Conveyor(
     ) : QObject(), ConveyorItemIfc {
         //TODO review and remove unneeded properties
         override var status: ItemStatus = ItemStatus.OFF
+            internal set
 
         override val entity: ProcessModel.Entity = cellAllocation.entity
         override val numberOfCells: Int = cellAllocation.numberOfCells
@@ -753,6 +754,15 @@ class Conveyor(
             // this means that there must be a next cell
             // each occupied cell becomes the next occupied cell
             occupyCell(firstCell!!.nextCell!!)
+            if (segment != null){
+                // all cells acquired and last cell is the first cell of the segment, then it completed loading
+                if ((lastCell!! == segment!!.firstCell) && (myCellsOccupied.size == numberOfCells)){
+                    // item is now fully on the segment, notify segment
+                    segment!!.itemFullyLoaded(this)
+                    status = ItemStatus.ON
+                }
+                // how to tell if entering (loading)?, exiting (unloading)?, off?
+            }
         }
 
         /**
@@ -1172,6 +1182,10 @@ class Conveyor(
          */
         fun startExitingProcess(cellAllocation: CellAllocationIfc) {
             TODO("Conveyor.Segment.startExitingProcess()")
+        }
+
+        internal fun itemFullyLoaded(item: Conveyor.Item) {
+            TODO("Conveyor.Segment.itemEntered()")
         }
 
 
