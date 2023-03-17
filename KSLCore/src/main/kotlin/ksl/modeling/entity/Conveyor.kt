@@ -852,6 +852,14 @@ class Conveyor(
          */
         private val myItems = mutableListOf<Item>()
 
+        /**
+         *  Represents an entity that has been allocated cells, but is not yet
+         *  on the conveyor's segment. It has the cells necessary to get on the segment
+         *  but has not yet been moved on to the conveyor (conveyed). If the value
+         *  is not null, then there is an allocation waiting to move into the
+         *  first cell of the segment. The entry location should be considered blocked
+         *  while there is an entry cell allocation waiting.
+         */
         var entryCellAllocation: CellAllocation? = null
             internal set(value) {
                 field = value
@@ -929,7 +937,8 @@ class Conveyor(
          *  is the item that is the furthest forward that is not blocked.
          *  An item is not blocked if the cell in front of it exists and
          *  is not occupied.  The lead item may be an item that is waiting to convey, but
-         *  that is not yet occupying cells on the conveyor.
+         *  that is not yet occupying cells on the conveyor. If null is returned,
+         *  then the segment has no items that can move forward at this time.
          */
         fun findLeadItem(): Item? {
             for (item in myItems.reversed()) {
