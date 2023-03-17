@@ -252,7 +252,7 @@ interface ConveyorItemIfc {
     val isConveyable: Boolean
 
     /**
-     *  The conveyor the enitty is using
+     *  The conveyor the entity is using
      */
     val conveyor: Conveyor
 
@@ -776,11 +776,11 @@ class Conveyor(
         internal fun occupyCell(cell: Segment.Cell) {
             if (myCellsOccupied.size < numberOfCells) {
                 myCellsOccupied.add(cell)
-                cell.occupyingItem = this
+                cell.isOccupied = true
             } else {
                 popOldest() // remove from front of the list
                 myCellsOccupied.add(cell)  // add new cell to the end of the list
-                cell.occupyingItem = this
+                cell.isOccupied = true
             }
         }
 
@@ -791,7 +791,7 @@ class Conveyor(
         private fun popOldest(): Boolean {
             return if (myCellsOccupied.isNotEmpty()) {
                 val first = myCellsOccupied.removeFirst()
-                first.occupyingItem = null
+                first.isOccupied = false
                 true
             } else {
                 false
@@ -927,7 +927,8 @@ class Conveyor(
         override fun initialize() {
             status = SegmentStatus.IDLE
             for (cell in myCells) {
-                cell.occupyingItem = null
+                cell.isOccupied = false
+                cell.isBlocked = false
             }
             myItems.clear()
         }
@@ -1288,13 +1289,19 @@ class Conveyor(
                 }
 
             /**
-             *  A cell is occupied if it is covered by an item, and it is allocated.
+             *  A cell is occupied if it is covered by an item
              */
-            val isOccupied: Boolean
-                get() = (occupyingItem != null)
+            var isOccupied: Boolean = false
+                internal set //TODO consider updating number of occupied cells in this set method
 
-            var occupyingItem: Item? = null
+            var isBlocked: Boolean = false
                 internal set
+
+            val isAvailable: Boolean
+                get() = (!isOccupied && !isBlocked)
+
+            val isUnavailable: Boolean
+                get() = (isOccupied || isBlocked)
 
         }
 
