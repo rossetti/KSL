@@ -199,7 +199,7 @@ interface CellAllocationIfc {
 interface ConveyorItemIfc {
     //TODO review and remove unneeded properties
 
-    val status: Conveyor.ItemStatus
+    val status: Conveyor.ItemStatus //TODO is this really needed
 
     /**
      * The entity that needs to use the conveyor
@@ -234,8 +234,9 @@ interface ConveyorItemIfc {
 
     /**
      *  The number of cells currently occupied on the conveyor.
-     *  This may be different from numCellsAllocated because the
-     *  allocation comes before actually occupying space on the conveyor
+     *  This may be different from numCellsAllocated because an
+     *  allocation does not need to convey. It can be used to block
+     *  the conveyor at one of its entrance locations
      */
     val numCellsOccupied: Int
 
@@ -245,7 +246,7 @@ interface ConveyorItemIfc {
      *  True if the number of cells allocated is equal to the
      *  number of cells needed.
      */
-    val isConveyable: Boolean
+    val isConveyable: Boolean //TODO is this needed. An item is only made when has the cells to ride
 
     /**
      *  The conveyor the entity is using
@@ -475,7 +476,7 @@ class Conveyor(
         val segment = mySegmentMap[request.entryLocation]!!
         // ask the segment to allocate cells to the entity and make the allocation
         // need to assign entity to have allocation, need to cause blocking
-        return segment.allocateCells(request)
+        return segment.blockEntry(request)
     }
 
     /**
@@ -639,7 +640,7 @@ class Conveyor(
         }
     }
 
-    enum class ItemStatus {
+    enum class ItemStatus { //TODO how to use?
         OFF, ENTERING, EXITING, ON
     }
 
@@ -746,7 +747,7 @@ class Conveyor(
          */
         internal fun moveForwardOneCell() {
             require(isConveyable) { "The item cannot move forward because it has no allocated cells" }
-            require(firstCell != null) { "The item cannot move forward because it does not occupy any cells" }
+            require(firstCell != null) { "The item cannot move forward because it does not occupy any cells" }//TODO problem here
             // the front cell cannot be null, safe to use
             require(firstCell!!.isNotLast) { "The item cannot move forward because it has reached the end of the segment" }
             // the front cell is not the last cell of the segment
@@ -1006,8 +1007,14 @@ class Conveyor(
             }
         }
 
+        /**
+         * Cause the creation of a cell allocation for the start (entry point) of the segment.
+         * The allocation blocks further entry to the segment while waiting to convey.
+         * If the conveyor is non-accumulating then all movement along the conveyor should stop.
+         * There is no time advancement associated with this function.
+         */
         internal fun blockEntry(request: CellRequest): CellAllocation {
-            require(status != SegmentStatus.BLOCKED_ENTERING){"($name) was already blocked for item entry"}
+            require(status != SegmentStatus.BLOCKED_ENTERING){"($name) was already blocked for item entry at location ${request.entryLocation}."}
             val ca = CellAllocation(request.entity, request.numCellsNeeded, request.entryLocation)
             ca.isWaitingToConvey = true
             request.entity.cellAllocation = ca
@@ -1015,24 +1022,6 @@ class Conveyor(
             status = SegmentStatus.BLOCKED_ENTERING
             entryCell.isBlocked = true
             this@Conveyor.segmentBlockedOnEntry(this)
-            return ca
-        }
-        /**
-         * Cause the creation of a cell allocation for the start (entry point) of the segment.
-         * The allocation blocks further entry to the segment while waiting to convey.
-         * If the conveyor is non-accumulating then all movement along the segment stops.
-         * There is no time advancement associated with this function.
-         */
-        internal fun allocateCells(request: CellRequest): CellAllocation {
-            require(entryCellAllocation == null) { "There is already a cell allocation waiting to convey" }
-            val ca = CellAllocation(request.entity, request.numCellsNeeded, request.entryLocation)
-            ca.isWaitingToConvey = true
-            request.entity.cellAllocation = ca
-            entryCellAllocation = ca // causes segment status to change to BLOCKED_ENTRY
-//            //TODO probably delegate to main conveyor, because entire conveyor stops for non-accumulating
-//            if (conveyorType == Type.NON_ACCUMULATING) {
-//                stopMovement() // causes all movement forward of the entry location to stop
-//            }
             return ca
         }
 
@@ -1311,7 +1300,13 @@ class Conveyor(
 
     }
 
+    /**
+     *  This method is called by an internal segment when the segment has to
+     *  block due to an item entering at an entry location.
+     */
     private fun segmentBlockedOnEntry(segment: Segment) {
+        // an individual segment of the conveyor is blocked at its entry point
+        // handle blocking based on type of conveyor
         TODO("Not yet implemented: Conveyor.segmentBlockedOnEntry()")
     }
 
