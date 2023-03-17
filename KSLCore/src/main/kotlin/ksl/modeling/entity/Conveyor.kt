@@ -817,10 +817,7 @@ class Conveyor(
     inner class Segment(segmentData: SegmentData, name: String?) : ModelElement(this@Conveyor, name) {
 
         var status: SegmentStatus = SegmentStatus.IDLE
-            internal set(value) {
-                field = value
-                this@Conveyor.segmentStatusChange(this)
-            }
+            internal set
 
         /**
          *  This queue holds items that are waiting at the start of the segment for the appropriate number of cells on the
@@ -1013,6 +1010,17 @@ class Conveyor(
             }
         }
 
+        internal fun blockEntry(request: CellRequest): CellAllocation {
+            require(status != SegmentStatus.BLOCKED_ENTERING){"($name) was already blocked for item entry"}
+            val ca = CellAllocation(request.entity, request.numCellsNeeded, request.entryLocation)
+            ca.isWaitingToConvey = true
+            request.entity.cellAllocation = ca
+            entryCellAllocation = ca
+            status = SegmentStatus.BLOCKED_ENTERING
+            entryCell.isBlocked = true
+            this@Conveyor.segmentBlockedOnEntry(this)
+            return ca
+        }
         /**
          * Cause the creation of a cell allocation for the start (entry point) of the segment.
          * The allocation blocks further entry to the segment while waiting to convey.
@@ -1307,15 +1315,12 @@ class Conveyor(
 
     }
 
-    private fun scheduleMovement() {
-        TODO("Not yet implemented")
+    private fun segmentBlockedOnEntry(segment: Segment) {
+        TODO("Not yet implemented: Conveyor.segmentBlockedOnEntry()")
     }
 
-    private fun segmentStatusChange(segment: Segment) {
-        val s = segment.status
-        TODO("Conveyor.segmentStatusChange()")
-        // need to have the entire conveyor react to individual segment status changes
-
+    private fun scheduleMovement() {
+        TODO("Not yet implemented: Conveyor.scheduleMovement()")
     }
 
     companion object {
