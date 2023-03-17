@@ -198,10 +198,6 @@ interface CellAllocationIfc {
  */
 interface ConveyorItemIfc {
     //TODO review and remove unneeded properties
-    /**
-     * The time that the item first occupied a cell on the conveyor
-     */
-    val createTime: Double
 
     val status: Conveyor.ItemStatus
 
@@ -665,7 +661,7 @@ class Conveyor(
         override var destination: IdentityIfc = desiredLocation
             internal set
 
-        override var segment: Conveyor.Segment? = null
+        override var segment: Conveyor.Segment? = null //TODO when is this first set
             internal set
 
         override var resumePriority: Int = KSLEvent.DEFAULT_PRIORITY
@@ -679,13 +675,13 @@ class Conveyor(
         override val occupiesCells: Boolean
             get() = myCellsOccupied.isNotEmpty()
 
-        override var numCellsAllocated: Int = 0 //TODO where is this reduced, tie into statistics??
+        override var numCellsAllocated: Int = 0 //TODO where is this reduced
             internal set
 
         override val numCellsOccupied: Int
             get() = myCellsOccupied.size
 
-        override val isConveyable: Boolean
+        override val isConveyable: Boolean //TODO the item is not created unless it can be conveyed, why needed?
             get() = numCellsAllocated == numberOfCells
 
         override val conveyor = this@Conveyor
