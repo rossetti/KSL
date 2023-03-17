@@ -171,8 +171,23 @@ interface CellAllocationIfc {
     val entryLocation: IdentityIfc
     val conveyor: Conveyor
     val numberOfCells: Int
-    val isWaitingToConvey: Boolean
+
+    /**
+     * This indicates if the allocation is no longer waiting to convey
+     * and is thus ready to ride on the conveyor
+     */
+    val isReadyToConvey: Boolean
+
+    /**
+     *  The time that the allocation was created
+     */
     val creationTime: Double
+
+    /**
+     * When the request for the allocation was created
+     */
+    val requestCreateTime: Double
+
     val item: ConveyorItemIfc?
 
     /**
@@ -597,24 +612,23 @@ class Conveyor(
     }
 
     inner class CellAllocation(
-        override val entity: ProcessModel.Entity,
-        theAmount: Int = 1,
-        override val entryLocation: IdentityIfc
+        request: CellRequest
     ) : CellAllocationIfc {
-        init {
-            require(theAmount >= 1) { "The number of cells allocated must be >= 1" }
-        }
+        override val entity: ProcessModel.Entity = request.entity
+        override var numberOfCells = request.numCellsNeeded
+            private set
+        override val entryLocation: IdentityIfc = request.entryLocation
 
         override val creationTime: Double = time
+
+        override val requestCreateTime: Double = request.createTime
 
         override var item: Item? = null
             internal set
 
         override val conveyor = this@Conveyor
-        override var numberOfCells = theAmount
-            private set
 
-        override var isWaitingToConvey = false
+        override var isReadyToConvey = false
             internal set
 
         /**
@@ -937,7 +951,7 @@ class Conveyor(
          */
         fun findLeadItem(): Item? {
             for (item in myItems.reversed()) {
-                if (item.occupiesCells){
+                if (item.occupiesCells) {
                     val nextCell = item.firstCell?.nextCell
                     if ((nextCell != null) && !nextCell.isOccupied) {
                         return item
@@ -945,10 +959,12 @@ class Conveyor(
                 } else {
                     // if the item does not occupy any cells, it must be the last item of the list
                     // and must be associated with the cell allocation that is waiting to get on the conveyor
-                    require(item == myItems.last()) {"The found lead item does not occupy any cells but is not the last item."}
-                    require(item.segment?.entryCellAllocation?.item == item){"The found lead item was not associated with " +
-                            "the cell allocation waiting to get on the conveyor"}
-                    if (entryCell.isOccupied){
+                    require(item == myItems.last()) { "The found lead item does not occupy any cells but is not the last item." }
+                    require(item.segment?.entryCellAllocation?.item == item) {
+                        "The found lead item was not associated with " +
+                                "the cell allocation waiting to get on the conveyor"
+                    }
+                    if (entryCell.isOccupied) {
                         // if the first cell is occupied, then this waiting item cannot be the lead item
                         return null
                     }
@@ -1014,9 +1030,9 @@ class Conveyor(
          * There is no time advancement associated with this function.
          */
         internal fun blockEntry(request: CellRequest): CellAllocation {
-            require(status != SegmentStatus.BLOCKED_ENTERING){"($name) was already blocked for item entry at location ${request.entryLocation}."}
-            val ca = CellAllocation(request.entity, request.numCellsNeeded, request.entryLocation)
-            ca.isWaitingToConvey = true
+            require(status != SegmentStatus.BLOCKED_ENTERING) { "($name) was already blocked for item entry at location ${request.entryLocation}." }
+            val ca = CellAllocation(request)
+            ca.isReadyToConvey = true
             request.entity.cellAllocation = ca
             entryCellAllocation = ca
             status = SegmentStatus.BLOCKED_ENTERING
@@ -1037,7 +1053,7 @@ class Conveyor(
          */
         internal fun conveyItem(cellAllocation: CellAllocation, destination: IdentityIfc) {
             // two cases 1) waiting to get on the conveyor or 2) already on the conveyor
-            if (cellAllocation.isWaitingToConvey) {
+            if (cellAllocation.isReadyToConvey) {
                 startConveyance(cellAllocation, destination)
             } else {
                 continueConveyance(cellAllocation, destination)
