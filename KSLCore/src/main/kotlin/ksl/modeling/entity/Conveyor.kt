@@ -19,7 +19,6 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.QueueCIfc
-import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -27,13 +26,12 @@ import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import org.jetbrains.kotlinx.dataframe.impl.asList
 
-
 /**
  * This data class represents the origin [entryLocation] and destination [exitLocation] of a [length]
  * of a segment for a conveyor. See the class Conveyor for more
  * details on how segments are used to represent a conveyor.
  */
-data class SegmentData(val entryLocation: IdentityIfc, val exitLocation: IdentityIfc, val length: Int) {
+data class Segment(val entryLocation: IdentityIfc, val exitLocation: IdentityIfc, val length: Int) {
     init {
         require(entryLocation != exitLocation) { "The start and the end of the segment must be different!" }
         require(length >= 1) { "The length of the segment must be >= 1 unit" }
@@ -43,6 +41,9 @@ data class SegmentData(val entryLocation: IdentityIfc, val exitLocation: Identit
         return "(start = ${entryLocation.name} --> end = ${exitLocation.name} : length = $length)"
     }
 
+    val name: String
+        get() = "${entryLocation.name}-${exitLocation.name}"
+
 }
 
 /**
@@ -50,22 +51,22 @@ data class SegmentData(val entryLocation: IdentityIfc, val exitLocation: Identit
  * the specification of segments for a conveyor.  See the class Conveyor for more
  * details on how segments are used to represent a conveyor.
  */
-class SegmentsData(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
-    private val mySegments = mutableListOf<SegmentData>()
+class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
+    private val mySegments = mutableListOf<Segment>()
     private val myDownStreamLocations: MutableMap<IdentityIfc, MutableList<IdentityIfc>> = mutableMapOf()
 
     var lastLocation: IdentityIfc = firstLocation
         private set
     var minimumSegmentLength = Integer.MAX_VALUE
         private set
-    val segments: List<SegmentData>
+    val segments: List<Segment>
         get() = mySegments
 
     fun toLocation(next: IdentityIfc, length: Int) {
         require(length >= 1) { "The length ($length) of the segment must be >= 1 unit" }
         require(next != lastLocation) { "The next location (${next.name}) as the last location (${lastLocation.name})" }
         require(length % cellSize == 0) { "The length of the segment ($length) was not an integer multiple of the cell size ($cellSize)" }
-        val sd = SegmentData(lastLocation, next, length)
+        val sd = Segment(lastLocation, next, length)
         mySegments.add(sd)
         if (length <= minimumSegmentLength) {
             minimumSegmentLength = length
@@ -203,11 +204,11 @@ interface CellAllocationIfc {
 }
 
 /**
- *  A conveyor item represents something that occupies cells on a segment
- *  of a conveyor.  A conveyor item remembers its entry point (origin) on the
+ *  A conveyor item represents something that occupies cells on a conveyor.
+ *  A conveyor item remembers its entry point (origin) on the
  *  conveyor and tracks its current location on the conveyor.  While moving
  *  on the conveyor the item has no current location. The current location is
- *  set when the item arrives at the end of a segment of the conveyor. The planned
+ *  set when the item arrives at an exit location of the conveyor. The planned
  *  location represents the next exit location along the conveyor that the item is
  *  moving towards.
  */
@@ -269,28 +270,22 @@ interface ConveyorItemIfc {
     val conveyor: Conveyor
 
     /**
-     *  The segment that the entity is currently using. May be
-     *  null because the segment is not known until cells are allocated
-     */
-    val segment: Conveyor.Segment?
-
-    /**
      * The object riding on the conveyor has a front (facing towards) its destination
      * and an end (facing where it originated). This cell is the furthermost cell
      * occupied towards the front (in the direction of travel)
      */
-    val firstCell: Conveyor.Segment.Cell?
+    val firstCell: Conveyor.Cell?
 
     /**
      *  This cell is the furthermost cell occupied by the object towards the where
      *  it originated.
      */
-    val lastCell: Conveyor.Segment.Cell?
+    val lastCell: Conveyor.Cell?
 
     /**
      *  True if the item has reached the last cell of the current segment
      */
-    val hasReachedEndOfSegment: Boolean
+    val hasReachedAnExitCell: Boolean
 
     /**
      *  Can be used when the entity is resumed
@@ -302,10 +297,10 @@ interface ConveyorItemIfc {
      */
     val plannedLocation: IdentityIfc?
         get() {
-            return if (segment == null) {
+            return if (lastCell == null) {
                 null
             } else {
-                segment!!.exitLocation
+                lastCell!!.segment.exitLocation
             }
         }
 
@@ -315,15 +310,11 @@ interface ConveyorItemIfc {
     val hasReachedDestination: Boolean
 }
 
-//TODO accumulating conveyors allow the item after the leading item to continue moving if the leading item is blocked
-//TODO what happens if lead item is blocked
-
-
 /** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location
  * (destination) and is associated with a conveyor. The start and end of each segment represent locations along
  * the conveyor where entities can get on and off.  A conveyor has a cell size, which represents the length of
  * each cell on any segment of the conveyor. A conveyor also has a maximum permitted number of cells that can be
- * occupied by an item riding on the conveyor.  A conveyor has a [initialVelocity].  Each segment moves at the same
+ * occupied by an item riding on the conveyor.  A conveyor has an [initialVelocity].  Each segment moves at the same
  * velocity.  Each segment has a specified length that is divided into a number of equally sized contiguous cells.
  * The length of any segment must be an integer multiple of the conveyor's cell size so that each segment will have
  * an integer number of cells to represent its length. If a segment consists of 12 cells and the length of the conveyor
@@ -331,11 +322,11 @@ interface ConveyorItemIfc {
  * then each cell of the segment represents 3 feet.  Thus, a cell represents a generalized unit of distance along the segment.
  * Segments may have a different number of cells because they may have different lengths.
  *
- * The cells on a segment are numbered from 1 to n, with 1 at the origin, and n at the destination where n is the number
- * of cells on the segment.
+ * The cells on a conveyor are numbered from 1 to n, with 1 at the entry of the first segment, and n at the exit of
+ * the last segment, where n is the number of cells for the conveyor.
  *
- * Items that ride on the segment must be allocated cells and then occupy the cells while moving on the segment.  Items
- * can occupy more than one cell while riding on the conveyor.  For example, if the segment has 5 cells (1, 2, 3, 4, 5) and
+ * Items that ride on the conveyor must be allocated cells and then occupy the cells while moving on the conveyor.  Items
+ * can occupy more than one cell while riding on the conveyor.  For example, if the conveyor has 5 cells (1, 2, 3, 4, 5) and
  * the item needs 2 cells and is occupying cells 2 and 3, then the front cell associated with the item is cell 3 and the
  * end cell associated with the item is cell 2.
  *
@@ -346,36 +337,39 @@ interface ConveyorItemIfc {
  * Thus, assuming a single item, the time to move from the start of a segment
  * to the end of the segment is the time that it takes to travel through all the cells of the segment.
  *
- * A conveyor is considered circular if the start of the first segment is the same as the end of the last segment.
+ * A conveyor is considered circular if the entry location of the first segment is the same as the exit location of the last segment.
  *
  * To construct a conveyor use the supplied builder or specify the segment data.
  *
  * @param parent the containing model element
  * @param velocity the initial velocity of the conveyor
- * @param segmentData the specification of the segments
+ * @param segments the specification of the segments
  * @param maxEntityCellsAllowed the maximum number of cells that an entity can occupy while riding on the conveyor
  * @param name the name of the conveyor
  */
 class Conveyor(
     parent: ModelElement,
-    segmentData: SegmentsData,
+    segments: Segments,
     val conveyorType: Type = Type.ACCUMULATING,
     velocity: Double = 1.0,
     val maxEntityCellsAllowed: Int = 1,
     name: String? = null
 ) : ModelElement(parent, name) {
+    init {
+        require(maxEntityCellsAllowed >= 1) { "The maximum number of cells that can be occupied by an entity must be >= 1" }
+        require(segments.isNotEmpty()) { "The segment data must not be empty." }
+        require(velocity > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
+    }
 
     enum class Type {
         ACCUMULATING, NON_ACCUMULATING
     }
 
-    init {
-        require(velocity > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
-    }
-
-    private val mySegmentMap = mutableMapOf<IdentityIfc, Segment>()
-    private val mySegmentList = mutableListOf<Segment>()
-    private val mySegmentData: SegmentsData
+    var initialVelocity: Double = velocity
+        set(value) {
+            require(value > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
+            field = value
+        }
 
     /**
      *  This holds the entities that are suspended because they are currently
@@ -389,26 +383,43 @@ class Conveyor(
      */
     internal val conveyorHoldQ = HoldQueue(this, "${this.name}:HoldQ")
 
-    var initialVelocity: Double = velocity
-        set(value) {
-            require(value > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
-            field = value
-        }
-
-    val cellSize: Int
-
     init {
-        require(maxEntityCellsAllowed >= 1) { "The maximum number of cells that can be occupied by an entity must be >= 1" }
-        require(segmentData.isNotEmpty()) { "The segment data must not be empty." }
-        mySegmentData = segmentData
-        cellSize = mySegmentData.cellSize
-        for ((i, seg) in mySegmentData.segments.withIndex()) {
-            val segment = Segment(seg, "${this.name}:Seg:$i")
-            mySegmentMap[seg.entryLocation] = segment
-            mySegmentList.add(segment)
-        }
         conveyorHoldQ.waitTimeStatOption = false
         conveyorHoldQ.defaultReportingOption = false
+    }
+
+    private val segmentData: Segments = segments
+    val cellSize: Int = segmentData.cellSize
+
+    private val conveyorCells: List<Cell>
+    private val entryCells = mutableMapOf<IdentityIfc, Cell>()
+    private val exitCells = mutableMapOf<IdentityIfc, Cell>()
+    private val accessQueues = mutableMapOf<IdentityIfc, ConveyorQ>()
+
+    init {
+        val cells = mutableListOf<Cell>()
+        for (segment in segmentData.segments) {
+            val numCells = segment.length / cellSize
+            for (i in 1..numCells) {
+                if (i == 1) {
+                    val cell = Cell(CellType.ENTRY, segment.entryLocation, segment, cells)
+                    entryCells[segment.entryLocation] = cell
+                    accessQueues[segment.entryLocation] =
+                        ConveyorQ(this, "${this.name}:${segment.entryLocation.name}:AccessQ")
+                } else if (i == numCells) {
+                    val cell = Cell(CellType.EXIT, segment.exitLocation, segment, cells)
+                    exitCells[segment.exitLocation] = cell
+                } else {
+                    Cell(CellType.INNER, null, segment, cells)
+                }
+            }
+        }
+        conveyorCells = cells.asList()
+    }
+
+    fun accessQueueAt(location: IdentityIfc): QueueCIfc<CellRequest> {
+        require(accessQueues.contains(location)) { "The origin ($location) is not a valid entry point on the conveyor" }
+        return accessQueues[location]!!
     }
 
     var velocity: Double = velocity
@@ -425,17 +436,17 @@ class Conveyor(
      *  the location associated with the first segment is the same
      *  as the ending location of the last segment
      */
-    val isCircular = mySegmentData.isCircular
+    val isCircular = segmentData.isCircular
 
     /**
      *  The locations that can be used to enter (get on) the conveyor.
      */
-    val entryLocations = mySegmentData.entryLocations
+    val entryLocations = segmentData.entryLocations
 
     /**
      *  The locations that can be used as points of exit on the conveyor.
      */
-    val exitLocations = mySegmentData.exitLocations
+    val exitLocations = segmentData.exitLocations
 
     /**
      *  Determines if the [end] location is reachable from the [start] location.
@@ -443,120 +454,64 @@ class Conveyor(
      *  the start location to the end location without exiting the conveyor.
      */
     fun isReachable(start: IdentityIfc, end: IdentityIfc): Boolean {
-        return mySegmentData.isReachable(start, end)
+        return segmentData.isReachable(start, end)
     }
 
-    /**
-     *  Determines the lead item on the segment that starts at the supplied location.
-     *  The lead item is the item that is the furthest forward that is not blocked.
-     *  An item is not blocked if the cell in front of it exists and is not occupied.
-     */
-    fun findLeadItem(entryLocation: IdentityIfc): ConveyorItemIfc? {
-        require(entryLocations.contains(entryLocation)) { "The location is not on the conveyor" }
-        return mySegmentMap[entryLocation]?.findLeadItem()
+    internal fun items() : List<Item> {
+        val list = mutableSetOf<Item>()
+        for(cell in conveyorCells.reversed()){
+            val item = cell.item
+            if (item != null){
+                list.add(item)
+            }
+        }
+        return list.asList()
     }
 
     override fun initialize() {
         velocity = initialVelocity
+        for (cell in conveyorCells) {
+            cell.item = null
+            cell.isBlocked = false
+        }
     }
 
     /**
      *  Checks if the number of cells needed [numCellsNeeded] can be
-     *  allocated at the supplied [location] associated with the conveyor.
-     *  True means that the amount of cells needed at the conveyor entry location be allocated at this
+     *  allocated at the supplied [entryLocation] associated with the conveyor.
+     *  True means that the amount of cells needed at the conveyor entry location can be allocated at this
      *  instant in time.
      */
-    fun canAllocateCells(location: IdentityIfc, numCellsNeeded: Int = 1): Boolean {
-        require(entryLocations.contains(location)) { "The origin ($location) is not a valid entry point on the conveyor" }
+    fun canAllocateCells(entryLocation: IdentityIfc, numCellsNeeded: Int = 1): Boolean {
+        require(entryLocations.contains(entryLocation)) { "The location ($entryLocation) is not a valid entry point on the conveyor" }
         require(numCellsNeeded <= maxEntityCellsAllowed) {
             "The entity requested more cells ($numCellsNeeded) than " +
                     "the allowed maximum ($maxEntityCellsAllowed for for conveyor (${this.name}"
         }
-        val segment = mySegmentMap[location]!!
-        return segment.canAllocate(numCellsNeeded)
+        val entryCell = entryCells[entryLocation]!!
+        return canAllocateAt(entryCell, numCellsNeeded)
     }
 
-    /**
-     * It is an error to attempt to allocate cells if there are insufficient
-     * cells available. Thus, the number of cells needed must be less than or equal to the number of cells
-     * available at the origin point at the time of this call. This function
-     * should only be called from the access() suspend function.
-     *
-     * @param request the access request that wants the cells
-     */
-    internal fun allocateCells(request: CellRequest): CellAllocation {
-        require(request.conveyor == this) { "The cell allocation request is not from this conveyor" }
-        require(request.isFillable) { "The cell request for (${request.numCellsNeeded}) cells cannot be filled at this time" }
-        // get the segment for entry onto the conveyor
-        val segment = mySegmentMap[request.entryLocation]!!
-        // ask the segment to allocate cells to the entity and make the allocation
-        // need to assign entity to have allocation, need to cause blocking
-        return segment.blockEntry(request)
+    private fun canAllocateAt(entryCell: Cell, numCellsNeeded: Int): Boolean {
+        return numAvailableCells(entryCell) >= numCellsNeeded
     }
 
-    /**
-     * The allocation is either on the conveyor or it is waiting to get on the conveyor.
-     * The behavior is  delegated to the appropriate segment.
-     * Conveying an item may cause events to be scheduled to move the lead item forward.
-     * The entity associated with the item should be suspended, placed in the
-     * conveyor's HoldQ, after this call from the ride() suspend function of the process. The item
-     * will remain on the conveyor until the entity indicates that the cells are to be released by using
-     * the exit function. The behavior of the conveyor during the ride and when the item reaches its
-     * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
-     * while the entity occupies the final cells before exiting or riding again.
-     */
-    internal fun conveyItem(cellAllocation: CellAllocation, destination: IdentityIfc) {
-        // cell allocation is already checked to be allocated
-        // destination has already been checked to be valid
-        // get the segment associated with the allocation
-        val segment = mySegmentMap[cellAllocation.entryLocation]!!
-        // delegate the work to the segment
-        // the entity associated with the item should be suspended, after this call
-        segment.conveyItem(cellAllocation, destination)
-    }
-
-    /**
-     * This function should deallocate the cells associated with the cell allocation
-     * and cause any blockage associated with the allocation to be removed. This
-     * function should be called only from the exit() function of the entity process.
-     * There should not be any time delay associated with this function, but it may cause
-     * events to be scheduled and processes to be resumed as the allocation is released.
-     * The work is delegated to the segment associated with the cell allocation.
-     */
-    internal fun deallocateCells(cellAllocation: CellAllocationIfc) {
-        // cell allocation is already checked to be valid
-        // get the segment associated with the allocation
-        val segment = mySegmentMap[cellAllocation.entryLocation]!!
-        segment.deallocateCells(cellAllocation)
-    }
-
-    /**
-     * This function should start the exiting process for the entity holding
-     * the cell allocation.  The cells associated with the cell allocation should be deallocated
-     * and any blockage associated with the allocation to be removed. This
-     * function should be called only from the exit() function of the entity process.
-     * There may be time delay associated with this function. It may cause
-     * events to be scheduled and processes to be resumed as the allocation is released.
-     * The work is delegated to the segment associated with the cell allocation.
-     */
-    internal fun startExitingProcess(cellAllocation: CellAllocationIfc) {
-        // cell allocation is already checked to be valid
-        // get the segment associated with the allocation
-        val segment = mySegmentMap[cellAllocation.entryLocation]!!
-        segment.startExitingProcess(cellAllocation)
-    }
-
-
-    fun startConveyor() {
-        for (segment in mySegmentList) {
-            segment.startMovement()
+    private fun numAvailableCells(entryCell: Cell): Int {
+        val itr = conveyorCells.listIterator(entryCell.cellNumber - 1)
+        var sum = 0
+        while (itr.hasNext()){
+            if (itr.next().isAvailable){
+                sum++
+            } else {
+                return sum
+            }
         }
+        return sum
     }
 
-    fun stopConveyor() {
-        for (segment in mySegmentList) {
-            segment.stopMovement()
-        }
+    fun numAvailableCells(entryLocation: IdentityIfc) : Int {
+        require(entryLocations.contains(entryLocation)) { "The location ($entryLocation) is not a valid entry point on the conveyor" }
+        return numAvailableCells(entryCells[entryLocation]!!)
     }
 
     /**
@@ -565,15 +520,15 @@ class Conveyor(
      *
      *  @param entity the entity making the request
      *  @param numCellsNeeded the number of cells being requested
-     *  @param requestPriority the priority associated with waiting in the queue for the cells
      */
     inner class CellRequest(
         val entity: ProcessModel.Entity,
         val numCellsNeeded: Int = 1,
         val entryLocation: IdentityIfc,
     ) : QObject() {
-        var segment: Conveyor.Segment
-            internal set
+
+        val conveyor = this@Conveyor
+        val entryCell: Cell
 
         init {
             require(numCellsNeeded >= 1) { "The number of cells requested must be >= 1" }
@@ -583,16 +538,15 @@ class Conveyor(
             }
             require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) of requested cells is not on conveyor (${conveyor.name})" }
             priority = entity.priority
-            segment = mySegmentMap[entryLocation]!!
+            entryCell = entryCells[entryLocation]!!
         }
 
         val isFillable: Boolean
-            get() = segment.canAllocate(numCellsNeeded)
+            get() = canAllocateAt(entryCell, numCellsNeeded)
 
         val isNotFillable: Boolean
             get() = !isFillable
 
-        val conveyor = this@Conveyor
     }
 
     internal fun createRequest(
@@ -604,11 +558,11 @@ class Conveyor(
     }
 
     internal fun enqueueRequest(request: CellRequest) {
-        request.segment.enqueueRequest(request)
+        accessQueues[request.entryLocation]!!.enqueue(request)
     }
 
     internal fun dequeueRequest(request: CellRequest) {
-        request.segment.dequeueRequest(request)
+        accessQueues[request.entryLocation]!!.remove(request)
     }
 
     inner class CellAllocation(
@@ -676,16 +630,13 @@ class Conveyor(
         override var destination: IdentityIfc = desiredLocation
             internal set
 
-        override var segment: Conveyor.Segment? = null //TODO when is this first set
-            internal set
-
         override var resumePriority: Int = KSLEvent.DEFAULT_PRIORITY
             internal set //TODO when to allow changes
 
         override var currentLocation: IdentityIfc? = null
             internal set
 
-        private val myCellsOccupied: ArrayDeque<Segment.Cell> = ArrayDeque()
+        private val myCellsOccupied: ArrayDeque<Cell> = ArrayDeque()
 
         override val occupiesCells: Boolean
             get() = myCellsOccupied.isNotEmpty()
@@ -701,14 +652,12 @@ class Conveyor(
 
         override val conveyor = this@Conveyor
 
-        override val hasReachedEndOfSegment: Boolean
+        override val hasReachedAnExitCell: Boolean
             get() {
-                return if (segment == null) {
-                    false
-                } else if (firstCell != null) {
-                    firstCell == segment!!.exitCell
+                if (firstCell == null) {
+                    return false
                 } else {
-                    false
+                    return firstCell!!.type == CellType.EXIT
                 }
             }
 
@@ -739,7 +688,7 @@ class Conveyor(
          *  needs while riding on the conveyor.  If the segment has 5 cells (1, 2, 3, 4, 5) and
          *  the item needs 2 cells and is occupying cells 2 and 3, then its first cell is 3.
          */
-        override val firstCell: Segment.Cell?
+        override val firstCell: Cell?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.last() else null
 
         /**
@@ -749,14 +698,14 @@ class Conveyor(
          *  needs while riding on the conveyor. If the segment has 5 cells (1, 2, 3, 4, 5) and
          *  the item needs 2 cells and is occupying cells 2 and 3, then its last cell is 2.
          */
-        override val lastCell: Segment.Cell?
+        override val lastCell: Cell?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.first() else null
 
         /**
-         *  Causes an item already on the segment to move forward by one cell.  This
+         *  Causes an item already on the conveyor to move forward by one cell.  This
          *  causes the cells that the item occupies to be updated to the next cell.
          *  We assume that moving forward has been triggered by a time delay that
-         *  represent the item moving through the cell. This represents the completion
+         *  represents the item moving through the cell. This represents the completion
          *  of that movement.
          */
         internal fun moveForwardOneCell() {
@@ -768,15 +717,15 @@ class Conveyor(
             // this means that there must be a next cell
             // each occupied cell becomes the next occupied cell
             occupyCell(firstCell!!.nextCell!!)
-            if (segment != null) {
-                // all cells acquired and last cell is the first cell of the segment, then it completed loading
-                if ((lastCell!! == segment!!.entryCell) && (myCellsOccupied.size == numberOfCells)) {
+            // all cells acquired and last cell is the first cell of the segment, then it completed loading
+            if ((myCellsOccupied.size == numberOfCells)) {
+                if (lastCell!!.type == CellType.ENTRY){
                     // item is now fully on the segment, notify segment
-                    segment!!.itemFullyLoaded(this)
                     status = ItemStatus.ON
+                    //TODO notify the conveyor??
                 }
-                //TODO how to tell if entering (loading)?, exiting (unloading)?, off?
             }
+            //TODO how to tell if entering (loading)?, exiting (unloading)?, off?
         }
 
         /**
@@ -784,14 +733,14 @@ class Conveyor(
          *  is performed.  The cell is added to the end of the cells occupied and if the number of
          *  cells needs is reached, the oldest cell is removed from the cells occupied.
          */
-        internal fun occupyCell(cell: Segment.Cell) {
+        internal fun occupyCell(cell: Cell) {
             if (myCellsOccupied.size < numberOfCells) {
                 myCellsOccupied.add(cell)
-                cell.isOccupied = true
+                cell.item = this
             } else {
                 popOldest() // remove from front of the list
                 myCellsOccupied.add(cell)  // add new cell to the end of the list
-                cell.isOccupied = true
+                cell.item = this
             }
         }
 
@@ -802,7 +751,7 @@ class Conveyor(
         private fun popOldest(): Boolean {
             return if (myCellsOccupied.isNotEmpty()) {
                 val first = myCellsOccupied.removeFirst()
-                first.isOccupied = false
+                first.item = null
                 true
             } else {
                 false
@@ -811,516 +760,12 @@ class Conveyor(
 
     }
 
-    enum class SegmentStatus {
-        MOVING, BLOCKED_ENTERING, BLOCKED_EXITING, IDLE, UNBLOCKED_ENTERING
-    }
-
-    /**
-     * A segment consists of a number of equally sized contiguous cells with each cell representing some unit of distance along
-     * the segment.  If a segment consists of 12 cells and the length of the conveyor is 12 feet then each cell
-     * represents 1 foot. If a segment consists of 4 cells and the length of the conveyor is 12 feet, then each
-     * cell represents 3 feet.  Thus, a cell represents a generalized unit of distance along the segment. Items that
-     * ride on the segment must be allocated cells and then occupy the cells while moving on the segment.  A segment
-     * has a starting location (origin) and an ending location (destination) and is associated with a conveyor. A series
-     * of segments represents the conveyor. The cells on a segment are numbered from 1 to n, with 1 at the origin, and
-     * n at the destination where n is the number of cells on the segment.
-     */
-    inner class Segment(segmentData: SegmentData, name: String?) : ModelElement(this@Conveyor, name) {
-
-        var status: SegmentStatus = SegmentStatus.IDLE
-            internal set
-
-        /**
-         *  This queue holds items that are waiting at the start of the segment for the appropriate number of cells on the
-         *  conveyor in order to ride (move) to their destination. An item should be in the
-         *  access queue until a sufficient number of cells are available for the item to begin moving onto the conveyor
-         */
-        private val myAccessQ = ConveyorQ(this, "${this.name}:AccessQ")
-        val accessQ: QueueCIfc<Conveyor.CellRequest>
-            get() = myAccessQ
-
-        private val endCellTraversalAction = EndOfCellTraversalAction()
-
-        /**
-         * The event associated with the movement of the lead item on the segment
-         */
-        private var cellTraversalEvent: KSLEvent<Item>? = null
-
-        private val exitSegmentAction = ExitSegmentAction()
-
-        /**
-         *  The event associated with the movement of the item exiting at the end of the segment
-         */
-        private var exitSegmentEvent: KSLEvent<Item>? = null
-
-        /**
-         *  Holds the items that occupy cells on the segment. The items are held in the list
-         *  based on order of entry, with the first item being the oldest and furthest forward towards the end
-         *  of the segment and the last item being in the newest and closest to the entry of the conveyor.
-         */
-        private val myItems = mutableListOf<Item>()
-
-        /**
-         *  Represents an entity that has been allocated cells, but is not yet
-         *  on the conveyor's segment. It has the cells necessary to get on the segment
-         *  but has not yet been moved on to the conveyor (conveyed). If the value
-         *  is not null, then there is an allocation waiting to move into the
-         *  first cell of the segment. The entry location should be considered blocked
-         *  while there is an entry cell allocation waiting.
-         */
-        var entryCellAllocation: CellAllocation? = null
-            internal set(value) {
-                field = value
-                status = if (value == null) {
-                    SegmentStatus.UNBLOCKED_ENTERING
-                } else {
-                    SegmentStatus.BLOCKED_ENTERING
-                }
-            }
-
-        val firstItem: Item?
-            get() = myItems.firstOrNull()
-
-        val lastItem: Item?
-            get() = myItems.lastOrNull()
-
-        val entryLocation: IdentityIfc = segmentData.entryLocation
-
-        val exitLocation: IdentityIfc = segmentData.exitLocation
-
-        /**
-         *  The total number of cells on this segment of the conveyor
-         */
-        val numCells: Int = segmentData.length / cellSize
-        private val myCells: List<Cell>
-
-        init {
-            val list = mutableListOf<Cell>()
-            for (i in 1..numCells) {
-                Cell(list)
-            }
-            myCells = list.asList()
-        }
-
-        val entryCell: Cell
-            get() = myCells.first()
-
-        val exitCell: Cell
-            get() = myCells.last()
-
-        /**
-         * The number of available (unoccupied) consecutive cells starting from
-         * the beginning of the segment.
-         */
-        val numAvailableCells: Int  //TODO redo
-            get() {
-                if (entryCellAllocation != null) {
-                    return 0 // an item waiting to convey means the start of the segment is not available
-                }
-                var sum = 0
-                for (cell in myCells) {
-                    if (!cell.isOccupied) {
-                        sum++
-                    } else {
-                        return sum
-                    }
-                }
-                return sum
-            }
-
-        private val myNumCellsOccupied = TWResponse(this, "${this.name}:NumCellsOccupied")//TODO
-
-        //TODO how to transfer from one segment to the next
-
-        override fun initialize() {
-            status = SegmentStatus.IDLE
-            for (cell in myCells) {
-                cell.isOccupied = false
-                cell.isBlocked = false
-            }
-            myItems.clear()
-        }
-
-        /**
-         *  Determines the lead item on the segment.  The lead item
-         *  is the item that is the furthest forward that is not blocked.
-         *  An item is not blocked if the cell in front of it exists and
-         *  is not occupied.  The lead item may be an item that is waiting to convey, but
-         *  that is not yet occupying cells on the conveyor. If null is returned,
-         *  then the segment has no items that can move forward at this time.
-         */
-        fun findLeadItem(): Item? {
-            for (item in myItems.reversed()) {
-                if (item.occupiesCells) {
-                    val nextCell = item.firstCell?.nextCell
-                    if ((nextCell != null) && !nextCell.isOccupied) {
-                        return item
-                    }
-                } else {
-                    // if the item does not occupy any cells, it must be the last item of the list
-                    // and must be associated with the cell allocation that is waiting to get on the conveyor
-                    require(item == myItems.last()) { "The found lead item does not occupy any cells but is not the last item." }
-                    require(item.segment?.entryCellAllocation?.item == item) {
-                        "The found lead item was not associated with " +
-                                "the cell allocation waiting to get on the conveyor"
-                    }
-                    if (entryCell.isOccupied) {
-                        // if the first cell is occupied, then this waiting item cannot be the lead item
-                        return null
-                    }
-                    return item
-                }
-            }
-            return null
-        }
-
-        internal fun enqueueRequest(request: CellRequest) {
-            myAccessQ.enqueue(request)
-        }
-
-        internal fun dequeueRequest(request: CellRequest) {
-            myAccessQ.remove(request)
-        }
-
-        /**
-         *  Checks if the number of available cells at the beginning of the segment
-         *  are sufficient to allow allocation
-         */
-        fun canAllocate(numCellsNeeded: Int): Boolean {
-            return numAvailableCells >= numCellsNeeded
-        }
-
-        /**
-         *  Causes the events associated with the movement of time to be cancelled.
-         */
-        internal fun stopMovement() {
-            if (cellTraversalEvent != null) {
-                cellTraversalEvent!!.cancelled = true
-            }
-            if (exitSegmentEvent != null) {
-                exitSegmentEvent!!.cancelled = true
-            }
-        }
-
-        /**
-         * Causes movement associated with the segment to continue
-         */
-        internal fun startMovement() {
-            // if the scheduled event times occur after the current time
-            // then reschedule the events using the time remaining
-            //TODO this assumes that the lead item did not change.  Is that true???
-            if (cellTraversalEvent != null) {
-                val e = cellTraversalEvent!!
-                if (e.time >= time) {
-                    cellTraversalEvent = endCellTraversalAction.schedule(e.timeRemaining, message = e.message)
-                }
-            }
-            if (exitSegmentEvent != null) {
-                val e = exitSegmentEvent!!
-                if (e.time >= time) {
-                    exitSegmentEvent = exitSegmentAction.schedule(e.timeRemaining, message = e.message)
-                }
-            }
-        }
-
-        /**
-         * Cause the creation of a cell allocation for the start (entry point) of the segment.
-         * The allocation blocks further entry to the segment while waiting to convey.
-         * If the conveyor is non-accumulating then all movement along the conveyor should stop.
-         * There is no time advancement associated with this function.
-         */
-        internal fun blockEntry(request: CellRequest): CellAllocation {
-            require(status != SegmentStatus.BLOCKED_ENTERING) { "($name) was already blocked for item entry at location ${request.entryLocation}." }
-            val ca = CellAllocation(request)
-            ca.isReadyToConvey = true
-            request.entity.cellAllocation = ca
-            entryCellAllocation = ca
-            status = SegmentStatus.BLOCKED_ENTERING
-            entryCell.isBlocked = true
-            this@Conveyor.segmentBlockedOnEntry(this)
-            return ca
-        }
-
-        /**
-         *  This is called from the enclosing conveyor. The enclosing conveyor
-         *  is responsible for ensuring that inputs are valid
-         *  The entity associated with the item should be suspended after this call.
-         *  This function does not do the suspension.  The item
-         *  will remain on the conveyor until the entity indicates that the cells are to be released by using
-         *  the exit function. The behavior of the conveyor during the ride and when the item reaches its
-         *  destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
-         *  while the entity occupies the final cells before exiting or riding again.
-         */
-        internal fun conveyItem(cellAllocation: CellAllocation, destination: IdentityIfc) {
-            // two cases 1) waiting to get on the conveyor or 2) already on the conveyor
-            if (cellAllocation.isReadyToConvey) {
-                startConveyance(cellAllocation, destination)
-            } else {
-                continueConveyance(cellAllocation, destination)
-            }
-        }
-
-        /**
-         *  This method creates an item that can use the cells of the segment and adds
-         *  the item to the list of items that are controlled by the movement along the conveyor
-         */
-        private fun createConveyorItem(cellAllocation: CellAllocation, destination: IdentityIfc): Item {
-            // need to create the item, attach the item, put it in the item list, start the movement
-            val item = Item(cellAllocation, destination)
-            cellAllocation.item = item // attach the item to the allocation
-            item.segment = this // the item is using this segment
-            myItems.add(item) // the segment is managing the movement of the item
-            return item
-        }
-
-        private fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
-            // the cell allocation is causing a blockage at the entry point of the segment
-            // need to create the item, attach the item, put it in the item list, start the movement
-            val item = Item(cellAllocation, destination)
-            cellAllocation.item = item // attach the item to the allocation
-            item.segment = this // the item is using this segment
-            myItems.add(item) // the segment is managing the movement of the item
-            item.occupyCell(entryCell) // the item now occupies the first cell of the segment
-
-            // segment does not become unblocked until entire item is on the conveyor
-
-//            entryCellAllocation = null // unblock the entry
-//            cellAllocation.isWaitingToConvey = false
-            // item is ready to convey on this segment, moving may depend on other segments
-            // let conveyor decide what to do
-            this@Conveyor.scheduleMovement()
-
-            TODO("Conveyor.Segment.startConveyance()")
-        }
-
-        private fun continueConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
-            // already on the conveyor and reached the end of a segment associated with destination
-            // user want to continue riding to another destination, w/o getting off
-            //
-            //TODO need to transition to next segment
-            TODO("Conveyor.Segment.continueConveyance()")
-        }
-
-        /**
-         *  This is called from the enclosing conveyor. The enclosing conveyor
-         *  is responsible for ensuring that the item can be conveyed.
-         *  The entity associated with the item should be suspended after this call.
-         *  This function does not do the suspension.
-         */
-        internal fun conveyItem(item: Item) {
-            // if the conveyor is empty, then we need to start the movement and have the item
-            // occupy the first cell
-            if (myItems.isEmpty()) {
-                item.occupyCell(entryCell)
-                // this item becomes the lead item
-                cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, item)
-            }
-            // add it to the list of items managed by the segment
-            // notice that the item may not be occupying any cells
-            // when the lead item moves forward all items associated with the segment will move forward
-            // make the item associated with the segment
-            myItems.add(item)
-            // the entity associated with the item should be suspended, after this call to convey
-        }
-
-        /**
-         * The lead item is the item that pulls all items behind it forward
-         * when it moves forward.  When the lead item moves forward through its next cell, all
-         * items behind it also move through their next cells.
-         *
-         * This function is associated with the end of the traversal through the cell that was
-         * unoccupied in front of the lead item.  When this function is called, the lead item has
-         * just traversed (in time) the physical space
-         * associated with the next cell. The next cell is the cell that is
-         * in front of the item's current front cell.  We need to move the items
-         * forward through their cells so that they occupy their next cells.
-         *
-         * The leading item may have reached the end of the segment. That is
-         * the front cell occupied by the item may be the last cell of the segment.
-         * If not at the end of the segment, then schedule the next traversal.
-         * If at the end of the segment, the item ends its trip.
-         */
-        private fun endCellTraversalEventActions(leadItem: Item) {
-            // this needs to start with the lead item and only include itself and
-            // those items behind the lead item.
-            // move all the items on the segment forward by one cell
-            moveItemsForward(leadItem)
-            if (leadItem.hasReachedEndOfSegment) {
-                // coordinate with the entity to allow it to decide what to do
-                // the entity is resumed (at the current time), but its conveyable is
-                // still on the segment
-                conveyorHoldQ.removeAndResume(leadItem.entity, leadItem.resumePriority)
-            } else {
-                if (leadItem.isNextCellOccupied) {
-                    // lead item can not move forward if the next cell is occupied
-                    //TODO what to do if lead item becomes blocked?
-                } else {
-                    // lead item can move forward
-                    // if the next cell is not occupied, schedule the next traversal
-                    endCellTraversalAction.schedule(cellTravelTime, leadItem)
-                }
-            }
-        }
-
-        private fun moveItemsForward(leadItem: Item) {
-            val i = myItems.indexOf(leadItem)
-            val itr = myItems.listIterator(i)
-            while (itr.hasNext()) {
-                itr.next().moveForwardOneCell()
-            }
-        }
-
-        internal fun scheduleConveyorExit(exitingItem: Item) {
-            exitSegmentAction.schedule(cellTravelTime, exitingItem)
-        }
-
-        private fun exitSegmentEventActions(exitingItem: Item) {
-            // if an item exits the segment, then all items can move forward
-            moveItemsForward(exitingItem)
-            if (exitingItem.occupiesCells) {
-                // exiting item still has cells on the conveyor
-                // need to delay to travel through the next cell
-                exitSegmentAction.schedule(cellTravelTime, exitingItem)
-            } else {
-
-            }
-            // TODO how to handle case of using more than one cell when exiting?
-
-            TODO("handle exiting the segment")
-            // move all the items on the segment forward by one cell
-            // the first item in the conveyable list should be the leading item
-
-            //TODO exiting the conveyor actually takes time to move through the occupied cells
-        }
-
-        fun deallocateCells(item: Item) {
-            require(!item.occupiesCells) { "Cannot deallocate cells associated with the item because it still occupies cells" }
-            //TODO give cells back
-            item.numCellsAllocated = 0
-
-            // check queue
-            if (myAccessQ.isNotEmpty) {
-                val nextItem = myAccessQ.peekNext()!!
-                if (canAllocate(nextItem.numCellsNeeded)) {
-                    myAccessQ.removeNext()
-//TODO                    conveyorHoldQ.removeAndResume(nextItem.entity, nextItem.resumePriority)
-                }
-            }
-            TODO("handle de-allocation of cells")
-        }
-
-        /**
-         * This function should deallocate the cells associated with the cell allocation
-         * and cause any blockage associated with the allocation to be removed. This
-         * function is called from the outer conveyor class to delegate the work to
-         * the segment associated with the cells.
-         * There should not be any time delay associated with this function, but it may cause
-         * events to be scheduled and processes to be resumed as the allocation is released.
-         */
-        fun deallocateCells(cellAllocation: CellAllocationIfc) {
-            TODO("Conveyor.Segment.deallocateCells()")
-        }
-
-        /**
-         * This function should start the exiting process for the entity holding
-         * the cell allocation.  The cells associated with the cell allocation should be deallocated
-         * and any blockage associated with the allocation to be removed. This
-         * function is called from the outer conveyor class to delegate the work
-         * to the segment associated with the cells.
-         *
-         * There may be time delay associated with this function. It may cause
-         * events to be scheduled and processes to be resumed as the allocation is released.
-         */
-        fun startExitingProcess(cellAllocation: CellAllocationIfc) {
-            TODO("Conveyor.Segment.startExitingProcess()")
-        }
-
-        internal fun itemFullyLoaded(item: Conveyor.Item) {
-            TODO("Conveyor.Segment.itemEntered()")
-        }
-
-
-        private inner class EndOfCellTraversalAction : EventAction<Item>() {
-            override fun action(event: KSLEvent<Item>) {
-                endCellTraversalEventActions(event.message!!)
-            }
-
-        }
-
-        private inner class ExitSegmentAction : EventAction<Item>() {
-            override fun action(event: KSLEvent<Item>) {
-                exitSegmentEventActions(event.message!!)
-            }
-
-        }
-
-        /**
-         *  A cell represents a length of space along the conveyor segment that
-         *  can be allocated to and occupied by conveyable items.  A segment is divided
-         *  into a set of cells to represent its length.  A cell acts like a general
-         *  unit of distance along the segment.
-         */
-        inner class Cell(private val cellList: MutableList<Cell>) {
-            init {
-                cellList.add(this)
-            }
-
-            val cellNumber: Int = cellList.size
-            val segment: Segment = this@Segment
-
-            val isFirst: Boolean
-                get() = cellList.first() == this
-
-            val isLast: Boolean
-                get() = cellList.last() == this
-
-            val isNotLast: Boolean
-                get() = !isLast
-
-            /**
-             *  The cell in front of this cell (towards the end of the segment)
-             */
-            val nextCell: Cell?
-                get() {
-                    return if (isLast) null
-                    else
-                        cellList[cellNumber] // because cells are numbered starting at 1, but list is 0 index based
-                }
-
-            /**
-             *  The cell immediately behind this cell (towards the front of the segment)
-             */
-            val previousCell: Cell?
-                get() {
-                    return if (isFirst) null
-                    else
-                        cellList[cellNumber - 1] // because cells are numbered starting at 1, but list is 0 index based
-                }
-
-            /**
-             *  A cell is occupied if it is covered by an item
-             */
-            var isOccupied: Boolean = false
-                internal set //TODO consider updating number of occupied cells in this set method
-
-            var isBlocked: Boolean = false
-                internal set
-
-            val isAvailable: Boolean
-                get() = (!isOccupied && !isBlocked)
-
-            val isUnavailable: Boolean
-                get() = (isOccupied || isBlocked)
-
-        }
-
-    }
 
     /**
      *  This method is called by an internal segment when the segment has to
      *  block due to an item entering at an entry location.
      */
-    private fun segmentBlockedOnEntry(segment: Segment) {
+    private fun segmentBlockedOnEntry() {
         // an individual segment of the conveyor is blocked at its entry point
         // handle blocking based on type of conveyor
         TODO("Not yet implemented: Conveyor.segmentBlockedOnEntry()")
@@ -1329,6 +774,82 @@ class Conveyor(
     private fun scheduleMovement() {
         TODO("Not yet implemented: Conveyor.scheduleMovement()")
     }
+
+    enum class CellType {
+        ENTRY, EXIT, INNER
+    }
+
+    /**
+     *  A cell represents a length of space along the conveyor that
+     *  can be allocated to and occupied by conveyable items.  A conveyor is divided
+     *  into a set of cells to represent its length.  A cell acts like a general
+     *  unit of distance along the conveyor.
+     */
+    inner class Cell(
+        val type: CellType,
+        val location: IdentityIfc?,
+        val segment: Segment,
+        private val cellList: MutableList<Cell>
+    ) {
+        init {
+            cellList.add(this)
+        }
+
+        var item: Item? = null
+            internal set
+
+        val cellNumber: Int = cellList.size
+
+        val isFirst: Boolean
+            get() = cellList.first() == this
+
+        val isLast: Boolean
+            get() = cellList.last() == this
+
+        val isNotLast: Boolean
+            get() = !isLast
+
+        /**
+         *  The cell in front of this cell (towards the end of the segment)
+         */
+        val nextCell: Cell?
+            get() {
+                return if (isLast) null
+                else
+                    cellList[cellNumber] // because cells are numbered starting at 1, but list is 0 index based
+            }
+
+        /**
+         *  The cell immediately behind this cell (towards the front of the segment)
+         */
+        val previousCell: Cell?
+            get() {
+                return if (isFirst) null
+                else
+                    cellList[cellNumber - 1] // because cells are numbered starting at 1, but list is 0 index based
+            }
+
+        /**
+         *  A cell is occupied if it is covered by an item
+         */
+        val isOccupied: Boolean
+            get() = item != null
+
+        var isBlocked: Boolean = false
+            internal set
+
+        val isAvailable: Boolean
+            get() = (!isOccupied && !isBlocked)
+
+        val isUnavailable: Boolean
+            get() = (isOccupied || isBlocked)
+
+        override fun toString(): String {
+            return "Cell(segment=${segment.name}, cell=$cellNumber, location=${location?.name}, type=$type, " +
+                    "isOccupied=$isOccupied, isBlocked=$isBlocked, item=${item?.name})"
+        }
+    }
+
 
     companion object {
         fun builder(parent: ModelElement, name: String? = null): ConveyorTypeStepIfc {
@@ -1346,7 +867,7 @@ class Conveyor(
         private var velocity: Double = 1.0
         private var cellSize: Int = 1
         private var maxEntityCellsAllowed: Int = 1
-        private lateinit var segmentsData: SegmentsData
+        private lateinit var segmentsData: Segments
         override fun conveyorType(type: Type): VelocityStepIfc {
             conveyorType = type
             return this
@@ -1372,7 +893,7 @@ class Conveyor(
 
         override fun firstSegment(start: IdentityIfc, end: IdentityIfc, length: Int): SegmentStepIfc {
             require(length >= 1) { "The length of the segment must be >= 1 unit" }
-            segmentsData = SegmentsData(cellSize, start)
+            segmentsData = Segments(cellSize, start)
             segmentsData.toLocation(end, length)
             return this
         }
@@ -1422,8 +943,28 @@ class Conveyor(
         sb.appendLine("cellSize = $cellSize")
         sb.appendLine("cell Travel Time = $cellTravelTime")
         sb.appendLine("Segments:")
-        sb.append(mySegmentData)
+        sb.append(segmentData)
+        sb.appendLine("Cells:")
+        for (cell in conveyorCells) {
+            sb.appendLine(cell)
+        }
         return sb.toString()
+    }
+
+    internal fun conveyItem(cellAllocation: Conveyor.CellAllocation, destination: IdentityIfc) {
+        TODO("Conveyor.conveyItem() not implemented yet")
+    }
+
+    internal fun deallocateCells(cellAllocation: CellAllocationIfc) {
+        TODO("Conveyor.deallocateCells() not implemented yet")
+    }
+
+    internal fun startExitingProcess(cellAllocation: CellAllocationIfc) {
+        TODO("Conveyor.startExitingProcess() not implemented yet")
+    }
+
+    internal fun allocateCells(request: Conveyor.CellRequest): CellAllocationIfc {
+        TODO("Conveyor.allocateCells() not implemented yet")
     }
 
 }
