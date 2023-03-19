@@ -472,7 +472,7 @@ class Conveyor(
         velocity = initialVelocity
         for (cell in conveyorCells) {
             cell.item = null
-            cell.isBlocked = false
+            cell.allocation = null
         }
     }
 
@@ -798,6 +798,9 @@ class Conveyor(
         var item: Item? = null
             internal set
 
+        var allocation: CellAllocation? = null
+            internal set
+
         val cellNumber: Int = cellList.size
 
         val isFirst: Boolean
@@ -835,8 +838,8 @@ class Conveyor(
         val isOccupied: Boolean
             get() = item != null
 
-        var isBlocked: Boolean = false
-            internal set
+        val isBlocked: Boolean
+            get() = allocation != null
 
         val isAvailable: Boolean
             get() = (!isOccupied && !isBlocked)
@@ -951,6 +954,26 @@ class Conveyor(
         return sb.toString()
     }
 
+    /**
+     * It is an error to attempt to allocate cells if there are insufficient
+     * cells available. Thus, the number of cells needed must be less than or equal to the number of cells
+     * available at the origin point at the time of this call. This function
+     * should only be called from the access() suspend function.
+     *
+     * @param request the access request that wants the cells
+     */
+    internal fun allocateCells(request: CellRequest): CellAllocationIfc {
+        require(request.conveyor == this) { "The cell request is not from this conveyor" }
+        require(request.isFillable) { "The cell request for (${request.numCellsNeeded}) cells cannot be filled at this time" }
+        val ca = CellAllocation(request) // why not do all these when it is created
+        ca.isReadyToConvey = true //when is not ready to convey?, after it exits!
+        request.entity.cellAllocation = ca
+        request.entryCell.allocation = ca
+        //TODO need to capture the cell allocation
+        // handle blocking at entry cell
+        TODO("Conveyor.allocateCells() not implemented yet")
+    }
+
     internal fun conveyItem(cellAllocation: Conveyor.CellAllocation, destination: IdentityIfc) {
         TODO("Conveyor.conveyItem() not implemented yet")
     }
@@ -961,10 +984,6 @@ class Conveyor(
 
     internal fun startExitingProcess(cellAllocation: CellAllocationIfc) {
         TODO("Conveyor.startExitingProcess() not implemented yet")
-    }
-
-    internal fun allocateCells(request: Conveyor.CellRequest): CellAllocationIfc {
-        TODO("Conveyor.allocateCells() not implemented yet")
     }
 
 }
