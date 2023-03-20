@@ -170,6 +170,7 @@ class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
 interface CellAllocationIfc {
     val entity: ProcessModel.Entity
     val entryLocation: IdentityIfc
+    val entryCell: Conveyor.Cell
     val conveyor: Conveyor
     val numberOfCells: Int
 
@@ -365,6 +366,10 @@ class Conveyor(
         ACCUMULATING, NON_ACCUMULATING
     }
 
+    enum class Status {
+        MOVING, BLOCKED_ENTERING, BLOCKED_EXITING, IDLE, UNBLOCKED_ENTERING
+    }
+
     var initialVelocity: Double = velocity
         set(value) {
             require(value > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
@@ -417,6 +422,13 @@ class Conveyor(
         conveyorCells = cells.asList()
     }
 
+    private val endCellTraversalAction = EndOfCellTraversalAction()
+
+    /**
+     * The event associated with the movement of the lead item on the segment
+     */
+    private var endCellTraversalEvent: KSLEvent<Item>? = null
+
     fun accessQueueAt(location: IdentityIfc): QueueCIfc<CellRequest> {
         require(accessQueues.contains(location)) { "The origin ($location) is not a valid entry point on the conveyor" }
         return accessQueues[location]!!
@@ -457,15 +469,107 @@ class Conveyor(
         return segmentData.isReachable(start, end)
     }
 
-    internal fun items() : List<Item> {
+    /**
+     * A list of all items that are currently associated with (occupying)
+     * cells on the conveyor in the order from the furthest along (closest to the exit location of the last segment)
+     * to the nearest item (closest to the entry location of the first segment).
+     */
+    fun items(): List<Item> {
+        return items(conveyorCells)
+    }
+
+    /**
+     *  Returns a list of items that are associated with
+     *  the supplied cell list, ordered from the furthest cell to the closest cell
+     *  based on the direction of travel on the conveyor.
+     */
+    private fun items(cellList: List<Cell>): List<Item> {
         val list = mutableSetOf<Item>()
-        for(cell in conveyorCells.reversed()){
+        for (cell in cellList.reversed()) {
             val item = cell.item
-            if (item != null){
+            if (item != null) {
                 list.add(item)
             }
         }
         return list.asList()
+    }
+
+    /**
+     *  Returns a list of the cells that are blocked in the
+     *  order of cell number.
+     */
+    fun blockedCells(): List<Cell> {
+        return conveyorCells.filter { it.isBlocked }
+    }
+
+    /**
+     *  Finds the cells that are behind a cell that is marked
+     *  as blocked.  For each cell that is blocked, capture
+     *  a list of cells behind the blockage but before the previous blockage. The returned
+     *  list of cells may be empty if the blocking cell
+     *  is the first cell of the conveyor or if there are two consecutive blocked cells.
+     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
+     *  Suppose cells 1, 5, and 11 are blocked. Then, there will be map of lists as:
+     *  ```
+     *  1 : {empty}
+     *  5 : {2, 3, 4}
+     *  11 : {6, 7, 8, 9, 10}
+     *  ```
+     */
+    fun cellsBehindBlockedCells(): Map<Cell, List<Cell>> {
+        val map = mutableMapOf<Cell, List<Cell>>()
+        var cl = mutableListOf<Cell>()
+        for (cell in conveyorCells) {
+            if (!cell.isBlocked) {
+                cl.add(cell)
+            } else {
+                map[cell] = cl
+                cl = mutableListOf()
+            }
+        }
+        return map
+    }
+
+    /**
+     *  Finds any items that are behind a cell that is marked
+     *  as blocked.  For each cell that is blocked, capture
+     *  a list of the items on the cells behind the blockage but before the previous blockage. The
+     *  returned list may be empty if the blocking cell is the first
+     *  cell or if there are two consecutive blocked cells.  For example,
+     *  suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
+     *  Suppose cells 1, 5, and 11 are blocked. Then, the cells behind the blocking cells are:
+     *  ```
+     *  1 : {empty}
+     *  5 : {2, 3, 4}
+     *  11 : {6, 7, 8, 9, 10}
+     *  ```
+     *  And, any items associated with these cells will be in the associated lists.
+     */
+    private fun itemsBehindBlockedCells(): Map<Cell, List<Item>> {
+        val map = mutableMapOf<Cell, List<Item>>()
+        val ubcMap = cellsBehindBlockedCells()
+        for ((bc, list) in ubcMap) {
+            map[bc] = items(list)
+        }
+        return map
+    }
+
+    private fun firstMovableItem(items: List<Item>): Item? {
+        return items.firstOrNull { !it.isNextCellOccupied }
+    }
+
+    private fun firstMovableItem(cells: List<Cell>): Item? {
+        return firstMovableCell(cells)?.item
+    }
+
+    /**
+     *  The list of cells should be ordered from high cell number to low cell number.
+     *  Finds the first cell that is occupied and for which its next cell exists and
+     *  is available.  This returns the first cell in the list that can
+     *  be traversed by an item.
+     */
+    private fun firstMovableCell(cells: List<Cell>): Cell? {
+        return cells.firstOrNull { it.isOccupied && (it.nextCell != null) && it.nextCell!!.isAvailable }
     }
 
     override fun initialize() {
@@ -499,8 +603,8 @@ class Conveyor(
     private fun numAvailableCells(entryCell: Cell): Int {
         val itr = conveyorCells.listIterator(entryCell.cellNumber - 1)
         var sum = 0
-        while (itr.hasNext()){
-            if (itr.next().isAvailable){
+        while (itr.hasNext()) {
+            if (itr.next().isAvailable) {
                 sum++
             } else {
                 return sum
@@ -509,7 +613,7 @@ class Conveyor(
         return sum
     }
 
-    fun numAvailableCells(entryLocation: IdentityIfc) : Int {
+    fun numAvailableCells(entryLocation: IdentityIfc): Int {
         require(entryLocations.contains(entryLocation)) { "The location ($entryLocation) is not a valid entry point on the conveyor" }
         return numAvailableCells(entryCells[entryLocation]!!)
     }
@@ -569,6 +673,7 @@ class Conveyor(
         request: CellRequest
     ) : CellAllocationIfc {
         override val entity: ProcessModel.Entity = request.entity
+        override val entryCell: Cell = request.entryCell
         override var numberOfCells = request.numCellsNeeded
             private set
         override val entryLocation: IdentityIfc = request.entryLocation
@@ -719,7 +824,7 @@ class Conveyor(
             occupyCell(firstCell!!.nextCell!!)
             // all cells acquired and last cell is the first cell of the segment, then it completed loading
             if ((myCellsOccupied.size == numberOfCells)) {
-                if (lastCell!!.type == CellType.ENTRY){
+                if (lastCell!!.type == CellType.ENTRY) {
                     // item is now fully on the segment, notify segment
                     status = ItemStatus.ON
                     //TODO notify the conveyor??
@@ -760,17 +865,6 @@ class Conveyor(
 
     }
 
-
-    /**
-     *  This method is called by an internal segment when the segment has to
-     *  block due to an item entering at an entry location.
-     */
-    private fun segmentBlockedOnEntry() {
-        // an individual segment of the conveyor is blocked at its entry point
-        // handle blocking based on type of conveyor
-        TODO("Not yet implemented: Conveyor.segmentBlockedOnEntry()")
-    }
-
     private fun scheduleMovement() {
         TODO("Not yet implemented: Conveyor.scheduleMovement()")
     }
@@ -795,13 +889,17 @@ class Conveyor(
             cellList.add(this)
         }
 
+        val conveyor: Conveyor = this@Conveyor
+
+        val cellNumber: Int = cellList.size
+        val index: Int
+            get() = cellNumber - 1
+
         var item: Item? = null
             internal set
 
         var allocation: CellAllocation? = null
             internal set
-
-        val cellNumber: Int = cellList.size
 
         val isFirst: Boolean
             get() = cellList.first() == this
@@ -969,9 +1067,18 @@ class Conveyor(
         ca.isReadyToConvey = true //when is not ready to convey?, after it exits!
         request.entity.cellAllocation = ca
         request.entryCell.allocation = ca
-        //TODO need to capture the cell allocation
-        // handle blocking at entry cell
-        TODO("Conveyor.allocateCells() not implemented yet")
+        blockedEntering(ca)
+        return ca
+    }
+
+    private fun blockedEntering(cellAllocation: CellAllocation) {
+        if (conveyorType == Type.NON_ACCUMULATING) {
+            // all motion on conveyor stops
+
+        } else {
+            // motion continues until none can move
+        }
+        TODO("Conveyor.blockedEntering() not implemented yet")
     }
 
     internal fun conveyItem(cellAllocation: Conveyor.CellAllocation, destination: IdentityIfc) {
@@ -984,6 +1091,18 @@ class Conveyor(
 
     internal fun startExitingProcess(cellAllocation: CellAllocationIfc) {
         TODO("Conveyor.startExitingProcess() not implemented yet")
+    }
+
+    private fun endCellTraversalEventActions(item: Item) {
+        // move everything forward that can be moved forward regardless of location
+        TODO("Conveyor.endCellTraversalEventActions() not implemented yet")
+    }
+
+    private inner class EndOfCellTraversalAction : EventAction<Item>() {
+        override fun action(event: KSLEvent<Item>) {
+            endCellTraversalEventActions(event.message!!)
+        }
+
     }
 
 }
