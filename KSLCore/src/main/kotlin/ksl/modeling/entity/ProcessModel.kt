@@ -1480,7 +1480,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "$time > entity ${entity.id} is exiting ${conveyor.name}" }
                 if (cellAllocation.item == null){
                     // if allocation does not have an item, just deallocate the cells
-                    conveyor.deallocateCells(cellAllocation)
+                    conveyor.deallocateCells(cellAllocation as Conveyor.CellAllocation)
                     logger.trace { "$time > EXITING entity ${entity.id} did not occupy any cells and deallocated cells for (${conveyor.name})" }
                 } else {
                     // if allocation has an item then start the exiting process
