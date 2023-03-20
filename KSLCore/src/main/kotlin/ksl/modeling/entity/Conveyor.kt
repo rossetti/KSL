@@ -502,29 +502,46 @@ class Conveyor(
         return conveyorCells.filter { it.isBlocked }
     }
 
+    fun firstBlockedCellFromEnd(): Cell? {
+        return conveyorCells.asReversed().firstOrNull { it.isBlocked }
+    }
+
     /**
      *  Finds the cells that are behind a cell that is marked
      *  as blocked.  For each cell that is blocked, capture
      *  a list of cells behind the blockage but before the previous blockage. The returned
      *  list of cells may be empty if the blocking cell
-     *  is the first cell of the conveyor or if there are two consecutive blocked cells.
+     *  is the first cell of the list or if there are two consecutive blocked cells.
+     *
+     *  The list must not be empty and the last cell of the list must be blocked.
+     *
      *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
-     *  Suppose cells 1, 5, and 11 are blocked. Then, there will be map of lists as:
+     *  Suppose cells 1, 5, 11, 12 are blocked. Then, there will be map of lists as:
      *  ```
-     *  1 : {empty}
+     *  1 : {empty}, because there are no cells in front of it
      *  5 : {2, 3, 4}
      *  11 : {6, 7, 8, 9, 10}
+     *  12 : {empty}, because there are no cells between cell 11 and 12
      *  ```
      */
-    fun cellsBehindBlockedCells(): Map<Cell, List<Cell>> {
+    fun cellsBehindBlockedCells(cells: List<Cell>): Map<Cell, List<Cell>> {
+        require(cells.isNotEmpty()) { "The supplied cell list was empty" }
+        require(cells.last().isBlocked) { "The last cell of the list was not blocked." }
         val map = mutableMapOf<Cell, List<Cell>>()
-        var cl = mutableListOf<Cell>()
-        for (cell in conveyorCells) {
-            if (!cell.isBlocked) {
-                cl.add(cell)
-            } else {
-                map[cell] = cl
-                cl = mutableListOf()
+        if (cells[0].isBlocked) {
+            map[cells[0]] = emptyList()
+        }
+        var startIndex: Int = 0
+        for (i in 1..cells.lastIndex) {
+            if (cells[i - 1].isBlocked && cells[i].isNotBlocked) {
+                // B --> U
+                startIndex = i
+            } else if (cells[i - 1].isNotBlocked && cells[i].isBlocked) {
+                // U --> B
+                map[cells[i]] = cells.subList(startIndex, i)
+            } else if (cells[i - 1].isBlocked && cells[i].isBlocked) {
+                // B --> B
+                map[cells[i]] = emptyList()
             }
         }
         return map
@@ -545,31 +562,70 @@ class Conveyor(
      *  ```
      *  And, any items associated with these cells will be in the associated lists.
      */
-    private fun itemsBehindBlockedCells(): Map<Cell, List<Item>> {
+    private fun itemsBehindBlockedCells(cells: List<Cell>): Map<Cell, List<Item>> {
         val map = mutableMapOf<Cell, List<Item>>()
-        val ubcMap = cellsBehindBlockedCells()
+        val ubcMap = cellsBehindBlockedCells(cells)
         for ((bc, list) in ubcMap) {
             map[bc] = items(list)
         }
         return map
     }
 
-    private fun firstMovableItem(items: List<Item>): Item? {
-        return items.firstOrNull { !it.isNextCellOccupied }
-    }
-
+    /**
+     *  Processing the cells in reverse order, find the first cell that is occupied and for which its next cell exists and
+     *  is available.  This returns the furthest cell (towards the end of the list) that can
+     *  be traversed by an item. This cell holds the lead item.  If such a cell exists, this function returns the item associated
+     *  with it.
+     */
     private fun firstMovableItem(cells: List<Cell>): Item? {
         return firstMovableCell(cells)?.item
     }
 
     /**
-     *  The list of cells should be ordered from high cell number to low cell number.
-     *  Finds the first cell that is occupied and for which its next cell exists and
-     *  is available.  This returns the first cell in the list that can
-     *  be traversed by an item.
+     *  Processing the cells in reverse order, find the first cell that is occupied and for which its next cell exists and
+     *  is available.  This returns the furthest cell (towards the end of the list) that can
+     *  be traversed by an item. This cell holds the lead item of the list.
      */
     private fun firstMovableCell(cells: List<Cell>): Cell? {
-        return cells.firstOrNull { it.isOccupied && (it.nextCell != null) && it.nextCell!!.isAvailable }
+        return cells.asReversed().firstOrNull { it.isOccupied && (it.nextCell != null) && it.nextCell!!.isAvailable }
+    }
+
+    /**
+     *  The supplied list of cells represents a sub-set of cells on the conveyor that may contain items
+     *  that need to move forward by one cell. If the list is empty, nothing happens.
+     *
+     *  This method assumes that the last cell in the list
+     *  contains an item and that the conveyor cell after the last cell is available
+     *  to be occupied such that the item can be moved forward.  All items associated with the cells
+     *  in the list are moved forward by one cell. There is no time taken for this movement. This
+     *  is simply an assignment such that each item now occupies the cell in front of its current
+     *  cell location on the conveyor.  As such, the item occupying the last cell is the lead item
+     *  in the "train" of items moving forward by one cell.
+     */
+    private fun moveItemsForward(cells: List<Cell>) {
+        if (cells.isEmpty()) {
+            return
+        }
+        require(cells.last().isOccupied) { "The last cell of the list was not occupied by an item" }
+        require(cells.last().nextCell != null) { "The last cell of the list does not have a following cell" }
+        require(cells.last().nextCell!!.isAvailable) { "The cell after the last cell is not available" }
+        reverseIterateItems(cells, this::moveItemForward)
+    }
+
+    private fun moveItemForward(item: Item) {
+        item.moveForwardOneCell()
+    }
+
+    private fun reverseIterateItems(cells: List<Cell>, function: (Item) -> Unit) {
+        var lastItem: Item? = null
+        for (cell in cells.asReversed()) {
+            if (cell.item != lastItem) {
+                lastItem = cell.item
+                if (cell.item != null) {
+                    function(cell.item!!)
+                }
+            }
+        }
     }
 
     override fun initialize() {
@@ -936,8 +992,14 @@ class Conveyor(
         val isOccupied: Boolean
             get() = item != null
 
+        val isNotOccupied: Boolean
+            get() = !isOccupied
+
         val isBlocked: Boolean
             get() = allocation != null
+
+        val isNotBlocked: Boolean
+            get() = !isBlocked
 
         val isAvailable: Boolean
             get() = (!isOccupied && !isBlocked)
@@ -1052,6 +1114,24 @@ class Conveyor(
         return sb.toString()
     }
 
+
+    /**
+     *  Causes the event associated with cell traversals to be cancelled.
+     *  This does not affect any movement associated with items getting on or off
+     *  the conveyor. This only stops movement of items that are fully on the
+     *  conveyor
+     */
+    private fun stopMovementOnConveyor(){
+        //TODO not sure if it should stop all movement or just on the conveyor
+        if (endCellTraversalEvent != null){
+            endCellTraversalEvent!!.cancelled = true
+        }
+    }
+
+    private fun resumeMovementOnConveyor(){
+        TODO("Conveyor.resumeMovementOnConveyor() not implemented yet")
+    }
+
     /**
      * It is an error to attempt to allocate cells if there are insufficient
      * cells available. Thus, the number of cells needed must be less than or equal to the number of cells
@@ -1081,8 +1161,30 @@ class Conveyor(
         TODO("Conveyor.blockedEntering() not implemented yet")
     }
 
-    internal fun conveyItem(cellAllocation: Conveyor.CellAllocation, destination: IdentityIfc) {
-        TODO("Conveyor.conveyItem() not implemented yet")
+    /**
+     *  The entity associated with the item should be suspended after this call.
+     *  This function does not do the suspension.  The item
+     *  will remain on the conveyor until the entity indicates that the cells are to be released by using
+     *  the exit function. The behavior of the conveyor during the ride and when the item reaches its
+     *  destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+     *  while the entity occupies the final cells before exiting or riding again.
+     *  The blockage associated with the entry cell should be released once the conveyance starts.
+     */
+    internal fun conveyItem(cellAllocation: CellAllocation, destination: IdentityIfc) {
+        // two cases 1) waiting to get on the conveyor or 2) already on the conveyor
+        if (cellAllocation.isReadyToConvey) {
+            startConveyance(cellAllocation, destination)
+        } else {
+            continueConveyance(cellAllocation, destination)
+        }
+    }
+
+    private fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
+        TODO("Conveyor.startConveyance() not implemented yet")
+    }
+
+    private fun continueConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
+        TODO("Conveyor.continueConveyance() not implemented yet")
     }
 
     internal fun deallocateCells(cellAllocation: CellAllocationIfc) {
