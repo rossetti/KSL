@@ -802,7 +802,7 @@ class Conveyor(
         override val isDeallocated: Boolean
             get() = !isAllocated
 
-        internal fun deallocate() {
+        internal fun deallocate() { //TODO this is never called!!
             numberOfCells = 0
         }
 
@@ -813,6 +813,7 @@ class Conveyor(
         }
     }
 
+    //TODO access whether blockage concept is needed
     inner class Blockage(
         val cellAllocation: CellAllocation,
         val cell: Cell
@@ -930,24 +931,22 @@ class Conveyor(
             require(isConveyable) { "The item cannot move forward because it has no allocated cells" }
             require(firstCell != null) { "The item cannot move forward because it does not occupy any cells" }
             // the first cell cannot be null, safe to use
-            //TODO we have to worry about circular conveyors in this check
-            //    require(firstCell!!.isNotLast) { "The item cannot move forward because it has reached the end of the conveyor" }
-            // the first cell is not the last cell of the conveyor
-            // this means that there must be a next cell
-            // each occupied cell becomes the next occupied cell
+            require(firstCell!!.nextCell != null) {"The item cannot move forward because it has reached the end of the conveyor"}
+            // the next cell exists and is not null, safe to use it
             if ((status == ItemStatus.OFF) && (firstCell!!.isEntryCell)) {
-                // this item occupies the first cell, but it is off the conveyor
+                // this item occupies an entry cell, but it is off the conveyor
                 // don't move it forward, but mark it as entering
                 status = ItemStatus.ENTERING // it will be included in future moves
                 // basically we are skipping the movement of this item because
                 // it already occupies the entry cell and doesn't need to move through it
             } else {
                 // tell the item to occupy the next cell
-                occupyCell(firstCell!!.nextCell!!)
+                occupyCell(firstCell!!.nextCell!!)//TODO still need to handle getting off case
             }
             if ((myCellsOccupied.size == numberOfCells)) {
                 // all cells acquired and last cell is an entry cell for the conveyor, then it completed loading
                 if (lastCell!!.isEntryCell) {
+                    // check if the item is in the process of entering
                     if (status == ItemStatus.ENTERING) {
                         // item is now fully on the segment, notify conveyor
                         status = ItemStatus.ON
@@ -1321,7 +1320,7 @@ class Conveyor(
             // there are items on the conveyor, and the conveyor is not blocked
             // there must be a lead item if there are items on the conveyor, and the conveyor is not blocked
             val leadCell = firstMovableCell(conveyorCells)
-                ?: throw IllegalStateException("Attempted to start the non-accumulating conveyor and there was item to move")
+                ?: throw IllegalStateException("Attempted to start the non-accumulating conveyor and there was no item to move")
             endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = leadCell)
         }
     }
@@ -1375,7 +1374,6 @@ class Conveyor(
     }
 
     private fun endCellTraversalEventActions(leadCell: Cell) {
-        //TODO how to handle many items reaching their destinations at the same time
         if (conveyorType == Type.NON_ACCUMULATING) {
             // move items forward that can be moved forward before the lead cell
             // need to include the lead cell in the list
@@ -1388,10 +1386,14 @@ class Conveyor(
     }
 
     private fun itemFullyOn(item: Item) {
+        // the blockage at the entry point can be removed
         TODO("Conveyor.itemFullyOn() not implemented yet")
     }
 
     private fun itemReachedDestination(item: Item) {
+        // the trip has ended, need to block exit, resume the entity to proceed with exit
+        // or allow it to start its next ride
+
         TODO("Conveyor.itemReachedDestination() not implemented yet")
     }
 
