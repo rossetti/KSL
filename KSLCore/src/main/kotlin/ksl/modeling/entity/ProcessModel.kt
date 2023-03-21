@@ -1423,6 +1423,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): CellAllocationIfc {
                 require(numCellsNeeded >= 1) { "The amount of cells to allocate must be >= 1" }
+                require(entity.cellAllocation == null){"Attempted to access ${conveyor.name} when already allocated to a conveyor. " +
+                        "Exit the current conveyor before attempting to access."}
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.ACCESS
                 logger.trace { "$time > entity ${entity.id} ACCESSING $numCellsNeeded units of ${conveyor.name} in process, ($this)" }
@@ -1485,7 +1487,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 } else {
                     // if allocation has an item then start the exiting process
                     isMoving = true
-                    conveyor.startExitingProcess(cellAllocation)
+                    conveyor.startExitingProcess(cellAllocation as Conveyor.CellAllocation)
                     logger.trace { "$time > EXITING entity ${entity.id} started exiting process for (${conveyor.name}) at location (${cellAllocation.item!!.destination})" }
                     logger.trace { "$time > EXITING entity ${entity.id} suspending for exiting process" }
                     hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
