@@ -1417,6 +1417,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 )
             }
 
+            //TODO conveyor process commands
+
             override suspend fun access(
                 conveyor: Conveyor,
                 entryLocation: IdentityIfc,
@@ -1424,14 +1426,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 accessPriority: Int,
                 suspensionName: String?
             ): CellAllocationIfc {
-                require(numCellsNeeded >= 1) { "The amount of cells to allocate must be >= 1" }
                 require(entity.cellAllocation == null) {
-                    "Attempted to access ${conveyor.name} when already allocated to a conveyor. " +
-                            "Exit the current conveyor before attempting to access."
+                    "Attempted to access ${conveyor.name} when already allocated to conveyor: ${entity.cellAllocation?.conveyor?.name}." +
+                            "An entity can access only one conveyor at a time. Use exit() to stop accessing a conveyor."
+                }
+                require(conveyor.entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) " +
+                        "is not associated with conveyor (${conveyor.name})" }
+                require(numCellsNeeded >= 1) { "The amount of cells to allocate must be >= 1" }
+                require(numCellsNeeded <= conveyor.maxEntityCellsAllowed) {
+                    "The entity requested more cells ($numCellsNeeded) than " +
+                            "the allowed maximum (${conveyor.maxEntityCellsAllowed}) for for conveyor (${conveyor.name}"
                 }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.ACCESS
-                logger.trace { "$time > entity ${entity.id} ACCESSING $numCellsNeeded units of ${conveyor.name} in process, ($this)" }
+                logger.trace { "$time > entity ${entity.id} ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 delay(0.0, accessPriority, "$suspensionName:AccessDelay")
                 // make the conveyor request
                 val request = conveyor.createRequest(entity, numCellsNeeded, entryLocation)

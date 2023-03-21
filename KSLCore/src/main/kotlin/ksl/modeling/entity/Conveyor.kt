@@ -400,7 +400,7 @@ class Conveyor(
     private val entryCells = mutableMapOf<IdentityIfc, Cell>()
     private val exitCells = mutableMapOf<IdentityIfc, Cell>()
     private val accessQueues = mutableMapOf<IdentityIfc, ConveyorQ>()
-    private val blockages = mutableListOf<Blockage>()
+    private val blockages = mutableListOf<Blockage>() //TODO
 
     init {
         val cells = mutableListOf<Cell>()
@@ -493,6 +493,20 @@ class Conveyor(
             }
         }
         return list.asList()
+    }
+
+    /**
+     * If any of the cells of the conveyor is occupied by an item
+     * then return true; otherwise, if there are no items occupying
+     * cells return false.
+     */
+    fun isOccupied() : Boolean {
+        for(cell in conveyorCells){
+            if (cell.isOccupied){
+                return true
+            }
+        }
+        return false
     }
 
     /**
@@ -661,7 +675,7 @@ class Conveyor(
         require(entryLocations.contains(entryLocation)) { "The location ($entryLocation) is not a valid entry point on the conveyor" }
         require(numCellsNeeded <= maxEntityCellsAllowed) {
             "The entity requested more cells ($numCellsNeeded) than " +
-                    "the allowed maximum ($maxEntityCellsAllowed for for conveyor (${this.name}"
+                    "the allowed maximum ($maxEntityCellsAllowed) for for conveyor (${this.name}"
         }
         val entryCell = entryCells[entryLocation]!!
         return canAllocateAt(entryCell, numCellsNeeded)
@@ -709,7 +723,7 @@ class Conveyor(
             require(numCellsNeeded >= 1) { "The number of cells requested must be >= 1" }
             require(numCellsNeeded <= maxEntityCellsAllowed) {
                 "The entity requested more cells ($numCellsNeeded) than " +
-                        "the allowed maximum ($maxEntityCellsAllowed for for conveyor (${this.name})"
+                        "the allowed maximum ($maxEntityCellsAllowed) for for conveyor (${this.name})"
             }
             require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) of requested cells is not on conveyor (${conveyor.name})" }
             priority = entity.priority
@@ -1145,7 +1159,8 @@ class Conveyor(
         require(request.isFillable) { "The cell request for (${request.numCellsNeeded}) cells cannot be filled at this time" }
         val ca = CellAllocation(request) // why not do all these when it is created
         ca.isReadyToConvey = true //when is not ready to convey?, after it exits!
-        request.entryCell.allocation = ca
+        //TODO why does the cell need to remember the allocation?
+        request.entryCell.allocation = ca // this causes the cell to be blocked
         blockedEntering(ca)
         return ca
     }
