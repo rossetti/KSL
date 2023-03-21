@@ -420,6 +420,10 @@ class Conveyor(
                 }
             }
         }
+        require(cells.size >= 2) { "There must be 2 or more cells for the conveyor" }
+        if (cells.size == 2){
+            require(cells.first().isEntryCell && cells.last().isExitCell){"With 2 cells, there must be an entry cell and an exit cell."}
+        }
         conveyorCells = cells.asList()
     }
 
@@ -428,7 +432,7 @@ class Conveyor(
     /**
      * The event associated with the movement of the lead item on the segment
      */
-    private var endCellTraversalEvent: KSLEvent<Item>? = null
+    private var endCellTraversalEvent: KSLEvent<Cell>? = null
 
     fun accessQueueAt(location: IdentityIfc): QueueCIfc<CellRequest> {
         require(accessQueues.contains(location)) { "The origin ($location) is not a valid entry point on the conveyor" }
@@ -500,9 +504,9 @@ class Conveyor(
      * then return true; otherwise, if there are no items occupying
      * cells return false.
      */
-    fun isOccupied() : Boolean {
-        for(cell in conveyorCells){
-            if (cell.isOccupied){
+    fun isOccupied(): Boolean {
+        for (cell in conveyorCells) {
+            if (cell.isOccupied) {
                 return true
             }
         }
@@ -528,7 +532,16 @@ class Conveyor(
     /**
      *  Checks if the conveyor has any blocked cells
      */
-    fun hasBlockedCells(): Boolean = blockedCells().isNotEmpty()
+    fun hasBlockedCells(): Boolean {
+        for (cell in conveyorCells) {
+            if (cell.isBlocked) {
+                return true
+            }
+        }
+        return false
+    }
+
+    fun hasNoBlockedCells(): Boolean = !hasBlockedCells()
 
     fun firstBlockedCellFromEnd(): Cell? {
         return conveyorCells.asReversed().firstOrNull { it.isBlocked }
@@ -814,16 +827,23 @@ class Conveyor(
      *  when a ride() occurs.
      */
     inner class Item(
-        cellAllocation: CellAllocation,
+        internal val cellAllocation: CellAllocation,
         desiredLocation: IdentityIfc
     ) : QObject(), ConveyorItemIfc {
+        init {
+            cellAllocation.item = this
+        }
+
         //TODO review and remove unneeded properties
         override var status: ItemStatus = ItemStatus.OFF
             internal set
 
-        override val entity: ProcessModel.Entity = cellAllocation.entity
-        override val numberOfCells: Int = cellAllocation.numberOfCells
-        override val origin: IdentityIfc = cellAllocation.entryLocation
+        override val entity: ProcessModel.Entity
+            get() = cellAllocation.entity
+        override val numberOfCells: Int
+            get() = cellAllocation.numberOfCells
+        override val origin: IdentityIfc
+            get() = cellAllocation.entryLocation
         override var destination: IdentityIfc = desiredLocation
             internal set
 
@@ -899,30 +919,49 @@ class Conveyor(
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.first() else null
 
         /**
-         *  Causes an item already on the conveyor to move forward by one cell.  This
+         *  Causes an item already on the conveyor to move through the cell that it occupies.  This
          *  causes the cells that the item occupies to be updated to the next cell.
          *  We assume that moving forward has been triggered by a time delay that
          *  represents the item moving through the cell. This represents the completion
-         *  of that movement.
+         *  of that movement.  At the end of this movement, the item is fully covering the cell that it
+         *  occupies.
          */
         internal fun moveForwardOneCell() {
             require(isConveyable) { "The item cannot move forward because it has no allocated cells" }
-            require(firstCell != null) { "The item cannot move forward because it does not occupy any cells" }//TODO problem here
-            // the front cell cannot be null, safe to use
-            require(firstCell!!.isNotLast) { "The item cannot move forward because it has reached the end of the segment" }
-            // the front cell is not the last cell of the segment
+            require(firstCell != null) { "The item cannot move forward because it does not occupy any cells" }
+            // the first cell cannot be null, safe to use
+            //TODO we have to worry about circular conveyors in this check
+            //    require(firstCell!!.isNotLast) { "The item cannot move forward because it has reached the end of the conveyor" }
+            // the first cell is not the last cell of the conveyor
             // this means that there must be a next cell
             // each occupied cell becomes the next occupied cell
-            occupyCell(firstCell!!.nextCell!!)
-            // all cells acquired and last cell is the first cell of the segment, then it completed loading
+            if ((status == ItemStatus.OFF) && (firstCell!!.isEntryCell)) {
+                // this item occupies the first cell, but it is off the conveyor
+                // don't move it forward, but mark it as entering
+                status = ItemStatus.ENTERING // it will be included in future moves
+                // basically we are skipping the movement of this item because
+                // it already occupies the entry cell and doesn't need to move through it
+            } else {
+                // tell the item to occupy the next cell
+                occupyCell(firstCell!!.nextCell!!)
+            }
             if ((myCellsOccupied.size == numberOfCells)) {
-                if (lastCell!!.type == CellType.ENTRY) {
-                    // item is now fully on the segment, notify segment
-                    status = ItemStatus.ON
-                    //TODO notify the conveyor??
+                // all cells acquired and last cell is an entry cell for the conveyor, then it completed loading
+                if (lastCell!!.isEntryCell) {
+                    if (status == ItemStatus.ENTERING) {
+                        // item is now fully on the segment, notify conveyor
+                        status = ItemStatus.ON
+                        // notify the conveyor that the item is fully on
+                        conveyor.itemFullyOn(this)
+                    }
+                } else if (firstCell!!.isExitCell) {
+                    // reached an exit cell
+                    if (destination == firstCell!!.location) {
+                        // reached the intended destination
+                        conveyor.itemReachedDestination(this)
+                    }
                 }
             }
-            //TODO how to tell if entering (loading)?, exiting (unloading)?, off?
         }
 
         /**
@@ -977,6 +1016,15 @@ class Conveyor(
             cellList.add(this)
         }
 
+        val isEntryCell: Boolean
+            get() = type == CellType.ENTRY
+
+        val isExitCell: Boolean
+            get() = type == CellType.EXIT
+
+        val isInnerCell: Boolean
+            get() = type == CellType.INNER
+
         val conveyor: Conveyor = this@Conveyor
 
         val cellNumber: Int = cellList.size
@@ -989,33 +1037,48 @@ class Conveyor(
         var allocation: CellAllocation? = null
             internal set
 
-        val isFirst: Boolean
-            get() = cellList.first() == this
-
-        val isLast: Boolean
-            get() = cellList.last() == this
-
-        val isNotLast: Boolean
-            get() = !isLast
-
         /**
-         *  The cell in front of this cell (towards the end of the segment)
+         *  The cell in front of this cell (towards the end of the segment), unless
+         *  this cell is the end cell of the final segment and the conveyor is
+         *  circular, then the next cell is the first cell of the first segment.
          */
         val nextCell: Cell?
             get() {
-                return if (isLast) null
-                else
-                    cellList[cellNumber] // because cells are numbered starting at 1, but list is 0 index based
+                if (cellList.last() == this) {
+                    // this cell is the last in the list
+                    if (conveyor.isCircular) {
+                        // return the first cell in the list
+                        return cellList.first()
+                    } else {
+                        // not circular and reached the end
+                        return null
+                    }
+                } else {
+                    // this cell is not the last, the list is 0 index based
+                    return cellList[index + 1]
+                }
             }
 
         /**
-         *  The cell immediately behind this cell (towards the front of the segment)
+         *  The cell immediately behind this cell (towards the front of the segment),
+         *  unless the cell is first and the conveyor is circular, then the previous
+         *  cell is the cell at the end of the last segment.
          */
         val previousCell: Cell?
             get() {
-                return if (isFirst) null
-                else
-                    cellList[cellNumber - 1] // because cells are numbered starting at 1, but list is 0 index based
+                if (cellList.first() == this) {
+                    // this cell is the first in the list
+                    if (conveyor.isCircular) {
+                        // return the last cell in the list
+                        return cellList.last()
+                    } else {
+                        // not circular, therefore nothing before the first
+                        return null
+                    }
+                } else {
+                    // this cell is not the last, the list is 0 index based
+                    return cellList[index - 1]
+                }
             }
 
         /**
@@ -1200,7 +1263,7 @@ class Conveyor(
      *  This function does not do the suspension.  The item
      *  will remain on the conveyor until the entity indicates that the cells are to be released by using
      *  the exit function. The behavior of the conveyor during the ride and when the item reaches its
-     *  destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+     *  destination is governed by the type of conveyor. A blockage occurs at the destination location of the conveyor
      *  while the entity occupies the final cells before exiting or riding again.
      *  The blockage associated with the entry cell should be released once the conveyance starts.
      */
@@ -1215,14 +1278,16 @@ class Conveyor(
 
     private fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
         // the cell allocation is causing a blockage at the entry point of the segment
-        // need to create the item, attach the item, put it in the item list, start the movement
+        // need to create the item, attach the item, start the movement
         val item = Item(cellAllocation, destination)
-        cellAllocation.item = item // attach the item to the allocation
-        item.occupyCell(cellAllocation.entryCell)
+        // the item should occupy the entry cell in order to move into it
+        val entryCell = cellAllocation.entryCell
+        item.occupyCell(entryCell)
+        item.status = ItemStatus.OFF
         cellAllocation.entryCell.allocation = null // this unblocks the cell
         blockages.remove(cellAllocation.blockage)
         if (conveyorType == Type.NON_ACCUMULATING) {
-            if (blockages.isEmpty()) {
+            if (hasNoBlockedCells()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
@@ -1252,7 +1317,13 @@ class Conveyor(
 
     private fun startNonAccumulatingConveyorMovement() {
         //need to check if there are items on the conveyor
-        TODO("Conveyor.startNonAccumulatingConveyorMovement(): Not yet implemented")
+        if (isOccupied() && hasNoBlockedCells()) {
+            // there are items on the conveyor, and the conveyor is not blocked
+            // there must be a lead item if there are items on the conveyor, and the conveyor is not blocked
+            val leadCell = firstMovableCell(conveyorCells)
+                ?: throw IllegalStateException("Attempted to start the non-accumulating conveyor and there was item to move")
+            endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = leadCell)
+        }
     }
 
     /**
@@ -1303,10 +1374,25 @@ class Conveyor(
         }
     }
 
-    private fun endCellTraversalEventActions(item: Item) {
-        // move everything forward that can be moved forward regardless of location
-        // many items could reach their destination at the same time
+    private fun endCellTraversalEventActions(leadCell: Cell) {
+        //TODO how to handle many items reaching their destinations at the same time
+        if (conveyorType == Type.NON_ACCUMULATING) {
+            // move items forward that can be moved forward before the lead cell
+            // need to include the lead cell in the list
+            val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
+            moveItemsForward(movingCells)
+        } else {
+
+        }
         TODO("Conveyor.endCellTraversalEventActions() not implemented yet")
+    }
+
+    private fun itemFullyOn(item: Item) {
+        TODO("Conveyor.itemFullyOn() not implemented yet")
+    }
+
+    private fun itemReachedDestination(item: Item) {
+        TODO("Conveyor.itemReachedDestination() not implemented yet")
     }
 
     /**
@@ -1330,8 +1416,8 @@ class Conveyor(
         TODO("Not yet implemented: Conveyor.scheduleMovement()")
     }
 
-    private inner class EndOfCellTraversalAction : EventAction<Item>() {
-        override fun action(event: KSLEvent<Item>) {
+    private inner class EndOfCellTraversalAction : EventAction<Cell>() {
+        override fun action(event: KSLEvent<Cell>) {
             endCellTraversalEventActions(event.message!!)
         }
 
