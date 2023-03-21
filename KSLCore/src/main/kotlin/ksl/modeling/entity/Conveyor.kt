@@ -503,6 +503,19 @@ class Conveyor(
         return conveyorCells.filter { it.isBlocked }
     }
 
+    fun blockedEntryCells(): Map<IdentityIfc, Cell> {
+        return entryCells.filterValues { it.isBlocked }
+    }
+
+    fun blockedExitCells(): Map<IdentityIfc, Cell> {
+        return exitCells.filterValues { it.isBlocked }
+    }
+
+    /**
+     *  Checks if the conveyor has any blocked cells
+     */
+    fun hasBlockedCells(): Boolean = blockedCells().isNotEmpty()
+
     fun firstBlockedCellFromEnd(): Cell? {
         return conveyorCells.asReversed().firstOrNull { it.isBlocked }
     }
@@ -1018,7 +1031,6 @@ class Conveyor(
         }
     }
 
-
     companion object {
         fun builder(parent: ModelElement, name: String? = null): ConveyorTypeStepIfc {
             return Builder(parent, name)
@@ -1142,7 +1154,7 @@ class Conveyor(
         val blockage = Blockage(allocation, allocation.entryCell)
         allocation.blockage = blockage
         blockages.add(blockage)
-        if (blockages.size == 1){
+        if (blockages.size == 1) {
             // newly added blockage should signal conveyor stoppage
             signalConveyorStoppage(blockage)
         }
@@ -1152,13 +1164,13 @@ class Conveyor(
         val blockage = Blockage(allocation, exitCells[destination]!!)
         allocation.blockage = blockage
         blockages.add(blockage)
-        if (blockages.size == 1){
+        if (blockages.size == 1) {
             // newly added blockage should signal conveyor stoppage
             signalConveyorStoppage(blockage)
         }
     }
 
-    private fun signalConveyorStoppage(blockage: Blockage){
+    private fun signalConveyorStoppage(blockage: Blockage) {
         if (conveyorType == Type.NON_ACCUMULATING) {
             // all motion on conveyor stops
 
@@ -1194,8 +1206,8 @@ class Conveyor(
         item.occupyCell(cellAllocation.entryCell)
         cellAllocation.entryCell.allocation = null // this unblocks the cell
         blockages.remove(cellAllocation.blockage)
-        if (conveyorType == Type.NON_ACCUMULATING){
-            if (blockages.isEmpty()){
+        if (conveyorType == Type.NON_ACCUMULATING) {
+            if (blockages.isEmpty()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
@@ -1208,8 +1220,8 @@ class Conveyor(
         cellAllocation.item?.destination = nextDestination
         exitCells[nextDestination]?.allocation = null // unblocks the destination cell
         blockages.remove(cellAllocation.blockage) //TODO this is assuming that the blockage was changed when it arrived to destination
-        if (conveyorType == Type.NON_ACCUMULATING){
-            if (blockages.isEmpty()){
+        if (conveyorType == Type.NON_ACCUMULATING) {
+            if (blockages.isEmpty()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
@@ -1240,8 +1252,8 @@ class Conveyor(
         cellAllocation.entryCell.allocation = null //unblocks the cell
         blockages.remove(cellAllocation.blockage)
         processWaitingRequests(cellAllocation.blockage!!.cell)
-        if (conveyorType == Type.NON_ACCUMULATING){
-            if (blockages.isEmpty()){
+        if (conveyorType == Type.NON_ACCUMULATING) {
+            if (blockages.isEmpty()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
@@ -1249,7 +1261,7 @@ class Conveyor(
         }
     }
 
-    private fun processWaitingRequests(entryCell: Cell){
+    private fun processWaitingRequests(entryCell: Cell) {
         TODO("Conveyor.processWaitingRequests() not implemented yet")
     }
 
@@ -1267,8 +1279,8 @@ class Conveyor(
         exitCells[destination]?.allocation = null // unblocks the destination cell
         blockages.remove(cellAllocation.blockage)//TODO this is assuming that the blockage was changed when it arrived to destination
         processWaitingRequests(cellAllocation.blockage!!.cell)
-        if (conveyorType == Type.NON_ACCUMULATING){
-            if (blockages.isEmpty()){
+        if (conveyorType == Type.NON_ACCUMULATING) {
+            if (blockages.isEmpty()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
@@ -1288,14 +1300,14 @@ class Conveyor(
      *  the conveyor. This only stops movement of items that are fully on the
      *  conveyor
      */
-    private fun stopMovementOnConveyor(){
+    private fun stopMovementOnConveyor() {
         //TODO not sure if it should stop all movement or just on the conveyor
-        if (endCellTraversalEvent != null){
+        if (endCellTraversalEvent != null) {
             endCellTraversalEvent!!.cancelled = true
         }
     }
 
-    private fun resumeMovementOnConveyor(){
+    private fun resumeMovementOnConveyor() {
         TODO("Conveyor.resumeMovementOnConveyor() not implemented yet")
     }
 
