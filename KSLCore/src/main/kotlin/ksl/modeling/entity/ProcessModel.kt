@@ -1468,6 +1468,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 destination: IdentityIfc,
                 suspensionName: String?
             ): ConveyorItemIfc {
+                require(entity.cellAllocation != null) {
+                    "Attempted to ride without having cells allocated on the conveyor."
+                }
+                require(entity.cellAllocation == cellAllocation) {
+                    "Attempted to ride without owning the supplied cell allocation."
+                }
                 require(cellAllocation.isAllocated) { "The supplied cell allocation was not allocated any cells" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.RIDE
