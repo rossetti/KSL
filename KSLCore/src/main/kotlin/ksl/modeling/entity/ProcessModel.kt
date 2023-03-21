@@ -286,23 +286,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          * If the entity is in a HoldQueue return the queue
          */
-        fun holdQueue() : HoldQueue? {
-                return if (isInHoldQueue){
-                    when (this.queue) {
-                        null -> {
-                            null
-                        }
-                        is HoldQueue -> {
-                            this.queue as HoldQueue
-                        }
-                        else -> {
-                            null
-                        }
+        fun holdQueue(): HoldQueue? {
+            return if (isInHoldQueue) {
+                when (this.queue) {
+                    null -> {
+                        null
                     }
-                } else {
-                    null
+
+                    is HoldQueue -> {
+                        this.queue as HoldQueue
+                    }
+
+                    else -> {
+                        null
+                    }
                 }
+            } else {
+                null
             }
+        }
 
         val isSuspended: Boolean
             get() {
@@ -483,8 +485,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        var cellAllocation: Conveyor.CellAllocation? = null //TODO
-            internal set
+        var cellAllocation: CellAllocationIfc? = null
+            private set
 
         var conveyable: ConveyorItemIfc? = null //TODO
             internal set
@@ -1200,7 +1202,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movePriority: Int,
                 suspensionName: String?
             ) {
-                require(!isMoving){"The entity ${entity.id} is already moving"}
+                require(!isMoving) { "The entity ${entity.id} is already moving" }
                 require(velocity > 0.0) { "The velocity of the movement must be > 0.0 in process, ($this)" }
                 if (currentLocation != fromLoc) {
                     currentLocation = fromLoc
@@ -1241,8 +1243,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movePriority: Int,
                 suspensionName: String?
             ) {
-                require(!isMoving){"The entity ${entity.id} is already moving"}
-                require(currentLocation.isLocationEqualTo(spatialElement.currentLocation)){"The location of the entity and the spatial element must be the same"}
+                require(!isMoving) { "The entity ${entity.id} is already moving" }
+                require(currentLocation.isLocationEqualTo(spatialElement.currentLocation)) { "The location of the entity and the spatial element must be the same" }
                 isMoving = true
                 move(spatialElement, toLoc, velocity, movePriority, suspensionName)
                 isMoving = false
@@ -1256,7 +1258,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movePriority: Int,
                 suspensionName: String?
             ) {
-                require(entity.isUsing(movableResource)){"The entity is not using the movable resource. Thus, it cannot move with it."}
+                require(entity.isUsing(movableResource)) { "The entity is not using the movable resource. Thus, it cannot move with it." }
                 movableResource.isTransporting = true
                 moveWith(movableResource as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
                 movableResource.isTransporting = false
@@ -1269,7 +1271,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movePriority: Int,
                 suspensionName: String?
             ) {
-                require(entity.isUsing(movableResourceWithQ)){"The entity is not using the movable resource. Thus, it cannot move with it."}
+                require(entity.isUsing(movableResourceWithQ)) { "The entity is not using the movable resource. Thus, it cannot move with it." }
                 movableResourceWithQ.isTransporting = true
                 moveWith(movableResourceWithQ as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
                 movableResourceWithQ.isTransporting = false
@@ -1282,7 +1284,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // get the queue from the allocation being released and process any waiting requests
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined
-                if (!executive.isEnded){
+                if (!executive.isEnded) {
                     allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
                 }
             }
@@ -1423,8 +1425,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): CellAllocationIfc {
                 require(numCellsNeeded >= 1) { "The amount of cells to allocate must be >= 1" }
-                require(entity.cellAllocation == null){"Attempted to access ${conveyor.name} when already allocated to a conveyor. " +
-                        "Exit the current conveyor before attempting to access."}
+                require(entity.cellAllocation == null) {
+                    "Attempted to access ${conveyor.name} when already allocated to a conveyor. " +
+                            "Exit the current conveyor before attempting to access."
+                }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.ACCESS
                 logger.trace { "$time > entity ${entity.id} ACCESSING $numCellsNeeded units of ${conveyor.name} in process, ($this)" }
@@ -1433,7 +1437,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = conveyor.createRequest(entity, numCellsNeeded, entryLocation)
                 conveyor.enqueueRequest(request)
                 // if request is not filled then suspend
-                if (request.isNotFillable){
+                if (request.isNotFillable) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "$time > entity ${entity.id} waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                     entity.state.waitForConveyor()
@@ -1446,7 +1450,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 // make the cell allocation and return it
-                return conveyor.allocateCells(request)
+                val allocation = conveyor.allocateCells(request)
+                entity.cellAllocation = allocation
+                return allocation
             }
 
             override suspend fun ride(
@@ -1454,12 +1460,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 destination: IdentityIfc,
                 suspensionName: String?
             ): ConveyorItemIfc {
-                require(cellAllocation.isAllocated){"The supplied cell allocation was not allocated any cells"}
+                require(cellAllocation.isAllocated) { "The supplied cell allocation was not allocated any cells" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.RIDE
                 val conveyor = cellAllocation.conveyor
                 val origin = cellAllocation.entryLocation
-                require(conveyor.isReachable(origin, destination)){"The destination (${destination.name} is not reachable from entry location (${origin.name})"}
+                require(
+                    conveyor.isReachable(
+                        origin,
+                        destination
+                    )
+                ) { "The destination (${destination.name} is not reachable from entry location (${origin.name})" }
                 conveyor.conveyItem(cellAllocation as Conveyor.CellAllocation, destination)
                 logger.trace { "$time > entity ${entity.id} riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
@@ -1475,12 +1486,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 cellAllocation: CellAllocationIfc,
                 suspensionName: String?
             ) {
-                require(cellAllocation.isAllocated){"The supplied cell allocation was not allocated any cells"}
+                require(entity.cellAllocation != null) { "The entity attempted to exit without holding any cells on a conveyor." }
+                require(entity.cellAllocation == cellAllocation) { "The exiting entity does not own the supplied cell allocation" }
+                require(cellAllocation.isAllocated) { "The supplied cell allocation was not allocated any cells" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = cellAllocation.conveyor
                 logger.trace { "$time > entity ${entity.id} is exiting ${conveyor.name}" }
-                if (cellAllocation.item == null){
+                if (cellAllocation.item == null) {
                     // if allocation does not have an item, just deallocate the cells
                     conveyor.deallocateCells(cellAllocation as Conveyor.CellAllocation)
                     logger.trace { "$time > EXITING entity ${entity.id} did not occupy any cells and deallocated cells for (${conveyor.name})" }

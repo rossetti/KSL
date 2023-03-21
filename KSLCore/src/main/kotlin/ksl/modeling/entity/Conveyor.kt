@@ -1138,13 +1138,13 @@ class Conveyor(
      * should only be called from the access() suspend function.
      *
      * @param request the access request that wants the cells
+     * @return the cell allocation belonging to an entity accessing the conveyor
      */
     internal fun allocateCells(request: CellRequest): CellAllocationIfc {
         require(request.conveyor == this) { "The cell request is not from this conveyor" }
         require(request.isFillable) { "The cell request for (${request.numCellsNeeded}) cells cannot be filled at this time" }
         val ca = CellAllocation(request) // why not do all these when it is created
         ca.isReadyToConvey = true //when is not ready to convey?, after it exits!
-        request.entity.cellAllocation = ca
         request.entryCell.allocation = ca
         blockedEntering(ca)
         return ca
