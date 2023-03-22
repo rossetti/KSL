@@ -400,7 +400,6 @@ class Conveyor(
     private val entryCells = mutableMapOf<IdentityIfc, Cell>()
     private val exitCells = mutableMapOf<IdentityIfc, Cell>()
     private val accessQueues = mutableMapOf<IdentityIfc, ConveyorQ>()
-    private val blockages = mutableListOf<Blockage>() //TODO
 
     init {
         val cells = mutableListOf<Cell>()
@@ -671,7 +670,6 @@ class Conveyor(
 
     override fun initialize() {
         velocity = initialVelocity
-        blockages.clear()
         for (cell in conveyorCells) {
             cell.item = null
             cell.allocation = null
@@ -785,8 +783,6 @@ class Conveyor(
 
         override val conveyor = this@Conveyor
 
-        internal var blockage: Blockage? = null
-
         override var isReadyToConvey = false
             internal set
 
@@ -812,12 +808,6 @@ class Conveyor(
             return sb.toString()
         }
     }
-
-    //TODO access whether blockage concept is needed
-    inner class Blockage(
-        val cellAllocation: CellAllocation,
-        val cell: Cell
-    )
 
     enum class ItemStatus { //TODO how to use?
         OFF, ENTERING, EXITING, ON
@@ -1228,34 +1218,36 @@ class Conveyor(
     }
 
     private fun blockedEntering(allocation: CellAllocation) {
-        val blockage = Blockage(allocation, allocation.entryCell)
-        allocation.blockage = blockage
-        blockages.add(blockage)
-        if (blockages.size == 1) {
-            // newly added blockage should signal conveyor stoppage
-            signalConveyorStoppage(blockage)
-        }
+        TODO("Conveyor.blockedEntering() not implemented yet")
+//        val blockage = Blockage(allocation, allocation.entryCell)
+//        allocation.blockage = blockage
+//        blockages.add(blockage)
+//        if (blockages.size == 1) {
+//            // newly added blockage should signal conveyor stoppage
+//            signalConveyorStoppage(blockage)
+//        }
     }
 
     private fun blockedExiting(allocation: CellAllocation, destination: IdentityIfc) {
-        val blockage = Blockage(allocation, exitCells[destination]!!)
-        allocation.blockage = blockage
-        blockages.add(blockage)
-        if (blockages.size == 1) {
-            // newly added blockage should signal conveyor stoppage
-            signalConveyorStoppage(blockage)
-        }
+        TODO("Conveyor.blockedEntering() not implemented yet")
+//        val blockage = Blockage(allocation, exitCells[destination]!!)
+//        allocation.blockage = blockage
+//        blockages.add(blockage)
+//        if (blockages.size == 1) {
+//            // newly added blockage should signal conveyor stoppage
+//            signalConveyorStoppage(blockage)
+//        }
     }
 
-    private fun signalConveyorStoppage(blockage: Blockage) {
-        if (conveyorType == Type.NON_ACCUMULATING) {
-            // all motion on conveyor stops
-
-        } else {
-            // motion continues until none can move
-        }
-        TODO("Conveyor.signalConveyorStoppage() not implemented yet")
-    }
+//    private fun signalConveyorStoppage(blockage: Blockage) {
+//        if (conveyorType == Type.NON_ACCUMULATING) {
+//            // all motion on conveyor stops
+//
+//        } else {
+//            // motion continues until none can move
+//        }
+//        TODO("Conveyor.signalConveyorStoppage() not implemented yet")
+//    }
 
     /**
      *  The entity associated with the item should be suspended after this call.
@@ -1284,13 +1276,12 @@ class Conveyor(
         item.occupyCell(entryCell)
         item.status = ItemStatus.OFF
         cellAllocation.entryCell.allocation = null // this unblocks the cell
-        blockages.remove(cellAllocation.blockage)
         if (conveyorType == Type.NON_ACCUMULATING) {
             if (hasNoBlockedCells()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
-            startAccumulatingConveyorMovementAfterBlockage(cellAllocation.blockage!!)
+            startAccumulatingConveyorMovementAfterBlockage()
         }
     }
 
@@ -1298,17 +1289,16 @@ class Conveyor(
         // must have an item to continue conveyance
         cellAllocation.item?.destination = nextDestination
         exitCells[nextDestination]?.allocation = null // unblocks the destination cell
-        blockages.remove(cellAllocation.blockage) //TODO this is assuming that the blockage was changed when it arrived to destination
         if (conveyorType == Type.NON_ACCUMULATING) {
-            if (blockages.isEmpty()) {
+            if (hasNoBlockedCells()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
-            startAccumulatingConveyorMovementAfterBlockage(cellAllocation.blockage!!)
+            startAccumulatingConveyorMovementAfterBlockage()
         }
     }
 
-    private fun startAccumulatingConveyorMovementAfterBlockage(blockage: Conveyor.Blockage) {
+    private fun startAccumulatingConveyorMovementAfterBlockage() {
         //need to check if there are items on the conveyor
         //what about items already scheduled to move in front of the blockage
         TODO("Conveyor.startAccumulatingConveyorMovementAfterBlockage(): Not yet implemented")
@@ -1335,14 +1325,13 @@ class Conveyor(
     internal fun deallocateCells(cellAllocation: CellAllocation) {
         // allocation has no item, and was never conveyed
         cellAllocation.entryCell.allocation = null //unblocks the cell
-        blockages.remove(cellAllocation.blockage)
-        processWaitingRequests(cellAllocation.blockage!!.cell)
+        processWaitingRequests(cellAllocation.entryCell)
         if (conveyorType == Type.NON_ACCUMULATING) {
-            if (blockages.isEmpty()) {
+            if (hasNoBlockedCells()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
-            startAccumulatingConveyorMovementAfterBlockage(cellAllocation.blockage!!)
+            startAccumulatingConveyorMovementAfterBlockage()
         }
     }
 
@@ -1361,15 +1350,15 @@ class Conveyor(
     internal fun startExitingProcess(cellAllocation: CellAllocation) {
         // conveyed to destination and item is getting off
         val destination = cellAllocation.item?.destination!!
-        exitCells[destination]?.allocation = null // unblocks the destination cell
-        blockages.remove(cellAllocation.blockage)//TODO this is assuming that the blockage was changed when it arrived to destination
-        processWaitingRequests(cellAllocation.blockage!!.cell)
+        val exitCell = exitCells[destination]!!
+        exitCell.allocation = null // unblocks the destination cell
+        processWaitingRequests(exitCell)
         if (conveyorType == Type.NON_ACCUMULATING) {
-            if (blockages.isEmpty()) {
+            if (hasNoBlockedCells()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
-            startAccumulatingConveyorMovementAfterBlockage(cellAllocation.blockage!!)
+            startAccumulatingConveyorMovementAfterBlockage()
         }
     }
 
