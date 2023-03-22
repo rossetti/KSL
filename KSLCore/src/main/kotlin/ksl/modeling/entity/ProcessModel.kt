@@ -1440,7 +1440,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.ACCESS
-                logger.trace { "$time > entity ${entity.id} ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                logger.info { "$time > entity ${entity.id} ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 delay(0.0, accessPriority, "$suspensionName:AccessDelay")
                 // make the conveyor request
                 val request = conveyor.createRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
@@ -1448,14 +1448,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // if request is not filled then suspend
                 if (request.isNotFillable) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
-                    logger.trace { "$time > entity ${entity.id} waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                    logger.info { "$time > entity ${entity.id} waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                     entity.state.waitForConveyor()
                     suspend()
                     entity.state.activate()
                 }
                 // entity has been told to resume, or cells were available at this time instant
                 conveyor.dequeueRequest(request)
-                logger.trace { "$time > entity ${entity.id} allocated $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                logger.info { "$time > entity ${entity.id} allocated $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 // make the cell allocation and return it
@@ -1486,12 +1486,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         destination
                     )
                 ) { "The destination (${destination.name} is not reachable from entry location (${origin.name})" }
+                logger.info { "$time > entity ${entity.id} asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
                 conveyor.conveyItem(cellAllocation as Conveyor.CellAllocation, destination)
-                logger.trace { "$time > entity ${entity.id} riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
+                logger.info { "$time > entity ${entity.id} riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
-                logger.trace { "$time > entity ${entity.id} completed ride from ${origin.name} to ${destination.name}" }
+                logger.info { "$time > entity ${entity.id} completed ride from ${origin.name} to ${destination.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return cellAllocation.item!!
@@ -1507,21 +1508,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = cellAllocation.conveyor
-                logger.trace { "$time > entity ${entity.id} is exiting ${conveyor.name}" }
+                logger.info { "$time > entity ${entity.id} is exiting ${conveyor.name}" }
                 if (cellAllocation.item == null) {
                     // if allocation does not have an item, just deallocate the cells
                     conveyor.deallocateCells(cellAllocation as Conveyor.CellAllocation)
-                    logger.trace { "$time > EXITING entity ${entity.id} did not occupy any cells and deallocated cells for (${conveyor.name})" }
+                    logger.info { "$time > EXITING entity ${entity.id} did not occupy any cells and deallocated cells for (${conveyor.name})" }
                 } else {
                     // if allocation has an item then start the exiting process
                     isMoving = true
                     conveyor.startExitingProcess(cellAllocation as Conveyor.CellAllocation)
-                    logger.trace { "$time > EXITING entity ${entity.id} started exiting process for (${conveyor.name}) at location (${cellAllocation.item!!.destination})" }
-                    logger.trace { "$time > EXITING entity ${entity.id} suspending for exiting process" }
+                    logger.info { "$time > EXITING entity ${entity.id} started exiting process for (${conveyor.name}) at location (${cellAllocation.item!!.destination})" }
+                    logger.info { "$time > EXITING entity ${entity.id} suspending for exiting process" }
                     hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
                     isMoving = false
                 }
-                logger.trace { "$time > entity ${entity.id} exited ${conveyor.name}" }
+                logger.info { "$time > entity ${entity.id} exited ${conveyor.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
