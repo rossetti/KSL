@@ -1233,7 +1233,7 @@ class Conveyor(
             }
         } else {
             // motion continues until none can move
-            TODO("Conveyor.signalConveyorStoppage() not implemented yet")
+            TODO("Conveyor.signalConveyorStoppage() accumulating conveyor case not implemented yet")
         }
     }
 
@@ -1270,7 +1270,7 @@ class Conveyor(
                 startNonAccumulatingConveyorMovement()
             }
         } else {
-            startAccumulatingConveyorMovementAfterBlockage()
+            startAccumulatingConveyorMovementAfterBlockage(entryCell)
         }
     }
 
@@ -1278,17 +1278,18 @@ class Conveyor(
         // must have an item to continue conveyance
         cellAllocation.item?.destination = nextDestination
         //TODO the following logic is the same every time the cell unblocks
-        exitCells[nextDestination]?.allocation = null // unblocks the destination cell
+        val exitCell = exitCells[nextDestination]!!
+        exitCell.allocation = null // unblocks the destination cell
         if (conveyorType == Type.NON_ACCUMULATING) {
             if (hasNoBlockedCells()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
-            startAccumulatingConveyorMovementAfterBlockage()
+            startAccumulatingConveyorMovementAfterBlockage(exitCell)
         }
     }
 
-    private fun startAccumulatingConveyorMovementAfterBlockage() {
+    private fun startAccumulatingConveyorMovementAfterBlockage(blockingCell: Cell) {
         //need to check if there are items on the conveyor
         //what about items already scheduled to move in front of the blockage
         TODO("Conveyor.startAccumulatingConveyorMovementAfterBlockage(): Not yet implemented")
@@ -1314,15 +1315,16 @@ class Conveyor(
      */
     internal fun deallocateCells(cellAllocation: CellAllocation) {
         // allocation has no item, and was never conveyed
-        cellAllocation.entryCell.allocation = null //unblocks the cell
-        processWaitingRequests(cellAllocation.entryCell)
+        val blockedCell = cellAllocation.entryCell
+        blockedCell.allocation = null //unblocks the cell
+        processWaitingRequests(blockedCell)
         //TODO the following logic is the same every time the cell unblocks
         if (conveyorType == Type.NON_ACCUMULATING) {
             if (hasNoBlockedCells()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
-            startAccumulatingConveyorMovementAfterBlockage()
+            startAccumulatingConveyorMovementAfterBlockage(blockedCell)
         }
     }
 
@@ -1352,7 +1354,7 @@ class Conveyor(
                 startNonAccumulatingConveyorMovement()
             }
         } else {
-            startAccumulatingConveyorMovementAfterBlockage()
+            startAccumulatingConveyorMovementAfterBlockage(exitCell)
         }
     }
 
