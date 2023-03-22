@@ -216,7 +216,7 @@ interface CellAllocationIfc {
 interface ConveyorItemIfc {
     //TODO review and remove unneeded properties
 
-    val status: Conveyor.ItemStatus //TODO is this really needed
+    val status: Conveyor.ItemStatus
 
     /**
      * The entity that needs to use the conveyor
@@ -364,10 +364,6 @@ class Conveyor(
 
     enum class Type {
         ACCUMULATING, NON_ACCUMULATING
-    }
-
-    enum class Status {
-        MOVING, BLOCKED_ENTERING, BLOCKED_EXITING, IDLE, UNBLOCKED_ENTERING
     }
 
     var initialVelocity: Double = velocity
@@ -672,7 +668,7 @@ class Conveyor(
         velocity = initialVelocity
         for (cell in conveyorCells) {
             cell.item = null
-            cell.allocation = null
+            cell.isBlocked = false
         }
     }
 
@@ -809,7 +805,7 @@ class Conveyor(
         }
     }
 
-    enum class ItemStatus { //TODO how to use?
+    enum class ItemStatus {
         OFF, ENTERING, EXITING, ON
     }
 
@@ -1032,9 +1028,6 @@ class Conveyor(
         var item: Item? = null
             internal set
 
-        var allocation: CellAllocation? = null
-            internal set
-
         /**
          *  The cell in front of this cell (towards the end of the segment), unless
          *  this cell is the end cell of the final segment and the conveyor is
@@ -1088,8 +1081,8 @@ class Conveyor(
         val isNotOccupied: Boolean
             get() = !isOccupied
 
-        val isBlocked: Boolean
-            get() = allocation != null
+        var isBlocked: Boolean = false
+            internal set
 
         val isNotBlocked: Boolean
             get() = !isBlocked
@@ -1219,8 +1212,7 @@ class Conveyor(
         require(request.conveyor == this) { "The cell request is not from this conveyor" }
         require(request.isFillable) { "The cell request for (${request.numCellsNeeded}) cells cannot be filled at this time" }
         val ca = CellAllocation(request)
-        //TODO why does the cell need to remember the allocation??
-        ca.entryCell.allocation = ca // this causes the cell to be blocked
+        ca.entryCell.isBlocked = true
         signalConveyorStoppage(ca.entryCell)
         return ca
     }
@@ -1263,30 +1255,25 @@ class Conveyor(
         val entryCell = cellAllocation.entryCell
         item.occupyCell(entryCell)
         item.status = ItemStatus.OFF // redundant, item is created as OFF
-        //TODO the following logic is the same every time the cell unblocks
-        cellAllocation.entryCell.allocation = null // this unblocks the cell
+        removeBlockage(entryCell)
+    }
+
+    private fun removeBlockage(blockedCell: Cell){
+        blockedCell.isBlocked = false // this unblocks the cell
         if (conveyorType == Type.NON_ACCUMULATING) {
             if (hasNoBlockedCells()) {
                 startNonAccumulatingConveyorMovement()
             }
         } else {
-            startAccumulatingConveyorMovementAfterBlockage(entryCell)
+            startAccumulatingConveyorMovementAfterBlockage(blockedCell)
         }
     }
 
     private fun continueConveyance(cellAllocation: CellAllocation, nextDestination: IdentityIfc) {
         // must have an item to continue conveyance
         cellAllocation.item?.destination = nextDestination
-        //TODO the following logic is the same every time the cell unblocks
         val exitCell = exitCells[nextDestination]!!
-        exitCell.allocation = null // unblocks the destination cell
-        if (conveyorType == Type.NON_ACCUMULATING) {
-            if (hasNoBlockedCells()) {
-                startNonAccumulatingConveyorMovement()
-            }
-        } else {
-            startAccumulatingConveyorMovementAfterBlockage(exitCell)
-        }
+        removeBlockage(exitCell)
     }
 
     private fun startAccumulatingConveyorMovementAfterBlockage(blockingCell: Cell) {
@@ -1316,7 +1303,7 @@ class Conveyor(
     internal fun deallocateCells(cellAllocation: CellAllocation) {
         // allocation has no item, and was never conveyed
         val blockedCell = cellAllocation.entryCell
-        blockedCell.allocation = null //unblocks the cell
+        blockedCell.isBlocked = false
         processWaitingRequests(blockedCell)
         //TODO the following logic is the same every time the cell unblocks
         if (conveyorType == Type.NON_ACCUMULATING) {
@@ -1346,7 +1333,7 @@ class Conveyor(
         item.status = ItemStatus.EXITING
         val destination = cellAllocation.item?.destination!!
         val exitCell = exitCells[destination]!!
-        exitCell.allocation = null // unblocks the destination cell
+        exitCell.isBlocked = false // unblocks the destination cell
         processWaitingRequests(exitCell)
         //TODO the following logic is the same every time the cell unblocks
         if (conveyorType == Type.NON_ACCUMULATING) {
@@ -1365,9 +1352,8 @@ class Conveyor(
             val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
             moveItemsForward(movingCells)
         } else {
-
+            TODO("Conveyor.endCellTraversalEventActions() for accumulating conveyor case not implemented yet")
         }
-        TODO("Conveyor.endCellTraversalEventActions() not implemented yet")
     }
 
     private fun itemFullyOn(item: Item) {
@@ -1385,27 +1371,6 @@ class Conveyor(
         val exitCell = exitCells[item.destination]!!
 
         TODO("Conveyor.itemReachedDestination() not implemented yet")
-    }
-
-    /**
-     *  Causes the event associated with cell traversals to be cancelled.
-     *  This does not affect any movement associated with items getting on or off
-     *  the conveyor. This only stops movement of items that are fully on the
-     *  conveyor
-     */
-    private fun stopMovementOnConveyor() {
-        //TODO not sure if it should stop all movement or just on the conveyor
-        if (endCellTraversalEvent != null) {
-            endCellTraversalEvent!!.cancelled = true
-        }
-    }
-
-    private fun resumeMovementOnConveyor() {
-        TODO("Conveyor.resumeMovementOnConveyor() not implemented yet")
-    }
-
-    private fun scheduleMovement() {
-        TODO("Not yet implemented: Conveyor.scheduleMovement()")
     }
 
     private inner class EndOfCellTraversalAction : EventAction<Cell>() {
