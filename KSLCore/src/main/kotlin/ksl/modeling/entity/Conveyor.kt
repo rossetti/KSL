@@ -658,7 +658,7 @@ class Conveyor(
                 if (queue.isNotEmpty) {
                     val request = queue.peekFirst()!!
                     if (request.isFillable) {
-                        request.entity.resumeProcess()//TODO resumption priority
+                        request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
                     }
                 }
             }
@@ -738,6 +738,7 @@ class Conveyor(
         val entity: ProcessModel.Entity,
         val numCellsNeeded: Int = 1,
         val entryLocation: IdentityIfc,
+        var accessResumePriority: Int = KSLEvent.DEFAULT_PRIORITY
     ) : QObject() {
 
         val conveyor = this@Conveyor
@@ -766,8 +767,9 @@ class Conveyor(
         entity: ProcessModel.Entity,
         numCellsNeeded: Int = 1,
         entryLocation: IdentityIfc,
+        accessResumePriority: Int
     ): CellRequest {
-        return CellRequest(entity, numCellsNeeded, entryLocation)
+        return CellRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
     }
 
     internal fun enqueueRequest(request: CellRequest) {
@@ -850,7 +852,6 @@ class Conveyor(
             internal set
 
         override var resumePriority: Int = KSLEvent.DEFAULT_PRIORITY
-            internal set //TODO when to allow changes
 
         override var currentLocation: IdentityIfc? = null
             internal set
@@ -953,7 +954,7 @@ class Conveyor(
                             // item is now fully on the segment, notify conveyor
                             status = ItemStatus.ON
                             // notify the conveyor that the item is fully on
-                            conveyor.itemFullyOn(this)
+                            //conveyor.itemFullyOn(this)
                         }
                     } else if (frontCell!!.isExitCell) {
                         // reached an exit cell
@@ -1256,6 +1257,12 @@ class Conveyor(
         }
     }
 
+    /**
+     *  This function is called when the entity asks to ride() on the conveyor. The cell allocation
+     *  is used as a ticket to ride. An item is created that represents the entity occupying cells
+     *  on the conveyor. The entry location associated with the cell allocation becomes unblocked.
+     *  The item occupies the entry cell and the conveyor is told to begin movement.
+     */
     private fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
         // the cell allocation is causing a blockage at the entry point of the segment
         // need to create the item, attach the item, start the movement
@@ -1267,6 +1274,24 @@ class Conveyor(
         removeBlockage(entryCell)
     }
 
+    /**
+     *  This function is called when the conveyor is asked to convey an item by an entity,
+     *  but the entity is not getting on (it is already on the conveyor).
+     *
+     *  There is a blockage at the exit location of the destination. The blockage should
+     *  be removed and if possible the items on the conveyor can start moving.
+     */
+    private fun continueConveyance(cellAllocation: CellAllocation, nextDestination: IdentityIfc) {
+        // must have an item to continue conveyance
+        cellAllocation.item?.destination = nextDestination
+        val exitCell = exitCells[nextDestination]!!
+        removeBlockage(exitCell)
+    }
+
+    /**
+     *  This function removes the blockage at the supplied cell and
+     *  causes the conveyor to start moving.
+     */
     private fun removeBlockage(blockedCell: Cell) {
         blockedCell.isBlocked = false // this unblocks the cell
         if (conveyorType == Type.NON_ACCUMULATING) {
@@ -1276,13 +1301,6 @@ class Conveyor(
         } else {
             startAccumulatingConveyorMovementAfterBlockage(blockedCell)
         }
-    }
-
-    private fun continueConveyance(cellAllocation: CellAllocation, nextDestination: IdentityIfc) {
-        // must have an item to continue conveyance
-        cellAllocation.item?.destination = nextDestination
-        val exitCell = exitCells[nextDestination]!!
-        removeBlockage(exitCell)
     }
 
     private fun startAccumulatingConveyorMovementAfterBlockage(blockingCell: Cell) {
@@ -1303,6 +1321,9 @@ class Conveyor(
     }
 
     /**
+     * This function is called when the entity wants to exit without having
+     * been on the conveyor. It has an allocation, but has not asked to ride.
+     *
      * This function should deallocate the cells associated with the cell allocation
      * and cause any blockage associated with the allocation to be removed.
      *
@@ -1333,6 +1354,10 @@ class Conveyor(
         removeBlockage(exitCell)
     }
 
+    /**
+     * This function represents the end of cell traversal for all items that
+     * were told to move forward one cell on the conveyor.
+     */
     private fun endCellTraversalEventActions(leadCell: Cell) {
         if (conveyorType == Type.NON_ACCUMULATING) {
             // move items forward that can be moved forward before the lead cell
@@ -1344,10 +1369,10 @@ class Conveyor(
         }
     }
 
-    private fun itemFullyOn(item: Item) {
-        // the blockage at the entry point can be removed
-        TODO("Conveyor.itemFullyOn() not implemented yet")
-    }
+//    private fun itemFullyOn(item: Item) {
+//        // the blockage at the entry point can be removed
+//
+//    }
 
     private fun itemFullyOff(item: Conveyor.Item) {
         // item completed the exiting process, tell the entity that it can proceed
@@ -1359,7 +1384,7 @@ class Conveyor(
         // or allow it to start its next ride
         val exitCell = exitCells[item.destination]!!
         causeBlockage(exitCell)
-        conveyorHoldQ.removeAndResume(item.entity)
+        conveyorHoldQ.removeAndResume(item.entity, item.resumePriority, false)
     }
 
     private inner class EndOfCellTraversalAction : EventAction<Cell>() {

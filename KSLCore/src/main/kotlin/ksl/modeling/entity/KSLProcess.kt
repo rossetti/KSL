@@ -1364,6 +1364,7 @@ interface KSLProcessBuilder {
         entryLocation: IdentityIfc,
         numCellsNeeded: Int = 1,
         accessPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        accessResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ): CellAllocationIfc
 
@@ -1387,7 +1388,7 @@ interface KSLProcessBuilder {
         cellAllocation: CellAllocationIfc,
         destination: IdentityIfc,
         suspensionName: String? = null
-    ) : ConveyorItemIfc
+    ): ConveyorItemIfc
 
     /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
      * If there is no item associated with the allocated cells, the cells are immediately released without
@@ -1432,9 +1433,10 @@ interface KSLProcessBuilder {
         unloadingTime: Double = 0.0,
         numCellsNeeded: Int = 1,
         accessPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        accessResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ) : CellAllocationIfc {
-        val ca = access(conveyor, entryLocation, numCellsNeeded, accessPriority, suspensionName)
+    ): CellAllocationIfc {
+        val ca = access(conveyor, entryLocation, numCellsNeeded, accessPriority, accessResumePriority, suspensionName)
         delay(loadingTime)
         ride(ca, destination)
         delay(unloadingTime)
@@ -1467,8 +1469,19 @@ interface KSLProcessBuilder {
         unloadingTime: GetValueIfc = ConstantRV.ZERO,
         numCellsNeeded: Int = 1,
         accessPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        accessResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ) : CellAllocationIfc{
-        return convey(conveyor, entryLocation, loadingTime.value, destination, unloadingTime.value, numCellsNeeded, accessPriority, suspensionName)
+    ): CellAllocationIfc {
+        return convey(
+            conveyor,
+            entryLocation,
+            loadingTime.value,
+            destination,
+            unloadingTime.value,
+            numCellsNeeded,
+            accessPriority,
+            accessResumePriority,
+            suspensionName
+        )
     }
 }

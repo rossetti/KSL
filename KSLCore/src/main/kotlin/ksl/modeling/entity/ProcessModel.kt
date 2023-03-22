@@ -1424,6 +1424,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 entryLocation: IdentityIfc,
                 numCellsNeeded: Int,
                 accessPriority: Int,
+                accessResumePriority: Int,
                 suspensionName: String?
             ): CellAllocationIfc {
                 require(entity.cellAllocation == null) {
@@ -1442,7 +1443,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "$time > entity ${entity.id} ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 delay(0.0, accessPriority, "$suspensionName:AccessDelay")
                 // make the conveyor request
-                val request = conveyor.createRequest(entity, numCellsNeeded, entryLocation)
+                val request = conveyor.createRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
                 conveyor.enqueueRequest(request)
                 // if request is not filled then suspend
                 if (request.isNotFillable) {
