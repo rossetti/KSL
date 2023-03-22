@@ -1393,6 +1393,7 @@ class Conveyor(
     private fun itemReachedDestination(item: Item) {
         // the trip has ended, need to block exit, resume the entity to proceed with exit
         // or allow it to start its next ride
+        val exitCell = exitCells[item.destination]!!
 
         TODO("Conveyor.itemReachedDestination() not implemented yet")
     }
@@ -1442,55 +1443,3 @@ fun main() {
     println(c)
 
 }
-
-
-//if (conveyorType == Type.NON_ACCUMULATING){
-//    // all movement on the conveyor must have been stopped
-//    // need to start or restart movement!!
-//
-//    val leadItem = findLeadItem()
-//    if (leadItem != null) {
-//        cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, leadItem)
-//    }
-//} else {
-//    // items on the segment continued to move forward during blockage
-//
-//}
-////
-//// can the segment be moving?  can there be events pending
-//val leadItem = findLeadItem()
-//if (leadItem != null) {
-//    cellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, leadItem)
-//}
-
-/**
- *  Causes the item to exit the conveyor at its destination.  Exiting the conveyor
- *  causes the item to travel through the final cells that it occupies. Thus,
- *  this call will take simulated time.  The process (entity) calling this should be
- *  suspended until the exiting time is completed.
- */
-//internal fun exitConveyor(item: Conveyor.Item) {
-//    require(item.conveyor == this) { "Item is not from this conveyor" }
-//    require(item.segment != null) { "The item was not using a segment" }
-//    // conveyable means that the item has its required allocated cells
-//    require(item.isConveyable) { "Tried to exit a conveyor for an item that is not conveyable" }
-//    // since it is conveyable, it has at least 1 allocated cell
-//    // handle the case of when item exits without occupying any cells, there will not be any time delay
-//    if (!item.occupiesCells) {
-//        // item does not occupy any cells, exiting without being on segment
-//        // just deallocate the cells
-//        item.segment!!.deallocateCells(item)
-//    } else {
-//
-//    }
-//
-//    // make sure that the item occupies cells
-//    require(item.occupiesCells) { "The exiting item does not occupy any cells on the conveyor" }
-//    // has allocated cells and is occupying cells on the conveyor
-//    // need to make sure that the item's current location matches the exit location
-//    require(item.destination != null) { "The item had no destination set" }
-//    require(exitLocations.contains(item.destination)) { "The destination is not on this conveyor" }
-//    // delegate to the segment
-//    // this will schedule an event to start the exiting process
-//    item.segment!!.scheduleConveyorExit(item)
-//}
