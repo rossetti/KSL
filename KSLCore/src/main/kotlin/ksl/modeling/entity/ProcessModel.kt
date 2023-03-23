@@ -1432,7 +1432,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             "An entity can access only one conveyor at a time. Use exit() to stop accessing a conveyor."
                 }
                 require(conveyor.entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) " +
-                        "is not associated with conveyor (${conveyor.name})" }
+                        "is not an entry location for (${conveyor.name})" }
                 require(numCellsNeeded >= 1) { "The amount of cells to allocate must be >= 1" }
                 require(numCellsNeeded <= conveyor.maxEntityCellsAllowed) {
                     "The entity requested more cells ($numCellsNeeded) than " +
