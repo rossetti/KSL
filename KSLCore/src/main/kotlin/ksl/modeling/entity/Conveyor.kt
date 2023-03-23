@@ -610,9 +610,10 @@ class Conveyor(
         return map
     }
 
+    //TODO blockedAccumulatingConveyorMovement()
     /**
      *  This function assumes that there is at least one blocked cell on a conveyor
-     *  of type accumulating.  If any items on the conveyor moved forward, then
+     *  of type accumulating.  If any items on the conveyor moves forward, then
      *  the function returns true. If no items were able to move forward, then
      *  the function returns false.
      */
@@ -1351,7 +1352,7 @@ class Conveyor(
             }
         } else {
             // motion continues until none can move
-            TODO("Conveyor.signalConveyorStoppage() accumulating conveyor case not implemented yet")
+            TODO("Conveyor.causeBlockage() accumulating conveyor case not implemented yet")
         }
     }
 
@@ -1498,7 +1499,6 @@ class Conveyor(
                 ProcessModel.logger.info { "scheduling movement for cell $leadCell for traversal time $cellTravelTime" }
                 endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = nextLeadCell)
             }
-
         } else {
             TODO("Conveyor.endCellTraversalEventActions() for accumulating conveyor case not implemented yet")
         }
