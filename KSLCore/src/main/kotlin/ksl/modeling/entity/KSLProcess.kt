@@ -1351,7 +1351,7 @@ interface KSLProcessBuilder {
      * @param conveyor the conveyor to access
      * @param entryLocation the location on the conveyor at which the cells are requested
      * @param numCellsNeeded the number of cells needed (requested)
-     * @param accessPriority the priority of the access. If there are multiple entities that
+     * @param requestPriority the priority of the access. If there are multiple entities that
      * access the conveyor at the same time this priority determines which goes first. Similar to
      * the seize resource priority.
      * @param suspensionName the name of the suspension point the entity is experiencing if there
@@ -1359,12 +1359,12 @@ interface KSLProcessBuilder {
      * @return a representation of the allocated cells on the conveyor. The user should use this as a ticket
      * to ride on the conveyor and to eventually release the allocated cells by exiting the conveyor.
      */
-    suspend fun access(
+    suspend fun requestSpaceOn(
         conveyor: Conveyor,
         entryLocation: IdentityIfc,
         numCellsNeeded: Int = 1,
-        accessPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        accessResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ): CellAllocationIfc
 
@@ -1384,7 +1384,7 @@ interface KSLProcessBuilder {
      * @return the returned item encapsulates what happened during the ride and contains information about
      * the origin point, the destination, etc.
      */
-    suspend fun ride(
+    suspend fun rideConveyor(
         cellAllocation: CellAllocationIfc,
         destination: IdentityIfc,
         suspensionName: String? = null
@@ -1403,7 +1403,7 @@ interface KSLProcessBuilder {
      * @return the returned item encapsulates what happened during the ride and contains information about
      * the origin point, the destination, etc.
      */
-    suspend fun exit(
+    suspend fun exitConveyor(
         cellAllocation: CellAllocationIfc,
         suspensionName: String? = null
     )
@@ -1417,7 +1417,7 @@ interface KSLProcessBuilder {
      * @param destination the location to which to ride
      * @param unloadingTime the time that it takes to unload from the conveyor
      * @param numCellsNeeded the number of cells needed (requested)
-     * @param accessPriority the priority of the access. If there are multiple entities that
+     * @param requestPriority the priority of the access. If there are multiple entities that
      * access the conveyor at the same time this priority determines which goes first. Similar to
      * the seize resource priority.
      * @param suspensionName the name of the suspension point the entity is experiencing if there
@@ -1432,15 +1432,15 @@ interface KSLProcessBuilder {
         destination: IdentityIfc,
         unloadingTime: Double = 0.0,
         numCellsNeeded: Int = 1,
-        accessPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        accessResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ): CellAllocationIfc {
-        val ca = access(conveyor, entryLocation, numCellsNeeded, accessPriority, accessResumePriority, suspensionName)
+        val ca = requestSpaceOn(conveyor, entryLocation, numCellsNeeded, requestPriority, requestResumePriority, suspensionName)
         delay(loadingTime)
-        ride(ca, destination)
+        rideConveyor(ca, destination)
         delay(unloadingTime)
-        exit(ca)
+        exitConveyor(ca)
         return ca
     }
 
@@ -1453,7 +1453,7 @@ interface KSLProcessBuilder {
      * @param destination the location to which to ride
      * @param unloadingTime the time that it takes to unload from the conveyor
      * @param numCellsNeeded the number of cells needed (requested)
-     * @param accessPriority the priority of the access. If there are multiple entities that
+     * @param requestPriority the priority of the access. If there are multiple entities that
      * access the conveyor at the same time this priority determines which goes first. Similar to
      * the seize resource priority.
      * @param suspensionName the name of the suspension point the entity is experiencing if there
@@ -1468,8 +1468,8 @@ interface KSLProcessBuilder {
         destination: IdentityIfc,
         unloadingTime: GetValueIfc = ConstantRV.ZERO,
         numCellsNeeded: Int = 1,
-        accessPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        accessResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ): CellAllocationIfc {
         return convey(
@@ -1479,8 +1479,8 @@ interface KSLProcessBuilder {
             destination,
             unloadingTime.value,
             numCellsNeeded,
-            accessPriority,
-            accessResumePriority,
+            requestPriority,
+            requestResumePriority,
             suspensionName
         )
     }
