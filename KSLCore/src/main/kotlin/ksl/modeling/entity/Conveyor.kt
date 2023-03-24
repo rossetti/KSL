@@ -428,8 +428,13 @@ class Conveyor(
      * When this event is scheduled, this means that items are moving (traversing) through
      * the next cell, or exiting through their last cell to exit the conveyor. We
      * always allow the traversal to complete.
+     *
+     * The event will be set to null under the following conditions:
+     * a) non-accumulating conveyor and a blockage exists
+     * b) accumulating conveyor and there are no items that can move
      */
-    private var endCellTraversalEvent: KSLEvent<Cell>? = null //TODO need to remember to set this back to null
+    private var endCellTraversalEvent: KSLEvent<Cell>? = null
+
     internal val hasCellTraversalPending: Boolean
         get() = endCellTraversalEvent != null
 
@@ -661,21 +666,21 @@ class Conveyor(
         return movedCells
     }
 
-    private fun accumulatingConveyorMovement(){
+    private fun accumulatingConveyorMovement() {
         // no movement is necessary if the conveyor is not occupied
-        if (isOccupied()){
-            if (hasNoBlockedCells()){
+        if (isOccupied()) {
+            if (hasNoBlockedCells()) {
                 // there must be a lead cell to move if the conveyor has items and there are no blocked cells
                 val leadCell = firstMovableCell(conveyorCells)!!
                 // get the cells to move
                 val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
                 moveItemsForward(movingCells)
-                //TODO processWaitingRequests()
-            } else{
+                processWaitingRequests()
+            } else {
                 // there are blockages, try to move items that can be moved
                 val moved = blockedAccumulatingConveyorMovement()
-                if (moved){
-                    //TODO processWaitingRequests()
+                if (moved) {
+                    processWaitingRequests()
                 }
             }
         }
@@ -748,7 +753,7 @@ class Conveyor(
         return null
     }
 
-    fun hasMovableCell() : Boolean {
+    fun hasMovableCell(): Boolean {
         return firstMovableCell(conveyorCells) != null
     }
 
@@ -782,8 +787,6 @@ class Conveyor(
             require(cells.last().nextCell!!.isAvailable) { "The cell after the last cell is not available" }
             reverseIterateItems(cells, this::moveItemForward)
         }
-        // after moving the items forward on the cells, there may be space on the conveyor for waiting requests
-        processWaitingRequests()
     }
 
     /**
@@ -1386,10 +1389,11 @@ class Conveyor(
             if (endCellTraversalEvent != null && endCellTraversalEvent!!.scheduled) {
                 ProcessModel.logger.info { "$time > cancelled cell traversal even" }
                 endCellTraversalEvent!!.cancelled = true
+                endCellTraversalEvent = null
                 status = Status.BLOCKED
             }
         } else {
-            if (isOccupied()){
+            if (isOccupied()) {
                 status = Status.ACCUMULATING
             }
             // motion continues until none can move
@@ -1471,7 +1475,11 @@ class Conveyor(
         if (isOccupied() && status == Status.BLOCKED) {
             // there are items on the conveyor and the conveyor was fully stopped due to blockages
             // the blockage was removed, items can now attempt to move forward
-
+            val movableCell = firstMovableCell(conveyorCells)
+            if (movableCell != null) {
+                // there is at least one cell that can now move
+                // schedule the movement of a cell traversal
+            }
         }
         TODO("Conveyor.startAccumulatingConveyorMovementAfterBlockage(): Not yet implemented")
     }
@@ -1535,7 +1543,8 @@ class Conveyor(
         val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
         ProcessModel.logger.info { "moving the cells forward" }
         moveItemsForward(movingCells)
-        //TODO maybe remove processWaitingRequests() out of the move and into here
+        // after moving the items forward on the cells, there may be space on the conveyor for waiting requests
+        processWaitingRequests()
         ProcessModel.logger.info { "Completed moving the cells forward" }
         if (isOccupied() && hasNoBlockedCells()) {
             // there are items on the conveyor, and the conveyor is not blocked
@@ -1550,7 +1559,7 @@ class Conveyor(
     private fun endCellTraversalActionForAccumulatingConveyor() {
 
         val moved = blockedAccumulatingConveyorMovement()
-        if (moved){
+        if (moved) {
             // schedule next movement
         }
         TODO("Conveyor.endCellTraversalEventActions() for accumulating conveyor case not implemented yet")
@@ -1585,8 +1594,8 @@ class Conveyor(
 
 fun main() {
 
-//    runConveyorTest()
-    blockedCellsTest()
+    runConveyorTest()
+//    blockedCellsTest()
 }
 
 fun buildTest() {
