@@ -587,6 +587,40 @@ class Conveyor(
     }
 
     /**
+     *  Partitions the conveyor cells into to sub lists. The first
+     *  of the pair is all cells before (and including) the first blocked
+     *  cell from the end of the list. The second of the pair is
+     *  the all cells after the blockage but not including the blockage.
+     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
+     *  Suppose cells 1, 5, 8 are blocked. Because cell 8 is the first blocked cell from the end of the
+     *  list, the returned pair contains
+     *  first = {1, 2, 3, 4, 5, 6, 7, 8}
+     *  second = {9, 10, 11, 12}
+     *  If the conveyor has no blocked cells, then the pair is:
+     *  first = {}
+     *  second = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+     *  where the first is an empty list.
+     *  If the last cell is the first blocked cell, then the pair is:
+     *  first = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+     *  second = {}
+     */
+    fun partitionAtFirstBlockage(): Pair<List<Cell>, List<Cell>> {
+        val fbc = firstBlockedCellFromEnd()
+        if (fbc == null) {
+            // no blocked cell, first is empty, second is all the cells
+            return Pair(emptyList(), conveyorCells)
+        } else {
+            if (conveyorCells.last() == fbc) {
+                return Pair(conveyorCells, emptyList())
+            } else {
+                val first = conveyorCells.subList(0, fbc.index + 1)
+                val second = conveyorCells.subList(fbc.index + 1, conveyorCells.size)
+                return Pair(first, second)
+            }
+        }
+    }
+
+    /**
      *  Finds the cells that are behind a cell that is marked
      *  as blocked.  For each cell that is blocked, capture
      *  a list of cells behind the blockage but before the previous blockage. The returned
@@ -1418,7 +1452,7 @@ class Conveyor(
         //what about items already scheduled to move in front of the blockage
         ProcessModel.logger.info { "$time > startAccumulatingConveyorMovementAfterBlockage()" }
         if (isOccupied()) {
-            if (!hasCellTraversalPending){
+            if (!hasCellTraversalPending) {
                 // if the conveyor is fully blocked then we can try to start it up
                 // there are items on the conveyor and the conveyor was fully stopped due to blockages
                 // the blockage was removed, items may be able to move forward
@@ -1507,6 +1541,15 @@ class Conveyor(
         }
     }
 
+    private fun findMovableCells(cells: List<Cell>) : List<Cell> {
+        val fmc = firstMovableCell(cells)
+        if (fmc == null){
+            return emptyList()
+        } else {
+            return conveyorCells.subList(cells.first().index, fmc.index + 1 )
+        }
+    }
+
     //TODO blockedAccumulatingConveyorMovement()
     /**
      *  This function assumes that there is at least one blocked cell on a conveyor
@@ -1519,25 +1562,23 @@ class Conveyor(
         require(hasBlockedCells()) { "There were no blocked cells on the accumulating conveyor" }
         var movedCells = false
         // conveyor has blocked cells, so there must be some cells before the first blockage
-        val cellsAfterFirstBlockage = cellsFromEndUntilFirstBlockage()
-        // these cells may be able to move forward
-        val fmc = firstMovableCell(cellsAfterFirstBlockage)
-        if (fmc != null) {
-            // there is a lead cell that can move, get the cells to move
-            val movableCells = conveyorCells.subList(cellsAfterFirstBlockage.first().index, fmc.index + 1)
-            // move the items in the cells forward by one cell
-            moveItemsForwardOneCell(movableCells)
-            movedCells = true
+        val (cellsBeforeFirstBlockage, cellsAfterFirstBlockage) = partitionAtFirstBlockage()
+        // if the cells after the first blockage is empty, then the first blockage is the last cell
+        if (cellsAfterFirstBlockage.isNotEmpty()) {
+            // these cells may be able to move forward
+            val movableCells = findMovableCells(cellsAfterFirstBlockage)
+            if (movableCells.isNotEmpty()){
+                moveItemsForwardOneCell(movableCells)
+                movedCells = true
+            }
         }
         // get the cells behind every blockage
-        val behindBlockagesCells = cellsBehindBlockedCells(conveyorCells)//TODO should not be full conveyor
+        val behindBlockagesCells = cellsBehindBlockedCells(cellsBeforeFirstBlockage)
         for ((bc, cells) in behindBlockagesCells) {
             if (cells.isNotEmpty()) {
                 // check if the cells can move forward
-                val fmc = firstMovableCell(cells)
-                if (fmc != null) {
-                    // there is a cell that can move forward, in this list
-                    val movableCells = conveyorCells.subList(cells.first().index, fmc.index + 1)
+                val movableCells = findMovableCells(cells)
+                if (movableCells.isNotEmpty()){
                     moveItemsForwardOneCell(movableCells)
                     movedCells = true
                 }
@@ -1668,17 +1709,13 @@ fun blockedCellsTest() {
     val fbc = c.firstBlockedCellFromEnd()
     println("First blocked cell: ${fbc?.cellNumber}")
     println()
-    val cellsAfterFirstBlockedCell = c.cellsFromEndUntilFirstBlockage()
+    val (f, s) = c.partitionAtFirstBlockage()
+    println("Cells before first blocked cell")
+    println(f.joinToString(prefix = "{", postfix = "}", transform = { it -> "${it.cellNumber}" }))
     println("Cells after first blocked cell")
-    println(
-        cellsAfterFirstBlockedCell.joinToString(
-            prefix = "{",
-            postfix = "}",
-            transform = { it -> "${it.cellNumber}" })
-    )
+    println(s.joinToString(prefix = "{", postfix = "}", transform = { it -> "${it.cellNumber}" }))
     println()
-    val cells = c.conveyorCells.subList(c.conveyorCells.first().index, fbc!!.index + 1)
-    val m = c.cellsBehindBlockedCells(cells)
+    val m = c.cellsBehindBlockedCells(f)
     println("Cells behind blocked cells:")
     for ((k, v) in m) {
         print("${k.cellNumber}: ")
@@ -1701,7 +1738,7 @@ class TestConveyor(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessM
             .cellSize(1)
             .firstSegment(i1, i2, 10)
             .nextSegment(i3, 20)
-            .nextSegment(i1, 15)
+ //           .nextSegment(i1, 15)
             .build()
         println(conveyor)
         println()
