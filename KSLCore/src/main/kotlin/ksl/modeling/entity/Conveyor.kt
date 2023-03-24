@@ -358,12 +358,12 @@ class Conveyor(
         ACCUMULATING, NON_ACCUMULATING
     }
 
-    enum class Status {
-        IDLE, BLOCKED, ACCUMULATING, MOVING
-    }
-
-    var status: Status = Status.IDLE
-        internal set
+//    enum class Status {
+//        IDLE, BLOCKED, ACCUMULATING, MOVING
+//    }
+//
+//    var status: Status = Status.IDLE
+//        internal set
 
     var initialVelocity: Double = velocity
         set(value) {
@@ -744,8 +744,10 @@ class Conveyor(
                 // there is a possibility that a waiting request can get on
                 val queue = accessQueues[entryLocation]!!
                 if (queue.isNotEmpty) {
+                    ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
                     val request = queue.peekFirst()!!
                     if (request.isFillable) {
+                        ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with request at location ${entryLocation.name}" }
                         request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
                     }
                 }
@@ -770,7 +772,7 @@ class Conveyor(
     }
 
     override fun initialize() {
-        status = Status.IDLE
+//        status = Status.IDLE
         velocity = initialVelocity
         for (cell in conveyorCells) {
             cell.item = null
@@ -1020,18 +1022,18 @@ class Conveyor(
             if ((status == ItemStatus.EXITING) && (frontCell!!.isExitCell)) {
                 // need to move the item forward, through its front cell, which is the exit cell
                 // item no longer occupies its rear cell
-                ProcessModel.logger.info { "Item $name is exiting the conveyor from cell ${frontCell?.cellNumber} at location ${frontCell?.location?.name}" }
+                ProcessModel.logger.info { "$time > Entity ${entity.name} is exiting the conveyor from cell ${frontCell?.cellNumber} at location ${frontCell?.location?.name}" }
                 popRearCell()
                 if (!occupiesCells) {
                     // no longer on the conveyor
                     status = ItemStatus.OFF
-                    ProcessModel.logger.info { "Item $name is fully off of the conveyor" }
+                    ProcessModel.logger.info { "Entity ${entity.name} is fully off of the conveyor" }
                     conveyor.itemFullyOff(this)
                 }
             } else if ((status == ItemStatus.OFF) && (frontCell!!.isEntryCell)) {
                 // this item occupies an entry cell, but it is off the conveyor
                 // don't move it forward, but mark it as entering
-                ProcessModel.logger.info { "Item $name is entering the conveyor at cell ${frontCell?.cellNumber} at location ${frontCell?.location?.name}" }
+                ProcessModel.logger.info { "$time > Entity ${entity.name} is entering the conveyor at cell ${frontCell?.cellNumber} at location ${frontCell?.location?.name}" }
                 status = ItemStatus.ENTERING // it will be included in future moves
                 // basically we are skipping the movement of this item because
                 // it already occupies the entry cell and doesn't need to move through it
@@ -1039,7 +1041,7 @@ class Conveyor(
                 // Status is ENTERING or ON
                 require(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
                 // tell the item to occupy the next cell
-                ProcessModel.logger.info { "Item $name is moving from cell ${frontCell?.cellNumber} to cell ${frontCell?.nextCell?.cellNumber}" }
+                ProcessModel.logger.info { "$time > Entity ${entity.name} is moving from cell ${frontCell?.cellNumber} to cell ${frontCell?.nextCell?.cellNumber}" }
                 occupyCell(frontCell!!.nextCell!!)
                 if ((myCellsOccupied.size == numberOfCells)) {
                     // all cells acquired and last cell is an entry cell for the conveyor, then it completed loading
@@ -1048,7 +1050,7 @@ class Conveyor(
                         if (status == ItemStatus.ENTERING) {
                             // item is now fully on the segment, notify conveyor
                             status = ItemStatus.ON
-                            ProcessModel.logger.info { "Item $name is fully on of the conveyor" }
+                            ProcessModel.logger.info { "$time > Entity ${entity.name}is fully on of the conveyor" }
                             // notify the conveyor that the item is fully on
                             //conveyor.itemFullyOn(this)
                         }
@@ -1056,7 +1058,7 @@ class Conveyor(
                         // reached an exit cell
                         if (destination == frontCell!!.location) {
                             // reached the intended destination
-                            ProcessModel.logger.info { "Item $name has reached its destination: ${destination.name}" }
+                            ProcessModel.logger.info { "$time > Entity ${entity.name} has reached its destination: ${destination.name}" }
                             conveyor.itemReachedDestination(this)
                         }
                     }
@@ -1318,26 +1320,27 @@ class Conveyor(
         require(request.conveyor == this) { "The cell request is not from this conveyor" }
         require(request.isFillable) { "The cell request for (${request.numCellsNeeded}) cells cannot be filled at this time" }
         val ca = CellAllocation(request)
+        ProcessModel.logger.info { "$time > ${request.entity.name} causing blockage for cell ${ca.entryCell.cellNumber} at location (${request.entryLocation.name})" }
         causeBlockage(ca.entryCell)
         return ca
     }
 
     private fun causeBlockage(blockingCell: Cell) {
         blockingCell.isBlocked = true
-        ProcessModel.logger.info { "$time > caused blockage at cell ${blockingCell.cellNumber}" }
+        ProcessModel.logger.info { "$time > ...... caused blockage at cell ${blockingCell.cellNumber}" }
         if (conveyorType == Type.NON_ACCUMULATING) {
             // all motion on conveyor stops
             if (endCellTraversalEvent != null && endCellTraversalEvent!!.scheduled) {
-                ProcessModel.logger.info { "$time > cancelled cell traversal event" }
+                ProcessModel.logger.info { "$time > blockage cancelled cell traversal event" }
                 endCellTraversalEvent!!.cancelled = true
                 endCellTraversalEvent = null
-                status = Status.BLOCKED
+//                status = Status.BLOCKED
             }
         } else {
             // motion continues until none can move
             if (isOccupied()) {
                 // is this all that is needed?
-                status = Status.ACCUMULATING
+//                status = Status.ACCUMULATING
             }
             //TODO("Conveyor.causeBlockage() accumulating conveyor case not implemented yet")
         }
@@ -1369,7 +1372,7 @@ class Conveyor(
      *  The item occupies the entry cell and the conveyor is told to begin movement.
      */
     private fun startConveyance(cellAllocation: CellAllocation, destination: IdentityIfc) {
-        ProcessModel.logger.info { "startConveyance()" }
+        ProcessModel.logger.info { "$time > startConveyance() to destination ${destination.name}" }
         // the cell allocation is causing a blockage at the entry point of the segment
         // need to create the item, attach the item, start the movement
         val item = Item(cellAllocation, destination)
@@ -1399,9 +1402,8 @@ class Conveyor(
      *  causes the conveyor to start moving.
      */
     private fun removeBlockage(blockedCell: Cell) {
-        ProcessModel.logger.info { "removeBlockage() at $blockedCell" }
         blockedCell.isBlocked = false // this unblocks the cell
-        ProcessModel.logger.info { "removeBlockage() at $blockedCell" }
+        ProcessModel.logger.info { "$time > removeBlockage() at $blockedCell" }
         if (conveyorType == Type.NON_ACCUMULATING) {
             if (hasNoBlockedCells()) {
                 startNonAccumulatingConveyorMovement()
@@ -1414,23 +1416,27 @@ class Conveyor(
     private fun startAccumulatingConveyorMovementAfterBlockage(blockingCell: Cell) {
         //need to check if there are items on the conveyor
         //what about items already scheduled to move in front of the blockage
-        if (isOccupied() && status == Status.BLOCKED) {
-            // if the conveyor is fully blocked then we can try to start it up
-            // there are items on the conveyor and the conveyor was fully stopped due to blockages
-            // the blockage was removed, items may be able to move forward
-            val movableCell = firstMovableCell(conveyorCells)
-            if (movableCell != null) {
-                // there is at least one cell that can now move
-                // schedule the movement of a cell traversal
-                status = Status.ACCUMULATING
-                endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = movableCell)
+        ProcessModel.logger.info { "$time > startAccumulatingConveyorMovementAfterBlockage()" }
+        if (isOccupied()) {
+            if (!hasCellTraversalPending){
+                // if the conveyor is fully blocked then we can try to start it up
+                // there are items on the conveyor and the conveyor was fully stopped due to blockages
+                // the blockage was removed, items may be able to move forward
+                val movableCell = firstMovableCell(conveyorCells)
+                if (movableCell != null) {
+                    // there is at least one cell that can now move
+                    // schedule the movement of a cell traversal
+//                    status = Status.ACCUMULATING
+                    ProcessModel.logger.info { "$time > scheduling start of accumulating conveyor with movable cell ${movableCell.cellNumber}" }
+                    endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = movableCell)
+                }
             }
         }
         //TODO("Conveyor.startAccumulatingConveyorMovementAfterBlockage(): Not yet implemented")
     }
 
     private fun startNonAccumulatingConveyorMovement() {
-        ProcessModel.logger.info { "startNonAccumulatingConveyorMovement()" }
+        ProcessModel.logger.info { "$time startNonAccumulatingConveyorMovement()" }
         //need to check if there are items on the conveyor
         if (isOccupied() && hasNoBlockedCells()) {
             // there are items on the conveyor, and the conveyor is not blocked
@@ -1524,7 +1530,7 @@ class Conveyor(
             movedCells = true
         }
         // get the cells behind every blockage
-        val behindBlockagesCells = cellsBehindBlockedCells(conveyorCells)
+        val behindBlockagesCells = cellsBehindBlockedCells(conveyorCells)//TODO should not be full conveyor
         for ((bc, cells) in behindBlockagesCells) {
             if (cells.isNotEmpty()) {
                 // check if the cells can move forward
@@ -1555,10 +1561,12 @@ class Conveyor(
                 val leadCell = firstMovableCell(conveyorCells)!!
                 // get the cells to move
                 val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
+                ProcessModel.logger.info { "$time > attempting accumulating conveyor movement with no blockages" }
                 moveItemsForwardOneCell(movingCells)
                 processWaitingRequests()
             } else {
                 // there are blockages, try to move items that can be moved
+                ProcessModel.logger.info { "$time > attempting accumulation movement on conveyor with blockages" }
                 val moved = blockedAccumulatingConveyorMovement()
                 if (moved) {
                     processWaitingRequests()
@@ -1570,16 +1578,22 @@ class Conveyor(
     private fun endCellTraversalActionForAccumulatingConveyor() {
         accumulatingConveyorMoveItemsForwardOneCell()
         //TODO what about continuing the movement???
-        ProcessModel.logger.info { "Completed moving the cells forward" }
-//        if (isOccupied() && hasNoBlockedCells()) {
-//            // there are items on the conveyor, and the conveyor is not blocked
-//            // there must be a lead item if there are items on the conveyor, and the conveyor is not blocked
-//            val nextLeadCell = firstMovableCell(conveyorCells)
-//                ?: throw IllegalStateException("Attempted to start the non-accumulating conveyor and there was no item to move")
-//            ProcessModel.logger.info { "scheduling movement for cell $leadCell for traversal time $cellTravelTime" }
-//            endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = nextLeadCell)
-//        }
-        TODO("Conveyor.endCellTraversalEventActions() for accumulating conveyor case not implemented yet")
+        ProcessModel.logger.info { "$time > Completed moving the cells forward on accumulating conveyor" }
+        if (isOccupied()) {
+            // if the conveyor is occupied, then we can try to continue the movement
+            val movableCell = firstMovableCell(conveyorCells)
+            if (movableCell != null) {
+                // there is at least one cell that can now move
+                // schedule the movement of a cell traversal
+//                status = Status.ACCUMULATING
+                ProcessModel.logger.info { "$time > scheduling more movement for accumulating conveyor" }
+                endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = movableCell)
+            } else {
+                ProcessModel.logger.info { "$time > No items can move on accumulating conveyor" }
+                endCellTraversalEvent = null
+            }
+        }
+        //TODO("Conveyor.endCellTraversalEventActions() for accumulating conveyor case not implemented yet")
     }
 
     private fun itemFullyOff(item: Conveyor.Item) {
@@ -1611,7 +1625,8 @@ class Conveyor(
 
 fun main() {
 
-    runConveyorTest()
+    runConveyorTest(Conveyor.Type.ACCUMULATING)
+//    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
 }
 
@@ -1672,7 +1687,7 @@ fun blockedCellsTest() {
 
 }
 
-class TestConveyor(parent: ModelElement) : ProcessModel(parent) {
+class TestConveyor(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
     val i1 = Identity(aName = "A")
@@ -1681,7 +1696,7 @@ class TestConveyor(parent: ModelElement) : ProcessModel(parent) {
 
     init {
         conveyor = Conveyor.builder(this)
-            .conveyorType(Conveyor.Type.NON_ACCUMULATING)
+            .conveyorType(conveyorType)
             .velocity(1.0)
             .cellSize(1)
             .firstSegment(i1, i2, 10)
@@ -1706,12 +1721,12 @@ class TestConveyor(parent: ModelElement) : ProcessModel(parent) {
             println("${entity.name}: time = $time before access at ${i1.name}")
             val a = requestSpaceOn(conveyor, i1)
             println("${entity.name}: time = $time after access")
-//            delay(10.0)
+            delay(10.0)
             timeStamp = time
             if (entity.name == "Part1") {
-                println("${entity.name}: time = $time before ride to ${i3.name}")
-                rideConveyor(a, i3)
-                println("${entity.name}: time = $time after ride to ${i3.name}")
+                println("${entity.name}: time = $time before ride to ${i2.name}")
+                rideConveyor(a, i2)
+                println("${entity.name}: time = $time after ride to ${i2.name}")
             } else {
                 println("${entity.name}: time = $time before ride to ${i2.name}")
                 rideConveyor(a, i2)
@@ -1729,9 +1744,9 @@ class TestConveyor(parent: ModelElement) : ProcessModel(parent) {
 
 }
 
-fun runConveyorTest() {
+fun runConveyorTest(conveyorType: Conveyor.Type) {
     val m = Model()
-    val test = TestConveyor(m)
+    val test = TestConveyor(m, conveyorType)
     m.lengthOfReplication = 100.0
     m.numberOfReplications = 1
     m.simulate()

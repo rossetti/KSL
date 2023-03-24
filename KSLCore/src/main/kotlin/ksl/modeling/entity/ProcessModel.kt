@@ -1440,7 +1440,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.ACCESS
-                logger.info { "$time > entity ${entity.id} ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                logger.info { "$time > entity (${entity.name}) ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 delay(0.0, requestPriority, "$suspensionName:AccessDelay")
                 // make the conveyor request
                 val request = conveyor.createRequest(entity, numCellsNeeded, entryLocation, requestResumePriority)
@@ -1450,18 +1450,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     //TODO need to handle conveyor being stopped here, eventually or make request not fillable if conveyor is stopped
                     // we do not interrupt a pending movement on the conveyor, after the movement completes the request will be checked
                     // it must wait, request is already in the queue waiting for the space on the conveyor, just suspend the entity's process
-                    logger.info { "$time > entity ${entity.id} waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                    logger.info { "$time > entity (${entity.name}) waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                     entity.state.waitForConveyor()
                     suspend()
                     entity.state.activate()
                 }
                 // entity has been told to resume, or cells were available at this time instant
                 conveyor.dequeueRequest(request)
-                logger.info { "$time > entity ${entity.id} allocated $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 // make the cell allocation and return it
                 val allocation = conveyor.allocateCells(request)
+                logger.info { "$time > entity (${entity.name}) allocated $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 entity.cellAllocation = allocation
                 return allocation
             }
@@ -1488,13 +1488,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         destination
                     )
                 ) { "The destination (${destination.name} is not reachable from entry location (${origin.name})" }
-                logger.info { "$time > entity ${entity.id} asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
+                logger.info { "$time > entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
                 conveyor.conveyItem(cellAllocation as Conveyor.CellAllocation, destination)
-                logger.info { "$time > entity ${entity.id} riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
+                logger.info { "$time > entity (${entity.name}) riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
-                logger.info { "$time > entity ${entity.id} completed ride from ${origin.name} to ${destination.name}" }
+                logger.info { "$time > entity (${entity.name}) completed ride from ${origin.name} to ${destination.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return cellAllocation.item!!
@@ -1510,21 +1510,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = cellAllocation.conveyor
-                logger.info { "$time > entity ${entity.id} is exiting ${conveyor.name}" }
+                logger.info { "$time > entity (${entity.name}) is exiting ${conveyor.name}" }
                 if (cellAllocation.item == null) {
                     // if allocation does not have an item, just deallocate the cells
                     conveyor.deallocateCells(cellAllocation as Conveyor.CellAllocation)
-                    logger.info { "$time > EXITING entity ${entity.id} did not occupy any cells and deallocated cells for (${conveyor.name})" }
+                    logger.info { "$time > EXITING entity (${entity.name}) did not occupy any cells and deallocated cells for (${conveyor.name})" }
                 } else {
                     // if allocation has an item then start the exiting process
                     isMoving = true
                     conveyor.startExitingProcess(cellAllocation as Conveyor.CellAllocation)
-                    logger.info { "$time > EXITING entity ${entity.id} started exiting process for (${conveyor.name}) at location (${cellAllocation.item!!.destination})" }
-                    logger.info { "$time > EXITING entity ${entity.id} suspending for exiting process" }
+                    logger.info { "$time > EXITING entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${cellAllocation.item!!.destination})" }
+                    logger.info { "$time > EXITING entity (${entity.name}) suspending for exiting process" }
                     hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
                     isMoving = false
                 }
-                logger.info { "$time > entity ${entity.id} exited ${conveyor.name}" }
+                logger.info { "$time > entity (${entity.name}) exited ${conveyor.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
