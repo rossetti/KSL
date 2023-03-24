@@ -627,65 +627,6 @@ class Conveyor(
         return map
     }
 
-    //TODO blockedAccumulatingConveyorMovement()
-    /**
-     *  This function assumes that there is at least one blocked cell on a conveyor
-     *  of type accumulating.  If any items on the conveyor moves forward, then
-     *  the function returns true. If no items were able to move forward, then
-     *  the function returns false.
-     */
-    private fun blockedAccumulatingConveyorMovement(): Boolean {
-        require(conveyorType == Type.ACCUMULATING) { "The conveyor is not type accumulating" }
-        require(hasBlockedCells()) { "There were no blocked cells on the accumulating conveyor" }
-        var movedCells = false
-        // conveyor has blocked cells, so there must be some cells before the first blockage
-        val cellsAfterFirstBlockage = cellsFromEndUntilFirstBlockage()
-        // these cells may be able to move forward
-        val fmc = firstMovableCell(cellsAfterFirstBlockage)
-        if (fmc != null) {
-            // there is a lead cell that can move, get the cells to move
-            val movableCells = conveyorCells.subList(cellsAfterFirstBlockage.first().index, fmc.index + 1)
-            // move the items in the cells forward by one cell
-            moveItemsForward(movableCells)
-            movedCells = true
-        }
-        // get the cells behind every blockage
-        val behindBlockagesCells = cellsBehindBlockedCells(conveyorCells)
-        for ((bc, cells) in behindBlockagesCells) {
-            if (cells.isNotEmpty()) {
-                // check if the cells can move forward
-                val fmc = firstMovableCell(cells)
-                if (fmc != null) {
-                    // there is a cell that can move forward, in this list
-                    val movableCells = conveyorCells.subList(cells.first().index, fmc.index + 1)
-                    moveItemsForward(movableCells)
-                    movedCells = true
-                }
-            }
-        }
-        return movedCells
-    }
-
-    private fun accumulatingConveyorMovement() {
-        // no movement is necessary if the conveyor is not occupied
-        if (isOccupied()) {
-            if (hasNoBlockedCells()) {
-                // there must be a lead cell to move if the conveyor has items and there are no blocked cells
-                val leadCell = firstMovableCell(conveyorCells)!!
-                // get the cells to move
-                val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
-                moveItemsForward(movingCells)
-                processWaitingRequests()
-            } else {
-                // there are blockages, try to move items that can be moved
-                val moved = blockedAccumulatingConveyorMovement()
-                if (moved) {
-                    processWaitingRequests()
-                }
-            }
-        }
-    }
-
     /**
      *  Finds any items that are behind a cell that is marked
      *  as blocked.  For each cell that is blocked, capture
@@ -769,7 +710,7 @@ class Conveyor(
      *  cell location on the conveyor.  As such, the item occupying the last cell is the lead item
      *  in the "train" of items moving forward by one cell.
      */
-    private fun moveItemsForward(cells: List<Cell>) {
+    private fun moveItemsForwardOneCell(cells: List<Cell>) {
         if (cells.isEmpty()) {
             return
         }
@@ -1387,17 +1328,18 @@ class Conveyor(
         if (conveyorType == Type.NON_ACCUMULATING) {
             // all motion on conveyor stops
             if (endCellTraversalEvent != null && endCellTraversalEvent!!.scheduled) {
-                ProcessModel.logger.info { "$time > cancelled cell traversal even" }
+                ProcessModel.logger.info { "$time > cancelled cell traversal event" }
                 endCellTraversalEvent!!.cancelled = true
                 endCellTraversalEvent = null
                 status = Status.BLOCKED
             }
         } else {
+            // motion continues until none can move
             if (isOccupied()) {
+                // is this all that is needed?
                 status = Status.ACCUMULATING
             }
-            // motion continues until none can move
-            TODO("Conveyor.causeBlockage() accumulating conveyor case not implemented yet")
+            //TODO("Conveyor.causeBlockage() accumulating conveyor case not implemented yet")
         }
     }
 
@@ -1473,15 +1415,18 @@ class Conveyor(
         //need to check if there are items on the conveyor
         //what about items already scheduled to move in front of the blockage
         if (isOccupied() && status == Status.BLOCKED) {
+            // if the conveyor is fully blocked then we can try to start it up
             // there are items on the conveyor and the conveyor was fully stopped due to blockages
-            // the blockage was removed, items can now attempt to move forward
+            // the blockage was removed, items may be able to move forward
             val movableCell = firstMovableCell(conveyorCells)
             if (movableCell != null) {
                 // there is at least one cell that can now move
                 // schedule the movement of a cell traversal
+                status = Status.ACCUMULATING
+                endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = movableCell)
             }
         }
-        TODO("Conveyor.startAccumulatingConveyorMovementAfterBlockage(): Not yet implemented")
+        //TODO("Conveyor.startAccumulatingConveyorMovementAfterBlockage(): Not yet implemented")
     }
 
     private fun startNonAccumulatingConveyorMovement() {
@@ -1542,7 +1487,7 @@ class Conveyor(
         ProcessModel.logger.info { "finding the moving cells" }
         val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
         ProcessModel.logger.info { "moving the cells forward" }
-        moveItemsForward(movingCells)
+        moveItemsForwardOneCell(movingCells)
         // after moving the items forward on the cells, there may be space on the conveyor for waiting requests
         processWaitingRequests()
         ProcessModel.logger.info { "Completed moving the cells forward" }
@@ -1551,17 +1496,89 @@ class Conveyor(
             // there must be a lead item if there are items on the conveyor, and the conveyor is not blocked
             val nextLeadCell = firstMovableCell(conveyorCells)
                 ?: throw IllegalStateException("Attempted to start the non-accumulating conveyor and there was no item to move")
-            ProcessModel.logger.info { "scheduling movement for cell $leadCell for traversal time $cellTravelTime" }
+            ProcessModel.logger.info { "scheduling movement for cell ${nextLeadCell.cellNumber} for traversal time $cellTravelTime" }
             endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = nextLeadCell)
         }
     }
 
-    private fun endCellTraversalActionForAccumulatingConveyor() {
-
-        val moved = blockedAccumulatingConveyorMovement()
-        if (moved) {
-            // schedule next movement
+    //TODO blockedAccumulatingConveyorMovement()
+    /**
+     *  This function assumes that there is at least one blocked cell on a conveyor
+     *  of type accumulating.  If any items on the conveyor moves forward, then
+     *  the function returns true. If no items were able to move forward, then
+     *  the function returns false.
+     */
+    private fun blockedAccumulatingConveyorMovement(): Boolean {
+        require(conveyorType == Type.ACCUMULATING) { "The conveyor is not type accumulating" }
+        require(hasBlockedCells()) { "There were no blocked cells on the accumulating conveyor" }
+        var movedCells = false
+        // conveyor has blocked cells, so there must be some cells before the first blockage
+        val cellsAfterFirstBlockage = cellsFromEndUntilFirstBlockage()
+        // these cells may be able to move forward
+        val fmc = firstMovableCell(cellsAfterFirstBlockage)
+        if (fmc != null) {
+            // there is a lead cell that can move, get the cells to move
+            val movableCells = conveyorCells.subList(cellsAfterFirstBlockage.first().index, fmc.index + 1)
+            // move the items in the cells forward by one cell
+            moveItemsForwardOneCell(movableCells)
+            movedCells = true
         }
+        // get the cells behind every blockage
+        val behindBlockagesCells = cellsBehindBlockedCells(conveyorCells)
+        for ((bc, cells) in behindBlockagesCells) {
+            if (cells.isNotEmpty()) {
+                // check if the cells can move forward
+                val fmc = firstMovableCell(cells)
+                if (fmc != null) {
+                    // there is a cell that can move forward, in this list
+                    val movableCells = conveyorCells.subList(cells.first().index, fmc.index + 1)
+                    moveItemsForwardOneCell(movableCells)
+                    movedCells = true
+                }
+            }
+        }
+        return movedCells
+    }
+
+    /**
+     *  An accumulating conveyor will move items forward by one cell that can be moved
+     *  forward on the conveyor.  This includes items that are behind blockages and
+     *  any items that are not blocked. No time advancement occurs with this movement.
+     *  This method is intended to be invoked at the end of a cell traversal event
+     *  for accumulating conveyors.
+     */
+    private fun accumulatingConveyorMoveItemsForwardOneCell() {
+        // no movement is necessary if the conveyor is not occupied
+        if (isOccupied()) {
+            if (hasNoBlockedCells()) {
+                // there must be a lead cell to move if the conveyor has items and there are no blocked cells
+                val leadCell = firstMovableCell(conveyorCells)!!
+                // get the cells to move
+                val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
+                moveItemsForwardOneCell(movingCells)
+                processWaitingRequests()
+            } else {
+                // there are blockages, try to move items that can be moved
+                val moved = blockedAccumulatingConveyorMovement()
+                if (moved) {
+                    processWaitingRequests()
+                }
+            }
+        }
+    }
+
+    private fun endCellTraversalActionForAccumulatingConveyor() {
+        accumulatingConveyorMoveItemsForwardOneCell()
+        //TODO what about continuing the movement???
+        ProcessModel.logger.info { "Completed moving the cells forward" }
+//        if (isOccupied() && hasNoBlockedCells()) {
+//            // there are items on the conveyor, and the conveyor is not blocked
+//            // there must be a lead item if there are items on the conveyor, and the conveyor is not blocked
+//            val nextLeadCell = firstMovableCell(conveyorCells)
+//                ?: throw IllegalStateException("Attempted to start the non-accumulating conveyor and there was no item to move")
+//            ProcessModel.logger.info { "scheduling movement for cell $leadCell for traversal time $cellTravelTime" }
+//            endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = nextLeadCell)
+//        }
         TODO("Conveyor.endCellTraversalEventActions() for accumulating conveyor case not implemented yet")
     }
 
