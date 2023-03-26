@@ -1682,6 +1682,42 @@ class Conveyor(
         return movedCells
     }
 
+    private fun accumulatingConveyorFindCellsToMove(): List<Cell>{
+        require(conveyorType == Type.ACCUMULATING) { "The conveyor is not type accumulating" }
+        if (!isOccupied()){
+            return emptyList()
+        }
+        val mc = mutableListOf<Cell>()
+        if (hasNoBlockedCells()) {
+            // there must be a lead cell to move if the conveyor has items and there are no blocked cells
+            val leadCell = firstMovableCell(conveyorCells)!!
+            // get the cells to move
+            // from the beginning up to and including the lead cell
+            val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
+            mc.addAll(movingCells)
+        } else {
+            // there are blockages, try to move items that can be moved
+            // conveyor has blocked cells, so there must be some cells before the first blockage
+            val (cellsBeforeFirstBlockage, cellsAfterFirstBlockage) = partitionAtFirstBlockage()
+            // if the cells after the first blockage is empty, then the first blockage is the last cell
+            if (cellsAfterFirstBlockage.isNotEmpty()) {
+                // these cells may be able to move forward
+                val movableCells = findMovableCells(cellsAfterFirstBlockage)
+                mc.addAll(movableCells)
+            }
+            // get the cells behind every blockage
+            val behindBlockagesCells = cellsBehindBlockedCells(cellsBeforeFirstBlockage)
+            for ((bc, cells) in behindBlockagesCells) {
+                if (cells.isNotEmpty()) {
+                    // check if the cells can move forward
+                    val movableCells = findMovableCells(cells)
+                    mc.addAll(movableCells)
+                }
+            }
+        }
+        return mc
+    }
+
     /**
      *  An accumulating conveyor will move items forward by one cell that can be moved
      *  forward on the conveyor.  This includes items that are behind blockages and
@@ -1698,6 +1734,7 @@ class Conveyor(
                 val leadCell = firstMovableCell(conveyorCells)!!
                 // get the cells to move
                 ProcessModel.logger.info { "$time > accumulating conveyor: moving items forward: is occupied: no blockages: looking for cells to move" }
+                // from the beginning up to and including the lead cell
                 val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
                 ProcessModel.logger.info { "$time > accumulating conveyor: moving items forward: is occupied: no blockages: moving items forward from cell (${leadCell.cellNumber})" }
                 moveItemsForwardOneCell(movingCells)
