@@ -365,6 +365,8 @@ class Conveyor(
 //    var status: Status = Status.IDLE
 //        internal set
 
+    var defaultMovementPriority = KSLEvent.DEFAULT_PRIORITY + 1
+
     var initialVelocity: Double = velocity
         set(value) {
             require(value > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
@@ -564,6 +566,44 @@ class Conveyor(
      */
     fun firstBlockedCellFromEnd(): Cell? {
         return conveyorCells.asReversed().firstOrNull { it.isBlocked }
+    }
+
+    /**
+     * Finds the first blocked cell from the supplied cell going
+     * forward in the list. If there are no blocked cells, then
+     * null is returned.
+     */
+    fun firstBlockedCellFromBeginning(startingCell: Cell): Cell? {
+        return conveyorCells.subList(startingCell.index, conveyorCells.size).firstOrNull { it.isBlocked }
+    }
+
+    /**
+     *  Checks if the supplied cell could move forward during the next cell traversal.
+     *  Returns true if the cell immediately in front of the cell is not occupied or
+     *  if the cell would be part of a train of cells that are pulled forward by
+     *  a lead cell behind a blockage.  If there are no blockage, then if the
+     *  conveyor has a movable cell then a train can be formed. The supplied
+     *  cell must be an occupied cell.
+     */
+    fun couldCellMoveForward(cell: Cell): Boolean{
+        require(cell.isOccupied){"The supplied cell is not occupied. No reason to check if it could move."}
+        if (cell.nextCell != null){
+            // there is a next cell
+            if (cell.nextCell!!.isNotOccupied){
+                return true
+            }
+            // the next cell is occupied, check for movable train
+            val fbc = firstBlockedCellFromBeginning(cell)
+            if (fbc == null){
+                // no blockages going forward, check entire conveyor
+                return firstMovableCell(conveyorCells) != null
+            } else {
+                // subset before first blocked cell
+                val cells = conveyorCells.subList(cell.index, fbc.index)
+                return firstMovableCell(cells) != null
+            }
+        }
+        return false
     }
 
     /**
@@ -768,15 +808,17 @@ class Conveyor(
         require(entryCell.isEntryCell) { "The supplied cell was not an entry cell" }
         require(entryCell.isNotOccupied) { "Cannot process waiting requests when the entry cell is occupied" }
         val location = entryCell.location!!
-        ProcessModel.logger.info { "$time > processing waiting requests at location ${location.name}" }
         // there is a possibility that a waiting request can get on
         val queue = accessQueues[location]!!
         if (queue.isNotEmpty) {
+            ProcessModel.logger.info { "$time > processing waiting requests at location ${location.name}" }
             val request = queue.peekFirst()!!
             if (request.isFillable) {
                 ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with fillable request at location ${location.name}" }
                 request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
             }
+        } else {
+            ProcessModel.logger.info { "$time > access queue at location ${location.name} was empty" }
         }
     }
 
@@ -789,24 +831,32 @@ class Conveyor(
      *  allocated cells at that location for potential use on the conveyor.
      */
     private fun processWaitingRequests() {
-        for (entryLocation in entryLocations) {
-            ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
-            if (entryCells[entryLocation]!!.isAvailable) { //TODO ******* This is a problem ******
-                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was available" }
-                // there is a possibility that a waiting request can get on
-                val queue = accessQueues[entryLocation]!!
-                if (queue.isNotEmpty) {
-                    ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
-                    val request = queue.peekFirst()!!
-                    if (request.isFillable) {
-                        ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with request at location ${entryLocation.name}" }
-                        request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
-                    }
-                }
-            } else {
-                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was not available" }
+        //TODO this checking may depend on type of conveyor
+        for(entryLocation in entryLocations.reversed()){
+            val entryCell = entryCells[entryLocation]!!
+            if (entryCell.isNotOccupied){
+                processWaitingRequestsWhenEntryCellBecomesUnoccupied(entryCell)
             }
         }
+//
+//        for (entryLocation in entryLocations) {
+//            ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
+//            if (entryCells[entryLocation]!!.isAvailable) { //TODO ******* This is a problem ******
+//                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was available" }
+//                // there is a possibility that a waiting request can get on
+//                val queue = accessQueues[entryLocation]!!
+//                if (queue.isNotEmpty) {
+//                    ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
+//                    val request = queue.peekFirst()!!
+//                    if (request.isFillable) {
+//                        ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with request at location ${entryLocation.name}" }
+//                        request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
+//                    }
+//                }
+//            } else {
+//                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was not available" }
+//            }
+//        }
     }
 
     private fun moveItemForward(item: Item) {
@@ -1499,7 +1549,7 @@ class Conveyor(
                     // schedule the movement of a cell traversal
 //                    status = Status.ACCUMULATING
                     ProcessModel.logger.info { "$time > scheduling start of accumulating conveyor with movable cell ${movableCell.cellNumber}" }
-                    endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = movableCell)
+                    endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = movableCell, priority = defaultMovementPriority)
                 } else {
                     ProcessModel.logger.info { "$time > accumulating conveyor: after blockage: is occupied: no movable cells to schedule" }
                     endCellTraversalEvent = null
@@ -1523,7 +1573,7 @@ class Conveyor(
             val leadCell = firstMovableCell(conveyorCells)
                 ?: throw IllegalStateException("Attempted to start the non-accumulating conveyor and there was no item to move")
             ProcessModel.logger.info { "scheduling movement for cell $leadCell for traversal time $cellTravelTime" }
-            endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = leadCell)
+            endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = leadCell, priority = defaultMovementPriority)
         }
     }
 
@@ -1582,7 +1632,7 @@ class Conveyor(
             val nextLeadCell = firstMovableCell(conveyorCells)
                 ?: throw IllegalStateException("Attempted to start the non-accumulating conveyor and there was no item to move")
             ProcessModel.logger.info { "scheduling movement for cell ${nextLeadCell.cellNumber} for traversal time $cellTravelTime" }
-            endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = nextLeadCell)
+            endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = nextLeadCell, priority = defaultMovementPriority)
         }
     }
 
@@ -1651,14 +1701,14 @@ class Conveyor(
                 val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
                 ProcessModel.logger.info { "$time > accumulating conveyor: moving items forward: is occupied: no blockages: moving items forward from cell (${leadCell.cellNumber})" }
                 moveItemsForwardOneCell(movingCells)
-                processWaitingRequests()
+                //processWaitingRequests()
             } else {
                 // there are blockages, try to move items that can be moved
                 ProcessModel.logger.info { "$time > accumulating conveyor: moving items forward: is occupied: with blockages: attempting to move items forward" }
                 val moved = blockedAccumulatingConveyorMovement()
                 if (moved) {
                     ProcessModel.logger.info { "$time > accumulating conveyor: moving items forward: is occupied: with blockages: there were items moved" }
-                    processWaitingRequests()
+                    //processWaitingRequests()
                 } else {
                     ProcessModel.logger.info { "$time > accumulating conveyor: moving items forward: is occupied: with blockages: there no items moved" }
                 }
@@ -1671,6 +1721,7 @@ class Conveyor(
     private fun endCellTraversalActionForAccumulatingConveyor() {
         ProcessModel.logger.info { "$time > accumulating conveyor: causing movable items to move forward by one cell" }
         accumulatingConveyorMoveItemsForwardOneCell()
+        processWaitingRequests()
         //TODO I think that this is the only place needed for checking to processWaitingRequests()
         ProcessModel.logger.info { "$time > accumulating conveyor: completed moving items forward by one cell" }
         if (isOccupied()) {
@@ -1682,7 +1733,7 @@ class Conveyor(
                 // schedule the movement of a cell traversal
 //                status = Status.ACCUMULATING
                 ProcessModel.logger.info { "$time > accumulating conveyor: is occupied: found movable cells: scheduling more movement" }
-                endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = movableCell)
+                endCellTraversalEvent = endCellTraversalAction.schedule(cellTravelTime, message = movableCell, priority = defaultMovementPriority)
             } else {
                 ProcessModel.logger.info { "$time > accumulating conveyor: is occupied: no movable cells found: not scheduling more movement" }
                 endCellTraversalEvent = null
