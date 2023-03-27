@@ -1443,10 +1443,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.info { "$time > entity (${entity.name}) ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 delay(0.0, requestPriority, "$suspensionName:AccessDelay")
                 // make the conveyor request
-                val request = conveyor.createRequest(entity, numCellsNeeded, entryLocation, requestResumePriority)
-                conveyor.enqueueRequest(request)
+                val request = conveyor.requestCells(entity, numCellsNeeded, entryLocation, requestResumePriority)
                 // if request is not filled then suspend
-                if (request.isNotFillable || conveyor.hasCellTraversalPending) {
+                if (conveyor.isEntryLocationBlocked(entryLocation)) {
                     // the request must wait for the cell traversal to complete
                     // we do not interrupt a pending movement on the conveyor, after the movement completes the request will be checked
                     // it must wait, request is already in the queue waiting for the space on the conveyor, just suspend the entity's process
@@ -1455,13 +1454,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     suspend()
                     entity.state.activate()
                 }
-                // entity has been told to resume, or cells were available at this time instant
-                conveyor.dequeueRequest(request)
+                // entity has been told to resume due to entry unblocking, or entry location was not blocked at this time instant
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
+                conveyor.dequeueRequest(request) //TODO combine with allocation logic
                 // make the cell allocation and return it
                 val allocation = conveyor.allocateCells(request)
-                logger.info { "$time > entity (${entity.name}) allocated $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                logger.info { "$time > entity (${entity.name}) has blocked the entry cell of ${conveyor.name} at location (${entryLocation.name}) in process, ($this)" }
                 entity.cellAllocation = allocation
                 return allocation
             }

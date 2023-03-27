@@ -931,7 +931,7 @@ class Conveyor(
      *  riding on a conveyor is completely on the conveyor. That is, when the item's
      *  rear most cell first occupies the entry cell.
      */
-    fun isEntryLocationBlocked(entryLocation: IdentityIfc) : Boolean {
+    fun isEntryLocationBlocked(entryLocation: IdentityIfc): Boolean {
         require(entryLocations.contains(entryLocation)) { "The location ($entryLocation) is not a valid entry point on the conveyor" }
         val entryCell = entryCells[entryLocation]!!
         return entryCell.isBlocked
@@ -946,7 +946,7 @@ class Conveyor(
      *  still on the conveyor. The exit cell becomes unblocked the instant that the item
      *  is fully off of the conveyor
      */
-    fun isExitLocationBlocked(exitLocation: IdentityIfc) : Boolean {
+    fun isExitLocationBlocked(exitLocation: IdentityIfc): Boolean {
         require(exitLocations.contains(exitLocation)) { "The location ($exitLocation) is not a valid exit point on the conveyor" }
         val exitCell = exitCells[exitLocation]!!
         return exitCell.isBlocked
@@ -993,17 +993,15 @@ class Conveyor(
 
     }
 
-    internal fun createRequest(
+    internal fun requestCells(
         entity: ProcessModel.Entity,
         numCellsNeeded: Int = 1,
         entryLocation: IdentityIfc,
         accessResumePriority: Int
-    ): CellRequest {
-        return CellRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
-    }
-
-    internal fun enqueueRequest(request: CellRequest) {
+    ) : CellRequest {
+        val request = CellRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
         accessQueues[request.entryLocation]!!.enqueue(request)
+        return request
     }
 
     internal fun dequeueRequest(request: CellRequest) {
@@ -1576,7 +1574,7 @@ class Conveyor(
         }
     }
 
-    private fun scheduleConveyorMovement(){
+    private fun scheduleConveyorMovement() {
         if (conveyorType == Type.NON_ACCUMULATING) {
             scheduleNonAccumulatingConveyorMovement()
         } else {
@@ -1862,7 +1860,7 @@ class Conveyor(
 //    }
 
     private fun itemFullyOffConveyor(item: Item, exitCell: Cell) {
-        require(exitCell.isExitCell){"The supplied cell was not an exit cell"}
+        require(exitCell.isExitCell) { "The supplied cell was not an exit cell" }
         //TODO what happens when an item exits, should the exit cell become unblocked?
         exitCell.isBlocked = false //TODO what about remove blockage function
         // item completed the exiting process, tell the entity that it can proceed
