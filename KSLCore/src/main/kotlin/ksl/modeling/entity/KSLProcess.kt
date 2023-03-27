@@ -1359,7 +1359,7 @@ interface KSLProcessBuilder {
      * @return a representation of the allocated cells on the conveyor. The user should use this as a ticket
      * to ride on the conveyor and to eventually release the allocated cells by exiting the conveyor.
      */
-    suspend fun requestSpaceOn(
+    suspend fun requestConveyor(
         conveyor: Conveyor,
         entryLocation: IdentityIfc,
         numCellsNeeded: Int = 1,
@@ -1436,7 +1436,7 @@ interface KSLProcessBuilder {
         requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ): CellAllocationIfc {
-        val ca = requestSpaceOn(conveyor, entryLocation, numCellsNeeded, requestPriority, requestResumePriority, suspensionName)
+        val ca = requestConveyor(conveyor, entryLocation, numCellsNeeded, requestPriority, requestResumePriority, suspensionName)
         delay(loadingTime)
         rideConveyor(ca, destination)
         delay(unloadingTime)

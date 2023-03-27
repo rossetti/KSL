@@ -1419,7 +1419,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             //TODO conveyor process commands
 
-            override suspend fun requestSpaceOn(
+            override suspend fun requestConveyor(
                 conveyor: Conveyor,
                 entryLocation: IdentityIfc,
                 numCellsNeeded: Int,
@@ -1447,7 +1447,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 conveyor.enqueueRequest(request)
                 // if request is not filled then suspend
                 if (request.isNotFillable || conveyor.hasCellTraversalPending) {
-                    //TODO need to handle conveyor being stopped here, eventually or make request not fillable if conveyor is stopped
+                    // the request must wait for the cell traversal to complete
                     // we do not interrupt a pending movement on the conveyor, after the movement completes the request will be checked
                     // it must wait, request is already in the queue waiting for the space on the conveyor, just suspend the entity's process
                     logger.info { "$time > entity (${entity.name}) waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }

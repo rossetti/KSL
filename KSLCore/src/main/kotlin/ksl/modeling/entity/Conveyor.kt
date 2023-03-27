@@ -2017,7 +2017,7 @@ class TestConveyor(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessM
     private inner class Part(name: String? = null) : Entity(name) {
         val conveyingProcess: KSLProcess = process("test") {
             println("${entity.name}: time = $time before access at ${i1.name}")
-            val a = requestSpaceOn(conveyor, i1)
+            val a = requestConveyor(conveyor, i1)
             println("${entity.name}: time = $time after access")
             //           delay(10.0)
             timeStamp = time
