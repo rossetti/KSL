@@ -1840,6 +1840,10 @@ class Conveyor(
     }
 
     private fun scheduleAccumulatingConveyorMovement() {
+        if (!isOccupied()){
+            //TODO make even NULL
+            return
+        }
         val movableCells = accumulatingConveyorFindCellsToMove()
         if (movableCells.isNotEmpty()) {
             //TODO check for entry cells that will be uncovered after the move
@@ -1887,6 +1891,10 @@ class Conveyor(
     }
 
     private fun scheduleNonAccumulatingConveyorMovement() {
+        if (!isOccupied() || hasBlockedCells()){
+            //TODO make even NULL
+            return
+        }
         val movableCells = nonAccumulatingConveyorFindCellsToMove()
         if (movableCells.isNotEmpty()) {
             //TODO check for uncovered entry cells here??
@@ -1905,6 +1913,12 @@ class Conveyor(
             // items moved, could have uncovered entry or exit cells
             processWaitingRequests()
             ProcessModel.logger.info { "$time > ***** completed end of cell traversal action *****" }
+            // reschedule next traversal based on type of conveyor
+            if (conveyorType == Type.NON_ACCUMULATING){
+                scheduleNonAccumulatingConveyorMovement()
+            } else {
+                scheduleAccumulatingConveyorMovement()
+            }
         }
 
     }
