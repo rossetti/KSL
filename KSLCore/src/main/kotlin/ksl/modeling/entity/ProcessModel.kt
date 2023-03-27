@@ -1446,9 +1446,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = conveyor.requestCells(entity, numCellsNeeded, entryLocation, requestResumePriority)
                 // if request is not filled then suspend
                 if (conveyor.isEntryLocationBlocked(entryLocation)) {
-                    // the request must wait for the cell traversal to complete
-                    // we do not interrupt a pending movement on the conveyor, after the movement completes the request will be checked
-                    // it must wait, request is already in the queue waiting for the space on the conveyor, just suspend the entity's process
+                    // an entity already controls the entry cell, cause the request to suspend while in the queue
                     logger.info { "$time > entity (${entity.name}) waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                     entity.state.waitForConveyor()
                     suspend()

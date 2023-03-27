@@ -1173,6 +1173,7 @@ class Conveyor(
                 ProcessModel.logger.info { "$time > Item(${name}) representing Entity(${entity.name}) reached the end of cell ${frontCell?.cellNumber} at location ${frontCell?.location?.name}" }
                 status = ItemStatus.ENTERING // it will be included in future moves
                 // could be fully on here
+                //TODO this is not working, it is not being called for 1st or 2nd entity
                 if ((myCellsOccupied.size == numberOfCells)) {
                     // all cells acquired and last cell is an entry cell for the conveyor, then it completed loading
                     if (rearCell!!.isEntryCell) {
@@ -1471,7 +1472,7 @@ class Conveyor(
         require(request.conveyor == this) { "The cell request is not from this conveyor" }
         //TODO this error is occurring because there are no cells available because item is still in entry cell when the entity was resumed
         // this does not anticipate the movement out of the entry cell
-        require(request.isFillable) { "The cell request for (${request.numCellsNeeded}) cells cannot be filled at this time" }
+//        require(request.isFillable) { "The cell request for (${request.numCellsNeeded}) cells cannot be filled at this time" }
         val ca = CellAllocation(request)
         ProcessModel.logger.info { "$time > ${request.entity.name} causing blockage for cell ${ca.entryCell.cellNumber} at location (${request.entryLocation.name})" }
         causeBlockage(ca.entryCell)
