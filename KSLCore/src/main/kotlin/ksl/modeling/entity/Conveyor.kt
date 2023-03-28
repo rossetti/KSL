@@ -1198,7 +1198,7 @@ class Conveyor(
                     // all cells acquired and last cell is an entry cell for the conveyor, then it completed loading
                     if (rearCell!!.isEntryCell) {
                         //TODO this is not working, it is not being called for 1st or 2nd entity
-                        
+
                         // check if the item is in the process of entering
                         if (status == ItemStatus.ENTERING) {
                             // this logic should only execute if the item was on but did not have all its cells yet
