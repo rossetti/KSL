@@ -993,12 +993,62 @@ class Conveyor(
 
     }
 
+    /**
+     *  Depending on the type of conveyor, this function returns true
+     *  if the entry cell at the supplied location is available to be controlled allocated and
+     *  false if entry is not possible and a request at this time would need to wait.
+     */
+    fun isEntryPossible(entryLocation: IdentityIfc): Boolean {
+        require(entryLocations.contains(entryLocation)) { "The supplied location was not valid entry location." }
+        val entryCell = entryCells[entryLocation]!!
+        return if (conveyorType == Type.NON_ACCUMULATING) {
+            isEntryCellAvailableNonAccumulatingConveyor(entryCell)
+        } else {
+            isEntryCellAvailableAccumulatingConveyor(entryCell)
+        }
+    }
+
+    private fun isEntryCellAvailableNonAccumulatingConveyor(entryCell: Cell): Boolean {
+        return if (hasBlockedCells()) {
+            !entryCell.isBlocked
+        } else {
+            if (isOccupied()) {
+                // no blocked cells and conveyor is occupied. It should be moving
+                val pc = entryCell.previousCell
+                if (pc != null) {
+                    !pc.isOccupied
+                } else {
+                    true
+                }
+            } else {
+                true
+            }
+        }
+    }
+
+    private fun isEntryCellAvailableAccumulatingConveyor(entryCell: Cell): Boolean {
+        return if (entryCell.isBlocked) {
+            false
+        } else {
+            // entry cell is not blocked
+            if (!entryCell.isOccupied) {
+                // entry cell is not occupied
+                val pc = entryCell.previousCell
+                // if the previous cell exists and is occupied, the entry cell will not be available
+                !(pc != null && pc.isOccupied)
+            } else {
+                // entry cell is occupied, the item may move out of it, into the next cell
+                couldCellMoveForward(entryCell)
+            }
+        }
+    }
+
     internal fun requestCells(
         entity: ProcessModel.Entity,
         numCellsNeeded: Int = 1,
         entryLocation: IdentityIfc,
         accessResumePriority: Int
-    ) : CellRequest {
+    ): CellRequest {
         val request = CellRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
         accessQueues[request.entryLocation]!!.enqueue(request)
         return request
