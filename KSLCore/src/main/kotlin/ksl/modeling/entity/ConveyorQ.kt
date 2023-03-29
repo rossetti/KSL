@@ -26,7 +26,7 @@ class ConveyorQ(
     name: String? = null,
     discipline: Discipline = Discipline.FIFO
 ) :
-    Queue<Conveyor.CellRequest>(parent, name, discipline) {
+    Queue<Conveyor.ConveyorRequest>(parent, name, discipline) {
 
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
@@ -37,7 +37,7 @@ class ConveyorQ(
      * @param afterTermination a function to invoke after the process is successfully terminated
      */
     fun removeAndTerminate(
-        request: Conveyor.CellRequest,
+        request: Conveyor.ConveyorRequest,
         waitStats: Boolean = false,
         afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null
     ) {

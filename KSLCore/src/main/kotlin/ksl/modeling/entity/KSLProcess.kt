@@ -1366,7 +1366,7 @@ interface KSLProcessBuilder {
         requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ): CellAllocationIfc
+    ): ConveyorRequestIfc
 
     /** This suspending function causes the entity to be associated with an item that occupies the allocated
      * cells on the conveyor. The item will move on the conveyor until it reaches the supplied destination.
@@ -1377,7 +1377,7 @@ interface KSLProcessBuilder {
      * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
      * while the entity occupies the final cells before exiting or riding again.
      *
-     * @param cellAllocation the permission to ride on the conveyor in the form of a valid cell allocation
+     * @param conveyorRequest the permission to ride on the conveyor in the form of a valid cell allocation
      * @param destination the location to which to ride
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
@@ -1385,10 +1385,10 @@ interface KSLProcessBuilder {
      * the origin point, the destination, etc.
      */
     suspend fun rideConveyor(
-        cellAllocation: CellAllocationIfc,
+        conveyorRequest: ConveyorRequestIfc,
         destination: IdentityIfc,
         suspensionName: String? = null
-    ): ConveyorItemIfc
+    )
 
     /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
      * If there is no item associated with the allocated cells, the cells are immediately released without
@@ -1397,14 +1397,14 @@ interface KSLProcessBuilder {
      * exiting the conveyor, the cell allocation is deallocated and cannot be used for further interaction
      * with the conveyor.
      *
-     * @param cellAllocation the cell allocation that will be released during the exiting process
+     * @param conveyorRequest the cell allocation that will be released during the exiting process
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      * @return the returned item encapsulates what happened during the ride and contains information about
      * the origin point, the destination, etc.
      */
     suspend fun exitConveyor(
-        cellAllocation: CellAllocationIfc,
+        conveyorRequest: ConveyorRequestIfc,
         suspensionName: String? = null
     )
 
@@ -1435,7 +1435,7 @@ interface KSLProcessBuilder {
         requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ): CellAllocationIfc {
+    ): ConveyorRequestIfc {
         val ca = requestConveyor(conveyor, entryLocation, numCellsNeeded, requestPriority, requestResumePriority, suspensionName)
         delay(loadingTime)
         rideConveyor(ca, destination)
@@ -1471,7 +1471,7 @@ interface KSLProcessBuilder {
         requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ): CellAllocationIfc {
+    ): ConveyorRequestIfc {
         return convey(
             conveyor,
             entryLocation,

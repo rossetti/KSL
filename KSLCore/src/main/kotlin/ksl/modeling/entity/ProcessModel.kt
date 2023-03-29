@@ -485,7 +485,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        var cellAllocation: CellAllocationIfc? = null
+        var conveyorRequest: ConveyorRequestIfc? = null
             private set
 
         var conveyable: ConveyorItemIfc? = null //TODO
@@ -1426,9 +1426,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 requestPriority: Int,
                 requestResumePriority: Int,
                 suspensionName: String?
-            ): CellAllocationIfc {
-                require(entity.cellAllocation == null) {
-                    "Attempted to access ${conveyor.name} when already allocated to conveyor: ${entity.cellAllocation?.conveyor?.name}." +
+            ): ConveyorRequestIfc {
+                require(entity.conveyorRequest == null) {
+                    "Attempted to access ${conveyor.name} when already allocated to conveyor: ${entity.conveyorRequest?.conveyor?.name}." +
                             "An entity can access only one conveyor at a time. Use exit() to stop accessing a conveyor."
                 }
                 require(conveyor.entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) " +
@@ -1443,9 +1443,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.info { "$time > entity (${entity.name}) ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 delay(0.0, requestPriority, "$suspensionName:AccessDelay")
                 // make the conveyor request
-                val request = conveyor.requestCells(entity, numCellsNeeded, entryLocation, requestResumePriority)
+                val request = conveyor.requestConveyor(entity, numCellsNeeded, entryLocation, requestResumePriority)
                 // if request is not filled then suspend
-                if (conveyor.isEntryLocationBlocked(entryLocation)) {
+                if (request.mustSuspend()) {
                     // an entity already controls the entry cell, cause the request to suspend while in the queue
                     logger.info { "$time > entity (${entity.name}) waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                     entity.state.waitForConveyor()
@@ -1455,35 +1455,35 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // entity has been told to resume due to entry unblocking, or entry location was not blocked at this time instant
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                conveyor.dequeueRequest(request) //TODO combine with allocation logic
-                // make the cell allocation and return it
-                val allocation = conveyor.allocateCells(request)
+                entity.conveyorRequest = request //TODO consider putting this inside next call to blockEntry
+                request.blockEntry()
                 logger.info { "$time > entity (${entity.name}) has blocked the entry cell of ${conveyor.name} at location (${entryLocation.name}) in process, ($this)" }
-                entity.cellAllocation = allocation
-                return allocation
+                return request
             }
 
             override suspend fun rideConveyor(
-                cellAllocation: CellAllocationIfc,
+                conveyorRequest: ConveyorRequestIfc,
                 destination: IdentityIfc,
                 suspensionName: String?
-            ): ConveyorItemIfc {
-                require(entity.cellAllocation != null) {
-                    "Attempted to ride without having cells allocated on the conveyor."
+            ) {
+                require(entity.conveyorRequest != null) {
+                    "Attempted to ride without having requested the conveyor."
                 }
-                require(entity.cellAllocation == cellAllocation) {
-                    "Attempted to ride without owning the supplied cell allocation."
+                require(entity.conveyorRequest == conveyorRequest) {
+                    "Attempted to ride without owning the supplied conveyor request."
                 }
-                require(cellAllocation.isAllocated) { "The supplied cell allocation was not allocated any cells" }
+                require(conveyorRequest.isBlockingEntry || conveyorRequest.isBlockingExit)
+                { "The supplied request is not blocking an entry or exit location" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.RIDE
-                val conveyor = cellAllocation.conveyor
-                val origin = cellAllocation.entryLocation
+                val conveyor = conveyorRequest.conveyor
+                val origin = conveyorRequest.currentLocation
                 require(conveyor.isReachable(origin, destination))
                     { "The destination (${destination.name} is not reachable from entry location (${origin.name})" }
                 logger.info { "$time > entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
                 // conveyItem causes event(s) to be scheduled that will eventually resume the entity after the ride
-                conveyor.conveyItem(cellAllocation as Conveyor.CellAllocation, destination)
+                //TODO need to replace this convey item
+                conveyor.conveyItem(conveyorRequest as Conveyor.CellAllocation, destination)
                 logger.info { "$time > entity (${entity.name}) riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
@@ -1491,29 +1491,28 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.info { "$time > entity (${entity.name}) completed ride from ${origin.name} to ${destination.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                return cellAllocation.item!!
             }
 
             override suspend fun exitConveyor(
-                cellAllocation: CellAllocationIfc,
+                conveyorRequest: ConveyorRequestIfc,
                 suspensionName: String?
             ) {
-                require(entity.cellAllocation != null) { "The entity attempted to exit without holding any cells on a conveyor." }
-                require(entity.cellAllocation == cellAllocation) { "The exiting entity does not own the supplied cell allocation" }
-                require(cellAllocation.isAllocated) { "The supplied cell allocation was not allocated any cells" }
+                require(entity.conveyorRequest != null) { "The entity attempted to exit without holding any cells on a conveyor." }
+                require(entity.conveyorRequest == conveyorRequest) { "The exiting entity does not own the supplied cell allocation" }
+                require(conveyorRequest.isBlockingExit) { "The supplied request is not blocking an exit location" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.EXIT
-                val conveyor = cellAllocation.conveyor
+                val conveyor = conveyorRequest.conveyor
                 logger.info { "$time > entity (${entity.name}) is exiting ${conveyor.name}" }
-                if (cellAllocation.item == null) {
+                if (conveyorRequest.item == null) {
                     // if allocation does not have an item, just deallocate the cells
-                    conveyor.deallocateCells(cellAllocation as Conveyor.CellAllocation)
+                    conveyor.deallocateCells(conveyorRequest as Conveyor.CellAllocation)
                     logger.info { "$time > EXITING entity (${entity.name}) did not occupy any cells and deallocated cells for (${conveyor.name})" }
                 } else {
                     // if allocation has an item then start the exiting process
                     isMoving = true
-                    conveyor.startExitingProcess(cellAllocation as Conveyor.CellAllocation)
-                    logger.info { "$time > EXITING entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${cellAllocation.item!!.destination})" }
+                    conveyor.startExitingProcess(conveyorRequest as Conveyor.CellAllocation)
+                    logger.info { "$time > EXITING entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.item!!.destination})" }
                     logger.info { "$time > EXITING entity (${entity.name}) suspending for exiting process" }
                     hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
                     isMoving = false

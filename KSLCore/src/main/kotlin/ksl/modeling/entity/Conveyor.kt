@@ -358,13 +358,6 @@ class Conveyor(
         ACCUMULATING, NON_ACCUMULATING
     }
 
-//    enum class Status {
-//        IDLE, BLOCKED, ACCUMULATING, MOVING
-//    }
-//
-//    var status: Status = Status.IDLE
-//        internal set
-
     var defaultMovementPriority = KSLEvent.DEFAULT_PRIORITY + 1
 
     var initialVelocity: Double = velocity
@@ -442,10 +435,10 @@ class Conveyor(
     internal val hasCellTraversalPending: Boolean
         get() = endCellTraversalEvent != null
 
-    fun accessQueueAt(location: IdentityIfc): QueueCIfc<CellRequest> {
-        require(accessQueues.contains(location)) { "The origin ($location) is not a valid entry point on the conveyor" }
-        return accessQueues[location]!!
-    }
+//    fun accessQueueAt(location: IdentityIfc): QueueCIfc<CellRequest> {
+//        require(accessQueues.contains(location)) { "The origin ($location) is not a valid entry point on the conveyor" }
+//        return accessQueues[location]!!
+//    }
 
     var velocity: Double = velocity
         set(value) {
@@ -806,23 +799,23 @@ class Conveyor(
         }
     }
 
-    private fun processWaitingRequestsWhenEntryCellBecomesUnoccupied(entryCell: Cell) {
-        require(entryCell.isEntryCell) { "The supplied cell was not an entry cell" }
-        require(entryCell.isNotOccupied) { "Cannot process waiting requests when the entry cell is occupied" }
-        val location = entryCell.location!!
-        // there is a possibility that a waiting request can get on
-        val queue = accessQueues[location]!!
-        if (queue.isNotEmpty) {
-            ProcessModel.logger.info { "$time > processing waiting requests at location ${location.name}" }
-            val request = queue.peekFirst()!!
-            if (request.isFillable) {
-                ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with fillable request at location ${location.name}" }
-                request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
-            }
-        } else {
-            ProcessModel.logger.info { "$time > access queue at location ${location.name} was empty" }
-        }
-    }
+//    private fun processWaitingRequestsWhenEntryCellBecomesUnoccupied(entryCell: Cell) {
+//        require(entryCell.isEntryCell) { "The supplied cell was not an entry cell" }
+//        require(entryCell.isNotOccupied) { "Cannot process waiting requests when the entry cell is occupied" }
+//        val location = entryCell.location!!
+//        // there is a possibility that a waiting request can get on
+//        val queue = accessQueues[location]!!
+//        if (queue.isNotEmpty) {
+//            ProcessModel.logger.info { "$time > processing waiting requests at location ${location.name}" }
+//            val request = queue.peekFirst()!!
+//            if (request.isFillable) {
+//                ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with fillable request at location ${location.name}" }
+//                request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
+//            }
+//        } else {
+//            ProcessModel.logger.info { "$time > access queue at location ${location.name} was empty" }
+//        }
+//    }
 
     /**
      *  This function is called after items have completed a move forward on the conveyor.
@@ -832,34 +825,34 @@ class Conveyor(
      *  waiting request to be removed from the queue and the entity to be
      *  allocated cells at that location for potential use on the conveyor.
      */
-    private fun processWaitingRequests() {
-        //TODO this checking may depend on type of conveyor
-        for (entryLocation in entryLocations.reversed()) {
-            val entryCell = entryCells[entryLocation]!!
-            if (entryCell.isNotOccupied) {
-                processWaitingRequestsWhenEntryCellBecomesUnoccupied(entryCell)
-            }
-        }
-//
-//        for (entryLocation in entryLocations) {
-//            ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
-//            if (entryCells[entryLocation]!!.isAvailable) { //TODO ******* This is a problem ******
-//                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was available" }
-//                // there is a possibility that a waiting request can get on
-//                val queue = accessQueues[entryLocation]!!
-//                if (queue.isNotEmpty) {
-//                    ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
-//                    val request = queue.peekFirst()!!
-//                    if (request.isFillable) {
-//                        ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with request at location ${entryLocation.name}" }
-//                        request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
-//                    }
-//                }
-//            } else {
-//                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was not available" }
+//    private fun processWaitingRequests() {
+//        //TODO this checking may depend on type of conveyor
+//        for (entryLocation in entryLocations.reversed()) {
+//            val entryCell = entryCells[entryLocation]!!
+//            if (entryCell.isNotOccupied) {
+//                processWaitingRequestsWhenEntryCellBecomesUnoccupied(entryCell)
 //            }
 //        }
-    }
+////
+////        for (entryLocation in entryLocations) {
+////            ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
+////            if (entryCells[entryLocation]!!.isAvailable) { //TODO ******* This is a problem ******
+////                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was available" }
+////                // there is a possibility that a waiting request can get on
+////                val queue = accessQueues[entryLocation]!!
+////                if (queue.isNotEmpty) {
+////                    ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
+////                    val request = queue.peekFirst()!!
+////                    if (request.isFillable) {
+////                        ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with request at location ${entryLocation.name}" }
+////                        request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
+////                    }
+////                }
+////            } else {
+////                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was not available" }
+////            }
+////        }
+//    }
 
     private fun moveItemForward(item: Item) {
         item.moveForwardOneCell()
@@ -1043,20 +1036,20 @@ class Conveyor(
         }
     }
 
-    internal fun requestCells(
-        entity: ProcessModel.Entity,
-        numCellsNeeded: Int = 1,
-        entryLocation: IdentityIfc,
-        accessResumePriority: Int
-    ): CellRequest {
-        val request = CellRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
-        accessQueues[request.entryLocation]!!.enqueue(request)
-        return request
-    }
-
-    internal fun dequeueRequest(request: CellRequest) {
-        accessQueues[request.entryLocation]!!.remove(request)
-    }
+//    internal fun requestCells(
+//        entity: ProcessModel.Entity,
+//        numCellsNeeded: Int = 1,
+//        entryLocation: IdentityIfc,
+//        accessResumePriority: Int
+//    ): CellRequest {
+//        val request = CellRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
+//        accessQueues[request.entryLocation]!!.enqueue(request)
+//        return request
+//    }
+//
+//    internal fun dequeueRequest(request: CellRequest) {
+//        accessQueues[request.entryLocation]!!.remove(request)
+//    }
 
     inner class CellAllocation(
         request: CellRequest
@@ -2045,7 +2038,7 @@ class Conveyor(
             //TODO not sure if a simple list will work
             moveItemsForwardOneCell(cellsToMove)
             // items moved, could have uncovered entry or exit cells
-            processWaitingRequests()//TODO this should be handled when the cell is unblocked not here
+//            processWaitingRequests()//TODO this should be handled when the cell is unblocked not here
             ProcessModel.logger.info { "$time > ***** completed end of cell traversal action *****" }
             // reschedule next traversal based on type of conveyor
             scheduleConveyorMovement()
@@ -2056,50 +2049,9 @@ class Conveyor(
     inner class ConveyorRequest(
         val entity: ProcessModel.Entity,
         val numCellsNeeded: Int,
-        entryLocation: IdentityIfc,
+        override val entryLocation: IdentityIfc,
         val accessResumePriority: Int
-    ): QObject(){
-        val conveyor = this@Conveyor
-        val entryCell: Cell
-        var tripOrigin : IdentityIfc
-            internal set
-
-        internal var state: RequestState = requestWaitingForEntryState
-
-        internal fun mustSuspend() : Boolean{
-            return !isEntryPossible(tripOrigin)
-        }
-
-        val isWaitingForEntry: Boolean
-            get() = state == requestWaitingForEntryState
-
-        val isBlockingEntry: Boolean
-            get() = state == requestBlockingEntryState
-
-        val isRiding: Boolean
-            get() = state == requestRidingState
-        val isBlockingExit: Boolean
-            get() = state == requestBlockingExitState
-
-        val isCompleted: Boolean
-            get() = state == requestCompletedState
-
-        internal fun blockEntry(){
-            state.blockEntryCell(this)
-        }
-
-        internal fun ride(request: ConveyorRequest){
-            state.ride(request)
-        }
-
-        internal fun blockExit(request: ConveyorRequest){
-            state.blockExitCell(request)
-        }
-
-        internal fun complete(request: ConveyorRequest){
-            state.complete(request)
-        }
-
+    ) : QObject(), ConveyorRequestIfc {
         init {
             require(numCellsNeeded >= 1) { "The number of cells requested must be >= 1" }
             require(numCellsNeeded <= maxEntityCellsAllowed) {
@@ -2108,8 +2060,49 @@ class Conveyor(
             }
             require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) of requested cells is not on conveyor (${conveyor.name})" }
             priority = entity.priority
-            tripOrigin = entryLocation
-            entryCell = entryCells[entryLocation]!!
+        }
+
+        override val conveyor = this@Conveyor
+        val entryCell: Cell = entryCells[entryLocation]!!
+        override var currentLocation: IdentityIfc = entryLocation
+            internal set
+        override var destination: IdentityIfc? = null
+            internal set
+
+        internal var state: RequestState = requestWaitingForEntryState
+
+        internal fun mustSuspend(): Boolean {
+            return !isEntryPossible(currentLocation)
+        }
+
+        override val isWaitingForEntry: Boolean
+            get() = state == requestWaitingForEntryState
+
+        override val isBlockingEntry: Boolean
+            get() = state == requestBlockingEntryState
+
+        override val isRiding: Boolean
+            get() = state == requestRidingState
+        override val isBlockingExit: Boolean
+            get() = state == requestBlockingExitState
+
+        override val isCompleted: Boolean
+            get() = state == requestCompletedState
+
+        internal fun blockEntry() {
+            state.blockEntryCell(this)
+        }
+
+        internal fun ride(request: ConveyorRequest) {
+            state.ride(request)
+        }
+
+        internal fun blockExit(request: ConveyorRequest) {
+            state.blockExitCell(request)
+        }
+
+        internal fun complete(request: ConveyorRequest) {
+            state.complete(request)
         }
 
     }
@@ -2120,21 +2113,21 @@ class Conveyor(
     private val requestBlockingExitState = BlockingExit()
     private val requestCompletedState = Completed()
 
-    internal abstract inner class RequestState(val stateName:  String) {
+    internal abstract inner class RequestState(val stateName: String) {
 
-        open fun blockEntryCell(request: ConveyorRequest){
+        open fun blockEntryCell(request: ConveyorRequest) {
             errorMessage("blockEntryCell()")
         }
 
-        open fun ride(request: ConveyorRequest){
+        open fun ride(request: ConveyorRequest) {
             errorMessage("ride()")
         }
 
-        open fun blockExitCell(request: ConveyorRequest){
+        open fun blockExitCell(request: ConveyorRequest) {
             errorMessage("blockExitCell()")
         }
 
-        open fun complete(request: ConveyorRequest){
+        open fun complete(request: ConveyorRequest) {
             errorMessage("complete()")
         }
 
@@ -2146,70 +2139,95 @@ class Conveyor(
         }
     }
 
-    internal inner class WaitingForEntry: RequestState("Waiting"){
-        override fun blockEntryCell(request: ConveyorRequest){
+    internal inner class WaitingForEntry : RequestState("Waiting") {
+        override fun blockEntryCell(request: ConveyorRequest) {
             request.state = requestBlockingEntryState
             blockEntry(request)
         }
     }
 
-    internal inner class BlockingEntry: RequestState("BlockingEntry"){
-        override fun ride(request: ConveyorRequest){
+    internal inner class BlockingEntry : RequestState("BlockingEntry") {
+        override fun ride(request: ConveyorRequest) {
             request.state = requestRidingState
             startConveyance(request)
         }
 
-        override fun complete(request: ConveyorRequest){
+        override fun complete(request: ConveyorRequest) {
             request.state = requestCompletedState
         }
     }
 
-    internal inner class Riding: RequestState("Riding"){
-        override fun blockExitCell(request: ConveyorRequest){
+    internal inner class Riding : RequestState("Riding") {
+        override fun blockExitCell(request: ConveyorRequest) {
             request.state = requestBlockingExitState
             blockExit(request)
         }
     }
 
-    internal inner class BlockingExit: RequestState("BlockingExit"){
-        override fun ride(request: ConveyorRequest){
+    internal inner class BlockingExit : RequestState("BlockingExit") {
+        override fun ride(request: ConveyorRequest) {
             request.state = requestRidingState
             continueConveyance(request)
         }
 
-        override fun complete(request: ConveyorRequest){
+        override fun complete(request: ConveyorRequest) {
             request.state = requestCompletedState
         }
     }
 
-    internal inner class Completed: RequestState("Completed")
+    internal inner class Completed : RequestState("Completed")
 
     internal fun requestConveyor(
         entity: ProcessModel.Entity,
         numCellsNeeded: Int,
         entryLocation: IdentityIfc,
         accessResumePriority: Int
-    ) : ConveyorRequest {
+    ): ConveyorRequest {
         val request = ConveyorRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
-        TODO("Need to implement requestConveyor()")
+        accessQueues[entryLocation]!!.enqueue(request)
         return request
     }
 
-    private fun blockEntry(request: ConveyorRequest){
+    private fun blockEntry(request: ConveyorRequest) {
         TODO("Need to implement Conveyor.blockEntry()")
     }
 
-    private fun startConveyance(request: ConveyorRequest){
+    private fun startConveyance(request: ConveyorRequest) {
         TODO("Need to implement Conveyor.convey()")
     }
 
-    private fun blockExit(request: ConveyorRequest){
+    private fun blockExit(request: ConveyorRequest) {
         TODO("Need to implement Conveyor.blockExit()")
     }
 
-    private fun continueConveyance(request: ConveyorRequest){
+    private fun continueConveyance(request: ConveyorRequest) {
         TODO("Need to implement Conveyor.convey()")
     }
+}
+
+interface ConveyorRequestIfc {
+    val conveyor: Conveyor
+    val isWaitingForEntry: Boolean
+    val isBlockingEntry: Boolean
+    val isRiding: Boolean
+    val isBlockingExit: Boolean
+    val isCompleted: Boolean
+
+    /**
+     *  The location where the entity first accessed the conveyor
+     */
+    val entryLocation: IdentityIfc
+
+    /**
+     * The current location of the entity. This is assigned
+     * when the entity arrives at the end of a segment
+     */
+    val currentLocation: IdentityIfc
+
+    /**
+     * The final location where the entity wants to visit on the conveyor
+     */
+    val destination: IdentityIfc?
 }
 
 fun main() {
