@@ -2064,10 +2064,12 @@ class Conveyor(
         var tripOrigin : IdentityIfc
             internal set
 
-        internal var state: RequestState = requestCreatedState
+        internal var state: RequestState = requestWaitingForEntryState
 
-        val isCreated: Boolean
-            get() = state == requestCreatedState
+        internal fun mustSuspend() : Boolean{
+            return !isEntryPossible(tripOrigin)
+        }
+
         val isWaitingForEntry: Boolean
             get() = state == requestWaitingForEntryState
 
@@ -2077,23 +2079,20 @@ class Conveyor(
         val isRiding: Boolean
             get() = state == requestRidingState
         val isBlockingExit: Boolean
-            get() = state == requestBlockingExistState
+            get() = state == requestBlockingExitState
 
         val isCompleted: Boolean
             get() = state == requestCompletedState
 
-        internal fun blockEntryCell(){
+        internal fun blockEntry(){
             state.blockEntryCell(this)
         }
 
-        internal fun waitForEntryCell(){
-            state.blockEntryCell(this)
-        }
         internal fun ride(request: ConveyorRequest){
             state.ride(request)
         }
 
-        internal fun blockExitCell(request: ConveyorRequest){
+        internal fun blockExit(request: ConveyorRequest){
             state.blockExitCell(request)
         }
 
@@ -2115,21 +2114,16 @@ class Conveyor(
 
     }
 
-    private val requestCreatedState = Created()
     private val requestWaitingForEntryState = WaitingForEntry()
     private val requestBlockingEntryState = BlockingEntry()
     private val requestRidingState = Riding()
-    private val requestBlockingExistState = BlockingExit()
+    private val requestBlockingExitState = BlockingExit()
     private val requestCompletedState = Completed()
 
     internal abstract inner class RequestState(val stateName:  String) {
 
         open fun blockEntryCell(request: ConveyorRequest){
             errorMessage("blockEntryCell()")
-        }
-
-        open fun waitForEntryCell(request: ConveyorRequest){
-            errorMessage("waitForEntryCell()")
         }
 
         open fun ride(request: ConveyorRequest){
@@ -2152,29 +2146,17 @@ class Conveyor(
         }
     }
 
-    internal inner class Created: RequestState("Created"){
-        override fun blockEntryCell(request: ConveyorRequest){
-            request.state = requestBlockingEntryState
-            TODO("Need to implement blockEntryCell()")
-        }
-
-        override fun waitForEntryCell(request: ConveyorRequest){
-            request.state = requestWaitingForEntryState
-            TODO("Need to implement waitForEntryCell()")
-        }
-    }
-
     internal inner class WaitingForEntry: RequestState("Waiting"){
         override fun blockEntryCell(request: ConveyorRequest){
             request.state = requestBlockingEntryState
-            TODO("Need to implement blockEntryCell()")
+            blockEntry(request)
         }
     }
 
     internal inner class BlockingEntry: RequestState("BlockingEntry"){
         override fun ride(request: ConveyorRequest){
             request.state = requestRidingState
-            TODO("Need to implement ride()")
+            startConveyance(request)
         }
 
         override fun complete(request: ConveyorRequest){
@@ -2184,15 +2166,15 @@ class Conveyor(
 
     internal inner class Riding: RequestState("Riding"){
         override fun blockExitCell(request: ConveyorRequest){
-            request.state = requestBlockingExistState
-            TODO("Need to implement blockExitCell()")
+            request.state = requestBlockingExitState
+            blockExit(request)
         }
     }
 
     internal inner class BlockingExit: RequestState("BlockingExit"){
         override fun ride(request: ConveyorRequest){
             request.state = requestRidingState
-            TODO("Need to implement ride()")
+            continueConveyance(request)
         }
 
         override fun complete(request: ConveyorRequest){
@@ -2201,6 +2183,33 @@ class Conveyor(
     }
 
     internal inner class Completed: RequestState("Completed")
+
+    internal fun requestConveyor(
+        entity: ProcessModel.Entity,
+        numCellsNeeded: Int,
+        entryLocation: IdentityIfc,
+        accessResumePriority: Int
+    ) : ConveyorRequest {
+        val request = ConveyorRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
+        TODO("Need to implement requestConveyor()")
+        return request
+    }
+
+    private fun blockEntry(request: ConveyorRequest){
+        TODO("Need to implement Conveyor.blockEntry()")
+    }
+
+    private fun startConveyance(request: ConveyorRequest){
+        TODO("Need to implement Conveyor.convey()")
+    }
+
+    private fun blockExit(request: ConveyorRequest){
+        TODO("Need to implement Conveyor.blockExit()")
+    }
+
+    private fun continueConveyance(request: ConveyorRequest){
+        TODO("Need to implement Conveyor.convey()")
+    }
 }
 
 fun main() {
