@@ -2053,6 +2053,154 @@ class Conveyor(
 
     }
 
+    inner class ConveyorRequest(
+        val entity: ProcessModel.Entity,
+        val numCellsNeeded: Int,
+        entryLocation: IdentityIfc,
+        val accessResumePriority: Int
+    ): QObject(){
+        val conveyor = this@Conveyor
+        val entryCell: Cell
+        var tripOrigin : IdentityIfc
+            internal set
+
+        internal var state: RequestState = requestCreatedState
+
+        val isCreated: Boolean
+            get() = state == requestCreatedState
+        val isWaitingForEntry: Boolean
+            get() = state == requestWaitingForEntryState
+
+        val isBlockingEntry: Boolean
+            get() = state == requestBlockingEntryState
+
+        val isRiding: Boolean
+            get() = state == requestRidingState
+        val isBlockingExit: Boolean
+            get() = state == requestBlockingExistState
+
+        val isCompleted: Boolean
+            get() = state == requestCompletedState
+
+        internal fun blockEntryCell(){
+            state.blockEntryCell(this)
+        }
+
+        internal fun waitForEntryCell(){
+            state.blockEntryCell(this)
+        }
+        internal fun ride(request: ConveyorRequest){
+            state.ride(request)
+        }
+
+        internal fun blockExitCell(request: ConveyorRequest){
+            state.blockExitCell(request)
+        }
+
+        internal fun complete(request: ConveyorRequest){
+            state.complete(request)
+        }
+
+        init {
+            require(numCellsNeeded >= 1) { "The number of cells requested must be >= 1" }
+            require(numCellsNeeded <= maxEntityCellsAllowed) {
+                "The entity requested more cells ($numCellsNeeded) than " +
+                        "the allowed maximum ($maxEntityCellsAllowed) for for conveyor (${this.name})"
+            }
+            require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) of requested cells is not on conveyor (${conveyor.name})" }
+            priority = entity.priority
+            tripOrigin = entryLocation
+            entryCell = entryCells[entryLocation]!!
+        }
+
+    }
+
+    private val requestCreatedState = Created()
+    private val requestWaitingForEntryState = WaitingForEntry()
+    private val requestBlockingEntryState = BlockingEntry()
+    private val requestRidingState = Riding()
+    private val requestBlockingExistState = BlockingExit()
+    private val requestCompletedState = Completed()
+
+    internal abstract inner class RequestState(val stateName:  String) {
+
+        open fun blockEntryCell(request: ConveyorRequest){
+            errorMessage("blockEntryCell()")
+        }
+
+        open fun waitForEntryCell(request: ConveyorRequest){
+            errorMessage("waitForEntryCell()")
+        }
+
+        open fun ride(request: ConveyorRequest){
+            errorMessage("ride()")
+        }
+
+        open fun blockExitCell(request: ConveyorRequest){
+            errorMessage("blockExitCell()")
+        }
+
+        open fun complete(request: ConveyorRequest){
+            errorMessage("complete()")
+        }
+
+        private fun errorMessage(routineName: String) {
+            val sb = StringBuilder()
+            sb.appendLine("Using $routineName : Tried to transition a cell request for ${name} to an illegal state from state $stateName")
+            ProcessModel.logger.error { sb.toString() }
+            throw ksl.utilities.exceptions.IllegalStateException(sb.toString())
+        }
+    }
+
+    internal inner class Created: RequestState("Created"){
+        override fun blockEntryCell(request: ConveyorRequest){
+            request.state = requestBlockingEntryState
+            TODO("Need to implement blockEntryCell()")
+        }
+
+        override fun waitForEntryCell(request: ConveyorRequest){
+            request.state = requestWaitingForEntryState
+            TODO("Need to implement waitForEntryCell()")
+        }
+    }
+
+    internal inner class WaitingForEntry: RequestState("Waiting"){
+        override fun blockEntryCell(request: ConveyorRequest){
+            request.state = requestBlockingEntryState
+            TODO("Need to implement blockEntryCell()")
+        }
+    }
+
+    internal inner class BlockingEntry: RequestState("BlockingEntry"){
+        override fun ride(request: ConveyorRequest){
+            request.state = requestRidingState
+            TODO("Need to implement ride()")
+        }
+
+        override fun complete(request: ConveyorRequest){
+            request.state = requestCompletedState
+        }
+    }
+
+    internal inner class Riding: RequestState("Riding"){
+        override fun blockExitCell(request: ConveyorRequest){
+            request.state = requestBlockingExistState
+            TODO("Need to implement blockExitCell()")
+        }
+    }
+
+    internal inner class BlockingExit: RequestState("BlockingExit"){
+        override fun ride(request: ConveyorRequest){
+            request.state = requestRidingState
+            TODO("Need to implement ride()")
+        }
+
+        override fun complete(request: ConveyorRequest){
+            request.state = requestCompletedState
+        }
+    }
+
+    internal inner class Completed: RequestState("Completed")
 }
 
 fun main() {
