@@ -1479,12 +1479,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.RIDE
                 val conveyor = cellAllocation.conveyor
                 val origin = cellAllocation.entryLocation
-                require(
-                    conveyor.isReachable(
-                        origin,
-                        destination
-                    )
-                ) { "The destination (${destination.name} is not reachable from entry location (${origin.name})" }
+                require(conveyor.isReachable(origin, destination))
+                    { "The destination (${destination.name} is not reachable from entry location (${origin.name})" }
                 logger.info { "$time > entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
                 // conveyItem causes event(s) to be scheduled that will eventually resume the entity after the ride
                 conveyor.conveyItem(cellAllocation as Conveyor.CellAllocation, destination)
