@@ -1482,10 +1482,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     { "The destination (${destination.name} is not reachable from entry location (${origin.name})" }
                 logger.info { "$time > entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
                 // conveyItem causes event(s) to be scheduled that will eventually resume the entity after the ride
-                //TODO need to replace this convey item
-                conveyor.conveyItem(conveyorRequest as Conveyor.CellAllocation, destination)
+                val request = conveyorRequest as Conveyor.ConveyorRequest
+                //TODO this is not giving the opportunity to delay for 0.0
+                if (request.isBlockingEntry){
+                    //maybe do something about getting on the conveyor here
+                } else {
+                    // must be blocking exit and told to ride again
+                    request.ride()
+                }
                 logger.info { "$time > entity (${entity.name}) riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
+                // holds here while request rides on the conveyor
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
                 logger.info { "$time > entity (${entity.name}) completed ride from ${origin.name} to ${destination.name}" }

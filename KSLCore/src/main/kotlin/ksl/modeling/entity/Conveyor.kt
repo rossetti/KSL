@@ -2064,7 +2064,7 @@ class Conveyor(
 
         override val conveyor = this@Conveyor
         val entryCell: Cell = entryCells[entryLocation]!!
-        override var currentLocation: IdentityIfc = entryLocation
+        override var currentLocation: IdentityIfc = entryLocation //TODO need to update current location when it arrives at destination, when request is resumed
             internal set
         override var destination: IdentityIfc? = null
             internal set
@@ -2093,8 +2093,8 @@ class Conveyor(
             state.blockEntryCell(this)
         }
 
-        internal fun ride(request: ConveyorRequest) {
-            state.ride(request)
+        internal fun ride() {
+            state.ride(this)
         }
 
         internal fun blockExit(request: ConveyorRequest) {
@@ -2189,6 +2189,7 @@ class Conveyor(
     }
 
     private fun blockEntry(request: ConveyorRequest) {
+
         TODO("Need to implement Conveyor.blockEntry()")
     }
 
@@ -2197,6 +2198,7 @@ class Conveyor(
     }
 
     private fun blockExit(request: ConveyorRequest) {
+        //TODO request.currentLocation = request.entryLocation??? needs to be set when request is resumed
         TODO("Need to implement Conveyor.blockExit()")
     }
 
