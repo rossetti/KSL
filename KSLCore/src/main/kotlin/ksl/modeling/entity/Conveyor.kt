@@ -2071,10 +2071,6 @@ class Conveyor(
 
         internal var state: RequestState = requestWaitingForEntryState
 
-        internal fun mustSuspend(): Boolean {
-            return !isEntryPossible(currentLocation)
-        }
-
         override val isWaitingForEntry: Boolean
             get() = state == requestWaitingForEntryState
 
@@ -2097,12 +2093,12 @@ class Conveyor(
             state.ride(this)
         }
 
-        internal fun blockExit(request: ConveyorRequest) {
-            state.blockExitCell(request)
+        internal fun blockExit() {
+            state.blockExitCell(this)
         }
 
-        internal fun complete(request: ConveyorRequest) {
-            state.complete(request)
+        internal fun complete() {
+            state.complete(this)
         }
 
     }
@@ -2142,14 +2138,14 @@ class Conveyor(
     internal inner class WaitingForEntry : RequestState("Waiting") {
         override fun blockEntryCell(request: ConveyorRequest) {
             request.state = requestBlockingEntryState
-            blockEntry(request)
+//            blockEntry(request)
         }
     }
 
     internal inner class BlockingEntry : RequestState("BlockingEntry") {
         override fun ride(request: ConveyorRequest) {
             request.state = requestRidingState
-            startConveyance(request)
+//            startConveyance(request)
         }
 
         override fun complete(request: ConveyorRequest) {
@@ -2160,14 +2156,14 @@ class Conveyor(
     internal inner class Riding : RequestState("Riding") {
         override fun blockExitCell(request: ConveyorRequest) {
             request.state = requestBlockingExitState
-            blockExit(request)
+//            blockExit(request)
         }
     }
 
     internal inner class BlockingExit : RequestState("BlockingExit") {
         override fun ride(request: ConveyorRequest) {
             request.state = requestRidingState
-            continueConveyance(request)
+//            continueConveyance(request)
         }
 
         override fun complete(request: ConveyorRequest) {
@@ -2184,27 +2180,40 @@ class Conveyor(
         accessResumePriority: Int
     ): ConveyorRequest {
         val request = ConveyorRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
-        accessQueues[entryLocation]!!.enqueue(request)
         return request
     }
 
-    private fun blockEntry(request: ConveyorRequest) {
-
-        TODO("Need to implement Conveyor.blockEntry()")
+    internal fun enqueueRequest(request: ConveyorRequest) {
+        accessQueues[request.entryLocation]!!.enqueue(request)
+    }
+    internal fun dequeueRequest(request: ConveyorRequest) {
+        accessQueues[request.entryLocation]!!.remove(request)
     }
 
-    private fun startConveyance(request: ConveyorRequest) {
-        TODO("Need to implement Conveyor.convey()")
+    internal fun blockEntryLocation(request: ConveyorRequest) {
+        val entryLocation = request.entryLocation
+        //TODO consider putting this inside next call to blockEntry
+        request.blockEntry()
+        TODO("Need to implement Conveyor.blockEntryLocation()")
     }
 
-    private fun blockExit(request: ConveyorRequest) {
-        //TODO request.currentLocation = request.entryLocation??? needs to be set when request is resumed
-        TODO("Need to implement Conveyor.blockExit()")
-    }
-
-    private fun continueConveyance(request: ConveyorRequest) {
-        TODO("Need to implement Conveyor.convey()")
-    }
+//    private fun blockEntry(request: ConveyorRequest) {
+//
+//        TODO("Need to implement Conveyor.blockEntry()")
+//    }
+//
+//    private fun startConveyance(request: ConveyorRequest) {
+//        TODO("Need to implement Conveyor.convey()")
+//    }
+//
+//    private fun blockExit(request: ConveyorRequest) {
+//        //TODO request.currentLocation = request.entryLocation??? needs to be set when request is resumed
+//        TODO("Need to implement Conveyor.blockExit()")
+//    }
+//
+//    private fun continueConveyance(request: ConveyorRequest) {
+//        TODO("Need to implement Conveyor.convey()")
+//    }
 }
 
 interface ConveyorRequestIfc {
