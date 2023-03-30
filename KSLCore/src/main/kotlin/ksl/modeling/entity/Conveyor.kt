@@ -18,7 +18,6 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -2046,9 +2045,25 @@ class Conveyor(
 
     }
 
+    fun isCellTraversalInProgress(): Boolean {
+        return endCellTraversalEvent != null && endCellTraversalEvent!!.scheduled
+    }
+
+    private fun stopAccumulatingConveyor(){
+        if (conveyorType == Type.NON_ACCUMULATING) {
+            // if there is a traversal event pending then the conveyor is moving
+            if (isCellTraversalInProgress()) {
+                ProcessModel.logger.info { "$time > blockage cancelled cell traversal event" }
+                // all motion on conveyor stops
+                endCellTraversalEvent!!.cancelled = true
+                endCellTraversalEvent = null
+            }
+        }
+    }
+
     inner class ConveyorRequest(
-        val entity: ProcessModel.Entity,
-        val numCellsNeeded: Int,
+        override val entity: ProcessModel.Entity,
+        override val numCellsNeeded: Int,
         override val entryLocation: IdentityIfc,
         val accessResumePriority: Int
     ) : QObject(), ConveyorRequestIfc {
@@ -2082,18 +2097,22 @@ class Conveyor(
         override val isBlockingExit: Boolean
             get() = state == requestBlockingExitState
 
-        override val isCompleted: Boolean
+        override val isExited: Boolean
             get() = state == requestCompletedState
 
-        internal fun blockEntry() {
+        internal fun blockEntryLocation() {
+            ProcessModel.logger.info { "$time > ${entity.name} causing blockage for entry cell ${entryCell.cellNumber} at location (${entryLocation.name})" }
             state.blockEntryCell(this)
+            entryCell.isBlocked = true
+            stopAccumulatingConveyor()
+            ProcessModel.logger.info { "$time > ...... caused blockage at entry cell ${entryCell.cellNumber}" }
         }
 
         internal fun ride() {
             state.ride(this)
         }
 
-        internal fun blockExit() {
+        internal fun blockExitLocation() {
             state.blockExitCell(this)
         }
 
@@ -2138,14 +2157,12 @@ class Conveyor(
     internal inner class WaitingForEntry : RequestState("Waiting") {
         override fun blockEntryCell(request: ConveyorRequest) {
             request.state = requestBlockingEntryState
-//            blockEntry(request)
         }
     }
 
     internal inner class BlockingEntry : RequestState("BlockingEntry") {
         override fun ride(request: ConveyorRequest) {
             request.state = requestRidingState
-//            startConveyance(request)
         }
 
         override fun complete(request: ConveyorRequest) {
@@ -2156,14 +2173,12 @@ class Conveyor(
     internal inner class Riding : RequestState("Riding") {
         override fun blockExitCell(request: ConveyorRequest) {
             request.state = requestBlockingExitState
-//            blockExit(request)
         }
     }
 
     internal inner class BlockingExit : RequestState("BlockingExit") {
         override fun ride(request: ConveyorRequest) {
             request.state = requestRidingState
-//            continueConveyance(request)
         }
 
         override fun complete(request: ConveyorRequest) {
@@ -2179,8 +2194,7 @@ class Conveyor(
         entryLocation: IdentityIfc,
         accessResumePriority: Int
     ): ConveyorRequest {
-        val request = ConveyorRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
-        return request
+        return ConveyorRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
     }
 
     internal fun enqueueRequest(request: ConveyorRequest) {
@@ -2188,13 +2202,6 @@ class Conveyor(
     }
     internal fun dequeueRequest(request: ConveyorRequest) {
         accessQueues[request.entryLocation]!!.remove(request)
-    }
-
-    internal fun blockEntryLocation(request: ConveyorRequest) {
-        val entryLocation = request.entryLocation
-        //TODO consider putting this inside next call to blockEntry
-        request.blockEntry()
-        TODO("Need to implement Conveyor.blockEntryLocation()")
     }
 
 //    private fun blockEntry(request: ConveyorRequest) {
@@ -2217,12 +2224,14 @@ class Conveyor(
 }
 
 interface ConveyorRequestIfc {
+    val entity: ProcessModel.Entity
+    val numCellsNeeded: Int
     val conveyor: Conveyor
     val isWaitingForEntry: Boolean
     val isBlockingEntry: Boolean
     val isRiding: Boolean
     val isBlockingExit: Boolean
-    val isCompleted: Boolean
+    val isExited: Boolean
 
     /**
      *  The location where the entity first accessed the conveyor

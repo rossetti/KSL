@@ -1457,10 +1457,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 conveyor.dequeueRequest(request)
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                // ensure that the enty remembers that it is now "using"  the conveyor
+                // ensure that the entity remembers that it is now "using" the conveyor
                 entity.conveyorRequest = request
                 // cause the request to block the entry location
-                conveyor.blockEntryLocation(request)
+                request.blockEntryLocation()
                 logger.info { "$time > entity (${entity.name}) has blocked the entry cell of ${conveyor.name} at location (${entryLocation.name}) in process, ($this)" }
                 return request
             }
