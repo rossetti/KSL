@@ -240,12 +240,13 @@ class Conveyor(
     private val entryCells = mutableMapOf<IdentityIfc, Cell>()
     // the cells associated with each exit location
     private val exitCells = mutableMapOf<IdentityIfc, Cell>()
-    // holds request that are waiting to use the conveyor
+    // holds the queues that hold requests that are waiting to use the conveyor associated with each entry location
     private val accessQueues = mutableMapOf<IdentityIfc, ConveyorQ>()
-    // holds the requests that are blocking an any entry cell
+    // holds the requests that are blocking an entry cell
     private val blockedEntryCells = mutableMapOf<Cell,ConveyorRequest>()
 
     init {
+        // constructs the cells based on the segment data
         val cells = mutableListOf<Cell>()
         for (segment in segmentData.segments) {
             val numCells = segment.length / cellSize
@@ -270,7 +271,6 @@ class Conveyor(
         conveyorCells = cells.toList()
     }
 
-    //    private val endCellTraversalAction = EndOfCellTraversalAction()
     private val endCellTraversalAction2 = EndOfCellTraversalActionV2()
 
     /**
@@ -283,23 +283,32 @@ class Conveyor(
      * a) non-accumulating conveyor and a blockage exists
      * b) accumulating conveyor and there are no items that can move
      */
-    // private var endCellTraversalEvent: KSLEvent<Cell>? = null
     private var endCellTraversalEvent: KSLEvent<List<Cell>>? = null
 
-    internal val hasCellTraversalPending: Boolean
-        get() = endCellTraversalEvent != null
-
+    /**
+     *  Returns the queue that holds requests that are waiting to access the
+     *  conveyor at the supplied [location]
+     */
     fun accessQueueAt(location: IdentityIfc): QueueCIfc<ConveyorRequest> {
         require(accessQueues.contains(location)) { "The origin ($location) is not a valid entry location on the conveyor" }
         return accessQueues[location]!!
     }
 
+    /**
+     *  The current velocity of the conveyor. A change will remain in effect
+     *  until the end of a replication at which time the velocity will be reset
+     *  to the initial velocity associated with the conveyor at time 0.0
+     */
     var velocity: Double = velocity
         set(value) {
             require(value > 0.0) { "The velocity of the conveyor must be > 0.0" }
             field = value
         }
 
+    /**
+     * The time that it takes an item on the conveyor to
+     * travel through a cell in order to fully occupy the cell.
+     */
     val cellTravelTime: Double
         get() = cellSize / velocity
 
@@ -330,7 +339,7 @@ class Conveyor(
     }
 
     /**
-     * A list of all items that are currently associated with (occupying)
+     * A list of all conveyor requests that are currently associated with (occupying)
      * cells on the conveyor in the order from the furthest along (closest to the exit location of the last segment)
      * to the nearest item (closest to the entry location of the first segment).
      */
@@ -355,8 +364,8 @@ class Conveyor(
     }
 
     /**
-     * If any of the cells of the conveyor is occupied by an item
-     * then return true; otherwise, if there are no items occupying
+     * If any of the cells of the conveyor are occupied by an entity
+     * then return true; otherwise, if there are no entities occupying
      * cells return false.
      */
     fun isOccupied(): Boolean {
@@ -422,7 +431,7 @@ class Conveyor(
      * forward in the list. If there are no blocked cells, then
      * null is returned.
      */
-    fun firstBlockedCellFromBeginning(startingCell: Cell): Cell? {
+    fun firstBlockedCellForwardFromCell(startingCell: Cell): Cell? {
         return conveyorCells.subList(startingCell.index, conveyorCells.size).firstOrNull { it.isBlocked }
     }
 
@@ -442,7 +451,7 @@ class Conveyor(
                 return true
             }
             // the next cell is occupied, check for movable train
-            val fbc = firstBlockedCellFromBeginning(cell)
+            val fbc = firstBlockedCellForwardFromCell(cell)
             if (fbc == null) {
                 // no blockages going forward, check entire conveyor
                 return firstMovableCell(conveyorCells) != null
@@ -617,6 +626,9 @@ class Conveyor(
         return null
     }
 
+    /**
+     *  True if there is at least one cell that is occupied that can move on the conveyor
+     */
     fun hasMovableCell(): Boolean {
         return firstMovableCell(conveyorCells) != null
     }
@@ -805,42 +817,6 @@ class Conveyor(
     }
 
     /**
-     *  Represents a request for space on a conveyor by an entity.
-     *  The supplied request priority is related to the queue priority for the request.
-     *
-     *  @param entity the entity making the request
-     *  @param numCellsNeeded the number of cells being requested
-     */
-    inner class CellRequest(
-        val entity: ProcessModel.Entity,
-        val numCellsNeeded: Int = 1,
-        val entryLocation: IdentityIfc,
-        var accessResumePriority: Int = KSLEvent.DEFAULT_PRIORITY
-    ) : QObject() {
-
-        val conveyor = this@Conveyor
-        val entryCell: Cell
-
-        init {
-            require(numCellsNeeded >= 1) { "The number of cells requested must be >= 1" }
-            require(numCellsNeeded <= maxEntityCellsAllowed) {
-                "The entity requested more cells ($numCellsNeeded) than " +
-                        "the allowed maximum ($maxEntityCellsAllowed) for for conveyor (${this.name})"
-            }
-            require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) of requested cells is not on conveyor (${conveyor.name})" }
-            priority = entity.priority
-            entryCell = entryCells[entryLocation]!!
-        }
-
-        val isFillable: Boolean
-            get() = canAllocateAt(entryCell, numCellsNeeded)
-
-        val isNotFillable: Boolean
-            get() = !isFillable
-
-    }
-
-    /**
      *  Depending on the type of conveyor, this function returns true
      *  if the entry cell at the supplied location is available to be controlled allocated and
      *  false if entry is not possible and a request at this time would need to wait.
@@ -889,22 +865,6 @@ class Conveyor(
             }
         }
     }
-
-//    internal fun requestCells(
-//        entity: ProcessModel.Entity,
-//        numCellsNeeded: Int = 1,
-//        entryLocation: IdentityIfc,
-//        accessResumePriority: Int
-//    ): CellRequest {
-//        val request = CellRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
-//        accessQueues[request.entryLocation]!!.enqueue(request)
-//        return request
-//    }
-//
-//    internal fun dequeueRequest(request: CellRequest) {
-//        accessQueues[request.entryLocation]!!.remove(request)
-//    }
-
 
     enum class ItemStatus {
         OFF, ENTERING, EXITING, ON
@@ -1749,6 +1709,7 @@ class Conveyor(
 
         internal fun ride() {
             state.ride(this)
+            TODO("Not implemented yet: Request.ride()")
         }
 
         internal fun blockExitLocation() {
@@ -1945,7 +1906,7 @@ class Conveyor(
 
         private fun errorMessage(routineName: String) {
             val sb = StringBuilder()
-            sb.appendLine("Using $routineName : Tried to transition a cell request for ${name} to an illegal state from state $stateName")
+            sb.appendLine("Using $routineName : Tried to transition a cell request for $name to an illegal state from state $stateName")
             ProcessModel.logger.error { sb.toString() }
             throw ksl.utilities.exceptions.IllegalStateException(sb.toString())
         }

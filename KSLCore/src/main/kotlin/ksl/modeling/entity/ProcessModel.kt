@@ -1485,10 +1485,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // conveyItem causes event(s) to be scheduled that will eventually resume the entity after the ride
                 val request = conveyorRequest as Conveyor.ConveyorRequest
                 //TODO this is not giving the opportunity to delay for 0.0
+
                 if (request.isBlockingEntry){
-                    //maybe do something about getting on the conveyor here
+                    // the request is not on the conveyor
+
                 } else {
-                    // must be blocking exit and told to ride again
+                    // must be blocking exit and told to ride again, request is already occupying cells
                     request.ride()
                 }
                 logger.info { "$time > entity (${entity.name}) riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
