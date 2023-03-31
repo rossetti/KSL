@@ -724,6 +724,22 @@ class Conveyor(
         item.moveForwardOneCell()
     }
 
+
+    private fun moveItemsForwardThroughCells(cells: List<Cell>){
+        var lastItem: ConveyorRequest? = null
+        //TODO how do we capture the entry cell's unblocking
+        for (cell in cells.asReversed()) {
+            if (cell.item != lastItem) {
+                // new item, remember it
+                lastItem = cell.item
+                if (cell.item != null) {
+                    cell.item!!.moveForwardOneCell()
+                    //TODO if the cell is an entry cell we can test that here or in the moveForwardOneCell() method
+                }
+            }
+        }
+    }
+
     private fun reverseIterateItems(cells: List<Cell>, function: (ConveyorRequest) -> Unit) {
         var lastItem: ConveyorRequest? = null
         for (cell in cells.asReversed()) {
@@ -831,26 +847,48 @@ class Conveyor(
         }
     }
 
+    /**
+     *  For a non-accumulating conveyor, determine whether the entry cell is available to be grabbed (blocked)
+     *  by an arriving entity at some random (arbitrary) time. See comments in the code
+     *  for the conditions.
+     */
     private fun isEntryCellAvailableNonAccumulatingConveyor(entryCell: Cell): Boolean {
         return if (hasBlockedCells()) {
+            // conveyor is already stopped, make sure that the cell isn't already blocked
+            // if the cell is occupied, we are assuming that the cell can become blocked on entry
+            // because the current item will move and the new item (associated with the new block)
+            // will be lined up to move onto the conveyor
             !entryCell.isBlocked
         } else {
+            // the conveyor has no blocked cells, thus the conveyor may be moving
             if (isOccupied()) {
                 // no blocked cells and conveyor is occupied. It should be moving
                 val pc = entryCell.previousCell
+                // a cell traversal is in process
                 if (pc != null) {
+                    // if the previous cell exists and is not occupied, the entry cell
+                    // will not be occupied during the time step, if it will be occupied
+                    // then it will then be available
                     !pc.isOccupied
                 } else {
+                    // the previous cell does not exist, thus nothing can enter during the movement
                     true
                 }
             } else {
+                // the conveyor is not occupied and thus is not moving, thus the entry cell is available
                 true
             }
         }
     }
 
+    /**
+     *  For an accumulating conveyor, determine whether the entry cell is available to be grabbed (blocked)
+     *  by an arriving entity at some random (arbitrary) time. See comments in the code
+     *  for the conditions.
+     */
     private fun isEntryCellAvailableAccumulatingConveyor(entryCell: Cell): Boolean {
         return if (entryCell.isBlocked) {
+            // if the cell is already blocked, then the arriving entity must wait
             false
         } else {
             // entry cell is not blocked
@@ -860,7 +898,8 @@ class Conveyor(
                 // if the previous cell exists and is occupied, the entry cell will not be available
                 !(pc != null && pc.isOccupied)
             } else {
-                // entry cell is occupied, the item may move out of it, into the next cell
+                // entry cell is occupied, the item may move out of it, into the next cell during
+                // the time step. Check if it will be moving as part of a "train" behind a lead item/cell
                 couldCellMoveForward(entryCell)
             }
         }

@@ -1450,6 +1450,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     suspend()
                     entity.state.activate()
                 }
+                //TODO where/when do we check for the resumption
                 // entry is now possible, deque the request from waiting to enter the conveyor
                 conveyor.dequeueRequest(request)
                 currentSuspendName = null
