@@ -488,9 +488,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         var conveyorRequest: ConveyorRequestIfc? = null
             private set
 
-        var conveyable: ConveyorItemIfc? = null //TODO
-            internal set
-
         /**
          *  This function is used to define via a builder for a process for the entity.
          *
