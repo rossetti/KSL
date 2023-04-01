@@ -1443,7 +1443,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = conveyor.requestConveyor(entity, numCellsNeeded, entryLocation, requestResumePriority)
                 // always enter the queue to get statistics on waiting to enter the conveyor
                 conveyor.enqueueRequest(request)
-                if (!conveyor.isEntryPossible(entryLocation)) {
+                if (!conveyor.canAllocateCells(entryLocation, numCellsNeeded)) {
                     // entry is not possible at this time, the entity will suspend
                     logger.info { "$time > entity (${entity.name}) waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                     entity.state.waitForConveyor()
@@ -1451,7 +1451,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     entity.state.activate()
                 }
                 //TODO where/when do we check for the resumption
-                // entry is now possible, deque the request from waiting to enter the conveyor
+                // entry is now possible, deque the request from waiting and control entry into the conveyor
                 conveyor.dequeueRequest(request)
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -1483,17 +1483,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(conveyor.isReachable(origin, destination))
                     { "The destination (${destination.name} is not reachable from entry location (${origin.name})" }
                 logger.info { "$time > entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
-                // conveyItem causes event(s) to be scheduled that will eventually resume the entity after the ride
+                // causes event(s) to be scheduled that will eventually resume the entity after the ride
                 val request = conveyorRequest as Conveyor.ConveyorRequest
-                //TODO this is not giving the opportunity to delay for 0.0
-
-                if (request.isBlockingEntry){
-                    // the request is not on the conveyor
-
-                } else {
-                    // must be blocking exit and told to ride again, request is already occupying cells
-                    request.ride()
-                }
+                request.rideConveyor()
                 logger.info { "$time > entity (${entity.name}) riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
                 // holds here while request rides on the conveyor
@@ -1516,16 +1508,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = conveyorRequest.conveyor
                 logger.info { "$time > entity (${entity.name}) is exiting ${conveyor.name}" }
-                //val request = conveyorRequest as Conveyor.ConveyorRequest
-                //TODO
-                if (conveyorRequest.isBlockingEntry) {
-                    // if allocation does not have an item, just deallocate
-           //         conveyor.deallocateCells(conveyorRequest)
-                    logger.info { "$time > EXITING entity (${entity.name}) did not occupy any cells and deallocated cells for (${conveyor.name})" }
+                val request = conveyorRequest as Conveyor.ConveyorRequest
+                if (request.isBlockingEntry) {
+                    // the request cannot be riding or completed, if just blocking the entry, it must just complete
+                    request.exitConveyor()
+                    logger.info { "$time > Entity (${entity.name}) released blockage at entry location ${request.currentLocation.name} for (${conveyor.name})" }
                 } else {
-                    // if allocation has an item then start the exiting process
+                    // blocking the exit
                     isMoving = true
-            //        conveyor.startExitingProcess(conveyorRequest)
+                    conveyor.startExitingProcess(request)
                     logger.info { "$time > EXITING entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.destination})" }
                     logger.info { "$time > EXITING entity (${entity.name}) suspending for exiting process" }
                     hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
