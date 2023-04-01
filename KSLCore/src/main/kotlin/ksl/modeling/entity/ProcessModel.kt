@@ -1514,14 +1514,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     request.exitConveyor()
                     logger.info { "$time > Entity (${entity.name}) released blockage at entry location ${request.currentLocation.name} for (${conveyor.name})" }
                 } else {
-                    // blocking the exit
+                    // must be blocking the exit
                     isMoving = true
                     conveyor.startExitingProcess(request)
-                    logger.info { "$time > EXITING entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.destination})" }
-                    logger.info { "$time > EXITING entity (${entity.name}) suspending for exiting process" }
+                    logger.info { "$time > Entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.destination})" }
+                    logger.info { "$time > Entity (${entity.name}) suspending for exiting process" }
                     hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
                     isMoving = false
                 }
+                entity.conveyorRequest = null
                 logger.info { "$time > entity (${entity.name}) exited ${conveyor.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE

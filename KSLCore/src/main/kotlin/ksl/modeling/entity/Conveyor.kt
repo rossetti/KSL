@@ -778,6 +778,9 @@ class Conveyor(
                     "the allowed maximum ($maxEntityCellsAllowed) for for conveyor (${this.name}"
         }
         val entryCell = entryCells[entryLocation]!!
+        if (entryCell.isBlocked || entryCell.isOccupied){
+            return false
+        }
         return canAllocateAt(entryCell, numCellsNeeded)
     }
 
