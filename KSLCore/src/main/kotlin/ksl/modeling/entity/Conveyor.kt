@@ -2073,18 +2073,28 @@ class Conveyor(
     private fun beginRiding(request: ConveyorRequest) {
         // the request has asked to start riding for the very first time
         // the conveyor might be empty
-        // if empty:
+        if (!isOccupied()){ // if empty:
             // if non-accumulating, then the item can immediately start traversing the entry cell
             // if accumulating, then the item can immediately start traversing the entry cell
-        // if not-empty:
-            // moving...
-                // do nothing, it will be handled at the end of the current movement
-            // not moving
-                // if non-accumulating, if this is the only blockage, then the item can immediately
+            scheduleConveyorMovement()
+        } else {// if not-empty:
+            if (!isCellTraversalInProgress()){// not moving
+                if (conveyorType == Type.NON_ACCUMULATING){
+                    // if non-accumulating, if this is the only blockage, then the item can immediately
                     // start traversing the entry cell because the blockage is for this item
-                // if accumulating, then the item can immediately start traversing the entry cell
-
-        TODO("Need to implement Conveyor.startRiding()")
+                    if (blockedEntryCells().size == 1){
+                        scheduleNonAccumulatingConveyorMovement()
+                    }
+                } else {
+                    // if accumulating, then the item can immediately start traversing the entry cell
+                    scheduleAccumulatingConveyorMovement()
+                }
+            } else {
+                // moving...
+                // do nothing, it will be handled at the end of the current movement
+            }
+        }
+        //TODO("Need to implement Conveyor.startRiding()")
     }
 
     private fun continueRiding(request: ConveyorRequest) {
