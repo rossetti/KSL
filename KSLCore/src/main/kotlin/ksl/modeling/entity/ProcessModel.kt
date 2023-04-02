@@ -1443,7 +1443,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = conveyor.requestConveyor(entity, numCellsNeeded, entryLocation, requestResumePriority)
                 // always enter the queue to get statistics on waiting to enter the conveyor
                 conveyor.enqueueRequest(request)
-                if (!conveyor.canAllocateCells(entryLocation, numCellsNeeded)) {
+                if (request.mustWait()) {
                     // entry is not possible at this time, the entity will suspend
                     logger.info { "$time > entity (${entity.name}) waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                     entity.state.waitForConveyor()

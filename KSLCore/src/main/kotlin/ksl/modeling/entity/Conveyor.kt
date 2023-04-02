@@ -1791,12 +1791,14 @@ class Conveyor(
             ProcessModel.logger.info { "$time > ${entity.name} causing blockage for entry cell ${entryCell.cellNumber} at location (${entryLocation.name})" }
             state.blockEntryCell(this)
             entryCell.isBlocked = true
-            // remember that the cell is blocked by this request
-            //           blockedEntryCells[entryCell] = this
-            if (conveyorType == Type.NON_ACCUMULATING) {
-                // non-accumulating conveyor must stop everywhere when blocked.
-                cancelConveyorMovement()
-            }
+            //TODO REVIEW LOGIC Request.blockEntryLocation()
+
+//            // remember that the cell is blocked by this request
+//            //           blockedEntryCells[entryCell] = this
+//            if (conveyorType == Type.NON_ACCUMULATING) {
+//                // non-accumulating conveyor must stop everywhere when blocked.
+//                cancelConveyorMovement()
+//            }
             ProcessModel.logger.info { "$time > ...... caused blockage at entry cell ${entryCell.cellNumber}" }
         }
 
@@ -1952,6 +1954,11 @@ class Conveyor(
             }
         }
 
+        internal fun mustWait(): Boolean {
+            return entryCell.isBlocked
+           // TODO("Need to implement Conveyor.Request.mustWait()")
+        }
+
     }
 
     private val requestWaitingForEntryState = WaitingForEntry()
@@ -2005,10 +2012,13 @@ class Conveyor(
          *     starting at the entry cell
          */
         override fun ride(request: ConveyorRequest) {
-            request.enterConveyor()
+            //TODO REVIEW LOGIC  BlockingEntry.ride()
+            //request.enterConveyor()
             request.state = requestRidingState
+            requestsForRides[request.entryCell] = request
             // need to remove the blockage at the entry cell
-            removeBlockage(request.entryCell)
+            //TODO removeBlockage(request.entryCell) NOPE??
+            beginRiding(request)
         }
 
         override fun exit(request: ConveyorRequest) {
@@ -2054,7 +2064,30 @@ class Conveyor(
         accessQueues[request.entryLocation]!!.remove(request)
     }
 
-    internal fun continueRiding(request: ConveyorRequest) {
+    /**
+     *  The request has blocked an entry cell at an entry location.
+     *  The entity has asked for the request to begin riding.
+     *  The request will either be handled by an already scheduled cell traversal
+     *  or it must initiate movement.
+     */
+    private fun beginRiding(request: ConveyorRequest) {
+        // the request has asked to start riding for the very first time
+        // the conveyor might be empty
+        // if empty:
+            // if non-accumulating, then the item can immediately start traversing the entry cell
+            // if accumulating, then the item can immediately start traversing the entry cell
+        // if not-empty:
+            // moving...
+                // do nothing, it will be handled at the end of the current movement
+            // not moving
+                // if non-accumulating, if this is the only blockage, then the item can immediately
+                    // start traversing the entry cell because the blockage is for this item
+                // if accumulating, then the item can immediately start traversing the entry cell
+
+        TODO("Need to implement Conveyor.startRiding()")
+    }
+
+    private fun continueRiding(request: ConveyorRequest) {
         TODO("Need to implement Conveyor.continueRiding()")
     }
 
