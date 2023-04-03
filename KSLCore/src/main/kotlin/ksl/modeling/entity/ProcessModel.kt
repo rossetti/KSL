@@ -1333,7 +1333,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 val delayEvent = process.entity.myDelayEvent ?: return
                 // the process is experiencing the named delay
-                delayEvent.cancelled = true
+                delayEvent.cancel = true
                 delay(interruptTime, interruptPriority)
                 process.entity.resumeProcess(postInterruptDelayTime, delayEvent.priority)
             }
@@ -1377,7 +1377,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 val delayEvent = process.entity.myDelayEvent ?: return
                 // the process is experiencing the named delay
-                delayEvent.cancelled = true
+                delayEvent.cancel = true
                 waitFor(interruptingProcess, priority = interruptPriority)
                 process.entity.resumeProcess(postInterruptDelayTime, delayEvent.priority)
             }
@@ -1625,9 +1625,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "$time > Process $this was terminated for Entity $entity removed from queue ${q.name} ." }
                 } else if (isScheduled) {
                     if (myDelayEvent != null) {
-                        if (myDelayEvent!!.scheduled) {
+                        if (myDelayEvent!!.isScheduled) {
                             logger.trace { "$time > Process $this was terminated for Entity $entity delay event was cancelled." }
-                            myDelayEvent?.cancelled = true
+                            myDelayEvent?.cancel = true
                         }
                     }
                 }

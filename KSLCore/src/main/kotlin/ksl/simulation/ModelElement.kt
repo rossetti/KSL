@@ -858,7 +858,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         return if (warmUpEvent == null) {
             false
         } else {
-            warmUpEvent!!.scheduled
+            warmUpEvent!!.isScheduled
         }
     }
 
@@ -980,7 +980,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      */
     fun cancelWarmUpEvent() {
         if (warmUpEvent != null) {
-            warmUpEvent!!.cancelled = true
+            warmUpEvent!!.cancel = true
         }
     }
 
@@ -993,7 +993,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         return if (timedUpdateEvent == null) {
             false
         } else {
-            timedUpdateEvent!!.scheduled
+            timedUpdateEvent!!.isScheduled
         }
     }
 
@@ -1002,7 +1002,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      */
     fun cancelTimedUpdateEvent() {
         if (timedUpdateEvent != null) {
-            timedUpdateEvent!!.cancelled = true
+            timedUpdateEvent!!.cancel = true
         }
     }
 
@@ -1785,18 +1785,18 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         logger.info { "ModelElement: $name executing removeFromModel()" }
         // if the model element has a warm-up event, cancel it
         if (warmUpEvent != null) {
-            if (warmUpEvent!!.scheduled) {
+            if (warmUpEvent!!.isScheduled) {
                 logger.info { "ModelElement: $name cancelling warmup event" }
-                warmUpEvent!!.cancelled = true
+                warmUpEvent!!.cancel = true
             }
             warmUpEvent = null
             myWarmUpEventAction = null
         }
         // if the model element has a timed update event, cancel it
         if (timedUpdateEvent != null) {
-            if (timedUpdateEvent!!.scheduled) {
+            if (timedUpdateEvent!!.isScheduled) {
                 logger.info { "ModelElement: $name cancelling timed update event" }
-                timedUpdateEvent!!.cancelled = true
+                timedUpdateEvent!!.cancel = true
             }
             timedUpdateEvent = null
             myTimedUpdateActionListener = null

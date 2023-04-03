@@ -246,7 +246,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             val event =
                 KSLEvent(numEventsScheduled, eventAction, eventTime, priority, message, name, theElementScheduling)
             myEventCalendar.add(event)
-            event.scheduled = true
+            event.isScheduled = true
             return event
         } else {
             val event = KSLEvent(-99, eventAction, eventTime, priority, message, name, theElementScheduling)
@@ -265,8 +265,8 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
     private fun execute(event: KSLEvent<*>) {
         try {
             // the event is no longer scheduled
-            event.scheduled = false
-            if (!event.cancelled) {
+            event.isScheduled = false
+            if (!event.cancel) {
                 // event was not cancelled
                 // update the current simulation time to the event time
                 currentTime = event.time
