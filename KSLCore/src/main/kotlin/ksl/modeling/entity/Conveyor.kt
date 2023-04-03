@@ -2652,6 +2652,25 @@ fun runConveyorTest(conveyorType: Conveyor.Type) {
         conveyorHoldQ.removeAndResume(item.entity, item.resumePriority, false)
     }
 
+    private fun causeBlockage(blockingCell: Cell) {
+        blockingCell.isBlocked = true
+        ProcessModel.logger.info { "$time > ...... caused blockage at cell ${blockingCell.cellNumber}" }
+        if (conveyorType == Type.NON_ACCUMULATING) {
+            // all motion on conveyor stops
+            if (endCellTraversalEvent != null && endCellTraversalEvent!!.scheduled) {
+                ProcessModel.logger.info { "$time > blockage cancelled cell traversal event" }
+                endCellTraversalEvent!!.cancelled = true
+                endCellTraversalEvent = null
+//                status = Status.BLOCKED
+            }
+        } else {
+            // motion continues until none can move
+            if (!isOccupied()) {
+                ProcessModel.logger.info { "$time > accumulating conveyor: is not occupied: after causing blockage" }
+            }
+            //TODO("Conveyor.causeBlockage() accumulating conveyor case not implemented yet")
+        }
+    }
 
  */
 
