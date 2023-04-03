@@ -1756,7 +1756,7 @@ class Conveyor(
         } else {
             accumulatingConveyorMovement()
         }
-        ProcessModel.logger.info { "$time > .... CONVEYOR: completed moving cells on the conveyor" }
+        ProcessModel.logger.info { "$time > CONVEYOR: .... completed moving cells on the conveyor" }
     }
 
     private fun nonAccumulatingConveyorMovement() {
@@ -1824,10 +1824,10 @@ class Conveyor(
             // the request is off the conveyor and the entry cell is blocked for it to enter
             request.enterConveyor()
         }
-        ProcessModel.logger.info { "$time > CONVEYOR: completed processing items waiting to ride on the conveyor." }
+        ProcessModel.logger.info { "$time > CONVEYOR: .... completed processing items waiting to ride on the conveyor." }
     }
 
-    private fun unBlockEntryCells() {
+    private fun unBlockEntryCells() { //TODO this may depend on type of conveyor
         val blockedEntryCells = blockedEntryCells()
         ProcessModel.logger.info { "$time > CONVEYOR: processing #(${blockedEntryCells.size}) blocked entry cells that will be uncovered..." }
         for ((location, entryCell) in blockedEntryCells) {
@@ -2223,11 +2223,13 @@ class Conveyor(
          */
         internal fun enterConveyor() {
             check(status == ItemStatus.OFF) { "$time >  CONVEYOR: Request (${name}): status = $status: Request status must be OFF to enter the conveyor for the first time" }
+            check(entryCell.isNotOccupied){"Tried enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name})"}
             occupyCell(entryCell)
+            ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) entered the conveyor at cell (${entryCell.cellNumber})" }
             if (numCellsNeeded == numCellsOccupied) {
                 status = ItemStatus.ON
                 requestsForRides.remove(entryCell)
-                ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) is fully on the conveyor" }
+                ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) entered and is fully on the conveyor" }
                 // item is fully on the conveyor
             } else {
                 status = ItemStatus.ENTERING
