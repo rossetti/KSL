@@ -2571,3 +2571,70 @@ fun runConveyorTest(conveyorType: Conveyor.Type) {
     m.simulate()
     m.print()
 }
+
+/*
+
+    /**
+     * This function should start the exiting process for the entity holding
+     * the cell allocation.  The cells associated with the cell allocation should be deallocated
+     * and any blockage associated with the allocation to be removed.
+     *
+     * There may be time delay associated with this function. It may cause
+     * events to be scheduled and processes to be resumed as the allocation is released.
+     */
+    internal fun startExitingProcess(cellAllocation: CellAllocation) {
+        // conveyed to destination and item is getting off
+        val item = cellAllocation.item!!
+        item.status = ItemStatus.EXITING
+        val destination = cellAllocation.item?.destination!!
+        val exitCell = exitCells[destination]!!
+        removeBlockage(exitCell)
+    }
+
+        /**
+     *  This function removes the blockage at the supplied cell and
+     *  causes the conveyor to start moving.
+     */
+    private fun removeBlockage(blockedCell: Cell) {
+        blockedCell.isBlocked = false // this unblocks the cell
+        ProcessModel.logger.info { "$time > removeBlockage() at $blockedCell" }
+        if (conveyorType == Type.NON_ACCUMULATING) {
+            if (hasNoBlockedCells()) {
+                startNonAccumulatingConveyorMovement()
+            }
+        } else {
+            startAccumulatingConveyorMovementAfterBlockage(blockedCell)
+        }
+    }
+
+        /**
+     * This function is called when the entity wants to exit without having
+     * been on the conveyor. It has an allocation, but has not asked to ride.
+     *
+     * This function should deallocate the cells associated with the cell allocation
+     * and cause any blockage associated with the allocation to be removed.
+     *
+     * There should not be any time delay associated with this function, but it may cause
+     * events to be scheduled and processes to be resumed as the allocation is released.
+     */
+    internal fun deallocateCells(cellAllocation: CellAllocation) {
+        // allocation has no item, and was never conveyed
+        cellAllocation.deallocate()
+        val blockedCell = cellAllocation.entryCell
+        removeBlockage(blockedCell)
+    }
+
+        /**
+     *  This function is called when the conveyor is asked to convey an item by an entity,
+     *  but the entity is not getting on (it is already on the conveyor).
+     *
+     *  There is a blockage at the exit location of the destination. The blockage should
+     *  be removed and if possible the items on the conveyor can start moving.
+     */
+    private fun continueConveyance(cellAllocation: CellAllocation, nextDestination: IdentityIfc) {
+        // must have an item to continue conveyance
+        cellAllocation.item?.destination = nextDestination
+        val exitCell = exitCells[nextDestination]!!
+        removeBlockage(exitCell)
+    }
+ */
