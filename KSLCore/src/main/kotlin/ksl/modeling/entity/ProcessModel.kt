@@ -1507,23 +1507,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = conveyorRequest.conveyor
-                logger.info { "$time > entity (${entity.name}) is exiting ${conveyor.name}" }
+                logger.info { "$time > exitConveyor(): Entity (${entity.name}) is exiting ${conveyor.name}" }
                 val request = conveyorRequest as Conveyor.ConveyorRequest
                 if (request.isBlockingEntry) {
                     // the request cannot be riding or completed, if just blocking the entry, it must just complete
                     request.exitConveyor()
-                    logger.info { "$time > Entity (${entity.name}) released blockage at entry location ${request.currentLocation.name} for (${conveyor.name})" }
+                    logger.info { "$time > exitConveyor(): Entity (${entity.name}) released blockage at entry location ${request.currentLocation.name} for (${conveyor.name})" }
                 } else {
                     // must be blocking the exit
                     isMoving = true
                     conveyor.startExitingProcess(request)
-                    logger.info { "$time > Entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.destination})" }
-                    logger.info { "$time > Entity (${entity.name}) suspending for exiting process" }
+                    logger.info { "$time > exitConveyor(): Entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.destination?.name})" }
+                    logger.info { "$time > exitConveyor(): Entity (${entity.name}) suspending for exiting process" }
                     hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
                     isMoving = false
                 }
                 entity.conveyorRequest = null
-                logger.info { "$time > entity (${entity.name}) exited ${conveyor.name}" }
+                logger.info { "$time > exitConveyor(): Entity (${entity.name}) exited ${conveyor.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
