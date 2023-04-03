@@ -1769,8 +1769,9 @@ class Conveyor(
         // conveyor is occupied and has no blocked cells
         val leadCell = firstMovableCell(conveyorCells)
         if (leadCell != null) {
-            val movingCells = conveyorCells.subList(0, leadCell.cellNumber)
-            ProcessModel.logger.info { "$time > CONVEYOR:  Non-accumulating conveyor: moving (${movingCells.size}) cells forward" }
+            val trainEndCell = firstOccupiedCellFromStart()!!
+            val movingCells = conveyorCells.subList(trainEndCell.index, leadCell.cellNumber)
+            ProcessModel.logger.info { "$time > CONVEYOR:  Non-accumulating conveyor: has no blocked cells: moving cells within [${trainEndCell.cellNumber}..${leadCell.cellNumber}] forward" }
             moveItemsForwardOneCell(movingCells)
         }
     }
@@ -1995,10 +1996,6 @@ class Conveyor(
         }
     }
 
-    private fun continueRiding(request: ConveyorRequest) {
-        TODO("Need to implement Conveyor.continueRiding()")
-    }
-
     internal fun startExitingProcess(request: ConveyorRequest) {
         require(request.isBlockingExit){"The request must be blocking the exit to start the exiting process"}
         // the request is blocking the exit, it must be in the BlockingExit state
@@ -2011,7 +2008,6 @@ class Conveyor(
         removeBlockage(exitCell)
         //TODO("Need to implement Conveyor.startExitingProcess()")
     }
-
 
     /**
      *  A conveyor request represents the holding of cells on a conveyor and acts as
@@ -2082,14 +2078,6 @@ class Conveyor(
             ProcessModel.logger.info { "$time > CONVEYOR: Entity (${entity.name}) causing blockage for entry cell (${entryCell.cellNumber}) at location (${entryLocation.name})" }
             state.blockEntryCell(this)
             entryCell.isBlocked = true
-            //TODO REVIEW LOGIC Request.blockEntryLocation()
-
-//            // remember that the cell is blocked by this request
-//            //           blockedEntryCells[entryCell] = this
-//            if (conveyorType == Type.NON_ACCUMULATING) {
-//                // non-accumulating conveyor must stop everywhere when blocked.
-//                cancelConveyorMovement()
-//            }
             ProcessModel.logger.info { "$time > CONVEYOR: ...... caused blockage at entry cell ${entryCell.cellNumber}" }
         }
 
@@ -2342,6 +2330,11 @@ class Conveyor(
     internal inner class BlockingExit : RequestState("BlockingExit") {
         override fun ride(request: ConveyorRequest) {
             request.state = requestRidingState
+            ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = ${request.status}: Entity (${request.entity.name}): continue riding" }
+            // need to remove the blockage at the exit cell
+            val exitCell = exitCells[request.currentLocation]!!
+            removeBlockage(exitCell)
+            //just stay on the conveyor and movement cycle will catch the entity
         }
 
         override fun exit(request: ConveyorRequest) {
@@ -2460,8 +2453,8 @@ interface ConveyorRequestIfc {
 
 fun main() {
 
-    runConveyorTest(Conveyor.Type.ACCUMULATING)
-//    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
+//    runConveyorTest(Conveyor.Type.ACCUMULATING)
+    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
 }
 
