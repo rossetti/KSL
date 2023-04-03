@@ -2081,12 +2081,13 @@ class Conveyor(
             state.ride(this)
         }
 
-        internal fun blockExitLocation() {//TODO why is this not called
+        internal fun blockExitLocation() {
             state.blockExitCell(this)
         }
 
         internal fun exitConveyor() {
             state.exit(this)
+            TODO("need to implement Request.exitConveyor()")
         }
 
         private val myCellsOccupied: ArrayDeque<Cell> = ArrayDeque()
