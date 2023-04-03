@@ -2637,4 +2637,21 @@ fun runConveyorTest(conveyorType: Conveyor.Type) {
         val exitCell = exitCells[nextDestination]!!
         removeBlockage(exitCell)
     }
+
+    private fun itemFullyOff(item: Conveyor.Item) {
+        // item completed the exiting process, tell the entity that it can proceed
+        conveyorHoldQ.removeAndResume(item.entity)
+    }
+
+    private fun itemReachedDestination(item: Item) {
+        // the trip has ended, need to block exit, resume the entity to proceed with exit
+        // or allow it to start its next ride
+        val exitCell = exitCells[item.destination]!!
+        causeBlockage(exitCell)
+        ProcessModel.logger.info { "$time > resuming ${item.entity} after reaching destination" }
+        conveyorHoldQ.removeAndResume(item.entity, item.resumePriority, false)
+    }
+
+
  */
+
