@@ -1273,9 +1273,11 @@ class Conveyor(
      *  2) after the request completely moves off the conveyor at its destination location
      *  3) after the request "exits" the conveyor without riding (from an entry cell)
      */
-    private fun removeBlockage(blockedCell: Cell) {
+    private fun removeBlockage(blockedCell: Cell) { //TODO this method is never called in testing case!!!
         blockedCell.isBlocked = false // this unblocks the cell
         ProcessModel.logger.info { "$time > removed blockage at cell (${blockedCell.cellNumber}) : type (${blockedCell.type}) : location (${blockedCell.location?.name})" }
+        //TODO MUST FIX THIS it should not always schedule the movement
+
         scheduleConveyorMovement()
     }
 
@@ -1569,7 +1571,7 @@ class Conveyor(
      *  This method is called from ConveyorRequest.moveForwardOneCell().
      *  This method resumes the entity associated with the request
      */
-    private fun itemFullyOffConveyor(request: ConveyorRequest, exitCell: Cell) {
+    private fun itemFullyOffConveyor(request: ConveyorRequest, exitCell: Cell) {//TODO THIS NEEDS TO BE FIXED
         //TODO REVIEW THIS LOGIC itemFullyOffConveyor()
         require(exitCell.isExitCell) { "The supplied cell was not an exit cell" }
         removeBlockage(exitCell) ///TODO this may schedule future movement, perhaps the order of scheduling matters here
@@ -2034,8 +2036,7 @@ class Conveyor(
 
         val entryCell: Cell = entryCells[entryLocation]!!
 
-        override var currentLocation: IdentityIfc =
-            entryLocation //TODO need to update current location when it arrives at destination, when request is resumed
+        override var currentLocation: IdentityIfc = entryLocation
             internal set
 
         // destination should be set when asking to ride
