@@ -1590,6 +1590,8 @@ class Conveyor(
         // or allow it to start its next ride
         val exitCell = exitCells[request.destination]!!
         exitCell.isBlocked = true
+        //TODO when to set state of request to blocking exit
+        request.blockExitLocation()
         if (conveyorType == Type.NON_ACCUMULATING) {
             cancelConveyorMovement()
         }
@@ -1955,6 +1957,8 @@ class Conveyor(
      *  or it must initiate movement.
      */
     private fun beginRiding(request: ConveyorRequest) {
+        //TODO request parameter is not used
+
         // the request has asked to start riding for the very first time
         // the conveyor might be empty
         if (!isOccupied()) { // if empty:
@@ -1978,7 +1982,6 @@ class Conveyor(
                 // do nothing, it will be handled at the end of the current movement
             }
         }
-        //TODO("Need to implement Conveyor.startRiding()")
     }
 
     private fun continueRiding(request: ConveyorRequest) {

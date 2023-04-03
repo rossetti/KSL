@@ -1503,7 +1503,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(entity.conveyorRequest != null) { "The entity attempted to exit without using the conveyor." }
                 require(entity.conveyorRequest == conveyorRequest) { "The exiting entity does not own the supplied conveyor request" }
                 require(conveyorRequest.isBlockingEntry || conveyorRequest.isBlockingExit)
-                { "The supplied request is not blocking an entry or exit location" }
+                { "The supplied request is not blocking an entry (${conveyorRequest.isBlockingEntry}) or exit (${conveyorRequest.isBlockingExit}) location" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = conveyorRequest.conveyor
