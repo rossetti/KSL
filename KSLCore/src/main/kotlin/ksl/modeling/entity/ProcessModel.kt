@@ -1485,7 +1485,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.info { "$time > entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
                 // causes event(s) to be scheduled that will eventually resume the entity after the ride
                 val request = conveyorRequest as Conveyor.ConveyorRequest
-                request.rideConveyor()
+                request.rideConveyorTo(destination)
                 logger.info { "$time > entity (${entity.name}) riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
                 // holds here while request rides on the conveyor

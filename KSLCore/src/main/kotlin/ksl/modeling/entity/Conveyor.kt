@@ -2071,8 +2071,9 @@ class Conveyor(
             ProcessModel.logger.info { "$time > ...... caused blockage at entry cell ${entryCell.cellNumber}" }
         }
 
-        internal fun rideConveyor() {
+        internal fun rideConveyorTo(destination: IdentityIfc) {
             // behavior depends on state (blocking entry or blocking exit)
+            this.destination = destination
             state.ride(this)
         }
 
@@ -2169,6 +2170,7 @@ class Conveyor(
             check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
             ProcessModel.logger.info { "$time > Request (${name}): status = $status: Entity (${entity.name}) moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
             occupyCell(frontCell!!.nextCell!!)
+            ProcessModel.logger.info { "$time > Request (${name}): status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})"}
             if (status == ItemStatus.ENTERING) {
                 if (numCellsNeeded == numCellsOccupied) {
                     status = ItemStatus.ON
@@ -2179,6 +2181,7 @@ class Conveyor(
             }
             // item has moved forward, it may have reached its destination
             if (frontCell!!.isExitCell) {
+                ProcessModel.logger.info { "$time > Request (${name}): status = $status: destination = (${destination?.name}): has reached exit cell (${frontCell!!.cellNumber}) at location (${frontCell!!.location?.name})"}
                 // reached an exit cell
                 if (destination == frontCell!!.location) {
                     // reached the intended destination
