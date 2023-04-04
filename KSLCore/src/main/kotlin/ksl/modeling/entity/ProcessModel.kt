@@ -517,14 +517,32 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  If the entity is executing a process and the process is suspended, then
          *  the process is scheduled to resume at the current simulation time.
-         *  @param priority the priority parameter can be used to provide an ordering to the
+         *
          *  @param timeUntilResumption the time until the resumption will occur
+         *  @param priority the priority parameter can be used to provide an ordering to the
          *  scheduled resumption events, if multiple events are scheduled at the same time
          */
         fun resumeProcess(timeUntilResumption: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
             // entity must be in a process and suspended
             if (myCurrentProcess != null) {
                 myResumeAction.schedule(timeUntilResumption, priority = priority)
+            }
+        }
+
+        /**
+         *  This function causes the process to immediately resume the captured continuation. An underlying state pattern
+         *  enforces that the process coroutine can only be resumed if it has been suspended. This function
+         *  allows the entity to immediately resume a suspended process with no simulated time delay. That is, no event is scheduled
+         *  and processed to perform the resumption. This is in contrast with the Entity.resumeProcess() function, which
+         *  forces (at least a 0.0) time delay and thus release back to the event loop to cause the process
+         *  to be resumed.  An understanding of when a process should be resumed within an event loop is necessary
+         *  to effectively use this function.  In some cases, resuming through the event loop will not provide
+         *  the fine-grained control for the sequence of calls necessary. Thus, this method can be used internally
+         *  when needed in those (rare) cases.
+         */
+        internal fun immediateResume(){
+            if (myCurrentProcess != null) {
+                myCurrentProcess!!.resume()
             }
         }
 
@@ -554,9 +572,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         private inner class ResumeAction : EventAction<Nothing>() {
             override fun action(event: KSLEvent<Nothing>) {
-                if (myCurrentProcess != null) {
-                    myCurrentProcess!!.resume()
-                }
+                immediateResume()
             }
         }
 
@@ -951,6 +967,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 //                TODO("not fully implemented/tested 9-14-2022")
 //            }
 
+            /**
+             *  This causes the process to immediately resume the captured continuation. A state pattern
+             *  enforces that the process coroutine can only be resumed if it has been suspended. This process
+             *  routine is immediately resumed with no simulated time delay. That is, no event is scheduled
+             *  and processed to perform the resumption. This is in contrast with the Entity.resumeProcess() function, which
+             *  forces (at least a 0.0) time delay and thus release back to the event loop to cause the process
+             *  to be resumed.
+             */
             internal fun resume() {
                 state.resume()
             }
