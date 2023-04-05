@@ -41,10 +41,7 @@ private var qObjCounter: Long = 0
 
 abstract class ModelElement internal constructor(theName: String? = null) : IdentityIfc {
     //TODO spatial model stuff
-    //TODO creating QObjects
-    //TODO creating entities
     //TODO change parent model element method, was in JSL, can/should it be in KSL
-    //TODO Request DSL from JSL ModelElement
 
     /**
      * A set of constants for indicating model element status to observers of
