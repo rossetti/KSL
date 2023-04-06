@@ -23,13 +23,14 @@ import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
 class TimeSharedComputerEV(
     parent: ModelElement,
-    numJobs: Int = 1000,
+    numJobs: Int = 10,
     numTerminals: Int = 80,
     thinkingTime: RVariableIfc = ExponentialRV(25.0),
     serviceTime: RVariableIfc = ExponentialRV(0.8),
@@ -43,8 +44,11 @@ class TimeSharedComputerEV(
     private val myCPUJobQ = Queue<ComputerJob>(this, "CPU Job Q")
     private val myUsingCPUQ = Queue<ComputerJob>(this, "Using CPU Q")
 
-    private val myNumTerminalsThinking: TWResponse = TWResponse(this, "Number Thinking")
+    private val myNumTerminalsThinking: TWResponse = TWResponse(this, "Number Thinking", numTerminals.toDouble())
     private val myResponseTime: Response = Response(this, "Response Time")
+    init {
+        myResponseTime.countActionLimit = numJobs.toDouble()
+    }
     private val myQuantum = quantum
     private val mySwapTime = swapTime
     private val myNumTerminals = numTerminals
@@ -124,4 +128,13 @@ class TimeSharedComputerEV(
         schedule(this::endService, runtime)
     }
 
+}
+
+fun main(){
+    val m = Model()
+    TimeSharedComputerEV(m)
+    m.numberOfReplications = 20
+
+    m.simulate()
+    m.print()
 }
