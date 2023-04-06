@@ -30,14 +30,14 @@ class TestProcessModeling(parent: ModelElement) : ProcessModel(parent, null) {
 
     val resource: ResourceWithQ = ResourceWithQ(this, "test resource")
 
-    val holdQueue = HoldQueue(this, "hold")
+    private val myHoldQueue = HoldQueue(this, "hold")
 
     private val myEventActionOne: EventActionOne = EventActionOne()
 
     private inner class Customer: Entity() {
         val someProcess : KSLProcess = process("test") {
             println("time = $time before the first delay in ${this@Customer}")
-            hold(holdQueue)
+            hold(myHoldQueue)
             delay(10.0)
             println("time = $time after the first delay in ${this@Customer}")
             println("time = $time before the second delay in ${this@Customer}")
@@ -71,7 +71,7 @@ class TestProcessModeling(parent: ModelElement) : ProcessModel(parent, null) {
         override fun action(event: KSLEvent<Nothing>) {
             println("EventActionOne at time : $time")
            // customer?.terminateProcess()
-            holdQueue.removeAllAndResume()
+            myHoldQueue.removeAllAndResume()
         }
     }
 }

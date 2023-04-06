@@ -27,14 +27,14 @@ import ksl.simulation.ModelElement
 
 class Example2(parent: ModelElement) : ProcessModel(parent, null)  {
 
-    private val holdQueue = HoldQueue(this, "hold")
+    private val myHoldQueue: HoldQueue = HoldQueue(this, "hold")
 
     private val myEventActionOne: EventActionOne = EventActionOne()
 
     private inner class Customer: ProcessModel.Entity() {
         val holdProcess : KSLProcess = process() {
             println("time = $time : before being held customer = ${this@Customer.name}")
-            hold(holdQueue)
+            hold(myHoldQueue)
             println("time = $time : after being held customer = ${this@Customer.name}")
             delay(10.0)
             println("time = $time after the first delay for customer = ${this@Customer.name}")
@@ -54,7 +54,7 @@ class Example2(parent: ModelElement) : ProcessModel(parent, null)  {
     private inner class EventActionOne : ModelElement.EventAction<Nothing>() {
         override fun action(event: KSLEvent<Nothing>) {
             println("Removing and resuming held entities at time : $time")
-            holdQueue.removeAllAndResume()
+            myHoldQueue.removeAllAndResume()
         }
     }
 }
