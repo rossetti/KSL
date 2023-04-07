@@ -100,7 +100,7 @@ open class TWResponse(
         if (emissionsOn){
             emitter.emit(Pair(timeOfChange, myValue))
         }
-        if(myWithinReplicationStatistic.count == countActionLimit){
+        if(myWithinReplicationStatistic.count == replicationCountLimit){
             notifyCountLimitActions()
         }
     }

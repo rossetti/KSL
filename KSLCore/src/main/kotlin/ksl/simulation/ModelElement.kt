@@ -247,6 +247,14 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
     protected val executive: Executive
         get() = model.myExecutive
 
+    /**
+     * Causes the current replication to stop processing events.
+     * @param msg an optional string message can be supplied to inform output about the reason for the stoppage
+     */
+    protected fun stopReplication(msg:  String? = null){
+        executive.stop("time $time> User stopped the replication: $msg" )
+    }
+
     //TODO revisit myDefaultEntityType when working on process modeling
 //    protected val defaultEntityType: EntityType
 //        get() = model.myDefaultEntityType

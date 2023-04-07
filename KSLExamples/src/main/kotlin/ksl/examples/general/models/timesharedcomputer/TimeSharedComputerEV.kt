@@ -19,21 +19,23 @@
 package ksl.examples.general.models.timesharedcomputer
 
 import ksl.modeling.queue.Queue
+import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
 class TimeSharedComputerEV(
     parent: ModelElement,
-    numJobs: Int = 10,
+    numJobs: Int = 1000,
     numTerminals: Int = 80,
-    thinkingTime: RVariableIfc = ExponentialRV(25.0),
-    serviceTime: RVariableIfc = ExponentialRV(0.8),
+    thinkingTime: RVariableIfc = ExponentialRV(25.0, 1),
+    serviceTime: RVariableIfc = ExponentialRV(0.8, 2),
     quantum: Double = 0.1,
     swapTime: Double = 0.015,
     name: String? = "TimeSharedComputerEV"
@@ -46,24 +48,25 @@ class TimeSharedComputerEV(
 
     private val myNumTerminalsThinking: TWResponse = TWResponse(this, "Number Thinking", numTerminals.toDouble())
     private val myResponseTime: Response = Response(this, "Response Time")
+
     init {
-        myResponseTime.countActionLimit = numJobs.toDouble()
+        myResponseTime.addCountLimitStoppingAction(numJobs)
     }
     private val myQuantum = quantum
     private val mySwapTime = swapTime
     private val myNumTerminals = numTerminals
-
+    private var count = 0
     private inner class ComputerJob() : QObject() {
         var myArrivalTime = 0.0
         var myRemainingServiceTime = 0.0
     }
 
     override fun initialize() {
+        count = 0
         // start the terminals thinking
         for (i in 1..myNumTerminals) {
             val job = ComputerJob()
-            val t: Double = myThinkingTimeRV.value
-            schedule(this::jobArrival, t, job)
+            schedule(this::jobArrival, myThinkingTimeRV, job)
         }
     }
 
@@ -99,10 +102,8 @@ class TimeSharedComputerEV(
             myResponseTime.value = ws
             // increment the number thinking
             myNumTerminalsThinking.increment()
-            // generate the thinking time
-            val t: Double = myThinkingTimeRV.value
             // schedule the end of the thinking time
-            schedule(this::jobArrival, t, job)
+            schedule(this::jobArrival, myThinkingTimeRV, job)
             // if more jobs waiting for cpu, then serve them
             if (myCPUJobQ.size > 0) {
                 serveNextJob()
@@ -133,8 +134,7 @@ class TimeSharedComputerEV(
 fun main(){
     val m = Model()
     TimeSharedComputerEV(m)
-    m.numberOfReplications = 20
-
+    m.numberOfReplications = 200
     m.simulate()
     m.print()
 }
