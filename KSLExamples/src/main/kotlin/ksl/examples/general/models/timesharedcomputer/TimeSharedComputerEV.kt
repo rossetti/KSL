@@ -52,10 +52,12 @@ class TimeSharedComputerEV(
     init {
         myResponseTime.addCountLimitStoppingAction(numJobs)
     }
+
     private val myQuantum = quantum
     private val mySwapTime = swapTime
     private val myNumTerminals = numTerminals
     private var count = 0
+
     private inner class ComputerJob() : QObject() {
         var myArrivalTime = 0.0
         var myRemainingServiceTime = 0.0
@@ -117,7 +119,7 @@ class TimeSharedComputerEV(
         // determine the cpu run time for this pass, including the swap time
         val runtime = if (myQuantum < job.myRemainingServiceTime) {
             myQuantum + mySwapTime
-        } else  {
+        } else {
             job.myRemainingServiceTime + mySwapTime
         }
         // adjust the remaining service, subtract quantum (don't include swap time)
@@ -131,7 +133,7 @@ class TimeSharedComputerEV(
 
 }
 
-fun main(){
+fun main() {
     val m = Model()
     TimeSharedComputerEV(m)
     m.numberOfReplications = 200
