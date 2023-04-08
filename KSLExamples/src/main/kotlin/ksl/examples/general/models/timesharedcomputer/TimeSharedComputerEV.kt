@@ -40,6 +40,15 @@ class TimeSharedComputerEV(
     swapTime: Double = 0.015,
     name: String? = "TimeSharedComputerEV"
 ) : ModelElement(parent, name) {
+    init{
+        require(numJobs > 0){"The number of jobs must be > 0"}
+        require(numTerminals > 0){"The number of terminals must be > 0"}
+        require(quantum > 0){"The quantum must be > 0"}
+        require(swapTime > 0){"The swap time must be > 0"}
+    }
+    private val myQuantum = quantum
+    private val mySwapTime = swapTime
+    private val myNumTerminals = numTerminals
 
     private val myThinkingTimeRV = RandomVariable(this, thinkingTime)
     private val myServiceTimeRV = RandomVariable(this, serviceTime)
@@ -48,15 +57,11 @@ class TimeSharedComputerEV(
 
     private val myNumTerminalsThinking: TWResponse = TWResponse(this, "Number Thinking", numTerminals.toDouble())
     private val myResponseTime: Response = Response(this, "Response Time")
+    private val myNumJobsInProgress: TWResponse = TWResponse(this, "Number Jobs In Progress")
 
     init {
         myResponseTime.addCountLimitStoppingAction(numJobs)
     }
-
-    private val myQuantum = quantum
-    private val mySwapTime = swapTime
-    private val myNumTerminals = numTerminals
-    private var count = 0
 
     private inner class ComputerJob() : QObject() {
         var myArrivalTime = 0.0
@@ -64,7 +69,6 @@ class TimeSharedComputerEV(
     }
 
     override fun initialize() {
-        count = 0
         // start the terminals thinking
         for (i in 1..myNumTerminals) {
             val job = ComputerJob()
@@ -81,6 +85,7 @@ class TimeSharedComputerEV(
         job.myRemainingServiceTime = myServiceTimeRV.value
         // no longer thinking, decrement the number thinking
         myNumTerminalsThinking.decrement()
+        myNumJobsInProgress.increment()
         // enqueue the job for the cpu
         myCPUJobQ.enqueue(job)
         // check if cpu is idle, if so serve the next job
@@ -98,6 +103,7 @@ class TimeSharedComputerEV(
             // just finished a job so must be idle and should start next job
             serveNextJob()
         } else {
+            myNumJobsInProgress.decrement()
             // job done, get the response time
             val ws: Double = time - job.myArrivalTime
             // record the response time using the response variable
