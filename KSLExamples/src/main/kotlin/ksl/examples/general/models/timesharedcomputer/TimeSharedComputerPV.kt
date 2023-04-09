@@ -15,7 +15,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class TimeSharedComputerPV(
     parent: ModelElement,
     numJobs: Int = 1000,
-    numTerminals: Int = 80,
+    numTerminals: Int = 10,
     thinkingTime: RVariableIfc = ExponentialRV(25.0, 1),
     serviceTime: RVariableIfc = ExponentialRV(0.8, 2),
     quantum: Double = 0.1,
@@ -47,7 +47,7 @@ class TimeSharedComputerPV(
     }
 
     private inner class ComputerJob : Entity() {
-        var startTime = time
+        val startTime = time
         var remainingServiceTime = myServiceTimeRV.value
         val runtime: Double
             get() = if (myQuantum < remainingServiceTime) {
@@ -86,7 +86,7 @@ class TimeSharedComputerPV(
 fun main() {
     val m = Model()
     TimeSharedComputerPV(m)
-    m.numberOfReplications = 200
+    m.numberOfReplications = 2000
     m.simulate()
     m.print()
 }

@@ -73,6 +73,7 @@ class TimeSharedComputerEV(
         for (i in 1..myNumTerminals) {
             val job = ComputerJob()
             schedule(this::jobArrival, myThinkingTimeRV, job)
+            myNumTerminalsThinking.increment()
         }
     }
 
