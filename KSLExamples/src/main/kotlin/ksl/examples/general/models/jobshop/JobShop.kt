@@ -1,6 +1,5 @@
 package ksl.examples.general.models.jobshop
 
-import ksl.examples.book.chapter7.TestAndRepairShop
 import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.KSLProcess
@@ -9,8 +8,6 @@ import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.io.KSL
-import ksl.utilities.io.MarkDown
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.GammaRV
