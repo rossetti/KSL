@@ -101,7 +101,7 @@ class JobShop(parent: ModelElement, name: String? = null) : ProcessModel(parent,
 fun main() {
     val m = Model("Job Shop Model")
     JobShop(m, "JobShop")
-    m.numberOfReplications = 500
+    m.numberOfReplications = 30
     m.lengthOfReplication = 365.0 * 8.0
     m.simulate()
     m.print()
