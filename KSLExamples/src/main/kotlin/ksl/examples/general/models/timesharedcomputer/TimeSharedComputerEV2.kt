@@ -13,7 +13,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class TimeSharedComputerEV2(
     parent: ModelElement,
     numJobs: Int = 1000,
-    numTerminals: Int = 80,
+    numTerminals: Int = 20,
     thinkingTime: RVariableIfc = ExponentialRV(25.0, 1),
     serviceTime: RVariableIfc = ExponentialRV(0.8, 2),
     quantum: Double = 0.1,
