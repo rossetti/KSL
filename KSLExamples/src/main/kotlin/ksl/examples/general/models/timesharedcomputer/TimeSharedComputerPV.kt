@@ -46,6 +46,22 @@ class TimeSharedComputerPV(
         }
     }
 
+    private inner class Terminal : Entity() {
+        val thinkingProcess: KSLProcess = process() {
+            do {
+                myNumTerminalsThinking.increment()
+                delay(myThinkingTimeRV)
+                myNumTerminalsThinking.decrement()
+                val job = ComputerJob()
+                myNumJobsInProgress.increment()
+                waitFor(job.computingProcess)
+                myNumJobsInProgress.decrement()
+                myResponseTime.value = time - job.startTime
+                numJobsCompleted.value = numJobsCompleted.value + 1
+            } while (numJobsCompleted.value <= myNumJobs)
+        }
+    }
+
     private inner class ComputerJob : Entity() {
         val startTime = time
         var remainingServiceTime = myServiceTimeRV.value
@@ -65,28 +81,12 @@ class TimeSharedComputerPV(
             }
         }
     }
-
-    private inner class Terminal : Entity() {
-        val thinkingProcess: KSLProcess = process() {
-            do {
-                myNumTerminalsThinking.increment()
-                delay(myThinkingTimeRV)
-                myNumTerminalsThinking.decrement()
-                val job = ComputerJob()
-                myNumJobsInProgress.increment()
-                waitFor(job.computingProcess)
-                myNumJobsInProgress.decrement()
-                myResponseTime.value = time - job.startTime
-                numJobsCompleted.value = numJobsCompleted.value + 1
-            } while (numJobsCompleted.value <= myNumJobs)
-        }
-    }
 }
 
 fun main() {
     val m = Model()
     TimeSharedComputerPV(m)
-    m.numberOfReplications = 2000
+    m.numberOfReplications = 20
     m.simulate()
     m.print()
 }
