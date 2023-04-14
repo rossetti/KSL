@@ -1725,7 +1725,10 @@ class Conveyor(
         processItemsRequestingToRide()
         // unblock any entry cells that will be unoccupied after the next move
         // and resume the first request waiting for the unblocked entry cell
-        unBlockEntryCells()
+       // unBlockEntryCells()
+        // entry cells may have become unblocked after processing items requesting to ride
+        // process those items waiting for entry to allow 
+        processRequestsWaitingForEntry()
         // reschedule the conveyor movement if needed
         rescheduleConveyorMovement()
         ProcessModel.logger.info { "$time > CONVEYOR:  ***** completed end of cell traversal action for event: (${event.id}) *****" }
@@ -1733,6 +1736,23 @@ class Conveyor(
 
     fun isCellTraversalInProgress(): Boolean {
         return endCellTraversalEvent != null && endCellTraversalEvent!!.isScheduled
+    }
+
+    private fun processRequestsWaitingForEntry(){
+        for ((location, cell) in entryCells){
+            if ((cell.isNotBlocked) && !requestsForRides.containsKey(cell)){
+                val queue = accessQueues[location]!!
+                if (queue.isNotEmpty) {
+                    ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}" }
+                    val request = queue.peekFirst()!!
+                    ProcessModel.logger.info { "$time > CONVEYOR: Request (${request.name}): status = ${request.status}: resuming entity (${request.entity.name}) at location ${location.name}" }
+                    request.entity.immediateResume()
+                    //request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
+                } else {
+                    ProcessModel.logger.info { "$time > CONVEYOR: access queue at location ${location.name} was empty" }
+                }
+            }
+        }
     }
 
     /**
@@ -2224,13 +2244,16 @@ class Conveyor(
         internal fun enterConveyor() {
             check(status == ItemStatus.OFF) { "$time >  CONVEYOR: Request (${name}): status = $status: Request status must be OFF to enter the conveyor for the first time" }
             check(entryCell.isNotOccupied){"Tried enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name})"}
+            ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) entering the conveyor at cell (${entryCell.cellNumber})" }
             occupyCell(entryCell)
-            ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) entered the conveyor at cell (${entryCell.cellNumber})" }
             if (numCellsNeeded == numCellsOccupied) {
-                status = ItemStatus.ON
-                requestsForRides.remove(entryCell)
-                ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) entered and is fully on the conveyor" }
                 // item is fully on the conveyor
+                status = ItemStatus.ON
+                // no longer getting on
+                requestsForRides.remove(entryCell)
+                // no longer needs to block entry
+                entryCell.isBlocked = false
+                ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) is fully on the conveyor: cell (${entryCell.cellNumber} was unblocked" }
             } else {
                 status = ItemStatus.ENTERING
             }
