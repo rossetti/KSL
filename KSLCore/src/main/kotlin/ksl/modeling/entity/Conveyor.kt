@@ -275,8 +275,6 @@ class Conveyor(
         conveyorCells = cells.toList()
     }
 
-//    private val endCellTraversalAction2 = EndOfCellTraversalActionV2()
-
     /**
      * The event associated with the movement of the items on the conveyor.
      * When this event is scheduled, this means that items are moving (traversing) through
@@ -284,10 +282,9 @@ class Conveyor(
      * always allow the traversal to complete.
      *
      * The event will be set to null under the following conditions:
-     * a) non-accumulating conveyor and a blockage exists
-     * b) accumulating conveyor and there are no items that can move
+     * a) non-accumulating conveyor: a blockage exists or there are no items on the conveyor
+     * b) accumulating conveyor: there are no items that can move due to blockages or no items on the conveyor
      */
-    //   private var endCellTraversalEvent: KSLEvent<List<Cell>>? = null
     private var endCellTraversalEvent: KSLEvent<Nothing>? = null
 
     /**
@@ -312,7 +309,8 @@ class Conveyor(
 
     /**
      * The time that it takes an item on the conveyor to
-     * travel through a cell in order to fully occupy the cell.
+     * travel through a cell in order to fully occupy the cell. This is
+     * based on the cell size and the velocity of the conveyor.
      */
     val cellTravelTime: Double
         get() = cellSize / velocity
@@ -346,9 +344,9 @@ class Conveyor(
     /**
      * A list of all conveyor requests that are currently associated with (occupying)
      * cells on the conveyor in the order from the furthest along (closest to the exit location of the last segment)
-     * to the nearest item (closest to the entry location of the first segment).
+     * to the nearest request (closest to the entry location of the first segment).
      */
-    fun conveyorRequests(): List<ConveyorRequest> {
+    fun conveyorRequests(): List<ConveyorRequestIfc> {
         return conveyorRequests(conveyorCells)
     }
 
@@ -357,8 +355,8 @@ class Conveyor(
      *  the supplied cell list, ordered from the furthest cell to the closest cell
      *  based on the direction of travel on the conveyor.
      */
-    private fun conveyorRequests(cellList: List<Cell>): List<ConveyorRequest> {
-        val list = mutableSetOf<ConveyorRequest>()
+    private fun conveyorRequests(cellList: List<Cell>): List<ConveyorRequestIfc> {
+        val list = mutableSetOf<ConveyorRequestIfc>()
         for (cell in cellList.reversed()) {
             val item = cell.item
             if (item != null) {
@@ -405,7 +403,8 @@ class Conveyor(
     }
 
     /**
-     *  Checks if the conveyor has any blocked cells
+     *  Checks if the conveyor has any blocked cells. A cell can be blocked
+     *  for entry or for exit.
      */
     fun hasBlockedCells(): Boolean {
         for (cell in conveyorCells) {
@@ -425,7 +424,7 @@ class Conveyor(
      *  Finds the first blocked cell from the end of the conveyor.
      *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
      *  Suppose cells 1, 5, 8 are blocked. Then, cell 8 is the first blocked cell from the end of the
-     *  conveyor.
+     *  conveyor. If no cells are blocked, then null is returned.
      */
     fun firstBlockedCellFromEnd(): Cell? {
         return conveyorCells.asReversed().firstOrNull { it.isBlocked }
@@ -443,7 +442,7 @@ class Conveyor(
 
     /**
      * Finds the first blocked cell from the supplied cell going
-     * forward in the list. If there are no blocked cells, then
+     * forward on the conveyor. If there are no blocked cells, then
      * null is returned.
      */
     fun firstBlockedCellForwardFromCell(startingCell: Cell): Cell? {
@@ -454,7 +453,7 @@ class Conveyor(
      *  Checks if the supplied cell could move forward during the next cell traversal.
      *  Returns true if the cell immediately in front of the cell is not occupied or
      *  if the cell would be part of a train of cells that are pulled forward by
-     *  a lead cell behind a blockage.  If there are no blockage, then if the
+     *  a lead cell behind a blockage.  If there are no blockages, then if the
      *  conveyor has a movable cell then a train can be formed. The supplied
      *  cell must be an occupied cell.
      */
@@ -466,7 +465,7 @@ class Conveyor(
                 return true
             }
             // the next cell is occupied, check for movable train
-            val fbc = firstBlockedCellForwardFromCell(cell)//TODO this is likely the problem
+            val fbc = firstBlockedCellForwardFromCell(cell)
             if (fbc == null) {
                 // no blockages going forward, check entire conveyor
                 return firstMovableCell(conveyorCells) != null
@@ -501,9 +500,9 @@ class Conveyor(
 
     /**
      *  Partitions the conveyor cells into to sub lists. The first
-     *  of the pair is all cells before (but not including) the first blocked
-     *  cell from the end of the list. The second of the pair is
-     *  the all cells after the blockage *including* the blockage.
+     *  of the pair contains all cells before (but not including) the first blocked
+     *  cell from the end of the list. The second of the pair contains
+     *  all cells after the blockage *including* the blockage.
      *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
      *  Suppose cells 1, 5, 8 are blocked. Because cell 8 is the first blocked cell from the end of the
      *  list, the returned pair contains:
@@ -541,9 +540,9 @@ class Conveyor(
 
     /**
      *  Partitions the conveyor cells into to sub lists. The first
-     *  of the pair is all cells before (and including) the first blocked
-     *  cell from the end of the list. The second of the pair is
-     *  the all cells after the blockage including the blockage.
+     *  of the pair contains all cells before (and including) the first blocked
+     *  cell from the end of the list. The second of the pair contains
+     *  all cells after the blockage excluding the blockage.
      *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
      *  Suppose cells 1, 5, 8 are blocked. Because cell 8 is the first blocked cell from the end of the
      *  list, the returned pair contains
@@ -585,7 +584,7 @@ class Conveyor(
      *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
      *  Suppose cells 1, 5, 11, 12 are blocked. Then, there will be map of lists as:
      *  ```
-     *  1 : {empty}, because there are no cells in front of it
+     *  1 : {empty}, because there are no cells in front of cell 1
      *  5 : {2, 3, 4}
      *  11 : {6, 7, 8, 9, 10}
      *  12 : {empty}, because there are no cells between cell 11 and 12
@@ -612,40 +611,6 @@ class Conveyor(
             }
         }
         return map
-    }
-
-    /**
-     *  Finds any items that are behind a cell that is marked
-     *  as blocked.  For each cell that is blocked, capture
-     *  a list of the items on the cells behind the blockage but before the previous blockage. The
-     *  returned list may be empty if the blocking cell is the first
-     *  cell or if there are two consecutive blocked cells.  For example,
-     *  suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
-     *  Suppose cells 1, 5, and 11 are blocked. Then, the cells behind the blocking cells are:
-     *  ```
-     *  1 : {empty}
-     *  5 : {2, 3, 4}
-     *  11 : {6, 7, 8, 9, 10}
-     *  ```
-     *  And, any items associated with these cells will be in the associated lists.
-     */
-    private fun itemsBehindBlockedCells(cells: List<Cell>): Map<Cell, List<ConveyorRequest>> {//TODO REMOVE
-        val map = mutableMapOf<Cell, List<ConveyorRequest>>()
-        val ubcMap = cellsBehindBlockedCells(cells)
-        for ((bc, list) in ubcMap) {
-            map[bc] = conveyorRequests(list)
-        }
-        return map
-    }
-
-    /**
-     *  Processing the cells in reverse order, find the first cell that is occupied and for which its next cell exists and
-     *  is available.  This returns the furthest cell (towards the end of the list) that can
-     *  be traversed by an item. This cell holds the lead item.  If such a cell exists, this function returns the item associated
-     *  with it.
-     */
-    private fun firstMovableItem(cells: List<Cell>): ConveyorRequest? {//TODO REMOVE
-        return firstMovableCell(cells)?.item
     }
 
     /**
@@ -722,76 +687,18 @@ class Conveyor(
         }
     }
 
-//    private fun processWaitingRequestsWhenEntryCellBecomesUnoccupied(entryCell: Cell) {
-//        require(entryCell.isEntryCell) { "The supplied cell was not an entry cell" }
-//        require(entryCell.isNotOccupied) { "Cannot process waiting requests when the entry cell is occupied" }
-//        val location = entryCell.location!!
-//        // there is a possibility that a waiting request can get on
-//        val queue = accessQueues[location]!!
-//        if (queue.isNotEmpty) {
-//            ProcessModel.logger.info { "$time > processing waiting requests at location ${location.name}" }
-//            val request = queue.peekFirst()!!
-//            if (request.isFillable) {
-//                ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with fillable request at location ${location.name}" }
-//                request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
-//            }
-//        } else {
-//            ProcessModel.logger.info { "$time > access queue at location ${location.name} was empty" }
-//        }
-//    }
-
-    /**
-     *  This function is called after items have completed a move forward on the conveyor.
-     *  This may have freed up space at an entry location.  This function checks
-     *  all entry locations and if there are sufficient cells available to fill the first
-     *  request that is waiting, then the entity is resumed. This causes the
-     *  waiting request to be removed from the queue and the entity to be
-     *  allocated cells at that location for potential use on the conveyor.
-     */
-//    private fun processWaitingRequests() {
-//        //TODO this checking may depend on type of conveyor
-//        for (entryLocation in entryLocations.reversed()) {
-//            val entryCell = entryCells[entryLocation]!!
-//            if (entryCell.isNotOccupied) {
-//                processWaitingRequestsWhenEntryCellBecomesUnoccupied(entryCell)
-//            }
-//        }
-////
-////        for (entryLocation in entryLocations) {
-////            ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
-////            if (entryCells[entryLocation]!!.isAvailable) { //TODO ******* This is a problem ******
-////                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was available" }
-////                // there is a possibility that a waiting request can get on
-////                val queue = accessQueues[entryLocation]!!
-////                if (queue.isNotEmpty) {
-////                    ProcessModel.logger.info { "$time > processing waiting requests at location ${entryLocation.name}" }
-////                    val request = queue.peekFirst()!!
-////                    if (request.isFillable) {
-////                        ProcessModel.logger.info { "$time > resuming entity (${request.entity.name}) with request at location ${entryLocation.name}" }
-////                        request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
-////                    }
-////                }
-////            } else {
-////                ProcessModel.logger.info { "$time > entry cell at location ${entryLocation.name} was not available" }
-////            }
-////        }
-//    }
-
     private fun moveItemForward(item: ConveyorRequest) {
         item.moveForwardOneCell()
     }
 
-
     private fun moveItemsForwardThroughCells(cells: List<Cell>) {
         var lastItem: ConveyorRequest? = null
-        //TODO how do we capture the entry cell's unblocking
         for (cell in cells.asReversed()) {
             if (cell.item != lastItem) {
                 // new item, remember it
                 lastItem = cell.item
                 if (cell.item != null) {
                     cell.item!!.moveForwardOneCell()
-                    //TODO if the cell is an entry cell we can test that here or in the moveForwardOneCell() method
                 }
             }
         }
