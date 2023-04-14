@@ -1726,8 +1726,8 @@ class Conveyor(
         // unblock any entry cells that will be unoccupied after the next move
         // and resume the first request waiting for the unblocked entry cell
        // unBlockEntryCells()
-        // entry cells may have become unblocked after processing items requesting to ride
-        // process those items waiting for entry to allow 
+        // entry cells may have become unblocked after processing items requesting to ride or moving items
+        // process those items waiting for entry to allow them to block the entry
         processRequestsWaitingForEntry()
         // reschedule the conveyor movement if needed
         rescheduleConveyorMovement()
@@ -2253,7 +2253,7 @@ class Conveyor(
                 requestsForRides.remove(entryCell)
                 // no longer needs to block entry
                 entryCell.isBlocked = false
-                ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) is fully on the conveyor: cell (${entryCell.cellNumber} was unblocked" }
+                ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) is fully on the conveyor: cell (${entryCell.cellNumber}) was unblocked" }
             } else {
                 status = ItemStatus.ENTERING
             }
