@@ -1741,16 +1741,18 @@ class Conveyor(
     private fun processRequestsWaitingForEntry(){
         for ((location, cell) in entryCells){
             if ((cell.isNotBlocked) && !requestsForRides.containsKey(cell)){
+                ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked and there was no ride request positioned for entry" }
                 val queue = accessQueues[location]!!
                 if (queue.isNotEmpty) {
-                    ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}" }
-                    val request = queue.peekFirst()!!
+                     val request = queue.peekFirst()!!
                     ProcessModel.logger.info { "$time > CONVEYOR: Request (${request.name}): status = ${request.status}: resuming entity (${request.entity.name}) at location ${location.name}" }
                     request.entity.immediateResume()
                     //request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
                 } else {
-                    ProcessModel.logger.info { "$time > CONVEYOR: access queue at location ${location.name} was empty" }
+                    ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}: no requests waiting"}
                 }
+            } else {
+                ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests: at location ${location.name}: cell (${cell.cellNumber}) was blocked or there was already a ride request waiting" }
             }
         }
     }
@@ -1989,25 +1991,28 @@ class Conveyor(
      *  or it must initiate movement.
      */
     private fun beginRiding(request: ConveyorRequest) {
-        //TODO request parameter is not used
-
+        //TODO beginRiding(): request parameter is not used
+        ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = ${request.status}: begin riding..." }
         // the request has asked to start riding for the very first time
         // the conveyor might be empty
         if (!isOccupied()) { // if empty:
             // if non-accumulating, then the item can immediately start traversing the entry cell
             // if accumulating, then the item can immediately start traversing the entry cell
+            ProcessModel.logger.info { "$time >  CONVEYOR: begin riding: conveyor was empty with new ride request" }
             scheduleConveyorMovement()
         } else {// if not-empty:
             if (!isCellTraversalInProgress()) {// not moving
                 if (conveyorType == Type.NON_ACCUMULATING) {
                     // if non-accumulating, if this is the only blockage, then the item can immediately
                     // start traversing the entry cell because the blockage is for this item
-                    if (blockedEntryCells().size == 1) {
+                    if (blockedEntryCells().size == 1) {//TODO beginRiding(): need to reassess this
+                        ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: only blocked cell, schedule conveyor movement" }
                         scheduleConveyorMovement()
                     }
                 } else {
                     // if accumulating, then the item can immediately start traversing the entry cell
-                    scheduleConveyorMovement()
+                    ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating: begin riding: cell traversal in progress case: don't schedule conveyor movement" }
+                    //scheduleConveyorMovement()
                 }
             } else {
                 // moving...
@@ -2026,6 +2031,9 @@ class Conveyor(
         // This only unblocks the cell, the request remains in the BlockingExit state
         // removing the blockage may allow movement forward on the conveyor
         removeBlockage(exitCell)
+        if (conveyorType == Type.NON_ACCUMULATING){
+            rescheduleConveyorMovement()
+        }
         //TODO("Need to implement Conveyor.startExitingProcess()")
     }
 
@@ -2252,8 +2260,8 @@ class Conveyor(
                 // no longer getting on
                 requestsForRides.remove(entryCell)
                 // no longer needs to block entry
-                entryCell.isBlocked = false
-                ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) is fully on the conveyor: cell (${entryCell.cellNumber}) was unblocked" }
+                //entryCell.isBlocked = false
+                ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) is fully on the conveyor" }
             } else {
                 status = ItemStatus.ENTERING
             }
@@ -2275,7 +2283,7 @@ class Conveyor(
         }
 
         internal fun mustWait(): Boolean {
-            return entryCell.isBlocked
+            return entryCell.isBlocked || requestsForRides.containsKey(entryCell)
         }
 
     }
@@ -2333,8 +2341,11 @@ class Conveyor(
         override fun ride(request: ConveyorRequest) {
             // place the request as riding
             request.state = requestRidingState
+            ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = ${request.status}: positioned for entry cell (${request.entryCell.cellNumber})" }
             // remember that the request needs to move into the entry cell
             requestsForRides[request.entryCell] = request
+            request.entryCell.isBlocked = false //TODO UNDO blocking here?
+            ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = ${request.status}: unblocked entry cell (${request.entryCell.cellNumber})" }
             beginRiding(request)
         }
 
@@ -2477,9 +2488,10 @@ interface ConveyorRequestIfc {
 }
 
 fun main() {
+//TODO the main run
 
-//    runConveyorTest(Conveyor.Type.ACCUMULATING)
-    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
+    runConveyorTest(Conveyor.Type.ACCUMULATING)
+//    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
 }
 
