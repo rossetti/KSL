@@ -1506,7 +1506,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val conveyor = conveyorRequest.conveyor
                 val origin = conveyorRequest.currentLocation
                 require(conveyor.isReachable(origin, destination))
-                    { "The destination (${destination.name} is not reachable from entry location (${origin.name})" }
+                    { "The destination (${destination.name}) is not reachable from entry location (${origin.name})" }
                 logger.info { "$time > PROCESS: entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
                 // causes event(s) to be scheduled that will eventually resume the entity after the ride
                 val request = conveyorRequest as Conveyor.ConveyorRequest

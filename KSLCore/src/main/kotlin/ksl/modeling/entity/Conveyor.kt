@@ -1055,6 +1055,7 @@ class Conveyor(
         sb.appendLine("is circular = $isCircular")
         sb.appendLine("velocity = $initialVelocity")
         sb.appendLine("cellSize = $cellSize")
+        sb.appendLine("max number cells allowed to occupy = $maxEntityCellsAllowed")
         sb.appendLine("cell Travel Time = $cellTravelTime")
         sb.appendLine("Segments:")
         sb.append(segmentData)
@@ -1085,7 +1086,7 @@ class Conveyor(
         ProcessModel.logger.info { "$time > Request (${request.name}): status = ${request.status}: Entity (${request.entity}): fully off the conveyor: removing blockage" }
         removeBlockage(exitCell)
         // item completed the exiting process, tell the entity that it can proceed
-        conveyorHoldQ.removeAndResume(request.entity)//TODO itemFullyOffConveyor() resumes at current time, what about priority?
+        conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority)
         // cause the transition to the complete state from the blocking exit state
         request.exitConveyor()
     }
@@ -1872,8 +1873,8 @@ interface ConveyorRequestIfc {
 fun main() {
 //TODO the main run
 
-    runConveyorTest(Conveyor.Type.ACCUMULATING)
-//    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
+//    runConveyorTest(Conveyor.Type.ACCUMULATING)
+    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
 }
 
@@ -1948,9 +1949,9 @@ class TestConveyor(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessM
             .conveyorType(conveyorType)
             .velocity(1.0)
             .cellSize(1)
+            .maxCellsAllowed(2)
             .firstSegment(i1, i2, 10)
             .nextSegment(i3, 20)
-            //           .nextSegment(i1, 15)
             .build()
         println(conveyor)
         println()
@@ -1963,25 +1964,40 @@ class TestConveyor(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessM
         activate(p2.conveyingProcess, timeUntilActivation = 0.1)
         val p3 = Part("Part3")
         activate(p3.conveyingProcess, timeUntilActivation = 0.1)
+        val p4 = Part("Part4")
+        activate(p4.conveyingProcess, timeUntilActivation = 10.0)
     }
 
     private inner class Part(name: String? = null) : Entity(name) {
         val conveyingProcess: KSLProcess = process("test") {
             println("${entity.name}: time = $time before access at ${i1.name}")
-            val a = requestConveyor(conveyor, i1)
+            var amt = 1
+            if (entity.name == "Part1"){
+                amt = 2
+            }
+            val a = if (entity.name == "Part4"){
+                requestConveyor(conveyor, i2, amt)
+            } else {
+                requestConveyor(conveyor, i1, amt)
+            }
             println("${entity.name}: time = $time after access")
-            //           delay(10.0)
+//                       delay(10.0)
             timeStamp = time
             if (entity.name == "Part1") {
                 println("${entity.name}: time = $time before ride to ${i2.name}")
                 rideConveyor(a, i2)
                 println("${entity.name}: time = $time after ride to ${i2.name}")
+            } else if (entity.name == "Part4") {
+                println("${entity.name}: time = $time before ride to ${i3.name}")
+                rideConveyor(a, i3)
+                println("${entity.name}: time = $time after ride to ${i3.name}")
             } else {
                 println("${entity.name}: time = $time before ride to ${i2.name}")
                 rideConveyor(a, i2)
                 println("${entity.name}: time = $time after ride to ${i2.name}")
             }
             println("${entity.name}: The riding time was ${time - timeStamp}")
+            delay(2.5)
 //            delay(10.0)
 //            println("${entity.name}: time = $time after second delay of 10.0 ")
             println("${entity.name}: time = $time before exit ")
