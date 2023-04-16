@@ -1210,6 +1210,7 @@ class Conveyor(
         } else {
             // there are blockages, try to move items that can be moved
             // conveyor has blocked cells, so there must be some cells before the first blockage
+            //TODO ISSUE: two blockages in a row with exit, enter both can be blocked at the same time
             val (_, cellsAfterIncludingBlockage) = partitionAtFirstBlockageAfterInclusive()
             val (cellsBeforeIncludingBlockage, _) = partitionAtFirstBlockageAfterExclusive()
             // if the cells after the first blockage is empty, then the first blockage is the last cell
@@ -1594,7 +1595,7 @@ class Conveyor(
          */
         internal fun enterConveyor() {
             check(status == ItemStatus.OFF) { "$time >  CONVEYOR: Request (${name}): status = $status: Request status must be OFF to enter the conveyor for the first time" }
-            check(entryCell.isNotOccupied){"Tried enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name})"}
+            check(entryCell.isNotOccupied){"CONVEYOR: Entity (${entity.name}): Tried enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name})"}
             ProcessModel.logger.info { "$time >  CONVEYOR: Request (${name}): status = $status: Entity (${entity.name}) entering the conveyor at cell (${entryCell.cellNumber})" }
             occupyCell(entryCell)
             if (numCellsNeeded == numCellsOccupied) {
@@ -1873,8 +1874,8 @@ interface ConveyorRequestIfc {
 fun main() {
 //TODO the main run
 
-//    runConveyorTest(Conveyor.Type.ACCUMULATING)
-    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
+    runConveyorTest(Conveyor.Type.ACCUMULATING)
+//    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
 }
 
