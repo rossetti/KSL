@@ -663,6 +663,7 @@ class Conveyor(
      *  be traversed by an item. This cell holds the lead item of the list.
      */
     fun firstMovableCell(cells: List<Cell>): Cell? {
+        //TODO firstMovableCell(cells: List<Cell>): Cell?
         // find the first occupied cell from the end of the list
         val foundCell =
             cells.asReversed().firstOrNull { it.isOccupied && (it.nextCell != null) && it.nextCell!!.isAvailable }
