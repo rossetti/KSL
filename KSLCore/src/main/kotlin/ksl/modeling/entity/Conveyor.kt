@@ -643,7 +643,12 @@ class Conveyor(
                             // must be the last cell, and conveyor is not circular
                             //check(cell == conveyorCells.last()){"In findLeadingCell(): cell must be last cell of list"}
                             // the last cell is not blocked, and it is occupied
-                            //TODO should the cell be included?? should it be handled via separate exit processing?
+                            // to move forward, the occupying item must be exiting
+                            if (cell.item!!.status == ItemStatus.EXITING){
+                                return cell
+                            } else {
+                                throw IllegalStateException("First movable cell was the cell at end of non-circular conveyor and item was not exiting")
+                            }
                         }
                     }
                 }
