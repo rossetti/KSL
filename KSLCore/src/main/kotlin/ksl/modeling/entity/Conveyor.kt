@@ -710,6 +710,7 @@ class Conveyor(
      *  in the "train" of items moving forward by one cell.
      */
     private fun moveItemsForwardOneCell(cells: List<Cell>) {
+        //TODO moveItemsForwardOneCell(cells: List<Cell>)
         if (cells.isEmpty()) {
             return
         }
@@ -730,6 +731,7 @@ class Conveyor(
     }
 
     private fun moveItemsForwardThroughCells(cells: List<Cell>) {
+        //TODO moveItemsForwardThroughCells(cells: List<Cell>)
         var lastItem: ConveyorRequest? = null
         for (cell in cells.asReversed()) {
             if (cell.item != lastItem) {
