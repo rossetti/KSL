@@ -613,6 +613,45 @@ class Conveyor(
         return map
     }
 
+
+    fun findLeadingCell(cells: List<Cell>): Cell? {
+        val reversedList = cells.asReversed()
+        for (cell in reversedList) {
+            if (cell.isOccupied) {
+                if (cell.type != CellType.EXIT) {
+                    // must be inner or entry cell, it *must* have a next cell
+                    // inner cells can't be blocked and entry cells only block entry, not exiting
+                    val nextCell = cell.nextCell
+                    if (nextCell != null) {
+                        if (nextCell.isNotOccupied) {
+                            return cell
+                        }
+                    }
+                } else {
+                    // must be an exit cell
+                    // if the exit cell is blocked, we cannot move through it
+                    // if the exit cell is not blocked and occupied, the item might be able to move
+                    if (cell.isNotBlocked) {
+                        val nextCell = cell.nextCell
+                        // it might be the LAST cell
+                        if (nextCell != null) {
+                            // not the LAST cell, because next cell exists, could be circular also
+                            if (nextCell.isNotOccupied) {
+                                return cell
+                            }
+                        } else {
+                            // must be the last cell, and conveyor is not circular
+                            //check(cell == conveyorCells.last()){"In findLeadingCell(): cell must be last cell of list"}
+                            // the last cell is not blocked, and it is occupied
+                            //TODO should the cell be included?? should it be handled via separate exit processing?
+                        }
+                    }
+                }
+            }
+        }
+        return null
+    }
+
     /**
      *  Processing the cells in reverse order, find the first cell that is occupied and for which its next cell exists and
      *  is available.  This returns the furthest cell (towards the end of the list) that can
@@ -1121,9 +1160,6 @@ class Conveyor(
         moveCellsOnConveyor()
         // move items that have asked to ride and occupy an entry cell
         processItemsPositionedToEnter()
-        // unblock any entry cells that will be unoccupied after the next move
-        // and resume the first request waiting for the unblocked entry cell
-        // unBlockEntryCells()
         // entry cells may have become unblocked after processing items positioned to enter or moving itesm
         // process those items waiting to access the conveyor to allow them to block the entry
         processRequestsWaitingToAccessConveyor()
