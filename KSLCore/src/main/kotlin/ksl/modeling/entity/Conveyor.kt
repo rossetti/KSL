@@ -1898,6 +1898,45 @@ class Conveyor(
 
     }
 
+    private fun accumulatingConveyorMovementViaSegments() {
+        require(conveyorType == Type.ACCUMULATING) { "The conveyor is not type accumulating" }
+        if (!isOccupied()) {
+            ProcessModel.logger.info { "$time > CONVEYOR:  Accumulating conveyor: not occupied: nothing to move" }
+            return
+        }
+        if (hasNoBlockedCells()) {
+            // there must be a lead cell to move if the conveyor has items and there are no blocked cells
+            val leadCell = firstMovableCell(conveyorCells)!!
+            // get the cells to move
+            // from the beginning up to and including the lead cell
+            val trainEndCell = firstOccupiedCellFromStart()!!
+            val movingCells = conveyorCells.subList(trainEndCell.index, leadCell.cellNumber)
+            ProcessModel.logger.info { "$time > CONVEYOR:  Accumulating conveyor: has no blocked cells: moving cells within [${trainEndCell.cellNumber}..${leadCell.cellNumber}] forward" }
+            moveItemsForwardOneCell(movingCells)
+        } else {
+            // there are blockages, try to move items that can be moved
+            if (isCircular){
+                val last = conveyorCells.last()
+                if (last.isOccupied && last.isNotBlocked){
+                    if (last.item!!.status != ItemStatus.EXITING){
+                        // continuing around, movement is special
+                        handleAccumulatingCircularConveyorCase()
+                        return
+                    }
+                }
+            }
+            // could be circular or not, if circular it does not have an item continuing around
+            // move items by segment
+            for(segment in segments){
+                segment.moveCellsForward()
+            }
+            TODO("accumulatingConveyorMovementViaSegments() not implemented yet")
+        }
+    }
+
+    private fun handleAccumulatingCircularConveyorCase() {
+        TODO("Not yet implemented: handleAccumulatingCircularConveyorCase()")
+    }
 }
 
 interface ConveyorRequestIfc {
@@ -1998,7 +2037,7 @@ interface ConveyorRequestIfc {
 
 fun main() {
 //TODO the main run
-    
+
 //    buildTest()
     runConveyorTest(Conveyor.Type.ACCUMULATING)
 //    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
