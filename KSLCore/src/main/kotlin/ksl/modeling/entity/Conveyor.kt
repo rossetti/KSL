@@ -50,7 +50,7 @@ data class Segment(val entryLocation: IdentityIfc, val exitLocation: IdentityIfc
  * the specification of segments for a conveyor.  See the class Conveyor for more
  * details on how segments are used to represent a conveyor.
  */
-class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
+class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     private val mySegments = mutableListOf<Segment>()
     private val myDownStreamLocations: MutableMap<IdentityIfc, MutableList<IdentityIfc>> = mutableMapOf()
 
@@ -184,13 +184,13 @@ class Segments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
  *
  * @param parent the containing model element
  * @param velocity the initial velocity of the conveyor
- * @param segments the specification of the segments
+ * @param segmentData the specification of the segments
  * @param maxEntityCellsAllowed the maximum number of cells that an entity can occupy while riding on the conveyor
  * @param name the name of the conveyor
  */
 class Conveyor(
     parent: ModelElement,
-    segments: Segments,
+    segmentData: ConveyorSegments,
     val conveyorType: Type = Type.ACCUMULATING,
     velocity: Double = 1.0,
     val maxEntityCellsAllowed: Int = 1,
@@ -198,7 +198,7 @@ class Conveyor(
 ) : ModelElement(parent, name) {
     init {
         require(maxEntityCellsAllowed >= 1) { "The maximum number of cells that can be occupied by an entity must be >= 1" }
-        require(segments.isNotEmpty()) { "The segment data must not be empty." }
+        require(segmentData.isNotEmpty()) { "The segment data must not be empty." }
         require(velocity > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
     }
 
@@ -231,8 +231,8 @@ class Conveyor(
         conveyorHoldQ.defaultReportingOption = false
     }
 
-    private val segmentData: Segments = segments
-    val cellSize: Int = segmentData.cellSize
+    private val conveyorSegments: ConveyorSegments = segmentData
+    val cellSize: Int = conveyorSegments.cellSize
 
     // the totality of cells representing space on the conveyor
     val conveyorCells: List<Cell>
@@ -249,20 +249,26 @@ class Conveyor(
     // holds the requests that have requested to ride after blocking an entry cell
     private val positionedToEnter = mutableMapOf<Cell, ConveyorRequest>()
 
+    private val segments: List<CSegment>
+
     init {
         // constructs the cells based on the segment data
         val cells = mutableListOf<Cell>()
-        for (segment in segmentData.segments) {
+        val segs = mutableListOf<CSegment>()
+        for (segment in conveyorSegments.segments) {
             val numCells = segment.length / cellSize
+            var entryCell: Cell? = null
+            var exitCell: Cell? = null
+            require(numCells >= 2) { "There must be at least 2 cells on each segment" }
             for (i in 1..numCells) {
                 if (i == 1) {
-                    val cell = Cell(CellType.ENTRY, segment.entryLocation, segment, cells)
-                    entryCells[segment.entryLocation] = cell
+                    entryCell = Cell(CellType.ENTRY, segment.entryLocation, segment, cells)
+                    entryCells[segment.entryLocation] = entryCell
                     accessQueues[segment.entryLocation] =
                         ConveyorQ(this, "${this.name}:${segment.entryLocation.name}:AccessQ")
                 } else if (i == numCells) {
-                    val cell = Cell(CellType.EXIT, segment.exitLocation, segment, cells)
-                    exitCells[segment.exitLocation] = cell
+                    exitCell = Cell(CellType.EXIT, segment.exitLocation, segment, cells)
+                    exitCells[segment.exitLocation] = exitCell
                 } else {
                     Cell(CellType.INNER, null, segment, cells)
                 }
@@ -273,6 +279,10 @@ class Conveyor(
             require(cells.first().isEntryCell && cells.last().isExitCell) { "With 2 cells, there must be an entry cell and an exit cell." }
         }
         conveyorCells = cells.toList()
+        for (segment in conveyorSegments.segments) {
+            segs.add(CSegment(entryCells[segment.entryLocation]!!, exitCells[segment.exitLocation]!!))
+        }
+        segments = segs.toList()
     }
 
     /**
@@ -320,17 +330,17 @@ class Conveyor(
      *  the location associated with the first segment is the same
      *  as the ending location of the last segment
      */
-    val isCircular = segmentData.isCircular
+    val isCircular = conveyorSegments.isCircular
 
     /**
      *  The locations that can be used to enter (get on) the conveyor.
      */
-    val entryLocations = segmentData.entryLocations
+    val entryLocations = conveyorSegments.entryLocations
 
     /**
      *  The locations that can be used as points of exit on the conveyor.
      */
-    val exitLocations = segmentData.exitLocations
+    val exitLocations = conveyorSegments.exitLocations
 
     /**
      *  Determines if the [end] location is reachable from the [start] location.
@@ -338,7 +348,7 @@ class Conveyor(
      *  the start location to the end location without exiting the conveyor.
      */
     fun isReachable(start: IdentityIfc, end: IdentityIfc): Boolean {
-        return segmentData.isReachable(start, end)
+        return conveyorSegments.isReachable(start, end)
     }
 
     /**
@@ -620,27 +630,30 @@ class Conveyor(
             if (cell.isOccupied) {
                 if (cell.type != CellType.EXIT) {
                     // must be inner or entry cell, it *must* have a next cell
-                    // inner cells can't be blocked and entry cells only block entry, not exiting
+                    // the next cell must be either an inner cell or an exit cell
                     val nextCell = cell.nextCell
                     if (nextCell != null) {
-                        if (nextCell.isNotOccupied) {
+                        if (nextCell.isAvailable) {
+                            // use isAvailable, because the next cell could be an exit, which might be blocked
                             return cell
                         }
                     }
                 } else {
-                    // must be an exit cell
+                    // the cell must be an exit cell
                     // if the exit cell is blocked, we cannot move through it
                     // if the exit cell is not blocked and occupied, the item might be able to move
                     if (cell.isNotBlocked) {
+                        // exit cell and not blocked, get the next cell
                         val nextCell = cell.nextCell
                         // it might be the LAST cell
                         if (nextCell != null) {
-                            // not the LAST cell, because next cell exists, could be circular also
-                            if (nextCell.isNotOccupied) {
+                            // not the LAST cell, because next cell exists, also could be end cell in circular conveyor
+                            if (nextCell.isAvailable) {
+                                // use isAvailable, because the next cell will be an entry cell, which might be blocked
                                 return cell
                             }
                         } else {
-                            // must be the last cell, and conveyor is not circular
+                            // must be the last cell, and conveyor is not circular, because there is no next cell
                             //check(cell == conveyorCells.last()){"In findLeadingCell(): cell must be last cell of list"}
                             // the last cell is not blocked, and it is occupied
                             // to move forward, the occupying item must be exiting
@@ -1028,7 +1041,7 @@ class Conveyor(
         private var velocity: Double = 1.0
         private var cellSize: Int = 1
         private var maxEntityCellsAllowed: Int = 1
-        private lateinit var segmentsData: Segments
+        private lateinit var segmentsData: ConveyorSegments
         override fun conveyorType(type: Type): VelocityStepIfc {
             conveyorType = type
             return this
@@ -1054,7 +1067,7 @@ class Conveyor(
 
         override fun firstSegment(start: IdentityIfc, end: IdentityIfc, length: Int): SegmentStepIfc {
             require(length >= 1) { "The length of the segment must be >= 1 unit" }
-            segmentsData = Segments(cellSize, start)
+            segmentsData = ConveyorSegments(cellSize, start)
             segmentsData.toLocation(end, length)
             return this
         }
@@ -1105,7 +1118,11 @@ class Conveyor(
         sb.appendLine("max number cells allowed to occupy = $maxEntityCellsAllowed")
         sb.appendLine("cell Travel Time = $cellTravelTime")
         sb.appendLine("Segments:")
-        sb.append(segmentData)
+        sb.append(conveyorSegments)
+        sb.appendLine("Segment Cells:")
+        for (seg in segments) {
+            sb.appendLine(seg)
+        }
         sb.appendLine("Cells:")
         for (cell in conveyorCells) {
             sb.appendLine(cell)
@@ -1856,19 +1873,29 @@ class Conveyor(
             get() = cells.firstOrNull { it.isOccupied }
 
         val isOccupied: Boolean
-            get() = firstOccupiedCell !=null
+            get() = firstOccupiedCell != null
 
         val isNotOccupied: Boolean
             get() = !isOccupied
 
-        fun moveCellsForward(){
-            TODO("Not implemented yet")
+        val leadingCell: Cell?
+            get() = findLeadingCell(cells)
+
+        fun movableCells(): List<Cell> {
+            val foc = firstOccupiedCell ?: return emptyList()
+            val leader = leadingCell ?: return emptyList()
+            return cells.subList(foc.index, leader.cellNumber)
         }
 
-        fun leadCell(){
-            TODO("Not implemented yet")
+        fun moveCellsForward() {
+            val mc = movableCells()
+            moveItemsForwardOneCell(mc)
         }
-        
+
+        override fun toString(): String {
+            return "Locations[${entryLocation.name}->${exitLocation.name}] = Cells[${entryCell.cellNumber}..${exitCell.cellNumber}]"
+        }
+
     }
 
 }
@@ -1971,7 +1998,8 @@ interface ConveyorRequestIfc {
 
 fun main() {
 //TODO the main run
-
+    
+//    buildTest()
     runConveyorTest(Conveyor.Type.ACCUMULATING)
 //    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
