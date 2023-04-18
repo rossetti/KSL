@@ -644,7 +644,7 @@ class Conveyor(
                             //check(cell == conveyorCells.last()){"In findLeadingCell(): cell must be last cell of list"}
                             // the last cell is not blocked, and it is occupied
                             // to move forward, the occupying item must be exiting
-                            if (cell.item!!.status == ItemStatus.EXITING){
+                            if (cell.item!!.status == ItemStatus.EXITING) {
                                 return cell
                             } else {
                                 throw IllegalStateException("First movable cell was the cell at end of non-circular conveyor and item was not exiting")
@@ -1827,6 +1827,18 @@ class Conveyor(
         accessResumePriority: Int
     ): ConveyorRequest {
         return ConveyorRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
+    }
+
+    private inner class CSegment(
+        val startCell: Cell,
+        val endCell: Cell
+    ) {
+        init {
+            require(startCell.isEntryCell){"The starting cell of the segment was not an entry cell"}
+            require(endCell.isExitCell) {"The ending cell of the segment was not an exit cell"}
+        }
+        val cells = conveyorCells.subList(startCell.index, endCell.cellNumber)
+
     }
 
 }
