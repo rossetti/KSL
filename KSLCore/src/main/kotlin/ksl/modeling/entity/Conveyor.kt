@@ -1830,15 +1830,45 @@ class Conveyor(
     }
 
     private inner class CSegment(
-        val startCell: Cell,
-        val endCell: Cell
+        val entryCell: Cell,
+        val exitCell: Cell
     ) {
         init {
-            require(startCell.isEntryCell){"The starting cell of the segment was not an entry cell"}
-            require(endCell.isExitCell) {"The ending cell of the segment was not an exit cell"}
+            require(entryCell.isEntryCell) { "The starting cell of the segment was not an entry cell" }
+            require(exitCell.isExitCell) { "The ending cell of the segment was not an exit cell" }
         }
-        val cells = conveyorCells.subList(startCell.index, endCell.cellNumber)
 
+        val cells = conveyorCells.subList(entryCell.index, exitCell.cellNumber)
+
+        val isLastSegment: Boolean
+            get() = conveyorCells.last() == exitCell
+
+        val isFirstSegment: Boolean
+            get() = conveyorCells.first() == entryCell
+
+        val entryLocation: IdentityIfc
+            get() = entryCell.location!!
+
+        val exitLocation: IdentityIfc
+            get() = exitCell.location!!
+
+        val firstOccupiedCell: Cell?
+            get() = cells.firstOrNull { it.isOccupied }
+
+        val isOccupied: Boolean
+            get() = firstOccupiedCell !=null
+
+        val isNotOccupied: Boolean
+            get() = !isOccupied
+
+        fun moveCellsForward(){
+            TODO("Not implemented yet")
+        }
+
+        fun leadCell(){
+            TODO("Not implemented yet")
+        }
+        
     }
 
 }
