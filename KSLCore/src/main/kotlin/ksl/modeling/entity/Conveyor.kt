@@ -623,7 +623,12 @@ class Conveyor(
         return map
     }
 
-
+    /**
+     *  Processing the cells in reverse order, find the first cell that is occupied and for which its next cell exists and
+     *  is available.  This returns the furthest cell (towards the end of the list) that can
+     *  be traversed by an item. This cell holds the lead item of the list.
+     *  If found, the lead cell must be occupied and cannot be blocked
+     */
     fun findLeadingCell(cells: List<Cell>): Cell? {
         val reversedList = cells.asReversed()
         for (cell in reversedList) {
@@ -1884,6 +1889,8 @@ class Conveyor(
         fun movableCells(): List<Cell> {
             val foc = firstOccupiedCell ?: return emptyList()
             val leader = leadingCell ?: return emptyList()
+            // the foc could be the last cell of the list
+            // the leader cell must be occupied, and it cannot be blocked
             return cells.subList(foc.index, leader.cellNumber)
         }
 
