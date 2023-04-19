@@ -627,7 +627,7 @@ class Conveyor(
      *  Processing the cells in reverse order, find the first cell that is occupied and for which its next cell exists and
      *  is available.  This returns the furthest cell (towards the end of the list) that can
      *  be traversed by an item. This cell holds the lead item of the list.
-     *  If found, the lead cell must be occupied and cannot be blocked
+     *  If found, the lead cell must be occupied and cannot be blocked.
      */
     fun findLeadingCell(cells: List<Cell>): Cell? {
         val reversedList = cells.asReversed()
@@ -713,7 +713,8 @@ class Conveyor(
      *  True if there is at least one cell that is occupied that can move on the conveyor
      */
     fun hasMovableCell(): Boolean {
-        return firstMovableCell(conveyorCells) != null
+        return findLeadingCell(conveyorCells) != null
+        //return firstMovableCell(conveyorCells) != null
     }
 
     /**
@@ -1179,7 +1180,7 @@ class Conveyor(
         }
         ProcessModel.logger.info { "$time > CONVEYOR: Entity (${request.entity}): resuming ${request.entity} after reaching destination" }
         conveyorHoldQ.removeAndImmediateResume(request.entity)
-        //conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority, false)
+       // conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority, false)
     }
 
 
@@ -1240,7 +1241,8 @@ class Conveyor(
         if (conveyorType == Type.NON_ACCUMULATING) {
             nonAccumulatingConveyorMovement()
         } else {
-            accumulatingConveyorMovement()
+            //accumulatingConveyorMovement()
+            accumulatingConveyorMovementViaSegments()
         }
         ProcessModel.logger.info { "$time > CONVEYOR: .... completed moving cells on the conveyor" }
     }
@@ -1312,12 +1314,12 @@ class Conveyor(
     private fun processItemsPositionedToEnter() {
         // make a copy of the waiting requests because they will be removed when fully on the conveyor
         val rideRequests = positionedToEnter.values.toList()
-        ProcessModel.logger.info { "$time > CONVEYOR: Processing #(${rideRequests.size}) items waiting to ride on the conveyor..." }
+        ProcessModel.logger.info { "$time > CONVEYOR: Processing #(${rideRequests.size}) items positioned to ride on the conveyor..." }
         for (request in rideRequests) {
             // the request is off the conveyor and the entry cell is blocked for it to enter
             request.enterConveyor()
         }
-        ProcessModel.logger.info { "$time > CONVEYOR: .... completed processing items waiting to ride on the conveyor." }
+        ProcessModel.logger.info { "$time > CONVEYOR: .... completed processing items positioned to ride on the conveyor." }
     }
 
     /**
@@ -1348,6 +1350,7 @@ class Conveyor(
         scheduleConveyorMovement()
     }
 
+    //TODO rescheduleAccumulatingConveyorMovement() This needs to be redone to handle cases of items positioned to enter
     private fun rescheduleAccumulatingConveyorMovement() {
         if (!isOccupied()) {
             endCellTraversalEvent = null
@@ -1357,12 +1360,13 @@ class Conveyor(
         if (!hasMovableCell()) {
             endCellTraversalEvent = null
             ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating conveyor: has no movable cells: no movement scheduled" }
+            //TODO it may have requests positioned to ride
             return
         }
         // must have at least one movable cell so make it move
         ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating conveyor: at least one movable cell: movement scheduled" }
         val fmc = firstMovableCell(conveyorCells)
-        ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating conveyor: first movable cell = ${fmc?.cellNumber}" }
+        ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating conveyor: first movable cell = ${fmc?.cellNumber}: item (${fmc?.item?.entity?.name})" }
         scheduleConveyorMovement()
     }
 
@@ -1886,21 +1890,27 @@ class Conveyor(
         val leadingCell: Cell?
             get() = findLeadingCell(cells)
 
+        val name: String
+            get() = "${entryLocation.name}->${exitLocation.name}"
+
         fun movableCells(): List<Cell> {
             val foc = firstOccupiedCell ?: return emptyList()
             val leader = leadingCell ?: return emptyList()
             // the foc could be the last cell of the list
             // the leader cell must be occupied, and it cannot be blocked
-            return cells.subList(foc.index, leader.cellNumber)
+            ProcessModel.logger.info { "$time > CONVEYOR.CSegment($name): foc cell # = ${foc.cellNumber}, leader cell # = ${leader.cellNumber}"}
+            //ProcessModel.logger.info { "$time > CONVEYOR.CSegment: foc cell index = ${foc.index}, leader cell index = ${leader.index}"}
+            return conveyorCells.subList(foc.index, leader.cellNumber)
         }
 
         fun moveCellsForward() {
             val mc = movableCells()
+            ProcessModel.logger.info { "$time > CONVEYOR.CSegment($name): movable cells: [${mc.first().cellNumber}..${mc.last().cellNumber}]"}
             moveItemsForwardOneCell(mc)
         }
 
         override fun toString(): String {
-            return "Locations[${entryLocation.name}->${exitLocation.name}] = Cells[${entryCell.cellNumber}..${exitCell.cellNumber}]"
+            return "Locations[$name] = Cells[${entryCell.cellNumber}..${exitCell.cellNumber}]"
         }
 
     }
@@ -1934,10 +1944,10 @@ class Conveyor(
             }
             // could be circular or not, if circular it does not have an item continuing around
             // move items by segment
-            for(segment in segments){
+            for(segment in segments.reversed()){
                 segment.moveCellsForward()
             }
-            TODO("accumulatingConveyorMovementViaSegments() not implemented yet")
+ //           TODO("accumulatingConveyorMovementViaSegments() not implemented yet")
         }
     }
 
