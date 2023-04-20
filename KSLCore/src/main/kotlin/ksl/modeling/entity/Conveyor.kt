@@ -1530,6 +1530,9 @@ class Conveyor(
         if (conveyorType == Type.NON_ACCUMULATING) {//TODO startExitingProcess() is this a kluge?
             rescheduleConveyorMovement()
         } else {
+            if (!isCellTraversalInProgress()){
+                rescheduleConveyorMovement()
+            }
             //TODO("NOT implemented yet: accumulating conveyor:startExitingProcess()")
         }
     }
