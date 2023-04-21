@@ -281,8 +281,8 @@ class Conveyor(
             require(cells.first().isEntryCell && cells.last().isExitCell) { "With 2 cells, there must be an entry cell and an exit cell." }
         }
         conveyorCells = cells.toList()
-        for (segment in conveyorSegments.segments) {
-            segs.add(CSegment(entryCells[segment.entryLocation]!!, exitCells[segment.exitLocation]!!))
+        for ((index, segment) in conveyorSegments.segments.withIndex()) {
+            segs.add(CSegment(index + 1, entryCells[segment.entryLocation]!!, exitCells[segment.exitLocation]!!))
         }
         segments = segs.toList()
     }
@@ -1347,7 +1347,7 @@ class Conveyor(
                 ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: has blocked cells, no new movement scheduled" }
             } else {
                 // accumulating conveyor, item is positioned to ride, needs movement scheduled
-                if (!isOccupied() || !hasMovableCell()){
+                if (!isOccupied() || !hasMovableCell()) {
                     ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating: begin riding: conveyor not occupied or has no movable cells: schedule conveyor movement" }
                     scheduleConveyorMovement()
                     return
@@ -1420,7 +1420,7 @@ class Conveyor(
         if (conveyorType == Type.NON_ACCUMULATING) {
             rescheduleConveyorMovement()
         } else {
-            if (!isCellTraversalInProgress()){
+            if (!isCellTraversalInProgress()) {
                 rescheduleConveyorMovement()
             }
         }
@@ -1496,7 +1496,7 @@ class Conveyor(
             state.blockEntryCell(this)
             entryCell.isBlocked = true
             ProcessModel.logger.info { "$time > CONVEYOR: Entity (${entity.name}) caused blockage for entry cell (${entryCell.cellNumber}) at location (${entryLocation.name})" }
- //           ProcessModel.logger.info { "$time > CONVEYOR: ...... caused blockage at entry cell ${entryCell.cellNumber}" }
+            //           ProcessModel.logger.info { "$time > CONVEYOR: ...... caused blockage at entry cell ${entryCell.cellNumber}" }
         }
 
         internal fun rideConveyorTo(destination: IdentityIfc) {
@@ -1825,10 +1825,12 @@ class Conveyor(
     }
 
     private inner class CSegment(
+        val number: Int,
         val entryCell: Cell,
         val exitCell: Cell
     ) {
         init {
+            require(number > 0) { "The segment number must be > 0" }
             require(entryCell.isEntryCell) { "The starting cell of the segment was not an entry cell" }
             require(exitCell.isExitCell) { "The ending cell of the segment was not an exit cell" }
         }
@@ -1905,7 +1907,7 @@ class Conveyor(
                 if (last.isOccupied && last.isNotBlocked) {
                     if (last.item!!.status != ItemStatus.EXITING) {
                         // continuing around, movement is special
-                        handleAccumulatingCircularConveyorCase() //TODO
+                        handleAccumulatingCircularConveyorCase()
                         return
                     }
                 }
@@ -1919,6 +1921,34 @@ class Conveyor(
     }
 
     private fun handleAccumulatingCircularConveyorCase() {
+        val ms = segments.firstOrNull { (it.leadingCell != null) }
+        if (ms != null) {
+            // a segment exists that has a movable item
+            if (ms != segments.last()) {
+                // the last segment is not the first movable segment
+                val (f, s) = segments.partition { it.number <= ms.number }
+                val rf = f.asReversed()
+                val rs = s.asReversed()
+                val n = rf + rs
+                // move all segments forward starting with the one that could move
+                for(segment in n){
+                    segment.moveCellsForward()
+                }
+            } else {
+                // the last segment is the first movable segment
+                // the exit cell must be the movable item if we get here
+                // we can move the cells forward in the last segment if and only if
+                // the entry cell of the first segment is available and nothing is positioned to enter
+                val entryCell = segments.first().entryCell
+                if (entryCell.isAvailable && positionedToEnter[entryCell] == null){
+                    // go through all segments because movement in last segment could allow
+                    // movement in following segment
+                    for (segment in segments.reversed()) {
+                        segment.moveCellsForward()
+                    }
+                }
+            }
+        }
         TODO("Not yet implemented: handleAccumulatingCircularConveyorCase()")
     }
 }
@@ -2021,13 +2051,24 @@ interface ConveyorRequestIfc {
 
 fun main() {
 //TODO the main run
-
+    partitionTest()
 //    buildTest()
 //    runConveyorTest(Conveyor.Type.ACCUMULATING)
     //runConveyorTest2(Conveyor.Type.ACCUMULATING)
-    runConveyorTest3(Conveyor.Type.ACCUMULATING)
+//    runConveyorTest3(Conveyor.Type.ACCUMULATING)
 //    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
+}
+
+fun partitionTest() {
+    val list = listOf<Int>(1, 2, 3, 4)
+    val (f, s) = list.partition { it <= 1 }
+    val rf = f.asReversed()
+    println(rf.joinToString())
+    val rs = s.asReversed()
+    println(rs.joinToString())
+    val n = rf + rs
+    println(n.joinToString())
 }
 
 fun buildTest() {
@@ -2325,7 +2366,7 @@ class TestConveyor3(parent: ModelElement, conveyorType: Conveyor.Type) : Process
             delay(2.5)
 //            delay(10.0)
 //            println("${entity.name}: time = $time after second delay of 10.0 ")
-            if (entity.name == "Part4"){
+            if (entity.name == "Part4") {
                 println("${entity.name}: time = $time continue to ride to ${i2.name}")
                 rideConveyor(a, i2)
                 println("${entity.name}: time = $time after ride to ${i2.name}")
