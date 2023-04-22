@@ -1186,6 +1186,7 @@ class Conveyor(
                 scheduleConveyorMovement()
                 return
             }
+            //TODO need to re-assess??
             endCellTraversalEvent = null
             ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating conveyor: no movable items and no entering items: no movement scheduled" }
             return
@@ -1235,6 +1236,7 @@ class Conveyor(
      *  or it must initiate movement.
      */
     private fun beginRidingV2(request: ConveyorRequest) {
+        //TODO beginRidingV2()
         ProcessModel.logger.info { "$time >  CONVEYOR: Entity(${request.entity.name}): status = ${request.status}: begin riding..." }
         // the request has asked to start riding for the very first time
         if (!isCellTraversalInProgress()) {
@@ -1248,16 +1250,26 @@ class Conveyor(
                 ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: has blocked cells, no new movement scheduled" }
             } else {
                 // accumulating conveyor, item is positioned to ride, needs movement scheduled
-                if (!isOccupied() || !hasMovableCell()) {
-                    ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating: begin riding: conveyor not occupied or has no movable cells: schedule conveyor movement" }
+                if (!isOccupied()) {
+                    ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating: begin riding: conveyor not occupied: schedule conveyor movement" }
                     scheduleConveyorMovement()
                     return
                 }
-                ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating: begin riding: occupied or has movable cells, no new movement scheduled" }
+                // must be occupied to be here
+                if (!hasMovableCell()) {
+                    // no movable cells
+                    ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating: begin riding: conveyor has no movable cells: schedule conveyor movement" }
+                    scheduleConveyorMovement()
+                    return
+                }
+                // must be occupied and have movable cells to get here, with no cell traversal scheduled
+                // do not schedule because movable cells will be noticed at end of cell traversal
+                ProcessModel.logger.info { "$time >  CONVEYOR: Accumulating: begin riding: conveyor occupied and has movable cells: no new movement scheduled" }
+                return
             }
             return
         }
-        // movement is pending, what to do?
+        // movement is pending, what to do? nothing
         ProcessModel.logger.info { "$time >  CONVEYOR: begin riding: cell traversal in progress case: don't schedule conveyor movement" }
     }
 
@@ -1607,7 +1619,7 @@ class Conveyor(
             ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${request.entity.name}): status = ${request.status}: positioned for entry cell (${request.entryCell.cellNumber})" }
             // remember that the request needs to move into the entry cell
             positionedToEnter[request.entryCell] = request
-            request.entryCell.isBlocked = false
+            request.entryCell.isBlocked = false //TODO when to UNBLOCK the entry cell, the request blocked the entry cell after resuming the conveyor request
             ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${request.entity.name}): status = ${request.status}: unblocked entry cell (${request.entryCell.cellNumber})" }
             //beginRiding(request)
             beginRidingV2(request)
@@ -1812,6 +1824,7 @@ class Conveyor(
                     }
                 }
             }
+            TODO("Checking if we got here")
         }
     }
 }
@@ -1916,9 +1929,10 @@ fun main() {
 //TODO the main run
  //   partitionTest()
 //    buildTest()
-//    runConveyorTest(Conveyor.Type.ACCUMULATING)
+    runConveyorTest(Conveyor.Type.ACCUMULATING)
     //runConveyorTest2(Conveyor.Type.ACCUMULATING)
-    runConveyorTest3(Conveyor.Type.ACCUMULATING)
+//    runConveyorTest3(Conveyor.Type.ACCUMULATING)
+ //   runConveyorTest4(Conveyor.Type.ACCUMULATING)
 //    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
 }
@@ -2092,6 +2106,15 @@ fun runConveyorTest3(conveyorType: Conveyor.Type) {
     m.print()
 }
 
+fun runConveyorTest4(conveyorType: Conveyor.Type) {
+    val m = Model()
+    val test = TestConveyor4(m, conveyorType)
+    m.lengthOfReplication = 100.0
+    m.numberOfReplications = 1
+    m.simulate()
+    m.print()
+}
+
 class TestConveyor2(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
@@ -2213,6 +2236,85 @@ class TestConveyor3(parent: ModelElement, conveyorType: Conveyor.Type) : Process
 //                       delay(10.0)
             timeStamp = time
             if (entity.name == "Part1") {
+                println("${entity.name}: time = $time before ride to ${i2.name}")
+                rideConveyor(a, i2)
+                println("${entity.name}: time = $time after ride to ${i2.name}")
+            } else if (entity.name == "Part4") {
+                println("${entity.name}: time = $time before ride to ${i1.name}")
+                rideConveyor(a, i1)
+                println("${entity.name}: time = $time after ride to ${i1.name}")
+            } else {
+                println("${entity.name}: time = $time before ride to ${i2.name}")
+                rideConveyor(a, i2)
+                println("${entity.name}: time = $time after ride to ${i2.name}")
+            }
+            println("${entity.name}: The riding time was ${time - timeStamp}")
+            delay(2.5)
+//            delay(10.0)
+//            println("${entity.name}: time = $time after second delay of 10.0 ")
+            if (entity.name == "Part4") {
+                println("${entity.name}: time = $time continue to ride to ${i2.name}")
+                rideConveyor(a, i2)
+                println("${entity.name}: time = $time after ride to ${i2.name}")
+            }
+            println("${entity.name}: time = $time before exit ")
+            exitConveyor(a)
+            println("${entity.name}: time = $time after exit ")
+        }
+
+    }
+
+}
+
+class TestConveyor4(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
+
+    val conveyor: Conveyor
+    val i1 = Identity(aName = "A")
+    val i2 = Identity(aName = "B")
+    val i3 = Identity(aName = "C")
+
+    init {
+        conveyor = Conveyor.builder(this)
+            .conveyorType(conveyorType)
+            .velocity(1.0)
+            .cellSize(1)
+            .maxCellsAllowed(2)
+            .firstSegment(i1, i2, 10)
+            .nextSegment(i3, 20)
+            .nextSegment(i1, 5)
+            .build()
+        println(conveyor)
+        println()
+    }
+
+    override fun initialize() {
+        val p1 = Part("Part1")
+        activate(p1.conveyingProcess)
+        val p2 = Part("Part2")
+        activate(p2.conveyingProcess, timeUntilActivation = 0.1)
+        val p3 = Part("Part3")
+        activate(p3.conveyingProcess, timeUntilActivation = 0.1)
+        val p4 = Part("Part4")
+        activate(p4.conveyingProcess, timeUntilActivation = 10.0)
+    }
+
+    private inner class Part(name: String? = null) : Entity(name) {
+        val conveyingProcess: KSLProcess = process("test") {
+            println("${entity.name}: time = $time before access at ${i1.name}")
+            var amt = 1
+            if (entity.name == "Part1") {
+                amt = 2
+            }
+            val a = if (entity.name == "Part4") {
+                requestConveyor(conveyor, i2, amt)
+            } else {
+                requestConveyor(conveyor, i1, amt)
+            }
+            println("${entity.name}: time = $time after access")
+//                       delay(10.0)
+            timeStamp = time
+            if (entity.name == "Part1") {
+                delay(50.0)
                 println("${entity.name}: time = $time before ride to ${i2.name}")
                 rideConveyor(a, i2)
                 println("${entity.name}: time = $time after ride to ${i2.name}")
