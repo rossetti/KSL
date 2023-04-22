@@ -632,6 +632,7 @@ class Conveyor(
      *  If found, the lead cell must be occupied and cannot be blocked.
      */
     fun findLeadingCell(cells: List<Cell>): Cell? {
+        //TODO findLeadingCell()
         val reversedList = cells.asReversed()
         for (cell in reversedList) {
             if (cell.isOccupied) {
@@ -655,9 +656,15 @@ class Conveyor(
                         // it might be the LAST cell
                         if (nextCell != null) {
                             // not the LAST cell, because next cell exists, also could be end cell in circular conveyor
+                            // use isAvailable, because the next cell will be an entry cell, which might be blocked
+                            // next cell must be an entry cell
+                            require(nextCell.isEntryCell) { "The cell must be an entry cell if this was reached." }
                             if (nextCell.isAvailable) {
-                                // use isAvailable, because the next cell will be an entry cell, which might be blocked
-                                return cell
+                                // not blocked and not occupied, but entry cell could have something entering
+                                if (positionedToEnter[nextCell] == null) {
+                                    // nothing entering, cell is okay to enter
+                                    return cell
+                                }
                             }
                         } else {
                             // must be the last cell, and conveyor is not circular, because there is no next cell
@@ -1448,6 +1455,7 @@ class Conveyor(
          *  occupies.
          */
         internal fun moveForwardOneCell() {
+            //TODO moveForwardOneCell()
             require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
             // the front cell cannot be null, safe to use
             // two cases, item is on conveyor or item is exiting the conveyor
@@ -1527,6 +1535,8 @@ class Conveyor(
                 ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${entity.name}): status = $status: is fully on the conveyor" }
             } else {
                 status = ItemStatus.ENTERING
+//                entryCell.isBlocked = false //TODO when entering unblock the entry cell
+//                ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${entity.name}): status = $status: unblocked entry cell (${entryCell.cellNumber})" }
             }
             ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${entity.name}): status = $status: entered conveyor at location (${entryLocation.name}) occupied entry cell (${entryCell.cellNumber})" }
         }
@@ -1619,8 +1629,9 @@ class Conveyor(
             ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${request.entity.name}): status = ${request.status}: positioned for entry cell (${request.entryCell.cellNumber})" }
             // remember that the request needs to move into the entry cell
             positionedToEnter[request.entryCell] = request
-            request.entryCell.isBlocked = false //TODO when to UNBLOCK the entry cell, the request blocked the entry cell after resuming the conveyor request
-            ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${request.entity.name}): status = ${request.status}: unblocked entry cell (${request.entryCell.cellNumber})" }
+            request.entryCell.isBlocked =
+                false //TODO when to UNBLOCK the entry cell, the request blocked the entry cell after resuming the conveyor request
+            // ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${request.entity.name}): status = ${request.status}: unblocked entry cell (${request.entryCell.cellNumber})" }
             //beginRiding(request)
             beginRidingV2(request)
         }
@@ -1766,14 +1777,17 @@ class Conveyor(
             return
         }
         if (hasNoBlockedCells()) {
+            // with no blocked cells, there may be items entering that prevent movement
             // there must be a lead cell to move if the conveyor has items and there are no blocked cells
-            val leadCell = findLeadingCell(conveyorCells)!!
-            // get the cells to move
-            // from the beginning up to and including the lead cell
-            val trainEndCell = firstOccupiedCellFromStart()!!
-            val movingCells = conveyorCells.subList(trainEndCell.index, leadCell.cellNumber)
-            ProcessModel.logger.info { "$time > CONVEYOR: Accumulating conveyor: has no blocked cells: moving cells within [${trainEndCell.cellNumber}..${leadCell.cellNumber}] forward" }
-            moveItemsForwardOneCell(movingCells)
+            val leadCell = findLeadingCell(conveyorCells)
+            if (leadCell != null){
+                // get the cells to move
+                // from the beginning up to and including the lead cell
+                val trainEndCell = firstOccupiedCellFromStart()!!
+                val movingCells = conveyorCells.subList(trainEndCell.index, leadCell.cellNumber)
+                ProcessModel.logger.info { "$time > CONVEYOR: Accumulating conveyor: has no blocked cells: moving cells within [${trainEndCell.cellNumber}..${leadCell.cellNumber}] forward" }
+                moveItemsForwardOneCell(movingCells)
+            }
         } else {
             // there are blockages, try to move items that can be moved
             if (isCircular) {
@@ -1788,7 +1802,7 @@ class Conveyor(
             }
             // could be circular or not, if circular it does not have an item continuing around
             // move items by segment
-            ProcessModel.logger.info { "$time > CONVEYOR: Accumulating conveyor: has blocked cells: moving cells by segments forward"}
+            ProcessModel.logger.info { "$time > CONVEYOR: Accumulating conveyor: has blocked cells: moving cells by segments forward" }
             for (segment in segments.reversed()) {
                 segment.moveCellsForward()
             }
@@ -1796,7 +1810,7 @@ class Conveyor(
     }
 
     private fun handleAccumulatingCircularConveyorCase() {
-        ProcessModel.logger.info { "$time > CONVEYOR: Accumulating conveyor: has blocked cells: item in last cell is re-circulating"}
+        ProcessModel.logger.info { "$time > CONVEYOR: Accumulating conveyor: has blocked cells: item in last cell is re-circulating" }
         val ms = segments.firstOrNull { (it.leadingCell != null) }
         if (ms != null) {
             // a segment exists that has a movable item
@@ -1807,7 +1821,7 @@ class Conveyor(
                 val rs = s.asReversed()
                 val n = rf + rs
                 // move all segments forward starting with the one that could move
-                for(segment in n){
+                for (segment in n) {
                     segment.moveCellsForward()
                 }
             } else {
@@ -1816,7 +1830,7 @@ class Conveyor(
                 // we can move the cells forward in the last segment if and only if
                 // the entry cell of the first segment is available and nothing is positioned to enter
                 val entryCell = segments.first().entryCell
-                if (entryCell.isAvailable && positionedToEnter[entryCell] == null){
+                if (entryCell.isAvailable && positionedToEnter[entryCell] == null) {
                     // go through all segments because movement in last segment could allow
                     // movement in following segment
                     for (segment in segments.reversed()) {
@@ -1927,12 +1941,12 @@ interface ConveyorRequestIfc {
 
 fun main() {
 //TODO the main run
- //   partitionTest()
+    //   partitionTest()
 //    buildTest()
-    runConveyorTest(Conveyor.Type.ACCUMULATING)
-    //runConveyorTest2(Conveyor.Type.ACCUMULATING)
+//    runConveyorTest(Conveyor.Type.ACCUMULATING)
+//    runConveyorTest2(Conveyor.Type.ACCUMULATING)
 //    runConveyorTest3(Conveyor.Type.ACCUMULATING)
- //   runConveyorTest4(Conveyor.Type.ACCUMULATING)
+    runConveyorTest4(Conveyor.Type.ACCUMULATING)
 //    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
 }
