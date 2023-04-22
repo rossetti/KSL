@@ -1069,6 +1069,12 @@ class Conveyor(
     private fun processRequestsWaitingToAccessConveyor() {
         for ((location, cell) in entryCells) {
             if ((cell.isNotBlocked) && !positionedToEnter.containsKey(cell)) {
+                val prevCell = cell.previousCell
+                if ( prevCell != null){
+                    if (prevCell.isOccupied && (prevCell.item!!.status != ItemStatus.EXITING)){
+                        continue
+                    }
+                }
                 ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked and there was no ride request positioned for entry" }
                 val queue = accessQueues[location]!!
                 if (queue.isNotEmpty) {
