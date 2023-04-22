@@ -1072,6 +1072,7 @@ class Conveyor(
                 val prevCell = cell.previousCell
                 if ( prevCell != null){
                     if (prevCell.isOccupied && (prevCell.item!!.status != ItemStatus.EXITING)){
+                        ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked, but item (${prevCell.item!!.entity.name}) in previous cell (${prevCell.cellNumber}) is continuing" }
                         continue
                     }
                 }
