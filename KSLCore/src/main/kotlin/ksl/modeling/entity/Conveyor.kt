@@ -249,6 +249,11 @@ class Conveyor(
     // holds the requests that have requested to ride after blocking an entry cell
     private val positionedToEnter = mutableMapOf<Cell, ConveyorRequest>()
 
+    /** indicates if entering items have priority at entry cell over items riding on the conveyor
+     *  The default is no priority (false)
+     */
+    private val enteringPriority = mutableMapOf<IdentityIfc, Boolean>()
+
     fun hasItemPositionedToEnter(): Boolean = positionedToEnter.isNotEmpty()
 
     private val segments: List<CSegment>
@@ -266,6 +271,7 @@ class Conveyor(
                 if (i == 1) {
                     entryCell = Cell(CellType.ENTRY, segment.entryLocation, segment, cells)
                     entryCells[segment.entryLocation] = entryCell
+                    enteringPriority[segment.entryLocation] = false
                     accessQueues[segment.entryLocation] =
                         ConveyorQ(this, "${this.name}:${segment.entryLocation.name}:AccessQ")
                 } else if (i == numCells) {
@@ -306,6 +312,16 @@ class Conveyor(
     fun accessQueueAt(location: IdentityIfc): QueueCIfc<ConveyorRequest> {
         require(accessQueues.contains(location)) { "The origin ($location) is not a valid entry location on the conveyor" }
         return accessQueues[location]!!
+    }
+
+    /**
+     *  By default (false), items riding on the conveyor have priority to enter entry cells over items
+     *  waiting to enter.  By setting the priority to true, the items waiting to begin riding the
+     *  conveyor have priority to access over items already riding on the conveyor.
+     */
+    fun enteringPriorityAt(entryLocation: IdentityIfc, priority: Boolean){
+        require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) is not an entry location for (${name})" }
+        enteringPriority[entryLocation] = priority
     }
 
     /**
@@ -1070,10 +1086,12 @@ class Conveyor(
         for ((location, cell) in entryCells) {
             if ((cell.isNotBlocked) && !positionedToEnter.containsKey(cell)) {
                 val prevCell = cell.previousCell
-                if ( prevCell != null){
-                    if (prevCell.isOccupied && (prevCell.item!!.status != ItemStatus.EXITING)){
-                        ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked, but item (${prevCell.item!!.entity.name}) in previous cell (${prevCell.cellNumber}) is continuing" }
-                        continue
+                if (enteringPriority[location] == false){
+                    if ( prevCell != null){
+                        if (prevCell.isOccupied && (prevCell.item!!.status != ItemStatus.EXITING)){
+                            ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked, but item (${prevCell.item!!.entity.name}) in previous cell (${prevCell.cellNumber}) is continuing" }
+                            continue
+                        }
                     }
                 }
                 ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked and there was no ride request positioned for entry" }
