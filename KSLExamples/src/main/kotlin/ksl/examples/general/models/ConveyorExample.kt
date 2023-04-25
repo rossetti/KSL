@@ -19,7 +19,12 @@
 package ksl.examples.general.models
 
 import ksl.modeling.entity.ProcessModel
+import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.variable.Counter
+import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.Response
 import ksl.simulation.ModelElement
+import ksl.utilities.random.rvariable.*
 
 /**
  *  This is Example 10.1 from Introduction to SIMAN V adn CINEMA V by
@@ -30,7 +35,7 @@ import ksl.simulation.ModelElement
  *  Type 2 jobs go to drilling, planing, grinding, and then to inspection. The job arrival process is
  *  a Poisson process with a mean time between arrivals of 5 minutes.
  *
- *  There are 2 drills, 3 mills, 2 grinders, and 1 inspector. The time to process each job is as follows
+ *  There are 2 drills, 3 mills, 2 grinders, 3 planers, and 1 inspector. The time to process each job is as follows
  *
  *  drilling: type 1 and 2, uniform(6.0, 9.0)  minutes
  *  milling: type 1, triangular(10.0, 14.0, 18.0) minutes
@@ -94,4 +99,43 @@ import ksl.simulation.ModelElement
  *
  */
 class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+
+    private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
+    private val myDrillingRV = RandomVariable(this, UniformRV(6.0, 9.0, 2))
+    private val myMillingRV = RandomVariable(this, TriangularRV(10.0, 14.0, 18.0, 3))
+    private val myPlaningRV = RandomVariable(this, TriangularRV(20.0, 26.0, 32.0, 4))
+    private val myType1GrindingRV = RandomVariable(this,
+        DEmpiricalRV(doubleArrayOf(6.0, 7.0, 8.0), doubleArrayOf(0.1, 0.75, 1.0), 5))
+    private val myType2GrindingRV = RandomVariable(this,
+        DEmpiricalRV(doubleArrayOf(6.0, 7.0, 8.0, 9.0, 10.0), doubleArrayOf(0.1, 0.35, 0.65, 0.90, 1.0), 6))
+
+    private val myInspectOutcomeRV = RandomVariable(this,
+        DEmpiricalRV(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(0.9, 0.95, 1.0), 7))
+
+    private val myInspectionRV = RandomVariable(this, NormalRV(3.6, 0.6*0.6, 8))
+
+    private val drillingQCapacity = 2
+    private val millingQCapacity = 3
+    private val planingQCapacity = 3
+    private val grindingQCapacity = 2
+    private val inspectionQCapacity = 2
+
+    private val myDrillingResource: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "Drills")
+    private val myMillingResource: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "Mills")
+    private val myGrindingResource: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "Grinders")
+    private val myInspectionResource: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Inspectors")
+    private val myPlaningResource: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "Planers")
+
+    private val myOverallSystemTime = Response(this, "OverallSystemTime")
+    private val myOverflowCounter = Counter(this, "OverFlowCount")
+    private val myScrapCounter = Counter(this, "ScrapCount")
+    private val myReworkCounter = Counter(this, "ReworkCount")
+    private val myCompletedCounter = Counter(this, "CompletedCount")
+    private inner class PartType1 : Entity(){
+
+    }
+
+    private inner class PartType2 : Entity(){
+
+    }
 }
