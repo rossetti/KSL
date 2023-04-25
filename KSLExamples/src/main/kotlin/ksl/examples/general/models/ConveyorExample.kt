@@ -82,9 +82,9 @@ import ksl.simulation.ModelElement
  *      Maximum number of cells that a part will use = 2
  *
  *  Simulate the system for 40 hours and estimate the following:
- *  1. Number of jobs completed.
+ *  1. Number of jobs completed
  *  2. Utilization of the resources
- *  3. The number of jobs that overflow due to queue capacity should be tabulated.
+ *  3. The number of jobs that overflow due to queue capacity
  *  4. Average number of jobs in the queues
  *  5. Number of jobs that are scrapped
  *  6. Number of reworked jobs
@@ -93,5 +93,5 @@ import ksl.simulation.ModelElement
  *  9. Utilization of space on the conveyors
  *
  */
-class ConveyorExample(parent: ModelElement, name: String? = null): ProcessModel(parent, name) {
+class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 }
