@@ -1642,6 +1642,7 @@ class Conveyor(
         }
 
         internal fun mustWait(): Boolean {
+            //TODO study this
             return entryCell.isBlocked || positionedToEnter.containsKey(entryCell)
         }
 
