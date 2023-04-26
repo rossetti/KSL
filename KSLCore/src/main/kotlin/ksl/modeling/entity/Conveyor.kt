@@ -1229,7 +1229,10 @@ class Conveyor(
         ProcessModel.logger.info { "$time > CONVEYOR: Processing #(${rideRequests.size}) items positioned to ride on the conveyor..." }
         for (request in rideRequests) {
             // the request is off the conveyor and the entry cell is blocked for it to enter
-            request.enterConveyor()
+            if (request.entryCell.isNotOccupied){
+                //TODO study this
+                request.enterConveyor()
+            }
         }
         ProcessModel.logger.info { "$time > CONVEYOR: .... completed processing items positioned to ride on the conveyor." }
     }
@@ -1608,7 +1611,7 @@ class Conveyor(
          */
         internal fun enterConveyor() {
             check(status == ItemStatus.OFF) { "$time >  CONVEYOR: Entity (${entity.name}): status = $status: Request status must be OFF to enter the conveyor for the first time" }
-            check(entryCell.isNotOccupied) { "CONVEYOR: Entity (${entity.name}): Tried enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name}) \n ${this@Conveyor.toString()}" }
+            check(entryCell.isNotOccupied) { "CONVEYOR: Entity (${entity.name}): Tried to enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name}) \n ${this@Conveyor.toString()}" }
             ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${entity.name}): status = $status: entering the conveyor at cell (${entryCell.cellNumber})" }
             occupyCell(entryCell)
             if (numCellsNeeded == numCellsOccupied) {
