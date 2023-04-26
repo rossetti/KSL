@@ -963,7 +963,7 @@ class Conveyor(
 
         override fun toString(): String {
             return "Cell(segment=${segment.name}, cell=$cellNumber, location=${location?.name}, type=$type, " +
-                    "isOccupied=$isOccupied, isBlocked=$isBlocked, item=${item?.name})"
+                    "isOccupied=$isOccupied, isBlocked=$isBlocked, item=${item?.entity?.name})"
         }
     }
 
@@ -1608,7 +1608,7 @@ class Conveyor(
          */
         internal fun enterConveyor() {
             check(status == ItemStatus.OFF) { "$time >  CONVEYOR: Entity (${entity.name}): status = $status: Request status must be OFF to enter the conveyor for the first time" }
-            check(entryCell.isNotOccupied) { "CONVEYOR: Entity (${entity.name}): Tried enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name})" }
+            check(entryCell.isNotOccupied) { "CONVEYOR: Entity (${entity.name}): Tried enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name}) \n ${this@Conveyor.toString()}" }
             ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${entity.name}): status = $status: entering the conveyor at cell (${entryCell.cellNumber})" }
             occupyCell(entryCell)
             if (numCellsNeeded == numCellsOccupied) {

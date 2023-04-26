@@ -1409,7 +1409,37 @@ interface KSLProcessBuilder {
     )
 
     /**
-     * This suspending function combines access(), ride(), and exit() into one suspending function.
+     * This suspending function combines requestConveyor(), rideConveyor(), and exit() into one suspending function.
+     *
+     * @param conveyor the conveyor to access
+     * @param entryLocation the location on the conveyor at which the cells are requested
+     * @param destination the location to which to ride
+     * @param numCellsNeeded the number of cells needed (requested)
+     * @param requestPriority the priority of the access. If there are multiple entities that
+     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * the seize resource priority.
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun convey(
+        conveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        destination: IdentityIfc,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ): ConveyorRequestIfc {
+        val ca = requestConveyor(conveyor, entryLocation, numCellsNeeded, requestPriority, requestResumePriority, suspensionName)
+        rideConveyor(ca, destination)
+        exitConveyor(ca)
+        return ca
+    }
+
+    /**
+     * This suspending function combines requestConveyor(), rideConveyor(), and exit() into one suspending function.
      *
      * @param conveyor the conveyor to access
      * @param entryLocation the location on the conveyor at which the cells are requested

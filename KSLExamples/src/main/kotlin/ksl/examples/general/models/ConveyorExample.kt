@@ -107,20 +107,26 @@ class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::partArrivals, myTBArrivals, myTBArrivals)
+    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
 
     private val myDrillingRV = RandomVariable(this, UniformRV(6.0, 9.0, 2))
     private val myMillingRV = RandomVariable(this, TriangularRV(10.0, 14.0, 18.0, 3))
     private val myPlaningRV = RandomVariable(this, TriangularRV(20.0, 26.0, 32.0, 4))
-    private val myType1GrindingRV = RandomVariable(this,
-        DEmpiricalRV(doubleArrayOf(6.0, 7.0, 8.0), doubleArrayOf(0.1, 0.75, 1.0), 5))
-    private val myType2GrindingRV = RandomVariable(this,
-        DEmpiricalRV(doubleArrayOf(6.0, 7.0, 8.0, 9.0, 10.0), doubleArrayOf(0.1, 0.35, 0.65, 0.90, 1.0), 6))
+    private val myType1GrindingRV = RandomVariable(
+        this,
+        DEmpiricalRV(doubleArrayOf(6.0, 7.0, 8.0), doubleArrayOf(0.1, 0.75, 1.0), 5)
+    )
+    private val myType2GrindingRV = RandomVariable(
+        this,
+        DEmpiricalRV(doubleArrayOf(6.0, 7.0, 8.0, 9.0, 10.0), doubleArrayOf(0.1, 0.35, 0.65, 0.90, 1.0), 6)
+    )
 
-    private val myInspectOutcomeRV = RandomVariable(this,
-        DEmpiricalRV(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(0.9, 0.95, 1.0), 7))
+    private val myInspectOutcomeRV = RandomVariable(
+        this,
+        DEmpiricalRV(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(0.9, 0.95, 1.0), 7)
+    )
 
-    private val myInspectionRV = RandomVariable(this, NormalRV(3.6, 0.6*0.6, 8))
+    private val myInspectionRV = RandomVariable(this, NormalRV(3.6, 0.6 * 0.6, 8))
 
     private val myJobTypeRV = RandomVariable(this, BernoulliRV(0.70, 7))
 
@@ -145,8 +151,8 @@ class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel
     private val arrivalConveyor: Conveyor
     private val loopConveyor: Conveyor
     private val exitConveyor: Conveyor
-    private val arrivalArea:  IdentityIfc = Identity("ArrivalArea")
-    private val exitArea:  IdentityIfc = Identity("ExitArea")
+    private val arrivalArea: IdentityIfc = Identity("ArrivalArea")
+    private val exitArea: IdentityIfc = Identity("ExitArea")
 
     init {
         arrivalConveyor = Conveyor.builder(this, "ArrivalConveyor")
@@ -157,7 +163,7 @@ class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel
             .firstSegment(arrivalArea, myDrillingResource, 60)
             .build()
 
-        loopConveyor = Conveyor.builder(this,"LoopConveyor")
+        loopConveyor = Conveyor.builder(this, "LoopConveyor")
             .conveyorType(Conveyor.Type.NON_ACCUMULATING)
             .velocity(30.0)
             .cellSize(10)
@@ -188,152 +194,185 @@ class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel
         return sb.toString()
     }
 
-    private fun partArrivals(generator: EventGenerator){
+    private inner class PartType : Entity() {
         val isType1 = myJobTypeRV.value.toBoolean()
-        if (isType1){
-            val type1 = PartType1()
-            activate(type1.productionProcess)
-        } else{
-            val type2 = PartType2()
-            activate(type2.productionProcess)
-        }
-    }
 
-    private inner class PartType1 : Entity(){
         val productionProcess = process {
             var conveyorRequest = requestConveyor(arrivalConveyor, arrivalArea, 2)
             rideConveyor(conveyorRequest, myDrillingResource)
             exitConveyor(conveyorRequest)
 
-            if (myDrillingResource.waitingQ.size >= drillingQCapacity){
-                myOverflowCounter.increment()
-                return@process
-            }
-            var allocation = seize(myDrillingResource)
-            delay(myDrillingRV)
-            release(allocation)
+            var done = false
+            while (!done) {
+                if (myDrillingResource.waitingQ.size >= drillingQCapacity) {
+                    myOverflowCounter.increment()
+                    return@process
+                }
+                var allocation = seize(myDrillingResource)
+                delay(myDrillingRV)
+                release(allocation)
 
-            conveyorRequest = requestConveyor(loopConveyor, myDrillingResource, 2)
-            rideConveyor(conveyorRequest, myMillingResource)
-            exitConveyor(conveyorRequest)
+                if (isType1){
+                    conveyorRequest = requestConveyor(loopConveyor, myDrillingResource, 2)
+                    rideConveyor(conveyorRequest, myMillingResource)
+                    exitConveyor(conveyorRequest)
 
-            if (myMillingResource.waitingQ.size >= millingQCapacity){
-                myOverflowCounter.increment()
-                return@process
-            }
-            allocation = seize(myMillingResource)
-            delay(myMillingRV)
-            release(allocation)
+                    if (myMillingResource.waitingQ.size >= millingQCapacity) {
+                        myOverflowCounter.increment()
+                        return@process
+                    }
+                    allocation = seize(myMillingResource)
+                    delay(myMillingRV)
+                    release(allocation)
 
-            conveyorRequest = requestConveyor(loopConveyor, myMillingResource, 2)
-            rideConveyor(conveyorRequest, myGrindingResource)
-            exitConveyor(conveyorRequest)
+                    conveyorRequest = requestConveyor(loopConveyor, myMillingResource, 2)
+                    rideConveyor(conveyorRequest, myGrindingResource)
+                    exitConveyor(conveyorRequest)
+                } else {
+                    conveyorRequest = requestConveyor(loopConveyor, myDrillingResource, 2)
+                    rideConveyor(conveyorRequest, myPlaningResource)
+                    exitConveyor(conveyorRequest)
 
-            if (myGrindingResource.waitingQ.size >= grindingQCapacity){
-                myOverflowCounter.increment()
-                return@process
-            }
-            allocation = seize(myGrindingResource)
-            delay(myType1GrindingRV)
-            release(allocation)
+                    if (myPlaningResource.waitingQ.size >= planingQCapacity) {
+                        myOverflowCounter.increment()
+                        return@process
+                    }
+                    allocation = seize(myPlaningResource)
+                    delay(myPlaningRV)
+                    release(allocation)
 
-            conveyorRequest = requestConveyor(loopConveyor, myGrindingResource, 2)
-            rideConveyor(conveyorRequest, myInspectionResource)
-            exitConveyor(conveyorRequest)
+                    conveyorRequest = requestConveyor(loopConveyor, myPlaningResource, 2)
+                    rideConveyor(conveyorRequest, myGrindingResource)
+                    exitConveyor(conveyorRequest)
+                }
 
-            if (myInspectionResource.waitingQ.size >= inspectionQCapacity){
-                myOverflowCounter.increment()
-                return@process
-            }
-            allocation = seize(myInspectionResource)
-            delay(myInspectionRV)
-            release(allocation)
+                if (myGrindingResource.waitingQ.size >= grindingQCapacity) {
+                    myOverflowCounter.increment()
+                    return@process
+                }
+                allocation = seize(myGrindingResource)
+                if (isType1){
+                    delay(myType1GrindingRV)
+                } else {
+                    delay(myType2GrindingRV)
+                }
+                release(allocation)
 
-            val inspectOutcome = myInspectOutcomeRV.value
-            if (inspectOutcome == 1.0){
-                // passed
-            } else if (inspectOutcome == 2.0) {
-                // needs rework
-            } else {
-                // must be inspectOutcome == 3.0, needs to be scrapped
+                conveyorRequest = requestConveyor(loopConveyor, myGrindingResource, 2)
+                rideConveyor(conveyorRequest, myInspectionResource)
+                exitConveyor(conveyorRequest)
+
+                if (myInspectionResource.waitingQ.size >= inspectionQCapacity) {
+                    myOverflowCounter.increment()
+                    return@process
+                }
+                allocation = seize(myInspectionResource)
+                delay(myInspectionRV)
+                release(allocation)
+
+                val inspectOutcome = myInspectOutcomeRV.value
+                if (inspectOutcome == 1.0) {
+                    myCompletedCounter.increment()
+                    done = true
+                    // passed, send to exit
+                    conveyorRequest = requestConveyor(exitConveyor, myInspectionResource, 2)
+                    rideConveyor(conveyorRequest, exitArea)
+                    exitConveyor(conveyorRequest)
+                    myOverallSystemTime.value = time - this@PartType.createTime
+                } else if (inspectOutcome == 2.0) {
+                    // needs rework
+                    myReworkCounter.increment()
+                    // send back to drilling
+                    conveyorRequest = requestConveyor(loopConveyor, myInspectionResource, 2)
+                    rideConveyor(conveyorRequest, myDrillingResource)
+                    exitConveyor(conveyorRequest)
+                } else {
+                    // must be inspectOutcome == 3.0, needs to be scrapped
+                    myScrapCounter.increment()
+                    done = true
+                }
             }
         }
-
     }
 
-    private inner class PartType2 : Entity(){
+    private inner class PartTypeV2 : Entity() {
+        val isType1 = myJobTypeRV.value.toBoolean()
+
         val productionProcess = process {
-            var conveyorRequest = requestConveyor(arrivalConveyor, arrivalArea, 2)
-            rideConveyor(conveyorRequest, myDrillingResource)
-            exitConveyor(conveyorRequest)
+            convey(arrivalConveyor, entryLocation = arrivalArea, destination = myDrillingResource, numCellsNeeded = 2)
+            var done = false
+            while (!done) {
+                if (myDrillingResource.waitingQ.size >= drillingQCapacity) {
+                    myOverflowCounter.increment()
+                    return@process
+                }
+                use(myDrillingResource, delayDuration = myDrillingRV)
+                if (isType1){
+                    convey(loopConveyor, entryLocation = myDrillingResource, destination = myMillingResource, numCellsNeeded = 2)
+                    if (myMillingResource.waitingQ.size >= millingQCapacity) {
+                        myOverflowCounter.increment()
+                        return@process
+                    }
+                    use(myMillingResource, delayDuration = myMillingRV)
+                    convey(loopConveyor, entryLocation = myMillingResource, destination = myGrindingResource, numCellsNeeded = 2)
+                } else {
+                    convey(loopConveyor, entryLocation = myDrillingResource, destination = myPlaningResource, numCellsNeeded = 2)
+                    if (myPlaningResource.waitingQ.size >= planingQCapacity) {
+                        myOverflowCounter.increment()
+                        return@process
+                    }
+                    use(myPlaningResource, delayDuration = myPlaningRV)
+                    convey(loopConveyor, entryLocation = myPlaningResource, destination = myGrindingResource, numCellsNeeded = 2)
+                }
 
-            if (myDrillingResource.waitingQ.size >= drillingQCapacity){
-                myOverflowCounter.increment()
-                return@process
+                if (myGrindingResource.waitingQ.size >= grindingQCapacity) {
+                    myOverflowCounter.increment()
+                    return@process
+                }
+                if (isType1){
+                    use(myGrindingResource, delayDuration = myType1GrindingRV)
+                } else {
+                    use(myGrindingResource, delayDuration = myType2GrindingRV)
+                }
+                convey(loopConveyor, entryLocation = myGrindingResource, destination = myInspectionResource, numCellsNeeded = 2)
+
+                if (myInspectionResource.waitingQ.size >= inspectionQCapacity) {
+                    myOverflowCounter.increment()
+                    return@process
+                }
+                use(myInspectionResource, delayDuration = myInspectionRV)
+
+                when (myInspectOutcomeRV.value) {
+                    1.0 -> {
+                        myCompletedCounter.increment()
+                        done = true
+                        // passed, send to exit
+                        convey(exitConveyor, entryLocation = myInspectionResource, destination = exitArea, numCellsNeeded = 2)
+                        myOverallSystemTime.value = time - this@PartTypeV2.createTime
+                    }
+                    2.0 -> {
+                        // needs rework
+                        myReworkCounter.increment()
+                        // send back to drilling
+                        convey(loopConveyor, entryLocation = myInspectionResource, destination = myDrillingResource, numCellsNeeded = 2)
+                    }
+                    else -> {
+                        // must be inspectOutcome == 3.0, needs to be scrapped
+                        myScrapCounter.increment()
+                        done = true
+                    }
+                }
             }
-            var allocation = seize(myDrillingResource)
-            delay(myDrillingRV)
-            release(allocation)
-
-            conveyorRequest = requestConveyor(loopConveyor, myDrillingResource, 2)
-            rideConveyor(conveyorRequest, myPlaningResource)
-            exitConveyor(conveyorRequest)
-
-            if (myPlaningResource.waitingQ.size >= planingQCapacity){
-                myOverflowCounter.increment()
-                return@process
-            }
-            allocation = seize(myPlaningResource)
-            delay(myPlaningRV)
-            release(allocation)
-
-            conveyorRequest = requestConveyor(loopConveyor, myPlaningResource, 2)
-            rideConveyor(conveyorRequest, myGrindingResource)
-            exitConveyor(conveyorRequest)
-
-            if (myGrindingResource.waitingQ.size >= grindingQCapacity){
-                myOverflowCounter.increment()
-                return@process
-            }
-            allocation = seize(myGrindingResource)
-            delay(myType2GrindingRV)
-            release(allocation)
-
-            conveyorRequest = requestConveyor(loopConveyor, myGrindingResource, 2)
-            rideConveyor(conveyorRequest, myInspectionResource)
-            exitConveyor(conveyorRequest)
-
-            if (myInspectionResource.waitingQ.size >= inspectionQCapacity){
-                myOverflowCounter.increment()
-                return@process
-            }
-            allocation = seize(myInspectionResource)
-            delay(myInspectionRV)
-            release(allocation)
-
-            val inspectOutcome = myInspectOutcomeRV.value
-            if (inspectOutcome == 1.0){
-                // passed
-            } else if (inspectOutcome == 2.0) {
-                // needs rework
-            } else {
-                // must be inspectOutcome == 3.0, needs to be scrapped
-            }
-
         }
-    }
-
-    private fun overflow(){
-
     }
 }
 
-fun main(){
+fun main() {
 
     val m = Model()
     val test = ConveyorExample(m)
     println(test)
-    m.lengthOfReplication = 60.0*40.0
+    m.lengthOfReplication = 60.0 * 40.0
     m.numberOfReplications = 1
     m.simulate()
     m.print()
