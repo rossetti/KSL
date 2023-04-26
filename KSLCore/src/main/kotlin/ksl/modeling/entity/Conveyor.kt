@@ -1642,8 +1642,10 @@ class Conveyor(
         }
 
         internal fun mustWait(): Boolean {
-            //TODO study this
-            return entryCell.isBlocked || positionedToEnter.containsKey(entryCell)
+            //TODO study this: This appears to be causing requests not to wait when arriving and the entry cell is occupied
+           // return entryCell.isBlocked || positionedToEnter.containsKey(entryCell)
+
+            return entryCell.isUnavailable || positionedToEnter.containsKey(entryCell)
         }
 
     }
