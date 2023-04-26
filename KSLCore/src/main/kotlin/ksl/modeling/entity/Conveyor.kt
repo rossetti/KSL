@@ -234,7 +234,7 @@ class Conveyor(
     val numberOfOccupiedCells: TWResponseCIfc
         get() = myNumOccupiedCells
 
-    private val myCellUtilization = Response(this,"${this.name}:CellUtilization")
+    private val myCellUtilization = Response(this, "${this.name}:CellUtilization")
     val cellUtilization: ResponseCIfc
         get() = myCellUtilization
 
@@ -342,7 +342,7 @@ class Conveyor(
      *  waiting to enter.  By setting the priority to true, the items waiting to begin riding the
      *  conveyor have priority to access over items already riding on the conveyor.
      */
-    fun enteringPriorityAt(entryLocation: IdentityIfc, priority: Boolean){
+    fun enteringPriorityAt(entryLocation: IdentityIfc, priority: Boolean) {
         require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) is not an entry location for (${name})" }
         enteringPriority[entryLocation] = priority
     }
@@ -786,7 +786,7 @@ class Conveyor(
     }
 
     override fun replicationEnded() {
-        myCellUtilization.value = myNumOccupiedCells.withinReplicationStatistic.weightedAverage/conveyorCells.size
+        myCellUtilization.value = myNumOccupiedCells.withinReplicationStatistic.weightedAverage / conveyorCells.size
     }
 
     /**
@@ -826,16 +826,16 @@ class Conveyor(
      *  If the conveyor has been stopped using the stopConveyor() function, this will start it moving.
      *  If the conveyor has not been stopped using the stopConveyor() function, this method does nothing.
      */
-    fun startConveyor(){
-        if (isStopped){
+    fun startConveyor() {
+        if (isStopped) {
             isStopped = false
             val event = stoppedCellTraversalEvent
-            if (event != null){
-                if (event.time > time){
+            if (event != null) {
+                if (event.time > time) {
                     // The cancelled event is still in the future undo the cancellation
                     event.cancel = false;
                     endCellTraversalEvent = event
-                }  else {
+                } else {
                     // the time of the cell traversal has passed, need to restart the conveyor
                     // for simplicity we assume the full traversal time
                     rescheduleConveyorMovement()
@@ -848,7 +848,7 @@ class Conveyor(
      *  If a cell traversal is scheduled, it will be cancelled and movement on the conveyor
      *  will not occur.
      */
-    fun stopConveyor(){
+    fun stopConveyor() {
         isStopped = true
         stoppedCellTraversalEvent = endCellTraversalEvent
         cancelConveyorMovement()
@@ -1151,9 +1151,9 @@ class Conveyor(
         for ((location, cell) in entryCells) {
             if ((cell.isNotBlocked) && !positionedToEnter.containsKey(cell)) {
                 val prevCell = cell.previousCell
-                if (enteringPriority[location] == false){
-                    if ( prevCell != null){
-                        if (prevCell.isOccupied && (prevCell.item!!.status != ItemStatus.EXITING)){
+                if (enteringPriority[location] == false) {
+                    if (prevCell != null) {
+                        if (prevCell.isOccupied && (prevCell.item!!.status != ItemStatus.EXITING)) {
                             ProcessModel.logger.info { "$time > CONVEYOR: processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked, but item (${prevCell.item!!.entity.name}) in previous cell (${prevCell.cellNumber}) is continuing" }
                             continue
                         }
@@ -1229,10 +1229,10 @@ class Conveyor(
         ProcessModel.logger.info { "$time > CONVEYOR: Processing #(${rideRequests.size}) items positioned to ride on the conveyor..." }
         for (request in rideRequests) {
             // the request is off the conveyor and the entry cell is blocked for it to enter
-//            if (request.entryCell.isNotOccupied){
-                //TODO study this
+            if (request.entryCell.isNotOccupied) {
+                //TODO study this:  need testing with this
                 request.enterConveyor()
-//            }
+            }
         }
         ProcessModel.logger.info { "$time > CONVEYOR: .... completed processing items positioned to ride on the conveyor." }
     }
@@ -1643,7 +1643,7 @@ class Conveyor(
 
         internal fun mustWait(): Boolean {
             //TODO study this: This appears to be causing requests not to wait when arriving and the entry cell is occupied
-           // return entryCell.isBlocked || positionedToEnter.containsKey(entryCell)
+            // return entryCell.isBlocked || positionedToEnter.containsKey(entryCell)
 
             return entryCell.isUnavailable || positionedToEnter.containsKey(entryCell)
         }
@@ -1866,7 +1866,7 @@ class Conveyor(
             // with no blocked cells, there may be items entering that prevent movement
             // there must be a lead cell to move if the conveyor has items and there are no blocked cells
             val leadCell = findLeadingCell(conveyorCells)
-            if (leadCell != null){
+            if (leadCell != null) {
                 // get the cells to move
                 // from the beginning up to and including the lead cell
                 val trainEndCell = firstOccupiedCellFromStart()!!
