@@ -1229,10 +1229,10 @@ class Conveyor(
         ProcessModel.logger.info { "$time > CONVEYOR: Processing #(${rideRequests.size}) items positioned to ride on the conveyor..." }
         for (request in rideRequests) {
             // the request is off the conveyor and the entry cell is blocked for it to enter
-            if (request.entryCell.isNotOccupied){
+//            if (request.entryCell.isNotOccupied){
                 //TODO study this
                 request.enterConveyor()
-            }
+//            }
         }
         ProcessModel.logger.info { "$time > CONVEYOR: .... completed processing items positioned to ride on the conveyor." }
     }
