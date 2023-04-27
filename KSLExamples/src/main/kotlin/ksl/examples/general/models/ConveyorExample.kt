@@ -134,7 +134,7 @@ class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel
     private val millingQCapacity = 3
     private val planingQCapacity = 3
     private val grindingQCapacity = 2
-    private val inspectionQCapacity = 2
+    private val inspectionQCapacity = 4
 
     private val myDrillingResource: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "Drills")
     private val myMillingResource: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "Mills")
