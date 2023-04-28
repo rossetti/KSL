@@ -689,7 +689,11 @@ class Conveyor(
                     // if the exit cell is blocked, we cannot move through it
                     // if the exit cell is not blocked and occupied, the item might be able to move
                     if (cell.isNotBlocked) {
-                        // exit cell and not blocked, get the next cell
+                        // if the exit cell has an item that is exiting, then let it move
+                        if (cell.item!!.status == ItemStatus.EXITING){
+                            return cell
+                        }
+                        // exit cell and not blocked, and not exiting
                         val nextCell = cell.nextCell
                         // it might be the LAST cell
                         if (nextCell != null) {
@@ -1215,6 +1219,8 @@ class Conveyor(
             val movingCells = conveyorCells.subList(trainEndCell.index, leadCell.cellNumber)
             ProcessModel.logger.info { "$time > CONVEYOR:  Non-accumulating conveyor: has no blocked cells: moving cells within [${trainEndCell.cellNumber}..${leadCell.cellNumber}] forward" }
             moveItemsForwardOneCell(movingCells)
+        } else {
+            ProcessModel.logger.info { "$time > CONVEYOR:  Non-accumulating conveyor: occupied with no blocked cells: no lead cell found!" }
         }
     }
 
@@ -1256,9 +1262,11 @@ class Conveyor(
     }
 
     private fun rescheduleNonAccumulatingConveyorMovement() {
-        if (!isOccupied() || hasBlockedCells()) {
+        val occupied = isOccupied()
+        val blocked = hasBlockedCells()
+        if (!occupied || blocked) {
             endCellTraversalEvent = null
-            ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating conveyor: not occupied or has blocked cells: no movement scheduled" }
+            ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating conveyor: occupied = $occupied, blocked = $blocked: no movement scheduled" }
             return
         }
         //is occupied and has no blocked cells, move the cells
@@ -1347,13 +1355,28 @@ class Conveyor(
                     return
                 }
                 // must be occupied to be here
-                if (!hasMovableCell() && hasNoBlockedCells()) {
-                    // no movable cells and conveyor is not blocked somewhere
-                    ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: conveyor has no movable cells as is not blocked anywhere: schedule conveyor movement" }
-                    scheduleConveyorMovement()
-                    return
+                if (!hasMovableCell()) {
+                    // no movable cells
+                    ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: conveyor has no movable cells" }
+                    if (hasNoBlockedCells()){
+                        // no movable cells and conveyor is not blocked somewhere
+                        ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: conveyor is not blocked anywhere: schedule conveyor movement" }
+                        scheduleConveyorMovement()
+                        return
+                    } else {
+                        ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: conveyor has blocked cells: no conveyor movement scheduled" }
+                    }
+                }else {
+                    // has movable cells
+                    ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: has movable cells" }
+                    if (hasNoBlockedCells()){
+                        // movable cells and no blocked cells
+                        ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: has no blocked cells" }
+                    } else {
+                        ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: has blocked cells" }
+                    }
+                    ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: no conveyor movement scheduled" }
                 }
-                ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: has blocked cells or has movable cells, no new movement scheduled" }
             } else {
                 // accumulating conveyor, item is positioned to ride, needs movement scheduled
                 if (!isOccupied()) {
@@ -1726,7 +1749,7 @@ class Conveyor(
             // remember that the request needs to move into the entry cell
             positionedToEnter[request.entryCell] = request
             request.entryCell.isBlocked = false
-            ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${request.entity.name}): status = ${request.status}: positioned for entry cell (${request.entryCell.cellNumber}): cell is now not blocked" }
+            ProcessModel.logger.info { "$time >  CONVEYOR: Entity (${request.entity.name}): status = ${request.status}: positioned for entry cell (${request.entryCell.cellNumber}): removed cell blockage" }
             beginRiding(request)
         }
 
