@@ -1340,6 +1340,10 @@ class Conveyor(
         if (!isCellTraversalInProgress()) {
             // no movement scheduled (pending), item arrived and is positioned to ride, its entry cell is not blocked
             if (conveyorType == Type.NON_ACCUMULATING) {
+
+                //TODO this is scheduling the event and then the check at the end of the loop is also scheduling the event
+                // this may need to be similar to the accumulating logic
+
                 if (hasNoBlockedCells()) {
                     ProcessModel.logger.info { "$time >  CONVEYOR: Non-accumulating: begin riding: no blocked cells, schedule conveyor movement" }
                     scheduleConveyorMovement()
