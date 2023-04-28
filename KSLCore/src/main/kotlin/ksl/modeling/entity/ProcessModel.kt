@@ -1461,8 +1461,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.ACCESS
-                logger.info { "$time > PROCESS: entity (${entity.name}) ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 delay(0.0, requestPriority, "$suspensionName:AccessDelay")
+                logger.info { "$time > PROCESS: entity (${entity.name}) ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 // make the conveyor request
                 val request = conveyor.requestConveyor(entity, numCellsNeeded, entryLocation, requestResumePriority)
                 // always enter the queue to get statistics on waiting to enter the conveyor
