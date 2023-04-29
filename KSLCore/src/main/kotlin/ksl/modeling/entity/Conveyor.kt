@@ -1303,7 +1303,7 @@ class Conveyor(
             return
         }
         // must have at least one movable cell so make it move
-        ProcessModel.logger.info { "$time >  CONVEYOR (${this@Conveyor.name}): Accumulating: at least one movable cell: movement scheduled" }
+        ProcessModel.logger.info { "$time >  CONVEYOR (${this@Conveyor.name}): Accumulating: at least one movable cell: movement possible" }
         ProcessModel.logger.info { "$time >  CONVEYOR (${this@Conveyor.name}): Accumulating: first movable cell = ${leadingCell.cellNumber}: item (${leadingCell.item?.entity?.name})" }
         scheduleConveyorMovement()
     }
@@ -1328,7 +1328,11 @@ class Conveyor(
     }
 
     private fun scheduleConveyorMovement() {
-        require(!isCellTraversalInProgress()){"$time >  CONVEYOR ($name): Tried to schedule a cell traversal when one was already pending! \n ${toString()}"}
+//        require(!isCellTraversalInProgress()){"$time >  CONVEYOR ($name): Tried to schedule a cell traversal when one was already pending! \n ${toString()}"}
+        if (isCellTraversalInProgress()){
+            ProcessModel.logger.info { "$time > CONVEYOR (${this@Conveyor.name}): scheduleConveyorMovement(): cell traversal already pending, new traversal not scheduled" }
+            return
+        }
         endCellTraversalEvent = schedule(this::endOfCellTraversal, cellTravelTime)
         ProcessModel.logger.info { "$time > CONVEYOR (${this@Conveyor.name}): scheduled event (${endCellTraversalEvent?.id}): the end of cell traversal for t = ${(time + cellTravelTime)}" }
     }
