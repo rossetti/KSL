@@ -1,0 +1,72 @@
+package ksl.examples.general.models
+
+import ksl.modeling.entity.Conveyor
+import ksl.modeling.entity.ProcessModel
+import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.variable.Counter
+import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.Response
+import ksl.simulation.Model
+import ksl.simulation.ModelElement
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
+import ksl.utilities.random.rvariable.*
+
+/**
+ *  Non-accumulating conveyor example. One segment 100 feet.
+ *
+ */
+class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+
+    private val myTBArrivals: RVariableIfc = ExponentialRV(10.0, 1)
+
+    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
+
+    private val myPackingTimeRV = RandomVariable(this, TriangularRV(0.5, 2.0, 2.5, 2))
+
+    private val myOverallSystemTime = Response(this, "OverallSystemTime")
+    private val myCompletedCounter = Counter(this, "CompletedCount")
+
+    private val conveyor: Conveyor
+    private val arrivalArea: IdentityIfc = Identity("ArrivalArea")
+    private val exitArea: IdentityIfc = Identity("ExitArea")
+
+    init {
+        conveyor = Conveyor.builder(this, "Conveyor")
+            .conveyorType(Conveyor.Type.NON_ACCUMULATING)
+            .velocity(1.0)
+            .cellSize(1)
+            .maxCellsAllowed(1)
+            .firstSegment(arrivalArea, exitArea, 100)
+            .build()
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine(conveyor)
+        return sb.toString()
+    }
+
+    private inner class PartType : Entity() {
+        val productionProcess = process {
+            val conveyorRequest = requestConveyor(conveyor, arrivalArea, 1)
+            rideConveyor(conveyorRequest, exitArea)
+            delay(myPackingTimeRV)
+            exitConveyor(conveyorRequest)
+            myOverallSystemTime.value = time - createTime
+            myCompletedCounter.increment()
+        }
+    }
+
+}
+
+fun main() {
+
+    val m = Model()
+    val test = ConveyorExample2(m)
+    println(test)
+    m.lengthOfReplication = 480.0
+    m.numberOfReplications = 20
+    m.simulate()
+    m.print()
+}
