@@ -1390,6 +1390,29 @@ interface KSLProcessBuilder {
         suspensionName: String? = null
     )
 
+    /** This suspending function causes the entity to be associated with an item that occupies the allocated
+     * cells on the conveyor. The item will move on the conveyor until it reaches the supplied destination.
+     * After this suspending function returns, the item associated with the entity will be occupying the
+     * cells it requires at the exit location of the segment associated with the destination. The item
+     * will remain on the conveyor until the entity indicates that the cells are to be released by using
+     * the exit function. The behavior of the conveyor during the ride and when the item reaches its
+     * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+     * while the entity occupies the final cells before exiting or riding again.
+     *
+     * @param destination the location to which to ride
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun rideConveyor(
+        destination: IdentityIfc,
+        suspensionName: String? = null
+    ) {
+        require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
+        rideConveyor(entity.conveyorRequest!!, destination, suspensionName)
+    }
+
     /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
      * If there is no item associated with the allocated cells, the cells are immediately released without
      * a time delay.  If there is an item occupying the associated cells there will be a delay while
@@ -1407,6 +1430,25 @@ interface KSLProcessBuilder {
         conveyorRequest: ConveyorRequestIfc,
         suspensionName: String? = null
     )
+
+    /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
+     * If there is no item associated with the allocated cells, the cells are immediately released without
+     * a time delay.  If there is an item occupying the associated cells there will be a delay while
+     * the item moves through the deallocated cells and then the cells are deallocated.  After
+     * exiting the conveyor, the cell allocation is deallocated and cannot be used for further interaction
+     * with the conveyor.
+     *
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun exitConveyor(
+        suspensionName: String? = null
+    ) {
+        require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
+        exitConveyor(entity.conveyorRequest!!, suspensionName)
+    }
 
     /**
      * This suspending function combines requestConveyor(), rideConveyor(), and exit() into one suspending function.
@@ -1432,7 +1474,14 @@ interface KSLProcessBuilder {
         requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ): ConveyorRequestIfc {
-        val ca = requestConveyor(conveyor, entryLocation, numCellsNeeded, requestPriority, requestResumePriority, suspensionName)
+        val ca = requestConveyor(
+            conveyor,
+            entryLocation,
+            numCellsNeeded,
+            requestPriority,
+            requestResumePriority,
+            suspensionName
+        )
         rideConveyor(ca, destination)
         exitConveyor(ca)
         return ca
@@ -1466,7 +1515,14 @@ interface KSLProcessBuilder {
         requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ): ConveyorRequestIfc {
-        val ca = requestConveyor(conveyor, entryLocation, numCellsNeeded, requestPriority, requestResumePriority, suspensionName)
+        val ca = requestConveyor(
+            conveyor,
+            entryLocation,
+            numCellsNeeded,
+            requestPriority,
+            requestResumePriority,
+            suspensionName
+        )
         delay(loadingTime)
         rideConveyor(ca, destination)
         delay(unloadingTime)
