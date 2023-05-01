@@ -109,9 +109,9 @@ class KSLEvent<out T> internal constructor(
      * is scheduled to occur. It is an error to attempt to cancel an event that
      * is not scheduled.
      */
-    var cancelled: Boolean = false
+    var cancel: Boolean = false
         set(value) {
-            require(scheduled) { "Cannot cancel an event that is not scheduled" }
+            require(isScheduled) { "Cannot cancel an event that is not scheduled" }
             field = value
         }
 
@@ -119,7 +119,7 @@ class KSLEvent<out T> internal constructor(
      * Whether the event is scheduled.
      * The executive should indicate if the event is scheduled
      */
-    var scheduled: Boolean = false
+    var isScheduled: Boolean = false
         internal set
 
     /**
@@ -148,7 +148,7 @@ class KSLEvent<out T> internal constructor(
         sb.append(priority)
         sb.append(" : ")
         sb.append("is scheduled = ")
-        sb.append(scheduled)
+        sb.append(isScheduled)
         sb.append(" : ")
         sb.append("Scheduled by = ")
         sb.append(modelElement.name)
@@ -160,7 +160,7 @@ class KSLEvent<out T> internal constructor(
      * action method invoked
      */
     internal fun execute() {
-        if (!cancelled) {
+        if (!cancel) {
             myAction.action(this)
         }
     }

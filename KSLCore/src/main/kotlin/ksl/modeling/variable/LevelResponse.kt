@@ -177,10 +177,10 @@ class LevelResponse(variable: Variable,
      */
     fun cancelObservationInterval() {
         if (myObservationIntervalStartEvent != null) {
-            myObservationIntervalStartEvent!!.cancelled = true
+            myObservationIntervalStartEvent!!.cancel = true
         }
         if (myObservationIntervalEndEvent != null) {
-            myObservationIntervalEndEvent!!.cancelled = true
+            myObservationIntervalEndEvent!!.cancel = true
         }
     }
 

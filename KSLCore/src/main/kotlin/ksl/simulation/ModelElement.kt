@@ -41,10 +41,7 @@ private var qObjCounter: Long = 0
 
 abstract class ModelElement internal constructor(theName: String? = null) : IdentityIfc {
     //TODO spatial model stuff
-    //TODO creating QObjects
-    //TODO creating entities
     //TODO change parent model element method, was in JSL, can/should it be in KSL
-    //TODO Request DSL from JSL ModelElement
 
     /**
      * A set of constants for indicating model element status to observers of
@@ -866,7 +863,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         return if (warmUpEvent == null) {
             false
         } else {
-            warmUpEvent!!.scheduled
+            warmUpEvent!!.isScheduled
         }
     }
 
@@ -988,7 +985,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      */
     fun cancelWarmUpEvent() {
         if (warmUpEvent != null) {
-            warmUpEvent!!.cancelled = true
+            warmUpEvent!!.cancel = true
         }
     }
 
@@ -1001,7 +998,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         return if (timedUpdateEvent == null) {
             false
         } else {
-            timedUpdateEvent!!.scheduled
+            timedUpdateEvent!!.isScheduled
         }
     }
 
@@ -1010,7 +1007,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      */
     fun cancelTimedUpdateEvent() {
         if (timedUpdateEvent != null) {
-            timedUpdateEvent!!.cancelled = true
+            timedUpdateEvent!!.cancel = true
         }
     }
 
@@ -1404,7 +1401,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         }
 
         if (beforeExperimentOption) {
-            logger.info { "ModelElement: $name executing beforeExperiment()" }
+            logger.trace { "ModelElement: $name executing beforeExperiment()" }
             beforeExperiment()
             currentStatus = Status.BEFORE_EXPERIMENT
         }
@@ -1437,7 +1434,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
 
         // now initialize the model element itself
         if (initializationOption) {
-            logger.info { "ModelElement: $name executing initialize()" }
+            logger.trace { "ModelElement: $name executing initialize()" }
             initialize()
             currentStatus = Status.INITIALIZED
         }
@@ -1491,7 +1488,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         if (individualElementWarmUpLength > 0.0) {
             // the warm up period is > 0, ==> element wants a warm-up event
             myWarmUpEventAction = WarmUpEventAction()
-            Model.logger.info { "$name scheduling warm up event for time $individualElementWarmUpLength" }
+            Model.logger.trace { "$name scheduling warm up event for time $individualElementWarmUpLength" }
             warmUpEvent = myWarmUpEventAction!!.schedule()
             warmUpOption = false // no longer depends on parent's warm up
         }
@@ -1499,7 +1496,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             // the timed update is > 0, ==> element wants a timed update event
             // schedule the timed update event
             myTimedUpdateActionListener = TimedUpdateEventAction()
-            Model.logger.info { "$name scheduling timed update event for time $timedUpdateInterval" }
+            Model.logger.trace { "$name scheduling timed update event for time $timedUpdateInterval" }
             timedUpdateEvent = myTimedUpdateActionListener!!.schedule()
         }
         if (myModelElements.isNotEmpty()) {
@@ -1508,7 +1505,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (beforeReplicationOption) {
-            logger.info { "ModelElement: $name executing beforeReplication()" }
+            logger.trace { "ModelElement: $name executing beforeReplication()" }
             beforeReplication()
             currentStatus = Status.BEFORE_REPLICATION
         }
@@ -1559,9 +1556,9 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
     private fun warmUpAction() {
         // if we get here the warm-up was scheduled, so do it
         if (this == model) {
-            Model.logger.info { "Executing the warm up action for the model at time $time" }
+            Model.logger.trace { "Executing the warm up action for the model at time $time" }
         }
-        logger.info { "ModelElement: $name executing warmUp()" }
+        logger.trace { "ModelElement: $name executing warmUp()" }
         warmUp()
         warmUpIndicator = true
         currentStatus = Status.WARMUP
@@ -1664,7 +1661,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (replicationEndedOption) {
-            logger.info { "ModelElement: $name executing replicationEnded()" }
+            logger.trace { "ModelElement: $name executing replicationEnded()" }
             replicationEnded()
             currentStatus = Status.REPLICATION_ENDED
         }
@@ -1684,13 +1681,13 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      */
     internal fun afterReplicationActions() {
         if (myModelElements.isNotEmpty()) {
-            logger.info { "ModelElement: $name has children, executing their after replication actions" }
+            logger.trace { "ModelElement: $name has children, executing their after replication actions" }
             for (m in myModelElements) {
                 m.afterReplicationActions()
             }
         }
         if (afterReplicationOption) {
-            logger.info { "ModelElement: $name executing afterReplication()" }
+            logger.trace { "ModelElement: $name executing afterReplication()" }
             afterReplication()
             currentStatus = Status.AFTER_REPLICATION
         }
@@ -1717,7 +1714,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
         }
         if (afterExperimentOption) {
-            logger.info { "ModelElement: $name executing afterExperiment()" }
+            logger.trace { "ModelElement: $name executing afterExperiment()" }
             afterExperiment()
             currentStatus = Status.AFTER_EXPERIMENT
         }
@@ -1790,21 +1787,21 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             val child = myModelElements[myModelElements.size - 1]
             child.removeFromModel()
         }
-        logger.info { "ModelElement: $name executing removeFromModel()" }
+        logger.trace { "ModelElement: $name executing removeFromModel()" }
         // if the model element has a warm-up event, cancel it
         if (warmUpEvent != null) {
-            if (warmUpEvent!!.scheduled) {
-                logger.info { "ModelElement: $name cancelling warmup event" }
-                warmUpEvent!!.cancelled = true
+            if (warmUpEvent!!.isScheduled) {
+                logger.trace { "ModelElement: $name cancelling warmup event" }
+                warmUpEvent!!.cancel = true
             }
             warmUpEvent = null
             myWarmUpEventAction = null
         }
         // if the model element has a timed update event, cancel it
         if (timedUpdateEvent != null) {
-            if (timedUpdateEvent!!.scheduled) {
-                logger.info { "ModelElement: $name cancelling timed update event" }
-                timedUpdateEvent!!.cancelled = true
+            if (timedUpdateEvent!!.isScheduled) {
+                logger.trace { "ModelElement: $name cancelling timed update event" }
+                timedUpdateEvent!!.cancel = true
             }
             timedUpdateEvent = null
             myTimedUpdateActionListener = null
