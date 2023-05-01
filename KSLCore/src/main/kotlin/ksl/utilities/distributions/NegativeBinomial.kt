@@ -413,7 +413,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
          * @param recursive true indicates that the recursive logarithmic algorithm should be used
          * @return the inverse CDF value
          */
-        fun negBinomialInvCDF(x: Double, p: Double, r: Double, recursive: Boolean = true): Int {
+        fun negBinomialInvCDF(x: Double, r: Double, p: Double, recursive: Boolean = true): Int {
             require(r > 0) { "The number of successes must be > 0" }
             require(!(p <= 0.0 || p >= 1.0)) { "Success Probability must be in (0,1)" }
             require(!(x < 0.0 || x > 1.0)) { "Supplied probability was $x Probability must be [0,1]" }
