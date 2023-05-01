@@ -19,6 +19,8 @@
 package ksl.modeling.spatial
 
 import ksl.utilities.GetValueIfc
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Observable
 import ksl.utilities.random.rvariable.ConstantRV
 
@@ -30,7 +32,7 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
         internal set
 
     enum class Status {
-        NONE, ADDED_ELEMENT, UPDATED_LOCATION, REMOVED_ELEMENT, TRANSFERRED_ELEMENT,  TRANSFERRED, CELL_CHANGED
+        NONE, ADDED_ELEMENT, UPDATED_LOCATION, REMOVED_ELEMENT, TRANSFERRED_ELEMENT, TRANSFERRED, CELL_CHANGED
     }
 
     var status: Status = Status.NONE
@@ -67,8 +69,8 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      *  is responsible for maintaining this list
      */
     open fun track(element: SpatialElement) {
-        require(isValid(element)){"The element, ${element.spatialName} is not valid for spatial model ${this.name}"}
-        if (myElements.contains(element)){
+        require(isValid(element)) { "The element, ${element.spatialName} is not valid for spatial model ${this.name}" }
+        if (myElements.contains(element)) {
             return
         }
         element.isTracked = true
@@ -77,20 +79,20 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
         notifyObservers(element)
     }
 
-    open fun stopTracking(element: SpatialElement){
-        if (!isValid(element)){
+    open fun stopTracking(element: SpatialElement) {
+        if (!isValid(element)) {
             return
         }
-        if (myElements.remove(element)){
+        if (myElements.remove(element)) {
             element.isTracked = false
             status = Status.REMOVED_ELEMENT
             notifyObservers(element)
         }
     }
 
-    fun stopAllTracking(){
+    fun stopAllTracking() {
         val list = ArrayList(myElements)
-        for(e in list){
+        for (e in list) {
             stopTracking(e)
         }
         myElements.clear()
@@ -211,12 +213,14 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
 
     /** Represents a location within this spatial model.
      *
-     * @param aName the name of the location, will be assigned based on ID_id if null
+     * @param identity an identity for the location
      */
-    abstract inner class AbstractLocation(aName: String? = null) : LocationIfc {
-        final override var label: String? = null
-        final override val id: Int = ++locationCount
-        override val name: String = aName ?: "ID_$id"
+    abstract inner class AbstractLocation(val identity: IdentityIfc) : LocationIfc, IdentityIfc by identity {
 
+        /** Represents a location within this spatial model.
+         *
+         * @param aName the name of the location, will be assigned based on ID_id if null
+         */
+        constructor(aName: String? = null) : this(Identity(aName))
     }
 }

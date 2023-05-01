@@ -15,9 +15,9 @@ fun main() {
 //    runConveyorTest(Conveyor.Type.ACCUMULATING)
 //    runConveyorTest2(Conveyor.Type.ACCUMULATING)
 //    runConveyorTest3(Conveyor.Type.ACCUMULATING)
-//    runConveyorTest4(Conveyor.Type.ACCUMULATING)
-    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
-//    blockedCellsTest()
+    runConveyorTest4(Conveyor.Type.ACCUMULATING)
+//    runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
+
 }
 
 fun partitionTest() {

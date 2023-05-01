@@ -19,12 +19,15 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.QueueCIfc
+import ksl.modeling.spatial.LocationIfc
+import ksl.modeling.spatial.SpatialModel
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 
 /**
@@ -33,6 +36,10 @@ import ksl.utilities.IdentityIfc
  * details on how segments are used to represent a conveyor.
  */
 data class Segment(val entryLocation: IdentityIfc, val exitLocation: IdentityIfc, val length: Int) {
+
+    constructor(fromLocName: String, toLocName: String, length: Int) :
+            this(Identity(fromLocName), Identity(toLocName), length)
+
     init {
         require(entryLocation != exitLocation) { "The start and the end of the segment must be different!" }
         require(length >= 1) { "The length of the segment must be >= 1 unit" }
@@ -52,7 +59,7 @@ data class Segment(val entryLocation: IdentityIfc, val exitLocation: IdentityIfc
  * the specification of segments for a conveyor.  See the class Conveyor for more
  * details on how segments are used to represent a conveyor.
  */
-class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
+class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) : SpatialModel() {
     private val mySegments = mutableListOf<Segment>()
     private val myDownStreamLocations: MutableMap<IdentityIfc, MutableList<IdentityIfc>> = mutableMapOf()
 
@@ -147,7 +154,64 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
                 }"
             )
         }
+//        sb.appendLine("Distances:")
+//        for(start in entryLocations){
+//            for(end in entryLocations) {
+//                distance(start, end)
+//            }
+//        }
         return sb.toString()
+    }
+
+    override var defaultLocation: LocationIfc = Location(firstLocation)
+
+    override fun distance(fromLocation: LocationIfc, toLocation: LocationIfc): Double {
+        require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
+        require(isValid(toLocation)) { "The location ${toLocation.name} is not a valid location for spatial model ${this.name}" }
+        if (!isReachable(fromLocation, toLocation)) {
+            return Double.POSITIVE_INFINITY
+        }
+        if (isCircular){
+            if (fromLocation == toLocation){
+                return totalLength.toDouble()
+            }
+        }
+        val start = segments.first { it.entryLocation == fromLocation }
+        val end = segments.first { it.exitLocation == toLocation }
+        val itr = segments.listIterator(segments.indexOf(start))
+        var sum = 0.0
+        while (itr.hasNext()){
+            val seg = itr.next()
+            sum = sum + seg.length
+            if (seg == end){
+                return sum
+            }
+        }
+        return sum
+    }
+
+    override fun compareLocations(firstLocation: LocationIfc, secondLocation: LocationIfc): Boolean {
+        require(isValid(firstLocation)) { "The location ${firstLocation.name} is not a valid location for spatial model ${this.name}" }
+        require(isValid(secondLocation)) { "The location ${secondLocation.name} is not a valid location for spatial model ${this.name}" }
+        return firstLocation == secondLocation
+    }
+
+    /** Represents a location within this spatial model.
+     *
+     * @param identity the identity of the location
+     */
+    inner class Location(identity: IdentityIfc) : AbstractLocation(identity) {
+        init {
+            //           require(!myLocations.containsKey(identity.name)) { "The location identity ${identity.name} already exists in the model" }
+        }
+
+        constructor(name: String? = null) : this(Identity(name))
+
+        override val model: SpatialModel = this@ConveyorSegments
+        override fun toString(): String {
+            return "Location(id=$id, name='$name', spatial model=${model.name})"
+        }
+
     }
 }
 
@@ -704,7 +768,7 @@ class Conveyor(
                     // if the exit cell is not blocked and occupied, the item might be able to move
                     if (cell.isNotBlocked) {
                         // if the exit cell has an item that is exiting, then let it move
-                        if (cell.item!!.status == ItemStatus.EXITING){
+                        if (cell.item!!.status == ItemStatus.EXITING) {
                             return cell
                         }
                         // exit cell and not blocked, and not exiting
@@ -1360,7 +1424,7 @@ class Conveyor(
 
     private fun scheduleConveyorMovement() {
 //        require(!isCellTraversalInProgress()){"$time >  CONVEYOR ($name): Tried to schedule a cell traversal when one was already pending! \n ${toString()}"}
-        if (isCellTraversalInProgress()){
+        if (isCellTraversalInProgress()) {
             ProcessModel.logger.trace { "$time > CONVEYOR (${this@Conveyor.name}): scheduleConveyorMovement(): cell traversal already pending, new traversal not scheduled" }
             return
         }
@@ -1397,7 +1461,7 @@ class Conveyor(
                 if (!hasMovableCell()) {
                     // no movable cells
                     ProcessModel.logger.trace { "$time >  CONVEYOR (${this@Conveyor.name}): Non-accumulating: begin riding: conveyor has no movable cells" }
-                    if (hasNoBlockedCells()){
+                    if (hasNoBlockedCells()) {
                         // no movable cells and conveyor is not blocked somewhere
                         ProcessModel.logger.trace { "$time >  CONVEYOR (${this@Conveyor.name}): Non-accumulating: begin riding: conveyor is not blocked anywhere: schedule conveyor movement" }
                         scheduleConveyorMovement()
@@ -1405,10 +1469,10 @@ class Conveyor(
                     } else {
                         ProcessModel.logger.trace { "$time >  CONVEYOR (${this@Conveyor.name}): Non-accumulating: begin riding: conveyor has blocked cells: no conveyor movement scheduled" }
                     }
-                }else {
+                } else {
                     // has movable cells
                     ProcessModel.logger.trace { "$time >  CONVEYOR (${this@Conveyor.name}): Non-accumulating: begin riding: has movable cells" }
-                    if (hasNoBlockedCells()){
+                    if (hasNoBlockedCells()) {
                         // movable cells and no blocked cells
                         ProcessModel.logger.trace { "$time >  CONVEYOR (${this@Conveyor.name}): Non-accumulating: begin riding: has no blocked cells" }
                     } else {

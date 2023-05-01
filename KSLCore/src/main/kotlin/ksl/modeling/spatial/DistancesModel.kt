@@ -22,10 +22,16 @@ import com.google.common.collect.BiMap
 import com.google.common.collect.HashBasedTable
 import com.google.common.collect.HashBiMap
 import com.google.common.collect.Table
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.KSLArrays
 import ksl.utilities.isRectangular
 
-data class DistanceData(val fromLoc: String, val toLoc: String, val distance: Double) {
+data class DistanceData(val fromLoc: IdentityIfc, val toLoc: IdentityIfc, val distance: Double) {
+
+    constructor(fromLocName: String, toLocName: String, distance: Double):
+            this(Identity(fromLocName), Identity(toLocName), distance)
+
     init {
         require(distance >= 0.0) { "The distance must be >= 0.0" }
     }
@@ -44,7 +50,7 @@ class DistancesModel() : SpatialModel() {
     private val distances: Table<LocationIfc, LocationIfc, Double> = HashBasedTable.create()
     private val myLocations: BiMap<String, LocationIfc> = HashBiMap.create()
 
-    override var defaultLocation: LocationIfc = Location("defaultLocation")
+    override var defaultLocation: LocationIfc = Location(Identity("defaultLocation"))
 
     /**
      * The locations that have been added to the model.
@@ -67,19 +73,19 @@ class DistancesModel() : SpatialModel() {
      *  @return the pair of locations added
      */
     fun addDistance(
-        fromLoc: String,
-        toLoc: String,
+        fromLoc: IdentityIfc,
+        toLoc: IdentityIfc,
         distance: Double,
         symmetric: Boolean = false
     ): Pair<LocationIfc, LocationIfc> {
         require(distance >= 0.0) { "The distance must be >= 0.0" }
-        val f = if (containsName(fromLoc)) {
-            myLocations[fromLoc]!!
+        val f = if (containsName(fromLoc.name)) {
+            myLocations[fromLoc.name]!!
         } else {
             Location(fromLoc)
         }
-        val t = if (containsName(toLoc)) {
-            myLocations[toLoc]!!
+        val t = if (containsName(toLoc.name)) {
+            myLocations[toLoc.name]!!
         } else {
             Location(toLoc)
         }
@@ -113,7 +119,7 @@ class DistancesModel() : SpatialModel() {
         for(i in matrix.indices){
             for (j in matrix[i].indices){
                 if (i != j){
-                    val (f, t) = addDistance("Loc_$i", "Loc_$j", matrix[i][j])
+                    val (f, t) = addDistance(Identity("Loc_$i"), Identity("Loc_$j"), matrix[i][j])
                     map[f] = t
                 }
             }
@@ -216,12 +222,14 @@ class DistancesModel() : SpatialModel() {
 
     /** Represents a location within this spatial model.
      *
-     * @param aName the name of the location, will be assigned based on ID_id if null
+     * @param identity the identity of the location
      */
-    inner class Location(aName: String? = null) : AbstractLocation(aName) {
+    inner class Location(identity: IdentityIfc) : AbstractLocation(identity) {
         init {
-            require(!myLocations.containsKey(aName)) { "The location name $aName already exists" }
+            require(!myLocations.containsKey(identity.name)) { "The location identity ${identity.name} already exists in the model" }
         }
+
+        constructor(name: String? = null): this(Identity(name))
 
         override val model: SpatialModel = this@DistancesModel
         override fun toString(): String {
