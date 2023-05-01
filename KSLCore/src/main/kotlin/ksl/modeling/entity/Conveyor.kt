@@ -62,9 +62,17 @@ data class Segment(val entryLocation: IdentityIfc, val exitLocation: IdentityIfc
 class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) : SpatialModel() {
     private val mySegments = mutableListOf<Segment>()
     private val myDownStreamLocations: MutableMap<IdentityIfc, MutableList<IdentityIfc>> = mutableMapOf()
+    private val myLocations: MutableMap<IdentityIfc, LocationIfc> = mutableMapOf()
+    val locations: Map<IdentityIfc, LocationIfc>
+        get() = myLocations
 
     var lastLocation: IdentityIfc = firstLocation
         private set
+
+    override var defaultLocation: LocationIfc = Location(firstLocation)
+    init {
+        myLocations[firstLocation] = defaultLocation
+    }
     var minimumSegmentLength = Integer.MAX_VALUE
         private set
     val segments: List<Segment>
@@ -75,6 +83,7 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) : 
         require(next != lastLocation) { "The next location (${next.name}) as the last location (${lastLocation.name})" }
         require(length % cellSize == 0) { "The length of the segment ($length) was not an integer multiple of the cell size ($cellSize)" }
         val sd = Segment(lastLocation, next, length)
+        myLocations[next] = Location(next)
         mySegments.add(sd)
         if (length <= minimumSegmentLength) {
             minimumSegmentLength = length
@@ -154,16 +163,8 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) : 
                 }"
             )
         }
-//        sb.appendLine("Distances:")
-//        for(start in entryLocations){
-//            for(end in entryLocations) {
-//                distance(start, end)
-//            }
-//        }
         return sb.toString()
     }
-
-    override var defaultLocation: LocationIfc = Location(firstLocation)
 
     override fun distance(fromLocation: LocationIfc, toLocation: LocationIfc): Double {
         require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
