@@ -24,9 +24,7 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
-import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 
 /**
@@ -155,10 +153,12 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
 
 /** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location
  * (destination) and is associated with a conveyor. The start and end of each segment represent locations along
- * the conveyor where entities can get on and off.  A conveyor has a cell size, which represents the length of
- * each cell on any segment of the conveyor. A conveyor also has a maximum permitted number of cells that can be
+ * the conveyor where entities can enter and exit.  A conveyor has a cell size, which represents the length of
+ * each cell on all segments of the conveyor. A conveyor also has a maximum permitted number of cells that can be
  * occupied by an item riding on the conveyor.  A conveyor has an [initialVelocity].  Each segment moves at the same
- * velocity.  Each segment has a specified length that is divided into a number of equally sized contiguous cells.
+ * velocity.
+ *
+ * Each segment has a specified length that is divided into a number of equally sized contiguous cells.
  * The length of any segment must be an integer multiple of the conveyor's cell size so that each segment will have
  * an integer number of cells to represent its length. If a segment consists of 12 cells and the length of the conveyor
  * is 12 feet then each cell represents 1 foot. If a segment consists of 4 cells and the length of the segment is 12 feet,
@@ -173,14 +173,22 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
  * the item needs 2 cells and is occupying cells 2 and 3, then the front cell associated with the item is cell 3 and the
  * rear cell associated with the item is cell 2.
  *
- * An entity trying to access the conveyor at an entry cell of the conveyor, waits until it can block the cell. Once
- * the entity has control of the entry cell, this creates a blockage on the conveyor, which restricts conveyor movement.
+ * An entity trying to access the conveyor at an entry cell of the conveyor, waits until it can block the cell. A request
+ * for entry on the conveyor will wait for the entry cell if the entry cell is unavailable (blocked or occupied) or if
+ * another item is positioned to use the entry cell.  Once
+ * the entity has control of the entry cell, this creates a blockage on the conveyor, which may restrict conveyor movement.
  * For non-accumulating conveyor the blockage stops all movement on the conveyor. For accumulating conveyors, the blockage
- * restricts movement behind the blockage.  If the entity decides to ride on the conveyor, the entity will be allocated
- * cells based on its request and occupy those cells while moving on the conveyor. To occupy a cell, the entity
- * must move the distance represented by the cell (essentially covering the cell).  An entity occupies a cell during the
+ * restricts movement behind the blocked cell.  Gaining control of the entry cell does not position the entity
+ * to ride on the conveyor. The entity simply controls the entry cell and causes a blockage.
+ *
+ * If the entity decides to ride on the conveyor, the entity will be allocated
+ * cells based on its request and occupy those cells while moving on the conveyor. First, the entity's request is
+ * removed from the request queue and positioned to enter the conveyor at the entry cell. To occupy a cell, the entity
+ * must move the distance represented by the cell (essentially covering the cell).  Thus, an entering entity takes
+ * the time needed to move through its required cells before being fully on the conveyor.  An entity occupies a cell during the
  * time it traverses the cell's length. Thus, assuming a single item, the time to move from the start of a segment
- * to the end of the segment is the time that it takes to travel through all the cells of the segment.
+ * to the end of the segment is the time that it takes to travel through all the cells of the segment, including the
+ * entry cell and the exit cell.
  *
  * A conveyor is considered circular if the entry location of the first segment is the same as the exit location of the last segment.
  *
@@ -212,6 +220,11 @@ class Conveyor(
 
     var defaultMovementPriority = KSLEvent.DEFAULT_PRIORITY + 1
 
+    /**
+     * The initial velocity is the default movement velocity through cells on the
+     * conveyor.  Changing the initial velocity will change the velocity that is
+     * set at the beginning of each replication.
+     */
     var initialVelocity: Double = velocity
         set(value) {
             require(value > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
@@ -244,6 +257,7 @@ class Conveyor(
     }
 
     private val conveyorSegments: ConveyorSegments = segmentData
+
     val cellSize: Int = conveyorSegments.cellSize
 
     // the totality of cells representing space on the conveyor
@@ -477,7 +491,7 @@ class Conveyor(
      *  Suppose cells 1, 5, 8 are blocked. Then, cell 8 is the first blocked cell from the end of the
      *  conveyor. If no cells are blocked, then null is returned.
      */
-    fun firstBlockedCellFromEnd(): Cell? {
+    private fun firstBlockedCellFromEnd(): Cell? {
         return conveyorCells.asReversed().firstOrNull { it.isBlocked }
     }
 
@@ -573,7 +587,7 @@ class Conveyor(
      *  first = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
      *  second = {12}
      */
-    internal fun partitionAtFirstBlockageAfterInclusive(): Pair<List<Cell>, List<Cell>> {
+    private fun partitionAtFirstBlockageAfterInclusive(): Pair<List<Cell>, List<Cell>> {
         val fbc = firstBlockedCellFromEnd()
         if (fbc == null) {
             // no blocked cell, first is empty, second is all the cells
@@ -607,7 +621,7 @@ class Conveyor(
      *  first = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
      *  second = {}
      */
-    internal fun partitionAtFirstBlockageAfterExclusive(): Pair<List<Cell>, List<Cell>> {
+    private fun partitionAtFirstBlockageAfterExclusive(): Pair<List<Cell>, List<Cell>> {
         val fbc = firstBlockedCellFromEnd()
         if (fbc == null) {
             // no blocked cell, first is empty, second is all the cells
@@ -641,7 +655,7 @@ class Conveyor(
      *  12 : {empty}, because there are no cells between cell 11 and 12
      *  ```
      */
-    internal fun cellsBehindBlockedCells(cells: List<Cell>): Map<Cell, List<Cell>> {
+    private fun cellsBehindBlockedCells(cells: List<Cell>): Map<Cell, List<Cell>> {
         require(cells.isNotEmpty()) { "The supplied cell list was empty" }
         require(cells.last().isBlocked) { "The last cell of the list was not blocked." }
         val map = mutableMapOf<Cell, List<Cell>>()
@@ -670,7 +684,7 @@ class Conveyor(
      *  be traversed by an item. This cell holds the lead item of the list.
      *  If found, the lead cell must be occupied and cannot be blocked.
      */
-    fun findLeadingCell(cells: List<Cell>): Cell? {
+    private fun findLeadingCell(cells: List<Cell>): Cell? {
         val reversedList = cells.asReversed()
         for (cell in reversedList) {
             if (cell.isOccupied) {
@@ -770,6 +784,10 @@ class Conveyor(
         }
     }
 
+    /**
+     *  Causes the items that are occupying cells within the list to move forward
+     *  by one cell.
+     */
     private fun moveItemsForwardThroughCells(cells: List<Cell>) {
         var lastItem: ConveyorRequest? = null
         for (cell in cells.asReversed()) {
@@ -1049,7 +1067,6 @@ class Conveyor(
     }
 
     interface FirstSegmentStepIfc {
-
         fun maxCellsAllowed(value: Int): FirstSegmentStepIfc
         fun firstSegment(start: IdentityIfc, end: IdentityIfc, length: Int): SegmentStepIfc
     }
@@ -1082,6 +1099,10 @@ class Conveyor(
         return sb.toString()
     }
 
+    /**
+     * Based on finding the lead cell, this method finds the cells
+     * contain cells that can move.
+     */
     private fun findMovableCells(cells: List<Cell>): List<Cell> {
         val fmc = findLeadingCell(cells)
         if (fmc == null) {
@@ -1151,10 +1172,17 @@ class Conveyor(
         ProcessModel.logger.trace { "$time > CONVEYOR (${this@Conveyor.name}): Event: (${event.id}): ***** completed end of cell traversal action *****" }
     }
 
+    /**
+     *  Checks if a movement through cells is scheduled to occur
+     */
     private fun isCellTraversalInProgress(): Boolean {
         return endCellTraversalEvent != null && endCellTraversalEvent!!.isScheduled
     }
 
+    /**
+     *  Items waiting to access the conveyor are checked to see if they can move into position
+     *  to block an entry cell of the conveyor.
+     */
     private fun processRequestsWaitingToAccessConveyor() {
         for ((location, cell) in entryCells) {
             if ((cell.isNotBlocked) && !positionedToEnter.containsKey(cell)) {
@@ -1197,6 +1225,9 @@ class Conveyor(
         }
     }
 
+    /**
+     *  Depending on the type of conveyor, move the cells on the conveyor that can be moved
+     */
     private fun moveCellsOnConveyor() {
         ProcessModel.logger.trace { "$time > CONVEYOR (${this@Conveyor.name}): moving cells on the conveyor...." }
         if (conveyorType == Type.NON_ACCUMULATING) {
@@ -1260,7 +1291,7 @@ class Conveyor(
         if (conveyorType == Type.NON_ACCUMULATING) {
             rescheduleNonAccumulatingConveyorMovement()
         } else {
-            rescheduleAccumulatingConveyorMovementV2()
+            rescheduleAccumulatingConveyorMovement()
         }
     }
 
@@ -1277,7 +1308,7 @@ class Conveyor(
         scheduleConveyorMovement()
     }
 
-    private fun rescheduleAccumulatingConveyorMovementV2() {
+    private fun rescheduleAccumulatingConveyorMovement() {
         if (!isOccupied()) {
             // the conveyor is not occupied, but it could have items positioned to enter
             if (hasItemPositionedToEnter()) {
@@ -1414,7 +1445,7 @@ class Conveyor(
      *  This method is called from ProcessModel within the exitConveyor() method.
      *  The request must be blocking the exit in order to start the exiting process.
      *  Exiting requires that the item move completely through the exit cell. An item
-     *  is off of the conveyor when it has not occupied cells. That is, when its tail
+     *  is off of the conveyor when it occupies no cells. That is, when its tail
      *  no longer occupies a cell. Exiting requires that the cells move forward to
      *  "push" the item off of the conveyor. The exit cell is unblocked during the
      *  exiting process.
@@ -1967,6 +1998,24 @@ class Conveyor(
     }
 }
 
+/**
+ *  A conveyor request represents the holding of cells on a conveyor and acts as
+ *  a "ticket" to use the conveyor.  Once an entity has a conveyor request, the entity
+ *  has control over the cells at the start of the segment associated with the entry
+ *  location along the conveyor.  After receiving a request to
+ *  access the conveyor the entity can either ride on the conveyor or exit. The conveyor
+ *  request blocks at the point of access until riding or exiting. The request is placed
+ *  in the blocking entry state.  When the entity
+ *  asks to ride the conveyor then the request will be placed in the riding state. If the entity
+ *  never rides the conveyor, then the request stays in the blocking entry state.  The property isWaitingForEntry
+ *  indicates that the conveyor request is waiting to be allowed to block the entry cell of the conveyor
+ *  at its current location. Once the conveyor request is used to ride the conveyor, the isWaitingToConvey property will
+ *  report false. The isBlockingEntry property will report true until the request begins
+ *  riding.  Once the request reaches its destination, the isBlockingExit property will be true and the
+ *  request is in the blocking exit state.  When the request exits the conveyor the isCompleted property is true
+ *  and the request is in the completed state.  Once in the completed state, the request can no longer be used
+ *  for any interaction with the conveyor.
+ */
 interface ConveyorRequestIfc {
 
     val isWaitingForEntry: Boolean
