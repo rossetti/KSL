@@ -18,9 +18,11 @@
 
 package ksl.modeling.spatial
 
-interface LocationIfc {
-    val id: Int
-    val name: String
+import ksl.utilities.IdentityIfc
+
+interface LocationIfc : IdentityIfc {
+    override val id: Int
+    override val name: String
     val model: SpatialModel
 
     /**

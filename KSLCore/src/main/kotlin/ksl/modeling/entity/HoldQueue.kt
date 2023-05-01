@@ -48,6 +48,21 @@ class HoldQueue(
         entity.resumeProcess(0.0, resumePriority)
     }
 
+    /** Removes the entity from the queue and tells it to resume its process immediately,
+     *  without being scheduled through the event loop. This may be useful to coordinate
+     *  processes that occur at the same time.
+     *
+     * @param entity the entity to remove from the queue
+     * @param waitStats if true the waiting time statistics are collected on the usage of the queue
+     */
+    fun removeAndImmediateResume(
+        entity: ProcessModel.Entity,
+        waitStats: Boolean = true
+    ) {
+        remove(entity, waitStats)
+        entity.immediateResume()
+    }
+
     /**
      *  Removes and resumes all the entities waiting in the queue
      *
@@ -58,6 +73,21 @@ class HoldQueue(
         while (isNotEmpty) {
             val entity = peekNext()
             removeAndResume(entity!!, resumePriority, waitStats)
+        }
+    }
+
+    /** Removes the entities from the queue and tells it to resume its process immediately,
+     *  without being scheduled through the event loop. This may be useful to coordinate
+     *  processes that occur at the same time.
+     *
+     * @param waitStats if true the waiting time statistics are collected on the usage of the queue
+     */
+    fun removeAllWithImmediateResume(
+        waitStats: Boolean = true
+    ) {
+        while (isNotEmpty) {
+            val entity = peekNext()
+            removeAndImmediateResume(entity!!, waitStats)
         }
     }
 

@@ -723,7 +723,7 @@ class Model(
         if (executive.isEndEventScheduled()) {
             logger.info { "Already scheduled end of replication event for time = ${executive.endEvent!!.time} is being cancelled" }
             // already scheduled end event, cancel it
-            executive.endEvent!!.cancelled = true
+            executive.endEvent!!.cancel = true
         }
         // schedule the new time
         if (time.isFinite()) {

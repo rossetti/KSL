@@ -79,7 +79,7 @@ interface CalendarIfc {
      * @param event The JSLEvent to be canceled
      */
     fun cancel(event: KSLEvent<*>){
-        event.cancelled = true;
+        event.cancel = true;
     }
 
     /**

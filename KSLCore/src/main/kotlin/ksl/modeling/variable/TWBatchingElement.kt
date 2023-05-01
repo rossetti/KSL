@@ -240,7 +240,7 @@ class TWBatchingElement(
         get() = if (myBatchEvent == null) {
             false
         } else {
-            myBatchEvent!!.scheduled
+            myBatchEvent!!.isScheduled
         }
 
     /**

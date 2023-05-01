@@ -22,6 +22,7 @@ import ksl.modeling.spatial.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
+import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import kotlin.coroutines.*
 
@@ -59,7 +60,10 @@ enum class SuspendType {
     WAIT_FOR_PROCESS,
     SEND,
     SEIZE,
-    DELAY
+    DELAY,
+    ACCESS,
+    RIDE,
+    EXIT
 }
 
 /**
@@ -364,7 +368,7 @@ interface KSLProcessBuilder {
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         queue: RequestQ,
         suspensionName: String? = null
-    ): Allocation{
+    ): Allocation {
         return seize(resource, amountNeeded = 1, seizePriority, queue, suspensionName)
     }
 
@@ -387,7 +391,7 @@ interface KSLProcessBuilder {
         resource: MovableResourceWithQ,
         seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ): Allocation{
+    ): Allocation {
         return seize(resource, amountNeeded = 1, seizePriority, resource.myWaitingQ, suspensionName)
     }
 
@@ -876,11 +880,11 @@ interface KSLProcessBuilder {
     ) {
         val a = seize(movableResource, seizePriority = requestPriority, queue = transportQ)
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
-        if (loadingDelay != ConstantRV.ZERO){
+        if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
         }
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
-        if (unLoadingDelay != ConstantRV.ZERO){
+        if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
         release(a)
@@ -916,11 +920,11 @@ interface KSLProcessBuilder {
     ) {
         val a = seize(movableResourceWithQ, seizePriority = requestPriority)
         move(movableResourceWithQ, entity.currentLocation, emptyVelocity, emptyMovePriority)
-        if (loadingDelay != ConstantRV.ZERO){
+        if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
         }
         moveWith(movableResourceWithQ, toLoc, transportVelocity, transportPriority)
-        if (unLoadingDelay != ConstantRV.ZERO){
+        if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
         release(a)
@@ -954,16 +958,16 @@ interface KSLProcessBuilder {
         loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
-    ){
+    ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
         // must be 1 allocation for 1 unit seized
         val movableResource = a.allocations[0].resource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
-        if (loadingDelay != ConstantRV.ZERO){
+        if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
         }
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
-        if (unLoadingDelay != ConstantRV.ZERO){
+        if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
         release(a)
@@ -996,16 +1000,16 @@ interface KSLProcessBuilder {
         loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
-    ){
+    ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ)
         // must be 1 allocation for 1 unit seized because there is only 1 unit in each
         val movableResource = a.allocations[0].resource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
-        if (loadingDelay != ConstantRV.ZERO){
+        if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
         }
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
-        if (unLoadingDelay != ConstantRV.ZERO){
+        if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
         release(a)
@@ -1026,7 +1030,7 @@ interface KSLProcessBuilder {
         velocity: Double = entity.velocity.value,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
-    ){
+    ) {
         move(entity.currentLocation, toLoc, velocity, movePriority, suspensionName)
     }
 
@@ -1332,4 +1336,238 @@ interface KSLProcessBuilder {
         interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
     )
 
+    /**
+     * This suspending function requests the number of cells indicated at the entry location of the conveyor.
+     * If the number of cells are not immediately available the process is suspended until
+     * the number of cells can be allocated (in full).  The request for the cells will
+     * wait for the allocation in the queue associated with the start of the segment associated
+     * with the entry location of the conveyor. After this suspending function
+     * returns, the entity holds the cells in the returned cell allocation, but the entity is
+     * not on the conveyor. The entity can then decide to ride on the conveyor using the cell allocation or
+     * release the cell allocation by exiting the conveyor without riding. The behavior of the
+     * conveyor during access is governed by the type of conveyor.  A blockage occurs at the
+     * entry point of the segment while the entity has the allocated cells and before exiting or riding.
+     *
+     * @param conveyor the conveyor to access
+     * @param entryLocation the location on the conveyor at which the cells are requested
+     * @param numCellsNeeded the number of cells needed (requested)
+     * @param requestPriority the priority of the access. If there are multiple entities that
+     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * the seize resource priority.
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return a representation of the allocated cells on the conveyor. The user should use this as a ticket
+     * to ride on the conveyor and to eventually release the allocated cells by exiting the conveyor.
+     */
+    suspend fun requestConveyor(
+        conveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ): ConveyorRequestIfc
+
+    /** This suspending function causes the entity to be associated with an item that occupies the allocated
+     * cells on the conveyor. The item will move on the conveyor until it reaches the supplied destination.
+     * After this suspending function returns, the item associated with the entity will be occupying the
+     * cells it requires at the exit location of the segment associated with the destination. The item
+     * will remain on the conveyor until the entity indicates that the cells are to be released by using
+     * the exit function. The behavior of the conveyor during the ride and when the item reaches its
+     * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+     * while the entity occupies the final cells before exiting or riding again.
+     *
+     * @param conveyorRequest the permission to ride on the conveyor in the form of a valid cell allocation
+     * @param destination the location to which to ride
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun rideConveyor(
+        conveyorRequest: ConveyorRequestIfc,
+        destination: IdentityIfc,
+        suspensionName: String? = null
+    )
+
+    /** This suspending function causes the entity to be associated with an item that occupies the allocated
+     * cells on the conveyor. The item will move on the conveyor until it reaches the supplied destination.
+     * After this suspending function returns, the item associated with the entity will be occupying the
+     * cells it requires at the exit location of the segment associated with the destination. The item
+     * will remain on the conveyor until the entity indicates that the cells are to be released by using
+     * the exit function. The behavior of the conveyor during the ride and when the item reaches its
+     * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+     * while the entity occupies the final cells before exiting or riding again.
+     *
+     * @param destination the location to which to ride
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun rideConveyor(
+        destination: IdentityIfc,
+        suspensionName: String? = null
+    ) {
+        require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
+        rideConveyor(entity.conveyorRequest!!, destination, suspensionName)
+    }
+
+    /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
+     * If there is no item associated with the allocated cells, the cells are immediately released without
+     * a time delay.  If there is an item occupying the associated cells there will be a delay while
+     * the item moves through the deallocated cells and then the cells are deallocated.  After
+     * exiting the conveyor, the cell allocation is deallocated and cannot be used for further interaction
+     * with the conveyor.
+     *
+     * @param conveyorRequest the cell allocation that will be released during the exiting process
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun exitConveyor(
+        conveyorRequest: ConveyorRequestIfc,
+        suspensionName: String? = null
+    )
+
+    /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
+     * If there is no item associated with the allocated cells, the cells are immediately released without
+     * a time delay.  If there is an item occupying the associated cells there will be a delay while
+     * the item moves through the deallocated cells and then the cells are deallocated.  After
+     * exiting the conveyor, the cell allocation is deallocated and cannot be used for further interaction
+     * with the conveyor.
+     *
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun exitConveyor(
+        suspensionName: String? = null
+    ) {
+        require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
+        exitConveyor(entity.conveyorRequest!!, suspensionName)
+    }
+
+    /**
+     * This suspending function combines requestConveyor(), rideConveyor(), and exit() into one suspending function.
+     *
+     * @param conveyor the conveyor to access
+     * @param entryLocation the location on the conveyor at which the cells are requested
+     * @param destination the location to which to ride
+     * @param numCellsNeeded the number of cells needed (requested)
+     * @param requestPriority the priority of the access. If there are multiple entities that
+     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * the seize resource priority.
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun convey(
+        conveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        destination: IdentityIfc,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ): ConveyorRequestIfc {
+        val ca = requestConveyor(
+            conveyor,
+            entryLocation,
+            numCellsNeeded,
+            requestPriority,
+            requestResumePriority,
+            suspensionName
+        )
+        rideConveyor(ca, destination)
+        exitConveyor(ca)
+        return ca
+    }
+
+    /**
+     * This suspending function combines requestConveyor(), rideConveyor(), and exit() into one suspending function.
+     *
+     * @param conveyor the conveyor to access
+     * @param entryLocation the location on the conveyor at which the cells are requested
+     * @param loadingTime the time that it takes to load onto the conveyor
+     * @param destination the location to which to ride
+     * @param unloadingTime the time that it takes to unload from the conveyor
+     * @param numCellsNeeded the number of cells needed (requested)
+     * @param requestPriority the priority of the access. If there are multiple entities that
+     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * the seize resource priority.
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun convey(
+        conveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        loadingTime: Double = 0.0,
+        destination: IdentityIfc,
+        unloadingTime: Double = 0.0,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ): ConveyorRequestIfc {
+        val ca = requestConveyor(
+            conveyor,
+            entryLocation,
+            numCellsNeeded,
+            requestPriority,
+            requestResumePriority,
+            suspensionName
+        )
+        delay(loadingTime)
+        rideConveyor(ca, destination)
+        delay(unloadingTime)
+        exitConveyor(ca)
+        return ca
+    }
+
+    /**
+     * This suspending function combines access(), ride(), and exit() into one suspending function.
+     *
+     * @param conveyor the conveyor to access
+     * @param entryLocation the location on the conveyor at which the cells are requested
+     * @param loadingTime the time that it takes to load onto the conveyor
+     * @param destination the location to which to ride
+     * @param unloadingTime the time that it takes to unload from the conveyor
+     * @param numCellsNeeded the number of cells needed (requested)
+     * @param requestPriority the priority of the access. If there are multiple entities that
+     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * the seize resource priority.
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun convey(
+        conveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        loadingTime: GetValueIfc = ConstantRV.ZERO,
+        destination: IdentityIfc,
+        unloadingTime: GetValueIfc = ConstantRV.ZERO,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        requestResumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ): ConveyorRequestIfc {
+        return convey(
+            conveyor,
+            entryLocation,
+            loadingTime.value,
+            destination,
+            unloadingTime.value,
+            numCellsNeeded,
+            requestPriority,
+            requestResumePriority,
+            suspensionName
+        )
+    }
 }

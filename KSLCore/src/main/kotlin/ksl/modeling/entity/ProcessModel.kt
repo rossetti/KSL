@@ -25,6 +25,7 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
+import ksl.utilities.IdentityIfc
 import ksl.utilities.exceptions.IllegalStateException
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
@@ -252,6 +253,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private val myInHoldQueueState = InHoldQueue()
         private val myActiveState = Active()
         private val myWaitingForResourceState = WaitingForResource()
+        private val myWaitingForConveyorState = WaitingForConveyor()
         private val myProcessEndedState = ProcessEndedState()
         private val myBlockedReceivingState = BlockedReceiving()
         private val myBlockedSendingState = BlockedSending()
@@ -270,6 +272,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myActiveState
         val isWaitingForResource: Boolean
             get() = state == myWaitingForResourceState
+        val isWaitingForConveyor: Boolean
+            get() = state == myWaitingForConveyorState
         val isProcessEnded: Boolean
             get() = state == myProcessEndedState
         val isBlockedSending: Boolean
@@ -282,24 +286,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          * If the entity is in a HoldQueue return the queue
          */
-        val holdQueue : HoldQueue?
-            get() {
-                return if (isInHoldQueue){
-                    when (this.queue) {
-                        null -> {
-                            null
-                        }
-                        is HoldQueue -> {
-                            this.queue as HoldQueue
-                        }
-                        else -> {
-                            null
-                        }
+        fun holdQueue(): HoldQueue? {
+            return if (isInHoldQueue) {
+                when (this.queue) {
+                    null -> {
+                        null
                     }
-                } else {
-                    null
+
+                    is HoldQueue -> {
+                        this.queue as HoldQueue
+                    }
+
+                    else -> {
+                        null
+                    }
                 }
+            } else {
+                null
             }
+        }
 
         val isSuspended: Boolean
             get() {
@@ -480,24 +485,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-//        protected open fun beginFailure(allocation: Allocation) {
-//            TODO("Not implemented yet")
-//        }
-//
-//        protected open fun endFailure(allocation: Allocation) {
-//            TODO("Not implemented yet")
-//        }
-
-//        protected inner class DefaultFailureActions : ResourceFailureActionsIfc {
-//            override fun beginFailure(allocation: Allocation) {
-//                this@Entity.beginFailure(allocation)
-//            }
-//
-//            override fun endFailure(allocation: Allocation) {
-//                this@Entity.endFailure(allocation)
-//            }
-//
-//        }
+        var conveyorRequest: ConveyorRequestIfc? = null
+            private set
 
         /**
          *  This function is used to define via a builder for a process for the entity.
@@ -528,14 +517,32 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  If the entity is executing a process and the process is suspended, then
          *  the process is scheduled to resume at the current simulation time.
-         *  @param priority the priority parameter can be used to provide an ordering to the
+         *
          *  @param timeUntilResumption the time until the resumption will occur
+         *  @param priority the priority parameter can be used to provide an ordering to the
          *  scheduled resumption events, if multiple events are scheduled at the same time
          */
         fun resumeProcess(timeUntilResumption: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
             // entity must be in a process and suspended
             if (myCurrentProcess != null) {
                 myResumeAction.schedule(timeUntilResumption, priority = priority)
+            }
+        }
+
+        /**
+         *  This function causes the process to immediately resume the captured continuation. An underlying state pattern
+         *  enforces that the process coroutine can only be resumed if it has been suspended. This function
+         *  allows the entity to immediately resume a suspended process with no simulated time delay. That is, no event is scheduled
+         *  and processed to perform the resumption. This is in contrast with the Entity.resumeProcess() function, which
+         *  forces (at least a 0.0) time delay and thus release back to the event loop to cause the process
+         *  to be resumed.  An understanding of when a process should be resumed within an event loop is necessary
+         *  to effectively use this function.  In some cases, resuming through the event loop will not provide
+         *  the fine-grained control for the sequence of calls necessary. Thus, this method can be used internally
+         *  when needed in those (rare) cases.
+         */
+        internal fun immediateResume(){
+            if (myCurrentProcess != null) {
+                myCurrentProcess!!.resume()
             }
         }
 
@@ -565,9 +572,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         private inner class ResumeAction : EventAction<Nothing>() {
             override fun action(event: KSLEvent<Nothing>) {
-                if (myCurrentProcess != null) {
-                    myCurrentProcess!!.resume()
-                }
+                immediateResume()
             }
         }
 
@@ -720,6 +725,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 errorMessage("wait for resource for the entity")
             }
 
+            open fun waitForConveyor() {
+                errorMessage("wait for resource for the entity")
+            }
+
             open fun processEnded() {
                 errorMessage("end process of the entity")
             }
@@ -786,6 +795,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 state = myWaitingForResourceState
             }
 
+            override fun waitForConveyor() {
+                state = myWaitingForConveyorState
+            }
+
             override fun processEnded() {
                 state = myProcessEndedState
             }
@@ -822,6 +835,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         private inner class WaitingForResource : EntityState("WaitingForResource") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        private inner class WaitingForConveyor : EntityState("WaitingForConveyor") {
             override fun activate() {
                 state = myActiveState
             }
@@ -948,6 +967,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 //                TODO("not fully implemented/tested 9-14-2022")
 //            }
 
+            /**
+             *  This causes the process to immediately resume the captured continuation. A state pattern
+             *  enforces that the process coroutine can only be resumed if it has been suspended. This process
+             *  routine is immediately resumed with no simulated time delay. That is, no event is scheduled
+             *  and processed to perform the resumption. This is in contrast with the Entity.resumeProcess() function, which
+             *  forces (at least a 0.0) time delay and thus release back to the event loop to cause the process
+             *  to be resumed.
+             */
             internal fun resume() {
                 state.resume()
             }
@@ -1196,7 +1223,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movePriority: Int,
                 suspensionName: String?
             ) {
-                require(!isMoving){"The entity ${entity.id} is already moving"}
+                require(!isMoving) { "The entity ${entity.id} is already moving" }
                 require(velocity > 0.0) { "The velocity of the movement must be > 0.0 in process, ($this)" }
                 if (currentLocation != fromLoc) {
                     currentLocation = fromLoc
@@ -1237,8 +1264,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movePriority: Int,
                 suspensionName: String?
             ) {
-                require(!isMoving){"The entity ${entity.id} is already moving"}
-                require(currentLocation.isLocationEqualTo(spatialElement.currentLocation)){"The location of the entity and the spatial element must be the same"}
+                require(!isMoving) { "The entity ${entity.id} is already moving" }
+                require(currentLocation.isLocationEqualTo(spatialElement.currentLocation)) { "The location of the entity and the spatial element must be the same" }
                 isMoving = true
                 move(spatialElement, toLoc, velocity, movePriority, suspensionName)
                 isMoving = false
@@ -1252,7 +1279,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movePriority: Int,
                 suspensionName: String?
             ) {
-                require(entity.isUsing(movableResource)){"The entity is not using the movable resource. Thus, it cannot move with it."}
+                require(entity.isUsing(movableResource)) { "The entity is not using the movable resource. Thus, it cannot move with it." }
                 movableResource.isTransporting = true
                 moveWith(movableResource as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
                 movableResource.isTransporting = false
@@ -1265,7 +1292,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movePriority: Int,
                 suspensionName: String?
             ) {
-                require(entity.isUsing(movableResourceWithQ)){"The entity is not using the movable resource. Thus, it cannot move with it."}
+                require(entity.isUsing(movableResourceWithQ)) { "The entity is not using the movable resource. Thus, it cannot move with it." }
                 movableResourceWithQ.isTransporting = true
                 moveWith(movableResourceWithQ as SpatialElementIfc, toLoc, velocity, movePriority, suspensionName)
                 movableResourceWithQ.isTransporting = false
@@ -1278,7 +1305,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // get the queue from the allocation being released and process any waiting requests
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined
-                if (!executive.isEnded){
+                if (!executive.isEnded) {
                     allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
                 }
             }
@@ -1330,7 +1357,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 val delayEvent = process.entity.myDelayEvent ?: return
                 // the process is experiencing the named delay
-                delayEvent.cancelled = true
+                delayEvent.cancel = true
                 delay(interruptTime, interruptPriority)
                 process.entity.resumeProcess(postInterruptDelayTime, delayEvent.priority)
             }
@@ -1374,7 +1401,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 val delayEvent = process.entity.myDelayEvent ?: return
                 // the process is experiencing the named delay
-                delayEvent.cancelled = true
+                delayEvent.cancel = true
                 waitFor(interruptingProcess, priority = interruptPriority)
                 process.entity.resumeProcess(postInterruptDelayTime, delayEvent.priority)
             }
@@ -1409,6 +1436,120 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     interruptPriority,
                     delayEvent.timeRemaining
                 )
+            }
+
+            //TODO conveyor process commands
+
+            override suspend fun requestConveyor(
+                conveyor: Conveyor,
+                entryLocation: IdentityIfc,
+                numCellsNeeded: Int,
+                requestPriority: Int,
+                requestResumePriority: Int,
+                suspensionName: String?
+            ): ConveyorRequestIfc {
+                require(entity.conveyorRequest == null) {
+                    "Attempted to access ${conveyor.name} when already allocated to conveyor: ${entity.conveyorRequest?.conveyor?.name}." +
+                            "An entity can access only one conveyor at a time. Use exit() to stop accessing a conveyor."
+                }
+                require(conveyor.entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) " +
+                        "is not an entry location for (${conveyor.name})" }
+                require(numCellsNeeded >= 1) { "The amount of cells to allocate must be >= 1" }
+                require(numCellsNeeded <= conveyor.maxEntityCellsAllowed) {
+                    "The entity requested more cells ($numCellsNeeded) than " +
+                            "the allowed maximum (${conveyor.maxEntityCellsAllowed}) for for conveyor (${conveyor.name}"
+                }
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.ACCESS
+                delay(0.0, requestPriority, "$suspensionName:AccessDelay")
+                logger.trace { "$time > PROCESS: entity (${entity.name}) ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                // make the conveyor request
+                val request = conveyor.requestConveyor(entity, numCellsNeeded, entryLocation, requestResumePriority)
+                // always enter the queue to get statistics on waiting to enter the conveyor
+                conveyor.enqueueRequest(request)
+                if (request.mustWait()) {
+                    // entry is not possible at this time, the entity will suspend
+                    logger.trace { "$time > PROCESS: entity (${entity.name}) waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                    entity.state.waitForConveyor()
+                    suspend()
+                    entity.state.activate()
+                }
+                // entry is now possible, deque the request from waiting and control entry into the conveyor
+                conveyor.dequeueRequest(request)
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                // ensure that the entity remembers that it is now "using" the conveyor
+                entity.conveyorRequest = request
+                // cause the request to block the entry location
+                logger.trace { "$time > PROCESS: entity (${entity.name}) blocking conveyor (${conveyor.name} ) at location (${entryLocation.name})" }
+                request.blockEntryLocation()
+                logger.trace { "$time > PROCESS: entity (${entity.name}) has blocked the entry cell of ${conveyor.name} at location (${entryLocation.name}) in process, ($this)" }
+                return request
+            }
+
+            override suspend fun rideConveyor(
+                conveyorRequest: ConveyorRequestIfc,
+                destination: IdentityIfc,
+                suspensionName: String?
+            ) {
+                require(entity.conveyorRequest != null) {
+                    "Attempted to ride without having requested the conveyor."
+                }
+                require(entity.conveyorRequest == conveyorRequest) {
+                    "Attempted to ride without owning the supplied conveyor request."
+                }
+                require(conveyorRequest.isBlockingEntry || conveyorRequest.isBlockingExit)
+                { "The supplied request is not blocking an entry or exit location" }
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.RIDE
+                val conveyor = conveyorRequest.conveyor
+                val origin = conveyorRequest.currentLocation
+                require(conveyor.isReachable(origin, destination))
+                    { "The destination (${destination.name}) is not reachable from entry location (${origin.name})" }
+                logger.trace { "$time > PROCESS: entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
+                // causes event(s) to be scheduled that will eventually resume the entity after the ride
+                val request = conveyorRequest as Conveyor.ConveyorRequest
+                request.rideConveyorTo(destination)
+                logger.trace { "$time > PROCESS: entity (${entity.name}) riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
+                isMoving = true
+                // holds here while request rides on the conveyor
+                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
+                isMoving = false
+                logger.trace { "$time > PROCESS: entity (${entity.name}) completed ride from ${origin.name} to ${destination.name}" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+            }
+
+            override suspend fun exitConveyor(
+                conveyorRequest: ConveyorRequestIfc,
+                suspensionName: String?
+            ) {
+                require(entity.conveyorRequest != null) { "The entity attempted to exit without using the conveyor." }
+                require(entity.conveyorRequest == conveyorRequest) { "The exiting entity does not own the supplied conveyor request" }
+                require(conveyorRequest.isBlockingEntry || conveyorRequest.isBlockingExit)
+                { "The supplied request is not blocking an entry (${conveyorRequest.isBlockingEntry}) or exit (${conveyorRequest.isBlockingExit}) location" }
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.EXIT
+                val conveyor = conveyorRequest.conveyor
+                logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) is exiting ${conveyor.name}" }
+                val request = conveyorRequest as Conveyor.ConveyorRequest
+                if (request.isBlockingEntry) {
+                    // the request cannot be riding or completed, if just blocking the entry, it must just complete
+                    request.exitConveyor()
+                    logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) released blockage at entry location ${request.currentLocation.name} for (${conveyor.name})" }
+                } else {
+                    // must be blocking the exit
+                    isMoving = true
+                    conveyor.startExitingProcess(request)
+                    logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.destination?.name})" }
+                    logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) suspending for exiting process" }
+                    hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
+                    isMoving = false
+                }
+                entity.conveyorRequest = null
+                logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) exited ${conveyor.name}" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
             }
 
             override fun resumeWith(result: Result<Unit>) {
@@ -1508,9 +1649,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "$time > Process $this was terminated for Entity $entity removed from queue ${q.name} ." }
                 } else if (isScheduled) {
                     if (myDelayEvent != null) {
-                        if (myDelayEvent!!.scheduled) {
+                        if (myDelayEvent!!.isScheduled) {
                             logger.trace { "$time > Process $this was terminated for Entity $entity delay event was cancelled." }
-                            myDelayEvent?.cancelled = true
+                            myDelayEvent?.cancel = true
                         }
                     }
                 }

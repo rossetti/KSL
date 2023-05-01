@@ -315,8 +315,8 @@ open class EventGenerator(
         isDone = true
         isStarted = false
         if (myNextEvent != null) {
-            if (myNextEvent!!.scheduled) {
-                myNextEvent!!.cancelled = true
+            if (myNextEvent!!.isScheduled) {
+                myNextEvent!!.cancel = true
             }
         }
     }
@@ -327,14 +327,14 @@ open class EventGenerator(
             false
         } else {
             // must be scheduled and not canceled to be pending
-            myNextEvent!!.scheduled && !myNextEvent!!.cancelled
+            myNextEvent!!.isScheduled && !myNextEvent!!.cancel
         }
 
     override fun suspend() {
         isSuspended = true
         if (myNextEvent != null) {
-            if (myNextEvent!!.scheduled) {
-                myNextEvent!!.cancelled = true
+            if (myNextEvent!!.isScheduled) {
+                myNextEvent!!.cancel = true
             }
         }
     }

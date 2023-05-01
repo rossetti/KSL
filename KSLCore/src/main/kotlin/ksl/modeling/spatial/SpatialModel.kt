@@ -214,6 +214,7 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      * @param aName the name of the location, will be assigned based on ID_id if null
      */
     abstract inner class AbstractLocation(aName: String? = null) : LocationIfc {
+        final override var label: String? = null
         final override val id: Int = ++locationCount
         override val name: String = aName ?: "ID_$id"
 

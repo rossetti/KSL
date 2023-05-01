@@ -119,7 +119,7 @@ class CapacitySchedule(
      */
     fun cancelScheduleStart() {
         if (myStartScheduleEvent != null) {
-            myStartScheduleEvent?.cancelled = true
+            myStartScheduleEvent?.cancel = true
         }
     }
 
@@ -317,7 +317,7 @@ class CapacitySchedule(
             internal set
 
         fun cancelStart(){
-            startEvent?.cancelled = true
+            startEvent?.cancel = true
         }
 
         override fun toString(): String {

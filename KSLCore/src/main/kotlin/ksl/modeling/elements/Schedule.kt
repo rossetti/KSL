@@ -124,7 +124,7 @@ class Schedule(
      */
     fun cancelScheduleStart() {
         if (myStartScheduleEvent != null) {
-            myStartScheduleEvent?.cancelled = true
+            myStartScheduleEvent?.cancel = true
         }
     }
 
