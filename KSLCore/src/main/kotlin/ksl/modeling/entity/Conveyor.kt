@@ -208,9 +208,9 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) : 
 
         constructor(name: String? = null) : this(Identity(name))
 
-        override val model: SpatialModel = this@ConveyorSegments
+        override val spatialModel: SpatialModel = this@ConveyorSegments
         override fun toString(): String {
-            return "Location(id=$id, name='$name', spatial model=${model.name})"
+            return "Location(id=$id, name='$name', spatial model=${spatialModel.name})"
         }
 
     }
