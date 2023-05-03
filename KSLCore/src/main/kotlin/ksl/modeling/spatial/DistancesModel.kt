@@ -25,7 +25,6 @@ import com.google.common.collect.Table
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.KSLArrays
-import ksl.utilities.isRectangular
 
 data class DistanceData(val fromLoc: IdentityIfc, val toLoc: IdentityIfc, val distance: Double) {
 
@@ -231,9 +230,9 @@ class DistancesModel() : SpatialModel() {
 
         constructor(name: String? = null): this(Identity(name))
 
-        override val model: SpatialModel = this@DistancesModel
+        override val spatialModel: SpatialModel = this@DistancesModel
         override fun toString(): String {
-            return "Location(id=$id, name='$name', spatial model=${model.name})"
+            return "Location(id=$id, name='$name', spatial model=${spatialModel.name})"
         }
 
     }

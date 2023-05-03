@@ -155,7 +155,7 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      * @return true if [location] is associated with this spatial model
      */
     fun isValid(location: LocationIfc): Boolean {
-        return this == location.model
+        return this == location.spatialModel
     }
 
     /**

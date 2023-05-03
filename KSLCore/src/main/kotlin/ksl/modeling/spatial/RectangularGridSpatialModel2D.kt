@@ -474,9 +474,9 @@ class RectangularGridSpatialModel2D(
             require(contains(x, y)) { "The grid does not contain the supplied x = $x and y = $y" }
         }
 
-        override val model: SpatialModel = this@RectangularGridSpatialModel2D
+        override val spatialModel: SpatialModel = this@RectangularGridSpatialModel2D
         override fun toString(): String {
-            return "GridPoint(x=$x, y=$y, id=$id, name='$name', spatial model=${model.name})"
+            return "GridPoint(x=$x, y=$y, id=$id, name='$name', spatial model=${spatialModel.name})"
         }
     }
 

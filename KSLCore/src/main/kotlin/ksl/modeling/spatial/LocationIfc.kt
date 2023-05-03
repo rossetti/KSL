@@ -20,9 +20,10 @@ package ksl.modeling.spatial
 
 import ksl.utilities.IdentityIfc
 
-interface LocationIfc : IdentityIfc {
-
-    val model: SpatialModel
+interface HasSpatialModelIfc {
+    val spatialModel: SpatialModel
+}
+interface LocationIfc : HasSpatialModelIfc, IdentityIfc {
 
     /**
      * Computes the distance between the current location and [location] based on
@@ -30,8 +31,8 @@ interface LocationIfc : IdentityIfc {
      * @return the distance between the two locations
      */
     fun distanceTo(location: LocationIfc): Double{
-        require(model.isValid(location)){"The location ${location.name} is not valid for spatial model ${model.name}"}
-        return model.distance(this, location)
+        require(spatialModel.isValid(location)){"The location ${location.name} is not valid for spatial model ${spatialModel.name}"}
+        return spatialModel.distance(this, location)
     }
 
     /**
@@ -45,10 +46,10 @@ interface LocationIfc : IdentityIfc {
      * returns false.
      */
     fun isLocationEqualTo(location: LocationIfc) : Boolean {
-        if (!model.isValid(location)){
+        if (!spatialModel.isValid(location)){
             return false;
         }
-        return model.compareLocations(this, location)
+        return spatialModel.compareLocations(this, location)
     }
 
 }
