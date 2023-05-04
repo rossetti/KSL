@@ -107,7 +107,8 @@ class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
 
-    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
+//    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
+    private val myArrivalGenerator: EntityGenerator<PartTypeV2> = EntityGenerator(::PartTypeV2, myTBArrivals, myTBArrivals)
 
     private val myDrillingRV = RandomVariable(this, UniformRV(6.0, 9.0, 2))
     private val myMillingRV = RandomVariable(this, TriangularRV(10.0, 14.0, 18.0, 3))

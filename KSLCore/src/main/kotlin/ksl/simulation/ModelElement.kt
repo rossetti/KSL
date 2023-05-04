@@ -20,8 +20,8 @@ package ksl.simulation
 
 import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.queue.Queue
+import ksl.modeling.spatial.HasSpatialModelIfc
 import ksl.modeling.spatial.SpatialModel
-//import ksl.modeling.queue.qObjCounter
 import ksl.modeling.variable.*
 import ksl.observers.ModelElementObserver
 import ksl.utilities.GetValueIfc
@@ -39,7 +39,7 @@ private var elementCounter: Int = 0
  */
 private var qObjCounter: Long = 0
 
-abstract class ModelElement internal constructor(theName: String? = null) : IdentityIfc {
+abstract class ModelElement internal constructor(theName: String? = null) : IdentityIfc, HasSpatialModelIfc {
     //TODO spatial model stuff
     //TODO change parent model element method, was in JSL, can/should it be in KSL
 
@@ -220,7 +220,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
      * uses its parent model element's spatial model unless changed via this property.
      * This changes the spatial model for this model element and no others.
      */
-    var spatialModel: SpatialModel
+    override var spatialModel: SpatialModel
         get() {
             return if (mySpatialModel == null) {
                 parent!!.spatialModel

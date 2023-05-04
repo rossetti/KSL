@@ -28,6 +28,7 @@ class TandemQueueWithMovement(parent: ModelElement, name: String? = null) : Proc
         dm.addDistance(exit, station1, 90.0, symmetric = true)
         dm.addDistance(exit, enter, 150.0, symmetric = true)
         dm.defaultVelocity = myWalkingSpeedRV
+        // set the spatial model, entities within this process model will use it for locations
         spatialModel = dm
     }
 

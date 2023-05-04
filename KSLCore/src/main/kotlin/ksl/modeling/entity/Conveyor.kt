@@ -18,6 +18,8 @@
 
 package ksl.modeling.entity
 
+import com.google.common.collect.BiMap
+import com.google.common.collect.HashBiMap
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.spatial.LocationIfc
 import ksl.modeling.spatial.SpatialModel
@@ -59,20 +61,13 @@ data class Segment(val entryLocation: IdentityIfc, val exitLocation: IdentityIfc
  * the specification of segments for a conveyor.  See the class Conveyor for more
  * details on how segments are used to represent a conveyor.
  */
-class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) : SpatialModel() {
+class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     private val mySegments = mutableListOf<Segment>()
     private val myDownStreamLocations: MutableMap<IdentityIfc, MutableList<IdentityIfc>> = mutableMapOf()
-    private val myLocations: MutableMap<IdentityIfc, LocationIfc> = mutableMapOf()
-    val locations: Map<IdentityIfc, LocationIfc>
-        get() = myLocations
 
     var lastLocation: IdentityIfc = firstLocation
         private set
 
-    override var defaultLocation: LocationIfc = Location(firstLocation)
-    init {
-        myLocations[firstLocation] = defaultLocation
-    }
     var minimumSegmentLength = Integer.MAX_VALUE
         private set
     val segments: List<Segment>
@@ -83,7 +78,6 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) : 
         require(next != lastLocation) { "The next location (${next.name}) as the last location (${lastLocation.name})" }
         require(length % cellSize == 0) { "The length of the segment ($length) was not an integer multiple of the cell size ($cellSize)" }
         val sd = Segment(lastLocation, next, length)
-        myLocations[next] = Location(next)
         mySegments.add(sd)
         if (length <= minimumSegmentLength) {
             minimumSegmentLength = length
@@ -166,54 +160,6 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) : 
         return sb.toString()
     }
 
-    override fun distance(fromLocation: LocationIfc, toLocation: LocationIfc): Double {
-        require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
-        require(isValid(toLocation)) { "The location ${toLocation.name} is not a valid location for spatial model ${this.name}" }
-        if (!isReachable(fromLocation, toLocation)) {
-            return Double.POSITIVE_INFINITY
-        }
-        if (isCircular){
-            if (fromLocation == toLocation){
-                return totalLength.toDouble()
-            }
-        }
-        val start = segments.first { it.entryLocation == fromLocation }
-        val end = segments.first { it.exitLocation == toLocation }
-        val itr = segments.listIterator(segments.indexOf(start))
-        var sum = 0.0
-        while (itr.hasNext()){
-            val seg = itr.next()
-            sum = sum + seg.length
-            if (seg == end){
-                return sum
-            }
-        }
-        return sum
-    }
-
-    override fun compareLocations(firstLocation: LocationIfc, secondLocation: LocationIfc): Boolean {
-        require(isValid(firstLocation)) { "The location ${firstLocation.name} is not a valid location for spatial model ${this.name}" }
-        require(isValid(secondLocation)) { "The location ${secondLocation.name} is not a valid location for spatial model ${this.name}" }
-        return firstLocation == secondLocation
-    }
-
-    /** Represents a location within this spatial model.
-     *
-     * @param identity the identity of the location
-     */
-    inner class Location(identity: IdentityIfc) : AbstractLocation(identity) {
-        init {
-            //           require(!myLocations.containsKey(identity.name)) { "The location identity ${identity.name} already exists in the model" }
-        }
-
-        constructor(name: String? = null) : this(Identity(name))
-
-        override val spatialModel: SpatialModel = this@ConveyorSegments
-        override fun toString(): String {
-            return "Location(id=$id, name='$name', spatial model=${spatialModel.name})"
-        }
-
-    }
 }
 
 /** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location

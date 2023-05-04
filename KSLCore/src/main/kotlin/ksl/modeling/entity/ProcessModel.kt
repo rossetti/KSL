@@ -1516,6 +1516,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
                 logger.trace { "$time > PROCESS: entity (${entity.name}) completed ride from ${origin.name} to ${destination.name}" }
+                if (destination is LocationIfc){
+                    entity.currentLocation = destination
+                }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }

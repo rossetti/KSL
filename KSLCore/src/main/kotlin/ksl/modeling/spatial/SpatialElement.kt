@@ -23,8 +23,8 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObservableIfc
 
-interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>{
-    val spatialModel: SpatialModel
+interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>, HasSpatialModelIfc{
+    override val spatialModel: SpatialModel
     val isTracked: Boolean
     var isMoving: Boolean
     val spatialID: Int
