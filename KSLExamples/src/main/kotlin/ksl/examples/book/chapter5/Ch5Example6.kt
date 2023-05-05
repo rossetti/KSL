@@ -1,7 +1,5 @@
 package ksl.examples.book.chapter5
 
-import ksl.observers.ReplicationDataCollector
-import ksl.observers.ResponseTrace
 import ksl.simulation.Model
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 

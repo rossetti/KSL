@@ -4,7 +4,6 @@ import ksl.utilities.math.FunctionIfc
 import ksl.utilities.mcintegration.MC1DIntegration
 import ksl.utilities.random.rvariable.UniformRV
 import kotlin.math.sin
-import kotlin.math.sqrt
 
 fun main() {
     class SinFunc : FunctionIfc {

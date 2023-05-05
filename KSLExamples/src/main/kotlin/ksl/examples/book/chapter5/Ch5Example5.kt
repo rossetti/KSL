@@ -1,10 +1,8 @@
 package ksl.examples.book.chapter5
 
 import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
-import ksl.observers.welch.WelchFileObserver
 import ksl.simulation.Model
 import ksl.utilities.random.rvariable.ExponentialRV
-import java.text.DecimalFormat
 
 fun main(){
     val model = Model("Drive Through Pharmacy")

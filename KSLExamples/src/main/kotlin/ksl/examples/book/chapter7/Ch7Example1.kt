@@ -3,7 +3,6 @@ package ksl.examples.book.chapter7
 import ksl.simulation.Model
 import ksl.utilities.io.KSL
 import ksl.utilities.io.MarkDown
-import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main(){
 
