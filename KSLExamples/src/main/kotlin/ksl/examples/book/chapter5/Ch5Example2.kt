@@ -1,10 +1,7 @@
 package ksl.examples.book.chapter5
 
 import ksl.observers.AcrossReplicationHalfWidthChecker
-import ksl.observers.ReplicationDataCollector
-import ksl.observers.ResponseTrace
 import ksl.simulation.Model
-import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 fun main() {
     val model = Model("Pallet Processing Ex 2")
