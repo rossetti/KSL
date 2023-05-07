@@ -52,6 +52,8 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
         this,
         listOf(rw1, rw2, rw3), name = "RepairWorkers"
     )
+    //TODO the order listed is making a big difference
+    // possible problem with selection rule or releasing associated with pools
     private val transportWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
         this,
         listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkers"
