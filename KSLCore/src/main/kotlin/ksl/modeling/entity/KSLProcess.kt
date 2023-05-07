@@ -1027,7 +1027,7 @@ interface KSLProcessBuilder {
      */
     suspend fun moveTo(
         toLoc: LocationIfc,
-        velocity: Double = entity.velocity.value,
+        velocity: Double,
         movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
         suspensionName: String? = null
     ) {
@@ -1051,6 +1051,24 @@ interface KSLProcessBuilder {
         suspensionName: String? = null
     ) {
         moveTo(toLoc, velocity.value, movePriority, suspensionName)
+    }
+
+    /**
+     *  Causes movement of the entity from its current location to the specified location
+     *  using the entity's default velocity.
+     *
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun moveTo(
+        toLoc: LocationIfc,
+        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        suspensionName: String? = null
+    ) {
+        move(entity.currentLocation, toLoc, entity.velocity, movePriority, suspensionName)
     }
 
     /**

@@ -5,9 +5,9 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.MarkDown
 
 fun main() {
-//    baseCase()
+    baseCase()
 //    infiniteCapacityCase()
-    scheduledCase()
+//    scheduledCase()
 }
 
 fun baseCase() {
