@@ -1,4 +1,4 @@
-package ksl.examples.general.spatial
+package ksl.examples.book.chapter8
 
 import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.entity.KSLProcess
@@ -13,7 +13,7 @@ import ksl.utilities.random.rvariable.TriangularRV
 
 class TandemQueueWithMovement(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
-    private val myWalkingSpeedRV = TriangularRV(88.0, 176.0, 264.0)
+    private val myWalkingSpeedRV = RandomVariable(this, TriangularRV(88.0, 176.0, 264.0))
     private val dm = DistancesModel()
     private val enter = dm.Location("Enter")
     private val station1 = dm.Location("Station1")

@@ -1,10 +1,8 @@
-package ksl.examples.book.chapter7
+package ksl.examples.book.chapter8
 
 import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.elements.REmpiricalList
-import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.entity.*
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
@@ -13,7 +11,7 @@ import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
 
-class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // define the random variables
     private val tba = ExponentialRV(20.0)
@@ -36,31 +34,60 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     private val moveTime = RandomVariable(this, UniformRV(2.0, 4.0))
 
     // define the resources
-    private val myDiagnostics: ResourceWithQ = ResourceWithQ(this, "Diagnostics", capacity = 2)
+
+    private val dw1 = Resource(this, name = "DiagnosticsWorker1")
+    private val dw2 = Resource(this, name = "DiagnosticsWorker2")
+    private val tw1 = ResourceWithQ(this, name = "TestWorker1")
+    private val tw2 = ResourceWithQ(this, name = "TestWorker2")
+    private val tw3 = ResourceWithQ(this, name = "TestWorker3")
+    private val rw1 = Resource(this, name = "RepairWorker1")
+    private val rw2 = Resource(this, name = "RepairWorker2")
+    private val rw3 = Resource(this, name = "RepairWorker3")
+
+    private val diagnosticWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
+        this,
+        listOf(dw1, dw2), name = "DiagnosticWorkers"
+    )
+    private val repairWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
+        this,
+        listOf(rw1, rw2, rw3), name = "RepairWorkers"
+    )
+    private val transportWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
+        this,
+        listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkers"
+    )
+
+    private val myDiagnosticMachines: ResourceWithQ = ResourceWithQ(this, "DiagnosticMachines", capacity = 2)
     private val myTest1: ResourceWithQ = ResourceWithQ(this, "Test1")
     private val myTest2: ResourceWithQ = ResourceWithQ(this, "Test2")
     private val myTest3: ResourceWithQ = ResourceWithQ(this, "Test3")
-    private val myRepair: ResourceWithQ = ResourceWithQ(this, "Repair", capacity = 3)
 
     // define steps to represent a plan
-    inner class TestPlanStep(val resource: ResourceWithQ, val processTime: RandomIfc)
+    inner class TestPlanStep(val testMachine: ResourceWithQ, val processTime: RandomIfc, val tester: ResourceWithQ)
 
     // make all the plans
     private val testPlan1 = listOf(
-        TestPlanStep(myTest2, t11), TestPlanStep(myTest3, t21),
-        TestPlanStep(myTest2, t31), TestPlanStep(myTest1, t41), TestPlanStep(myRepair, r1)
+        TestPlanStep(myTest2, t11, tw2), TestPlanStep(myTest3, t21, tw3),
+        TestPlanStep(myTest2, t31, tw2), TestPlanStep(myTest1, t41, tw1)
     )
     private val testPlan2 = listOf(
-        TestPlanStep(myTest3, t12),
-        TestPlanStep(myTest1, t22), TestPlanStep(myRepair, r2)
+        TestPlanStep(myTest3, t12, tw3),
+        TestPlanStep(myTest1, t22, tw1)
     )
     private val testPlan3 = listOf(
-        TestPlanStep(myTest1, t13), TestPlanStep(myTest3, t23),
-        TestPlanStep(myTest1, t33), TestPlanStep(myRepair, r3)
+        TestPlanStep(myTest1, t13, tw1), TestPlanStep(myTest3, t23, tw3),
+        TestPlanStep(myTest1, t33, tw1)
     )
     private val testPlan4 = listOf(
-        TestPlanStep(myTest2, t14),
-        TestPlanStep(myTest3, t24), TestPlanStep(myRepair, r4)
+        TestPlanStep(myTest2, t14, tw2),
+        TestPlanStep(myTest3, t24, tw3)
+    )
+
+    private val repairTimes = mapOf(
+        testPlan1 to r1,
+        testPlan2 to r2,
+        testPlan3 to r3,
+        testPlan4 to r4
     )
 
     // set up the sequences and the random selection of the plan
@@ -79,7 +106,8 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     private val timeInSystem: Response = Response(this, "${this.name}:TimeInSystem")
     val systemTime: ResponseCIfc
         get() = timeInSystem
-    private val myContractLimit: IndicatorResponse = IndicatorResponse({ x -> x <= 480.0 }, timeInSystem, "ProbWithinLimit")
+    private val myContractLimit: IndicatorResponse =
+        IndicatorResponse({ x -> x <= 480.0 }, timeInSystem, "ProbWithinLimit")
     val probWithinLimit: ResponseCIfc
         get() = myContractLimit
 
@@ -89,8 +117,14 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
             wip.increment()
             timeStamp = time
             //every part goes to diagnostics
-            use(myDiagnostics, delayDuration = diagnosticTime)
+            val d1 = seize(myDiagnosticMachines)
+//            val dd1 = seize(diagnosticWorkers)
+            delay(diagnosticTime)
+            release(d1)
+//            release(dd1)
+            val tw = seize(transportWorkers)
             delay(moveTime)
+            release(tw)
             // determine the test plan
             val plan: List<TestPlanStep> = planList.element
             // get the iterator
@@ -98,11 +132,20 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
             // iterate through the plan
             while (itr.hasNext()) {
                 val tp = itr.next()
-                use(tp.resource, delayDuration = tp.processTime)
-                if (tp.resource != myRepair) {
-                    delay(moveTime)
-                }
+                // visit tester
+                val t1 = seize(tp.testMachine)
+                val tt1 = seize(tp.tester)
+                delay(tp.processTime)
+                release(t1)
+                release(tt1)
+                val tw1 = seize(transportWorkers)
+                delay(moveTime)
+                release(tw1)
             }
+            // visit repair
+            val rw = seize(repairWorkers)
+            delay(repairTimes[plan]!!)
+            release(rw)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
