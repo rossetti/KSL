@@ -40,7 +40,7 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
         this,
         listOf(dw1, dw2), name = "DiagnosticWorkersPool"
     )
-    private val myDiagnosticMachines: ResourceWithQ = ResourceWithQ(this, "DiagnosticMachines", capacity = 200)
+    private val myDiagnosticMachines: ResourceWithQ = ResourceWithQ(this, "DiagnosticMachines", capacity = 2)
 
     private val tw1 = ResourceWithQ(this, name = "TestWorker1")
     private val myTest1: ResourceWithQ = ResourceWithQ(this, "Test1")
@@ -121,8 +121,8 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
             val d1 = seize(myDiagnosticMachines)
             val dd1 = seize(diagnosticWorkers)
             delay(diagnosticTime)
-            release(d1)
             release(dd1)
+            release(d1)
             val tw = seize(transportWorkers)
             delay(moveTime)
             release(tw)
@@ -137,8 +137,8 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
                 val t1 = seize(tp.testMachine)
                 val tt1 = seize(tp.tester)
                 delay(tp.processTime)
-                release(t1)
                 release(tt1)
+                release(t1)
                 val tw1 = seize(transportWorkers)
                 delay(moveTime)
                 release(tw1)
