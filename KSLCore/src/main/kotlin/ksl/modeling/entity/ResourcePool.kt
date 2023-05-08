@@ -342,6 +342,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
 
     fun deallocate(poolAllocation: ResourcePoolAllocation) {
         for (allocation in poolAllocation.allocations) {
+            ProcessModel.logger.trace { "Resource Pool $name is deallocating from resource ${allocation.resource.name}" }
             allocation.resource.deallocate(allocation)
         }
     }
