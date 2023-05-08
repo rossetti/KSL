@@ -34,35 +34,34 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
     private val moveTime = RandomVariable(this, UniformRV(2.0, 4.0))
 
     // define the resources
-
     private val dw1 = Resource(this, name = "DiagnosticsWorker1")
     private val dw2 = Resource(this, name = "DiagnosticsWorker2")
+    private val diagnosticWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
+        this,
+        listOf(dw1, dw2), name = "DiagnosticWorkersPool"
+    )
+    private val myDiagnosticMachines: ResourceWithQ = ResourceWithQ(this, "DiagnosticMachines", capacity = 200)
+
     private val tw1 = ResourceWithQ(this, name = "TestWorker1")
+    private val myTest1: ResourceWithQ = ResourceWithQ(this, "Test1")
     private val tw2 = ResourceWithQ(this, name = "TestWorker2")
+    private val myTest2: ResourceWithQ = ResourceWithQ(this, "Test2")
     private val tw3 = ResourceWithQ(this, name = "TestWorker3")
+    private val myTest3: ResourceWithQ = ResourceWithQ(this, "Test3")
+
     private val rw1 = Resource(this, name = "RepairWorker1")
     private val rw2 = Resource(this, name = "RepairWorker2")
     private val rw3 = Resource(this, name = "RepairWorker3")
-
-    private val diagnosticWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
-        this,
-        listOf(dw1, dw2), name = "DiagnosticWorkers"
-    )
     private val repairWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
         this,
-        listOf(rw1, rw2, rw3), name = "RepairWorkers"
+        listOf(rw1, rw2, rw3), name = "RepairWorkersPool"
     )
     //TODO the order listed is making a big difference
     // possible problem with selection rule or releasing associated with pools
     private val transportWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
         this,
-        listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkers"
+        listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkersPool"
     )
-
-    private val myDiagnosticMachines: ResourceWithQ = ResourceWithQ(this, "DiagnosticMachines", capacity = 2)
-    private val myTest1: ResourceWithQ = ResourceWithQ(this, "Test1")
-    private val myTest2: ResourceWithQ = ResourceWithQ(this, "Test2")
-    private val myTest3: ResourceWithQ = ResourceWithQ(this, "Test3")
 
     // define steps to represent a plan
     inner class TestPlanStep(val testMachine: ResourceWithQ, val processTime: RandomIfc, val tester: ResourceWithQ)
@@ -120,10 +119,10 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
             timeStamp = time
             //every part goes to diagnostics
             val d1 = seize(myDiagnosticMachines)
-//            val dd1 = seize(diagnosticWorkers)
+            val dd1 = seize(diagnosticWorkers)
             delay(diagnosticTime)
             release(d1)
-//            release(dd1)
+            release(dd1)
             val tw = seize(transportWorkers)
             delay(moveTime)
             release(tw)
