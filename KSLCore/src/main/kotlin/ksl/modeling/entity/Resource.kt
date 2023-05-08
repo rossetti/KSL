@@ -178,6 +178,48 @@ interface ResourceFailureActionsIfc {
 }
 
 /**
+ *  The number of times the resource was seized is used to determine the ordering.
+ *  The less the number the smaller. If the number of times seized is equal, then
+ *  the resource with the earliest time exiting the busy state is considered smaller.
+ *  That is the one furthest back in time that the busy state was exited.
+ */
+class LeastSeizedComparator : Comparator<Resource> {
+    override fun compare(r1: Resource, r2: Resource): Int {
+        if (r1.numTimesSeized < r2.numTimesSeized){
+            return -1
+        }
+        if (r1.numTimesSeized > r2.numTimesSeized){
+            return 1
+        }
+        // number of seizes was the same. if exited earlier, then prefer it
+        return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
+    }
+
+}
+
+class LeastBusyComparator : Comparator<Resource> {
+    override fun compare(r1: Resource, r2: Resource): Int {
+
+        if (r1.instantaneousUtil < r2.instantaneousUtil){
+            return -1
+        }
+        if (r1.instantaneousUtil > r2.instantaneousUtil) {
+            return 1
+        }
+
+        if (r1.numTimesSeized < r2.numTimesSeized){
+            return -1
+        }
+        if (r1.numTimesSeized > r2.numTimesSeized){
+            return 1
+        }
+        // number of seizes was the same. if exited earlier, then prefer it
+        return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
+    }
+
+}
+
+/**
  *  A Resource represents a number of common units that can be allocated to entities.  A resource
  *  has an initial capacity that cannot be changed during a replication. This base resource class
  *  can only be busy or idle.
