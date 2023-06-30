@@ -7,10 +7,10 @@ import ksl.utilities.io.MarkDown
 fun main() {
     val m = Model()
     val tq = TestAndRepairShopResourceConstrained(m, name = "ResourceConstrainedTestAndRepair")
-//    m.numberOfReplications = 10
-//    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
-    m.numberOfReplications = 1
-    m.lengthOfReplication = 2.0*480.0
+    m.numberOfReplications = 10
+    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
+//    m.numberOfReplications = 1
+//    m.lengthOfReplication = 2.0*480.0
     m.simulate()
     m.print()
     val r = m.simulationReporter
