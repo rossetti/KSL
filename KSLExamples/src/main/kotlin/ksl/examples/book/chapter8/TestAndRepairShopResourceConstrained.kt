@@ -15,17 +15,17 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
 
     // define the random variables
     private val tba = ExponentialRV(20.0)
-    private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1))
-    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.2))
-    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.3))
-    private val t41 = RandomVariable(this, LognormalRV(16.0, 4.0))
-    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.0))
-    private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0))
-    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.2))
-    private val t23 = RandomVariable(this, LognormalRV(14.0, 4.4))
-    private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3))
-    private val t14 = RandomVariable(this, LognormalRV(24.0, 4.0))
-    private val t24 = RandomVariable(this, LognormalRV(30.0, 4.0))
+    private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1*4.1))
+    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.2*4.2))
+    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.3*4.3))
+    private val t41 = RandomVariable(this, LognormalRV(16.0, 4.0*4.0))
+    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.0*4.0))
+    private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0*4.0))
+    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.2*4.2))
+    private val t23 = RandomVariable(this, LognormalRV(14.0, 4.4*4.4))
+    private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3*4.3))
+    private val t14 = RandomVariable(this, LognormalRV(24.0, 4.0*4.0))
+    private val t24 = RandomVariable(this, LognormalRV(30.0, 4.0*4.0))
     private val r1 = RandomVariable(this, TriangularRV(30.0, 60.0, 80.0))
     private val r2 = RandomVariable(this, TriangularRV(45.0, 55.0, 70.0))
     private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0))
@@ -60,7 +60,9 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
     // possible problem with selection rule or releasing associated with pools
     private val transportWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
         this,
-        listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkersPool"
+        /*listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkersPool"*/
+        /*        listOf(tw1, tw2, tw3, rw1, rw2, rw3, dw1, dw2), name = "TransportWorkersPool"*/
+                listOf(rw1, rw2, rw3, dw1, dw2), name = "TransportWorkersPool"
     )
 
     // define steps to represent a plan
@@ -121,8 +123,8 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
             val d1 = seize(myDiagnosticMachines)
             val dd1 = seize(diagnosticWorkers)
             delay(diagnosticTime)
-            release(dd1)
             release(d1)
+            release(dd1)
             val tw = seize(transportWorkers)
             delay(moveTime)
             release(tw)
@@ -137,8 +139,13 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
                 val t1 = seize(tp.testMachine)
                 val tt1 = seize(tp.tester)
                 delay(tp.processTime)
-                release(tt1)
                 release(t1)
+                release(tt1)
+//                val tt1 = seize(tp.tester)
+//                val t1 = seize(tp.testMachine)
+//                delay(tp.processTime)
+//                release(t1)
+//                release(tt1)
                 val tw1 = seize(transportWorkers)
                 delay(moveTime)
                 release(tw1)
