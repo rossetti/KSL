@@ -197,16 +197,22 @@ class LeastSeizedComparator : Comparator<Resource> {
 
 }
 
-class LeastBusyComparator : Comparator<Resource> {
+/*
+  The resource with smaller estimated instantaneous utilization is considered smaller. If there is a tie
+  then the resource that has been seized fewer times is smaller. If there still is a tie
+ *  then the resource with the earliest time exiting the busy state is considered smaller.
+ *  That is the one furthest back in time that the busy state was exited.
+ */
+class LeastUtilizedComparator : Comparator<Resource> {
     override fun compare(r1: Resource, r2: Resource): Int {
-
-        if (r1.instantaneousUtil < r2.instantaneousUtil){
+        val u1 = r1.timeAvgInstantaneousUtil.withinReplicationStatistic.weightedAverage
+        val u2 = r2.timeAvgInstantaneousUtil.withinReplicationStatistic.weightedAverage
+        if (u1 < u2){
             return -1
         }
-        if (r1.instantaneousUtil > r2.instantaneousUtil) {
+        if (u1 > u2) {
             return 1
         }
-
         if (r1.numTimesSeized < r2.numTimesSeized){
             return -1
         }
@@ -215,6 +221,17 @@ class LeastBusyComparator : Comparator<Resource> {
         }
         // number of seizes was the same. if exited earlier, then prefer it
         return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
+    }
+
+}
+
+/**
+ *  Compares the resources based on the number available
+ */
+class NumAvailableComparator : Comparator<Resource> {
+    override fun compare(r1: Resource, r2: Resource): Int {
+        // number of seizes was the same. if exited earlier, then prefer it
+        return (r1.numAvailableUnits.compareTo(r2.numAvailableUnits))
     }
 
 }
@@ -232,7 +249,7 @@ class LeastBusyComparator : Comparator<Resource> {
  *  If b(t) is the number of units allocated at time t, and c(t) is the current capacity of the resource, then the number of available units,
  *  a(t), is defined as a(t) = c(t) - b(t).  Thus, a resource is idle if
  *  a(t) = c(t).  Since a resource is busy if b(t) > 0, busy and idle are complements of each other. A resource is
- *  either busy b(t) > 0 or idle b(t) = 0.  If a(t) > 0, then the resource has units that it can be allocated.
+ *  either busy b(t) > 0 or idle b(t) = 0.  If a(t) > 0, then the resource has units that can be allocated.
  *
  *  The utilization of a resource is defined as the ratio of the average number of busy units to the average
  *  number of active units.  Units are active if they are part of the current capacity of the resource.
