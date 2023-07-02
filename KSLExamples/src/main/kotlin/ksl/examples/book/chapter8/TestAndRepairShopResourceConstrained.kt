@@ -60,10 +60,17 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
     // possible problem with selection rule or releasing associated with pools
     private val transportWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
         this,
-        /*listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkersPool"*/
+        listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkersPool"
         /*        listOf(tw1, tw2, tw3, rw1, rw2, rw3, dw1, dw2), name = "TransportWorkersPool"*/
-                listOf(rw1, rw2, rw3, dw1, dw2), name = "TransportWorkersPool"
+        /*        listOf(rw1, rw2, rw3, dw1, dw2), name = "TransportWorkersPool"*/
     )
+
+    init {
+        val rule = LeastUtilizedAllocationRule()
+        transportWorkers.resourceAllocationRule = rule
+        diagnosticWorkers.resourceAllocationRule = rule
+        repairWorkers.resourceAllocationRule = rule
+    }
 
     // define steps to represent a plan
     inner class TestPlanStep(val testMachine: ResourceWithQ, val processTime: RandomIfc, val tester: ResourceWithQ)

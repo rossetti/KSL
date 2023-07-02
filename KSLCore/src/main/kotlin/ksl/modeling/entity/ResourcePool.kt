@@ -23,6 +23,8 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.ModelElement
+import ksl.utilities.random.permute
+import ksl.utilities.random.rng.RNStreamIfc
 
 /**
  * Provides for a method to select resources from a list such that
@@ -80,7 +82,7 @@ class FirstFullyAvailableResource : ResourceSelectionRuleIfc {
  *  there were not sufficient available resource units to fully meet the request. It is
  *  important to note that the returned list may have more units available than requested.
  *  Resource allocation rules are used to select from the returned list to specify which of the
- *  list of resources will be allocated to meet the request.
+ *  list of resources may be allocated to meet the request.
  *
  */
 class ResourceSelectionRule : ResourceSelectionRuleIfc {
@@ -99,13 +101,64 @@ class ResourceSelectionRule : ResourceSelectionRuleIfc {
                 rList.add(resource)
             }
         }
-        if (sum >= amountNeeded){
-            return rList
+        return if (sum >= amountNeeded){
+            rList
         } else {
-            return emptyList()
+            emptyList()
         }
     }
 
+}
+
+/** Checks if the number of available units in the list is greater than or equal to the
+ *  amount needed.
+ *
+ *  @param amountNeeded must be greater than 0
+ *  @param resourceList the list to consider.
+ */
+fun checkAvailableUnits(amountNeeded: Int, resourceList: List<Resource>): Boolean {
+    require(amountNeeded >= 1) { "The amount needed must be >= 1" }
+    return resourceList.numAvailableUnits() >= amountNeeded
+}
+
+/**
+ *  Returns the total number of units that are available within the resources contained in the list.
+ */
+fun List<Resource>.numAvailableUnits(): Int {
+    var sum = 0
+    for (resource in this) {
+        sum = sum + resource.numAvailableUnits
+    }
+    return sum
+}
+
+/** Filters the list such that the returned list has resources that have
+ *  units available for allocation. The returned list may be empty which
+ *  indicates that there are no resources in the list that have available units.
+ *
+ * @return returns a (new) list of resources that have available units. It may be empty.
+ */
+fun List<Resource>.availableResources(): MutableList<Resource>{
+    return findAvailableResources(this)
+}
+
+/**
+ *  @param amountNeeded must be greater than 0
+ *  @return true if the list of resources has available units greater than or equal to the amount needed
+ */
+fun List<Resource>.hasSufficientAvailableUnits(amountNeeded: Int): Boolean {
+    return checkAvailableUnits(amountNeeded, this)
+}
+
+/**
+ *  Checks if all resources in the list are available.
+ *  Throws an exception if any of the resources in the list do not have available units
+ */
+fun requireAllAvailable(resourceList: List<Resource>){
+    require(resourceList.isNotEmpty()){"The supplied list of resources was empty. Cannot have any available units"}
+    for (resource in resourceList) {
+        require(resource.numAvailableUnits > 0) { "A supplied resource, ${resource.name} in the resource list does not have any units available." }
+    }
 }
 
 /** Returns a map of how many units to allocate to each resource. If a resource is not in the returned
@@ -113,7 +166,7 @@ class ResourceSelectionRule : ResourceSelectionRuleIfc {
  *
  *  @param amountNeeded must be greater than 0
  *  @param resourceList the list to consider. All resources must have available unit and
- *  the total amount availabled within the list must be greater than or equal to the amount needed
+ *  the total amount available within the list must be greater than or equal to the amount needed
  */
 fun allocateInOrder(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
     require(amountNeeded >= 1) { "The amount needed must be >= 1" }
@@ -146,36 +199,34 @@ fun allocateInOrder(amountNeeded: Int, resourceList: List<Resource>): Map<Resour
  * The default is to allocate all available from each resource until amount needed is met
  * in the order in which the resources are listed within the list.
  */
-class DefaultAllocationRule : AllocationRuleIfc {
+class AllocateInOrderListedRule : AllocationRuleIfc {
     override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
         return allocateInOrder(amountNeeded, resourceList)
     }
 }
 
-class RandomAllocationRule: AllocationRuleIfc{
+class RandomAllocationRule(val stream: RNStreamIfc): AllocationRuleIfc{
     override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
-        TODO("Not yet implemented")
+        val list = resourceList.toMutableList()
+        list.permute(stream)
+        return allocateInOrder(amountNeeded, list)
     }
 }
-
-class LeastUtilizedAllocationRule: AllocationRuleIfc{
-    private val comparator = LeastUtilizedComparator()
-    override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
-        return allocateInOrder(amountNeeded, resourceList.sortedWith(comparator))
-    }
-}
-
-class LeastSeizedAllocationRule: AllocationRuleIfc{
-    private val comparator = LeastSeizedComparator()
+open class AllocationRule(var comparator: Comparator<Resource>): AllocationRuleIfc{
     override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
         return allocateInOrder(amountNeeded, resourceList.sortedWith(comparator))
     }
+
 }
+
+class LeastUtilizedAllocationRule: AllocationRule(LeastUtilizedComparator())
+class LeastSeizedAllocationRule: AllocationRule(LeastSeizedComparator())
+class MostAvailableAllocationRule: AllocationRule(MostAvailableComparator())
 
 /**
- * @return returns a list of idle resources. It may be empty.
+ * @return returns a (new) list of idle resources. It may be empty.
  */
-fun findIdleResources(list: List<Resource>): List<Resource> {
+fun findIdleResources(list: List<Resource>): MutableList<Resource> {
     val rList = mutableListOf<Resource>()
     for (ru in list) {
         if (ru.isIdle) {
@@ -188,9 +239,9 @@ fun findIdleResources(list: List<Resource>): List<Resource> {
 /** Filters the supplied list such that the returned list has resources that have
  *  units available for allocation.
  *
- * @return returns a list of resources that have available capacity. It may be empty.
+ * @return returns a (new) list of resources that have available units. It may be empty.
  */
-fun findAvailableResources(list: List<Resource>): List<Resource> {
+fun findAvailableResources(list: List<Resource>): MutableList<Resource> {
     val rList = mutableListOf<Resource>()
     for (ru in list) {
         if (ru.hasAvailableUnits) {
@@ -233,7 +284,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
         get() = myResources.toList()
 
     var resourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
-    var resourceAllocationRule: AllocationRuleIfc = DefaultAllocationRule()
+    var resourceAllocationRule: AllocationRuleIfc = AllocateInOrderListedRule()
 
     init {
         for (r in resources) {

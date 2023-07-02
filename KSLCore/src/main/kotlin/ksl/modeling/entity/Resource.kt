@@ -178,6 +178,31 @@ interface ResourceFailureActionsIfc {
 }
 
 /**
+ *  The ordering is determined such that more available units "rise to the top",
+ *  then by least number times seized, then by oldest time last busy
+ */
+class MostAvailableComparator : Comparator<Resource> {
+    override fun compare(r1: Resource, r2: Resource): Int {
+        if (r1.numAvailableUnits > r2.numAvailableUnits){
+            return -1
+        }
+        if (r1.numAvailableUnits < r2.numAvailableUnits){
+            return 1
+        }
+
+        if (r1.numTimesSeized < r2.numTimesSeized){
+            return -1
+        }
+        if (r1.numTimesSeized > r2.numTimesSeized){
+            return 1
+        }
+        // number of seizes was the same. if exited earlier, then prefer it
+        return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
+    }
+
+}
+
+/**
  *  The number of times the resource was seized is used to determine the ordering.
  *  The less the number the smaller. If the number of times seized is equal, then
  *  the resource with the earliest time exiting the busy state is considered smaller.
@@ -207,12 +232,14 @@ class LeastUtilizedComparator : Comparator<Resource> {
     override fun compare(r1: Resource, r2: Resource): Int {
         val u1 = r1.timeAvgInstantaneousUtil.withinReplicationStatistic.weightedAverage
         val u2 = r2.timeAvgInstantaneousUtil.withinReplicationStatistic.weightedAverage
+
         if (u1 < u2){
             return -1
         }
         if (u1 > u2) {
             return 1
         }
+
         if (r1.numTimesSeized < r2.numTimesSeized){
             return -1
         }
@@ -233,7 +260,6 @@ class NumAvailableComparator : Comparator<Resource> {
         // number of seizes was the same. if exited earlier, then prefer it
         return (r1.numAvailableUnits.compareTo(r2.numAvailableUnits))
     }
-
 }
 
 /**
