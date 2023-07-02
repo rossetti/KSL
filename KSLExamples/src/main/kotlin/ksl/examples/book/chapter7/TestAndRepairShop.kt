@@ -17,17 +17,23 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
 
     // define the random variables
     private val tba = ExponentialRV(20.0)
+
+    // test plan 1, distribution j
     private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1*4.1))
-    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.2*4.2))
-    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.3*3.3))
-    private val t41 = RandomVariable(this, LognormalRV(16.0, 4.0*4.0))
-    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.0*4.0))
+    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2*4.2))
+    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.3*4.3))
+    private val t14 = RandomVariable(this, LognormalRV(16.0, 4.0*4.0))
+    // test plan 2, distribution j
+    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.0*4.0))
     private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0*4.0))
-    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.2*4.2))
-    private val t23 = RandomVariable(this, LognormalRV(14.0, 4.4*4.4))
+    // test plan 3, distribution j
+    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.2*4.2))
+    private val t32 = RandomVariable(this, LognormalRV(14.0, 4.4*4.4))
     private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3*4.3))
-    private val t14 = RandomVariable(this, LognormalRV(24.0, 4.0*4.0))
-    private val t24 = RandomVariable(this, LognormalRV(30.0, 4.0*4.0))
+    // test plan 4, distribution j
+    private val t41 = RandomVariable(this, LognormalRV(24.0, 4.0*4.0))
+    private val t42 = RandomVariable(this, LognormalRV(30.0, 4.0*4.0))
+
     private val r1 = RandomVariable(this, TriangularRV(30.0, 60.0, 80.0))
     private val r2 = RandomVariable(this, TriangularRV(45.0, 55.0, 70.0))
     private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0))
@@ -47,25 +53,25 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
 
     // make all the plans
     private val testPlan1 = listOf(
-        TestPlanStep(myTest2, t11), TestPlanStep(myTest3, t21),
-        TestPlanStep(myTest2, t31), TestPlanStep(myTest1, t41), TestPlanStep(myRepair, r1)
+        TestPlanStep(myTest2, t11), TestPlanStep(myTest3, t12),
+        TestPlanStep(myTest2, t13), TestPlanStep(myTest1, t14), TestPlanStep(myRepair, r1)
     )
     private val testPlan2 = listOf(
-        TestPlanStep(myTest3, t12),
+        TestPlanStep(myTest3, t21),
         TestPlanStep(myTest1, t22), TestPlanStep(myRepair, r2)
     )
     private val testPlan3 = listOf(
-        TestPlanStep(myTest1, t13), TestPlanStep(myTest3, t23),
+        TestPlanStep(myTest1, t31), TestPlanStep(myTest3, t32),
         TestPlanStep(myTest1, t33), TestPlanStep(myRepair, r3)
     )
     private val testPlan4 = listOf(
-        TestPlanStep(myTest2, t14),
-        TestPlanStep(myTest3, t24), TestPlanStep(myRepair, r4)
+        TestPlanStep(myTest2, t41),
+        TestPlanStep(myTest3, t42), TestPlanStep(myRepair, r4)
     )
 
     // set up the sequences and the random selection of the plan
     private val sequences = listOf(testPlan1, testPlan2, testPlan3, testPlan4)
-    private val planCDf = doubleArrayOf(0.25, 0.375, 0.7, 1.0)
+    private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
 
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)

@@ -4,6 +4,7 @@ import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.*
 import ksl.modeling.variable.*
+import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -15,17 +16,22 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
 
     // define the random variables
     private val tba = ExponentialRV(20.0)
+    // test plan 1, distribution j
     private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1*4.1))
-    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.2*4.2))
-    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.3*4.3))
-    private val t41 = RandomVariable(this, LognormalRV(16.0, 4.0*4.0))
-    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.0*4.0))
+    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2*4.2))
+    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.3*4.3))
+    private val t14 = RandomVariable(this, LognormalRV(16.0, 4.0*4.0))
+    // test plan 2, distribution j
+    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.0*4.0))
     private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0*4.0))
-    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.2*4.2))
-    private val t23 = RandomVariable(this, LognormalRV(14.0, 4.4*4.4))
+    // test plan 3, distribution j
+    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.2*4.2))
+    private val t32 = RandomVariable(this, LognormalRV(14.0, 4.4*4.4))
     private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3*4.3))
-    private val t14 = RandomVariable(this, LognormalRV(24.0, 4.0*4.0))
-    private val t24 = RandomVariable(this, LognormalRV(30.0, 4.0*4.0))
+    // test plan 4, distribution j
+    private val t41 = RandomVariable(this, LognormalRV(24.0, 4.0*4.0))
+    private val t42 = RandomVariable(this, LognormalRV(30.0, 4.0*4.0))
+
     private val r1 = RandomVariable(this, TriangularRV(30.0, 60.0, 80.0))
     private val r2 = RandomVariable(this, TriangularRV(45.0, 55.0, 70.0))
     private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0))
@@ -43,11 +49,11 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
     private val myDiagnosticMachines: ResourceWithQ = ResourceWithQ(this, "DiagnosticMachines", capacity = 2)
 
     private val tw1 = ResourceWithQ(this, name = "TestWorker1")
-    private val myTest1: ResourceWithQ = ResourceWithQ(this, "Test1")
+    private val myTest1: ResourceWithQ = ResourceWithQ(this, "Test1", capacity = 10)
     private val tw2 = ResourceWithQ(this, name = "TestWorker2")
-    private val myTest2: ResourceWithQ = ResourceWithQ(this, "Test2")
+    private val myTest2: ResourceWithQ = ResourceWithQ(this, "Test2", capacity = 10)
     private val tw3 = ResourceWithQ(this, name = "TestWorker3")
-    private val myTest3: ResourceWithQ = ResourceWithQ(this, "Test3")
+    private val myTest3: ResourceWithQ = ResourceWithQ(this, "Test3", capacity = 10)
 
     private val rw1 = Resource(this, name = "RepairWorker1")
     private val rw2 = Resource(this, name = "RepairWorker2")
@@ -60,7 +66,8 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
     // possible problem with selection rule or releasing associated with pools
     private val transportWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
         this,
-        listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkersPool"
+       /* listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkersPool"*/
+                listOf(tw1, tw2, tw3, dw1, dw2, rw1, rw2, rw3), name = "TransportWorkersPool"
         /*        listOf(tw1, tw2, tw3, rw1, rw2, rw3, dw1, dw2), name = "TransportWorkersPool"*/
         /*        listOf(rw1, rw2, rw3, dw1, dw2), name = "TransportWorkersPool"*/
     )
@@ -77,20 +84,20 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
 
     // make all the plans
     private val testPlan1 = listOf(
-        TestPlanStep(myTest2, t11, tw2), TestPlanStep(myTest3, t21, tw3),
-        TestPlanStep(myTest2, t31, tw2), TestPlanStep(myTest1, t41, tw1)
+        TestPlanStep(myTest2, t11, tw2), TestPlanStep(myTest3, t12, tw3),
+        TestPlanStep(myTest2, t13, tw2), TestPlanStep(myTest1, t14, tw1)
     )
     private val testPlan2 = listOf(
-        TestPlanStep(myTest3, t12, tw3),
+        TestPlanStep(myTest3, t21, tw3),
         TestPlanStep(myTest1, t22, tw1)
     )
     private val testPlan3 = listOf(
-        TestPlanStep(myTest1, t13, tw1), TestPlanStep(myTest3, t23, tw3),
+        TestPlanStep(myTest1, t31, tw1), TestPlanStep(myTest3, t32, tw3),
         TestPlanStep(myTest1, t33, tw1)
     )
     private val testPlan4 = listOf(
-        TestPlanStep(myTest2, t14, tw2),
-        TestPlanStep(myTest3, t24, tw3)
+        TestPlanStep(myTest2, t41, tw2),
+        TestPlanStep(myTest3, t42, tw3)
     )
 
     private val repairTimes = mapOf(
@@ -102,7 +109,7 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
 
     // set up the sequences and the random selection of the plan
     private val sequences = listOf(testPlan1, testPlan2, testPlan3, testPlan4)
-    private val planCDf = doubleArrayOf(0.25, 0.375, 0.7, 1.0)
+    private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
 
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
@@ -132,7 +139,7 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
             delay(diagnosticTime)
             release(d1)
             release(dd1)
-            val tw = seize(transportWorkers)
+            val tw = seize(transportWorkers, seizePriority = (KSLEvent.DEFAULT_PRIORITY + 1))
             delay(moveTime)
             release(tw)
             // determine the test plan
@@ -153,7 +160,7 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
 //                delay(tp.processTime)
 //                release(t1)
 //                release(tt1)
-                val tw1 = seize(transportWorkers)
+                val tw1 = seize(transportWorkers, seizePriority = (KSLEvent.DEFAULT_PRIORITY + 1))
                 delay(moveTime)
                 release(tw1)
             }
