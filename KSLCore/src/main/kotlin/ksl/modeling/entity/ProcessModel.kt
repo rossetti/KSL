@@ -188,7 +188,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     override fun afterReplication() {
         // make a copy of the set
         val set = suspendedEntities.toHashSet()
-        Model.logger.info { "After Replication for $this.name: terminating ${set.size} suspended entities" }
+        Model.logger.info { "After Replication for ${this.name}: terminating ${set.size} suspended entities" }
         for (entity in set) {
             entity.terminateProcess()
         }
@@ -1147,7 +1147,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "$time > entity ${entity.id} SEIZE $amountNeeded units of ${resource.name} in process, ($this)" }
-                delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
+                delay(0.0, seizePriority, "$suspensionName: SeizeDelay")
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded, resource)
                 request.priority = entity.priority
@@ -1663,7 +1663,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             private inner class DelayAction : EventAction<Nothing>() {
                 override fun action(event: KSLEvent<Nothing>) {
-                    logger.trace { "$time > entity ${entity.id} exiting delay, resuming process, (${this@ProcessCoroutine}) ..." }
+                    logger.trace { "$time > entity ${entity.id} exiting delay: ${event.name}: resuming process, (${this@ProcessCoroutine}) ..." }
                     resume()
                 }
 
