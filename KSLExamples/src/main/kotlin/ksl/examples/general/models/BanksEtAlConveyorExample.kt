@@ -18,7 +18,6 @@
 
 package ksl.examples.general.models
 
-import ksl.modeling.elements.EventGenerator
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
