@@ -17,7 +17,7 @@ import ksl.utilities.random.rvariable.*
  *  Accumulating conveyor example. One segment 40 feet.
  *
  */
-class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
     private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
@@ -95,10 +95,10 @@ class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessMode
 
 fun main() {
     val m = Model()
-    val test = ConveyorExample3(m)
+    val test = ConveyorExample2(m)
     println(test)
     m.lengthOfReplication = 960.0
-    m.numberOfReplications = 1
+    m.numberOfReplications = 20
     m.simulate()
     m.print()
 }
