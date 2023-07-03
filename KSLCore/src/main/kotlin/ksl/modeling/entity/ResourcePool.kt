@@ -434,7 +434,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
         for ((resource, amt) in resourceIntMap) {
             val ra = resource.allocate(entity, amt, queue, allocationName)
             a.myAllocations.add(ra)
-            ProcessModel.logger.trace { "Resource ${resource.name} was allocated $amt from the pool." }
+            ProcessModel.logger.trace { "Resource ${resource.name} allocated $amt unit from the pool." }
         }
         return a
     }

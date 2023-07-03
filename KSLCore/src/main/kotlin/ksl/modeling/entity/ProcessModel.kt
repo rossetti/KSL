@@ -1311,7 +1311,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun release(resource: Resource, releasePriority: Int) {
-                logger.trace { "$time > entity ${entity.id} releasing all ${entity.totalAmountAllocated(resource)} units of ${resource.name} allocated in process, ($this)" }
+                logger.trace { "$time > entity ${entity.id} RELEASE all ${entity.totalAmountAllocated(resource)} units of ${resource.name} allocated in process, ($this)" }
                 // get the allocations of this entity for this resource
                 val list = resource.allocations(entity)
                 for (allocation in list) {
@@ -1320,7 +1320,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun releaseAllResources(releasePriority: Int) {
-                logger.trace { "$time > entity ${entity.id} releasing all units of every allocated resource in process, ($this)" }
+                logger.trace { "$time > entity ${entity.id} RELEASE all units of every allocated resource in process, ($this)" }
                 val rList = resourceAllocations.keys.toList()
                 for (r in rList) {
                     release(r, releasePriority)
@@ -1328,7 +1328,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int) {
-                logger.trace { "$time > entity ${entity.id} releasing ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} in process, ($this)" }
+                logger.trace { "$time > entity ${entity.id} RELEASE ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} in process, ($this)" }
                 // ask the resource pool to deallocate the resources
                 pooledAllocation.resourcePool.deallocate(pooledAllocation)
                 // then check the queue for additional work
