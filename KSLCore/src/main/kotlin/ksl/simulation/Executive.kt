@@ -280,6 +280,8 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
                 performCPhase()
             }
         } catch (e: RuntimeException) {
+            Model.logger.error(e.message)
+            System.err.println(e.message)
             val sb = StringBuilder()
             sb.append("######################################")
             sb.appendLine()
@@ -298,8 +300,9 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
-
             Model.logger.error(sb.toString())
+            System.err.println(sb.toString())
+            System.err.flush()
             System.out.flush()
             throw e
         }

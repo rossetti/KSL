@@ -266,8 +266,8 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                     myOverflowCounter.increment()
                     return@process
                 }
-                allocation = seize(myInspectionResource)
-                delay(myInspectionRV)
+                allocation = seize(myInspectionResource, suspensionName = "PartType1 seize inspector")
+                delay(myInspectionRV, suspensionName = "PartType1 delay inspector")
                 release(allocation)
 
                 val inspectOutcome = myInspectOutcomeRV.value
@@ -340,8 +340,10 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                     myOverflowCounter.increment()
                     return@process
                 }
-                use(myInspectionResource, delayDuration = myInspectionRV)
-
+                //use(myInspectionResource, delayDuration = myInspectionRV)
+                val ia = seize(myInspectionResource, suspensionName = "PartType2 seize inspector")
+                delay(myInspectionRV, suspensionName = "PartType2 delay inspector")
+                release(ia)
                 when (myInspectOutcomeRV.value) {
                     1.0 -> {
                         myCompletedCounter.increment()
