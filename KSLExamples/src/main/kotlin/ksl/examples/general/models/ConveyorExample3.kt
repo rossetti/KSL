@@ -14,7 +14,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.*
 
 /**
- *  Non-accumulating conveyor example. One segment 100 feet.
+ *  Accumulating conveyor example. One segment 40 feet.
  *
  */
 class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
