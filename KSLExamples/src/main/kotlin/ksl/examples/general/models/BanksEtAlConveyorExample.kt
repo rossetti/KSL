@@ -102,18 +102,18 @@ import ksl.utilities.random.rvariable.*
  *  8. Utilization of space on the conveyors
  *
  */
-class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
 
     private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
 
     private val myDrillingRV = RandomVariable(this, UniformRV(6.0, 9.0, 2))
-    private val myMillingRV = RandomVariable(this, TriangularRV(10.0, 14.0, 18.0, 3))
+    private val myMillingRV = RandomVariable(this, TriangularRV(12.0, 16.0, 20.0, 3))
     private val myPlaningRV = RandomVariable(this, TriangularRV(20.0, 26.0, 32.0, 4))
     private val myType1GrindingRV = RandomVariable(
         this,
-        DEmpiricalRV(doubleArrayOf(6.0, 7.0, 8.0), doubleArrayOf(0.1, 0.75, 1.0), 5)
+        DEmpiricalRV(doubleArrayOf(6.0, 7.0, 8.0), doubleArrayOf(0.25, 0.75, 1.0), 5)
     )
     private val myType2GrindingRV = RandomVariable(
         this,
@@ -137,9 +137,10 @@ class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel
 
     private val myDrillingResource: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "Drills")
     private val myMillingResource: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "Mills")
+    private val myPlaningResource: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "Planers")
     private val myGrindingResource: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "Grinders")
     private val myInspectionResource: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Inspectors")
-    private val myPlaningResource: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "Planers")
+
 
     private val myOverallSystemTime = Response(this, "OverallSystemTime")
     private val myOverflowCounter = Counter(this, "OverFlowCount")
@@ -369,10 +370,10 @@ class ConveyorExample(parent: ModelElement, name: String? = null) : ProcessModel
 fun main() {
 
     val m = Model()
-    val test = ConveyorExample(m)
+    val test = BanksEtAlConveyorExample(m)
     println(test)
     m.lengthOfReplication = 60.0 * 40.0
-    m.numberOfReplications = 1
+    m.numberOfReplications = 20
     m.simulate()
     m.print()
 }
