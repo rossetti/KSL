@@ -99,6 +99,11 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     val scheduledUtil: ResponseCIfc
 
     /**
+     *  The number of times the resource was seized
+     */
+    val seizeCounter: CounterCIfc
+
+    /**
      *  If c(t) is the current capacity and b(t) is the current number busy,
      *  then a(t) = c(t) - b(t) is the current number of available units.
      *  Under some capacity change situations, a(t) may be negative.
@@ -426,6 +431,14 @@ open class Resource(
     override val scheduledUtil: ResponseCIfc
         get() = myFractionBusy
 
+    protected val mySeizeCounter = Counter(this, name = "${this.name}:SeizeCount")
+    override val seizeCounter: CounterCIfc
+        get() = mySeizeCounter
+
+//    protected val myReleaseCounter = Counter(this, name = "${this.name}:ReleaseCount")
+//    val releaseCounter: CounterCIfc
+//        get() = myReleaseCounter
+
     override var numBusy: Int = 0
         protected set(newValue) {
             require(newValue >= 0) { "The number busy must be >= 0" }
@@ -436,11 +449,13 @@ open class Resource(
                 val increase = newValue - previousValue
                 myNumBusy.increment(increase.toDouble())
                 numTimesSeized++
+                mySeizeCounter.increment()
             } else if (newValue < previousValue) {
                 // decreasing the number busy
                 val decrease = previousValue - newValue
                 myNumBusy.decrement(decrease.toDouble())
                 numTimesReleased++
+//                myReleaseCounter.increment()
             }
             // handle the state change
             if ((field == 0) && (capacity == 0)) {
@@ -530,11 +545,11 @@ open class Resource(
     protected var myState: ResourceState = myIdleState
         set(nextState) {
             field.exit(time)  // exit the current state
-            ProcessModel.logger.trace { "$time > Resource: $name exited state ${field.name}" }
+            ProcessModel.logger.trace { "$time > Resource: $name exited state ${field.name}: c(t) = $capacity b(t) = $numBusy a(t) = $numAvailableUnits" }
             myPreviousState = field // remember what the current state was
             field = nextState // transition to next state
             field.enter(time) // enter the current state
-            ProcessModel.logger.trace { "$time > Resource: $name entered state ${field.name}" }
+            ProcessModel.logger.trace { "$time > Resource: $name entered state ${field.name}: c(t) = $capacity b(t) = $numBusy a(t) = $numAvailableUnits" }
         }
 
     override val state: StateAccessorIfc

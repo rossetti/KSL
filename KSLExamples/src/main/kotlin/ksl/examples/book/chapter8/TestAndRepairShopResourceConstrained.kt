@@ -36,6 +36,7 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
     private val r2 = RandomVariable(this, TriangularRV(45.0, 55.0, 70.0))
     private val r3 = RandomVariable(this, TriangularRV(30.0, 40.0, 60.0))
     private val r4 = RandomVariable(this, TriangularRV(35.0, 65.0, 75.0))
+
     private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0))
     private val moveTime = RandomVariable(this, UniformRV(2.0, 4.0))
 
@@ -49,11 +50,11 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
     private val myDiagnosticMachines: ResourceWithQ = ResourceWithQ(this, "DiagnosticMachines", capacity = 2)
 
     private val tw1 = ResourceWithQ(this, name = "TestWorker1")
-    private val myTest1: ResourceWithQ = ResourceWithQ(this, "Test1", capacity = 10)
+    private val myTest1: ResourceWithQ = ResourceWithQ(this, "Test1", capacity = 1)
     private val tw2 = ResourceWithQ(this, name = "TestWorker2")
-    private val myTest2: ResourceWithQ = ResourceWithQ(this, "Test2", capacity = 10)
+    private val myTest2: ResourceWithQ = ResourceWithQ(this, "Test2", capacity = 1)
     private val tw3 = ResourceWithQ(this, name = "TestWorker3")
-    private val myTest3: ResourceWithQ = ResourceWithQ(this, "Test3", capacity = 10)
+    private val myTest3: ResourceWithQ = ResourceWithQ(this, "Test3", capacity = 1)
 
     private val rw1 = Resource(this, name = "RepairWorker1")
     private val rw2 = Resource(this, name = "RepairWorker2")
@@ -62,22 +63,10 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
         this,
         listOf(rw1, rw2, rw3), name = "RepairWorkersPool"
     )
-    //TODO the order listed is making a big difference
-    // possible problem with selection rule or releasing associated with pools
-    private val transportWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
-        this,
-       /* listOf(dw1, dw2, tw1, tw2, tw3, rw1, rw2, rw3), name = "TransportWorkersPool"*/
-                listOf(tw1, tw2, tw3, dw1, dw2, rw1, rw2, rw3), name = "TransportWorkersPool"
-        /*        listOf(tw1, tw2, tw3, rw1, rw2, rw3, dw1, dw2), name = "TransportWorkersPool"*/
-        /*        listOf(rw1, rw2, rw3, dw1, dw2), name = "TransportWorkersPool"*/
-    )
 
-    init {
-        val rule = LeastUtilizedAllocationRule()
-        transportWorkers.resourceAllocationRule = rule
-        diagnosticWorkers.resourceAllocationRule = rule
-        repairWorkers.resourceAllocationRule = rule
-    }
+    private val transportWorkers: ResourcePoolWithQ = ResourcePoolWithQ(
+        this, listOf(tw1, tw2, tw3, dw1, dw2, rw1, rw2, rw3), name = "TransportWorkersPool"
+    )
 
     // define steps to represent a plan
     inner class TestPlanStep(val testMachine: ResourceWithQ, val processTime: RandomIfc, val tester: ResourceWithQ)
@@ -134,14 +123,14 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
             wip.increment()
             timeStamp = time
             //every part goes to diagnostics
+            val dd1 = seize(diagnosticWorkers) // worker is needed to use the machine
             val d1 = seize(myDiagnosticMachines)
-            val dd1 = seize(diagnosticWorkers)
             delay(diagnosticTime)
-            release(d1)
+            release(d1) // release machine first, because worker is needed to release
             release(dd1)
-            val tw = seize(transportWorkers, seizePriority = (KSLEvent.DEFAULT_PRIORITY + 1))
+            val twa = seize(transportWorkers)
             delay(moveTime)
-            release(tw)
+            release(twa)
             // determine the test plan
             val plan: List<TestPlanStep> = planList.element
             // get the iterator
@@ -150,19 +139,14 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
             while (itr.hasNext()) {
                 val tp = itr.next()
                 // visit tester
+                val tt1 = seize(tp.tester)// tester needed first to work on machine
                 val t1 = seize(tp.testMachine)
-                val tt1 = seize(tp.tester)
                 delay(tp.processTime)
                 release(t1)
                 release(tt1)
-//                val tt1 = seize(tp.tester)
-//                val t1 = seize(tp.testMachine)
-//                delay(tp.processTime)
-//                release(t1)
-//                release(tt1)
-                val tw1 = seize(transportWorkers, seizePriority = (KSLEvent.DEFAULT_PRIORITY + 1))
+                val twa1 = seize(transportWorkers)
                 delay(moveTime)
-                release(tw1)
+                release(twa1)
             }
             // visit repair
             val rw = seize(repairWorkers)
