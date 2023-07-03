@@ -2,7 +2,6 @@ package ksl.examples.general.models
 
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
