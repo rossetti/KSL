@@ -636,19 +636,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * An entity that has no more processes to execute cannot end its last process with allocations.
          */
         private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
-            logger.trace { "$time > entity $id completed process = $completedProcess" }
+            logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id completed process = $completedProcess" }
             afterRunningProcess(completedProcess)
             val np = determineNextProcess(completedProcess)
             if (np != null) {
                 previousProcess = completedProcess
-                logger.trace { "$time > entity $id to activate process = $np next" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id to activate process = $np next" }
                 activate(np)
             } else {
                 // no next process to run, entity must not have any allocations
                 dispose(completedProcess)
                 if (hasAllocations) {
                     val msg = StringBuilder()
-                    msg.append("$time > entity $id had allocations when ending process $completedProcess with no next process!")
+                    msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had allocations when ending process $completedProcess with no next process!")
                     msg.appendLine()
                     msg.append(allocationsAsString())
                     logger.error { msg.toString() }
@@ -656,7 +656,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 // okay to dispose of the entity
                 if (autoDispose) {
-                    logger.trace { "$time > entity $id is being disposed by ${processModel.name}" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id is being disposed by ${processModel.name}" }
                     dispose(this)
                 }
             }
@@ -923,7 +923,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 check(!hasCurrentProcess) { "The $this process cannot be activated for the entity because the entity is already running a process" }
                 myPendingProcess = this
                 entity.state.schedule()
-                logger.trace { "$time > entity ${entity.id} scheduled to start process $this at time ${time + timeUntilActivation}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} scheduled to start process $this at time ${time + timeUntilActivation}" }
                 return myActivationAction.schedule(timeUntilActivation, this, priority)
             }
 
@@ -940,7 +940,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              */
             private fun activateProcess() {
                 myPendingProcess = null
-                logger.trace { "$time > entity ${entity.id} activating and running process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} activating and running process, ($this)" }
                 entity.state.activate()// was scheduled, now entity is active for running
                 start() // starts the coroutine from the created state
             }
@@ -952,7 +952,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             private fun start() {
                 state.start() // this is the coroutine state, can only start process (coroutine) from the created state
                 // The coroutine is told to resume its continuation. Thus, it runs until its first suspension point.
-                logger.trace { "$time > entity ${entity.id} has hit the first suspension point of process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} has hit the first suspension point of process, ($this)" }
             }
 
 //            //TODO how to run a sub-process from within another process (coroutine)?
@@ -989,11 +989,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override suspend fun suspend(suspensionObserver: SuspensionObserver, suspensionName: String?) {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SUSPEND
-                logger.trace { "$time > entity ${entity.id} suspended process, ($this) using suspension observe, ${suspensionObserver.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} suspended process, ($this) using suspension observe, ${suspensionObserver.name}" }
                 suspensionObserver.attach(entity)
                 suspend()
                 suspensionObserver.detach(entity)
-                logger.trace { "$time > entity ${entity.id} suspended process, ($this) resumed by suspension observe, ${suspensionObserver.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} suspended process, ($this) resumed by suspension observe, ${suspensionObserver.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1003,10 +1003,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  the continuation for future resumption. Places the state of the process into the suspended state.
              */
             private suspend fun suspend() {
-                //logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: suspending process, ($this) ..." }
+                //logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id}: current suspension = $currentSuspendName: suspending process, ($this) ..." }
                 state.suspend()
-                logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: suspending..." }
-                logger.trace { "$time > entity ${entity.id}: *** COROUTINE SUSPEND ***: process = (${this@ProcessCoroutine})"}
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.suspend(): entity ${entity.id}: *** COROUTINE SUSPEND ***: process = (${this@ProcessCoroutine})"}
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.suspend(): entity ${entity.id}: current suspension = $currentSuspendName: suspending..." }
                 return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
                     continuation = cont
                     COROUTINE_SUSPENDED
@@ -1026,13 +1026,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 calledProcess = p
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_PROCESS
-                logger.trace { "$time > entity ${entity.id} waiting for ${process.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} waiting for ${process.name} in process, ($this)" }
                 p.activate(timeUntilActivation, priority)
                 entity.state.waitForProcess()
                 suspend()
                 calledProcess = null
                 entity.state.activate()
-                logger.trace { "$time > entity ${entity.id} ended wait for ${process.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} ended wait for ${process.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1045,13 +1045,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ) {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_SIGNAL
-                logger.trace { "$time > entity ${entity.id} waiting for ${signal.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} waiting for ${signal.name} in process, ($this)" }
                 entity.state.waitForSignal()
                 signal.hold(entity, waitPriority)
                 suspend()
                 signal.release(entity, waitStats)
                 entity.state.activate()
-                logger.trace { "$time > entity ${entity.id} released from ${signal.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} released from ${signal.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1059,12 +1059,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override suspend fun hold(queue: HoldQueue, priority: Int, suspensionName: String?) {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.HOLD
-                logger.trace { "$time > entity ${entity.id} being held in ${queue.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} being held in ${queue.name} in process, ($this)" }
                 entity.state.holdInQueue()
                 queue.enqueue(entity, priority)
                 suspend()
                 entity.state.activate()
-                logger.trace { "$time > entity ${entity.id} exited ${queue.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} exited ${queue.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1088,11 +1088,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): List<T> {
                 if (request.canNotBeFilled) {
                     // must wait until it can be filled
-                    logger.trace { "$time > entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
                     entity.state.blockedReceiving()
                     suspend()
                     entity.state.activate()
-                    logger.trace { "$time > entity ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
                 }
                 // the request should be able to be filled
                 val list = blockingQ.fill(request)// this also removes request from queue
@@ -1124,14 +1124,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // always enqueue to capture wait statistics of those that do not wait
                 blockingQ.enqueueSender(entity, blockingPriority)
                 if (blockingQ.isFull) {
-                    logger.trace { "$time > entity ${entity.id} blocked sending to ${blockingQ.name} in process, ($this)" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} blocked sending to ${blockingQ.name} in process, ($this)" }
                     entity.state.blockedSending()
                     suspend()
                     entity.state.activate()
-                    logger.trace { "$time > entity ${entity.id} unblocked sending to ${blockingQ.name} in process, ($this)" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} unblocked sending to ${blockingQ.name} in process, ($this)" }
                 }
                 blockingQ.dequeSender(entity)
-                logger.trace { "$time > entity ${entity.id} sending ${item.name} to ${blockingQ.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} sending ${item.name} to ${blockingQ.name} in process, ($this)" }
                 blockingQ.sendToChannel(item)
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -1147,28 +1147,28 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
-                logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: SEIZE $amountNeeded units of ${resource.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > SEIZE() : entity ${entity.id}: current suspension = $currentSuspendName: SEIZE $amountNeeded units of ${resource.name}" }
                 delay(0.0, seizePriority, "$suspensionName SeizeDelay")
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
-                logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: continuing SEIZE $amountNeeded units of ${resource.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > SEIZE() : entity ${entity.id}: current suspension = $currentSuspendName: continuing SEIZE $amountNeeded units of ${resource.name}" }
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded, resource)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
                 if (!resource.canAllocate(request.amountRequested)) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
-                    logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: waiting for $amountNeeded units of ${resource.name}" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > SEIZE() : entity ${entity.id}: current suspension = $currentSuspendName: waiting for $amountNeeded units of ${resource.name}" }
                     entity.state.waitForResource()
                     suspend()
-                    logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: resumed after waiting for $amountNeeded units of ${resource.name}" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > SEIZE() : entity ${entity.id}: current suspension = $currentSuspendName: resumed after waiting for $amountNeeded units of ${resource.name}" }
                     entity.state.activate()
                 }
                 // entity has been told to resume
-                require(resource.canAllocate(amountNeeded)) { "$time > Amount cannot be allocated! to entity ${entity.id} resuming after waiting for $amountNeeded units of ${resource.name}" }
+                require(resource.canAllocate(amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity ${entity.id} resuming after waiting for $amountNeeded units of ${resource.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
-                logger.trace { "$time > request ${request.id} for entity ${entity.id} removed from queue ${queue.name}" }
-                logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: will be allocated $amountNeeded units of ${resource.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > SEIZE() : request ${request.id} for entity ${entity.id} removed from queue ${queue.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > SEIZE() : entity ${entity.id}: current suspension = $currentSuspendName: will be allocated $amountNeeded units of ${resource.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return resource.allocate(entity, amountNeeded, queue, suspensionName)
@@ -1184,7 +1184,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
-                logger.trace { "$time > entity ${entity.id} SEIZE $amountNeeded units of ${resourcePool.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} SEIZE $amountNeeded units of ${resourcePool.name} in process, ($this)" }
                 delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded, resourcePool)
@@ -1192,14 +1192,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 queue.enqueue(request) // put the request in the queue
                 if (!resourcePool.canAllocate(request.amountRequested)) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
-                    logger.trace { "$time > entity ${entity.id} waiting for $amountNeeded units of ${resourcePool.name} in process, ($this)" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} waiting for $amountNeeded units of ${resourcePool.name} in process, ($this)" }
                     entity.state.waitForResource()
                     suspend()
                     entity.state.activate()
                 }
                 // entity has been told to resume
                 queue.remove(request) // take the request out of the queue after possible wait
-                logger.trace { "$time > entity ${entity.id} allocated $amountNeeded units of ${resourcePool.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} allocated $amountNeeded units of ${resourcePool.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 // make the pooled allocation and return it
@@ -1214,13 +1214,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // capture the event for possible cancellation
                 entity.state.schedule()
                 val eName = "Delay Event: duration = $delayDuration suspension name = $suspensionName"
-                logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: SCHEDULE delay action: event name = $eName" }
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
-                logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: DELAY for $delayDuration" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > DELAY() : entity ${entity.id}: current suspension = $currentSuspendName: SCHEDULED end of delay: event(id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time})  ." }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > DELAY(): entity ${entity.id}: current suspension = $currentSuspendName: DELAY for $delayDuration" }
                 suspend()
                 entity.state.activate()
-                logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: after DELAY for $delayDuration" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > DELAY(): entity ${entity.id}: current suspension = $currentSuspendName: after DELAY for $delayDuration" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1239,12 +1239,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 val d = fromLoc.distanceTo(toLoc)
                 val t = d / velocity
-                logger.trace { "$time > entity ${entity.id} MOVING from ${fromLoc.name} to ${toLoc.name} suspending process, ($this) ..." }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} MOVING from ${fromLoc.name} to ${toLoc.name} suspending process, ($this) ..." }
                 isMoving = true
                 delay(t, movePriority, suspensionName)
                 currentLocation = toLoc
                 isMoving = false
-                logger.trace { "$time > entity ${entity.id} completed move from ${fromLoc.name} to ${toLoc.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} completed move from ${fromLoc.name} to ${toLoc.name}" }
             }
 
             override suspend fun move(
@@ -1258,12 +1258,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(velocity > 0.0) { "The velocity of the movement must be > 0.0 in process, ($this)" }
                 val d = spatialElement.currentLocation.distanceTo(toLoc)
                 val t = d / velocity
-                logger.trace { "$time > entity ${entity.id} is moving ${spatialElement.spatialName} from ${spatialElement.currentLocation.name} to ${toLoc.name} suspending process, ($this) ..." }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} is moving ${spatialElement.spatialName} from ${spatialElement.currentLocation.name} to ${toLoc.name} suspending process, ($this) ..." }
                 spatialElement.isMoving = true
                 delay(t, movePriority, suspensionName)
                 spatialElement.currentLocation = toLoc
                 spatialElement.isMoving = false
-                logger.trace { "$time > spatial element ${spatialElement.spatialName} completed move to ${toLoc.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > spatial element ${spatialElement.spatialName} completed move to ${toLoc.name}" }
             }
 
             override suspend fun moveWith(
@@ -1308,7 +1308,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun release(allocation: Allocation, releasePriority: Int) {
-                logger.trace { "$time > entity ${entity.id} RELEASE ${allocation.amount} units of ${allocation.resource.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.release() : entity ${entity.id} RELEASE ${allocation.amount} units of ${allocation.resource.name} in process, ($this)" }
                 // we cannot assume that a resource has a queue
                 allocation.resource.deallocate(allocation)
                 // get the queue from the allocation being released and process any waiting requests
@@ -1320,7 +1320,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun release(resource: Resource, releasePriority: Int) {
-                logger.trace { "$time > entity ${entity.id} RELEASE all ${entity.totalAmountAllocated(resource)} units of ${resource.name} allocated in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} RELEASE all ${entity.totalAmountAllocated(resource)} units of ${resource.name} allocated in process, ($this)" }
                 // get the allocations of this entity for this resource
                 val list = resource.allocations(entity)
                 for (allocation in list) {
@@ -1329,7 +1329,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun releaseAllResources(releasePriority: Int) {
-                logger.trace { "$time > entity ${entity.id} RELEASE all units of every allocated resource in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} RELEASE all units of every allocated resource in process, ($this)" }
                 val rList = resourceAllocations.keys.toList()
                 for (r in rList) {
                     release(r, releasePriority)
@@ -1337,7 +1337,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int) {
-                logger.trace { "$time > entity ${entity.id} RELEASE ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity ${entity.id} RELEASE ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} in process, ($this)" }
                 // ask the resource pool to deallocate the resources
                 pooledAllocation.resourcePool.deallocate(pooledAllocation)
                 // then check the queue for additional work
@@ -1471,14 +1471,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.ACCESS
                 delay(0.0, requestPriority, "$suspensionName:AccessDelay")
-                logger.trace { "$time > PROCESS: entity (${entity.name}) ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: entity (${entity.name}) ACCESSING $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 // make the conveyor request
                 val request = conveyor.requestConveyor(entity, numCellsNeeded, entryLocation, requestResumePriority)
                 // always enter the queue to get statistics on waiting to enter the conveyor
                 conveyor.enqueueRequest(request)
                 if (request.mustWait()) {
                     // entry is not possible at this time, the entity will suspend
-                    logger.trace { "$time > PROCESS: entity (${entity.name}) waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: entity (${entity.name}) waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                     entity.state.waitForConveyor()
                     suspend()
                     entity.state.activate()
@@ -1490,9 +1490,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // ensure that the entity remembers that it is now "using" the conveyor
                 entity.conveyorRequest = request
                 // cause the request to block the entry location
-                logger.trace { "$time > PROCESS: entity (${entity.name}) blocking conveyor (${conveyor.name} ) at location (${entryLocation.name})" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: entity (${entity.name}) blocking conveyor (${conveyor.name} ) at location (${entryLocation.name})" }
                 request.blockEntryLocation()
-                logger.trace { "$time > PROCESS: entity (${entity.name}) has blocked the entry cell of ${conveyor.name} at location (${entryLocation.name}) in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: entity (${entity.name}) has blocked the entry cell of ${conveyor.name} at location (${entryLocation.name}) in process, ($this)" }
                 return request
             }
 
@@ -1515,16 +1515,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val origin = conveyorRequest.currentLocation
                 require(conveyor.isReachable(origin, destination))
                     { "The destination (${destination.name}) is not reachable from entry location (${origin.name})" }
-                logger.trace { "$time > PROCESS: entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: entity (${entity.name}) asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
                 // causes event(s) to be scheduled that will eventually resume the entity after the ride
                 val request = conveyorRequest as Conveyor.ConveyorRequest
                 request.rideConveyorTo(destination)
-                logger.trace { "$time > PROCESS: entity (${entity.name}) riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: entity (${entity.name}) riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
                 // holds here while request rides on the conveyor
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
-                logger.trace { "$time > PROCESS: entity (${entity.name}) completed ride from ${origin.name} to ${destination.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: entity (${entity.name}) completed ride from ${origin.name} to ${destination.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1540,23 +1540,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = conveyorRequest.conveyor
-                logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) is exiting ${conveyor.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: exitConveyor(): Entity (${entity.name}) is exiting ${conveyor.name}" }
                 val request = conveyorRequest as Conveyor.ConveyorRequest
                 if (request.isBlockingEntry) {
                     // the request cannot be riding or completed, if just blocking the entry, it must just complete
                     request.exitConveyor()
-                    logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) released blockage at entry location ${request.currentLocation.name} for (${conveyor.name})" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: exitConveyor(): Entity (${entity.name}) released blockage at entry location ${request.currentLocation.name} for (${conveyor.name})" }
                 } else {
                     // must be blocking the exit
                     isMoving = true
                     conveyor.startExitingProcess(request)
-                    logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.destination?.name})" }
-                    logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) suspending for exiting process" }
-                    hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: exitConveyor(): Entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.destination?.name})" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: exitConveyor(): Entity (${entity.name}) suspending for exiting process" }
+                    hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName : EXIT : ${conveyor.conveyorHoldQ.name}")
+                    currentSuspendName = suspensionName
+                    currentSuspendType = SuspendType.EXIT
                     isMoving = false
                 }
                 entity.conveyorRequest = null
-                logger.trace { "$time > PROCESS: exitConveyor(): Entity (${entity.name}) exited ${conveyor.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: exitConveyor(): Entity (${entity.name}) exited ${conveyor.name}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1564,7 +1566,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun resumeWith(result: Result<Unit>) {
                 // Resumes the execution of the corresponding coroutine passing a successful or failed result
                 // as the return value of the last suspension point.
-                logger.trace { "$time > The coroutine process ${this@ProcessCoroutine} completed with result = $result" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > The coroutine process ${this@ProcessCoroutine} completed with result = $result" }
                 result.onSuccess {
                     state.complete()
                     // check if the current process was activated (called) by other process in a waitFor
@@ -1646,7 +1648,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              */
             private fun afterTerminatedProcessCompletion() {
                 if (hasAllocations) {
-                    logger.trace { "$time > Process $this was terminated for Entity $entity releasing all resources." }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all resources." }
                     releaseAllResources()
                 }
                 if (isQueued) {
@@ -1655,11 +1657,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // since this is an entity, it must be in a HoldQueue which must hold EntityType.Entity
                     val q = queue!! as Queue<ProcessModel.Entity>
                     q.remove(entity, false)
-                    logger.trace { "$time > Process $this was terminated for Entity $entity removed from queue ${q.name} ." }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity removed from queue ${q.name} ." }
                 } else if (isScheduled) {
                     if (myDelayEvent != null) {
                         if (myDelayEvent!!.isScheduled) {
-                            logger.trace { "$time > Process $this was terminated for Entity $entity delay event was cancelled." }
+                            logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity delay event was cancelled." }
                             myDelayEvent?.cancel = true
                         }
                     }
@@ -1672,9 +1674,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             private inner class DelayAction : EventAction<Nothing>() {
                 override fun action(event: KSLEvent<Nothing>) {
-                    logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: BEFORE resume() in delay action" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.DelayAction.action() : event(id = ${event.id}, time = ${event.time}) : entity ${entity.id}: current suspension = $currentSuspendName: BEFORE resume()" }
                     resume()
-                    logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: AFTER resume() in delay action: Event: $event" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.DelayAction.action() : event(id = ${event.id}, time = ${event.time}) : entity ${entity.id}: current suspension = $currentSuspendName: AFTER resume()" }
                 }
             }
 
@@ -1744,11 +1746,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     state = running
                     //un-capture suspended entities here
                     suspendedEntities.remove(entity)
-                    logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: resuming..." }
-                    logger.trace { "$time > entity ${entity.id}: *** before COROUTINE RESUME ***: process = (${this@ProcessCoroutine})"}
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity ${entity.id}: current suspension = $currentSuspendName: resuming..." }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity ${entity.id}: *** before COROUTINE RESUME ***: process = (${this@ProcessCoroutine})"}
                     continuation?.resume(Unit)
-                    logger.trace { "$time > entity ${entity.id}: current suspension = $currentSuspendName: resumed" }
-                    logger.trace { "$time > entity ${entity.id}: *** after COROUTINE RESUME ***: process = (${this@ProcessCoroutine})"}
+ //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity ${entity.id}: *** after COROUTINE RESUME ***: process = (${this@ProcessCoroutine})"}
+ //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity ${entity.id}: current suspension = $currentSuspendName: resumed" }
                 }
 
                 /**
@@ -1758,7 +1760,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     state = terminated
                     //un-capture suspended entities here
                     suspendedEntities.remove(entity)
-                    logger.trace { "$time > entity ${entity.id} terminated process, (${this@ProcessCoroutine}) ..." }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.terminate() : entity ${entity.id} terminated process, (${this@ProcessCoroutine}) ..." }
                     //resume with exception
 //                    continuation?.resumeWith(Result.failure(ProcessTerminatedException())) // same as below
                     continuation?.resumeWithException(ProcessTerminatedException(afterTermination))
