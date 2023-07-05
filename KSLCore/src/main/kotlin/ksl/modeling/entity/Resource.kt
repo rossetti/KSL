@@ -545,11 +545,10 @@ open class Resource(
     protected var myState: ResourceState = myIdleState
         set(nextState) {
             field.exit(time)  // exit the current state
-            ProcessModel.logger.trace { "$time > Resource: $name exited state ${field.name}: c(t) = $capacity b(t) = $numBusy a(t) = $numAvailableUnits" }
             myPreviousState = field // remember what the current state was
             field = nextState // transition to next state
             field.enter(time) // enter the current state
-            ProcessModel.logger.trace { "$time > Resource: $name entered state ${field.name}: c(t) = $capacity b(t) = $numBusy a(t) = $numAvailableUnits" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > Resource: $name : exited state ${myPreviousState.name} : entered state ${field.name}: c(t) = $capacity b(t) = $numBusy a(t) = $numAvailableUnits" }
         }
 
     override val state: StateAccessorIfc
