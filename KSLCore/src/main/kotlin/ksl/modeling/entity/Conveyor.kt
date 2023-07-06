@@ -1123,7 +1123,7 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > Request (${request.name}): status = ${request.status}: Entity (${request.entity}): fully off the conveyor: removing blockage" }
         removeBlockage(exitCell)
         // item completed the exiting process, tell the entity that it can proceed
-        conveyorHoldQ.removeAndImmediateResume(request.entity)
+        conveyorHoldQ.removeAndImmediateResume(request.entity) //TODO an immediate resume??
 //        conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority)
         // cause the transition to the complete state from the blocking exit state
         request.exitConveyor()
@@ -1146,7 +1146,7 @@ class Conveyor(
             cancelConveyorMovement()
         }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): Entity (${request.entity}): resuming ${request.entity} after reaching destination" }
-        conveyorHoldQ.removeAndImmediateResume(request.entity)
+        conveyorHoldQ.removeAndImmediateResume(request.entity) //TODO another immediate resume
         // conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority, false)
     }
 
@@ -1200,7 +1200,7 @@ class Conveyor(
                 if (queue.isNotEmpty) {
                     val request = queue.peekFirst()!!
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity (${request.entity.name}) at location ${location.name}" }
-                    request.entity.immediateResume()
+                    request.entity.immediateResume() //TODO yet another immediate resume
                     //request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
                 } else {
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: no requests waiting" }
@@ -1364,7 +1364,8 @@ class Conveyor(
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): scheduleConveyorMovement(): cell traversal already pending, new traversal not scheduled" }
             return
         }
-        endCellTraversalEvent = schedule(this::endOfCellTraversal, cellTravelTime)
+        endCellTraversalEvent = schedule(this::endOfCellTraversal, cellTravelTime, name = "End of Cell Traversal")
+        endCellTraversalEvent!!.name = "End of Cell Traversal"
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): scheduled event (${endCellTraversalEvent?.id}): the end of cell traversal for t = ${(time + cellTravelTime)}" }
     }
 

@@ -245,6 +245,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             // create the event
             val event =
                 KSLEvent(numEventsScheduled, eventAction, eventTime, priority, message, name, theElementScheduling)
+            event.name = name
             myEventCalendar.add(event)
             event.isScheduled = true
             return event
