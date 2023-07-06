@@ -542,6 +542,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         internal fun immediateResume(){
             if (myCurrentProcess != null) {
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
+                if ((this.id == 10971L) && (time == 1078.1701779194993) && (model.currentReplicationNumber == 3))
+                    throw IllegalStateException("some illegal thing happened") //TODO here there everywhere
                 myCurrentProcess!!.resume()
             }
         }
