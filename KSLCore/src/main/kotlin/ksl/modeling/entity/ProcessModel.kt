@@ -543,9 +543,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         internal fun immediateResume(){
             if (myCurrentProcess != null) {
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
-                if ((this.id == 10971L) && (time == 1078.1701779194993) && (model.currentReplicationNumber == 3))
-                    throw IllegalStateException("some illegal thing happened") //TODO here there everywhere
                 myCurrentProcess!!.resume()
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: after the IMMEDIATE resume call" }
+//                if ((this.id == 10971L) && (time == 1078.1701779194993) && (model.currentReplicationNumber == 3))
+//                    throw IllegalStateException("some illegal thing happened") //TODO here there everywhere
             }
         }
 
@@ -1480,7 +1481,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.ACCESS
-                delay(0.0, requestPriority, "$suspensionName:AccessDelay")
+                delay(0.0, requestPriority, "$suspensionName:AccessDelay") //TODO can this be done without delay
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : REQUEST CONVEYOR : entity_id = ${entity.id} : requesting $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
                 // make the conveyor request
                 val request = conveyor.requestConveyor(entity, numCellsNeeded, entryLocation, requestResumePriority)
@@ -1529,7 +1530,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RIDE CONVEYOR : entity_id = ${entity.id} : asking to ride conveyor (${conveyor.name}) from ${origin.name} to ${destination.name}"}
                 // causes event(s) to be scheduled that will eventually resume the entity after the ride
                 val request = conveyorRequest as Conveyor.ConveyorRequest
-                request.rideConveyorTo(destination)
+                request.rideConveyorTo(destination) //TODO need to explore what this is doing
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} : riding conveyor (${conveyor.name}) from ${origin.name} to ${destination.name} suspending process, ($this) ..." }
                 isMoving = true
                 // holds here while request rides on the conveyor
@@ -1560,7 +1561,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 } else {
                     // must be blocking the exit
                     isMoving = true
-                    conveyor.startExitingProcess(request)
+                    conveyor.startExitingProcess(request) //TODO can this be de-complicated?, this causes another suspend
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: exitConveyor(): Entity (${entity.name}) started exiting process for (${conveyor.name}) at location (${conveyorRequest.destination?.name})" }
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: exitConveyor(): Entity (${entity.name}) suspending for exiting process" }
                     hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName : EXIT : ${conveyor.conveyorHoldQ.name}")

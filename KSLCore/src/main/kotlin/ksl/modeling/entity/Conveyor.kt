@@ -1158,7 +1158,7 @@ class Conveyor(
      *  4) determines whether further movement is needed and schedules the next end of cell traversal if needed.
      */
     private fun endOfCellTraversal(event: KSLEvent<Nothing>) {
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): Event: (${event.id}): ***** started end of cell traversal action *****" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): Event: event_id = ${event.id} : ***** started end of cell traversal action *****" }
         // determine cells to move forward and move them forward
         moveCellsOnConveyor()
         // move items that have asked to ride and occupy an entry cell
@@ -1167,9 +1167,9 @@ class Conveyor(
         // process those items waiting to access the conveyor to allow them to block the entry
         processRequestsWaitingToAccessConveyor()
         // reschedule the conveyor movement if needed
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): Event: (${event.id}): checking for conveyor movement at end of move cycle" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): Event: event_id = ${event.id} : checking for conveyor movement at end of move cycle" }
         rescheduleConveyorMovement()
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): Event: (${event.id}): ***** completed end of cell traversal action *****" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): Event: event_id = ${event.id} : ***** completed end of cell traversal action *****" }
     }
 
     /**
@@ -1366,7 +1366,7 @@ class Conveyor(
         }
         endCellTraversalEvent = schedule(this::endOfCellTraversal, cellTravelTime, name = "End of Cell Traversal")
         endCellTraversalEvent!!.name = "End of Cell Traversal"
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): scheduled event (${endCellTraversalEvent?.id}): the end of cell traversal for t = ${(time + cellTravelTime)}" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): scheduled event ( event_id = ${endCellTraversalEvent?.id}): the end of cell traversal for t = ${(time + cellTravelTime)}" }
     }
 
     internal fun enqueueRequest(request: ConveyorRequest) {
