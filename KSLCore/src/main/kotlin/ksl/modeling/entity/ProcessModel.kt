@@ -1229,7 +1229,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspend()
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
-                require(time == myDelayEvent!!.time) {"Somehow the current time ($time) is not the same as the delay event time (${myDelayEvent!!.time})"}
+                require(time == myDelayEvent!!.time) {"r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id} : the actual event time ($time) was the same as the scheduled delay event time (${myDelayEvent!!.time})"}
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1761,11 +1761,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     state = running
                     //un-capture suspended entities here
                     suspendedEntities.remove(entity)
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: suspension name = $currentSuspendName: resuming..." }
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: *** before COROUTINE RESUME ***: process = (${this@ProcessCoroutine})"}
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : suspension name = $currentSuspendName : resuming..." }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : *** before COROUTINE RESUME *** : process = (${this@ProcessCoroutine})"}
                     logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : ---> before resuming continuation = ${continuation}"}
                     continuation?.resume(Unit)
-                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : ---> after resuming continuation = ${continuation}"}
+                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> after resuming continuation = ${continuation}"}
  //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: *** after COROUTINE RESUME ***: continuation = ${continuation}"}
  //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: suspension name = $currentSuspendName: resumed" }
                 }
