@@ -18,6 +18,7 @@
 
 package ksl.examples.general.misc
 
+import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ResourceWithQ
@@ -29,23 +30,24 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
-class TestResource(parent: ModelElement) : ProcessModel(parent, null) {
-    private val pool: ResourceWithQ = ResourceWithQ(this, name = "pool", capacity = 3)
+class TestHoldQ(parent: ModelElement) : ProcessModel(parent, null) {
+
+    private val myHoldQueue = HoldQueue(this, "hold")
     private val tba = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
-    private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
-    private val wip = TWResponse(this, "${name}:WIP")
-    private val tip = Response(this, "${name}:TimeInSystem")
+
     private val arrivals = Arrivals()
+    private var x = 0
 
     private inner class Customer: Entity() {
-        val mm1: KSLProcess = process("MM1"){
-            wip.increment()
-            timeStamp = time
-            val a  = seize(pool, 1)
-            delay(st)
-            release(a)
-            tip.value = time - timeStamp
-            wip.decrement()
+        val holdTest: KSLProcess = process("holdTest"){
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id : current value of x, ${x}" }
+            println("$time entity_id = $id : x = $x")
+            schedule(::releaseHold, 10.0, message = entity)
+            println("$time > before hold")
+            hold(myHoldQueue)
+            println("$time > after hold")
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id : incrementing x to, ${++x}" }
+            println("$time entity_id = $id : x = $x")
         }
     }
 
@@ -53,10 +55,17 @@ class TestResource(parent: ModelElement) : ProcessModel(parent, null) {
         arrivals.schedule(tba)
     }
 
+    private fun releaseHold(event: KSLEvent<Entity>){
+        println("$time > entity_id = $id : before removeAndResume()")
+        myHoldQueue.removeAndResume(event.message!!)
+        //myHoldQueue.removeAndImmediateResume(event.message!!)
+        println("$time > entity_id = $id : after removeAndResume()")
+    }
+
     private inner class Arrivals: EventAction<Nothing>(){
         override fun action(event: KSLEvent<Nothing>) {
             val c = Customer()
-            activate(c.mm1)
+            activate(c.holdTest)
             schedule(tba)
         }
     }
@@ -65,10 +74,9 @@ class TestResource(parent: ModelElement) : ProcessModel(parent, null) {
 
 fun main(){
     val m = Model()
-    val test = TestResource(m)
+    val test = TestHoldQ(m)
     m.numberOfReplications = 1
     m.lengthOfReplication = 20.0
-//    m.lengthOfReplicationWarmUp = 5000.0
     m.simulate()
     m.print()
 }
