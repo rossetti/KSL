@@ -525,6 +525,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         fun resumeProcess(timeUntilResumption: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
             // entity must be in a process and suspended
             if (myCurrentProcess != null) {
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: scheduling process resumption for time ${time + timeUntilResumption}" }
                 myResumeAction.schedule(timeUntilResumption, priority = priority)
             }
         }
@@ -542,9 +543,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         internal fun immediateResume(){
             if (myCurrentProcess != null) {
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
-                myCurrentProcess!!.resume()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: after the IMMEDIATE resume call" }
+ //               logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
+                myCurrentProcess!!.resumeContinuation()
+ //               logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: after the IMMEDIATE resume call" }
 //                if ((this.id == 10971L) && (time == 1078.1701779194993) && (model.currentReplicationNumber == 3))
 //                    throw IllegalStateException("some illegal thing happened") //TODO here there everywhere
             }
@@ -576,7 +577,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         private inner class ResumeAction : EventAction<Nothing>() {
             override fun action(event: KSLEvent<Nothing>) {
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id : EVENT : *** EXECUTING ... : ${event.id} : ResumeAction : before immediateResume()" }
                 immediateResume()
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id : EVENT : *** COMPLETED! : ${event.id} : ResumeAction : after immediateResume()" }
             }
         }
 
@@ -927,14 +930,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 check(!hasCurrentProcess) { "The $this process cannot be activated for the entity because the entity is already running a process" }
                 myPendingProcess = this
                 entity.state.schedule()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduled to start process $this at time ${time + timeUntilActivation}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduling process $this to start at time ${time + timeUntilActivation}" }
                 return myActivationAction.schedule(timeUntilActivation, this, priority)
             }
 
             private inner class ActivateAction : EventAction<KSLProcess>() {
                 override fun action(event: KSLEvent<KSLProcess>) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : ActivateAction : entity_id = ${entity.id}" }
                     beforeRunningProcess(myPendingProcess!!)
                     activateProcess()
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : ActivateAction : entity_id = ${entity.id}" }
                 }
             }
 
@@ -954,9 +959,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  resume its continuation and run until its first suspension point.
              */
             private fun start() {
-                state.start() // this is the coroutine state, can only start process (coroutine) from the created state
                 // The coroutine is told to resume its continuation. Thus, it runs until its first suspension point.
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} has hit the first suspension point of process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} : has been told to start : process, ($this)" }
+                state.start() // this is the coroutine state, can only start process (coroutine) from the created state
             }
 
 //            //TODO how to run a sub-process from within another process (coroutine)?
@@ -979,7 +984,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  forces (at least a 0.0) time delay and thus release back to the event loop to cause the process
              *  to be resumed.
              */
-            internal fun resume() {
+            internal fun resumeContinuation() {
                 state.resume()
             }
 
@@ -1152,8 +1157,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > starting delay of 0.0 for seize priority ..." }
-                delay(0.0, seizePriority, "$suspensionName SeizeDelay")
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ... starting delay of 0.0 for seize priority ..." }
+                delay(0.0, seizePriority, "$suspensionName SeizeDelay") //TODO can this be done without a delay
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ... ended delay for seize priority" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
@@ -1224,12 +1229,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val eName = "Delay Event: duration = $delayDuration suspension name = $suspensionName"
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: SCHEDULED end of delay: event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: DELAY for $delayDuration" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: SCHEDULED end of delay: event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time} : DELAY for ($delayDuration) STARTED" }
                 suspend()
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
-                require(time == myDelayEvent!!.time) {"r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id} : the actual event time ($time) was the same as the scheduled delay event time (${myDelayEvent!!.time})"}
+                require(time == myDelayEvent!!.time) {"r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})"}
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1686,11 +1690,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             private inner class DelayAction : EventAction<Nothing>() {
                 override fun action(event: KSLEvent<Nothing>) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : event_id = ${event.id} : DelayAction : STARTED : entity_id = ${entity.id}" }
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : event_id = ${event.id} : DelayAction : entity_id = ${entity.id}: suspension name = $currentSuspendName: BEFORE resume()" }
-                    resume()
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : event_id = ${event.id} : DelayAction : entity_id = ${entity.id}: suspension name = $currentSuspendName: AFTER resume()" }
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : event_id = ${event.id} : DelayAction : COMPLETED : entity_id = ${entity.id}" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : DelayAction : entity_id = ${entity.id} : suspension name = $currentSuspendName: BEFORE resume()" }
+                    resumeContinuation()
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : DelayAction : entity_id = ${entity.id} : suspension name = $currentSuspendName: AFTER resume()" }
                 }
             }
 
@@ -1739,7 +1741,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     isActivated = true
                     state = running
                     // this starts the coroutine for the first time, because I used createCoroutineUnintercepted()
-                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Created.start() : entity_id = ${entity.id} : ---> continuation = ${continuation}"}
+                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Created.start() : entity_id = ${entity.id} : ---> resuming initial continuation = ${continuation}"}
                     continuation?.resume(Unit)
                 }
             }
