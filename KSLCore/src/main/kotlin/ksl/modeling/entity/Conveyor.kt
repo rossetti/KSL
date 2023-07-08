@@ -1856,7 +1856,58 @@ class Conveyor(
      */
     internal inner class Completed : RequestState("Completed")
 
-    internal fun requestConveyor(
+    /**
+     *  Called from ProcessModel via the requestConveyor() function.
+     *  Creates the conveyor request that remembers the entity to allow the
+     *  resumption of the suspension. The returned request is used as a "ticket"
+     *  to ride the conveyor (like a resource allocation). The request is scheduled
+     *  to arrive at the conveyor at the current simulated time using the request
+     *  priority to order competing requests at different access points.
+     */
+    internal fun receiveEntity(
+        entity: ProcessModel.Entity,
+        numCellsNeeded: Int,
+        entryLocation: IdentityIfc,
+        accessPriority: Int,
+        accessResumePriority: Int
+    ): ConveyorRequest{
+        // create the request
+        val request = ConveyorRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
+        // schedule the access event with the request at the current time using the access priority
+        // this scheduled event handles the priority of the competing request calls for the conveyor
+        schedule(::receiveRequest, 0.0, message = request, priority = accessPriority)
+        // return the created request
+        return request
+    }
+
+    private fun receiveRequest(event: KSLEvent<ConveyorRequest>){
+        val request = event.message
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request?.entity?.id} : arrive for cells" }
+
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request?.entity?.id} : arrival for cells " }
+        TODO("Should handle receipt of request to access cells of the conveyor")
+    }
+
+    internal fun convey(
+        conveyorRequest: ConveyorRequestIfc,
+        destination: IdentityIfc
+    ) {
+        // schedule the need for conveyance at the current time
+
+
+        TODO("Not implemented yet")
+    }
+
+    internal fun exit(
+        conveyorRequest: ConveyorRequestIfc
+    ) {
+        // schedule the need for exit at the current time
+
+
+        TODO("Not implemented yet")
+    }
+
+    private fun requestConveyor( //TODO can delete?
         entity: ProcessModel.Entity,
         numCellsNeeded: Int,
         entryLocation: IdentityIfc,
