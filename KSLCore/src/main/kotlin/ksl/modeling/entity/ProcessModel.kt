@@ -1541,6 +1541,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // ensure that the entity remembers that it is now "using" the conveyor
                 entity.conveyorRequest = conveyorRequest
                 // entity via the request now blocks (controls) the access cell for entry
+                conveyorRequest.blockEntryLocation() //TODO should this be in ProcessModel
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : REQUEST CONVEYOR : entity_id = ${entity.id} : suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
