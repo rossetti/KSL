@@ -1881,8 +1881,41 @@ class Conveyor(
     }
 
     private fun receiveRequest(event: KSLEvent<ConveyorRequest>){
-        val request = event.message
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request?.entity?.id} : arrive for cells" }
+        val request = event.message!!
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : arrive for cells" }
+        // a new request for cells has arrived at an entry point of the conveyor
+        // always enter the queue to get statistics on waiting to enter the conveyor
+        enqueueRequest(request)
+        if (!request.mustWait()){
+            // the request does not have to wait
+            // remove the request from the queue and start it processing
+            dequeueRequest(request)
+            //TODO request.entity.conveyorRequest = request
+            // block the entry cell
+            request.blockEntryLocation()
+            //TODO resume the entity??
+        }
+
+        // adjust the entity's state???
+
+        //                // always enter the queue to get statistics on waiting to enter the conveyor
+//                conveyor.enqueueRequest(request)
+//                if (request.mustWait()) {
+//                    // entry is not possible at this time, the entity will suspend
+//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} : waiting for $numCellsNeeded cells of ${conveyor.name} in process, ($this)" }
+//                    entity.state.waitForConveyor()
+//                    suspend()
+//                    entity.state.activate()
+//                }
+//                // entry is now possible, deque the request from waiting and control entry into the conveyor
+//                conveyor.dequeueRequest(request)
+//                currentSuspendName = null
+//                currentSuspendType = SuspendType.NONE
+//                // ensure that the entity remembers that it is now "using" the conveyor
+//                entity.conveyorRequest = request
+//                // cause the request to block the entry location
+//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} : blocking conveyor (${conveyor.name} ) at location (${entryLocation.name})" }
+//                request.blockEntryLocation()
 
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request?.entity?.id} : arrival for cells " }
         TODO("Should handle receipt of request to access cells of the conveyor")
