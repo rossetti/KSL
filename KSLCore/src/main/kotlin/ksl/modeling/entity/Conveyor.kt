@@ -1200,7 +1200,8 @@ class Conveyor(
                 if (queue.isNotEmpty) {
                     val request = queue.peekFirst()!!
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity (${request.entity.name}) at location ${location.name}" }
-                    request.entity.immediateResume() //TODO yet another immediate resume
+                    conveyorHoldQ.removeAndImmediateResume(request.entity)
+                    //request.entity.immediateResume() //TODO yet another immediate resume
                     //request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
                 } else {
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: no requests waiting" }
@@ -1884,13 +1885,17 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : arrive for cells" }
         // a new request for cells has arrived at an entry point of the conveyor
         // always enter the queue to get statistics on waiting to enter the conveyor
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : enqueue request ${request.id}" }
         enqueueRequest(request)
         // check if the request does not have to wait
         if (!request.mustWait()) {
             // remove the request from the queue and start it processing
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request ${request.id}" }
             dequeueRequest(request)
             //TODO I think that immediate resume makes sense here
             conveyorHoldQ.removeAndImmediateResume(request.entity)
+        } else {
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : must wait for cells..." }
         }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request?.entity?.id} : arrival for cells " }
     }
