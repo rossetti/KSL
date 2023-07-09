@@ -59,8 +59,11 @@ class HoldQueue(
         entity: ProcessModel.Entity,
         waitStats: Boolean = true
     ) {
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > HoldQueue : removeAndImmediateResume() : removing entity_id = ${entity.id}"}
         remove(entity, waitStats)
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > HoldQueue : removeAndImmediateResume() : after remove, before immediateResume()"}
         entity.immediateResume()
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > HoldQueue : removeAndImmediateResume() : after remove, after immediateResume()"}
     }
 
     /**
