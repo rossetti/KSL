@@ -1400,6 +1400,7 @@ interface KSLProcessBuilder {
      *
      * @param conveyorRequest the permission to ride on the conveyor in the form of a valid cell allocation
      * @param destination the location to which to ride
+     * @param ridePriority the priority associated with ride request
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      * @return the returned item encapsulates what happened during the ride and contains information about
@@ -1408,6 +1409,7 @@ interface KSLProcessBuilder {
     suspend fun rideConveyor(
         conveyorRequest: ConveyorRequestIfc,
         destination: IdentityIfc,
+        ridePriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -1421,6 +1423,7 @@ interface KSLProcessBuilder {
      * while the entity occupies the final cells before exiting or riding again.
      *
      * @param destination the location to which to ride
+     * @param ridePriority the priority associated with ride request
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      * @return the returned item encapsulates what happened during the ride and contains information about
@@ -1428,10 +1431,11 @@ interface KSLProcessBuilder {
      */
     suspend fun rideConveyor(
         destination: IdentityIfc,
+        ridePriority: Int = PRIORITY,
         suspensionName: String? = null
     ) {
         require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
-        rideConveyor(entity.conveyorRequest!!, destination, suspensionName)
+        rideConveyor(entity.conveyorRequest!!, destination, ridePriority, suspensionName)
     }
 
     /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
@@ -1442,6 +1446,7 @@ interface KSLProcessBuilder {
      * with the conveyor.
      *
      * @param conveyorRequest the cell allocation that will be released during the exiting process
+     * @param exitPriority the priority associated with the exit
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      * @return the returned item encapsulates what happened during the ride and contains information about
@@ -1449,6 +1454,7 @@ interface KSLProcessBuilder {
      */
     suspend fun exitConveyor(
         conveyorRequest: ConveyorRequestIfc,
+        exitPriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -1461,14 +1467,16 @@ interface KSLProcessBuilder {
      *
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @param exitPriority the priority associated with the exit
      * @return the returned item encapsulates what happened during the ride and contains information about
      * the origin point, the destination, etc.
      */
     suspend fun exitConveyor(
+        exitPriority: Int = PRIORITY,
         suspensionName: String? = null
     ) {
         require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
-        exitConveyor(entity.conveyorRequest!!, suspensionName)
+        exitConveyor(entity.conveyorRequest!!, exitPriority, suspensionName)
     }
 
     /**

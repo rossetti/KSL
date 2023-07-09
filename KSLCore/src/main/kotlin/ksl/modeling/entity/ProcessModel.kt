@@ -1068,12 +1068,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override suspend fun hold(queue: HoldQueue, priority: Int, suspensionName: String?) {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.HOLD
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} being held in ${queue.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : HOLD : entity_id = ${entity.id} : ${queue.name} : suspension name = $suspensionName : in process, ($this)" }
                 entity.state.holdInQueue()
                 queue.enqueue(entity, priority)
                 suspend()
                 entity.state.activate()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} exited ${queue.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : HOLD: entity_id = ${entity.id} exited ${queue.name} : suspension name = $suspensionName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1551,6 +1551,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override suspend fun rideConveyor(
                 conveyorRequest: ConveyorRequestIfc,
                 destination: IdentityIfc,
+                ridePriority: Int,
                 suspensionName: String?
             ) {
                 require(entity.conveyorRequest != null) {
@@ -1569,7 +1570,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 { "The destination (${destination.name}) is not reachable from entry location (${origin.name})" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from ${origin.name} to ${destination.name} : suspension name = $currentSuspendName"}
                 // schedules the need to ride the conveyor
-                conveyor.convey(conveyorRequest as Conveyor.ConveyorRequest, destination)
+                conveyor.scheduleConveyAction(conveyorRequest as Conveyor.ConveyorRequest, destination, ridePriority)
                 isMoving = true
                 // holds here while request rides on the conveyor
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
@@ -1615,6 +1616,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override suspend fun exitConveyor(
                 conveyorRequest: ConveyorRequestIfc,
+                exitPriority: Int,
                 suspensionName: String?
             ) {
                 require(entity.conveyorRequest != null) { "The entity attempted to exit without using the conveyor." }
@@ -1626,7 +1628,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val conveyor = conveyorRequest.conveyor
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
                 // schedules the need to exit the conveyor
-                conveyor.exit(conveyorRequest as Conveyor.ConveyorRequest)
+                conveyor.scheduleExitAction(conveyorRequest as Conveyor.ConveyorRequest, exitPriority)
                 isMoving = true
                 // hold here while entity exits the conveyor
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")

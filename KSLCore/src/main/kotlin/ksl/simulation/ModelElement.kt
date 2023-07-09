@@ -2097,7 +2097,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
          * @param obj an object to attach
          */
         internal fun <T : QObject> enterQueue(queue: Queue<T>, time: Double, priority: Int, obj: Any?) {
-            check(isNotQueued) { "The QObject was already queued!" }
+            check(isNotQueued) { "The QObject, $this, was already queued!" }
             myQueuedState.enter(time)
             this.queue = queue
             this.priority = priority

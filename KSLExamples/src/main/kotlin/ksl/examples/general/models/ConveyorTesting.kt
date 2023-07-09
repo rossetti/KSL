@@ -69,12 +69,12 @@ class TestConveyor(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessM
     override fun initialize() {
         val p1 = Part("Part1")
         activate(p1.conveyingProcess)
-        val p2 = Part("Part2")
-        activate(p2.conveyingProcess, timeUntilActivation = 0.1)
-        val p3 = Part("Part3")
-        activate(p3.conveyingProcess, timeUntilActivation = 0.1)
-        val p4 = Part("Part4")
-        activate(p4.conveyingProcess, timeUntilActivation = 10.0)
+//        val p2 = Part("Part2")
+//        activate(p2.conveyingProcess, timeUntilActivation = 0.1)
+//        val p3 = Part("Part3")
+//        activate(p3.conveyingProcess, timeUntilActivation = 0.1)
+//        val p4 = Part("Part4")
+//        activate(p4.conveyingProcess, timeUntilActivation = 10.0)
     }
 
     private inner class Part(name: String? = null) : Entity(name) {
