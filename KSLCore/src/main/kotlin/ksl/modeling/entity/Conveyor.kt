@@ -1201,7 +1201,9 @@ class Conveyor(
                 val queue = accessQueues[location]!!
                 if (queue.isNotEmpty) {
                     val request = queue.peekFirst()!!
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity (${request.entity.name}) at location ${location.name}" }
+                    dequeueRequest(request)
+                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} removed from queue = : ${queue.name}"}
+                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity_id = ${request.entity.id} at location ${location.name}" }
                     //conveyorHoldQ.removeAndImmediateResume(request.entity)
                     conveyorHoldQ.removeAndResume(request.entity) //TODO PROBLEM HERE??
                     //request.entity.immediateResume() //TODO yet another immediate resume
@@ -1647,6 +1649,7 @@ class Conveyor(
                 if (numCellsNeeded == numCellsOccupied) {
                     status = ItemStatus.ON
                     positionedToEnter.remove(entryCell)
+                    //TODO remove the request from the access queue??
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is fully on the conveyor" }
                     // item is fully on the conveyor
                 }
@@ -1693,6 +1696,7 @@ class Conveyor(
                 status = ItemStatus.ON
                 // no longer getting on
                 positionedToEnter.remove(entryCell)
+                //TODO remove the request from the access queue????
                 ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is fully on the conveyor" }
             } else {
                 status = ItemStatus.ENTERING

@@ -577,9 +577,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         private inner class ResumeAction : EventAction<Nothing>() {
             override fun action(event: KSLEvent<Nothing>) {
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id : EVENT : *** EXECUTING ... : event_id = ${event.id} : ResumeAction : before immediateResume()" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = $id : ResumeAction : before immediateResume()" }
                 immediateResume()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id : EVENT : *** COMPLETED! : event_id = ${event.id} : ResumeAction : after immediateResume()" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = $id : ResumeAction : after immediateResume()" }
             }
         }
 
