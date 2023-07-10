@@ -7,6 +7,7 @@ import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Identity
@@ -28,6 +29,7 @@ class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessMode
     private val station3: IdentityIfc = Identity("Station3")
     private val station4: IdentityIfc = Identity("Station4")
     private val exitArea: IdentityIfc = Identity("ExitArea")
+    private val myNumInSystem: TWResponse = TWResponse(this, "NumInSystem")
 
     init {
         conveyor = Conveyor.builder(this, "Conveyor")
@@ -74,6 +76,7 @@ class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessMode
     private inner class PartType : Entity() {
         val startingStation = stationsRV.element
         val productionProcess = process {
+            myNumInSystem.increment()
             val itr = stations.listIterator(stations.indexOf(startingStation))
             var cr: ConveyorRequestIfc? = null
             while(itr.hasNext()){
@@ -88,6 +91,7 @@ class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessMode
             exitConveyor(cr!!)
             myOverallSystemTime.value = time - createTime
             myCompletedCounter.increment()
+            myNumInSystem.decrement()
         }
     }
 
