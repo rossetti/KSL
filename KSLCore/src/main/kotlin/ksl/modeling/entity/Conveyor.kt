@@ -1203,7 +1203,7 @@ class Conveyor(
                     val request = queue.peekFirst()!!
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity (${request.entity.name}) at location ${location.name}" }
                     //conveyorHoldQ.removeAndImmediateResume(request.entity)
-                    conveyorHoldQ.removeAndResume(request.entity)
+                    conveyorHoldQ.removeAndResume(request.entity) //TODO PROBLEM HERE??
                     //request.entity.immediateResume() //TODO yet another immediate resume
                     //request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
                 } else {
