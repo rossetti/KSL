@@ -5,6 +5,7 @@ import ksl.modeling.entity.ProcessModel
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Identity
@@ -25,6 +26,7 @@ class ConveyorExample1(parent: ModelElement, name: String? = null) : ProcessMode
 
     private val myOverallSystemTime = Response(this, "OverallSystemTime")
     private val myCompletedCounter = Counter(this, "CompletedCount")
+    private val myNumInSystem: TWResponse = TWResponse(this, "NumInSystem")
 
     private val conveyor: Conveyor
     private val arrivalArea: IdentityIfc = Identity("ArrivalArea")
@@ -48,12 +50,14 @@ class ConveyorExample1(parent: ModelElement, name: String? = null) : ProcessMode
 
     private inner class PartType : Entity() {
         val productionProcess = process {
+            myNumInSystem.increment()
             val conveyorRequest = requestConveyor(conveyor, arrivalArea, 1)
             rideConveyor(conveyorRequest, exitArea)
             delay(myPackingTimeRV)
             exitConveyor(conveyorRequest)
             myOverallSystemTime.value = time - createTime
             myCompletedCounter.increment()
+            myNumInSystem.decrement()
         }
     }
 
