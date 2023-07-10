@@ -525,8 +525,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         fun resumeProcess(timeUntilResumption: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
             // entity must be in a process and suspended
             if (myCurrentProcess != null) {
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: scheduling process resumption for time ${time + timeUntilResumption}" }
-                myResumeAction.schedule(timeUntilResumption, priority = priority)
+                val event = myResumeAction.schedule(timeUntilResumption, priority = priority)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: scheduled resume action for time ${time + timeUntilResumption} : event_id = ${event.id}" }
             }
         }
 
@@ -577,9 +577,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         private inner class ResumeAction : EventAction<Nothing>() {
             override fun action(event: KSLEvent<Nothing>) {
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id : EVENT : *** EXECUTING ... : ${event.id} : ResumeAction : before immediateResume()" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id : EVENT : *** EXECUTING ... : event_id = ${event.id} : ResumeAction : before immediateResume()" }
                 immediateResume()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id : EVENT : *** COMPLETED! : ${event.id} : ResumeAction : after immediateResume()" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id : EVENT : *** COMPLETED! : event_id = ${event.id} : ResumeAction : after immediateResume()" }
             }
         }
 
