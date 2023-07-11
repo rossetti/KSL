@@ -282,8 +282,18 @@ class Conveyor(
 
     fun hasItemPositionedToEnter(): Boolean = positionedToEnter.isNotEmpty()
 
-    private val segments: List<CSegment>
+    val segments: List<CSegment>
 
+    /**
+     *  Turns [on] or off the default reporting for the utilization and time average
+     *  number of busy cells for each segment of the conveyor
+     */
+    fun segmentUtilizationReporting(on: Boolean = true){
+        for(seg in segments){
+            seg.myNumOccupiedCells.defaultReportingOption = on
+            seg.cellUtilization.defaultReportingOption = on
+        }
+    }
     init {
         // constructs the cells based on the segment data
         val cells = mutableListOf<Cell>()
@@ -812,6 +822,9 @@ class Conveyor(
 
     override fun replicationEnded() {
         myCellUtilization.value = myNumOccupiedCells.withinReplicationStatistic.weightedAverage / conveyorCells.size
+        for (cSeg in segments){
+            cSeg.replicationEnded()
+        }
     }
 
     /**
@@ -902,6 +915,8 @@ class Conveyor(
         init {
             cellList.add(this)
         }
+
+        internal lateinit var cSegment: CSegment
 
         val isEntryCell: Boolean
             get() = type == CellType.ENTRY
@@ -1673,6 +1688,7 @@ class Conveyor(
          */
         private fun occupyCell(cell: Cell) {
             myNumOccupiedCells.increment()
+            cell.cSegment.myNumOccupiedCells.increment()
             if (myCellsOccupied.size < numCellsNeeded) {
                 myCellsOccupied.add(cell)
                 cell.item = this
@@ -1713,6 +1729,7 @@ class Conveyor(
                 val first = myCellsOccupied.removeFirst()
                 first.item = null
                 myNumOccupiedCells.decrement()
+                first.cSegment.myNumOccupiedCells.decrement()
                 true
             } else {
                 false
@@ -1899,8 +1916,6 @@ class Conveyor(
             // remove the request from the queue and start it processing
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request ${request.id}" }
             dequeueRequest(request)
-            //TODO I think that immediate resume makes sense here
-            //conveyorHoldQ.removeAndImmediateResume(request.entity)
             conveyorHoldQ.removeAndResume(request.entity)
         } else {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : must wait for cells..." }
@@ -1956,7 +1971,7 @@ class Conveyor(
         return ConveyorRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
     }
 
-    private inner class CSegment(
+    inner class CSegment(
         val number: Int,
         val entryCell: Cell,
         val exitCell: Cell
@@ -1968,6 +1983,25 @@ class Conveyor(
         }
 
         val cells = conveyorCells.subList(entryCell.index, exitCell.cellNumber)
+
+        init {
+            for (cell in cells){
+                cell.cSegment = this
+            }
+        }
+
+        internal val myNumOccupiedCells = TWResponse(this@Conveyor, "${this@Conveyor.name}:${this.name}:NumOccupiedCells")
+        val numberOfOccupiedCells: TWResponseCIfc
+            get() = myNumOccupiedCells
+
+        private val myCellUtilization = Response(this@Conveyor, "${this@Conveyor.name}:${this.name}:CellUtilization")
+
+        val cellUtilization: ResponseCIfc
+            get() = myCellUtilization
+
+        internal fun replicationEnded(){
+            myCellUtilization.value = myNumOccupiedCells.withinReplicationStatistic.weightedAverage / cells.size
+        }
 
         val isLastSegment: Boolean
             get() = conveyorCells.last() == exitCell
@@ -2006,7 +2040,7 @@ class Conveyor(
             return conveyorCells.subList(foc.index, leader.cellNumber)
         }
 
-        fun moveCellsForward() {
+        internal fun moveCellsForward() {
             val mc = movableCells()
             moveItemsForwardOneCell(mc)
         }

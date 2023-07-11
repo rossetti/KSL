@@ -23,7 +23,7 @@ import ksl.utilities.random.rvariable.*
  */
 class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
-    private val myTBArrivals: RVariableIfc = ExponentialRV(2.0, 1)
+    private val myTBArrivals: RVariableIfc = ExponentialRV(12.0, 1)
     private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
     private val mySTRV = RandomVariable(this, TriangularRV(12.0, 14.0, 16.0, 2))
     private val conveyor: Conveyor
@@ -31,7 +31,6 @@ class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessMode
     private val station1: IdentityIfc = Identity("Station1")
     private val station2: IdentityIfc = Identity("Station2")
     private val station3: IdentityIfc = Identity("Station3")
-
     private val myNumInSystem: TWResponse = TWResponse(this, "NumInSystem")
 
     init {
