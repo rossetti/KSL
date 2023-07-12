@@ -288,12 +288,14 @@ class Conveyor(
      *  Turns [on] or off the default reporting for the utilization and time average
      *  number of busy cells for each segment of the conveyor
      */
-    fun segmentUtilizationReporting(on: Boolean = true){
+    fun segmentStatisticalReporting(on: Boolean = true){
         for(seg in segments){
             seg.myNumOccupiedCells.defaultReportingOption = on
             seg.cellUtilization.defaultReportingOption = on
+//            seg.myTraversalTime.defaultReportingOption = on
         }
     }
+
     init {
         // constructs the cells based on the segment data
         val cells = mutableListOf<Cell>()
@@ -1138,9 +1140,7 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > Request (${request.name}): status = ${request.status}: entity_id = ${request.entity.id} : fully off the conveyor: removing blockage" }
         removeBlockage(exitCell)
         // item completed the exiting process, tell the entity that it can proceed
-        //conveyorHoldQ.removeAndImmediateResume(request.entity) //TODO an immediate resume??
         conveyorHoldQ.removeAndResume(request.entity)
-//        conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority)
         // cause the transition to the complete state from the blocking exit state
         request.exitConveyor()
     }
@@ -1162,7 +1162,6 @@ class Conveyor(
             cancelConveyorMovement()
         }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : resuming after reaching destination" }
-        //conveyorHoldQ.removeAndImmediateResume(request.entity) //TODO another immediate resume
         conveyorHoldQ.removeAndResume(request.entity)
         // conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority, false)
     }
@@ -1219,10 +1218,7 @@ class Conveyor(
                     dequeueRequest(request)
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} removed from queue = : ${queue.name}"}
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity_id = ${request.entity.id} at location ${location.name}" }
-                    //conveyorHoldQ.removeAndImmediateResume(request.entity)
-                    conveyorHoldQ.removeAndResume(request.entity) //TODO PROBLEM HERE??
-                    //request.entity.immediateResume() //TODO yet another immediate resume
-                    //request.entity.resumeProcess(0.0, priority = request.accessResumePriority)
+                    conveyorHoldQ.removeAndResume(request.entity)
                 } else {
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: no requests waiting" }
                 }
@@ -1525,6 +1521,8 @@ class Conveyor(
             priority = entity.priority
         }
 
+        internal var timeStartedTraversal: Double = 0.0
+
         override val conveyor = this@Conveyor
 
         override var status: ItemStatus = ItemStatus.OFF
@@ -1657,6 +1655,9 @@ class Conveyor(
             // if the front cell is not an exit cell, then it must either be an entry cell or an inner cell
             // in which case there MUST be a next cell
             check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
+//            if (frontCell!!.isEntryCell){
+//                timeStartedTraversal = time //TODO this is not correctly placed
+//            }
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
             occupyCell(frontCell!!.nextCell!!)
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
@@ -1664,7 +1665,6 @@ class Conveyor(
                 if (numCellsNeeded == numCellsOccupied) {
                     status = ItemStatus.ON
                     positionedToEnter.remove(entryCell)
-                    //TODO remove the request from the access queue??
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is fully on the conveyor" }
                     // item is fully on the conveyor
                 }
@@ -1678,6 +1678,9 @@ class Conveyor(
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: has reached cell (${frontCell?.cellNumber}) and its destination: (${destination?.name})" }
                     conveyor.itemReachedDestination(this)
                 }
+                // this should be the end of a segment
+                // find the segment, and record the time to traverse the segment
+//                frontCell!!.cSegment.myTraversalTime.value = time - timeStartedTraversal //TODO not correct
             }
         }
 
@@ -1712,7 +1715,6 @@ class Conveyor(
                 status = ItemStatus.ON
                 // no longer getting on
                 positionedToEnter.remove(entryCell)
-                //TODO remove the request from the access queue????
                 ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is fully on the conveyor" }
             } else {
                 status = ItemStatus.ENTERING
@@ -1962,15 +1964,6 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : start exit action" }
     }
 
-    private fun requestConveyor( //TODO can delete?
-        entity: ProcessModel.Entity,
-        numCellsNeeded: Int,
-        entryLocation: IdentityIfc,
-        accessResumePriority: Int
-    ): ConveyorRequest {
-        return ConveyorRequest(entity, numCellsNeeded, entryLocation, accessResumePriority)
-    }
-
     inner class CSegment(
         val number: Int,
         val entryCell: Cell,
@@ -1998,6 +1991,10 @@ class Conveyor(
 
         val cellUtilization: ResponseCIfc
             get() = myCellUtilization
+
+//        internal val myTraversalTime = Response(this@Conveyor,"${this@Conveyor.name}:${this.name}:TraversalTime")
+//        val traversalTime: ResponseCIfc
+//            get() = myTraversalTime
 
         internal fun replicationEnded(){
             myCellUtilization.value = myNumOccupiedCells.withinReplicationStatistic.weightedAverage / cells.size
