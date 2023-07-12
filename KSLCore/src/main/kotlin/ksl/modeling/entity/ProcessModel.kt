@@ -1166,7 +1166,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val request = createRequest(amountNeeded, resource)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: enqueued request (${request.id}) for $amountNeeded units of ${resource.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: enqueued request_id = ${request.id} for $amountNeeded units of ${resource.name}" }
                 if (!resource.canAllocate(request.amountRequested)) {
                     // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: waiting for $amountNeeded units of ${resource.name}" }

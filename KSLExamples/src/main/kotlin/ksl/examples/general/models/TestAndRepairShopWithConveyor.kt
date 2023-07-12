@@ -81,6 +81,9 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
     private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 2, testPlan3 to 2, testPlan4 to 2)
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
+    init {
+           myArrivalGenerator.initialMaximumNumberOfEvents = 1
+    }
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 

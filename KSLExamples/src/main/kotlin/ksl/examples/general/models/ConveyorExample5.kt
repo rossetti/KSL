@@ -16,10 +16,10 @@ import ksl.utilities.random.rvariable.*
 /**
  *  Accumulating conveyor example. Four segments of length 10 feet. Parts
  *  arrive to arrival area and ride to the first station.  After processing at the station, go to next stations, and
- *  then finally goes back to the arrival area and exits. The part stays on the conveyor while processing.
+ *  then finally goes to the exit. The part exits the conveyor while processing.
  *
  */
-class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class ConveyorExample5(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(12.0, 1)
     private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
@@ -29,6 +29,7 @@ class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessMode
     private val station1: IdentityIfc = Identity("Station1")
     private val station2: IdentityIfc = Identity("Station2")
     private val station3: IdentityIfc = Identity("Station3")
+    private val exitArea: IdentityIfc = Identity("ExitArea")
     private val myNumInSystem: TWResponse = TWResponse(this, "NumInSystem")
 
     init {
@@ -40,14 +41,11 @@ class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessMode
             .firstSegment(arrivalArea, station1, 10)
             .nextSegment(station2, 10)
             .nextSegment(station3, 10)
-            .nextSegment(arrivalArea, 10)
+            .nextSegment(exitArea, 10)
             .build()
-        conveyor.accessQueueAt(station1).defaultReportingOption = false
-        conveyor.accessQueueAt(station2).defaultReportingOption = false
-        conveyor.accessQueueAt(station3).defaultReportingOption = false
     }
 
-    private val myStation1R: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Station1R")
+    private val myStation1R: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "Station1R")
     private val myStation2R: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Station2R")
     private val myStation3R: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Station3R")
 
@@ -66,12 +64,18 @@ class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessMode
             myNumInSystem.increment()
             val cr = requestConveyor(conveyor, arrivalArea, numCellsNeeded = 1)
             rideConveyor(station1)
+            exitConveyor()
             use(myStation1R, delayDuration = mySTRV)
+            requestConveyor(conveyor, station1, numCellsNeeded = 1)
             rideConveyor(station2)
+            exitConveyor()
             use(myStation2R, delayDuration = mySTRV)
+            requestConveyor(conveyor, station2, numCellsNeeded = 1)
             rideConveyor(station3)
+            exitConveyor()
             use(myStation3R, delayDuration = mySTRV)
-            rideConveyor(arrivalArea)
+            requestConveyor(conveyor, station3, numCellsNeeded = 1)
+            rideConveyor(exitArea)
             exitConveyor()
             myOverallSystemTime.value = time - createTime
             myCompletedCounter.increment()
@@ -83,7 +87,7 @@ class ConveyorExample3(parent: ModelElement, name: String? = null) : ProcessMode
 
 fun main() {
     val m = Model()
-    val test = ConveyorExample3(m)
+    val test = ConveyorExample5(m)
     println(test)
     m.lengthOfReplication = 480.0
     m.numberOfReplications = 20
