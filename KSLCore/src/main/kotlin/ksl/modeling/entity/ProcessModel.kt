@@ -1068,12 +1068,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override suspend fun hold(queue: HoldQueue, priority: Int, suspensionName: String?) {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.HOLD
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : HOLD : entity_id = ${entity.id} : ${queue.name} : suspension name = $suspensionName : in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : HOLD : entity_id = ${entity.id} : entering holdQ = ${queue.name} : suspension name = $suspensionName : in process, ($this)" }
                 entity.state.holdInQueue()
                 queue.enqueue(entity, priority)
                 suspend()
                 entity.state.activate()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : HOLD: entity_id = ${entity.id} exited ${queue.name} : suspension name = $suspensionName" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : HOLD: entity_id = ${entity.id} : released from holdQ = ${queue.name} : suspension name = $suspensionName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }

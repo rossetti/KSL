@@ -18,9 +18,34 @@ import ksl.utilities.random.rvariable.*
  *  Accumulating conveyor example. Four segments of length 10 feet. Parts
  *  arrive to any of the 4 stations. After processing at the station, the part
  *  goes to the exit area.
- *
+ *  ```
+ *  Conveyor : Conveyor
+ * type = ACCUMULATING
+ * is circular = false
+ * velocity = 1.0
+ * cellSize = 1
+ * max number cells allowed to occupy = 1
+ * cell Travel Time = 1.0
+ * Segments:
+ * first location = Station1
+ * last location = ExitArea
+ * Segment: 1 = (start = Station1 --> end = Station2 : length = 10)
+ * Segment: 2 = (start = Station2 --> end = Station3 : length = 10)
+ * Segment: 3 = (start = Station3 --> end = Station4 : length = 10)
+ * Segment: 4 = (start = Station4 --> end = ExitArea : length = 10)
+ * total length = 40
+ * Downstream locations:
+ * Station1 : [Station2 -> Station3 -> Station4 -> ExitArea]
+ * Station2 : [Station3 -> Station4 -> ExitArea]
+ * Station3 : [Station4 -> ExitArea]
+ * Station4 : [ExitArea]
+ * ```
  */
-class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class ConveyorExample2(
+    parent: ModelElement,
+    conveyorType: Conveyor.Type = Conveyor.Type.ACCUMULATING,
+    name: String? = null
+) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
     private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
@@ -34,7 +59,7 @@ class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessMode
 
     init {
         conveyor = Conveyor.builder(this, "Conveyor")
-            .conveyorType(Conveyor.Type.ACCUMULATING)
+            .conveyorType(conveyorType)
             .velocity(1.0)
             .cellSize(1)
             .maxCellsAllowed(1)
@@ -44,6 +69,7 @@ class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessMode
             .nextSegment(exitArea, 10)
             .build()
     }
+
     private val stations = listOf(station1, station2, station3, station4)
     private val stationsRV = REmpiricalList<IdentityIfc>(this, stations, doubleArrayOf(0.2, 0.4, 0.7, 1.0))
 
@@ -80,9 +106,9 @@ class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessMode
             myNumInSystem.increment()
             val itr = stations.listIterator(stations.indexOf(startingStation))
             var cr: ConveyorRequestIfc? = null
-            while(itr.hasNext()){
+            while (itr.hasNext()) {
                 val station = itr.next()
-                if (station == startingStation){
+                if (station == startingStation) {
                     cr = requestConveyor(conveyor, startingStation)
                 }
                 val nsd = stationData[station]!!
@@ -100,7 +126,7 @@ class ConveyorExample2(parent: ModelElement, name: String? = null) : ProcessMode
 
 fun main() {
     val m = Model()
-    val test = ConveyorExample2(m)
+    val test = ConveyorExample2(m, Conveyor.Type.ACCUMULATING)
     println(test)
     m.lengthOfReplication = 960.0
     m.numberOfReplications = 20

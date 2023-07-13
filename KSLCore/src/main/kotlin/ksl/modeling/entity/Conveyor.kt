@@ -1911,18 +1911,18 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : arrive for cells" }
         // a new request for cells has arrived at an entry point of the conveyor
         // always enter the queue to get statistics on waiting to enter the conveyor
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : enqueue request ${request.id}" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : enqueue request ${request.id} at ${request.entryLocation.name}" }
         enqueueRequest(request)
         // check if the request does not have to wait
         if (!request.mustWait()) {
             // remove the request from the queue and start it processing
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request ${request.id}" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request ${request.id} at ${request.entryLocation.name}" }
             dequeueRequest(request)
             conveyorHoldQ.removeAndResume(request.entity)
         } else {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : must wait for cells..." }
         }
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request?.entity?.id} : arrival for cells " }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : arrival for cells " }
     }
 
     internal fun scheduleConveyAction(

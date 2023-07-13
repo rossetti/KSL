@@ -16,7 +16,11 @@ import ksl.utilities.random.rvariable.*
  *  Non-accumulating conveyor example. One segment 100 feet.
  *
  */
-class ConveyorExample1(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class ConveyorExample1(
+    parent: ModelElement,
+    conveyorType: Conveyor.Type = Conveyor.Type.NON_ACCUMULATING,
+    name: String? = null
+) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(10.0, 1)
 
@@ -34,7 +38,7 @@ class ConveyorExample1(parent: ModelElement, name: String? = null) : ProcessMode
 
     init {
         conveyor = Conveyor.builder(this, "Conveyor")
-            .conveyorType(Conveyor.Type.NON_ACCUMULATING)
+            .conveyorType(conveyorType)
             .velocity(1.0)
             .cellSize(1)
             .maxCellsAllowed(1)
@@ -66,7 +70,7 @@ class ConveyorExample1(parent: ModelElement, name: String? = null) : ProcessMode
 fun main() {
 
     val m = Model()
-    val test = ConveyorExample1(m)
+    val test = ConveyorExample1(m, Conveyor.Type.NON_ACCUMULATING)
     println(test)
     m.lengthOfReplication = 480.0
     m.numberOfReplications = 20
