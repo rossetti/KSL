@@ -2032,12 +2032,13 @@ class Conveyor(
             val leader = leadingCell ?: return emptyList()
             // the foc could be the last cell of the list
             // the leader cell must be occupied, and it cannot be blocked
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR.CSegment($name): foc cell # = ${foc.cellNumber}, leader cell # = ${leader.cellNumber}" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR.CSegment($name): foc cell # = ${foc.cellNumber}, leader cell # = ${leader.cellNumber}" }
             //ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR.CSegment: foc cell index = ${foc.index}, leader cell index = ${leader.index}"}
             return conveyorCells.subList(foc.index, leader.cellNumber)
         }
 
         internal fun moveCellsForward() {
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR.CSegment($name): moving cells forward" }
             val mc = movableCells()
             moveItemsForwardOneCell(mc)
         }
@@ -2082,7 +2083,7 @@ class Conveyor(
             // move items by segment
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating conveyor: has blocked cells: moving cells by segments forward" }
             for (segment in segments.reversed()) {
-                segment.moveCellsForward()
+                segment.moveCellsForward() //TODO need some output
             }
         }
     }
