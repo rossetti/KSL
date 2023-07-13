@@ -26,9 +26,8 @@ import ksl.simulation.ModelElement
 import ksl.utilities.Identity
 
 /**
- *  This test has Part1-3 start at A and travel to B.  Part 4 starts at B and goes to A.
- *
- * ```
+ *  This test has Part1-3 start at A and travel to B.  Part 4 starts at B and goes back to B.
+ *  ```
  * Conveyor : Conveyor_4
  * type = ACCUMULATING
  * is circular = true
@@ -48,8 +47,9 @@ import ksl.utilities.Identity
  * B : [C -> A]
  * C : [A]
  * ```
+ *
  */
-class ConveyorTest2(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
+class ConveyorTest3(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
     val stationA = Identity(aName = "A")
@@ -82,7 +82,7 @@ class ConveyorTest2(parent: ModelElement, conveyorType: Conveyor.Type) : Process
     }
 
     private inner class PartType(val amt: Int = 1, name: String? = null) : Entity(name) {
-        val conveyingProcess: KSLProcess = process("PartType") {
+        val conveyingProcess: KSLProcess = process("PartType1") {
             println("${entity.name}: time = $time before access at ${stationA.name}")
             val a = requestConveyor(conveyor, stationA, amt)
             println("${entity.name}: time = $time after access")
@@ -107,6 +107,9 @@ class ConveyorTest2(parent: ModelElement, conveyorType: Conveyor.Type) : Process
             println("${entity.name}: time = $time after ride to ${stationA.name}")
             println("${entity.name}: The riding time was ${time - timeStamp}")
             delay(2.5)
+            println("${entity.name}: time = $time continue to ride to ${stationB.name}")
+            rideConveyor(a, stationB)
+            println("${entity.name}: time = $time after ride to ${stationB.name}")
             println("${entity.name}: time = $time before exit ")
             exitConveyor(a)
             println("${entity.name}: time = $time after exit ")
@@ -117,7 +120,7 @@ class ConveyorTest2(parent: ModelElement, conveyorType: Conveyor.Type) : Process
 
 fun main() {
     val m = Model()
-    val test = TestConveyor2(m, Conveyor.Type.ACCUMULATING)
+    val test = TestConveyor3(m, Conveyor.Type.ACCUMULATING)
     m.lengthOfReplication = 100.0
     m.numberOfReplications = 1
     m.simulate()
