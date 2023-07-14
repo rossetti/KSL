@@ -82,7 +82,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 2, testPlan3 to 2, testPlan4 to 2)
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
     init {
-           myArrivalGenerator.initialMaximumNumberOfEvents = 1
+ //          myArrivalGenerator.initialMaximumNumberOfEvents = 1
     }
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
@@ -146,10 +146,10 @@ fun main() {
     val m = Model()
     val tq = TestAndRepairShopWithConveyor(m, name = "TestAndRepairWithConveyor")
     ProcessModel.logger.atLevel(Level.INFO)
-//    m.numberOfReplications = 10
-//    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
-        m.numberOfReplications = 1
-    m.lengthOfReplication = 2.0*480.0
+    m.numberOfReplications = 10
+    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
+//        m.numberOfReplications = 1
+//    m.lengthOfReplication = 2.0*480.0
     m.simulate()
     m.print()
     val r = m.simulationReporter
