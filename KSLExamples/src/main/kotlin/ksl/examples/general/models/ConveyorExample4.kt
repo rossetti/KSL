@@ -47,7 +47,7 @@ class ConveyorExample4(parent: ModelElement, name: String? = null) : ProcessMode
     private val myTBArrivals: RVariableIfc = ExponentialRV(12.0, 1)
     private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
     init {
-        myArrivalGenerator.initialMaximumNumberOfEvents = 2
+//        myArrivalGenerator.initialMaximumNumberOfEvents = 2
     }
     private val mySTRV = RandomVariable(this, TriangularRV(12.0, 14.0, 16.0, 2))
     private val conveyor: Conveyor
@@ -96,37 +96,37 @@ class ConveyorExample4(parent: ModelElement, name: String? = null) : ProcessMode
 
         val productionProcess = process {
             myNumInSystem.increment()
-            println("$time > entity ${entity.id} arrival")
+ //           println("$time > entity ${entity.id} arrival")
             val cr = requestConveyor(conveyor, arrivalArea, numCellsNeeded = 1)
             entity.timeStamp = time
-            println("$time > entity ${entity.id} before ride to station 1")
+ //           println("$time > entity ${entity.id} before ride to station 1")
             rideConveyor(station1)
             var tt = time - entity.timeStamp
-            println("$time > entity ${entity.id}, after ride from arrival to station 1, traversal time = $tt")
+ //           println("$time > entity ${entity.id}, after ride from arrival to station 1, traversal time = $tt")
             myS1TraversalTime.value = tt
             use(myStation1R, delayDuration = mySTRV)
-            println("$time > entity ${entity.id} end use resource 1, before ride to station 2")
+  //          println("$time > entity ${entity.id} end use resource 1, before ride to station 2")
             entity.timeStamp = time
             rideConveyor(station2)
             tt = time - entity.timeStamp
-            println("$time > entity ${entity.id}, after ride from station 1 to station 2, traversal time = $tt")
+  //          println("$time > entity ${entity.id}, after ride from station 1 to station 2, traversal time = $tt")
             myS2TraversalTime.value = tt
             use(myStation2R, delayDuration = mySTRV)
-            println("$time > entity ${entity.id} end use resource 2, before ride to station 3")
+  //          println("$time > entity ${entity.id} end use resource 2, before ride to station 3")
             entity.timeStamp = time
             rideConveyor(station3)
             tt = time - entity.timeStamp
-            println("$time > entity ${entity.id},after ride from station 2 to station 3, traversal time = $tt")
+  //          println("$time > entity ${entity.id},after ride from station 2 to station 3, traversal time = $tt")
             myS3TraversalTime.value = tt
             use(myStation3R, delayDuration = mySTRV)
-            println("$time > entity ${entity.id} end use resource 3, before ride to exit")
+ //           println("$time > entity ${entity.id} end use resource 3, before ride to exit")
             entity.timeStamp = time
             rideConveyor(exitArea)
             tt = time - entity.timeStamp
-            println("$time > entity ${entity.id}, after ride from station 3 to exit, traversal time = $tt")
+ //           println("$time > entity ${entity.id}, after ride from station 3 to exit, traversal time = $tt")
             myS4TraversalTime.value = tt
             exitConveyor()
-            println("$time > entity ${entity.id}, exited conveyor")
+//            println("$time > entity ${entity.id}, exited conveyor")
             myOverallSystemTime.value = time - createTime
             myCompletedCounter.increment()
             myNumInSystem.decrement()
@@ -140,8 +140,8 @@ fun main() {
     val test = ConveyorExample4(m)
     println(test)
     m.lengthOfReplication = 480.0
-    m.numberOfReplications = 1
-//    m.numberOfReplications = 20
+//    m.numberOfReplications = 1
+    m.numberOfReplications = 20
     m.simulate()
     m.print()
 }

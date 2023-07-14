@@ -127,7 +127,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
 
     private val myInspectionRV = RandomVariable(this, NormalRV(3.6, 0.6 * 0.6, 8))
 
-    private val myJobTypeRV = RandomVariable(this, BernoulliRV(0.70, 7))
+    private val myJobTypeRV = RandomVariable(this, BernoulliRV(0.70, 9))
 
     private val drillingQCapacity = 2
     private val millingQCapacity = 3
@@ -176,7 +176,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
             .build()
 
         exitConveyor = Conveyor.builder(this, "ExitConveyor")
-            .conveyorType(Conveyor.Type.ACCUMULATING)
+            .conveyorType(Conveyor.Type.NON_ACCUMULATING)
             .velocity(45.0)
             .cellSize(10)
             .maxCellsAllowed(2)
