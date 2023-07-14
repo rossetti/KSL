@@ -28,7 +28,7 @@ fun main(){
     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
 
-    m.numberOfReplications = 2
+    m.numberOfReplications = 1
     m.lengthOfReplication = 50.0
 //    m.lengthOfReplicationWarmUp = 5000.0
     m.simulate()

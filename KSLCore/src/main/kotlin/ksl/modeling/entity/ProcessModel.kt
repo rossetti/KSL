@@ -1146,6 +1146,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+            private fun resourceSeizeAction(event: KSLEvent<Request>){
+                val request = event.message!!
+                val resource = request.resource!!
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
+                if (resource.canAllocate(request.amountRequested)) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, available : immediate resume" }
+                    request.entity.immediateResume() //TODO immediate or not?
+                } else {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, not available : wait (suspended)" }
+                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action " }
+            }
+
             override suspend fun seize(
                 resource: Resource,
                 amountNeeded: Int,
@@ -1157,23 +1170,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > ... starting delay of 0.0 for seize priority ..." }
-                delay(0.0, seizePriority, "$suspensionName SeizeDelay") //TODO can this be done without a delay
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > ... ended delay for seize priority" }
-                currentSuspendName = suspensionName
-                currentSuspendType = SuspendType.SEIZE
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded, resource)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: enqueued request_id = ${request.id} for $amountNeeded units of ${resource.name}" }
-                if (!resource.canAllocate(request.amountRequested)) {
-                    // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: waiting for $amountNeeded units of ${resource.name}" }
-                    entity.state.waitForResource()
-                    suspend()
-                    entity.state.activate()
-                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ... scheduling the delay of 0.0 for seize priority ..." }
+                schedule(::resourceSeizeAction, 0.0, priority = seizePriority, message = request)
+                entity.state.waitForResource()
+                suspend()
+                entity.state.activate()
                 // entity has been told to resume
                 require(resource.canAllocate(amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${resource.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
@@ -1186,6 +1192,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 return allocation
             }
 
+            private fun resourcePoolSeizeAction(event: KSLEvent<Request>){
+                val request = event.message!!
+                val resource = request.resourcePool!!
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
+                if (resource.canAllocate(request.amountRequested)) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, available : immediate resume" }
+                    request.entity.immediateResume() //TODO immediate or not?
+                } else {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, not available : wait (suspended)" }
+                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action " }
+            }
+
             override suspend fun seize(
                 resourcePool: ResourcePool,
                 amountNeeded: Int,
@@ -1196,26 +1215,27 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} SEIZE $amountNeeded units of ${resourcePool.name} in process, ($this)" }
-                delay(0.0, seizePriority, "$suspensionName:SeizeDelay")
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 //create the request based on the current resource state
                 val request = createRequest(amountNeeded, resourcePool)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
-                if (!resourcePool.canAllocate(request.amountRequested)) {
-                    // it must wait, request is already in the queue waiting for the resource, just suspend the entity's process
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waiting for $amountNeeded units of ${resourcePool.name} in process, ($this)" }
-                    entity.state.waitForResource()
-                    suspend()
-                    entity.state.activate()
-                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: enqueued request_id = ${request.id} for $amountNeeded units of ${resourcePool.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ... scheduling the delay of 0.0 for seize priority ..." }
+                schedule(::resourcePoolSeizeAction, 0.0, priority = seizePriority, message = request)
+                entity.state.waitForResource()
+                suspend()
+                entity.state.activate()
                 // entity has been told to resume
+                require(resourcePool.canAllocate(amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${resourcePool.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} allocated $amountNeeded units of ${resourcePool.name} in process, ($this)" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waited ${request.timeInQueue} units" }
+                val allocation = resourcePool.allocate(entity, amountNeeded, queue, suspensionName)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: allocated $amountNeeded units of ${resourcePool.name} : allocation_id = ${allocation.id}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                // make the pooled allocation and return it
-                return resourcePool.allocate(entity, amountNeeded, queue, suspensionName)
+                return allocation
             }
 
             override suspend fun delay(delayDuration: Double, delayPriority: Int, suspensionName: String?) {
