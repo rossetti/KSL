@@ -76,7 +76,7 @@ class KSLEvent<out T> internal constructor(
      *  The time from the current time until time that the event will occur
      */
     val timeRemaining : Double
-        get() = modelElement.time - time
+        get() = time - modelElement.time
 
     var name: String? = theName
         get() {

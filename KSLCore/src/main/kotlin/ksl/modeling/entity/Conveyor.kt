@@ -1930,9 +1930,22 @@ class Conveyor(
         destination: IdentityIfc,
         ridePriority: Int
     ) {
-        // schedule the need for conveyance at the current time
         conveyorRequest.destination = destination
-        schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
+        // need to check if a cell traversal is in progress if so, don't make the request until after it ends
+        if (isCellTraversalInProgress()) {
+            // cell traversal is in progress, must wait to end of current movement before engaging conveyor for ride
+            // determine time of end of cell traversal
+            val timeUntilEndOfTraversal = endCellTraversalEvent!!.timeRemaining
+            schedule(::startRideAction, timeUntilEndOfTraversal, message = conveyorRequest, priority = ridePriority)
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : scheduled start of ride for time = ${time+ timeUntilEndOfTraversal}"}
+        } else {
+            // cell traversal is not in progress
+            schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal NOT in progress : scheduled start of ride for time = ${time}"}
+        }
+        // schedule the need for conveyance at the current time
+
+       // schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
     }
 
     private fun startRideAction(event: KSLEvent<ConveyorRequest>) {
