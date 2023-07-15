@@ -26,6 +26,7 @@ import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.IdentityIfc
+import ksl.utilities.Interval
 
 /**
  * This data class represents the origin [entryLocation] and destination [exitLocation] of a [length]
@@ -243,14 +244,6 @@ class Conveyor(
      */
     internal val conveyorHoldQ = HoldQueue(this, "${this.name}:HoldQ")
 
-    private val myNumOccupiedCells = TWResponse(this, "${this.name}:NumOccupiedCells")
-    val numberOfOccupiedCells: TWResponseCIfc
-        get() = myNumOccupiedCells
-
-    private val myCellUtilization = Response(this, "${this.name}:CellUtilization")
-    val cellUtilization: ResponseCIfc
-        get() = myCellUtilization
-
     init {
         conveyorHoldQ.waitTimeStatOption = false
         conveyorHoldQ.defaultReportingOption = false
@@ -262,6 +255,17 @@ class Conveyor(
 
     // the totality of cells representing space on the conveyor
     val conveyorCells: List<Cell>
+
+    val numOccupiedCells: Int
+        get() {
+            var sum = 0
+            for(cell in conveyorCells){
+                if (cell.isOccupied){
+                    sum++
+                }
+            }
+            return sum
+        }
 
     // the cells associated with each entry location
     private val entryCells = mutableMapOf<IdentityIfc, Cell>()
@@ -330,6 +334,14 @@ class Conveyor(
         }
         segments = segs.toList()
     }
+
+    private val myNumOccupiedCells = TWResponse(this, "${this.name}:NumOccupiedCells", allowedDomain = Interval(0.0, conveyorCells.size.toDouble()))
+    val numberOfOccupiedCells: TWResponseCIfc
+        get() = myNumOccupiedCells
+
+    private val myCellUtilization = Response(this, "${this.name}:CellUtilization")
+    val cellUtilization: ResponseCIfc
+        get() = myCellUtilization
 
     /**
      * The event associated with the movement of the items on the conveyor.
@@ -1185,14 +1197,23 @@ class Conveyor(
         // reschedule the conveyor movement if needed
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}) : checking for conveyor movement at end of move cycle" }
         rescheduleConveyorMovement()
+        // after all the movement capture the cells that are occupied
+        captureCellUsage()
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : ***** end of cell traversal action ***** : CONVEYOR (${this@Conveyor.name})" }
+    }
+
+    private fun captureCellUsage(){
+        myNumOccupiedCells.value = numOccupiedCells.toDouble()
+        for (seg in segments){
+            seg.myNumOccupiedCells.value = seg.numOccupiedCells.toDouble()
+        }
     }
 
     /**
      *  Checks if a movement through cells is scheduled to occur
      */
     private fun isCellTraversalInProgress(): Boolean {
-        return endCellTraversalEvent != null && endCellTraversalEvent!!.isScheduled
+        return endCellTraversalEvent != null && endCellTraversalEvent!!.isScheduled && !endCellTraversalEvent!!.cancel
     }
 
     /**
@@ -1235,7 +1256,7 @@ class Conveyor(
     private fun cancelConveyorMovement() {
         // if there is a traversal event pending then the conveyor is moving
         if (isCellTraversalInProgress()) {
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > cancel cell traversal event" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > cancel cell traversal event scheduled for time = ${endCellTraversalEvent!!.time} : CONVEYOR (${this@Conveyor.name})"}
             // all motion on conveyor stops
             endCellTraversalEvent!!.cancel = true
             endCellTraversalEvent = null
@@ -1246,14 +1267,14 @@ class Conveyor(
      *  Depending on the type of conveyor, move the cells on the conveyor that can be moved
      */
     private fun moveCellsOnConveyor() {
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): moving cells on the conveyor...." }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}) : moving cells on the conveyor...." }
         if (conveyorType == Type.NON_ACCUMULATING) {
             nonAccumulatingConveyorMovement()
         } else {
             //accumulatingConveyorMovement()
             accumulatingConveyorMovementViaSegments()
         }
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): .... completed moving cells on the conveyor" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}) : .... completed moving cells on the conveyor" }
     }
 
     private fun nonAccumulatingConveyorMovement() {
@@ -1429,11 +1450,12 @@ class Conveyor(
                     if (hasNoBlockedCells()) {
                         // movable cells and no blocked cells
                         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Non-accumulating: begin riding: has no blocked cells" }
+                        scheduleConveyorMovement()
                     } else {
                         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Non-accumulating: begin riding: has blocked cells" }
                     }
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Non-accumulating: begin riding: no conveyor movement scheduled" }
-                }
+                 }
+                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Non-accumulating: begin riding: no conveyor movement scheduled" }
             } else {
                 // accumulating conveyor, item is positioned to ride, needs movement scheduled
                 if (!isOccupied()) {
@@ -1690,8 +1712,6 @@ class Conveyor(
          *  cells needs is reached, the oldest cell is removed from the cells occupied.
          */
         private fun occupyCell(cell: Cell) {
-            myNumOccupiedCells.increment()
-            cell.cSegment.myNumOccupiedCells.increment()
             if (myCellsOccupied.size < numCellsNeeded) {
                 myCellsOccupied.add(cell)
                 cell.item = this
@@ -1730,8 +1750,6 @@ class Conveyor(
             return if (myCellsOccupied.isNotEmpty()) {
                 val first = myCellsOccupied.removeFirst()
                 first.item = null
-                myNumOccupiedCells.decrement()
-                first.cSegment.myNumOccupiedCells.decrement()
                 true
             } else {
                 false
@@ -1813,7 +1831,7 @@ class Conveyor(
             request.state = requestRidingState
             // remember that the request needs to move into the entry cell
             positionedToEnter[request.entryCell] = request
-            request.entryCell.isBlocked = false
+            request.entryCell.isBlocked = false //TODO why here?
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : status = ${request.status}: positioned for entry cell (${request.entryCell.cellNumber}): removed cell blockage" }
             beginRiding(request)
         }
@@ -1911,12 +1929,12 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : arrive for cells" }
         // a new request for cells has arrived at an entry point of the conveyor
         // always enter the queue to get statistics on waiting to enter the conveyor
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : enqueue request ${request.id} at ${request.entryLocation.name}" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : enqueue request_id = ${request.id} at ${request.entryLocation.name}" }
         enqueueRequest(request)
         // check if the request does not have to wait
         if (!request.mustWait()) {
             // remove the request from the queue and start it processing
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request ${request.id} at ${request.entryLocation.name}" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request_id = ${request.id} at ${request.entryLocation.name}" }
             dequeueRequest(request)
             conveyorHoldQ.removeAndResume(request.entity)
         } else {
@@ -1933,19 +1951,27 @@ class Conveyor(
         conveyorRequest.destination = destination
         // need to check if a cell traversal is in progress if so, don't make the request until after it ends
         if (isCellTraversalInProgress()) {
-            // cell traversal is in progress, must wait to end of current movement before engaging conveyor for ride
-            // determine time of end of cell traversal
-            val timeUntilEndOfTraversal = endCellTraversalEvent!!.timeRemaining
-            schedule(::startRideAction, timeUntilEndOfTraversal, message = conveyorRequest, priority = ridePriority)
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : scheduled start of ride for time = ${time+ timeUntilEndOfTraversal}"}
-        } else {
+            // handle cell traversal in progress differently by type of conveyor
+            if (conveyorType == Type.NON_ACCUMULATING) {
+                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : arrival of ride request"}
+                // item has asked to ride non-accumulating conveyor and will block the cell
+                // cancel the current traversal
+                cancelConveyorMovement()
+                // schedule the need for conveyance at the current time, this will cause the blockage
+                schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
+            } else {
+                // cell traversal is in progress, must wait to end of current movement before engaging conveyor for ride
+                // determine time of end of cell traversal
+                val timeUntilEndOfTraversal = endCellTraversalEvent!!.timeRemaining
+                schedule(::startRideAction, timeUntilEndOfTraversal, message = conveyorRequest, priority = ridePriority)
+                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : scheduled start of ride for time = ${time+ timeUntilEndOfTraversal}"}
+            }
+         } else {
             // cell traversal is not in progress
+            // schedule the need for conveyance at the current time
             schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal NOT in progress : scheduled start of ride for time = ${time}"}
         }
-        // schedule the need for conveyance at the current time
-
-       // schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
     }
 
     private fun startRideAction(event: KSLEvent<ConveyorRequest>) {
@@ -1996,7 +2022,18 @@ class Conveyor(
             }
         }
 
-        internal val myNumOccupiedCells = TWResponse(this@Conveyor, "${this@Conveyor.name}:${this.name}:NumOccupiedCells")
+        val numOccupiedCells: Int
+            get() {
+                var sum = 0
+                for(cell in cells){
+                    if (cell.isOccupied){
+                        sum++
+                    }
+                }
+                return sum
+            }
+
+        internal val myNumOccupiedCells = TWResponse(this@Conveyor, "${this@Conveyor.name}:${this.name}:NumOccupiedCells", allowedDomain = Interval(0.0, cells.size.toDouble()))
         val numberOfOccupiedCells: TWResponseCIfc
             get() = myNumOccupiedCells
 
