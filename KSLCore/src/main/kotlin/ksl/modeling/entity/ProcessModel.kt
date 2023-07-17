@@ -1522,7 +1522,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 destination: IdentityIfc,
                 ridePriority: Int,
                 suspensionName: String?
-            ) {
+            ) : Double {
                 require(entity.conveyorRequest != null) {
                     "Attempted to ride without having requested the conveyor."
                 }
@@ -1542,13 +1542,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 conveyor.scheduleConveyAction(conveyorRequest as Conveyor.ConveyorRequest, destination, ridePriority)
                 isMoving = true
                 // holds here while request rides on the conveyor
+                val timeStarted = time
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
-                //TODO where should entity location be updated
-                //currentLocation = destination
+                if (destination is LocationIfc){
+                    currentLocation = destination
+                }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from ${origin.name} to ${destination.name} : suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
+                return (time - timeStarted)
             }
 
             override suspend fun exitConveyor(
@@ -1738,7 +1741,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     isActivated = true
                     state = running
                     // this starts the coroutine for the first time, because I used createCoroutineUnintercepted()
-                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Created.start() : entity_id = ${entity.id} : ---> resuming initial continuation = ${continuation}"}
+                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Created.start() : entity_id = ${entity.id} : ---> resuming initial continuation = $continuation"}
                     continuation?.resume(Unit)
                 }
             }
@@ -1762,9 +1765,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     suspendedEntities.remove(entity)
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : suspension name = $currentSuspendName : resuming..." }
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : *** before COROUTINE RESUME *** : process = (${this@ProcessCoroutine})"}
-                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : ---> before resuming continuation = ${continuation}"}
+                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : ---> before resuming continuation = $continuation"}
                     continuation?.resume(Unit)
-                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> after resuming continuation = ${continuation}"}
+                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> after resuming continuation = $continuation"}
  //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: *** after COROUTINE RESUME ***: continuation = ${continuation}"}
  //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: suspension name = $currentSuspendName: resumed" }
                 }

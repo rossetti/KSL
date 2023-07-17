@@ -1396,22 +1396,24 @@ interface KSLProcessBuilder {
      * will remain on the conveyor until the entity indicates that the cells are to be released by using
      * the exit function. The behavior of the conveyor during the ride and when the item reaches its
      * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
-     * while the entity occupies the final cells before exiting or riding again.
+     * while the entity occupies the final cells before exiting or riding again.  If the destination implements
+     * the LocationIfc then the current location property of the entity will be updated to this value at the
+     * completion of the ride.
      *
      * @param conveyorRequest the permission to ride on the conveyor in the form of a valid cell allocation
      * @param destination the location to which to ride
      * @param ridePriority the priority associated with ride request
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
-     * @return the returned item encapsulates what happened during the ride and contains information about
-     * the origin point, the destination, etc.
+     * @return the time that it took to reach the destination. This may include time spent on the conveyor waiting
+     * due to blockages and the time moving through cells on the conveyor during the ride
      */
     suspend fun rideConveyor(
         conveyorRequest: ConveyorRequestIfc,
         destination: IdentityIfc,
         ridePriority: Int = PRIORITY,
         suspensionName: String? = null
-    )
+    ) : Double
 
     /** This suspending function causes the entity to be associated with an item that occupies the allocated
      * cells on the conveyor. The item will move on the conveyor until it reaches the supplied destination.
@@ -1420,22 +1422,24 @@ interface KSLProcessBuilder {
      * will remain on the conveyor until the entity indicates that the cells are to be released by using
      * the exit function. The behavior of the conveyor during the ride and when the item reaches its
      * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
-     * while the entity occupies the final cells before exiting or riding again.
+     * while the entity occupies the final cells before exiting or riding again. If the destination implements
+     * the LocationIfc then the current location property of the entity will be updated to this value at the
+     * completion of the ride.
      *
      * @param destination the location to which to ride
      * @param ridePriority the priority associated with ride request
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
-     * @return the returned item encapsulates what happened during the ride and contains information about
-     * the origin point, the destination, etc.
+     * @return the time that it took to reach the destination. This may include time spent on the conveyor waiting
+     * due to blockages and the time moving through cells on the conveyor during the ride
      */
     suspend fun rideConveyor(
         destination: IdentityIfc,
         ridePriority: Int = PRIORITY,
         suspensionName: String? = null
-    ) {
+    ) : Double {
         require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
-        rideConveyor(entity.conveyorRequest!!, destination, ridePriority, suspensionName)
+        return rideConveyor(entity.conveyorRequest!!, destination, ridePriority, suspensionName)
     }
 
     /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
