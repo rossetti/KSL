@@ -154,7 +154,16 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
 
 /** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location
  * (destination) and is associated with a conveyor. The start and end of each segment represent locations along
- * the conveyor where entities can enter and exit.  A conveyor has a cell size, which represents the length of
+ * the conveyor where entities can enter and exit.  A conveyor does not utilize a spatial model. The locations
+ * associated with its segments are instances of the interface IdentityIfc. Thus, movement on the conveyor is
+ * disassociated with any spatial model associated with the entity using the conveyor.  Since a spatial model
+ * using instances of the LocationIfc interface and LocationIfc extends the IdentityIfc, the locations associated
+ * with segments can be the same as those associated with spatial models. If the destination of a ride request
+ * is an instance of LocationIfc then the entity's curren location property will be updated after the movement.
+ * However, if the segments are not defined by locations within a spatial model, no updating of the entity's location
+ * will take place. The modeler is responsible for making the update to the entity location, if applicable.
+ *
+ * A conveyor has a cell size, which represents the length of
  * each cell on all segments of the conveyor. A conveyor also has a maximum permitted number of cells that can be
  * occupied by an item riding on the conveyor.  A conveyor has an [initialVelocity].  Each segment moves at the same
  * velocity.
@@ -178,9 +187,10 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
  * for entry on the conveyor will wait for the entry cell if the entry cell is unavailable (blocked or occupied) or if
  * another item is positioned to use the entry cell.  Once
  * the entity has control of the entry cell, this creates a blockage on the conveyor, which may restrict conveyor movement.
- * For non-accumulating conveyor the blockage stops all movement on the conveyor. For accumulating conveyors, the blockage
+ * For a non-accumulating conveyor the blockage stops all movement on the conveyor. For accumulating conveyors, the blockage
  * restricts movement behind the blocked cell.  Gaining control of the entry cell does not position the entity
- * to ride on the conveyor. The entity simply controls the entry cell and causes a blockage.
+ * to ride on the conveyor. The entity simply controls the entry cell and causes a blockage. The entity is not on the conveyor
+ * during the blockage.
  *
  * If the entity decides to ride on the conveyor, the entity will be allocated
  * cells based on its request and occupy those cells while moving on the conveyor. First, the entity's request is
@@ -190,6 +200,17 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
  * time it traverses the cell's length. Thus, assuming a single item, the time to move from the start of a segment
  * to the end of the segment is the time that it takes to travel through all the cells of the segment, including the
  * entry cell and the exit cell.
+ *
+ * When an entity riding on the conveyor reaches its destination (an exit cell), the entity causes a blockage on the conveyor.
+ * For a non-accumulating conveyor, the entire conveyor stops.  For an accumulating conveyor, the blockage restricts movement
+ * behind the blockage causing items behind the blockage to continue to move until they cannot move forward. When an entity
+ * exits the conveyor, there will be a delay for the entity to move through the cells that it occupies before the entity
+ * can be considered completely off of the conveyor. Thus, exiting the conveyor is not assumed to be instantaneous. This implementation
+ * assumes that the entity must move through the occupied cells to get off the conveyor.  Any delay to unload the item
+ * from the conveyor will be in addition to the exiting delay.  Thus, a modeling situation in which the entity is picked up
+ * off the conveyor may need to account for the "extra" exiting delay. This implementation basically assumes that the item
+ * is pushed through the occupying cells at the end of the conveyor in order to exit. Scenarios where the item is
+ * picked up would not necessarily require the time to move through the cells.
  *
  * A conveyor is considered circular if the entry location of the first segment is the same as the exit location of the last segment.
  *
@@ -1402,7 +1423,7 @@ class Conveyor(
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): scheduleConveyorMovement(): cell traversal already pending, new traversal not scheduled" }
             return
         }
-        endCellTraversalEvent = schedule(this::endOfCellTraversal, cellTravelTime, name = "End of Cell Traversal")
+        endCellTraversalEvent = schedule(this::endOfCellTraversal, cellTravelTime, priority = defaultMovementPriority, name = "End of Cell Traversal")
         endCellTraversalEvent!!.name = "End of Cell Traversal"
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): scheduled event ( event_id = ${endCellTraversalEvent?.id}): the end of cell traversal for t = ${(time + cellTravelTime)}" }
     }
