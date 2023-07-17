@@ -306,8 +306,8 @@ class Conveyor(
         val segs = mutableListOf<CSegment>()
         for (segment in conveyorSegments.segments) {
             val numCells = segment.length / cellSize
-            var entryCell: Cell? = null
-            var exitCell: Cell? = null
+            var entryCell: Cell?
+            var exitCell: Cell?
             require(numCells >= 2) { "There must be at least 2 cells on each segment" }
             for (i in 1..numCells) {
                 if (i == 1) {
