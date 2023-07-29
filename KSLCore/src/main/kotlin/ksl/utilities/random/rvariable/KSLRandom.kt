@@ -24,6 +24,9 @@ import ksl.utilities.distributions.*
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.DataRow
+import org.jetbrains.kotlinx.dataframe.api.isNotEmpty
 import kotlin.math.*
 
 /**
@@ -1135,13 +1138,13 @@ object KSLRandom {
     /**
      * Randomly selects from the list using the supplied cdf
      *
-     * @param <T>       the type returned
+     * @param T       the type returned
      * @param list      list to select from
      * @param cdf       the cumulative probability associated with each element of
      * array
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected value
-    </T> */
+    */
     fun <T> randomlySelect(list: List<T>, cdf: DoubleArray, streamNum: Int): T {
         return randomlySelect(list, cdf, rnStream(streamNum))
     }
@@ -1149,13 +1152,13 @@ object KSLRandom {
     /**
      * Randomly selects from the list using the supplied cdf
      *
-     * @param <T>  the type returned
+     * @param T  the type returned
      * @param list list to select from
      * @param cdf  the cumulative probability associated with each element of
      * array
      * @param stream  the source of randomness
      * @return the randomly selected value
-    </T> */
+    */
     fun <T> randomlySelect(
         list: List<T>,
         cdf: DoubleArray,
@@ -1263,11 +1266,11 @@ object KSLRandom {
     /**
      * Randomly select from the list
      *
-     * @param <T>       The type of element in the list
+     * @param T      The type of element in the list
      * @param list      the list
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected element
-    </T> */
+    */
     fun <T> randomlySelect(list: List<T>, streamNum: Int): T {
         return randomlySelect(list, rnStream(streamNum))
     }
@@ -1275,11 +1278,11 @@ object KSLRandom {
     /**
      * Randomly select from the list
      *
-     * @param <T>  The type of element in the list
+     * @param T  The type of element in the list
      * @param list the list
      * @param stream  the source of randomness
      * @return the randomly selected element
-    </T> */
+    */
     fun <T> randomlySelect(list: List<T>, stream: RNStreamIfc = defaultRNStream()): T {
         require(list.isNotEmpty()){"Cannot select from an empty list"}
         return if (list.size == 1) {
@@ -1335,7 +1338,7 @@ object KSLRandom {
         rng: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = rng.randInt(j, x.size - 1)
@@ -1392,7 +1395,7 @@ object KSLRandom {
         rng: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = rng.randInt(j, x.size - 1)
@@ -1450,7 +1453,7 @@ object KSLRandom {
         rng: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = rng.randInt(j, x.size - 1)
@@ -1464,6 +1467,7 @@ object KSLRandom {
      * Randomly permutes the supplied array using the supplied stream
      * number, the array is changed
      *
+     * @param T the type of the array
      * @param x         the array
      * @param streamNum the stream number from the stream provider to use
      */
@@ -1475,6 +1479,7 @@ object KSLRandom {
      * Randomly permutes the supplied array using the supplied random
      * number generator, the array is changed
      *
+     * @param T the type of the array
      * @param x   the array
      * @param rng the source of randomness
      */
@@ -1486,6 +1491,7 @@ object KSLRandom {
      * The array x is changed, such that the first sampleSize elements contain the generated sample.
      * That is, x[0], x[1], ... , x[sampleSize-1] is the randomly sampled values without replacement
      *
+     * @param T the type of the array
      * @param x          the array
      * @param sampleSize the size to generate
      * @param streamNum  the stream number from the stream provider to use
@@ -1498,6 +1504,7 @@ object KSLRandom {
      * The array x is changed, such that the first sampleSize elements contain the generated sample.
      * That is, x[0], x[1], ... , x[sampleSize-1] is the randomly sampled values without replacement
      *
+     * @param T the type of the array
      * @param x          the array
      * @param sampleSize the size to generate
      * @param stream        the source of randomness
@@ -1508,7 +1515,7 @@ object KSLRandom {
         stream: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = stream.randInt(j, x.size - 1)
@@ -1522,10 +1529,10 @@ object KSLRandom {
      * Randomly permutes the supplied List using the supplied stream
      * number, the list is changed
      *
-     * @param <T>       the type of the list
+     * @param T      the type of the list
      * @param x         the list
      * @param streamNum the stream number from the stream provider to use
-    </T> */
+    */
     fun <T> permute(x: MutableList<T>, streamNum: Int) {
         permute(x, rnStream(streamNum))
     }
@@ -1534,10 +1541,10 @@ object KSLRandom {
      * Randomly permutes the supplied List using the supplied random
      * number generator, the list is changed
      *
-     * @param <T> the type of the list
+     * @param T the type of the list
      * @param x   the list
      * @param stream the source of randomness
-    </T> */
+    */
     fun <T> permute(x: MutableList<T>, stream: RNStreamIfc = defaultRNStream()) {
         sampleWithoutReplacement(x, x.size, stream)
     }
@@ -1546,10 +1553,10 @@ object KSLRandom {
      * The List x is changed, such that the first sampleSize elements contain the generate.
      * That is, x.get(0), x.get(1), ... , x.get(sampleSize-1) is the random sample without replacement
      *
-     * @param <T>        the type of the list
+     * @param T        the type of the list
      * @param x          the list
      * @param sampleSize the size to generate
-    </T> */
+     */
     fun <T> sampleWithoutReplacement(x: MutableList<T>, sampleSize: Int, streamNum: Int) {
         sampleWithoutReplacement(x, sampleSize, rnStream(streamNum))
     }
@@ -1558,16 +1565,18 @@ object KSLRandom {
      * The List x is changed, such that the first sampleSize elements contain the sampled values.
      * That is, x.get(0), x.get(1), ... , x.get(sampleSize-1) is the random sample without replacement
      *
-     * @param <T>        the type of the list
+     * @param T        the type of the list
      * @param x          the list
      * @param sampleSize the size to generate
      * @param stream        the source of randomness
-    </T> */
+     */
     fun <T> sampleWithoutReplacement(
-        x: MutableList<T>, sampleSize: Int, stream: RNStreamIfc = defaultRNStream()
+        x: MutableList<T>,
+        sampleSize: Int,
+        stream: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = stream.randInt(j, x.size - 1)
@@ -1575,6 +1584,133 @@ object KSLRandom {
             x[j] = x[i]
             x[i] = temp
         }
+    }
+
+    /**
+     * The data frame [df], is not changed. The returned data frame holds
+     * a sample of the rows from [df]
+     *
+     * @param T        the type of the data schema held in the data frame
+     * @param df          the data frame
+     * @param sampleSize the size to generate
+     * @param stream        the source of randomness
+     * @return a new data frame with the sample from [df] with [sampleSize] rows
+     */
+    fun <T> sampleWithoutReplacement(
+        df: DataFrame<T>,
+        sampleSize: Int,
+        stream: RNStreamIfc = defaultRNStream()
+    ) : DataFrame<T> {
+        require(sampleSize <= df.rowsCount()) {
+            "Cannot draw without replacement for more than the number of rows ${df.rowsCount()}"
+        }
+        // make the row indices array
+        val rowIndices = IntRange(0, df.rowsCount()).toMutableList()
+        sampleWithoutReplacement(rowIndices, sampleSize, stream)
+        val ri = rowIndices.subList(0, sampleSize)
+        return df[ri]
+    }
+
+    /**
+     * The data frame [df], is not changed. The returned data frame holds
+     * a sample of the rows from [df]
+     *
+     * @param T        the type of the data schema held in the data frame
+     * @param df          the data frame
+     * @param sampleSize the size to generate
+     * @param streamNum        the stream number for the source of randomness
+     * @return a new data frame with the sample from [df] with [sampleSize] rows
+     */
+    fun <T> sampleWithoutReplacement(df: DataFrame<T>, sampleSize: Int, streamNum: Int): DataFrame<T> {
+        return sampleWithoutReplacement(df, sampleSize, rnStream(streamNum))
+    }
+
+    /**
+     * The data frame [df], is not changed. The returned data frame holds
+     * a permutation of [df]
+     *
+     * @param T        the type of the data schema held in the data frame
+     * @param df          the data frame
+     * @param streamNum        the stream number for the source of randomness
+     * @return a new data frame with a permutation of the rows of [df]
+     */
+    fun <T> permute(df: DataFrame<T>, streamNum: Int) : DataFrame<T> {
+        return permute(df, rnStream(streamNum))
+    }
+
+    /**
+     * The data frame [df], is not changed. The returned data frame holds
+     * a permutation of [df]
+     *
+     * @param T        the type of the data schema held in the data frame
+     * @param df          the data frame
+     * @param stream        the stream for the source of randomness
+     * @return a new data frame with a permutation of the rows of [df]
+     */
+    fun <T> permute(df: DataFrame<T>, stream: RNStreamIfc = defaultRNStream()): DataFrame<T> {
+        return sampleWithoutReplacement(df, df.rowsCount(), stream)
+    }
+
+    /**
+     * Randomly select a row from the data frame
+     *
+     * @param T       The type of element in the data frame
+     * @param df      the data frame
+     * @param streamNum the stream number from the stream provider to use
+     * @return the randomly selected row
+    */
+    fun <T> randomlySelect(df: DataFrame<T>, streamNum: Int): DataRow<T> {
+        return randomlySelect(df, rnStream(streamNum))
+    }
+
+    /**
+     * Randomly select a row from the data frame
+     *
+     * @param T  The type of element in the data fram
+     * @param df the data frame
+     * @param stream  the source of randomness
+     * @return the randomly selected element
+    */
+    fun <T> randomlySelect(df: DataFrame<T>, stream: RNStreamIfc = defaultRNStream()): DataRow<T> {
+        require(df.isNotEmpty()){"Cannot select from an empty list"}
+        val nRows = df.rowsCount()
+        return if (nRows == 1) {
+            df[0]
+        } else df[stream.randInt(0, nRows - 1)]
+    }
+
+    /**
+     * Randomly selects a row from the data frame using the supplied cdf
+     *
+     * @param T       the type returned
+     * @param df      data frame to select from
+     * @param cdf       the cumulative probability associated with each element of array
+     * @param streamNum the stream number from the stream provider to use
+     * @return the randomly selected row
+     */
+    fun <T> randomlySelect(df: DataFrame<T>, cdf: DoubleArray, streamNum: Int): DataRow<T> {
+        return randomlySelect(df, cdf, rnStream(streamNum))
+    }
+
+    /**
+     * Randomly selects from the data frame using the supplied cdf
+     *
+     * @param T  the type returned
+     * @param df data frame to select from
+     * @param cdf  the cumulative probability associated with each element of
+     * array
+     * @param stream  the source of randomness
+     * @return the randomly selected row
+     */
+    fun <T> randomlySelect(
+        df: DataFrame<T>,
+        cdf: DoubleArray,
+        stream: RNStreamIfc = defaultRNStream()
+    ): DataRow<T> {
+        // make the row indices array
+        val rowIndices = IntRange(0, df.rowsCount()).toMutableList()
+        val rowNum = randomlySelect(rowIndices, cdf, stream)
+        return df[rowNum]
     }
 }
 
@@ -1601,4 +1737,20 @@ fun <T> MutableList<T>.permute(stream: RNStreamIfc = KSLRandom.defaultRNStream()
 
 fun <T> MutableList<T>.permute(streamNum: Int){
     KSLRandom.permute(this, streamNum)
+}
+
+fun <T> DataFrame<T>.randomlySelect(stream: RNStreamIfc = KSLRandom.defaultRNStream()): DataRow<T> {
+    return KSLRandom.randomlySelect(this, stream)
+}
+
+fun <T> DataFrame<T>.randomlySelect(streamNum: Int): DataRow<T> {
+    return KSLRandom.randomlySelect(this, streamNum)
+}
+
+fun <T> DataFrame<T>.permute(stream: RNStreamIfc = KSLRandom.defaultRNStream()): DataFrame<T> {
+    return KSLRandom.permute(this, stream)
+}
+
+fun <T> DataFrame<T>.permute(streamNum: Int): DataFrame<T>{
+    return KSLRandom.permute(this, streamNum)
 }
