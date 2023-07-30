@@ -44,7 +44,7 @@ interface SampleIfc {
      *
      * @param values the array to fill
      */
-    fun sample(values: DoubleArray) {
+    fun sampleInto(values: DoubleArray) {
         for (i in values.indices) {
             values[i] = sample()
         }
@@ -65,5 +65,18 @@ interface SampleIfc {
      */
     fun sampleAsColumns(sampleSize: Int, nCols: Int = 1): Array<DoubleArray>{
         return sampleAsRows(sampleSize, nCols).transpose()
+    }
+
+    /**
+     * Fills the supplied matrix with randomly generated values
+     *
+     * @param matrix the matrix to fill
+     */
+    fun sampleInto(matrix: Array<DoubleArray>){
+        for (i in matrix.indices){
+            for (j in matrix[i].indices){
+                matrix[i][j] = sample()
+            }
+        }
     }
 }
