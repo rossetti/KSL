@@ -17,6 +17,8 @@
  */
 package ksl.utilities.random
 
+import ksl.utilities.transpose
+
 interface SampleIfc {
     /**
      * @return generates a random value
@@ -27,7 +29,7 @@ interface SampleIfc {
      * Generates a random generated sample of the give size
      *
      * @param sampleSize the amount to fill
-     * @return A array holding the generated values
+     * @return An array holding the generated values
      */
     fun sample(sampleSize: Int): DoubleArray {
         val x = DoubleArray(sampleSize)
@@ -46,5 +48,22 @@ interface SampleIfc {
         for (i in values.indices) {
             values[i] = sample()
         }
+    }
+
+    /**
+     * Generates the number of rows [nRows] with each row holding
+     * a random sample of size [sampleSize]
+     */
+    fun sampleAsRows(sampleSize: Int, nRows: Int = 1) : Array<DoubleArray> {
+        require (nRows >= 1) {"The number of rows requested must be >= 1"}
+        return Array(nRows) { sample(sampleSize) }
+    }
+
+    /**
+     * Generates the number of columns [nCols] with each column holding
+     * a random sample of size [sampleSize]
+     */
+    fun sampleAsColumns(sampleSize: Int, nCols: Int = 1): Array<DoubleArray>{
+        return sampleAsRows(sampleSize, nCols).transpose()
     }
 }
