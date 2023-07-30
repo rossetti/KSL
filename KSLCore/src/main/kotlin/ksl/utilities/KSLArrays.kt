@@ -2879,40 +2879,51 @@ fun Array<DoubleArray>.toDoubles(): Array<Array<Double>> {
 
 /**
  *  Converts the 2D array of doubles to a map that holds the arrays
- *  by column. Each column is called col1, col2, etc. The
+ *  by column. If the column name is not supplied then the column is called col1, col2, etc. The
  *  2D array must be rectangular.
+ *  @param colNames the names of the columns (optional)
  */
-fun Array<DoubleArray>.toMapOfColumns(): Map<String, DoubleArray>{
+fun Array<DoubleArray>.toMapOfColumns(colNames: List<String> = emptyList()): Map<String, DoubleArray>{
     val nCol = KSLArrays.numColumns(this)
+    val names = (1..nCol).map { "col$it" }.toList()
     val map = mutableMapOf<String, DoubleArray>()
-    for(i in 0 until nCol){
-        map["col${i+1}"] = this.column(i)
+    for ( (i, name) in names.withIndex()) {
+        // use the supplied names but if it doesn't exist, use the made up name
+        map[colNames.getOrElse(i) { name }]= this.column(i)
     }
     return map
 }
 
 /**
  *  Converts the 2D array of doubles to a map that holds the arrays
- *  by column. Each column is called col1, col2, etc. The
+ *  by column. If the column name is not supplied then the column is called col1, col2, etc. The
  *  2D array must be rectangular.
+ *  @param colNames the names of the columns (optional)
  */
-fun Array<DoubleArray>.toMapOfLists(): Map<String, List<Double>>{
+fun Array<DoubleArray>.toMapOfLists(colNames: List<String> = emptyList()): Map<String, List<Double>>{
     val nCol = KSLArrays.numColumns(this)
+    val names = (1..nCol).map { "col$it" }.toList()
     val map = mutableMapOf<String, List<Double>>()
-    for(i in 0 until nCol){
-        map["col${i+1}"] = this.column(i).toList()
+    for ( (i, name) in names.withIndex()) {
+        // use the supplied names but if it doesn't exist, use the made up name
+        map[colNames.getOrElse(i) { name }]= this.column(i).toList()
     }
     return map
 }
 
 /**
  *  Converts the 2D array of doubles to a map that holds the arrays
- *  by rows. Each row is called row1, row2, etc.
+ *  by rows. If the row name is not supplied then the row is called row1, row2, etc. The
+ *  2D array must be rectangular.
+ *  @param rowNames the names of the columns (optional)
  */
-fun Array<DoubleArray>.toMapOfRows(): Map<String, DoubleArray>{
+fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<String, DoubleArray>{
+    val nRows = this.size
+    val names = (1..nRows).map { "row$it" }.toList()
     val map = mutableMapOf<String, DoubleArray>()
-    for((i, arr) in this.withIndex()){
-        map["row${i+1}"] = arr
+    for ( (i, name) in names.withIndex()) {
+        // use the supplied names but if it doesn't exist, use the made up name
+        map[rowNames.getOrElse(i) { name }]= this[i].copyOf()
     }
     return map
 }
