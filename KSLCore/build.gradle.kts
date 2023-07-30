@@ -26,6 +26,7 @@ plugins {
     signing
     kotlin("jvm") version "1.8.0"
     kotlin("plugin.serialization") version "1.8.0"
+    id("org.jetbrains.kotlinx.dataframe") version "0.11.0"
     id("org.jetbrains.dokka") version "1.7.20"
 }
 group = "io.github.rossetti"
@@ -39,24 +40,24 @@ repositories {
 dependencies {
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
-    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2")
+    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2") //TODO update
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.4.4")
+    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.4.4") //TODO needed?
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.4.4")
+    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.4.4") //TODO needed?
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
     implementation("org.apache.logging.log4j:log4j-to-slf4j:2.19.0")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.4.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
-    api("org.jetbrains.kotlinx:dataframe-core:0.8.1")
+    api("org.jetbrains.kotlinx:dataframe-core:0.11.0")
 
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
@@ -66,13 +67,13 @@ dependencies {
 
     implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
 
-    implementation("com.google.guava:guava:31.1-jre")
+    implementation("com.google.guava:guava:32.1.1-jre")
 
     // https://mvnrepository.com/artifact/org.knowm.xchart/xchart
 //    implementation("org.knowm.xchart:xchart:3.8.2")
     
     // https://mvnrepository.com/artifact/com.opencsv/opencsv
-    implementation("com.opencsv:opencsv:5.7.1") //TODO this vulnerability is not reported on Maven Central
+    implementation("com.opencsv:opencsv:5.8") //TODO vulnerability not showing on maven
 
     // https://db.apache.org/derby/releases
     // 10.16.1.1 is only compatible with Java 17
@@ -81,9 +82,12 @@ dependencies {
     implementation(group = "org.apache.derby", name = "derbyclient", version = "10.15.2.0")
     implementation(group = "org.apache.derby", name = "derbytools", version = "10.15.2.0")
 
-    implementation(group = "org.postgresql", name = "postgresql", version = "42.5.1")
+    implementation(group = "org.postgresql", name = "postgresql", version = "42.6.0")
 
-    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.39.4.0")
+    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.42.0.0")
+
+    // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
+    implementation("org.duckdb:duckdb_jdbc:0.8.1")
 
     implementation(group = "com.zaxxer", name = "HikariCP", version = "5.0.1")
 
