@@ -24,9 +24,6 @@ import ksl.utilities.distributions.*
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import org.jetbrains.kotlinx.dataframe.DataFrame
-import org.jetbrains.kotlinx.dataframe.DataRow
-import org.jetbrains.kotlinx.dataframe.api.isNotEmpty
 import kotlin.math.*
 
 /**
@@ -754,7 +751,7 @@ object KSLRandom {
 
     /**
      * Generates a gamma(shape, scale=1) random variable via acceptance rejection. Uses
-     * uses Marsaglia and Tsang (2000) for shape greater than 1
+     * the algorithm in Marsaglia and Tsang (2000) for shape greater than 1
      *
      * @param shape the shape, must be greater than 1
      * @param rng   the random number stream, must not be null
@@ -1585,133 +1582,6 @@ object KSLRandom {
             x[i] = temp
         }
     }
-
-    /**
-     * The data frame [df], is not changed. The returned data frame holds
-     * a sample of the rows from [df]
-     *
-     * @param T        the type of the data schema held in the data frame
-     * @param df          the data frame
-     * @param sampleSize the size to generate
-     * @param stream        the source of randomness
-     * @return a new data frame with the sample from [df] with [sampleSize] rows
-     */
-    fun <T> sampleWithoutReplacement(
-        df: DataFrame<T>,
-        sampleSize: Int,
-        stream: RNStreamIfc = defaultRNStream()
-    ) : DataFrame<T> {
-        require(sampleSize <= df.rowsCount()) {
-            "Cannot draw without replacement for more than the number of rows ${df.rowsCount()}"
-        }
-        // make the row indices array
-        val rowIndices = IntRange(0, df.rowsCount()).toMutableList()
-        sampleWithoutReplacement(rowIndices, sampleSize, stream)
-        val ri = rowIndices.subList(0, sampleSize)
-        return df[ri]
-    }
-
-    /**
-     * The data frame [df], is not changed. The returned data frame holds
-     * a sample of the rows from [df]
-     *
-     * @param T        the type of the data schema held in the data frame
-     * @param df          the data frame
-     * @param sampleSize the size to generate
-     * @param streamNum        the stream number for the source of randomness
-     * @return a new data frame with the sample from [df] with [sampleSize] rows
-     */
-    fun <T> sampleWithoutReplacement(df: DataFrame<T>, sampleSize: Int, streamNum: Int): DataFrame<T> {
-        return sampleWithoutReplacement(df, sampleSize, rnStream(streamNum))
-    }
-
-    /**
-     * The data frame [df], is not changed. The returned data frame holds
-     * a permutation of [df]
-     *
-     * @param T        the type of the data schema held in the data frame
-     * @param df          the data frame
-     * @param streamNum        the stream number for the source of randomness
-     * @return a new data frame with a permutation of the rows of [df]
-     */
-    fun <T> permute(df: DataFrame<T>, streamNum: Int) : DataFrame<T> {
-        return permute(df, rnStream(streamNum))
-    }
-
-    /**
-     * The data frame [df], is not changed. The returned data frame holds
-     * a permutation of [df]
-     *
-     * @param T        the type of the data schema held in the data frame
-     * @param df          the data frame
-     * @param stream        the stream for the source of randomness
-     * @return a new data frame with a permutation of the rows of [df]
-     */
-    fun <T> permute(df: DataFrame<T>, stream: RNStreamIfc = defaultRNStream()): DataFrame<T> {
-        return sampleWithoutReplacement(df, df.rowsCount(), stream)
-    }
-
-    /**
-     * Randomly select a row from the data frame
-     *
-     * @param T       The type of element in the data frame
-     * @param df      the data frame
-     * @param streamNum the stream number from the stream provider to use
-     * @return the randomly selected row
-    */
-    fun <T> randomlySelect(df: DataFrame<T>, streamNum: Int): DataRow<T> {
-        return randomlySelect(df, rnStream(streamNum))
-    }
-
-    /**
-     * Randomly select a row from the data frame
-     *
-     * @param T  The type of element in the data fram
-     * @param df the data frame
-     * @param stream  the source of randomness
-     * @return the randomly selected element
-    */
-    fun <T> randomlySelect(df: DataFrame<T>, stream: RNStreamIfc = defaultRNStream()): DataRow<T> {
-        require(df.isNotEmpty()){"Cannot select from an empty list"}
-        val nRows = df.rowsCount()
-        return if (nRows == 1) {
-            df[0]
-        } else df[stream.randInt(0, nRows - 1)]
-    }
-
-    /**
-     * Randomly selects a row from the data frame using the supplied cdf
-     *
-     * @param T       the type returned
-     * @param df      data frame to select from
-     * @param cdf       the cumulative probability associated with each element of array
-     * @param streamNum the stream number from the stream provider to use
-     * @return the randomly selected row
-     */
-    fun <T> randomlySelect(df: DataFrame<T>, cdf: DoubleArray, streamNum: Int): DataRow<T> {
-        return randomlySelect(df, cdf, rnStream(streamNum))
-    }
-
-    /**
-     * Randomly selects from the data frame using the supplied cdf
-     *
-     * @param T  the type returned
-     * @param df data frame to select from
-     * @param cdf  the cumulative probability associated with each element of
-     * array
-     * @param stream  the source of randomness
-     * @return the randomly selected row
-     */
-    fun <T> randomlySelect(
-        df: DataFrame<T>,
-        cdf: DoubleArray,
-        stream: RNStreamIfc = defaultRNStream()
-    ): DataRow<T> {
-        // make the row indices array
-        val rowIndices = IntRange(0, df.rowsCount()).toMutableList()
-        val rowNum = randomlySelect(rowIndices, cdf, stream)
-        return df[rowNum]
-    }
 }
 
 /* extension functions */
@@ -1737,20 +1607,4 @@ fun <T> MutableList<T>.permute(stream: RNStreamIfc = KSLRandom.defaultRNStream()
 
 fun <T> MutableList<T>.permute(streamNum: Int){
     KSLRandom.permute(this, streamNum)
-}
-
-fun <T> DataFrame<T>.randomlySelect(stream: RNStreamIfc = KSLRandom.defaultRNStream()): DataRow<T> {
-    return KSLRandom.randomlySelect(this, stream)
-}
-
-fun <T> DataFrame<T>.randomlySelect(streamNum: Int): DataRow<T> {
-    return KSLRandom.randomlySelect(this, streamNum)
-}
-
-fun <T> DataFrame<T>.permute(stream: RNStreamIfc = KSLRandom.defaultRNStream()): DataFrame<T> {
-    return KSLRandom.permute(this, stream)
-}
-
-fun <T> DataFrame<T>.permute(streamNum: Int): DataFrame<T>{
-    return KSLRandom.permute(this, streamNum)
 }
