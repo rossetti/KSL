@@ -46,6 +46,6 @@ class MVIndependentRV(theDimension: Int, theRandomVariable: RVariableIfc) : MVRV
 
     override fun generate(array: DoubleArray) {
         require(array.size == dimension) { "The size of the array to fill does not match the sampling dimension!" }
-        myRV.sample(array)
+        myRV.sampleInto(array)
     }
 }
