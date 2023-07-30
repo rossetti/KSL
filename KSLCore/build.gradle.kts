@@ -60,7 +60,7 @@ dependencies {
     api("org.jetbrains.kotlinx:dataframe-core:0.11.0")
 
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.9.0")
 
     // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
 //    implementation("org.ktorm:ktorm-core:3.5.0")
