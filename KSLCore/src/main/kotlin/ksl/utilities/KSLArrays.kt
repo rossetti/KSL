@@ -2878,6 +2878,46 @@ fun Array<DoubleArray>.toDoubles(): Array<Array<Double>> {
 }
 
 /**
+ *  Converts the 2D array of doubles to a map that holds the arrays
+ *  by column. Each column is called col1, col2, etc. The
+ *  2D array must be rectangular.
+ */
+fun Array<DoubleArray>.toMapOfColumns(): Map<String, DoubleArray>{
+    val nCol = KSLArrays.numColumns(this)
+    val map = mutableMapOf<String, DoubleArray>()
+    for(i in 0 until nCol){
+        map["col${i+1}"] = this.column(i)
+    }
+    return map
+}
+
+/**
+ *  Converts the 2D array of doubles to a map that holds the arrays
+ *  by column. Each column is called col1, col2, etc. The
+ *  2D array must be rectangular.
+ */
+fun Array<DoubleArray>.toMapOfLists(): Map<String, List<Double>>{
+    val nCol = KSLArrays.numColumns(this)
+    val map = mutableMapOf<String, List<Double>>()
+    for(i in 0 until nCol){
+        map["col${i+1}"] = this.column(i).toList()
+    }
+    return map
+}
+
+/**
+ *  Converts the 2D array of doubles to a map that holds the arrays
+ *  by rows. Each row is called row1, row2, etc.
+ */
+fun Array<DoubleArray>.toMapOfRows(): Map<String, DoubleArray>{
+    val map = mutableMapOf<String, DoubleArray>()
+    for((i, arr) in this.withIndex()){
+        map["row${i+1}"] = arr
+    }
+    return map
+}
+
+/**
  * Convert the 2D array of Int to a 2D array of Int with each element the
  * corresponding value
  *
