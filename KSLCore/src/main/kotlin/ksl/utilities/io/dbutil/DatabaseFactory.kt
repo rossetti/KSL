@@ -578,4 +578,43 @@ object DatabaseFactory {
         return getSQLiteDatabase(KSL.dbDir.resolve(fileName))
     }
 
+    /**
+     * @param pathToDb the path to the database file, must not be null
+     * @return the data source
+     */
+    fun createDuckDbDataSource(pathToDb: Path): DuckDbDataSource {
+        val ds = DuckDbDataSource()
+        ds.databaseName = pathToDb.toString()
+        ds.url = DuckDbDataSource.PREFIX + pathToDb
+        DatabaseIfc.logger.info("Created DuckDb data source {}", pathToDb)
+        return ds
+    }
+
+    /**
+     * @param dbLabel    a label for the database
+     * @param dataSource the data source for connections
+     * @return the created database
+     */
+    fun createDuckDatabase(dbLabel: String, dataSource: DuckDbDataSource): Database {
+        return Database(dataSource, dbLabel)
+    }
+
+    /**
+     * Deletes a DuckDb database
+     * Strategy:
+     * - simply deletes the file at the end of the path
+     * - it may or not be a valid DuckDb database
+     *
+     * @param pathToDb the path to the database file, must not be null
+     */
+    fun deleteDuckDbDatabase(pathToDb: Path) {
+        try {
+            Files.deleteIfExists(pathToDb)
+            DatabaseIfc.logger.info("Deleting DuckDb database {}", pathToDb)
+        } catch (e: IOException) {
+            DatabaseIfc.logger.error("Unable to delete DuckDb database {}", pathToDb)
+            throw DataAccessException("Unable to delete DuckDb database$pathToDb")
+        }
+    }
+
 }
