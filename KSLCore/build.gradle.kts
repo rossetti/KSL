@@ -88,7 +88,7 @@ dependencies {
 
     // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
  //   implementation("org.duckdb:duckdb_jdbc:0.8.1")
-    implementation("org.duckdb:duckdb_jdbc:0.7.0")
+ //   implementation("org.duckdb:duckdb_jdbc:0.7.0")
     implementation(group = "com.zaxxer", name = "HikariCP", version = "5.0.1")
 
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
