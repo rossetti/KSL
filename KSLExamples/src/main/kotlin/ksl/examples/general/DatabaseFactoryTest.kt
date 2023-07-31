@@ -14,7 +14,8 @@ var pathToWorkingDir: Path = Paths.get("").toAbsolutePath()
 var pathToDbExamples: Path = pathToWorkingDir.resolve("dbExamples")
 
 fun main() {
-    testSQLite()
+ //  testSQLite()
+    testDuckDb()
 //    testSQLite2()
 //    testCreateDerbyDbCreation()
 
@@ -25,6 +26,24 @@ fun main() {
 //    testPostgresLocalHost()
 //    testPostgresLocalHostKSLDb()
 //    createPostgresLocalHostKSLDb()
+}
+
+fun testDuckDb() {
+    val database = DatabaseFactory.createDuckDbDatabase("someDB.db")
+    val b = database.executeCommand("drop table if exists person")
+    database.executeCommand("create table person (id integer, name string)")
+    println(database)
+    val allTableNames: List<String> = database.userDefinedTables
+    for (s in allTableNames) {
+        println("Table: $s")
+    }
+    database.executeCommand("insert into person values(1, 'PersonA')")
+    database.executeCommand("insert into person values(2, 'PersonB')")
+    database.printTableAsText(tableName = "person")
+    println()
+    database.printTableAsMarkdown(tableName = "person")
+    database.exportToExcel(tableNames = listOf("person"))
+    database.printInsertQueries(tableName = "person")
 }
 
 fun testSQLite() {

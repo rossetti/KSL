@@ -1276,7 +1276,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     fun executeCommand(command: String): Boolean {
         var flag = false
         try {
-            logger.trace { "Getting connection to execute command $command on database $label" }
+            logger.info { "Getting connection to execute command $command on database $label" }
             getConnection().use { con -> flag = executeCommand(con, command) }
         } catch (ex: SQLException) {
             logger.error("SQLException when executing {}", command, ex)
@@ -1742,7 +1742,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             try {
                 connection.createStatement().use { statement ->
                     statement.execute(command)
-                    logger.trace("Executed SQL: {}", command)
+                    logger.info("Executed SQL: {}", command)
                     statement.close()
                     flag = true
                 }

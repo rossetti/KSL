@@ -3,6 +3,7 @@ package ksl.utilities.io.dbutil
 
 import ksl.utilities.io.KSLFileUtil
 import org.apache.commons.compress.harmony.pack200.PackingUtils.config
+import org.duckdb.DuckDBConnection
 import java.io.PrintWriter
 import java.sql.Connection
 import java.sql.DriverManager
@@ -11,8 +12,12 @@ import java.util.*
 import java.util.logging.Logger
 import javax.sql.DataSource
 
-
-class DuckDbDataSource : DataSource {
+/**
+The client should set the databaseName property appropriately before establishing a connection.
+The databaseName property should be a path to the file that represents the database on disk.
+If no database name is provided then an in-memory database is created.
+ */
+class DuckDbDataSource(val databaseName: String = "") : DataSource {
 
     companion object {
         val PREFIX = "jdbc:duckdb:"
@@ -45,27 +50,24 @@ class DuckDbDataSource : DataSource {
     private var logger: PrintWriter = KSLFileUtil.createPrintWriter("DuckDb.log")
     private var loginTimeout = 1
 
-    var url: String = PREFIX // use memory database in default
+    val url: String
+        get() = PREFIX + databaseName
 
-    var databaseName = "" // the name of the current database
-
-    override fun getConnection(): Connection {
+    override fun getConnection(): DuckDBConnection {
         return getConnection(null, null)
     }
 
-    override fun getConnection(username: String?, password: String?): Connection {
+    override fun getConnection(username: String?, password: String?): DuckDBConnection {
         val p: Properties = Properties()
         if (username != null) p["user"] = username
         if (password != null) p["pass"] = password
-        return DriverManager.getConnection(url, p)
+        return DriverManager.getConnection(url, p) as DuckDBConnection
     }
 
-    fun getConnection(readOnly: Boolean) : Connection {
+    fun getReadOnlyConnection(): DuckDBConnection {
         val p: Properties = Properties()
-        if (readOnly){
-            p["duckdb.read_only"] = "true"
-        }
-        return DriverManager.getConnection(url, p)
+        p["duckdb.read_only"] = "true"
+        return DriverManager.getConnection(url, p) as DuckDBConnection
     }
 
     override fun getLogWriter(): PrintWriter {
@@ -77,7 +79,7 @@ class DuckDbDataSource : DataSource {
     }
 
     override fun setLoginTimeout(seconds: Int) {
-        require(seconds > 0){"The value of seconds must be > 0 "}
+        require(seconds > 0) { "The value of seconds must be > 0 " }
         loginTimeout = seconds
     }
 
