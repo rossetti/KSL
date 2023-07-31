@@ -24,9 +24,9 @@ plugins {
     `maven-publish`
     // uncomment for signing the jars during publishing task
     signing
-    kotlin("jvm") version "1.8.0"
-    kotlin("plugin.serialization") version "1.8.0"
-    id("org.jetbrains.kotlinx.dataframe") version "0.11.0"
+    kotlin("jvm") version "1.9.0"
+    kotlin("plugin.serialization") version "1.9.0"
+ //   id("org.jetbrains.kotlinx.dataframe") version "0.11.0"
     id("org.jetbrains.dokka") version "1.7.20"
 }
 group = "io.github.rossetti"
@@ -54,7 +54,7 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.4.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.5.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
     api("org.jetbrains.kotlinx:dataframe-core:0.11.0")
@@ -87,8 +87,8 @@ dependencies {
     implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.42.0.0")
 
     // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
-    implementation("org.duckdb:duckdb_jdbc:0.8.1")
-
+ //   implementation("org.duckdb:duckdb_jdbc:0.8.1")
+    implementation("org.duckdb:duckdb_jdbc:0.7.0")
     implementation(group = "com.zaxxer", name = "HikariCP", version = "5.0.1")
 
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
