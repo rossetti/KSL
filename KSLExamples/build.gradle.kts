@@ -33,6 +33,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.duckdb:duckdb_jdbc:0.7.0")
 
     implementation(project(":KSLCore"))
     
