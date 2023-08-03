@@ -24,7 +24,6 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import org.apache.derby.jdbc.ClientDataSource
 import org.apache.derby.jdbc.EmbeddedDataSource
-import org.duckdb.DuckDBConnection
 import org.sqlite.SQLiteConfig
 import org.sqlite.SQLiteConnection
 import org.sqlite.SQLiteDataSource
