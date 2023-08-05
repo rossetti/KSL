@@ -232,7 +232,7 @@ open class State(
     }
 
     override fun toString(): String {
-        return "State(number=$number, name=$name, isEntered=$isEntered, numberOfTimesEntered=$numberOfTimesEntered, numberOfTimesExited=$numberOfTimesExited, timeStateEntered=$timeStateEntered, timeFirstEntered=$timeFirstEntered, timeStateExited=$timeStateExited, totalTimeInState=$totalTimeInState)"
+        return "State(number=$number, label=${label} name=$name, isEntered=$isEntered, numberOfTimesEntered=$numberOfTimesEntered, numberOfTimesExited=$numberOfTimesExited, timeStateEntered=$timeStateEntered, timeFirstEntered=$timeFirstEntered, timeStateExited=$timeStateExited, totalTimeInState=$totalTimeInState)"
     }
 
 }
