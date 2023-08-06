@@ -20,9 +20,13 @@ package ksl.utilities.io.dbutil
 
 //import org.ktorm.database.Database
 //import org.ktorm.logging.Slf4jLoggerAdapter
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import ksl.utilities.io.KSL
 import ksl.utilities.io.OutputDirectory
+import java.nio.file.Path
 import java.sql.Connection
+import java.util.*
 import javax.sql.DataSource
 
 open class Database(
@@ -63,5 +67,40 @@ open class Database(
         return sb.toString()
     }
 
+    companion object {
+        /** Helper method for making a database
+         *
+         * @param dBProperties the properties, must not be null
+         * @return the created database
+         */
+        fun createDatabaseFromProperties(dBProperties: Properties): Database {
+            val ds: DataSource = dataSource(dBProperties)
+            val user = dBProperties.getProperty("dataSource.user")
+            val name = dBProperties.getProperty("dataSource.databaseName")
+            val dbLabel = user + "_" + name
+            return Database(ds, dbLabel)
+        }
+
+        /**
+         * Assumes that the properties are appropriately configured to create a DataSource
+         * via  HikariCP
+         *
+         * @param properties the properties
+         * @return a pooled connection DataSource
+         */
+        fun dataSource(properties: Properties): DataSource {
+            val config = HikariConfig(properties)
+            return HikariDataSource(config)
+        }
+
+        /**
+         * @param pathToPropertiesFile must not be null
+         * @return a DataSource for making a database
+         */
+        fun dataSource(pathToPropertiesFile: Path): DataSource {
+            val config = HikariConfig(pathToPropertiesFile.toString())
+            return HikariDataSource(config)
+        }
+    }
 
 }

@@ -37,6 +37,7 @@ import java.sql.SQLException
 import java.util.*
 import javax.sql.DataSource
 
+/*
 object DatabaseFactory {
 
     /**
@@ -664,3 +665,5 @@ object DatabaseFactory {
 //        return true
 //    }
 }
+
+ */

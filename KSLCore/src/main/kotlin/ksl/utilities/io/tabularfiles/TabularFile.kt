@@ -18,12 +18,10 @@
 
 package ksl.utilities.io.tabularfiles
 
-import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.DatabaseIfc
+import ksl.utilities.io.dbutil.SQLiteDb
 import ksl.utilities.maps.HashBiMap
 import ksl.utilities.maps.MutableBiMap
-import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -337,7 +335,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
         val parent: Path = path.parent
         val dbFile: Path = parent.resolve(path.fileName.toString() + ".sqlite")
         Files.copy(path, dbFile, StandardCopyOption.REPLACE_EXISTING)
-        return DatabaseFactory.getSQLiteDatabase(dbFile)
+        return SQLiteDb.openDatabase(dbFile)
     }
 
     companion object {
