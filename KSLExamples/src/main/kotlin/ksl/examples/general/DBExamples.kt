@@ -106,7 +106,7 @@ object DBExamples {
         // Define the path to the database.
         val pathToDb = pathToDbExamples.resolve("SP_Example_Db")
         // Specify the path as a datasource with true indicating that new database will be created (even if old exists)
-        val dataSource: DataSource = DatabaseFactory.createEmbeddedDerbyDataSource(pathToDb = pathToDb, create = true)
+        val dataSource: DataSource = DerbyDb.createDataSource(pathToDb = pathToDb, create = true)
         // Now, make the database from the data source
         val db = Database(dataSource, "SP_Example_Db")
         // We have only established the database, but there isn't anything in it.
@@ -145,7 +145,7 @@ object DBExamples {
     fun exampleDbToExcelExport() {
         val dbName = "SP_To_Excel"
         // make the database
-        val db: DatabaseIfc = DatabaseFactory.createEmbeddedDerbyDatabase(dbName, pathToDbExamples)
+        val db: DatabaseIfc = DerbyDb.createDatabase(dbName, pathToDbExamples)
         // build the creation task
         val tables = pathToDbExamples.resolve("SPDatabase_Tables.sql")
         val inserts = pathToDbExamples.resolve("SPDatabase_Insert.sql")
@@ -166,7 +166,7 @@ object DBExamples {
     fun exampleExcelDbImport() {
         val dbName = "SP_From_Excel"
         // make the database
-        val db: DatabaseIfc = DatabaseFactory.createEmbeddedDerbyDatabase(dbName, pathToDbExamples)
+        val db: DatabaseIfc = DerbyDb.createDatabase(dbName, pathToDbExamples)
 
         // builder the creation task
         val tables = pathToDbExamples.resolve("SPDatabase_Tables.sql")
@@ -195,7 +195,7 @@ object DBExamples {
         // Define the path to the database.
         val pathToDb = pathToDbExamples.resolve("SP_FullCreate_Db")
         // Specify the path as a datasource with true indicating that new database will be created (even if old exists)
-        val dataSource: DataSource = DatabaseFactory.createEmbeddedDerbyDataSource(pathToDb, create = true)
+        val dataSource: DataSource = DerbyDb.createDataSource(pathToDb, create = true)
         // Now, make the database from the data source
         val db = Database(dataSource, "SP_FullCreate_Db")
         // We have only established the database, but there isn't anything in it.

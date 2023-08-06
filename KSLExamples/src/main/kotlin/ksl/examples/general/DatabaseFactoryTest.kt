@@ -1,8 +1,6 @@
 package ksl.examples.general
 
-import ksl.utilities.io.dbutil.Database
-import ksl.utilities.io.dbutil.DatabaseFactory
-import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.*
 import java.nio.file.Path
 import java.nio.file.Paths
 import javax.sql.DataSource
@@ -47,7 +45,7 @@ fun main() {
 //}
 
 fun testSQLite() {
-    val database = DatabaseFactory.createSQLiteDatabase("someDB.db")
+    val database = SQLiteDb.createDatabase("someDB.db")
     database.executeCommand("drop table if exists person")
     database.executeCommand("create table person (id integer, name string)")
     println(database)
@@ -65,7 +63,7 @@ fun testSQLite() {
 }
 
 fun testSQLite2() {
-    val database = DatabaseFactory.getSQLiteDatabase("someDB.db")
+    val database = SQLiteDb.openDatabase("someDB.db")
     database.printTableAsText(tableName = "person")
     println("Done!")
 }
@@ -73,12 +71,12 @@ fun testSQLite2() {
 fun testDatabaseCreation() {
     val path = Paths.get("/Users/rossetti/Documents/Development/Temp")
     val name = "manuel"
-    val database = DatabaseFactory.createEmbeddedDerbyDatabase(name, path)
+    val database = DerbyDb.createDatabase(name, path)
     println(database)
 }
 
 fun testCreateDerbyDbCreation(){
-    val db = DatabaseFactory.createEmbeddedDerbyDatabase("TestSPDb")
+    val db = DerbyDb.createDatabase("TestSPDb")
     println(db)
 }
 
@@ -86,7 +84,7 @@ fun testPostgresLocalHost() {
     val dbName = "test"
     val user = "test"
     val pw = "test"
-    val dataSource: DataSource = DatabaseFactory.postgreSQLDataSourceWithLocalHost(dbName, user, pw)
+    val dataSource: DataSource = PostgresDb.createDataSourceWithLocalHost(dbName, user, pw)
     // make the database
     val db = Database(dataSource, dbName)
     // builder the creation task
@@ -101,7 +99,7 @@ fun testPostgresLocalHostKSLDb() {
     val dbName = "test"
     val user = "test"
     val pw = "test"
-    val dataSource: DataSource = DatabaseFactory.postgreSQLDataSourceWithLocalHost(dbName, user, pw)
+    val dataSource: DataSource = PostgresDb.createDataSourceWithLocalHost(dbName, user, pw)
     // make the database
     val db = Database(dataSource, dbName)
     db.executeCommand("DROP SCHEMA IF EXISTS ksl_db CASCADE")

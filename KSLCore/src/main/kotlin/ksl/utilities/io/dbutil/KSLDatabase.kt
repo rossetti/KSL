@@ -905,7 +905,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @return an empty embedded SQLite database configured to hold KSL simulation results
          */
         fun createSQLiteKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
-            val database = DatabaseFactory.createSQLiteDatabase(dbName, dbDirectory)
+            val database = SQLiteDb.createDatabase(dbName, dbDirectory)
             val executed = database.executeScript(dbScriptsDir.resolve("KSL_SQLite.sql"))
             if (!executed) {
                 DatabaseIfc.logger.error("Unable to execute KSL_SQLite.sql creation script")
@@ -933,7 +933,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @return an empty embedded Derby database configured to hold KSL simulation results
          */
         fun createEmbeddedDerbyKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
-            val derbyDatabase = DatabaseFactory.createEmbeddedDerbyDatabase(dbName, dbDirectory)
+            val derbyDatabase = DerbyDb.createDatabase(dbName, dbDirectory)
             executeKSLDbCreationScriptOnDatabase(derbyDatabase)
             derbyDatabase.defaultSchemaName = SchemaName
             return derbyDatabase
@@ -979,8 +979,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             user: String = "postgres",
             pWord: String = ""
         ): Database {
-            val props: Properties = DatabaseFactory.makePostgreSQLProperties(dbServerName, dbName, user, pWord)
-            val db = DatabaseFactory.createDatabaseFromProperties(props)
+            val props: Properties = PostgresDb.createProperties(dbServerName, dbName, user, pWord)
+            val db = Database.createDatabaseFromProperties(props)
             db.executeCommand("DROP SCHEMA IF EXISTS ksl_db CASCADE")
             executeKSLDbCreationScriptOnDatabase(db)
             db.defaultSchemaName = "ksl_db"
@@ -1007,7 +1007,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             user: String = "postgres",
             pWord: String = ""
         ): KSLDatabase {
-            val props: Properties = DatabaseFactory.makePostgreSQLProperties(dbServerName, dbName, user, pWord)
+            val props: Properties = PostgresDb.createProperties(dbServerName, dbName, user, pWord)
             val kslDatabase: KSLDatabase = connectKSLDatabase(clearDataOption, props)
             DatabaseIfc.logger.info("Connected to a postgres KSL database {} ", kslDatabase.db.dbURL)
             return kslDatabase
@@ -1027,7 +1027,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             clearDataOption: Boolean = false,
             dBProperties: Properties,
         ): KSLDatabase {
-            val db: Database = DatabaseFactory.createDatabaseFromProperties(dBProperties)
+            val db: Database = Database.createDatabaseFromProperties(dBProperties)
             return KSLDatabase(db, clearDataOption)
         }
 
@@ -1190,7 +1190,7 @@ data class WithinRepResponseViewData(
     var stat_name: String = "",
     var rep_id: Int = -1,
     var average: Double? = null
-) : DbData("within_rep_response_view")
+) : TabularData("within_rep_response_view")
 
 data class WithinRepCounterViewData(
     var exp_name: String = "",
@@ -1201,7 +1201,7 @@ data class WithinRepCounterViewData(
     var stat_name: String = "",
     var rep_id: Int = -1,
     var last_value: Double? = null
-) : DbData("within_rep_counter_view")
+) : TabularData("within_rep_counter_view")
 
 data class WithinRepViewData(
     var exp_name: String = "",
@@ -1212,14 +1212,14 @@ data class WithinRepViewData(
     var stat_name: String = "",
     var rep_id: Int = -1,
     var rep_value: Double? = null
-) : DbData("within_rep_view")
+) : TabularData("within_rep_view")
 
 data class ExpStatRepViewData(
     var exp_name: String = "",
     var stat_name: String = "",
     var rep_id: Int = -1,
     var rep_value: Double? = null
-) : DbData("exp_stat_rep_view")
+) : TabularData("exp_stat_rep_view")
 
 data class AcrossRepViewData(
     var exp_name: String = "",
@@ -1227,7 +1227,7 @@ data class AcrossRepViewData(
     var stat_count: Double? = null,
     var average: Double? = null,
     var std_dev: Double? = null
-) : DbData("across_rep_view")
+) : TabularData("across_rep_view")
 
 data class BatchStatViewData(
     var exp_name: String = "",
@@ -1237,7 +1237,7 @@ data class BatchStatViewData(
     var stat_count: Double? = null,
     var average: Double? = null,
     var std_dev: Double? = null
-) : DbData("batch_stat_view")
+) : TabularData("batch_stat_view")
 
 data class PWDiffWithinRepViewData(
     var sim_name: String = "",
@@ -1249,7 +1249,7 @@ data class PWDiffWithinRepViewData(
     var b_value: Double? = null,
     var diff_name: String = "",
     var a_minus_b: Double? = null
-) : DbData("pw_diff_within_rep_view")
+) : TabularData("pw_diff_within_rep_view")
 
 class KSLDatabaseNotConfigured(msg: String = "KSLDatabase: The supplied database was not configured as a KSLDatabase!") :
     RuntimeException(msg)

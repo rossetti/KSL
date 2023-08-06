@@ -21,8 +21,8 @@ package ksl.utilities.io.tabularfiles
 import ksl.utilities.countGreaterEqualTo
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.ColumnMetaData
-import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.DatabaseIfc
+import ksl.utilities.io.dbutil.SQLiteDb
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import java.io.IOException
@@ -68,7 +68,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
     init {
         val fileName = path.fileName.toString()
         val dir = path.parent
-        myDb = DatabaseFactory.createSQLiteDatabase(fileName, dir)
+        myDb = SQLiteDb.createDatabase(fileName, dir)
         val fixedFileName = fileName.replace("[^a-zA-Z]".toRegex(), "")
         dataTableName = fixedFileName + "_Data"
         val cmd = createTableCommand(dataTableName)

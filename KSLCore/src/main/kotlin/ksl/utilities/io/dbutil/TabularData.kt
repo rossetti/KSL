@@ -1,33 +1,39 @@
 package ksl.utilities.io.dbutil
 
-import ksl.controls.ControlType
 import ksl.utilities.io.tabularfiles.TabularFile
 import ksl.utilities.math.KSLMath
 import kotlin.reflect.*
 import kotlin.reflect.full.*
 
-/** DbDataView represents a base class for constructing data classes
- * that work with instances of DatabaseIfc. Subclasses of this base class
- * represent tables that represent database views or results. There is no need
- * to push data from a DbDataView into a database. Views are for extracting data
- * from the database.
+/** TabularData represents a base class for constructing data classes
+ * that hold tabular data. Only base types can be represented.
+ * Numeric columns can be represented by (Double, Int, Long, Short,
+ * Byte, Float, and Boolean). Boolean is considered numeric via conversion
+ * with 1 true and 0 false.  Non-numeric fields are represented by String. Complex
+ * data types are not represented.
+ *
+ * Subclasses of this base class can be used
+ * represent database tables that represent data views or results.
+ *
+ * A usage of TabularData is to hold data extracted from a database table,
+ * view, or result set.
  *
  * Example usage:
  * ```
  * data class Person(var name:String, var age:Int): DbData("Persons")
  * db.selectDbDataInto(::Person)
  * ```
- * Assume that db hold an instance to a database that has a table called, Persons,
+ * Assume that db holds an instance to a database that has a table called, Persons,
  * with the fields name and age as the sole columns, in that order. The data will be extracted
  * from the database table and instances of the data class created and filled
  * with the data from the table. As long as the data class properties match
- * in order and in with compatible types with the fields/columns of the database, then
+ * in order and with compatible types with the fields/columns of the database, then
  * the instances will be created and filled.
  *
- * The [tableName] should be a valid table name or view name within a database if
- * used with a database.
+ * If used within the context of a database, the [tableName] should be a valid table name or view name
+ * within the database.
  */
-abstract class DbData(val tableName: String) {
+abstract class TabularData(val tableName: String) {
 
     /**
      *  The optional name of the schema holding the table for the related data
@@ -301,7 +307,7 @@ abstract class DbData(val tableName: String) {
  * data class Person(var id: Int, var name:String, var age:Int): DbTableData("Persons", listOf("id"), true)
  * db.selectDbDataInto(::Person)
  * ```
- * Assume that db hold an instance to a database that has a table called, Person,
+ * Assume that db holds an instance to a database that has a table called, Person,
  * with the fields (id, name and age) as the sole columns, in that order. The data will be extracted
  * from the database table and instances of the data class created and filled
  * with the data from the table. As long as the data class properties match
@@ -324,7 +330,7 @@ abstract class DbTableData(
     tblName: String,
     val keyFields: List<String>,
     val autoIncField: Boolean = false
-) : DbData(tblName) {
+) : TabularData(tblName) {
     init {
         require(keyFields.isNotEmpty()) { "The list of key fields must have at least 1 element" }
         if (autoIncField) {
@@ -531,7 +537,8 @@ fun main() {
     println(names)
     val values = e.extractPropertyValues()
     println(values)
-    val sList = listOf<Any?>(-1, "a", "b", "c", -1, false, null, null, null, true, false, false, true, 100, false)
+//    val sList = listOf<Any?>(-1, "a", "b", "c", -1, false, null, null, null, true, false, false, true, 100, false)
+    val sList = listOf<Any?>(1, "a", "b", "c", 1, 100.0, 5.0, null, true, false, true, false, 0, false)
     e.setPropertyValues(sList)
     println(e)
 
