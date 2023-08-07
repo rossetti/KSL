@@ -3,6 +3,7 @@ package ksl.examples.general
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.TabularData
 import ksl.utilities.io.tabularfiles.*
 import ksl.utilities.random.rvariable.NormalRV
 import java.io.IOException
@@ -15,6 +16,8 @@ fun main() {
     writeFile()
     // demonstrate reading a file
     readFile()
+    // demonstrate writing tabular data
+    writeTabularDataV2()
 }
 
 private fun writeFile() {
@@ -48,6 +51,84 @@ private fun writeFile() {
     // don't forget to flush the buffer
     tif.flushRows()
     println("Done writing rows!")
+    println()
+}
+
+private fun writeTabularData(){
+    val path: Path = KSLDatabase.dbDir.resolve("TabularDataFile")
+    data class SomeData(var city: String = "", var age: Double = 0.0): TabularData("SomeData")
+    // use the data class to define the columns and their types
+    val tof = TabularOutputFile(SomeData(), path)
+    println(tof)
+
+    // needed for some random data
+    val n = NormalRV(10.0, 1.0)
+    val k = 15
+    // get a row
+    val row: RowSetterIfc = tof.row()
+    // write some data to each row
+    println("Writing rows...")
+    for (i in 1..k) {
+        // reuse the same row, many times
+        // can fill all numeric columns
+        row.setNumeric(1, n.value)
+        // can set specific columns
+        row.setText(0, "city data $i")
+        // need to write the row to the buffer
+        tof.writeRow(row)
+    }
+    // don't forget to flush the buffer
+    tof.flushRows()
+    println("Done writing rows!")
+    println()
+
+    val tif = TabularInputFile(path)
+    println(tif)
+
+    // TabularInputFile is Iterable and foreach construct works across rows
+    println("Printing all rows from an iterator")
+    for (row in tif.iterator()) {
+        println(row)
+    }
+    println()
+    println()
+}
+
+private fun writeTabularDataV2(){
+    val path: Path = KSLDatabase.dbDir.resolve("TabularDataFile")
+    data class SomeData(var city: String = "", var age: Double = 0.0): TabularData("SomeData")
+    val rowData = SomeData()
+    // use the data class instance to define the columns and their types
+    val tof = TabularOutputFile(rowData, path)
+    println(tof)
+
+    // needed for some random data
+    val n = NormalRV(10.0, 1.0)
+    val k = 15
+    // write some data to each row
+    println("Writing rows...")
+    for (i in 1..k) {
+        // reuse the same row, many times
+        // can fill all numeric columns
+        rowData.age = n.value
+        rowData.city = "city data $i"
+        // need to write the row to the buffer
+        tof.writeRow(rowData)
+    }
+    // don't forget to flush the buffer
+    tof.flushRows()
+    println("Done writing rows!")
+    println()
+
+    val tif = TabularInputFile(path)
+    println(tif)
+
+    // TabularInputFile is Iterable and foreach construct works across rows
+    println("Printing all rows from an iterator")
+    for (row in tif.iterator()) {
+        println(row)
+    }
+    println()
     println()
 }
 

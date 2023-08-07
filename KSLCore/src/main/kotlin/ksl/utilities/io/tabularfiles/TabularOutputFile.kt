@@ -23,6 +23,7 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.ColumnMetaData
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.SQLiteDb
+import ksl.utilities.io.dbutil.TabularData
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import java.io.IOException
@@ -47,6 +48,11 @@ import kotlin.math.max
  */
 
 class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : TabularFile(columnTypes, path) {
+
+    /**
+     * Uses [tabularData] as the schema pattern for defining the columns and their data types
+     */
+    constructor(tabularData: TabularData, path: Path) : this(tabularData.extractColumnDataTypes(), path)
 
     private val myDb: DatabaseIfc
 
@@ -144,6 +150,17 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      */
     fun writeText(data: Array<String?>) {
         myRow.setText(data)
+        writeRow(myRow)
+    }
+
+    /**
+     * Writes the data represented by the TabularData instance
+     * to the file. The operation cannot be undone.
+     *
+     * @param data the data represented by an instance of a TabularData
+     */
+    fun writeRow(data: TabularData){
+        myRow.setElements(data)
         writeRow(myRow)
     }
 

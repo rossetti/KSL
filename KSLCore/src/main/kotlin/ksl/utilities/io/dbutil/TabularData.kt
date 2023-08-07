@@ -1,5 +1,6 @@
 package ksl.utilities.io.dbutil
 
+import ksl.utilities.io.tabularfiles.DataType
 import ksl.utilities.io.tabularfiles.TabularFile
 import ksl.utilities.math.KSLMath
 import kotlin.reflect.*
@@ -93,6 +94,29 @@ abstract class TabularData(val tableName: String) {
                 if (property is KMutableProperty<*>) {
                     map[property.name] = property
                 }
+            }
+        }
+        return map
+    }
+
+    /**
+     *  Extracts the property of the public mutable properties of a data class
+     *  Classifies each property whether it can be converted to a numeric value
+     *  via isNumericConvertable(). All non-numeric mutable properties are
+     *  considered TEXT; otherwise, they are considered NUMERIC.
+     *  @return the map of types with the key being the name of the property
+     *  and the value being its DataType. For use with TabularFile.
+     */
+    fun extractColumnDataTypes() : Map<String, DataType>{
+        val map = mutableMapOf<String, DataType>()
+        val mp = extractMutableProperties()
+        val names = extractPropertyNames()
+        for (name in names){
+            val p  = mp[name]!!
+            if (isNumericConvertable(p.returnType)){
+                map[name] = DataType.NUMERIC
+            } else {
+                map[name] = DataType.TEXT
             }
         }
         return map
