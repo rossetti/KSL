@@ -216,8 +216,8 @@ object DataFrameUtil {
     /**
      *  @return the histogram on the column
      */
-    fun histogram(dc: DataColumn<Double>): Histogram {
-        return Histogram.create(dc.toDoubleArray())
+    fun histogram(dc: DataColumn<Double>, breakPoints: DoubleArray = Histogram.recommendBreakPoints(dc.toDoubleArray())): Histogram {
+        return Histogram.create(dc.toDoubleArray(), breakPoints)
     }
 
     /**
@@ -343,8 +343,8 @@ fun DataColumn<Double>.statistics(): Statistic {
 /**
  *  @return the histogram on the column
  */
-fun DataColumn<Double>.histogram(): Histogram {
-    return DataFrameUtil.histogram(this)
+fun DataColumn<Double>.histogram(breakPoints: DoubleArray = Histogram.recommendBreakPoints(this.toDoubleArray())): Histogram {
+    return DataFrameUtil.histogram(this, breakPoints)
 }
 
 /**
