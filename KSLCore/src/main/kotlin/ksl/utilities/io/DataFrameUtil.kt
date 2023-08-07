@@ -23,14 +23,15 @@ import ksl.utilities.isRectangular
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.sample
+import ksl.utilities.statistic.Histogram
+import ksl.utilities.statistic.IntegerFrequency
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.toMapOfColumns
 import ksl.utilities.toMapOfLists
+import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.DataRow
-import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
-import org.jetbrains.kotlinx.dataframe.api.isNotEmpty
-import org.jetbrains.kotlinx.dataframe.api.rows
-import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+import org.jetbrains.kotlinx.dataframe.api.*
 import java.io.PrintWriter
 import java.lang.Appendable
 
@@ -51,7 +52,7 @@ object DataFrameUtil {
         }
         val h = MarkDown.tableHeader(df.columnNames(), formats)
         appendable.appendLine(h)
-        for (row in df.rows()){
+        for (row in df.rows()) {
             val values: List<Any?> = row.values()
             val string = values.joinToString()
             val strings: List<String> = string.split(",")
@@ -74,7 +75,7 @@ object DataFrameUtil {
         df: DataFrame<T>,
         sampleSize: Int,
         stream: RNStreamIfc = KSLRandom.defaultRNStream()
-    ) : DataFrame<T> {
+    ): DataFrame<T> {
         require(sampleSize <= df.rowsCount()) {
             "Cannot draw without replacement for more than the number of rows ${df.rowsCount()}"
         }
@@ -83,6 +84,150 @@ object DataFrameUtil {
         KSLRandom.sampleWithoutReplacement(rowIndices, sampleSize, stream)
         val ri = rowIndices.subList(0, sampleSize)
         return df[ri]
+    }
+
+    /**
+     * A new DataColumn is created, such that the first sampleSize elements contain the sampled values.
+     * That is, x.get(0), x.get(1), ... , x.get(sampleSize-1) is the random sample without replacement
+     *
+     * @param T        the type of the data column
+     * @param dc          the data column
+     * @param sampleSize the size to generate
+     * @param stream        the source of randomness
+     * @return the new data column of size [sampleSize]
+     */
+    inline fun <reified T> sampleWithoutReplacement(
+        dc: DataColumn<T>,
+        sampleSize: Int,
+        stream: RNStreamIfc = KSLRandom.defaultRNStream()
+    ): DataColumn<T> {
+        require(sampleSize <= dc.size()) {
+            "Cannot draw without replacement for more than the number of elements ${dc.size()}"
+        }
+        val m = dc.toList().toMutableList()
+        KSLRandom.sampleWithoutReplacement(m, sampleSize, stream)
+        return column(m.take(sampleSize))
+    }
+
+    /**
+     * The data column [dc], is not changed. The returned data column holds
+     * a permutation of [dc]
+     *
+     * @param T        the type of the data type held in the data column
+     * @param dc          the data column
+     * @param stream        the stream for the source of randomness
+     * @return a new data column with a permutation of the rows of [dc]
+     */
+    inline fun <reified T> permute(
+        dc: DataColumn<T>,
+        stream: RNStreamIfc = KSLRandom.defaultRNStream()
+    ): DataColumn<T> {
+        return sampleWithoutReplacement(dc, dc.size(), stream)
+    }
+
+    /**
+     * The data column [dc], is not changed. The returned data column holds
+     * a permutation of [dc]
+     *
+     * @param T        the type of the data type held in the data column
+     * @param dc          the data column
+     * @param streamNum        the stream number for the source of randomness
+     * @return a new data column with a permutation of the rows of [dc]
+     */
+    inline fun <reified T> permute(
+        dc: DataColumn<T>,
+        streamNum: Int
+    ): DataColumn<T> {
+        return sampleWithoutReplacement(dc, dc.size(), KSLRandom.rnStream(streamNum))
+    }
+
+    /**
+     * Randomly select an element from the data column
+     *
+     * @param T  The type of element in the data column
+     * @param dc the data column
+     * @param stream  the source of randomness
+     * @return the randomly selected element
+     */
+    fun <T> randomlySelect(dc: DataColumn<T>, stream: RNStreamIfc = KSLRandom.defaultRNStream()): T {
+        require(dc.size() == 0) { "Cannot select from an empty column" }
+        val nRows = dc.size()
+        return if (nRows == 1) {
+            dc[0]
+        } else dc[stream.randInt(0, nRows - 1)]
+    }
+
+    /**
+     * Randomly select an element from the data column
+     *
+     * @param T  The type of element in the data column
+     * @param dc the data column
+     * @param streamNum  the stream number for the source of randomness
+     * @return the randomly selected element
+     */
+    fun <T> randomlySelect(dc: DataColumn<T>, streamNum: Int): T {
+        return randomlySelect(dc, KSLRandom.rnStream(streamNum))
+    }
+
+    /**
+     * Randomly selects an element from the data column using the supplied cdf
+     *
+     * @param T  the type returned
+     * @param dc data column to select from
+     * @param cdf  the cumulative probability associated with each element
+     * @param stream  the source of randomness
+     * @return the randomly selected element
+     */
+    fun <T> randomlySelect(
+        dc: DataColumn<T>,
+        cdf: DoubleArray,
+        stream: RNStreamIfc = KSLRandom.defaultRNStream()
+    ): T {
+        // make the row indices array
+        val rowIndices = IntRange(0, dc.size()).toMutableList()
+        val rowNum = KSLRandom.randomlySelect(rowIndices, cdf, stream)
+        return dc[rowNum]
+    }
+
+    /**
+     * Randomly selects an element from the data column using the supplied cdf
+     *
+     * @param T  the type returned
+     * @param dc data column to select from
+     * @param cdf  the cumulative probability associated with each element
+     * @param streamNum  the stream number for the source of randomness
+     * @return the randomly selected element
+     */
+    fun <T> randomlySelect(
+        dc: DataColumn<T>,
+        cdf: DoubleArray,
+        streamNum: Int
+    ): T {
+        return randomlySelect(dc, cdf, KSLRandom.rnStream(streamNum))
+    }
+
+    /**
+     *  @return the statistics on the column
+     */
+    fun statistics(dc: DataColumn<Double>): Statistic {
+        return Statistic(dc.toDoubleArray())
+    }
+
+    /**
+     *  @return the histogram on the column
+     */
+    fun histogram(dc: DataColumn<Double>): Histogram {
+        return Histogram.create(dc.toDoubleArray())
+    }
+
+    /**
+     *  @return the statistics on the column
+     */
+    fun frequencies(dc: DataColumn<Int>): IntegerFrequency {
+        val array = dc.toTypedArray().toIntArray()
+        val f = IntegerFrequency()
+        f.collect(array)
+        return f
     }
 
     /**
@@ -108,7 +253,7 @@ object DataFrameUtil {
      * @param streamNum        the stream number for the source of randomness
      * @return a new data frame with a permutation of the rows of [df]
      */
-    fun <T> permute(df: DataFrame<T>, streamNum: Int) : DataFrame<T> {
+    fun <T> permute(df: DataFrame<T>, streamNum: Int): DataFrame<T> {
         return permute(df, KSLRandom.rnStream(streamNum))
     }
 
@@ -140,13 +285,13 @@ object DataFrameUtil {
     /**
      * Randomly select a row from the data frame
      *
-     * @param T  The type of element in the data fram
+     * @param T  The type of element in the data frame
      * @param df the data frame
      * @param stream  the source of randomness
      * @return the randomly selected element
      */
     fun <T> randomlySelect(df: DataFrame<T>, stream: RNStreamIfc = KSLRandom.defaultRNStream()): DataRow<T> {
-        require(df.isNotEmpty()){"Cannot select from an empty list"}
+        require(df.isNotEmpty()) { "Cannot select from an empty list" }
         val nRows = df.rowsCount()
         return if (nRows == 1) {
             df[0]
@@ -189,16 +334,37 @@ object DataFrameUtil {
 }
 
 /**
+ *  @return the statistics on the column
+ */
+fun DataColumn<Double>.statistics(): Statistic {
+    return DataFrameUtil.statistics(this)
+}
+
+/**
+ *  @return the histogram on the column
+ */
+fun DataColumn<Double>.histogram(): Histogram {
+    return DataFrameUtil.histogram(this)
+}
+
+/**
+ *  @return the frequency tabulation on the column
+ */
+fun DataColumn<Int>.frequencies(): IntegerFrequency {
+    return DataFrameUtil.frequencies(this)
+}
+
+/**
  *  Converts the 2-D array of doubles to a data frame.
  *  The column names are col1, col2, col3, etc.
  *  The 2D array must be rectangular
  */
-fun Array<DoubleArray>.toDataFrame() : DataFrame<*> {
+fun Array<DoubleArray>.toDataFrame(): DataFrame<*> {
     val map = this.toMapOfLists()
     return map.toDataFrame()
 }
 
-fun <T> DataFrame<T>.writeMarkDownTable(writer: PrintWriter = KSL.createPrintWriter("dataFrame.md")){
+fun <T> DataFrame<T>.writeMarkDownTable(writer: PrintWriter = KSL.createPrintWriter("dataFrame.md")) {
     DataFrameUtil.buildMarkDown(this, writer)
     writer.flush()
 }
@@ -221,7 +387,7 @@ fun <T> DataFrame<T>.permute(stream: RNStreamIfc = KSLRandom.defaultRNStream()):
     return DataFrameUtil.permute(this, stream)
 }
 
-fun <T> DataFrame<T>.permute(streamNum: Int): DataFrame<T>{
+fun <T> DataFrame<T>.permute(streamNum: Int): DataFrame<T> {
     return DataFrameUtil.permute(this, streamNum)
 }
 
@@ -255,7 +421,10 @@ fun <T> DataFrame<T>.sampleWithoutReplacement(sampleSize: Int, streamNum: Int): 
  * @param stream        the stream number for the source of randomness
  * @return a new data frame with the sample [sampleSize] rows
  */
-fun <T> DataFrame<T>.sampleWithoutReplacement(sampleSize: Int, stream: RNStreamIfc = KSLRandom.defaultRNStream()): DataFrame<T> {
+fun <T> DataFrame<T>.sampleWithoutReplacement(
+    sampleSize: Int,
+    stream: RNStreamIfc = KSLRandom.defaultRNStream()
+): DataFrame<T> {
     return DataFrameUtil.sampleWithoutReplacement(this, sampleSize, stream)
 }
 

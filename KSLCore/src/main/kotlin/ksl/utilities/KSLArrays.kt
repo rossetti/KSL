@@ -21,6 +21,7 @@ package ksl.utilities
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.DoubleArraySaver
+import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 import java.text.DecimalFormat
 import java.util.*
@@ -2128,7 +2129,7 @@ object KSLArrays {
      * Creates a matrix of Doubles with [nRows] and [nCols] containing the
      * supplied [value]
      */
-    fun matrixOfDoubles(nRows: Int, nCols: Int, value: Double): Array<DoubleArray> {
+    fun matrixOfDoubles(nRows: Int, nCols: Int, value: Double = 0.0): Array<DoubleArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
         return Array(nRows) { i ->
@@ -2140,7 +2141,7 @@ object KSLArrays {
      * Creates a matrix of Ints with [nRows] and [nCols] containing the
      * supplied [value]
      */
-    fun matrixOfInts(nRows: Int, nCols: Int, value: Int): Array<IntArray> {
+    fun matrixOfInts(nRows: Int, nCols: Int, value: Int = 0): Array<IntArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
         return Array(nRows) { i ->
@@ -2152,7 +2153,7 @@ object KSLArrays {
      * Creates a matrix of Longs with [nRows] and [nCols] containing the
      * supplied [value]
      */
-    fun matrixOfLongs(nRows: Int, nCols: Int, value: Long): Array<LongArray> {
+    fun matrixOfLongs(nRows: Int, nCols: Int, value: Long = 0): Array<LongArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
         return Array(nRows) { i ->
@@ -2190,6 +2191,15 @@ inline fun <reified T> to2DArray(lists: List<List<T>>): Array<Array<T>> {
  */
 fun DoubleArray.statistics(): Statistic {
     return KSLArrays.statistics(this)
+}
+
+/**
+ * Returns a histogram that summarizes the array of values
+ *
+ * @return a Histogram summarizing the data
+ */
+fun DoubleArray.histogram(): Histogram {
+    return Histogram.create(this)
 }
 
 /**
@@ -2883,13 +2893,13 @@ fun Array<DoubleArray>.toDoubles(): Array<Array<Double>> {
  *  2D array must be rectangular.
  *  @param colNames the names of the columns (optional)
  */
-fun Array<DoubleArray>.toMapOfColumns(colNames: List<String> = emptyList()): Map<String, DoubleArray>{
+fun Array<DoubleArray>.toMapOfColumns(colNames: List<String> = emptyList()): Map<String, DoubleArray> {
     val nCol = KSLArrays.numColumns(this)
     val names = (1..nCol).map { "col$it" }.toList()
     val map = mutableMapOf<String, DoubleArray>()
-    for ( (i, name) in names.withIndex()) {
+    for ((i, name) in names.withIndex()) {
         // use the supplied names but if it doesn't exist, use the made up name
-        map[colNames.getOrElse(i) { name }]= this.column(i)
+        map[colNames.getOrElse(i) { name }] = this.column(i)
     }
     return map
 }
@@ -2900,13 +2910,13 @@ fun Array<DoubleArray>.toMapOfColumns(colNames: List<String> = emptyList()): Map
  *  2D array must be rectangular.
  *  @param colNames the names of the columns (optional)
  */
-fun Array<DoubleArray>.toMapOfLists(colNames: List<String> = emptyList()): Map<String, List<Double>>{
+fun Array<DoubleArray>.toMapOfLists(colNames: List<String> = emptyList()): Map<String, List<Double>> {
     val nCol = KSLArrays.numColumns(this)
     val names = (1..nCol).map { "col$it" }.toList()
     val map = mutableMapOf<String, List<Double>>()
-    for ( (i, name) in names.withIndex()) {
+    for ((i, name) in names.withIndex()) {
         // use the supplied names but if it doesn't exist, use the made up name
-        map[colNames.getOrElse(i) { name }]= this.column(i).toList()
+        map[colNames.getOrElse(i) { name }] = this.column(i).toList()
     }
     return map
 }
@@ -2917,13 +2927,13 @@ fun Array<DoubleArray>.toMapOfLists(colNames: List<String> = emptyList()): Map<S
  *  2D array must be rectangular.
  *  @param rowNames the names of the columns (optional)
  */
-fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<String, DoubleArray>{
+fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<String, DoubleArray> {
     val nRows = this.size
     val names = (1..nRows).map { "row$it" }.toList()
     val map = mutableMapOf<String, DoubleArray>()
-    for ( (i, name) in names.withIndex()) {
+    for ((i, name) in names.withIndex()) {
         // use the supplied names but if it doesn't exist, use the made up name
-        map[rowNames.getOrElse(i) { name }]= this[i].copyOf()
+        map[rowNames.getOrElse(i) { name }] = this[i].copyOf()
     }
     return map
 }
@@ -2951,7 +2961,7 @@ fun Array<LongArray>.toLongs(): Array<Array<Long>> {
 /**
  * Converts the array of strings to Doubles
  *
- * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
+ * @param parseFail the value to use if the parse fails or string is null, by default Double.NaN
  * @return the parsed doubles as an array
  */
 fun Array<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
@@ -2961,7 +2971,7 @@ fun Array<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
 /**
  * Converts the list of strings to Doubles
  *
- * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
+ * @param parseFail the value to use if the parse fails or string is null, by default Double.NaN
  * @return the parsed doubles as an array
  */
 fun List<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
