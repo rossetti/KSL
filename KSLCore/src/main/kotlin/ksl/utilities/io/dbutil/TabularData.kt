@@ -1,6 +1,8 @@
 package ksl.utilities.io.dbutil
 
 import ksl.utilities.io.tabularfiles.DataType
+import ksl.utilities.io.tabularfiles.Row
+import ksl.utilities.io.tabularfiles.RowGetterIfc
 import ksl.utilities.io.tabularfiles.TabularFile
 import ksl.utilities.math.KSLMath
 import kotlin.reflect.*
@@ -171,7 +173,17 @@ abstract class TabularData(val tableName: String) {
     /**
      * Sets the values of the public mutable properties of a data class to
      * the values supplied. If the object is not an instance of a data
-     * class then nothing happens. The size of the supplied array must
+     * class then nothing happens. The row from a TabularFile must map
+     * to the property values
+     */
+    fun setPropertyValues(row: RowGetterIfc){
+        setPropertyValues(row.elements)
+    }
+
+    /**
+     * Sets the values of the public mutable properties of a data class to
+     * the values supplied. If the object is not an instance of a data
+     * class then nothing happens. The size of the supplied list must
      * be the same as the number of the mutable properties and
      * the type of each element in the supplied list must match the type
      * of the mutable property
