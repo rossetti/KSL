@@ -2198,8 +2198,8 @@ fun DoubleArray.statistics(): Statistic {
  *
  * @return a Histogram summarizing the data
  */
-fun DoubleArray.histogram(): Histogram {
-    return Histogram.create(this)
+fun DoubleArray.histogram(breakPoints: DoubleArray = Histogram.recommendBreakPoints(this)): Histogram {
+    return Histogram.create(this, breakPoints)
 }
 
 /**

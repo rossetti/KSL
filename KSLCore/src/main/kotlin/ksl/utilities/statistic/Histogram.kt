@@ -539,8 +539,7 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
         /**
          *  Creates a default histogram based on default break points for the supplied data
          */
-        fun create(array: DoubleArray) : Histogram {
-            val breakPoints = recommendBreakPoints(array)
+        fun create(array: DoubleArray, breakPoints: DoubleArray = recommendBreakPoints(array)) : Histogram {
             val h = Histogram(breakPoints)
             h.collect(array)
             return h
