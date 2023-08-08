@@ -24,7 +24,7 @@ import com.opencsv.CSVWriter
 import com.opencsv.exceptions.CsvException
 import ksl.utilities.KSLArrays
 import ksl.utilities.toStrings
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.FileReader
 import java.io.FileWriter
 import java.io.IOException

@@ -18,15 +18,11 @@
 
 package ksl.utilities.io
 
-import mu.KotlinLogging
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
-
-//private val logger = KotlinLogging.logger {}
 
 /**
  * This class provides basic context for creating and writing output files.

@@ -26,7 +26,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.exceptions.IllegalStateException
 import ksl.utilities.exceptions.NoSuchStepException
 import ksl.utilities.observers.Observable
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}

@@ -18,7 +18,7 @@
 package ksl.utilities.math
 
 import ksl.utilities.distributions.Gamma
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.math.*
 
 /**

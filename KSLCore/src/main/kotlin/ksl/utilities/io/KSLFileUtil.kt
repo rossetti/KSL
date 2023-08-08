@@ -20,7 +20,7 @@ package ksl.utilities.io
 
 import ksl.utilities.KSLArrays
 import ksl.utilities.toCSVString
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path

@@ -18,11 +18,11 @@
 
 package ksl.controls
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.maps.KSLMaps
 import ksl.utilities.maps.toJson
-import mu.KotlinLogging
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty1

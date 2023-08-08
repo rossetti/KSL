@@ -17,7 +17,6 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
-import org.slf4j.event.Level
 
 class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
@@ -145,7 +144,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 fun main() {
     val m = Model()
     val tq = TestAndRepairShopWithConveyor(m, name = "TestAndRepairWithConveyor")
-    ProcessModel.logger.atLevel(Level.INFO)
+
     m.numberOfReplications = 10
     m.lengthOfReplication = 52.0* 5.0*2.0*480.0
 //        m.numberOfReplications = 1
