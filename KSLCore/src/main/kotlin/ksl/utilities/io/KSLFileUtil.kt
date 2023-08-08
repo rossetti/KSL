@@ -20,7 +20,7 @@ package ksl.utilities.io
 
 import ksl.utilities.KSLArrays
 import ksl.utilities.toCSVString
-import mu.KLoggable
+import mu.KotlinLogging
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -33,13 +33,13 @@ import java.util.*
  * Apache Commons IO.  However, this basic IO provides basic needs without external libraries and
  * is integrated withe KSL functionality.
  */
-object KSLFileUtil : KLoggable {
+object KSLFileUtil {
     private var myFileCounter_ = 0
 
     /**
      *  Use for general logging
      */
-    override val logger = logger()
+    val logger = KotlinLogging.logger {}
 
     /**
      * System.out as a PrintWriter

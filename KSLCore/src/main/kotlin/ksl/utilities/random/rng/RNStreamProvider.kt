@@ -18,7 +18,6 @@
 
 package ksl.utilities.random.rng
 
-import mu.KLoggable
 import mu.KotlinLogging
 
 //private val logger = KotlinLogging.logger {}
@@ -131,7 +130,7 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
         myStreamFactory.setFactorySeed(seed)
     }
 
-    companion object : KLoggable {
-        override val logger = logger()
+    companion object {
+        val logger = KotlinLogging.logger {}
     }
 }

@@ -23,7 +23,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import ksl.utilities.io.*
-import mu.KLoggable
+import mu.KotlinLogging
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -1683,9 +1683,9 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     //TODO select * from table where field = ?, updatable RowSet
 
-    companion object : KLoggable {
+    companion object {
 
-        override val logger = logger()
+        val logger = KotlinLogging.logger {}
 
         const val DEFAULT_DELIMITER = ";"
 

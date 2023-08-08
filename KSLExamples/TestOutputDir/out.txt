@@ -1,0 +1,1 @@
+Use out property to write out text to a file.

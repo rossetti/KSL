@@ -29,7 +29,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.exceptions.IllegalStateException
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
-import mu.KLoggable
+import mu.KotlinLogging
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
@@ -1793,7 +1793,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
     }
 
-    companion object : KLoggable {
-        override val logger = logger()
+    companion object {
+        val logger = KotlinLogging.logger {}
     }
 }

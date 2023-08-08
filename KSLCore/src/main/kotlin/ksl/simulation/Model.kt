@@ -34,7 +34,7 @@ import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.RVParameterSetter
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
-import mu.KLoggable
+import mu.KotlinLogging
 import java.nio.file.Path
 import kotlin.time.Duration
 
@@ -1219,7 +1219,7 @@ class Model(
             return stats
         }
 
-    companion object : KLoggable {
+    companion object {
         /**
          * Used to assign unique enum constants
          */
@@ -1238,7 +1238,7 @@ class Model(
         /**
          * A global logger for logging
          */
-        override val logger = logger()
+        val logger = KotlinLogging.logger {}
     }
 }
 

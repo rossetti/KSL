@@ -18,21 +18,21 @@
 
 package ksl.utilities.io
 
-import mu.KLoggable
+import mu.KotlinLogging
 
 import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
 import java.util.*
 
-object KSL : KLoggable {
+object KSL {
 
     fun randomUUIDString() = UUID.randomUUID().toString()
 
     /**
      * A global logger for logging
      */
-    override val logger = logger()
+    val logger = KotlinLogging.logger {}
 
     /**
      * Used to assign unique enum constants

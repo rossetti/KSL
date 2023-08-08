@@ -55,4 +55,5 @@ fun demoKSLClass(){
     println(KSL)
     // KSL also has logger. This logs to logs/ksl.log
     KSL.logger.info { "This is an informational log comment!" }
+//    KSL.logger2.info { "This is a second informational log comment!" }
 }
