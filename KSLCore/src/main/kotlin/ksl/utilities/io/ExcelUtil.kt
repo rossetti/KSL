@@ -19,7 +19,7 @@
 package ksl.utilities.io
 
 import com.opencsv.CSVWriterBuilder
-import mu.KLoggable
+import mu.KotlinLogging
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException
 import org.apache.poi.openxml4j.opc.OPCPackage
 import org.apache.poi.openxml4j.opc.PackageAccess
@@ -37,9 +37,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
 
-object ExcelUtil : KLoggable {
+object ExcelUtil  {
 
-    override val logger = logger()
+    val logger = KotlinLogging.logger {}
 
     const val DEFAULT_MAX_CHAR_IN_CELL = 512
 

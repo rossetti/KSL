@@ -22,7 +22,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.maps.KSLMaps
 import ksl.utilities.maps.toJson
-import mu.KLoggable
+import mu.KotlinLogging
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty1
@@ -300,11 +300,11 @@ class Controls(aModel: Model) {
         return controlDataAsString()
     }
 
-    companion object : KLoggable {
+    companion object {
         /**
          * A global logger for logging of model elements
          */
-        override val logger = logger()
+        val logger = KotlinLogging.logger {}
 
         fun <T> controlAnnotation(setter: KMutableProperty.Setter<T>): KSLControl? {
             return setter.annotations.filterIsInstance<KSLControl>().firstOrNull()

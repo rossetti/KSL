@@ -41,6 +41,9 @@ dependencies {
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
     api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2") //TODO update
+//    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "5.0.1") //TODO update
+
+//    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.7")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
     implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.4.4") //TODO needed?

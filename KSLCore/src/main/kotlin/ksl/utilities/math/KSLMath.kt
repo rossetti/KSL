@@ -18,7 +18,7 @@
 package ksl.utilities.math
 
 import ksl.utilities.distributions.Gamma
-import mu.KLoggable
+import mu.KotlinLogging
 import kotlin.math.*
 
 /**
@@ -29,12 +29,12 @@ import kotlin.math.*
  * This is based on the DhbMath class of Didier Besset in "Object-Oriented
  * Implementation of Numerical Methods", Morgan-Kaufmann
  */
-object KSLMath : KLoggable {
+object KSLMath {
 
     /**
      *  Use for general logging
      */
-    override val logger = logger()
+    val logger = KotlinLogging.logger {}
 
     /**
      * holds initial factorials

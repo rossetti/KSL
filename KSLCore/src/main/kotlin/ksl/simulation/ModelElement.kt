@@ -29,7 +29,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.NameIfc
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
-import mu.KLoggable
+import mu.KotlinLogging
 
 private var elementCounter: Int = 0
 
@@ -1851,7 +1851,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         }
     }
 
-    companion object : KLoggable {
+    companion object {
         private var enumCounter: Int = 0
 
         fun nextEnumConstant() : Int {
@@ -1861,7 +1861,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
         /**
          * A global logger for logging of model elements
          */
-        override val logger = logger()
+        val logger = KotlinLogging.logger {}
     }
 
     fun attachModelElementObserver(observer: ModelElementObserver) {
