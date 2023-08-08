@@ -30,7 +30,7 @@ import java.util.*
  */
 class LogPrintWriter : PrintWriter {
     /**
-     * Controls whether or not any the PrintWriter functionality happens
+     * Controls whether any the PrintWriter functionality happens
      */
     var OUTPUT_ON = true
 
@@ -267,4 +267,6 @@ class LogPrintWriter : PrintWriter {
             super.write(s)
         }
     }
+
+
 }

@@ -96,6 +96,10 @@ object KSL : KLoggable {
         return myOutputDir.createFile(fileName)
     }
 
+    override fun toString(): String {
+        return myOutputDir.toString()
+    }
+
     /** Makes a Path to the named subdirectory within the base directory
      *
      * @param dirName the name of the subdirectory to create. It must not be null
