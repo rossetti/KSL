@@ -149,4 +149,15 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return KSLFileUtil.createSubDirectory(outDir, dirName)
     }
 
+    override fun toString(): String {
+        return buildString {
+            appendLine("OutputDirectory")
+            appendLine("\t outDir   = $outDir")
+            appendLine("\t out      = $out")
+            appendLine("\t excelDir = $excelDir")
+            appendLine("\t dbDir    = $dbDir")
+            appendLine("\t csvDir   = $csvDir")
+        }
+    }
+
 }
