@@ -29,7 +29,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.NameIfc
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 private var elementCounter: Int = 0
 

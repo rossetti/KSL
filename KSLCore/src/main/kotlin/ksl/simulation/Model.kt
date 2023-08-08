@@ -34,7 +34,7 @@ import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.RVParameterSetter
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.nio.file.Path
 import kotlin.time.Duration
 

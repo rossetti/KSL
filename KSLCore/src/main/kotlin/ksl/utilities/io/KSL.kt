@@ -18,7 +18,7 @@
 
 package ksl.utilities.io
 
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 import java.io.File
 import java.io.PrintWriter

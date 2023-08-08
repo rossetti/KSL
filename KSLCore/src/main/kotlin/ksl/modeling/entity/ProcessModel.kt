@@ -29,7 +29,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.exceptions.IllegalStateException
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
