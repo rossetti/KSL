@@ -248,7 +248,7 @@
         <appender-ref ref="KSL_LOG" />
     </logger>
 
-    <logger name="ksl.utilities.io.KSKFileUtil" level="INFO" additivity="false">
+    <logger name="ksl.utilities.io.KSLFileUtil" level="INFO" additivity="false">
         <appender-ref ref="KSL_IO" />
     </logger>
 
