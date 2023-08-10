@@ -66,9 +66,9 @@ object CSVUtil {
                 }
             }
         } catch (e: IOException) {
-            logger.warn("There was a problem reading the rows from file {}", pathToFile)
+            logger.warn { "There was a problem reading the rows from file $pathToFile" }
         } catch (e: CsvException) {
-            logger.warn("There was a problem reading the rows from file {}", pathToFile)
+            logger.warn { "There was a problem reading the rows from file $pathToFile" }
         }
         return emptyList()
     }
@@ -91,7 +91,7 @@ object CSVUtil {
         try {
             CSVReader(FileReader(pathToFile.toFile())).use { reader -> return reader.iterator() }
         } catch (e: IOException) {
-            logger.warn("There was a problem getting an iterator from file {}", pathToFile)
+            logger.warn { "There was a problem getting an iterator from file $pathToFile" }
         }
         return LinkedList<Array<String>>().iterator()
     }
@@ -187,7 +187,7 @@ object CSVUtil {
                 }
             }
         } catch (e: IOException) {
-            logger.warn("There was a problem writing an array to csv file {}", pathToFile)
+            logger.warn { "There was a problem writing an array to csv file $pathToFile" }
         }
     }
 }
