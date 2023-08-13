@@ -1,4 +1,4 @@
-package ksl.examples.general
+package ksl.examples.general.utilities
 
 import kotlinx.datetime.Clock
 import ksl.examples.book.chapter4.DriveThroughPharmacy
@@ -24,13 +24,34 @@ fun main() {
 
 //    DBExamples.createKSLDatabases()
 
-    DBExamples.testKSLDatabase()
+//    DBExamples.testKSLDatabase()
+
+    DBExamples.exampleExcelDbImport()
 }
 
 object DBExamples {
     var pathToWorkingDir: Path = Paths.get("").toAbsolutePath()
     var pathToDbExamples: Path = pathToWorkingDir.resolve("dbExamples")
 
+    /**
+     *  Creates an empty embedded Derby database called [dbName]
+     *  in the kslOutput/dbDir
+     */
+    fun createDerbyDatabase(dbName: String){
+        val ds = DerbyDb.createDataSource(dbName, create = true)
+        val db = Database(ds, dbName)
+
+        val list = db.tableNames("SQLJ")
+        println(list.toString())
+
+        println(db)
+    }
+
+    /**
+     *   Uses the DriveThroughPharmacy model to create and attach multiple
+     *   databases and executes the model. Output from the databases are written
+     *   to markdown, Excel, and to CSV files
+     */
     fun testKSLDatabase() {
         val model = Model("Drive Through Pharmacy", autoCSVReports = false)
         model.numberOfReplications = 10
@@ -84,6 +105,9 @@ object DBExamples {
         println("Done!")
     }
 
+    /**
+     *  Illustrates the creation of a blank KSLDatabase based on SQLite and Derby
+     */
     fun createKSLDatabases() {
         val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
         println("created SQLite based KSLDatabase")
@@ -99,7 +123,7 @@ object DBExamples {
      * This example shows how to create a new database from a creation script and perform some simple
      * operations on the database
      */
-    fun example1() {
+    fun createDbViaCreationScript() {
         // This is an embedded Derby database which resides on the disk
         // Derby holds the database (its files) in a directory.
         // This is the full path to where the database will be held.
@@ -120,22 +144,6 @@ object DBExamples {
         task.creationScriptCommands.forEach(::println)
         // Perform a simple select * command on the table SP
         db.printAllTablesAsText("APP")
-
-        // Do a regular SQL select statement as a string and print the results
-//        val records: Result<Record> = db.fetchResults("select * from s")
-//        // Print them all out
-//        records.format(System.out)
-//        // iterate through each record, get field data using field name and convert to correct data type
-//        for (r in records) {
-//            val status: Int = r.get("STATUS", Int::class.java)
-//            println(status)
-//        }
-//        // Get the status data as an Integer array
-//        val array: Array<Int> = records.intoArray("STATUS", Int::class.java)
-//        // Convert it to a double array if you want
-//        val data: DoubleArray = JSLArrayUtil.toDouble(array)
-//        // compute some statistics on it
-//        System.out.println(Statistic.collectStatistics(data))
     }
 
     /** Shows how to make a SP database from scripts and then writes the database to an Excel workbook
@@ -173,17 +181,15 @@ object DBExamples {
         val inserts = pathToDbExamples.resolve("SPDatabase_Insert.sql")
         val alters = pathToDbExamples.resolve("SPDatabase_Alter.sql")
         val wbPath = pathToDbExamples.resolve("SP_To_DB.xlsx")
-        //TODO an error is in here
-        // seems to create the database but not populate it
         db.create().withTables(tables)
-            .withExcelData(wbPath, Arrays.asList("S", "P", "SP"))
+            .withExcelData(wbPath, listOf("S", "P", "SP"))
             .withConstraints(alters)
             .execute()
         db.printAllTablesAsText("APP")
     }
 
     /**
-     * This example shows how to create a SP database from a creation script and perform a simple
+     * This example shows how to create the SP database from a creation script and perform a simple
      * operation on the database.
      *
      * @return the created database

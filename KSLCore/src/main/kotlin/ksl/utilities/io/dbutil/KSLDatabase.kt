@@ -861,7 +861,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             "across_rep_view", "batch_stat_view", "pw_diff_within_rep_view"
         )
 
-        private const val SchemaName = "KSL_DB"
+        private const val SCHEMA_NAME = "KSL_DB"
 
         val dbDir: Path = KSL.dbDir
         val dbScriptsDir: Path = KSL.createSubDirectory("dbScript")
@@ -908,7 +908,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val database = SQLiteDb.createDatabase(dbName, dbDirectory)
             val executed = database.executeScript(dbScriptsDir.resolve("KSL_SQLite.sql"))
             if (!executed) {
-                DatabaseIfc.logger.error("Unable to execute KSL_SQLite.sql creation script")
+                DatabaseIfc.logger.error { "Unable to execute KSL_SQLite.sql creation script" }
                 throw DataAccessException("The execution script KSL_SQLite.sql did not fully execute")
             }
             return database
@@ -935,7 +935,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         fun createEmbeddedDerbyKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
             val derbyDatabase = DerbyDb.createDatabase(dbName, dbDirectory)
             executeKSLDbCreationScriptOnDatabase(derbyDatabase)
-            derbyDatabase.defaultSchemaName = SchemaName
+            derbyDatabase.defaultSchemaName = SCHEMA_NAME
             return derbyDatabase
         }
 
@@ -947,18 +947,18 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @param db the database
          */
         fun executeKSLDbCreationScriptOnDatabase(db: Database) {
-            if (!db.containsSchema(SchemaName)) {
-                DatabaseIfc.logger.warn("The database {} does not contain schema {}", db.label, SchemaName)
+            if (!db.containsSchema(SCHEMA_NAME)) {
+                DatabaseIfc.logger.warn { "The database ${db.label} does not contain schema $SCHEMA_NAME" }
                 try {
-                    DatabaseIfc.logger.warn("Assume the schema has not be made and execute the creation script KSL_Db.sql")
+                    DatabaseIfc.logger.warn { "Assume the schema has not be made and execute the creation script KSL_Db.sql" }
                     val executed = db.executeScript(dbScriptsDir.resolve("KSL_Db.sql"))
                     if (!executed) {
                         throw DataAccessException("The execution script KSL_Db.sql did not fully execute")
                     } else {
-                        DatabaseIfc.logger.info("Executed the creation script KSL_Db.sql for ${db.label}")
+                        DatabaseIfc.logger.info { "Executed the creation script KSL_Db.sql for ${db.label}" }
                     }
                 } catch (e: IOException) {
-                    DatabaseIfc.logger.error("Unable to execute KSL_Db.sql creation script")
+                    DatabaseIfc.logger.error { "Unable to execute KSL_Db.sql creation script" }
                     throw DataAccessException("Unable to execute KSL_Db.sql creation script")
                 }
             }
@@ -1009,7 +1009,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         ): KSLDatabase {
             val props: Properties = PostgresDb.createProperties(dbServerName, dbName, user, pWord)
             val kslDatabase: KSLDatabase = connectKSLDatabase(clearDataOption, props)
-            DatabaseIfc.logger.info("Connected to a postgres KSL database {} ", kslDatabase.db.dbURL)
+            DatabaseIfc.logger.info { "Connected to a postgres KSL database ${kslDatabase.db.dbURL} " }
             return kslDatabase
         }
 

@@ -1,4 +1,4 @@
-package ksl.examples.general
+package ksl.examples.general.utilities
 
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DatabaseIfc
