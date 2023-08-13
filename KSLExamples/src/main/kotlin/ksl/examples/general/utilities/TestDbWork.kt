@@ -1,4 +1,4 @@
-package ksl.examples.general.misc
+package ksl.examples.general.utilities
 
 import ksl.utilities.io.dbutil.Database
 import ksl.utilities.io.dbutil.DerbyDb
