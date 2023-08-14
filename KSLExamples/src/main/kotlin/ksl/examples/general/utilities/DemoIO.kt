@@ -16,18 +16,25 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.general.misc
+package ksl.examples.general.utilities
 
+import ksl.utilities.KSLArrays
+import ksl.utilities.io.CSVUtil
 import ksl.utilities.io.KSL
 import ksl.utilities.io.OutputDirectory
+import ksl.utilities.io.write
+import ksl.utilities.random.rvariable.NormalRV
+import org.jetbrains.kotlinx.dataframe.io.CSV
+import java.nio.file.Path
 import java.nio.file.Paths
 
-fun main(){
-    demoOutputDirectory()
-    demoKSLClass()
+fun main() {
+//    demoOutputDirectory()
+ //   demoKSLClass()
+    demoCSVUtil()
 }
 
-fun demoOutputDirectory(){
+fun demoOutputDirectory() {
     // get the working directory
     val path = Paths.get("").toAbsolutePath()
     println("Working Directory = $path")
@@ -43,7 +50,7 @@ fun demoOutputDirectory(){
     println(outDir)
 }
 
-fun demoKSLClass(){
+fun demoKSLClass() {
     // use KSL like you use OutputDirectory but with some added functionality
     // The PW_File.txt file with be within the kslOutput directory within the working directory
     val pw = KSL.createPrintWriter("PW_File.txt")
@@ -56,4 +63,21 @@ fun demoKSLClass(){
     // KSL also has logger. This logs to logs/ksl.log
     KSL.logger.info { "This is an informational log comment!" }
 //    KSL.logger2.info { "This is a second informational log comment!" }
+}
+
+fun demoCSVUtil(){
+    val n = NormalRV()
+    val matrix = n.sampleAsColumns(sampleSize = 5, nCols = 4)
+    for(i in matrix.indices){
+        println(matrix[i].contentToString())
+    }
+    val h = listOf("col1", "col2", "col3", "col4")
+    val p = KSL.csvDir.resolve("data.csv")
+    CSVUtil.writeArrayToCSVFile(matrix, header = h.toMutableList(), applyQuotesToData = false, pathToFile = p)
+    println()
+    val dataAsList: List<Array<String>> = CSVUtil.readRows(p, skipLines = 1)
+    val m = KSLArrays.parseTo2DArray(dataAsList)
+    for(i in matrix.indices){
+        println(m[i].contentToString())
+    }
 }

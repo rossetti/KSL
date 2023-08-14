@@ -23,6 +23,7 @@ import ksl.utilities.isRectangular
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.sample
+import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.Statistic
@@ -231,6 +232,13 @@ object DataFrameUtil {
     }
 
     /**
+     *  @return a box plot summary for the column
+     */
+    fun boxPlotSummary(dc: DataColumn<Double>) : BoxPlotSummary {
+        return BoxPlotSummary(dc.toDoubleArray())
+    }
+
+    /**
      * The data frame [df], is not changed. The returned data frame holds
      * a sample of the rows from [df]
      *
@@ -347,6 +355,12 @@ fun DataColumn<Double>.histogram(breakPoints: DoubleArray = Histogram.recommendB
     return DataFrameUtil.histogram(this, breakPoints)
 }
 
+/**
+ *  @return the box plot summary on the column
+ */
+fun DataColumn<Double>.boxPlotSummary(): BoxPlotSummary {
+    return DataFrameUtil.boxPlotSummary(this)
+}
 /**
  *  @return the frequency tabulation on the column
  */
