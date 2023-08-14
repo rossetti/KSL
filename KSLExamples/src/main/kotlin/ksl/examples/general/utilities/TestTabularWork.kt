@@ -20,6 +20,10 @@ fun main() {
     writeTabularDataV2()
 }
 
+/**
+ *  Writes a tabular file with 5 columns. The first 3 columns are numeric data. The fourth
+ *  column is text, and the fifth column is numeric.
+ */
 private fun writeFile() {
     val path: Path = KSLDatabase.dbDir.resolve("demoFile")
 
@@ -96,7 +100,7 @@ private fun writeTabularData(){
 
 private fun writeTabularDataV2(){
     val path: Path = KSLDatabase.dbDir.resolve("TabularDataFile")
-    data class SomeData(var city: String = "", var age: Double = 0.0): TabularData("SomeData")
+    data class SomeData(var someText: String = "", var someData: Double = 0.0): TabularData("SomeData")
     val rowData = SomeData()
     // use the data class instance to define the columns and their types
     val tof = TabularOutputFile(rowData, path)
@@ -110,8 +114,8 @@ private fun writeTabularDataV2(){
     for (i in 1..k) {
         // reuse the same row, many times
         // can fill all numeric columns
-        rowData.age = n.value
-        rowData.city = "city data $i"
+        rowData.someData = n.value
+        rowData.someText = "text data $i"
         // need to write the row to the buffer
         tof.writeRow(rowData)
     }
@@ -182,7 +186,6 @@ private fun readFile() {
     tif.printAsText(1, 5)
 
     // You can write the data to CSV
-    //TODO data has quotes
     val printWriter: PrintWriter = KSL.createPrintWriter("data.csv")
     tif.exportToCSV(printWriter, true)
     printWriter.close()
