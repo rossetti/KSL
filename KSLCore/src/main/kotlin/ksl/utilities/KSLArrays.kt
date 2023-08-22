@@ -20,6 +20,7 @@ package ksl.utilities
 
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.DoubleArraySaver
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
@@ -2126,6 +2127,16 @@ object KSLArrays {
     }
 
     /**
+     * Returns a BoxPlotSummary that summarizes the passed in array of values
+     *
+     * @param x the values to compute statistics for
+     * @return a BoxPlotSummary summarizing the data
+     */
+    fun boxPlotSummary(x: DoubleArray): BoxPlotSummary{
+        return BoxPlotSummary(x)
+    }
+
+    /**
      * Creates a matrix of Doubles with [nRows] and [nCols] containing the
      * supplied [value]
      */
@@ -2191,6 +2202,15 @@ inline fun <reified T> to2DArray(lists: List<List<T>>): Array<Array<T>> {
  */
 fun DoubleArray.statistics(): Statistic {
     return KSLArrays.statistics(this)
+}
+
+/**
+ * Returns a BoxPlotSummary that summarizes the array of values
+ *
+ * @return a BoxPlotSummary summarizing the data
+ */
+fun DoubleArray.boxPlotSummary(): BoxPlotSummary {
+    return KSLArrays.boxPlotSummary(this)
 }
 
 /**
