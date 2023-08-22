@@ -88,9 +88,9 @@ object DerbyDb : EmbeddedDbIfc {
     override fun deleteDatabase(pathToDb: Path) {
         val b: Boolean = KSLFileUtil.deleteDirectory(pathToDb.toFile())
         if (b) {
-            DatabaseIfc.logger.info("Deleting directory to derby database {}", pathToDb)
+            DatabaseIfc.logger.info { "Deleting directory to derby database $pathToDb" }
         } else {
-            DatabaseIfc.logger.info("Unable to delete directory to derby database {}", pathToDb)
+            DatabaseIfc.logger.info { "Unable to delete directory to derby database $pathToDb" }
         }
     }
 
@@ -135,14 +135,14 @@ object DerbyDb : EmbeddedDbIfc {
         if (pWord != null) ds.password = pWord
         if (create) {
             //val path = Paths.get(dbName)
-            DatabaseIfc.logger.info("Create option is on for {}", pathToDb)
+            DatabaseIfc.logger.info { "Create option is on for $pathToDb" }
             if (databaseExists(pathToDb)) {
-                DatabaseIfc.logger.info("Database already exists at location {}", pathToDb)
+                DatabaseIfc.logger.info { "Database already exists at location $pathToDb" }
                 deleteDatabase(pathToDb)
             }
             ds.createDatabase = "create"
         }
-        DatabaseIfc.logger.info("Created an embedded Derby data source for {}", pathToDb)
+        DatabaseIfc.logger.info { "Created an embedded Derby data source for $pathToDb" }
         return ds
     }
 
@@ -160,10 +160,10 @@ object DerbyDb : EmbeddedDbIfc {
             dataSource.connection.use { connection -> }
         } catch (e: SQLException) {
             if ("08006" == e.sqlState) {
-                DatabaseIfc.logger.info("Derby shutdown succeeded. SQLState={}", e.sqlState)
+                DatabaseIfc.logger.info { "Derby shutdown succeeded. SQLState=${e.sqlState}" }
                 return true
             }
-            DatabaseIfc.logger.error("Derby shutdown failed", e)
+            DatabaseIfc.logger.error(e) { "Derby shutdown failed" }
         }
         return false
     }
@@ -196,7 +196,7 @@ object DerbyDb : EmbeddedDbIfc {
         if (user != null) ds.user = user
         if (pWord != null) ds.password = pWord
         ds.shutdownDatabase = "shutdown"
-        DatabaseIfc.logger.info("Created an embedded Derby shutdown data source for {}", dbName)
+        DatabaseIfc.logger.info { "Created an embedded Derby shutdown data source for $dbName" }
         return ds
     }
 
@@ -222,7 +222,7 @@ object DerbyDb : EmbeddedDbIfc {
         if (create) {
             ds.createDatabase = "create"
         }
-        DatabaseIfc.logger.info("Created a Derby client data source for {}", dbName)
+        DatabaseIfc.logger.info { "Created a Derby client data source for $dbName" }
         return ds
     }
 

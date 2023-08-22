@@ -70,7 +70,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return try {
             Files.createDirectories(pathToDir)
         } catch (e: IOException) {
-            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory", pathToDir)
+            KSLFileUtil.logger.info { "There was a problem creating the directories for $pathToDir used program launch directory" }
             KSLFileUtil.programLaunchDirectory
         }
     }
@@ -84,8 +84,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return try {
             Files.createDirectories(outDir.resolve("excelDir"))
         } catch (e: IOException) {
-            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
-                outDir.resolve("excel"))
+            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("excel")} used program launch directory" }
             KSLFileUtil.programLaunchDirectory
         }
     }
@@ -96,8 +95,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return try {
             Files.createDirectories(outDir.resolve("dbDir"))
         } catch (e: IOException) {
-            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
-                outDir.resolve("db"))
+            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("db")} used program launch directory" }
             KSLFileUtil.programLaunchDirectory
         }
     }
@@ -108,8 +106,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return try {
             Files.createDirectories(outDir.resolve("csvDir"))
         } catch (e: IOException) {
-            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
-                outDir.resolve("excel"))
+            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("excel")} used program launch directory" }
             KSLFileUtil.programLaunchDirectory
         }
     }

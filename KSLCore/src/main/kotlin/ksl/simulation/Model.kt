@@ -596,7 +596,7 @@ class Model(
             sb.append(" has already been added to the Model.")
             sb.appendLine()
             sb.append("Every model element must have a unique name!")
-            logger.error(sb.toString())
+            logger.error { sb.toString() }
             throw IllegalArgumentException(sb.toString())
         }
 
@@ -943,7 +943,7 @@ class Model(
                         sb.appendLine()
                         sb.append("The user is responsible for ensuring that the replications are stopped.")
                         sb.appendLine()
-                        logger.warn(sb.toString())
+                        logger.warn { sb.toString() }
                         println(sb.toString())
                         System.out.flush()
                     }

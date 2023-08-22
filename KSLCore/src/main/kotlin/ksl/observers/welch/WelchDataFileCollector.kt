@@ -73,7 +73,7 @@ class WelchDataFileCollector(pathToDirectory: Path, statisticType: StatisticType
             Files.createDirectories(pathToDirectory)
         } catch (e: IOException) {
             val str = "Problem creating directory for $pathToDirectory"
-            KSL.logger.error(str, e)
+            KSL.logger.error(e) { "$str" }
             e.printStackTrace()
         }
         // now make the file to hold the observations within the directory
@@ -87,7 +87,7 @@ class WelchDataFileCollector(pathToDirectory: Path, statisticType: StatisticType
             myData = RandomAccessFile(dataFile, "rw")
         } catch (ex: IOException) {
             val str = "Problem creating RandomAccessFile for " + dataFile.absolutePath
-            KSL.logger.error(str, ex)
+            KSL.logger.error(ex) { "$str" }
         }
     }
 
@@ -183,7 +183,7 @@ class WelchDataFileCollector(pathToDirectory: Path, statisticType: StatisticType
             myData.writeDouble(observation)
             myRepStat.collect(observation)
         } catch (ex: IOException) {
-            KSL.logger.error("Unable to write observation in welch data file ", ex)
+            KSL.logger.error(ex) { "Unable to write observation in welch data file" }
         }
     }
 

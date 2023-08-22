@@ -1776,7 +1776,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             sb.append("Attempted to remove the model element: ")
             sb.append(name)
             sb.append(" while the simulation was running.")
-            Model.logger.error(sb.toString())
+            Model.logger.error { sb.toString() }
             throw IllegalStateException(sb.toString())
         }
 

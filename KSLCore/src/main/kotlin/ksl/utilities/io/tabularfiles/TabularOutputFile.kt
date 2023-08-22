@@ -232,7 +232,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
                 val numInserts = ps.executeBatch()
                 val k = numInserts.countGreaterEqualTo(0)
                 if (k < buffer.size) {
-                    KSL.logger.error("Unable to write all rows $k of buffer size ${buffer.size} to tabular file $dataTableName")
+                    KSL.logger.error{"Unable to write all rows $k of buffer size ${buffer.size} to tabular file $dataTableName"}
                     throw IOException("Unable to write rows to tabular file $dataTableName")
                 } else {
                     KSL.logger.trace { "Inserted $k rows of batch size ${buffer.size} into file $dataTableName" }
@@ -248,7 +248,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
                 is BatchUpdateException,
                 is SQLException,
                 is IOException -> {
-                    KSL.logger.error("Unable to write all rows to tabular file $dataTableName")
+                    KSL.logger.error{"Unable to write all rows to tabular file $dataTableName"}
                     throw IOException("Unable to write all rows to tabular file $dataTableName")
                 }
                 else -> throw ex

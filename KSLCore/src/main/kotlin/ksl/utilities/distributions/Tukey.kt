@@ -459,7 +459,7 @@ object Tukey {
             i++
         }
         if (otsum > eps2) { /* not converged */
-            KSL.logger.warn("The computation for Tukey cdf did not converge due to precision!")
+            KSL.logger.warn { "The computation for Tukey cdf did not converge due to precision!" }
             return Double.NaN
         }
         if (ans > 1.0) ans = 1.0
@@ -607,7 +607,7 @@ object Tukey {
 
         // The process did not converge in 'maxiter' iterations
         //ML_ERROR(ME_NOCONV, "qtukey");
-        KSL.logger.warn("The computation of invCDF did not converge after {} iterations", maxiter)
+        KSL.logger.warn { "The computation of invCDF did not converge after $maxiter iterations" }
         return Double.NaN
     }
 }

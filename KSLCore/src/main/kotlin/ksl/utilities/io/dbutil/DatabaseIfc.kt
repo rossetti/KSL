@@ -90,7 +90,8 @@ interface DatabaseIOIfc {
     fun writeTableAsText(
         tableName: String,
         out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.txt"),
-        schemaName: String? = defaultSchemaName)
+        schemaName: String? = defaultSchemaName
+    )
 
     /**
      * Prints the table as prettified text to the console
@@ -114,7 +115,8 @@ interface DatabaseIOIfc {
      */
     fun writeAllTablesAsText(
         out: PrintWriter = outputDirectory.createPrintWriter("${label}.txt"),
-        schemaName: String? = defaultSchemaName)
+        schemaName: String? = defaultSchemaName
+    )
 
     /**
      * Writes the table as prettified text.
@@ -125,7 +127,8 @@ interface DatabaseIOIfc {
     fun writeTableAsMarkdown(
         tableName: String,
         out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.md"),
-        schemaName: String? = defaultSchemaName)
+        schemaName: String? = defaultSchemaName
+    )
 
     /**
      * Prints the table as prettified text to the console
@@ -149,7 +152,8 @@ interface DatabaseIOIfc {
      */
     fun writeAllTablesAsMarkdown(
         out: PrintWriter = outputDirectory.createPrintWriter("${label}.md"),
-        schemaName: String? = defaultSchemaName)
+        schemaName: String? = defaultSchemaName
+    )
 
     /**
      * Writes all tables as text
@@ -205,7 +209,8 @@ interface DatabaseIOIfc {
     fun exportInsertQueries(
         tableName: String,
         out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.sql"),
-        schemaName: String? = defaultSchemaName)
+        schemaName: String? = defaultSchemaName
+    )
 
     /**
      * Prints all table data as insert queries to the console
@@ -339,7 +344,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             logger.trace { "Established a connection to Database $label " }
             return c
         } catch (ex: SQLException) {
-            KSL.logger.error("Unable to establish connection to $label")
+            KSL.logger.error { "Unable to establish connection to $label" }
             throw ex
         }
     }
@@ -364,10 +369,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn(
-                    "Unable to get table names for schema $schemaName. The meta data was not available for database $label",
-                    e
-                )
+                logger.warn(e) { "Unable to get table names for schema $schemaName. The meta data was not available for database $label" }
             }
         }
         return list
@@ -391,10 +393,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn(
-                    "Unable to get view names for schema $schemaName. The meta data was not available for database $label",
-                    e
-                )
+                logger.warn(e) { "Unable to get view names for schema $schemaName. The meta data was not available for database $label" }
             }
         }
         return list
@@ -417,8 +416,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn{"Unable to get database user defined tables. The meta data was not available for database $label"}
-                logger.warn("$e")
+                logger.warn { "Unable to get database user defined tables. The meta data was not available for database $label" }
+                logger.warn { "$e" }
             }
             return list
         }
@@ -440,8 +439,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn{"Unable to get database schemas. The meta data was not available for database $label"}
-                logger.warn("$e")
+                logger.warn { "Unable to get database schemas. The meta data was not available for database $label" }
+                logger.warn { "$e" }
             }
             return list
         }
@@ -463,8 +462,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn{"Unable to get database views. The meta data was not available for database $label"}
-                logger.warn("$e")
+                logger.warn { "Unable to get database views. The meta data was not available for database $label" }
+                logger.warn { "$e" }
             }
             return list
         }
@@ -656,12 +655,12 @@ interface DatabaseIfc : DatabaseIOIfc {
     override fun writeTableAsMarkdown(tableName: String, out: PrintWriter, schemaName: String?) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
-                logger.info("Schema: {} does not exist in database {}", schemaName, label)
+                logger.info { "Schema: $schemaName does not exist in database $label" }
                 return
             }
         }
         if (!containsTable(tableName) && !containsView(tableName)) {
-            logger.info("Table or View: {} does not exist in database {}", tableName, label)
+            logger.info { "Table or View: $tableName does not exist in database $label" }
             return
         }
         val rowSet = selectAll(tableName, schemaName)
@@ -996,7 +995,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         wbDirectory: Path
     ) {
         if (tableNames.isEmpty()) {
-            logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
+            logger.warn { "The supplied list of table names was empty when writing to Excel in database $label" }
             return
         }
         val wbn = if (!wbName.endsWith(".xlsx")) {
@@ -1052,11 +1051,11 @@ interface DatabaseIfc : DatabaseIOIfc {
         val workbook: XSSFWorkbook = ExcelUtil.openExistingXSSFWorkbookReadOnly(pathToWorkbook)
             ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
 
-        logger.info("Writing workbook {} to database {}", pathToWorkbook, label)
+        logger.info { "Writing workbook $pathToWorkbook to database $label" }
         for (tableName in tableNames) {
             val sheet = workbook.getSheet(tableName)
             if (sheet == null) {
-                logger.info("Skipping table {} no corresponding sheet in workbook", tableName)
+                logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
                 continue
             }
             logger.trace { "Processing the sheet for table $tableName." }
@@ -1083,8 +1082,8 @@ interface DatabaseIfc : DatabaseIOIfc {
             }
         }
         workbook.close()
-        logger.info("Closed workbook {} ", pathToWorkbook)
-        logger.info("Completed writing workbook {} to database {}", pathToWorkbook, label)
+        logger.info { "Closed workbook $pathToWorkbook " }
+        logger.info { "Completed writing workbook $pathToWorkbook to database $label" }
     }
 
     /** Copies the rows from the sheet to the table.  The copy is assumed to start
@@ -1165,9 +1164,8 @@ interface DatabaseIfc : DatabaseIOIfc {
             true
         } catch (ex: SQLException) {
             logger.error(
-                "SQLException when importing ${sheet.sheetName} into table $tableName of schema $schemaName of database $label",
                 ex
-            )
+            ) { "SQLException when importing ${sheet.sheetName} into table $tableName of schema $schemaName of database $label" }
             false
         }
     }
@@ -1279,7 +1277,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             logger.info { "Getting connection to execute command $command on database $label" }
             getConnection().use { con -> flag = executeCommand(con, command) }
         } catch (ex: SQLException) {
-            logger.error("SQLException when executing {}", command, ex)
+            logger.error(ex) { "SQLException when executing $command" }
         }
         return flag
     }
@@ -1313,7 +1311,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         } catch (ex: SQLException) {
             executed = false
             logger.trace { "The commands were not executed for database $label" }
-            logger.error("SQLException: ", ex)
+            logger.error(ex) { "SQLException: " }
         }
         return executed
     }
@@ -1327,7 +1325,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     fun executeScript(path: Path): Boolean {
         require(!Files.notExists(path)) { "The script file does not exist" }
-        logger.trace("Executing SQL in file: {}", path)
+        logger.trace { "Executing SQL in file: $path" }
         return executeCommands(parseQueriesInSQLScript(path))
     }
 
@@ -1349,7 +1347,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return crs
             }
         } catch (e: SQLException) {
-            logger.warn("The query $sql was not executed for database $label", e)
+            logger.warn(e) { "The query $sql was not executed for database $label" }
         }
         return null
     }
@@ -1370,7 +1368,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             query = getConnection().prepareStatement(sql)
             return query.executeQuery()
         } catch (e: SQLException) {
-            logger.warn("The query $sql was not executed for database $label", e)
+            logger.warn(e) { "The query $sql was not executed for database $label" }
             query?.close()
         }
         return null
@@ -1398,7 +1396,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return count
             }
         } catch (e: SQLException) {
-            logger.warn("Could not count the number of rows in $tableName")
+            logger.warn { "Could not count the number of rows in $tableName" }
         }
         return 0
     }
@@ -1413,41 +1411,41 @@ interface DatabaseIfc : DatabaseIOIfc {
     fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
         if (containsSchema(schemaName)) {
             // need to delete the schema and any tables/data
-            logger.debug("The database {} contains the schema {}", label, schemaName)
-            logger.debug("Attempting to drop the schema {}....", schemaName)
+            logger.debug { "The database $label contains the schema $schemaName" }
+            logger.debug { "Attempting to drop the schema $schemaName...." }
 
             //first drop any views, then the tables
             val tables = tableNames(schemaName)
-            logger.debug("Schema {} has tables ... ", schemaName)
+            logger.debug { "Schema $schemaName has tables ... " }
             for (t in tables) {
-                logger.debug("table {}", t)
+                logger.debug { "table $t" }
             }
             val views = viewNames(schemaName)
-            logger.debug("Schema {} has views ... ", schemaName)
+            logger.debug { "Schema $schemaName has views ... " }
             for (v in views) {
-                logger.debug("table {}", v)
+                logger.debug { "table $v" }
             }
             for (name in viewNames) {
-                logger.debug("Checking for view {} ", name)
+                logger.debug { "Checking for view $name " }
                 if (views.contains(name)) {
                     val sql = "drop view $name"
                     val b = executeCommand(sql)
                     if (b) {
-                        logger.debug("Dropped view {} ", name)
+                        logger.debug { "Dropped view $name " }
                     } else {
-                        logger.debug("Unable to drop view {} ", name)
+                        logger.debug { "Unable to drop view $name " }
                     }
                 }
             }
             for (name in tableNames) {
-                logger.debug("Checking for table {} ", name)
+                logger.debug { "Checking for table $name " }
                 if (tables.contains(name)) {
                     val sql = "drop table $name"
                     val b = executeCommand(sql)
                     if (b) {
-                        logger.debug("Dropped table {} ", name)
+                        logger.debug { "Dropped table $name " }
                     } else {
-                        logger.debug("Unable to drop table {} ", name)
+                        logger.debug { "Unable to drop table $name " }
                     }
                 }
 
@@ -1455,16 +1453,16 @@ interface DatabaseIfc : DatabaseIOIfc {
             val sql = "drop schema $schemaName cascade"
             val b = executeCommand(sql)
             if (b) {
-                logger.debug("Dropped schema {} ", schemaName)
+                logger.debug { "Dropped schema $schemaName " }
             } else {
-                logger.debug("Unable to drop schema {} ", schemaName)
+                logger.debug { "Unable to drop schema $schemaName " }
             }
-            logger.debug("Completed the dropping of the schema {}", schemaName)
+            logger.debug { "Completed the dropping of the schema $schemaName" }
         } else {
-            logger.debug("The database {} does not contain the schema {}", label, schemaName)
-            logger.debug("The database {} has the following schemas", label)
+            logger.debug { "The database $label does not contain the schema $schemaName" }
+            logger.debug { "The database $label has the following schemas" }
             for (s in schemas) {
-                logger.debug("schema: {}", s)
+                logger.debug { "schema: $s" }
             }
         }
     }
@@ -1488,7 +1486,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         } else {
             "select * from $tableName"
         }
-        var list : List<ColumnMetaData>
+        var list: List<ColumnMetaData>
         val rs = fetchOpenResultSet(sql).use {
             list = if (it != null) {
                 columnMetaData(it)
@@ -1742,12 +1740,12 @@ interface DatabaseIfc : DatabaseIOIfc {
             try {
                 connection.createStatement().use { statement ->
                     statement.execute(command)
-                    logger.info("Executed SQL: {}", command)
+                    logger.info{"Executed SQL: $command"}
                     statement.close()
                     flag = true
                 }
             } catch (ex: SQLException) {
-                logger.error("SQLException when executing {}", command, ex)
+                logger.error(ex) { "SQLException when executing command $command" }
             }
             return flag
         }
@@ -1851,8 +1849,8 @@ interface DatabaseIfc : DatabaseIOIfc {
             var warning: SQLWarning? = conn.warnings
             if (warning != null) {
                 while (warning != null) {
-                    logger.warn("Message: {}", warning.message)
-                    warning = warning.getNextWarning()
+                    logger.warn{"Message: ${warning!!.message}"}
+                    warning = warning.nextWarning
                 }
             }
         }
@@ -1916,7 +1914,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 // End of statement
                 if (trimmedLine.endsWith(delimiter)) {
                     command.delete(command.length - delimiter.length - 1, command.length)
-                    logger.trace("Parsed SQL: {}", command)
+                    logger.trace{"Parsed SQL: $command"}
                     return true
                 }
             }
