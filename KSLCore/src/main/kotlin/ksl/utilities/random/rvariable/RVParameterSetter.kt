@@ -246,7 +246,7 @@ class RVParameterSetter(private val model: Model) {
                     ", to model with id = " + modelId
         }
         if (model.isRunning) {
-            Model.logger.warn("The model was running when attempting to apply parameter changes")
+            Model.logger.warn { "The model was running when attempting to apply parameter changes" }
         }
         var countChanged = 0
         val rvList: List<RandomVariable> = model.randomVariables()
@@ -264,10 +264,7 @@ class RVParameterSetter(private val model: Model) {
                 }
             }
         }
-        Model.logger.info(
-            "{} out of {} random variable parameters were changed in the model via the parameter setter.",
-            countChanged, numberOfParameterizedRandomVariables
-        )
+        Model.logger.info{ "$countChanged out of $numberOfParameterizedRandomVariables random variable parameters were changed in the model via the parameter setter."}
         return countChanged
     }
 }

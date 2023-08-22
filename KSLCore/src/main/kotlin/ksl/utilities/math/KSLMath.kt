@@ -124,7 +124,7 @@ object KSLMath {
      */
     val smallestExponentialArgument = ln(smallestNumber)
 
-    private fun computeRadix() : Int {
+    private fun computeRadix(): Int {
         var a = 1.0
         var tmp1: Double
         var tmp2: Double
@@ -143,7 +143,7 @@ object KSLMath {
         return rx
     }
 
-    private fun computeMachinePrecision() : Double {
+    private fun computeMachinePrecision(): Double {
         val floatingRadix = radix.toDouble()
         val inverseRadix = 1.0 / floatingRadix
         var mp = 1.0
@@ -155,7 +155,7 @@ object KSLMath {
         return mp
     }
 
-    private fun computeNegativeMachinePrecision() : Double {
+    private fun computeNegativeMachinePrecision(): Double {
         val floatingRadix = radix.toDouble()
         val inverseRadix = 1.0 / floatingRadix
         var nmp = 1.0
@@ -167,7 +167,7 @@ object KSLMath {
         return nmp
     }
 
-    private fun computeLargestNumber() : Double {
+    private fun computeLargestNumber(): Double {
         val floatingRadix = radix.toDouble()
         var fullMantissaNumber = (1.0
                 - floatingRadix * negativeMachinePrecision)
@@ -179,7 +179,7 @@ object KSLMath {
         return lgn
     }
 
-    private fun computeSmallestNumber() : Double {
+    private fun computeSmallestNumber(): Double {
         val floatingRadix = radix.toDouble()
         val inverseRadix = 1.0 / floatingRadix
         var fullMantissaNumber = 1.0 - floatingRadix * negativeMachinePrecision
@@ -218,7 +218,7 @@ object KSLMath {
         return abs(a - b) < precision
     }
 
-    override fun toString() : String {
+    override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Floating-point machine parameters")
         sb.appendLine("---------------------------------")
@@ -390,10 +390,10 @@ object KSLMath {
      */
     fun toByteValue(value: Double): Byte {
         return if (value >= Byte.MAX_VALUE) {
-            logger.trace("{} was limited to {} in toByteValue()", value, Byte.MAX_VALUE)
+            logger.trace { "$value was limited to ${Byte.MAX_VALUE} in toByteValue()" }
             Byte.MAX_VALUE
         } else if (value <= Byte.MIN_VALUE) {
-            logger.trace("{} was limited to {} in toByteValue()", value, Byte.MIN_VALUE)
+            logger.trace { "$value was limited to ${Byte.MIN_VALUE} in toByteValue()" }
             Byte.MIN_VALUE
         } else {
             // in the range of byte, convert to the nearest byte
@@ -413,10 +413,10 @@ object KSLMath {
      */
     fun toLongValue(value: Double): Long {
         return if (value >= Long.MAX_VALUE) {
-            logger.trace("{} was limited to {} in toLongValue()", value, Long.MAX_VALUE)
+            logger.trace { "$value was limited to ${Long.MAX_VALUE} in toLongValue()" }
             Long.MAX_VALUE
         } else if (value <= Long.MIN_VALUE) {
-            logger.trace("{} was limited to {} in toLongValue()", value, Long.MIN_VALUE)
+            logger.trace { "$value was limited to ${Long.MIN_VALUE} in toLongValue()" }
             Long.MIN_VALUE
         } else {
             // in the range of long, convert to the nearest long
@@ -436,10 +436,10 @@ object KSLMath {
      */
     fun toIntValue(value: Double): Int {
         return if (value >= Int.MAX_VALUE) {
-            logger.trace("{} was limited to {} in toIntValue()", value, Int.MAX_VALUE)
+            logger.trace { "$value was limited to ${Int.MAX_VALUE} in toIntValue()" }
             Int.MAX_VALUE
         } else if (value <= Int.MIN_VALUE) {
-            logger.trace("{} was limited to {} in toIntValue()", value, Int.MIN_VALUE)
+            logger.trace { "$value was limited to ${Int.MIN_VALUE} in toIntValue()" }
             Int.MIN_VALUE
         } else {
             // in the range of int, convert to the nearest int
@@ -459,10 +459,10 @@ object KSLMath {
      */
     fun toShortValue(value: Double): Short {
         return if (value >= Short.MAX_VALUE) {
-            logger.trace("{} was limited to {} in toShortValue()", value, Short.MAX_VALUE)
+            logger.trace { "$value was limited to ${Short.MAX_VALUE} in toShortValue()" }
             Short.MAX_VALUE
         } else if (value <= Short.MIN_VALUE) {
-            logger.trace("{} was limited to {} in toShortValue()", value, Short.MIN_VALUE)
+            logger.trace { "$value was limited to ${Short.MIN_VALUE} in toShortValue()" }
             Short.MIN_VALUE
         } else {
             // in the range of int, convert to the nearest short
@@ -479,17 +479,17 @@ object KSLMath {
      */
     fun toBooleanValue(value: Double): Boolean {
         return if (value == 1.0) {
-            logger.trace("{} was converted to {} in toBooleanValue()", value, true)
+            logger.trace { "$value was converted to true in toBooleanValue()" }
             true
         } else {
             if (value == Double.NEGATIVE_INFINITY) {
-                logger.trace("{} was converted to {} in toBooleanValue()", value, false)
+                logger.trace { "$value was converted to false in toBooleanValue()" }
                 return false
             } else if (value == Double.POSITIVE_INFINITY) {
-                logger.trace("{} was converted to {} in toBooleanValue()", value, true)
+                logger.trace { "$value was converted to true in toBooleanValue()" }
                 return true
             } else if (value != 0.0) {
-                logger.trace("{} was converted to {} in toBooleanValue()", value, false)
+                logger.trace { "$value was converted to false in toBooleanValue()" }
                 return false
             }
             false

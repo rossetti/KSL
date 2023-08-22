@@ -1025,6 +1025,7 @@ object KSLArrays {
      * T
      * @return a list that holds the items of the targetClass
     </T> */
+    @Suppress("UNCHECKED_CAST")
     fun <T> getElements(objects: List<*>, targetClass: Class<T>): List<T> {
         //TODO review, remove dependence on java Class
         val stuff: MutableList<T> = ArrayList()

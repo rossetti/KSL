@@ -178,7 +178,7 @@ class Rinott {
         myRootFinder.setUpSearch(SearchFunction(), myInterval, 4.0)
         myRootFinder.evaluate()
         if (!myRootFinder.hasConverged()) {
-            KSL.logger.info("The Rinott constant calculation did not converge")
+            KSL.logger.info { "The Rinott constant calculation did not converge" }
  //           println("the Rinott calculation did not converge returning Double.NaN")
             return Double.NaN
         }

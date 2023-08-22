@@ -104,7 +104,7 @@ object KSLFileUtil {
             PrintWriter(FileWriter(file), true)
         } catch (ex: IOException) {
             val str = "Problem creating PrintWriter for " + file.absolutePath
-            logger.error(str, ex)
+            logger.error(ex) { "$str" }
             PrintWriter(System.out)
         }
     }
@@ -144,7 +144,7 @@ object KSLFileUtil {
             LogPrintWriter(FileWriter(file), true)
         } catch (ex: IOException) {
             val str = "Problem creating LogPrintWriter for " + file.absolutePath
-            logger.error(str, ex)
+            logger.error(ex) { "$str" }
             LogPrintWriter(System.out)
         }
     }
@@ -159,7 +159,7 @@ object KSLFileUtil {
         try {
             return Files.createDirectories(path)
         } catch (e: IOException) {
-            logger.error("There was a problem creating the directories for {}", path)
+            logger.error { "There was a problem creating the directories for $path" }
             e.printStackTrace()
         }
         return null
@@ -177,7 +177,7 @@ object KSLFileUtil {
         return try {
             Files.createDirectories(newDirPath)
         } catch (e: IOException) {
-            logger.error("There was a problem creating the sub-directory for {}", newDirPath)
+            logger.error { "There was a problem creating the sub-directory for $newDirPath" }
             mainDir
         }
     }
