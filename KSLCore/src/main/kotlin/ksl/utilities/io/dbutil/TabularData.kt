@@ -196,7 +196,7 @@ abstract class TabularData(val tableName: String) {
         val names = extractPropertyNames()
         // check the number of properties
         require(names.size == values.size) { "The data class has ${names.size} properties, but ${values.size} values were supplied" }
-        val map = extractAllPropertyValuesByName()
+        //val map = extractAllPropertyValuesByName()
         // check the type of the properties
         val properties = extractMutableProperties()
         for ((index, name) in names.withIndex()) {

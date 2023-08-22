@@ -135,7 +135,7 @@ class KSLEvent<out T> internal constructor(
      */
     override fun toString(): String {
         val sb = StringBuilder()
-        val df = DecimalFormat("####.####E0")
+        //val df = DecimalFormat("####.####E0")
         sb.append("Replication = ${modelElement.myModel.currentReplicationNumber} : ")
         sb.append("Name = ")
         sb.append(name)

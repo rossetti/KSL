@@ -1487,7 +1487,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             "select * from $tableName"
         }
         var list: List<ColumnMetaData>
-        val rs = fetchOpenResultSet(sql).use {
+        fetchOpenResultSet(sql).use {
             list = if (it != null) {
                 columnMetaData(it)
             } else {
