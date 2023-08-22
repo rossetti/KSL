@@ -157,7 +157,7 @@ object DerbyDb : EmbeddedDbIfc {
     fun shutDownDatabase(pathToDb: Path, user: String? = null, pWord: String? = null): Boolean {
         val dataSource = shutDownDataSource(pathToDb, user, pWord)
         try {
-            dataSource.connection.use { connection -> }
+            dataSource.connection.use { }
         } catch (e: SQLException) {
             if ("08006" == e.sqlState) {
                 DatabaseIfc.logger.info { "Derby shutdown succeeded. SQLState=${e.sqlState}" }
