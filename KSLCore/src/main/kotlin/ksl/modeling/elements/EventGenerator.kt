@@ -439,6 +439,7 @@ open class EventGenerator(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun endGeneratorAction(event: KSLEvent<Nothing>) {
         turnOffGenerator()
         endGeneration()

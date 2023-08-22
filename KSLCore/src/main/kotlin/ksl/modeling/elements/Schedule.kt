@@ -324,6 +324,7 @@ class Schedule(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun startSchedule(event: KSLEvent<Nothing>) {
         cycleStartTime = time
         // logic for what to do when schedule is started

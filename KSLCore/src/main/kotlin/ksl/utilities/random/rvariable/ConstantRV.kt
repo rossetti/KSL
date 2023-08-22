@@ -53,6 +53,7 @@ open class ConstantRV(var constVal: Double, name: String? = null) : Parameterize
 
     override var antithetic: Boolean
         get() = false
+        @Suppress("UNUSED_PARAMETER")
         set(flag) {}
 
     override fun antitheticInstance(): RVariableIfc {
