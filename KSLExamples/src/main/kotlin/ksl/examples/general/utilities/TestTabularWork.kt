@@ -25,7 +25,7 @@ fun main() {
  *  column is text, and the fifth column is numeric.
  */
 private fun writeFile() {
-    val path: Path = KSLDatabase.dbDir.resolve("demoFile")
+    val path: Path = KSL.outDir.resolve("demoFile")
 
     // configure the columns
     val columns: MutableMap<String, DataType> = TabularFile.columns(3, DataType.NUMERIC).toMutableMap()
@@ -59,7 +59,7 @@ private fun writeFile() {
 }
 
 private fun writeTabularData(){
-    val path: Path = KSLDatabase.dbDir.resolve("TabularDataFile")
+    val path: Path = KSL.outDir.resolve("TabularDataFile")
     data class SomeData(var city: String = "", var age: Double = 0.0): TabularData("SomeData")
     // use the data class to define the columns and their types
     val tof = TabularOutputFile(SomeData(), path)
@@ -99,7 +99,7 @@ private fun writeTabularData(){
 }
 
 private fun writeTabularDataV2(){
-    val path: Path = KSLDatabase.dbDir.resolve("TabularDataFile")
+    val path: Path = KSL.outDir.resolve("TabularDataFile")
     data class SomeData(var someText: String = "", var someData: Double = 0.0): TabularData("SomeData")
     val rowData = SomeData()
     // use the data class instance to define the columns and their types
@@ -138,7 +138,7 @@ private fun writeTabularDataV2(){
 }
 
 private fun readFile() {
-    val path: Path = KSLDatabase.dbDir.resolve("demoFile")
+    val path: Path = KSL.outDir.resolve("demoFile")
     val tif = TabularInputFile(path)
     println(tif)
 
