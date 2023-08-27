@@ -27,7 +27,7 @@ import java.nio.file.Path
 
 class ResponseTrace(
     theResponse: Response,
-    pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace.csv"),
+    val pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace.csv"),
     header: Boolean = true
 ) :
     ModelElementObserver(theResponse.name) {
