@@ -42,3 +42,24 @@ abstract class Plot(override var title: String? = null) : PlotIfc {
 
 }
 
+internal class ScatterPlot(
+    x: DoubleArray,
+    y: DoubleArray,
+    xLabel: String = "x",
+    yLabel: String = "y",
+    title: String? = null
+) : Plot(title) {
+
+    private val data: Map<String, DoubleArray>
+    init{
+        data = mapOf(
+            xLabel to x,
+            yLabel to y
+        )
+    }
+
+    private fun buildPlot(){
+ //       val p = ggplot(data)
+    }
+}
+
