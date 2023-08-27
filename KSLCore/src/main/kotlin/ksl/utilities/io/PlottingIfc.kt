@@ -15,7 +15,7 @@ import java.nio.file.Path
 
 interface PlotIfc {
     fun showInBrowser(path: Path? = null, static: Boolean = false)
-    
+
     //TODO scale and dpi
     fun saveToFile(file: File)
 
