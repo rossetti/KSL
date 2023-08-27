@@ -1,4 +1,4 @@
-package ksl.utilities.io
+package ksl.utilities.io.plotting
 
 import ksl.observers.welch.WelchDataArrayObserver
 import ksl.observers.welch.WelchDataFileAnalyzer
