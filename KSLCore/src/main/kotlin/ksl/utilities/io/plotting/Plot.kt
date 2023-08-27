@@ -32,13 +32,13 @@ abstract class Plot(override var title: String? = null) : PlotIfc {
         desktop.browse(file.toURI())
     }
 
-    override fun saveToFile(path: Path, title: String?): File {
+    override fun saveToFile(path: Path, plotTitle: String?): File {
         TODO("Not yet implemented")
     }
 
     override fun showInBrowser(plotTitle: String?): File {
         TODO("Not yet implemented")
     }
-    
+
 }
 
