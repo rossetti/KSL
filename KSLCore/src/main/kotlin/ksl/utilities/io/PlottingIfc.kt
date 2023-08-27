@@ -9,15 +9,15 @@ import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.StateFrequency
+import java.awt.Desktop
 import java.io.File
 import java.nio.file.Path
 
 
 interface PlotIfc {
     fun showInBrowser(path: Path? = null, static: Boolean = false)
-
-    //TODO scale and dpi
-    fun saveToFile(file: File)
+    
+    fun saveToFile(file: File, scale: Int = 2, dpi: Int = 144)
 
     fun saveToFile(path: Path) {
         saveToFile(path.toFile())
@@ -25,6 +25,11 @@ interface PlotIfc {
 
     fun saveToFile(fileName: String, directory: Path = KSL.outDir){
         saveToFile(directory.resolve(fileName))
+    }
+
+    private fun openInBrowser(file: File) {
+        val desktop = Desktop.getDesktop()
+        desktop.browse(file.toURI())
     }
 }
 
