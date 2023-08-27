@@ -50,7 +50,7 @@ internal class ScatterPlot(
     val xLabel: String = "x",
     val yLabel: String = "y",
     title: String? = null
-) : Plot(title) {
+) : PlotImp(title) {
 
     private val data: Map<String, DoubleArray>
     init{
@@ -61,7 +61,7 @@ internal class ScatterPlot(
     }
 
     private fun buildPlot(){
-        val p: org.jetbrains.letsPlot.intern.Plot = ggplot(data) +
+        val p = ggplot(data) +
                 geomPoint(){
                     x = xLabel
                     y = yLabel
