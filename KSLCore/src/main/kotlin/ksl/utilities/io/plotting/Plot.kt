@@ -6,7 +6,7 @@ import java.awt.Desktop
 import java.io.File
 import java.nio.file.Path
 
-abstract class Plot(override var title: String? = null) : PlotIfc {
+abstract class PlotImp(override var title: String? = null) : PlotIfc {
 
     override var defaultScale: Int = 1
         set(value) {
