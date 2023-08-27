@@ -1,9 +1,10 @@
-package ksl.utilities.io
+package ksl.utilities.io.plotting
 
 import ksl.observers.welch.WelchDataArrayObserver
 import ksl.observers.welch.WelchDataFileAnalyzer
 import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.io.KSL
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Histogram
@@ -16,7 +17,7 @@ import java.nio.file.Path
 
 interface PlotIfc {
     fun showInBrowser(path: Path? = null, static: Boolean = false)
-    
+
     fun saveToFile(file: File, scale: Int = 2, dpi: Int = 144)
 
     fun saveToFile(path: Path) {
