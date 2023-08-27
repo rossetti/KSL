@@ -16,22 +16,21 @@ import java.nio.file.Path
 
 
 interface PlotIfc {
-    fun showInBrowser(path: Path? = null, static: Boolean = false)
 
-    fun saveToFile(file: File, scale: Int = 2, dpi: Int = 144)
+    var defaultScale : Int
+    var defaultDPI : Int
+    var width: Int
+    var height: Int
+    var title: String?
 
-    fun saveToFile(path: Path) {
-        saveToFile(path.toFile())
+    fun saveToFile(path: Path, title: String? = null) : File
+
+    fun saveToFile(fileName: String, directory: Path = KSL.outDir, plotTitle: String? = title) : File {
+        return saveToFile(directory.resolve(fileName), plotTitle)
     }
 
-    fun saveToFile(fileName: String, directory: Path = KSL.outDir){
-        saveToFile(directory.resolve(fileName))
-    }
+    fun showInBrowser(plotTitle: String? = title): File
 
-    private fun openInBrowser(file: File) {
-        val desktop = Desktop.getDesktop()
-        desktop.browse(file.toURI())
-    }
 }
 
 interface PlottingIfc {
