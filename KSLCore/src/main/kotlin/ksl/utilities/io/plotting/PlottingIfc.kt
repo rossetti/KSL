@@ -23,7 +23,7 @@ interface PlotIfc {
     var height: Int
     var title: String?
 
-    fun saveToFile(path: Path, title: String? = null) : File
+    fun saveToFile(path: Path, plotTitle: String? = null) : File
 
     fun saveToFile(fileName: String, directory: Path = KSL.outDir, plotTitle: String? = title) : File {
         return saveToFile(directory.resolve(fileName), plotTitle)
