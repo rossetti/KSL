@@ -1,5 +1,7 @@
 package ksl.utilities.io.plotting
 
+import org.jetbrains.letsPlot.geom.geomPoint
+import org.jetbrains.letsPlot.ggplot
 import java.awt.Desktop
 import java.io.File
 import java.nio.file.Path
@@ -45,8 +47,8 @@ abstract class Plot(override var title: String? = null) : PlotIfc {
 internal class ScatterPlot(
     x: DoubleArray,
     y: DoubleArray,
-    xLabel: String = "x",
-    yLabel: String = "y",
+    val xLabel: String = "x",
+    val yLabel: String = "y",
     title: String? = null
 ) : Plot(title) {
 
@@ -59,7 +61,12 @@ internal class ScatterPlot(
     }
 
     private fun buildPlot(){
- //       val p = ggplot(data)
+        val p: org.jetbrains.letsPlot.intern.Plot = ggplot(data) +
+                geomPoint(){
+                    x = xLabel
+                    y = yLabel
+                }
+
     }
 }
 
