@@ -63,7 +63,7 @@ interface PlotIfc {
      */
     fun saveToFile(
         fileName: String,
-        directory: Path = KSL.outDir,
+        directory: Path = KSL.plotDir,
         plotTitle: String = title,
         extType: ExtType = ExtType.PNG
     ): File
