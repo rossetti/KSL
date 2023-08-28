@@ -22,6 +22,8 @@ interface PlotIfc {
     var width: Int
     var height: Int
     var title: String
+    var xLabel: String
+    var yLabel: String
 
     fun saveToFile(path: Path, plotTitle: String = title) : File
 
