@@ -17,10 +17,16 @@
  */
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.transpose
+
 /**
  * An interface for getting multi-variable samples, each sample has many values
  * held in an array. Clients need to implement the sample(array) function
- * in order to fill up the array with the sample values.
+ * in order to fill up the array with the sample values. The
+ * array of size dimension represent 1 sample with elements as the sample values
+ * for each coordinate of the dimension. For example, for 2-D, sample
+ * returns an array {x0, x1} where x0 is the sample for the first coordinate
+ * and x1 is the sample value for the second coordinate.
  */
 interface MVSampleIfc {
     /**
@@ -48,10 +54,12 @@ interface MVSampleIfc {
     fun sample(array: DoubleArray)
 
     /**
-     * Generates a list holding the randomly generated arrays of the given size
+     * Generates a list holding the randomly generated arrays of the given dimension.
+     * Thus, the elements of the list are the arrays holding the sampled values.
      *
      * @param sampleSize the amount to fill
-     * @return A list holding the generated arrays
+     * @return A list holding the generated arrays. There will be [sampleSize]
+     * array, each of size dimension
      */
     fun sample(sampleSize: Int): List<DoubleArray> {
         val list: MutableList<DoubleArray> = ArrayList()
@@ -61,10 +69,24 @@ interface MVSampleIfc {
         return list
     }
 
+    /** Generates a sample by columns of values. The returned array will
+     * hold arrays of values, with each element being an array of
+     * size [sampleSize]. That is a 2-D array with nRows = dimension
+     * and nColumns = sample size
+     *
+     */
+    fun sampleByColumn(sampleSize: Int): Array<DoubleArray> {
+        val data = Array(sampleSize){DoubleArray(dimension)}
+        sample(data)
+        return data.transpose()
+    }
+
     /**
      * Fills the supplied array of arrays with randomly generated samples
      *
-     * @param values the arrays to fill
+     * @param values the arrays to fill. Each array in the array of arrays, should
+     * have dimension elements. The number of arrays represents the required
+     * sample size
      */
     fun sample(values: Array<DoubleArray>) {
         for (i in values.indices) {

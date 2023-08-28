@@ -17,20 +17,64 @@ import java.nio.file.Path
 
 interface PlotIfc {
 
-    var defaultScale : Int
-    var defaultDPI : Int
-    var width: Int
-    var height: Int
-    var title: String
-    var xLabel: String
-    var yLabel: String
-
-    fun saveToFile(path: Path, plotTitle: String = title) : File
-
-    fun saveToFile(fileName: String, directory: Path = KSL.outDir, plotTitle: String = title) : File {
-        return saveToFile(directory.resolve(fileName), plotTitle)
+    enum class ExtType {
+        PNG, JPEG, HTML, TIF, SVG
     }
 
+    /** the scale associated with the plot **/
+    var defaultScale: Int
+
+    /**
+     *  the dots per inch for the plot
+     */
+    var defaultDPI: Int
+
+    /**
+     * The width of the container holding the plot
+     */
+    var width: Int
+
+    /**
+     *  The height of the container holding the plot
+     */
+    var height: Int
+
+    /**
+     *  The title of the plot
+     */
+    var title: String
+
+    /**
+     *  the label for the x-axis
+     */
+    var xLabel: String
+
+    /**
+     *  the label for the y-axis
+     */
+    var yLabel: String
+
+    /**
+     * @param fileName the name of the file without an extension
+     * @param directory the path to the directory to contain the file
+     * @param plotTitle the title of the plot if different from title property
+     * @param extType the type of file, defaults to PNG
+     * @return a File reference to the created file
+     */
+    fun saveToFile(
+        fileName: String,
+        directory: Path = KSL.outDir,
+        plotTitle: String = title,
+        extType: ExtType = ExtType.PNG
+    ): File
+
+    /** Opens up a browser window and shows the contents of the plot within
+     *  the browser.  A temporary file is created to represent the plot for display
+     *  within the browser.
+     *
+     * @param plotTitle the title of the plot if different from the title property
+     * @return a File reference to the created file
+     */
     fun showInBrowser(plotTitle: String = title): File
 
 }
@@ -63,7 +107,12 @@ interface PlottingIfc {
 
     fun welchPlot(dataArrayObserver: WelchDataArrayObserver): PlotIfc
 
-    fun welchPlot(averages: DoubleArray, cumAverages: DoubleArray, title: String = "", responseName: String? = null): PlotIfc
+    fun welchPlot(
+        averages: DoubleArray,
+        cumAverages: DoubleArray,
+        title: String = "",
+        responseName: String? = null
+    ): PlotIfc
 
-    fun partialSumsPlot(partialSums: DoubleArray, title: String = "", responseName: String? = null ): PlotIfc
+    fun partialSumsPlot(partialSums: DoubleArray, title: String = "", responseName: String? = null): PlotIfc
 }
