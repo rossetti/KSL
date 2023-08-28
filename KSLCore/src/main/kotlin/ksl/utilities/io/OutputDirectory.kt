@@ -111,6 +111,16 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         }
     }
 
+    val plotDir: Path = createPlotDirectory()
+
+    private fun createPlotDirectory(): Path {
+        return try {
+            Files.createDirectories(outDir.resolve("plotDir"))
+        } catch (e: IOException) {
+            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("plotDir")} used program launch directory" }
+            KSLFileUtil.programLaunchDirectory
+        }
+    }
 
     /** Makes a new PrintWriter within the base directory with the given file name
      *
@@ -150,6 +160,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
             appendLine("\t excelDir = $excelDir")
             appendLine("\t dbDir    = $dbDir")
             appendLine("\t csvDir   = $csvDir")
+            appendLine("\t plotDir   = $plotDir")
         }
     }
 

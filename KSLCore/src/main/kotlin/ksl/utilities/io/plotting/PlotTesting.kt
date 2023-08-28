@@ -14,6 +14,9 @@ fun main(){
 
     val plot = ScatterPlot(data[0], data[1])
 
+    plot.showInBrowser()
+
     plot.saveToFile("ScatterPlotTest", plotTitle = "This is a test of scatter plot")
 
+    plot.showInBrowser(plotTitle = "This is a test of scatter plot")
 }

@@ -70,6 +70,11 @@ object KSL {
     val csvDir = myOutputDir.csvDir
 
     /**
+     *  the path to the default file directory for plotting output
+     */
+    val plotDir = myOutputDir.plotDir
+
+    /**
      * Should be used by classes to get the next constant
      * so that unique constants can be used
      *
