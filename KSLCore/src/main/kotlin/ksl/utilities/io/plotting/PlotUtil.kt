@@ -11,31 +11,31 @@ import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.StateFrequency
 
 object PlotUtil: PlottingIfc {
-    override fun scatterPlot(x: DoubleArray, y: DoubleArray, title: String?): PlotIfc {
+    override fun scatterPlot(x: DoubleArray, y: DoubleArray, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
 
-    override fun boxPlot(boxPlotSummary: BoxPlotSummary, title: String?): PlotIfc {
+    override fun boxPlot(boxPlotSummary: BoxPlotSummary, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
 
-    override fun multiBoxPlot(list: List<BoxPlotSummary>, title: String?): PlotIfc {
+    override fun multiBoxPlot(list: List<BoxPlotSummary>, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
 
-    override fun histogram(histogram: Histogram, title: String?, density: Boolean): PlotIfc {
+    override fun histogram(histogram: Histogram, title: String, density: Boolean): PlotIfc {
         TODO("Not yet implemented")
     }
 
-    override fun frequency(frequency: IntegerFrequency, title: String?): PlotIfc {
+    override fun frequency(frequency: IntegerFrequency, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
 
-    override fun frequency(frequency: StateFrequency, title: String?): PlotIfc {
+    override fun frequency(frequency: StateFrequency, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
 
-    override fun confidenceIntervals(list: List<Interval>, title: String?, referencePoint: Double): PlotIfc {
+    override fun confidenceIntervals(list: List<Interval>, title: String, referencePoint: Double): PlotIfc {
         TODO("Not yet implemented")
     }
 
@@ -43,11 +43,11 @@ object PlotUtil: PlottingIfc {
         TODO("Not yet implemented")
     }
 
-    override fun qqPlot(data: DoubleArray, hypothesized: ContinuousDistributionIfc, title: String?): PlotIfc {
+    override fun qqPlot(data: DoubleArray, hypothesized: ContinuousDistributionIfc, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
 
-    override fun ppPlot(data: DoubleArray, hypothesized: ContinuousDistributionIfc, title: String?): PlotIfc {
+    override fun ppPlot(data: DoubleArray, hypothesized: ContinuousDistributionIfc, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
 
@@ -66,13 +66,13 @@ object PlotUtil: PlottingIfc {
     override fun welchPlot(
         averages: DoubleArray,
         cumAverages: DoubleArray,
-        title: String?,
+        title: String,
         responseName: String?
     ): PlotIfc {
         TODO("Not yet implemented")
     }
 
-    override fun partialSumsPlot(partialSums: DoubleArray, title: String?, responseName: String?): PlotIfc {
+    override fun partialSumsPlot(partialSums: DoubleArray, title: String, responseName: String?): PlotIfc {
         TODO("Not yet implemented")
     }
 }
