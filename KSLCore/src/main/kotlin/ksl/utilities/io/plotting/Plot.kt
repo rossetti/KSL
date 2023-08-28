@@ -48,7 +48,7 @@ abstract class PlotImp() : PlotIfc {
         TODO("Not yet implemented")
     }
 
-    protected abstract fun buildPlot() : Plot
+    protected abstract fun buildPlot(): Plot
 }
 
 internal class ScatterPlot(
