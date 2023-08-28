@@ -8,7 +8,7 @@ import java.awt.Desktop
 import java.io.File
 import java.nio.file.Path
 
-abstract class PlotImp(override var title: String = "") : PlotIfc {
+abstract class PlotImp() : PlotIfc {
 
     override var defaultScale: Int = 1
         set(value) {
@@ -31,6 +31,10 @@ abstract class PlotImp(override var title: String = "") : PlotIfc {
             field = value
         }
 
+    override var title: String = ""
+    override var xLabel: String = "x"
+    override var yLabel: String = "y"
+
     protected fun openInBrowser(file: File) {
         val desktop = Desktop.getDesktop()
         desktop.browse(file.toURI())
@@ -44,15 +48,13 @@ abstract class PlotImp(override var title: String = "") : PlotIfc {
         TODO("Not yet implemented")
     }
 
+    protected abstract fun buildPlot() : Plot
 }
 
 internal class ScatterPlot(
     x: DoubleArray,
     y: DoubleArray,
-    private val xLabel: String = "x",
-    private val yLabel: String = "y",
-    title: String = ""
-) : PlotImp(title) {
+) : PlotImp() {
 
     private val data: Map<String, DoubleArray>
 
@@ -63,7 +65,7 @@ internal class ScatterPlot(
         )
     }
 
-    private fun buildPlot(): Plot {
+    override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomPoint() {
                     x = xLabel
