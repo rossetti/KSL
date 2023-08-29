@@ -1,14 +1,18 @@
 package ksl.utilities.io.plotting
 
 import ksl.utilities.io.KSL
+import ksl.utilities.statistic.BoxPlotSummary
+import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.core.util.PlotHtmlExport
 import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
 import org.jetbrains.letsPlot.export.VersionChecker
 import org.jetbrains.letsPlot.export.ggsave
+import org.jetbrains.letsPlot.geom.geomBoxplot
 import org.jetbrains.letsPlot.geom.geomPoint
 import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
+import org.jetbrains.letsPlot.intern.layer.StatOptions
 import org.jetbrains.letsPlot.intern.toSpec
 import org.jetbrains.letsPlot.label.ggtitle
 import java.awt.Desktop
@@ -71,7 +75,7 @@ abstract class PlotImp() : PlotIfc {
             spec, iFrame = true,
             scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
         )
-        val fileName = if (title.isEmpty()){
+        val fileName = if (title.isEmpty()) {
             "tempPlotFile_"
         } else {
             title.replace(" ", "_") + "_"
@@ -79,7 +83,7 @@ abstract class PlotImp() : PlotIfc {
         return openInBrowser(fileName, html)
     }
 
-    private fun openInBrowser(fileName: String, html: String) : File {
+    private fun openInBrowser(fileName: String, html: String): File {
         val file = createTemporaryFile(fileName)
         FileWriter(file).use {
             it.write(html)
@@ -123,5 +127,54 @@ internal class ScatterPlot(
                 ggsize(width, height)
         return p
     }
+}
+
+internal class BoxPlot(x: DoubleArray, private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
+
+    private val data: Map<String, Any>
+    private val data2: Map<String, Any>
+
+    init {
+        data = mapOf(
+            yLabel to x,
+        )
+        data2 = mapOf(
+            "ymin" to boxPlotSummary.lowerOuterFence,
+            "lower" to boxPlotSummary.firstQuartile,
+            "middle" to boxPlotSummary.median,
+            "upper" to boxPlotSummary.thirdQuartile,
+            "ymax" to boxPlotSummary.upperOuterFence
+        )
+
+    }
+
+    override fun buildPlot(): Plot {
+
+//        ggplot(df, aes(x)) +
+//                geom_boxplot(
+//                    aes(ymin = y0, lower = y25, middle = y50, upper = y75, ymax = y100),
+//                    stat = "identity"
+//                )
+
+//        val p = ggplot(data) +
+//                geomBoxplot(stat = Stat.identity) {
+//                    lower = boxPlotSummary.firstQuartile;
+//                    middle = boxPlotSummary.median;
+//                    upper = boxPlotSummary.thirdQuartile;
+//                    ymin = boxPlotSummary.min;
+//                    ymax = boxPlotSummary.max;
+//                } +
+//                ggtitle(title) +
+//                ggsize(width, height)
+
+        val p = ggplot(data) +
+                geomBoxplot() {
+                    y = yLabel
+                } +
+                ggtitle(title) +
+                ggsize(width, height)
+        return p
+    }
+
 }
 
