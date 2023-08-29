@@ -167,10 +167,21 @@ internal class BoxPlot(x: DoubleArray, private val boxPlotSummary: BoxPlotSummar
 //                ggtitle(title) +
 //                ggsize(width, height)
 
-        val p = ggplot(data) +
-                geomBoxplot() {
-                    y = yLabel
-                } +
+//        val p = ggplot(data) +
+//                geomBoxplot() {
+//                    y = yLabel
+//                } +
+//                ggtitle(title) +
+//                ggsize(width, height)
+
+
+        val p = ggplot(null) +
+                geomBoxplot(stat = Stat.identity,
+                    lower = boxPlotSummary.firstQuartile,
+                    middle = boxPlotSummary.median,
+                    upper = boxPlotSummary.thirdQuartile,
+                    ymin = boxPlotSummary.lowerWhisker,
+                    ymax = boxPlotSummary.upperWhisker)  +
                 ggtitle(title) +
                 ggsize(width, height)
         return p
