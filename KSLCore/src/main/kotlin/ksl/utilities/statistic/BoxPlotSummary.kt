@@ -197,8 +197,8 @@ class BoxPlotSummary(data: DoubleArray) {
      */
     val upperWhisker: Double
         get() {
-            for (i in orderStatistics.indices.reversed()){
-                if (orderStatistics[i] <= upperInnerFence){
+            for (i in orderStatistics.indices.reversed()) {
+                if (orderStatistics[i] <= upperInnerFence) {
                     return orderStatistics[i]
                 }
             }
@@ -210,8 +210,8 @@ class BoxPlotSummary(data: DoubleArray) {
      */
     val lowerWhisker: Double
         get() {
-            for (i in orderStatistics.indices){
-                if (orderStatistics[i] >= lowerInnerFence){
+            for (i in orderStatistics.indices) {
+                if (orderStatistics[i] >= lowerInnerFence) {
                     return orderStatistics[i]
                 }
             }
@@ -269,7 +269,7 @@ class BoxPlotSummary(data: DoubleArray) {
 
     /**
      * The summary as a map of values
-     * 
+     *
      *         map["lowerOuterFence"] = lowerOuterFence
      *         map["lowerInnerFence"] = lowerInnerFence
      *         map["lowerWhisker"] = lowerWhisker
@@ -284,7 +284,7 @@ class BoxPlotSummary(data: DoubleArray) {
      *         map["range"] = range
      *         map["interQuartileRange"] = interQuartileRange
      */
-    fun asMap() : Map<String, Double>{
+    fun asMap(): Map<String, Double> {
         val map = mutableMapOf<String, Double>()
         map["lowerOuterFence"] = lowerOuterFence
         map["lowerInnerFence"] = lowerInnerFence
