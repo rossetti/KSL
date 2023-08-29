@@ -267,6 +267,41 @@ class BoxPlotSummary(data: DoubleArray) {
         return KSLArrays.dataInInterval(orderStatistics, i)
     }
 
+    /**
+     * The summary as a map of values
+     * 
+     *         map["lowerOuterFence"] = lowerOuterFence
+     *         map["lowerInnerFence"] = lowerInnerFence
+     *         map["lowerWhisker"] = lowerWhisker
+     *         map["min"] = min
+     *         map["firstQuartile"] = firstQuartile
+     *         map["median"] = median
+     *         map["max"] = max
+     *         map["upperWhisker"] = upperWhisker
+     *         map["thirdQuartile"] = thirdQuartile
+     *         map["upperInnerFence"] = upperInnerFence
+     *         map["upperOuterFence"] = upperOuterFence
+     *         map["range"] = range
+     *         map["interQuartileRange"] = interQuartileRange
+     */
+    fun asMap() : Map<String, Double>{
+        val map = mutableMapOf<String, Double>()
+        map["lowerOuterFence"] = lowerOuterFence
+        map["lowerInnerFence"] = lowerInnerFence
+        map["lowerWhisker"] = lowerWhisker
+        map["min"] = min
+        map["firstQuartile"] = firstQuartile
+        map["median"] = median
+        map["max"] = max
+        map["upperWhisker"] = upperWhisker
+        map["thirdQuartile"] = thirdQuartile
+        map["upperInnerFence"] = upperInnerFence
+        map["upperOuterFence"] = upperOuterFence
+        map["range"] = range
+        map["interQuartileRange"] = interQuartileRange
+        return map
+    }
+
     override fun toString(): String {
         val sb = StringBuilder("BoxPlotSummary")
         sb.appendLine()
