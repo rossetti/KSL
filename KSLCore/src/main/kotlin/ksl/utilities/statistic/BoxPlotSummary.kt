@@ -18,9 +18,7 @@
 
 package ksl.utilities.statistic
 
-import ksl.utilities.Interval
-import ksl.utilities.KSLArrays
-import ksl.utilities.toStrings
+import ksl.utilities.*
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -37,7 +35,7 @@ import kotlin.math.floor
  *
  * @param data the data to be summarized, must not be null and must not contain any Double.NaN values
  */
-class BoxPlotSummary(data: DoubleArray) {
+class BoxPlotSummary(data: DoubleArray, name: String? = null): IdentityIfc by Identity(name) {
     /**
      * @return the estimated median
      */

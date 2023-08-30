@@ -19,7 +19,7 @@ object PlotUtil: PlottingIfc {
         TODO("Not yet implemented")
     }
 
-    override fun multiBoxPlot(list: List<BoxPlotSummary>, title: String): PlotIfc {
+    override fun multiBoxPlot(map: Map<String, BoxPlotSummary>, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
 
@@ -35,7 +35,7 @@ object PlotUtil: PlottingIfc {
         TODO("Not yet implemented")
     }
 
-    override fun confidenceIntervals(list: List<Interval>, title: String, referencePoint: Double): PlotIfc {
+    override fun confidenceIntervals(map: Map<String, Interval>, title: String, referencePoint: Double): PlotIfc {
         TODO("Not yet implemented")
     }
 

@@ -6,10 +6,7 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.io.KSL
 import ksl.utilities.math.FunctionIfc
-import ksl.utilities.statistic.BoxPlotSummary
-import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.IntegerFrequency
-import ksl.utilities.statistic.StateFrequency
+import ksl.utilities.statistic.*
 import java.awt.Desktop
 import java.io.File
 import java.nio.file.Path
@@ -85,7 +82,7 @@ interface PlottingIfc {
 
     fun boxPlot(boxPlotSummary: BoxPlotSummary, title: String = ""): PlotIfc
 
-    fun multiBoxPlot(list: List<BoxPlotSummary>, title: String = ""): PlotIfc
+    fun multiBoxPlot(map: Map<String, BoxPlotSummary>, title: String = ""): PlotIfc
 
     fun histogram(histogram: Histogram, title: String = "", density: Boolean = false): PlotIfc
 
@@ -93,7 +90,15 @@ interface PlottingIfc {
 
     fun frequency(frequency: StateFrequency, title: String = ""): PlotIfc
 
-    fun confidenceIntervals(list: List<Interval>, title: String = "", referencePoint: Double = Double.NaN): PlotIfc
+    fun confidenceIntervals(map: Map<String, Interval>, title: String = "", referencePoint: Double = Double.NaN): PlotIfc
+
+    fun confidenceIntervals(list: List<StatisticIfc>, level: Double = 0.95, title: String = "", referencePoint: Double = Double.NaN): PlotIfc {
+        val m = mutableMapOf<String, Interval>()
+        for( s in list){
+            m[s.name] = s.confidenceInterval(level)
+        }
+        return confidenceIntervals(m, title, referencePoint)
+    }
 
     fun functionPlot(function: FunctionIfc, interval: Interval, mesh: Double = 0.0): PlotIfc
 

@@ -1,14 +1,21 @@
+@file:Suppress("DuplicatedCode")
+
 package ksl.utilities.io.plotting
 
+import ksl.utilities.Interval
 import ksl.utilities.io.KSL
 import ksl.utilities.statistic.BoxPlotSummary
+import ksl.utilities.statistic.IntegerFrequency
+import ksl.utilities.statistic.StatisticIfc
 import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.asDiscrete
 import org.jetbrains.letsPlot.core.util.PlotHtmlExport
 import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
 import org.jetbrains.letsPlot.export.VersionChecker
 import org.jetbrains.letsPlot.export.ggsave
+import org.jetbrains.letsPlot.geom.geomBar
 import org.jetbrains.letsPlot.geom.geomBoxplot
+import org.jetbrains.letsPlot.geom.geomErrorBar
 import org.jetbrains.letsPlot.geom.geomPoint
 import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
@@ -105,7 +112,7 @@ abstract class PlotImp() : PlotIfc {
     protected abstract fun buildPlot(): Plot
 }
 
-internal class ScatterPlot(
+class ScatterPlot(
     x: DoubleArray,
     y: DoubleArray,
 ) : PlotImp() {
@@ -131,7 +138,7 @@ internal class ScatterPlot(
     }
 }
 
-internal class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
+class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
 
     private val data: Map<String, Any>
 
@@ -139,7 +146,7 @@ internal class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
         // looks like data must be in lists and column names
         // are used to the mapping to plot aesthetics
         data = mapOf(
-            "xLabel" to List(1) {"boxPlot"},
+            "xLabel" to List(1) { boxPlotSummary.name },
             "lowerWhisker" to List(1) { boxPlotSummary.lowerWhisker },
             "firstQuartile" to List(1) { boxPlotSummary.firstQuartile },
             "median" to List(1) { boxPlotSummary.median },
@@ -182,9 +189,120 @@ internal class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
                 ggtitle(title) +
                 ggsize(width, height)
 
-        //TODO need to look into xlab() or themes() to remove x labels
+        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
         return p
     }
 
 }
 
+class MultiBoxPlot(private val boxPlotMap: Map<String, BoxPlotSummary>) : PlotImp() {
+
+    private val data: MutableMap<String, MutableList<Any>> = mutableMapOf()
+
+    init {
+        data["xLabel"] = mutableListOf()
+        data["lowerWhisker"] = mutableListOf()
+        data["firstQuartile"] = mutableListOf()
+        data["median"] = mutableListOf()
+        data["thirdQuartile"] = mutableListOf()
+        data["upperWhisker"] = mutableListOf()
+        for ((n, bps) in boxPlotMap) {
+            data["xLabel"]!!.add(n)
+            data["lowerWhisker"]!!.add(bps.lowerWhisker)
+            data["firstQuartile"]!!.add(bps.firstQuartile)
+            data["median"]!!.add(bps.median)
+            data["thirdQuartile"]!!.add(bps.thirdQuartile)
+            data["upperWhisker"]!!.add(bps.upperWhisker)
+        }
+    }
+
+    override fun buildPlot(): Plot {
+        val p = ggplot(data) +
+                geomBoxplot(stat = Stat.identity) {
+                    x = asDiscrete("xLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    lower = "firstQuartile"
+                    middle = "median"
+                    upper = "thirdQuartile"
+                    ymin = "lowerWhisker"
+                    ymax = "upperWhisker"
+                } +
+                ggtitle(title) +
+                ggsize(width, height)
+
+        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
+        return p
+    }
+
+}
+
+class ConfidenceIntervalsPlot(
+    private val intervals: Map<String, Interval>,
+    private val referencePoint: Double = Double.NaN
+) : PlotImp() {
+
+    private val data: MutableMap<String, MutableList<Any>> = mutableMapOf()
+
+ //   constructor(list: List<StatisticIfc>, level: Double = 0.95, referencePoint: Double = Double.NaN): this()
+
+    init {
+        data["xLabel"] = mutableListOf()
+        data["upperLimit"] = mutableListOf()
+        data["average"] = mutableListOf()
+        data["lowerLimit"] = mutableListOf()
+        for ((n, ci) in intervals) {
+            data["xLabel"]!!.add(n)
+            data["upperLimit"]!!.add(ci.upperLimit)
+            data["average"]!!.add(ci.midPoint)
+            data["lowerLimit"]!!.add(ci.lowerLimit)
+        }
+    }
+    override fun buildPlot(): Plot {
+        val p = ggplot(data) +
+                geomErrorBar(stat = Stat.identity) {
+                    x = asDiscrete("xLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    height = "average"
+                    ymin = "lowerLimit"
+                    ymax = "upperLimit"
+                } +
+                geomPoint {
+                    x = asDiscrete("xLabel")
+                    y = "average"
+                }
+                ggtitle(title) +
+                ggsize(width, height)
+
+        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
+        return p
+    }
+
+}
+
+class FrequencyPlot(private val frequency: IntegerFrequency, proportions: Boolean = false) : PlotImp() {
+
+    private val data: MutableMap<String, List<Any>> = mutableMapOf()
+    private var dataType: String
+    init{
+        data["xLabel"] = frequency.values.asList()
+        if (proportions){
+            dataType = "proportions"
+            data[dataType] = frequency.proportions.asList()
+        } else {
+            dataType = "counts"
+            data[dataType] = frequency.frequencies.asList()
+        }
+
+    }
+    override fun buildPlot(): Plot {
+        val p = ggplot(data) +
+                geomBar(stat = Stat.identity) {
+                    x = asDiscrete("xLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    y = dataType
+                } +
+                ggtitle(title) +
+                ggsize(width, height)
+
+        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
+        return p
+    }
+
+}
