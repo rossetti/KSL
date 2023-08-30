@@ -3,6 +3,7 @@ package ksl.utilities.io.plotting
 import ksl.utilities.io.KSL
 import ksl.utilities.statistic.BoxPlotSummary
 import org.jetbrains.letsPlot.Stat
+import org.jetbrains.letsPlot.asDiscrete
 import org.jetbrains.letsPlot.core.util.PlotHtmlExport
 import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
 import org.jetbrains.letsPlot.export.VersionChecker
@@ -68,6 +69,7 @@ abstract class PlotImp() : PlotIfc {
     override fun showInBrowser(plotTitle: String): File {
         title = plotTitle
         val p = buildPlot()
+        //TODO
         val spec = p.toSpec()
 
         // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
@@ -129,61 +131,58 @@ internal class ScatterPlot(
     }
 }
 
-internal class BoxPlot(x: DoubleArray, private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
+internal class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
 
     private val data: Map<String, Any>
-    private val data2: Map<String, Any>
 
     init {
+        // looks like data must be in lists and column names
+        // are used to the mapping to plot aesthetics
         data = mapOf(
-            yLabel to x,
+            "xLabel" to List(1) {"boxPlot"},
+            "lowerWhisker" to List(1) { boxPlotSummary.lowerWhisker },
+            "firstQuartile" to List(1) { boxPlotSummary.firstQuartile },
+            "median" to List(1) { boxPlotSummary.median },
+            "thirdQuartile" to List(1) { boxPlotSummary.thirdQuartile },
+            "upperWhisker" to List(1) { boxPlotSummary.upperWhisker }
         )
-        data2 = mapOf(
-            "ymin" to boxPlotSummary.lowerOuterFence,
-            "lower" to boxPlotSummary.firstQuartile,
-            "middle" to boxPlotSummary.median,
-            "upper" to boxPlotSummary.thirdQuartile,
-            "ymax" to boxPlotSummary.upperOuterFence
-        )
-
     }
 
     override fun buildPlot(): Plot {
+        // this works by directly assigning to geomBoxplot() parameters
+        // but does not allow plot to be "live"  with data in generated html
 
-//        ggplot(df, aes(x)) +
-//                geom_boxplot(
-//                    aes(ymin = y0, lower = y25, middle = y50, upper = y75, ymax = y100),
-//                    stat = "identity"
-//                )
-
-//        val p = ggplot(data) +
-//                geomBoxplot(stat = Stat.identity) {
-//                    lower = boxPlotSummary.firstQuartile;
-//                    middle = boxPlotSummary.median;
-//                    upper = boxPlotSummary.thirdQuartile;
-//                    ymin = boxPlotSummary.min;
-//                    ymax = boxPlotSummary.max;
-//                } +
+//        val p = ggplot(null) +
+//                geomBoxplot(stat = Stat.identity,
+//                    lower = boxPlotSummary.firstQuartile,
+//                    middle = boxPlotSummary.median,
+//                    upper = boxPlotSummary.thirdQuartile,
+//                    ymin = boxPlotSummary.lowerWhisker,
+//                    ymax = boxPlotSummary.upperWhisker)  +
 //                ggtitle(title) +
 //                ggsize(width, height)
 
-//        val p = ggplot(data) +
-//                geomBoxplot() {
-//                    y = yLabel
-//                } +
-//                ggtitle(title) +
-//                ggsize(width, height)
-
-
-        val p = ggplot(null) +
-                geomBoxplot(stat = Stat.identity,
-                    lower = boxPlotSummary.firstQuartile,
-                    middle = boxPlotSummary.median,
-                    upper = boxPlotSummary.thirdQuartile,
-                    ymin = boxPlotSummary.lowerWhisker,
-                    ymax = boxPlotSummary.upperWhisker)  +
+        /* Stat.identity prevents the statistical transformation of the data.
+           The data values represent the already computed box plot aesthetics.
+           Note that in the geomBoxplot() closure, we define the mapping
+           from data to the aesthetics of the boxplot. Note that the string
+           referencing the data is assigned to the aesthetic mapping so that
+           the geomBoxplot() function can extract the required values.  Somehow
+           the data map is then part of the generated html
+         */
+        val p = ggplot(data) +
+                geomBoxplot(stat = Stat.identity) {
+                    x = asDiscrete("xLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    lower = "firstQuartile"
+                    middle = "median"
+                    upper = "thirdQuartile"
+                    ymin = "lowerWhisker"
+                    ymax = "upperWhisker"
+                } +
                 ggtitle(title) +
                 ggsize(width, height)
+
+        //TODO need to look into xlab() or themes() to remove x labels
         return p
     }
 

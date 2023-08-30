@@ -131,8 +131,9 @@ fun testBoxPlot(){
     )
     val boxPlotSummary = BoxPlotSummary(x)
 
-    val plot = BoxPlot(x, boxPlotSummary)
+    val plot = BoxPlot(boxPlotSummary)
     plot.showInBrowser()
+    plot.saveToFile("The boxplot")
 
     println(boxPlotSummary)
 }
