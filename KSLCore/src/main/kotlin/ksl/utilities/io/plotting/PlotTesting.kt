@@ -1,14 +1,23 @@
 package ksl.utilities.io.plotting
 
+import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.BivariateNormalRV
+import ksl.utilities.random.rvariable.DEmpiricalRV
+import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.BoxPlotSummary
+import ksl.utilities.statistic.IntegerFrequency
+import ksl.utilities.statistic.Statistic
 
 
 class PlotTesting {
 }
 
 fun main(){
-    testBoxPlot()
+//    testScatterPlot()
+//    testBoxPlot()
+//    testMultiBoxPlot()
+//    testConfidenceIntervalPlots()
+    testFrequencyPlot()
 }
 
 fun testScatterPlot(){
@@ -129,11 +138,53 @@ fun testBoxPlot(){
         8.50476579169282,
         7.7653569673433
     )
-    val boxPlotSummary = BoxPlotSummary(x)
+    val boxPlotSummary = BoxPlotSummary(x, "Some Data")
 
     val plot = BoxPlot(boxPlotSummary)
     plot.showInBrowser()
     plot.saveToFile("The boxplot")
 
     println(boxPlotSummary)
+}
+
+fun testMultiBoxPlot(){
+    val n = NormalRV()
+    val m = mutableMapOf<String, BoxPlotSummary>()
+    for (i in 1..5){
+        val bps = BoxPlotSummary(n.sample(200), "BPS$i")
+        m[bps.name] = bps
+    }
+    val plot = MultiBoxPlot(m)
+    plot.showInBrowser()
+    plot.saveToFile("The boxplots")
+}
+
+fun testConfidenceIntervalPlots(){
+    val n = NormalRV()
+    val m = mutableMapOf<String, Interval>()
+    for (i in 1..5){
+        val s = Statistic(n.sample(200))
+        m[s.name] = s.confidenceInterval
+    }
+    val plot = ConfidenceIntervalsPlot(m)
+    plot.showInBrowser()
+    plot.saveToFile("The CI Plots")
+}
+
+fun testFrequencyPlot(){
+    val freq = IntegerFrequency()
+    val rv = DEmpiricalRV(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(0.2, 0.7, 1.0))
+    for (i in 1..10000) {
+        freq.collect(rv.value)
+    }
+
+    val fPlot = FrequencyPlot(freq)
+    fPlot.showInBrowser()
+    fPlot.saveToFile("The Frequency Plot")
+
+    val pPlot = FrequencyPlot(freq, proportions = true)
+    pPlot.showInBrowser()
+    pPlot.saveToFile("The Proportion Plot")
+
+    println(freq)
 }

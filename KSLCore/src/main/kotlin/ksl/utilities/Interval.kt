@@ -62,6 +62,12 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
     val halfWidth: Double
         get() = width / 2.0
 
+    /**
+     *  The mid-point between the upper and lower limits
+     */
+    val midPoint: Double
+        get() = (upperLimit + lowerLimit)/2.0
+
     /** Sets the interval
      * Throws IllegalArgumentException if the lower limit is &gt;= upper limit
      *
