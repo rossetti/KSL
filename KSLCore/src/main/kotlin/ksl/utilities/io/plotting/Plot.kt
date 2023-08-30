@@ -242,7 +242,7 @@ class ConfidenceIntervalsPlot(
 
     private val data: MutableMap<String, MutableList<Any>> = mutableMapOf()
 
- //   constructor(list: List<StatisticIfc>, level: Double = 0.95, referencePoint: Double = Double.NaN): this()
+ //TODO   constructor(list: List<StatisticIfc>, level: Double = 0.95, referencePoint: Double = Double.NaN): this()
 
     init {
         data["xLabel"] = mutableListOf()
