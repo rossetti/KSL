@@ -113,7 +113,7 @@ interface PlottingIfc {
         return confidenceIntervals(m, title, referencePoint)
     }
 
-    fun functionPlot(function: FunctionIfc, interval: Interval, numPoints: Int = 512): PlotIfc
+    fun functionPlot(fn: ((Double) -> Double), interval: Interval, numPoints: Int = 512, title: String = ""): PlotIfc
 
     fun qqPlot(data: DoubleArray, quantileFunction: InverseCDFIfc, title: String = ""): PlotIfc
 

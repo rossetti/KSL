@@ -380,16 +380,10 @@ class FunctionPlot(
             field = value
         }
 
-//    fun xValues() : DoubleArray {
-//        val n = floor(interval.width/mesh).toInt()
-//        val v = DoubleArray(n){i -> interval.lowerLimit + i*mesh}
-//        return v
-//    }
-
     override fun buildPlot(): Plot {
         val limits = Pair(interval.lowerLimit, interval.upperLimit)
         val p = ggplot(null) +
-                geomFunction(xlim = limits, fn = function)  +
+                geomFunction(xlim = limits, fn = function, n = numPoints)  +
                 ggtitle(title) +
                 ggsize(width, height)
         return p

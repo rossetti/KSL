@@ -21,7 +21,8 @@ fun main(){
 //    testConfidenceIntervalPlots()
 //    testFrequencyPlot()
 //    testStateFrequencyPlot()
-    testPPandQQ_Plots()
+//    testPPandQQ_Plots()
+    testFunctionPlot()
 }
 
 fun testScatterPlot(){
@@ -224,4 +225,16 @@ fun testPPandQQ_Plots(){
     val ppPlot = PPPlot(data, nd)
     ppPlot.showInBrowser()
     ppPlot.saveToFile("The PP Plot")
+}
+
+fun testFunctionPlot(){
+    val fn = {x: Double -> x*x}
+    val r = Interval(-1.0, 1.0)
+    val fPlot = FunctionPlot(fn, r)
+    fPlot.showInBrowser()
+    fPlot.saveToFile("A function plot")
+
+    fPlot.numPoints = 10
+    fPlot.showInBrowser()
+    fPlot.saveToFile("A function plot")
 }
