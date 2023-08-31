@@ -2,12 +2,12 @@
 
 package ksl.utilities.io.plotting
 
-import com.twelvemonkeys.io.FileUtil
 import ksl.utilities.Interval
-import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.StatisticReporter
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.IntegerFrequency
+import ksl.utilities.statistic.StateFrequency
 import ksl.utilities.statistic.StatisticIfc
 import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.asDiscrete
@@ -19,12 +19,9 @@ import org.jetbrains.letsPlot.geom.*
 import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
-import org.jetbrains.letsPlot.intern.layer.StatOptions
 import org.jetbrains.letsPlot.intern.toSpec
 import org.jetbrains.letsPlot.label.ggtitle
-import java.awt.Desktop
 import java.io.File
-import java.io.FileWriter
 import java.nio.file.Path
 
 abstract class PlotImp() : PlotIfc {
@@ -221,7 +218,8 @@ class ConfidenceIntervalsPlot(
 
     private val data: MutableMap<String, MutableList<Any>> = mutableMapOf()
 
- //TODO   constructor(list: List<StatisticIfc>, level: Double = 0.95, referencePoint: Double = Double.NaN): this()
+    constructor(list: List<StatisticIfc>, level: Double = 0.95, referencePoint: Double? = null) :
+            this(StatisticReporter.confidenceIntervals(list, level), referencePoint)
 
     init {
         data["yLabel"] = mutableListOf()
@@ -235,6 +233,7 @@ class ConfidenceIntervalsPlot(
             data["lowerLimit"]!!.add(ci.lowerLimit)
         }
     }
+
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomErrorBar(stat = Stat.identity) {
@@ -246,7 +245,7 @@ class ConfidenceIntervalsPlot(
                 geomPoint {
                     y = asDiscrete("yLabel")
                     x = "average"
-                } + geomVLine(xintercept = referencePoint, color = "#de2d26", linetype = "dashed" ) +
+                } + geomVLine(xintercept = referencePoint, color = "#de2d26", linetype = "dashed") +
                 ggtitle(title) +
                 ggsize(width, height)
 
@@ -256,13 +255,14 @@ class ConfidenceIntervalsPlot(
 
 }
 
-class FrequencyPlot(private val frequency: IntegerFrequency, proportions: Boolean = false) : PlotImp() {
+class IntegerFrequencyPlot(private val frequency: IntegerFrequency, proportions: Boolean = false) : PlotImp() {
 
     private val data: MutableMap<String, List<Any>> = mutableMapOf()
     private var dataType: String
-    init{
+
+    init {
         data["xLabel"] = frequency.values.asList()
-        if (proportions){
+        if (proportions) {
             dataType = "proportions"
             data[dataType] = frequency.proportions.asList()
         } else {
@@ -271,10 +271,43 @@ class FrequencyPlot(private val frequency: IntegerFrequency, proportions: Boolea
         }
 
     }
+
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomBar(stat = Stat.identity) {
                     x = asDiscrete("xLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    y = dataType
+                } +
+                ggtitle(title) +
+                ggsize(width, height)
+
+        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
+        return p
+    }
+
+}
+
+class StateFrequencyPlot(private val frequency: StateFrequency, proportions: Boolean = false) : PlotImp() {
+
+    private val data: MutableMap<String, List<Any>> = mutableMapOf()
+    private var dataType: String
+
+    init {
+        data["xLabel"] = frequency.stateNames
+        if (proportions) {
+            dataType = "proportions"
+            data[dataType] = frequency.proportions.asList()
+        } else {
+            dataType = "counts"
+            data[dataType] = frequency.frequencies.asList()
+        }
+
+    }
+
+    override fun buildPlot(): Plot {
+        val p = ggplot(data) +
+                geomBar(stat = Stat.identity) {
+                    x = "xLabel"
                     y = dataType
                 } +
                 ggtitle(title) +

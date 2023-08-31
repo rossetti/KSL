@@ -602,6 +602,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             val m = z * stdDev / desiredHW * (z * stdDev / desiredHW)
             return (m + .5).roundToLong()
         }
+
     }
 
 }

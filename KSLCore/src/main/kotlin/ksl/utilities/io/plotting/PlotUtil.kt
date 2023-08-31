@@ -17,12 +17,12 @@ import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.intern.toSpec
 import java.io.File
 
-object PlotUtil: PlottingIfc {
+object PlotUtil : PlottingIfc {
 
     /**
      *  Shows a lets-plot plot in a browser window
      */
-    fun showPlotInBrowser(plot: Plot, tmpFileName: String? = null) : File {
+    fun showPlotInBrowser(plot: Plot, tmpFileName: String? = null): File {
         val spec = plot.toSpec()
 
         // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
@@ -39,15 +39,15 @@ object PlotUtil: PlottingIfc {
     }
 
     override fun scatterPlot(x: DoubleArray, y: DoubleArray, title: String): PlotIfc {
-        TODO("Not yet implemented")
+        return ScatterPlot(x, y).apply { this.title = title }
     }
 
     override fun boxPlot(boxPlotSummary: BoxPlotSummary, title: String): PlotIfc {
-        TODO("Not yet implemented")
+        return BoxPlot(boxPlotSummary).apply { this.title = title }
     }
 
     override fun multiBoxPlot(map: Map<String, BoxPlotSummary>, title: String): PlotIfc {
-        TODO("Not yet implemented")
+        return MultiBoxPlot(map).apply { this.title = title }
     }
 
     override fun histogram(histogram: Histogram, title: String, density: Boolean): PlotIfc {
@@ -55,15 +55,15 @@ object PlotUtil: PlottingIfc {
     }
 
     override fun frequency(frequency: IntegerFrequency, title: String): PlotIfc {
-        TODO("Not yet implemented")
+        return IntegerFrequencyPlot(frequency).apply { this.title = title }
     }
 
     override fun frequency(frequency: StateFrequency, title: String): PlotIfc {
-        TODO("Not yet implemented")
+        return StateFrequencyPlot(frequency).apply { this.title = title }
     }
 
     override fun confidenceIntervals(map: Map<String, Interval>, title: String, referencePoint: Double?): PlotIfc {
-        TODO("Not yet implemented")
+        return ConfidenceIntervalsPlot(map, referencePoint).apply { this.title = title }
     }
 
     override fun functionPlot(function: FunctionIfc, interval: Interval, mesh: Double): PlotIfc {
