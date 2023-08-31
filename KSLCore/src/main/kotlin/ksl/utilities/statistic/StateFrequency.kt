@@ -61,6 +61,15 @@ class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Ident
     val states: List<State>
         get() = ArrayList(myStates)
 
+    val stateNames: List<String>
+        get() {
+            val names = mutableListOf<String>()
+            for (state in myStates){
+                names.add(state.name)
+            }
+            return names
+        }
+
     /**
      * Resets the statistical collection
      */
@@ -264,7 +273,7 @@ class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Ident
 
     /** Returns a copy of the cells in a list
      * ordered by the value of each cell, 0th element
-     * is cell with smallest value, etc
+     * is cell with the smallest value, etc
      *
      * @return the list
      */

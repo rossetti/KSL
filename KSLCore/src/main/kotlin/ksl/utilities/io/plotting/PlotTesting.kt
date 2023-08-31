@@ -6,6 +6,7 @@ import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.IntegerFrequency
+import ksl.utilities.statistic.StateFrequency
 import ksl.utilities.statistic.Statistic
 
 
@@ -16,8 +17,10 @@ fun main(){
 //    testScatterPlot()
 //    testBoxPlot()
 //    testMultiBoxPlot()
-    testConfidenceIntervalPlots()
+//    testConfidenceIntervalPlots()
 //    testFrequencyPlot()
+
+    testStateFrequencyPlot()
 }
 
 fun testScatterPlot(){
@@ -178,13 +181,33 @@ fun testFrequencyPlot(){
         freq.collect(rv.value)
     }
 
-    val fPlot = FrequencyPlot(freq)
+    val fPlot = IntegerFrequencyPlot(freq)
     fPlot.showInBrowser()
     fPlot.saveToFile("The Frequency Plot")
 
-    val pPlot = FrequencyPlot(freq, proportions = true)
+    val pPlot = IntegerFrequencyPlot(freq, proportions = true)
     pPlot.showInBrowser()
     pPlot.saveToFile("The Proportion Plot")
 
     println(freq)
+}
+
+fun testStateFrequencyPlot(){
+    val rv = DEmpiricalRV(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(0.2, 0.7, 1.0))
+    val sf = StateFrequency(3)
+    val states = sf.states
+    for (i in 1..20000) {
+        val x: Int = rv.value().toInt()
+        sf.collect(states[x-1])
+    }
+
+    val fPlot = StateFrequencyPlot(sf)
+    fPlot.showInBrowser()
+    fPlot.saveToFile("The State Frequency Plot")
+
+    val pPlot = StateFrequencyPlot(sf, proportions = true)
+    pPlot.showInBrowser()
+    pPlot.saveToFile("The State Proportion Plot")
+
+    println(sf)
 }

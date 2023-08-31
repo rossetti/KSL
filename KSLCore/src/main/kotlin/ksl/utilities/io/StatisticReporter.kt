@@ -22,6 +22,7 @@
  */
 package ksl.utilities.io
 
+import ksl.utilities.Interval
 import ksl.utilities.KSLArrays
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -544,6 +545,29 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
             sb.append("\n")
         }
         return sb
+    }
+
+    /**
+     * The confidence intervals for the statistics on the report
+     *  with the key being the name of the statistic
+     */
+    fun confidenceIntervals(level: Double = 0.95): Map<String, Interval>{
+        return StatisticReporter.confidenceIntervals(this.myStats, level)
+    }
+
+    companion object{
+
+        /**
+         *  Converts a list of statistics to a map of confidence intervals
+         *  with the key being the name of the statistic
+         */
+        fun confidenceIntervals(list: List<StatisticIfc>, level: Double = 0.95) : Map<String, Interval>{
+            val map = mutableMapOf<String, Interval>()
+            for(s in list){
+                map[s.name] = s.confidenceInterval(level)
+            }
+            return map
+        }
     }
 }
 
