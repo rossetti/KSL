@@ -8,6 +8,7 @@ import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
+import ksl.utilities.math.FunctionIfc
 import ksl.utilities.orderStatistics
 import ksl.utilities.statistic.*
 import org.jetbrains.letsPlot.Stat
@@ -22,8 +23,10 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.intern.toSpec
 import org.jetbrains.letsPlot.label.ggtitle
+import org.jetbrains.letsPlot.label.labs
 import java.io.File
 import java.nio.file.Path
+import kotlin.math.floor
 
 abstract class PlotImp() : PlotIfc {
 
@@ -335,8 +338,9 @@ class QQPlot(
         get() = DoubleArray(orderStats.size) { i -> quantileFunction.invCDF(empProbabilities[i]) }
 
     override fun buildPlot(): Plot {
-        //TODO label axis
-        return ScatterPlot(quantiles, orderStats).plot
+        val p = ScatterPlot(quantiles, orderStats).plot +
+                labs(x = "Theoretical Quantiles", y = "Empirical Quantiles")
+        return p
     }
 
 }
@@ -356,8 +360,39 @@ class PPPlot(
         get() = DoubleArray(orderStats.size) { i -> cdfFunction.cdf(orderStats[i]) }
 
     override fun buildPlot(): Plot {
-        //TODO label axis, add 45 degree line
-        return ScatterPlot(theoreticalProbabilities, empProbabilities).plot
+        var p = ScatterPlot(theoreticalProbabilities, empProbabilities).plot +
+                geomABLine(slope = 1.0, intercept = 0.0, color = "#de2d26") +
+                labs(x = "Theoretical Probabilities", y = "Empirical Probabilities")
+        return p
+    }
+
+}
+
+class FunctionPlot(
+    private val function: ((Double) -> Double),
+    private val interval: Interval,
+    numPoints: Int = 512
+) : PlotImp() {
+
+    var numPoints: Int = numPoints
+        set(value) {
+            require(value > 0){"The number of points on the x-axis must be > 0"}
+            field = value
+        }
+
+//    fun xValues() : DoubleArray {
+//        val n = floor(interval.width/mesh).toInt()
+//        val v = DoubleArray(n){i -> interval.lowerLimit + i*mesh}
+//        return v
+//    }
+
+    override fun buildPlot(): Plot {
+        val limits = Pair(interval.lowerLimit, interval.upperLimit)
+        val p = ggplot(null) +
+                geomFunction(xlim = limits, fn = function)  +
+                ggtitle(title) +
+                ggsize(width, height)
+        return p
     }
 
 }

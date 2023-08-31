@@ -3,7 +3,9 @@ package ksl.utilities.io.plotting
 import ksl.observers.welch.WelchDataArrayObserver
 import ksl.observers.welch.WelchDataFileAnalyzer
 import ksl.utilities.Interval
+import ksl.utilities.distributions.CDFIfc
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.math.FunctionIfc
@@ -111,11 +113,11 @@ interface PlottingIfc {
         return confidenceIntervals(m, title, referencePoint)
     }
 
-    fun functionPlot(function: FunctionIfc, interval: Interval, mesh: Double = 0.0): PlotIfc
+    fun functionPlot(function: FunctionIfc, interval: Interval, numPoints: Int = 512): PlotIfc
 
-    fun qqPlot(data: DoubleArray, hypothesized: ContinuousDistributionIfc, title: String = ""): PlotIfc
+    fun qqPlot(data: DoubleArray, quantileFunction: InverseCDFIfc, title: String = ""): PlotIfc
 
-    fun ppPlot(data: DoubleArray, hypothesized: ContinuousDistributionIfc, title: String = ""): PlotIfc
+    fun ppPlot(data: DoubleArray, cdfIfc: CDFIfc, title: String = ""): PlotIfc
 
     fun stateVariablePlot(): PlotIfc
 

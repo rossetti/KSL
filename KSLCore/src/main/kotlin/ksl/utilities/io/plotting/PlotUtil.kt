@@ -3,7 +3,9 @@ package ksl.utilities.io.plotting
 import ksl.observers.welch.WelchDataArrayObserver
 import ksl.observers.welch.WelchDataFileAnalyzer
 import ksl.utilities.Interval
+import ksl.utilities.distributions.CDFIfc
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.statistic.BoxPlotSummary
@@ -70,12 +72,12 @@ object PlotUtil : PlottingIfc {
         TODO("Not yet implemented")
     }
 
-    override fun qqPlot(data: DoubleArray, hypothesized: ContinuousDistributionIfc, title: String): PlotIfc {
-        TODO("Not yet implemented")
+    override fun qqPlot(data: DoubleArray, quantileFunction: InverseCDFIfc, title: String): PlotIfc {
+        return QQPlot(data, quantileFunction).apply { this.title = title }
     }
 
-    override fun ppPlot(data: DoubleArray, hypothesized: ContinuousDistributionIfc, title: String): PlotIfc {
-        TODO("Not yet implemented")
+    override fun ppPlot(data: DoubleArray, cdfIfc: CDFIfc, title: String): PlotIfc {
+        return PPPlot(data, cdfIfc).apply { this.title = title }
     }
 
     override fun stateVariablePlot(): PlotIfc {
