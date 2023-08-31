@@ -5,9 +5,14 @@ import ksl.observers.welch.WelchDataFileAnalyzer
 import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.statistic.*
-import java.awt.Desktop
+import org.jetbrains.letsPlot.core.util.PlotHtmlExport
+import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
+import org.jetbrains.letsPlot.export.VersionChecker
+import org.jetbrains.letsPlot.intern.Plot
+import org.jetbrains.letsPlot.intern.toSpec
 import java.io.File
 import java.nio.file.Path
 
@@ -17,6 +22,12 @@ interface PlotIfc {
     enum class ExtType {
         PNG, JPEG, HTML, TIF, SVG
     }
+
+    /**
+     *  A lets-plot representation of the plot. Allows for
+     *  customization of the plot.
+     */
+    val plot: Plot
 
     /** the scale associated with the plot **/
     var defaultScale: Int
@@ -90,9 +101,9 @@ interface PlottingIfc {
 
     fun frequency(frequency: StateFrequency, title: String = ""): PlotIfc
 
-    fun confidenceIntervals(map: Map<String, Interval>, title: String = "", referencePoint: Double = Double.NaN): PlotIfc
+    fun confidenceIntervals(map: Map<String, Interval>, title: String = "", referencePoint: Double? = null): PlotIfc
 
-    fun confidenceIntervals(list: List<StatisticIfc>, level: Double = 0.95, title: String = "", referencePoint: Double = Double.NaN): PlotIfc {
+    fun confidenceIntervals(list: List<StatisticIfc>, level: Double = 0.95, title: String = "", referencePoint: Double? = null): PlotIfc {
         val m = mutableMapOf<String, Interval>()
         for( s in list){
             m[s.name] = s.confidenceInterval(level)

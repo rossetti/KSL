@@ -21,6 +21,7 @@ package ksl.utilities.io
 import ksl.utilities.KSLArrays
 import ksl.utilities.toCSVString
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.awt.Desktop
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -752,6 +753,28 @@ object KSLFileUtil {
             e.printStackTrace()
         }
         return DoubleArray(0)
+    }
+
+    fun openInBrowser(file: File) {
+        val desktop = Desktop.getDesktop()
+        desktop.browse(file.toURI())
+    }
+
+    fun openInBrowser(fileName: String, html: String): File {
+        val file = createTemporaryFile(fileName)
+        FileWriter(file).use {
+            it.write(html)
+        }
+        openInBrowser(file)
+        return file
+    }
+
+    fun createTemporaryFile(fileName: String): File {
+        val tmpDir = File(KSL.plotDir.toString())
+        if (!tmpDir.exists()) {
+            tmpDir.mkdir()
+        }
+        return File.createTempFile(fileName, ".html", tmpDir)
     }
 }
 

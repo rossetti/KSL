@@ -2,8 +2,10 @@
 
 package ksl.utilities.io.plotting
 
+import com.twelvemonkeys.io.FileUtil
 import ksl.utilities.Interval
 import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.StatisticIfc
@@ -13,10 +15,7 @@ import org.jetbrains.letsPlot.core.util.PlotHtmlExport
 import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
 import org.jetbrains.letsPlot.export.VersionChecker
 import org.jetbrains.letsPlot.export.ggsave
-import org.jetbrains.letsPlot.geom.geomBar
-import org.jetbrains.letsPlot.geom.geomBoxplot
-import org.jetbrains.letsPlot.geom.geomErrorBar
-import org.jetbrains.letsPlot.geom.geomPoint
+import org.jetbrains.letsPlot.geom.*
 import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
@@ -29,6 +28,9 @@ import java.io.FileWriter
 import java.nio.file.Path
 
 abstract class PlotImp() : PlotIfc {
+
+    override val plot: Plot
+        get() = buildPlot()
 
     override var defaultScale: Int = 2
         set(value) {
@@ -55,11 +57,6 @@ abstract class PlotImp() : PlotIfc {
     override var xLabel: String = "x"
     override var yLabel: String = "y"
 
-    protected fun openInBrowser(file: File) {
-        val desktop = Desktop.getDesktop()
-        desktop.browse(file.toURI())
-    }
-
     override fun saveToFile(
         fileName: String,
         directory: Path,
@@ -75,9 +72,8 @@ abstract class PlotImp() : PlotIfc {
 
     override fun showInBrowser(plotTitle: String): File {
         title = plotTitle
-        val p = buildPlot()
         //TODO
-        val spec = p.toSpec()
+        val spec = plot.toSpec()
 
         // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
         val html = PlotHtmlExport.buildHtmlFromRawSpecs(
@@ -89,24 +85,7 @@ abstract class PlotImp() : PlotIfc {
         } else {
             title.replace(" ", "_") + "_"
         }
-        return openInBrowser(fileName, html)
-    }
-
-    private fun openInBrowser(fileName: String, html: String): File {
-        val file = createTemporaryFile(fileName)
-        FileWriter(file).use {
-            it.write(html)
-        }
-        openInBrowser(file)
-        return file
-    }
-
-    private fun createTemporaryFile(fileName: String): File {
-        val tmpDir = File(KSL.plotDir.toString())
-        if (!tmpDir.exists()) {
-            tmpDir.mkdir()
-        }
-        return File.createTempFile(fileName, ".html", tmpDir)
+        return KSLFileUtil.openInBrowser(fileName, html)
     }
 
     protected abstract fun buildPlot(): Plot
@@ -237,13 +216,12 @@ class MultiBoxPlot(private val boxPlotMap: Map<String, BoxPlotSummary>) : PlotIm
 
 class ConfidenceIntervalsPlot(
     private val intervals: Map<String, Interval>,
-    private val referencePoint: Double = Double.NaN
+    private val referencePoint: Double? = null
 ) : PlotImp() {
 
     private val data: MutableMap<String, MutableList<Any>> = mutableMapOf()
 
  //TODO   constructor(list: List<StatisticIfc>, level: Double = 0.95, referencePoint: Double = Double.NaN): this()
-//TODO reference line
 
     init {
         data["yLabel"] = mutableListOf()
@@ -268,7 +246,7 @@ class ConfidenceIntervalsPlot(
                 geomPoint {
                     y = asDiscrete("yLabel")
                     x = "average"
-                }
+                } + geomVLine(xintercept = referencePoint, color = "#de2d26", linetype = "dashed" ) +
                 ggtitle(title) +
                 ggsize(width, height)
 
