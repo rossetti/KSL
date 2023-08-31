@@ -37,7 +37,7 @@ object PlotUtil: PlottingIfc {
         }
         return KSLFileUtil.openInBrowser(fileName, html)
     }
-    
+
     override fun scatterPlot(x: DoubleArray, y: DoubleArray, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
