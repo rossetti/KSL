@@ -68,8 +68,8 @@ object PlotUtil : PlottingIfc {
         return ConfidenceIntervalsPlot(map, referencePoint).apply { this.title = title }
     }
 
-    override fun functionPlot(function: FunctionIfc, interval: Interval, mesh: Double): PlotIfc {
-        TODO("Not yet implemented")
+    override fun functionPlot(fn: ((Double) -> Double), interval: Interval, numPoints: Int, title: String): PlotIfc {
+        return FunctionPlot(fn, interval, numPoints).apply { this.title = title }
     }
 
     override fun qqPlot(data: DoubleArray, quantileFunction: InverseCDFIfc, title: String): PlotIfc {
