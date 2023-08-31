@@ -3,12 +3,13 @@
 package ksl.utilities.io.plotting
 
 import ksl.utilities.Interval
+import ksl.utilities.distributions.CDFIfc
+import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
-import ksl.utilities.statistic.BoxPlotSummary
-import ksl.utilities.statistic.IntegerFrequency
-import ksl.utilities.statistic.StateFrequency
-import ksl.utilities.statistic.StatisticIfc
+import ksl.utilities.orderStatistics
+import ksl.utilities.statistic.*
 import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.asDiscrete
 import org.jetbrains.letsPlot.core.util.PlotHtmlExport
@@ -315,6 +316,48 @@ class StateFrequencyPlot(private val frequency: StateFrequency, proportions: Boo
 
         //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
         return p
+    }
+
+}
+
+class QQPlot(
+    data: DoubleArray,
+    private val quantileFunction: InverseCDFIfc
+) : PlotImp() {
+
+    var empDistType: EmpDistType = EmpDistType.Continuity1
+    val orderStats = data.orderStatistics()
+
+    val empProbabilities
+        get() = Statistic.empDist(orderStats.size, empDistType)
+
+    val quantiles: DoubleArray
+        get() = DoubleArray(orderStats.size) { i -> quantileFunction.invCDF(empProbabilities[i]) }
+
+    override fun buildPlot(): Plot {
+        //TODO label axis
+        return ScatterPlot(quantiles, orderStats).plot
+    }
+
+}
+
+class PPPlot(
+    data: DoubleArray,
+    private val cdfFunction: CDFIfc
+) : PlotImp() {
+
+    var empDistType: EmpDistType = EmpDistType.Continuity1
+    val orderStats = data.orderStatistics()
+
+    val empProbabilities
+        get() = Statistic.empDist(orderStats.size, empDistType)
+
+    val theoreticalProbabilities: DoubleArray
+        get() = DoubleArray(orderStats.size) { i -> cdfFunction.cdf(orderStats[i]) }
+
+    override fun buildPlot(): Plot {
+        //TODO label axis, add 45 degree line
+        return ScatterPlot(theoreticalProbabilities, empProbabilities).plot
     }
 
 }

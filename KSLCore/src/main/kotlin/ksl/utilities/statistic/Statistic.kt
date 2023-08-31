@@ -23,6 +23,10 @@ import kotlin.math.*
 
 private var StatCounter: Int = 0
 
+enum class EmpDistType {
+    Base, Continuity1, Continuity2
+}
+
 /**
  * The Statistic class allows the collection of summary statistics on data via
  * the collect() methods.  The primary statistical summary is for the statistical moments.
@@ -245,13 +249,13 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
      * @return the 4th statistical raw moment (about zero)
      */
     val rawMoment4: Double
-      get() {
-        val m4 = centralMoment4
-        val mr3 = rawMoment3
-        val mr2 = rawMoment2
-        val mu = average
-        return m4 + 4.0 * mu * mr3 - 6.0 * mu * mu * mr2 + 3.0 * mu * mu * mu * mu
-    }
+        get() {
+            val m4 = centralMoment4
+            val mr3 = rawMoment3
+            val mr2 = rawMoment2
+            val mu = average
+            return m4 + 4.0 * mu * mr3 - 6.0 * mu * mu * mr2 + 3.0 * mu * mu * mu * mu
+        }
 
     /**
      * Checks if the supplied value falls within getAverage() +/- getHalfWidth()
@@ -295,7 +299,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
      * @return the p-value associated with the current Von Neumann Lag 1 Test Statistic, or Double.NaN
      */
     fun vonNeumannLag1TestStatisticPValue(): Double {
-        if (vonNeumannLag1TestStatistic.isNaN()){
+        if (vonNeumannLag1TestStatistic.isNaN()) {
             return Double.NaN
         }
         return Normal.stdNormalComplementaryCDF(vonNeumannLag1TestStatistic)
@@ -603,6 +607,23 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             return (m + .5).roundToLong()
         }
 
+        /**
+         *  Computes the empirical probabilities based on [n] order statistics using
+         *  one of the three types:
+         *  Base: i/n
+         *  Continuity1: (i-0.5)/n
+         *  Continuity2: (i-0.375)/(n + 0.25)
+         *  The default [type] is Continuity1.
+         *  @return the empirical probabilities
+         */
+        fun empDist(n: Int, type: EmpDistType = EmpDistType.Continuity1): DoubleArray {
+            require(n >= 1) { "The number of observations must be >=1" }
+            return when (type) {
+                EmpDistType.Base -> DoubleArray(n) { i -> ((i+1) / n).toDouble() }
+                EmpDistType.Continuity1 -> DoubleArray(n) { i -> (i + 1.0 - 0.5) / n }
+                EmpDistType.Continuity2 -> DoubleArray(n) { i -> (i + 1.0 - 0.375) / (n + 0.25) }
+            }
+        }
     }
 
 }

@@ -1,6 +1,7 @@
 package ksl.utilities.io.plotting
 
 import ksl.utilities.Interval
+import ksl.utilities.distributions.Normal
 import ksl.utilities.random.rvariable.BivariateNormalRV
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.NormalRV
@@ -19,8 +20,8 @@ fun main(){
 //    testMultiBoxPlot()
 //    testConfidenceIntervalPlots()
 //    testFrequencyPlot()
-
-    testStateFrequencyPlot()
+//    testStateFrequencyPlot()
+    testPPandQQ_Plots()
 }
 
 fun testScatterPlot(){
@@ -210,4 +211,17 @@ fun testStateFrequencyPlot(){
     pPlot.saveToFile("The State Proportion Plot")
 
     println(sf)
+}
+
+fun testPPandQQ_Plots(){
+    val nd = Normal(10.0, 1.0)
+    val nRV = nd.randomVariable
+    val data = nRV.sample(200)
+    val qqPlot = QQPlot(data, nd)
+    qqPlot.showInBrowser()
+    qqPlot.saveToFile("The QQ Plot")
+
+    val ppPlot = PPPlot(data, nd)
+    ppPlot.showInBrowser()
+    ppPlot.saveToFile("The PP Plot")
 }
