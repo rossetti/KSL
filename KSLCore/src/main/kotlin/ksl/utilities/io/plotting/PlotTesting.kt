@@ -166,7 +166,7 @@ fun testConfidenceIntervalPlots(){
         val s = Statistic(n.sample(200))
         m[s.name] = s.confidenceInterval
     }
-    val plot = ConfidenceIntervalsPlot(m)
+    val plot = ConfidenceIntervalsPlot(m, referencePoint = 0.0)
     plot.showInBrowser()
     plot.saveToFile("The CI Plots")
 }
