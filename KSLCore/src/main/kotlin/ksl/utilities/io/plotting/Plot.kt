@@ -243,14 +243,15 @@ class ConfidenceIntervalsPlot(
     private val data: MutableMap<String, MutableList<Any>> = mutableMapOf()
 
  //TODO   constructor(list: List<StatisticIfc>, level: Double = 0.95, referencePoint: Double = Double.NaN): this()
+//TODO reference line
 
     init {
-        data["xLabel"] = mutableListOf()
+        data["yLabel"] = mutableListOf()
         data["upperLimit"] = mutableListOf()
         data["average"] = mutableListOf()
         data["lowerLimit"] = mutableListOf()
         for ((n, ci) in intervals) {
-            data["xLabel"]!!.add(n)
+            data["yLabel"]!!.add(n)
             data["upperLimit"]!!.add(ci.upperLimit)
             data["average"]!!.add(ci.midPoint)
             data["lowerLimit"]!!.add(ci.lowerLimit)
@@ -259,14 +260,14 @@ class ConfidenceIntervalsPlot(
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomErrorBar(stat = Stat.identity) {
-                    x = asDiscrete("xLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
-                    height = "average"
-                    ymin = "lowerLimit"
-                    ymax = "upperLimit"
+                    y = asDiscrete("yLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    width = "average"
+                    xmin = "lowerLimit"
+                    xmax = "upperLimit"
                 } +
                 geomPoint {
-                    x = asDiscrete("xLabel")
-                    y = "average"
+                    y = asDiscrete("yLabel")
+                    x = "average"
                 }
                 ggtitle(title) +
                 ggsize(width, height)

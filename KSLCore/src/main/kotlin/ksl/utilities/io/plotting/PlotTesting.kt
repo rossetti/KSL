@@ -16,8 +16,8 @@ fun main(){
 //    testScatterPlot()
 //    testBoxPlot()
 //    testMultiBoxPlot()
-//    testConfidenceIntervalPlots()
-    testFrequencyPlot()
+    testConfidenceIntervalPlots()
+//    testFrequencyPlot()
 }
 
 fun testScatterPlot(){
