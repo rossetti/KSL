@@ -97,7 +97,7 @@ interface PlottingIfc {
 
     fun multiBoxPlot(map: Map<String, BoxPlotSummary>, title: String = ""): PlotIfc
 
-    fun histogram(histogram: Histogram, title: String = "", density: Boolean = false): PlotIfc
+    fun histogram(histogram: Histogram, density: ((Double) -> Double)? = null, title: String = ""): PlotIfc
 
     fun frequency(frequency: IntegerFrequency, title: String = ""): PlotIfc
 

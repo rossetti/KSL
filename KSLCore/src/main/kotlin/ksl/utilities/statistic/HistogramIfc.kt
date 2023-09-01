@@ -119,6 +119,30 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
         }
 
     /**
+     * @return the lower limit of each bin as an array
+     */
+    val lowerLimits: DoubleArray
+        get(){
+            val m = DoubleArray(bins.size)
+            for((index, bin) in bins.withIndex()){
+                m[index]= bin.lowerLimit
+            }
+            return m
+        }
+
+    /**
+     * @return the upper limit of each bin as an array
+     */
+    val upperLimits: DoubleArray
+        get(){
+            val m = DoubleArray(bins.size)
+            for((index, bin) in bins.withIndex()){
+                m[index]= bin.upperLimit
+            }
+            return m
+        }
+
+    /**
      * Returns the current bin count for the bin associated with x
      *
      * @param x the data to check

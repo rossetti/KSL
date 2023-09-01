@@ -26,7 +26,6 @@ object PlotUtil : PlottingIfc {
      */
     fun showPlotInBrowser(plot: Plot, tmpFileName: String? = null): File {
         val spec = plot.toSpec()
-
         // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
         val html = PlotHtmlExport.buildHtmlFromRawSpecs(
             spec, iFrame = true,
@@ -52,7 +51,7 @@ object PlotUtil : PlottingIfc {
         return MultiBoxPlot(map).apply { this.title = title }
     }
 
-    override fun histogram(histogram: Histogram, title: String, density: Boolean): PlotIfc {
+    override fun histogram(histogram: Histogram, density: ((Double) -> Double)?, title: String): PlotIfc {
         TODO("Not yet implemented")
     }
 
