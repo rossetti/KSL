@@ -22,6 +22,9 @@ import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.intern.toSpec
 import org.jetbrains.letsPlot.label.ggtitle
 import org.jetbrains.letsPlot.label.labs
+import org.jetbrains.letsPlot.label.ylab
+import org.jetbrains.letsPlot.scale.ylim
+import org.jetbrains.letsPlot.tooltips.layerTooltips
 import java.io.File
 import java.nio.file.Path
 import kotlin.math.floor
@@ -391,24 +394,33 @@ class FunctionPlot(
 
 class HistogramPlot(
     private val histogram: HistogramIfc,
-    var density: ((Double) -> Double)? = null
+    var proportions: Boolean = false
 ) : PlotImp() {
 
 //    constructor(histogram: HistogramIfc, density: PDFIfc? = null) :
 //            this(histogram, density = { x: Double -> density?.pdf(x)!! })
 
     override fun buildPlot(): Plot {
-        val data = mapOf<String, DoubleArray>(
-            "xmin" to histogram.lowerLimits,
-            "xmax" to histogram.upperLimits,
-            "ymax" to histogram.binCounts,
-        )
+        val data = if (proportions){
+            yLabel = "Bin Proportions"
+            mapOf(
+                "xmin" to histogram.lowerLimits,
+                "xmax" to histogram.upperLimits,
+                "ymax" to histogram.binFractions)
+        } else {
+            yLabel = "Bin Counts"
+            mapOf<String, DoubleArray>(
+                "xmin" to histogram.lowerLimits,
+                "xmax" to histogram.upperLimits,
+                "ymax" to histogram.binCounts)
+        }
         val p = ggplot() +
-                geomRect(data, ymin = 0.0) {
+                geomRect(data, ymin = 0.0, tooltips = layerTooltips().line("@ymax")) {
                     xmin = "xmin"
                     xmax = "xmax"
                     ymax = "ymax"
                 } +
+                ylab(yLabel) +
                 ggtitle(title) +
                 ggsize(width, height)
         return p

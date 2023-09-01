@@ -17,7 +17,7 @@ class PlotTesting {
 }
 
 fun main(){
-    testPlot()
+ //   testPlot()
 //    testScatterPlot()
 //    testBoxPlot()
 //    testMultiBoxPlot()
@@ -301,7 +301,7 @@ fun testHistogramPlot(){
     val data = d.sample(1000)
     val h1 = Histogram.create(data)
     println(h1)
-    val hp = HistogramPlot(h1)
+    val hp = HistogramPlot(h1, proportions = true)
     hp.showInBrowser()
     hp.saveToFile("The Histogram Plot")
 }

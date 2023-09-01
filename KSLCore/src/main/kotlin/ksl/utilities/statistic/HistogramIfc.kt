@@ -106,6 +106,16 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      */
     val binCounts: DoubleArray
 
+    val binFractions: DoubleArray
+        get(){
+            val m = DoubleArray(bins.size)
+            val n = count
+            for((index, bin) in bins.withIndex()){
+                m[index]= bin.count()/n
+            }
+            return m
+        }
+
     /**
      * @return the mid-point of each bin as an array
      */
