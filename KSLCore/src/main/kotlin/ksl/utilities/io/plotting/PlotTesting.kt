@@ -4,17 +4,20 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
 import ksl.utilities.random.rvariable.BivariateNormalRV
 import ksl.utilities.random.rvariable.DEmpiricalRV
+import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.NormalRV
-import ksl.utilities.statistic.BoxPlotSummary
-import ksl.utilities.statistic.IntegerFrequency
-import ksl.utilities.statistic.StateFrequency
-import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.*
+import org.jetbrains.letsPlot.*
+import org.jetbrains.letsPlot.core.spec.back.transform.bistro.util.tooltips
+import org.jetbrains.letsPlot.geom.geomBar
+import org.jetbrains.letsPlot.geom.geomRect
 
 
 class PlotTesting {
 }
 
 fun main(){
+    testPlot()
 //    testScatterPlot()
 //    testBoxPlot()
 //    testMultiBoxPlot()
@@ -22,7 +25,53 @@ fun main(){
 //    testFrequencyPlot()
 //    testStateFrequencyPlot()
 //    testPPandQQ_Plots()
-    testFunctionPlot()
+//    testFunctionPlot()
+
+    testHistogramPlot()
+}
+
+fun testPlot(){
+    val data = mapOf<String, DoubleArray>(
+        "xbar" to doubleArrayOf(0.2, 1.0, 1.5, 2.1, 2.6, 3.0, 3.5, 4.0),
+        "ybar" to doubleArrayOf(1.0, 6.0, 2.0, 3.0, 4.0, 2.0, 2.0, 1.0),
+    )
+    val rect = mapOf<String, DoubleArray>(
+        "xmin" to doubleArrayOf(0.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0),
+        "xmax" to doubleArrayOf(1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0),
+        "ymin" to doubleArrayOf(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+        "ymax" to doubleArrayOf(1.0, 6.0, 2.0, 3.0, 4.0, 2.0, 2.0, 1.0),
+    )
+//    val rect = mapOf<String, List<Double>>(
+//        "xmin" to listOf(0.0),
+//        "xmax" to listOf(1.5),
+//        "ymin" to listOf(0.0),
+//        "ymax" to listOf(1.0),
+//    )
+//    val p = ggplot(data) +
+//            geomBar(stat = Stat.identity) {
+//                x = "xbar"
+//                y = "ybar"
+//            }
+    val p2 = ggplot(data) +
+            geomBar(stat = Stat.identity, width = 0.1) {
+                x = "xbar"
+                y = "ybar"
+            }
+    val p = ggplot() +
+            geomRect(rect) {
+                xmin = "xmin"
+                xmax = "xmax"
+                ymin = "ymin"
+                ymax = "ymax"
+            }
+
+//    val p = ggplot() +
+//            geomRect(xmin = 0.0, xmax = 1.5, ymin = 0.0, ymax = 1.0) +
+//            geomRect(xmin = 1.5, xmax = 2.0, ymin = 0.0, ymax = 2.0)
+
+    PlotUtil.showPlotInBrowser(p)
+    PlotUtil.showPlotInBrowser(p2)
+
 }
 
 fun testScatterPlot(){
@@ -237,4 +286,22 @@ fun testFunctionPlot(){
     fPlot.numPoints = 10
     fPlot.showInBrowser()
     fPlot.saveToFile("A function plot")
+}
+
+fun testHistogramPlot(){
+    val d = ExponentialRV(2.0)
+//    val points = Histogram.createBreakPoints(0.0, 10, 0.25)
+//    val h1: HistogramIfc = Histogram(points)
+//    val h2: HistogramIfc = Histogram(Histogram.addPositiveInfinity(points))
+//    for (i in 1..10000) {
+//        val x = d.value
+//        h1.collect(x)
+//        h2.collect(x)
+//    }
+    val data = d.sample(1000)
+    val h1 = Histogram.create(data)
+    println(h1)
+    val hp = HistogramPlot(h1)
+    hp.showInBrowser()
+    hp.saveToFile("The Histogram Plot")
 }

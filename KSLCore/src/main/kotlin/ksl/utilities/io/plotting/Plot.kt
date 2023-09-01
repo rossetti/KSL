@@ -3,9 +3,7 @@
 package ksl.utilities.io.plotting
 
 import ksl.utilities.Interval
-import ksl.utilities.distributions.CDFIfc
-import ksl.utilities.distributions.ContinuousDistributionIfc
-import ksl.utilities.distributions.InverseCDFIfc
+import ksl.utilities.distributions.*
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.math.FunctionIfc
@@ -376,14 +374,41 @@ class FunctionPlot(
 
     var numPoints: Int = numPoints
         set(value) {
-            require(value > 0){"The number of points on the x-axis must be > 0"}
+            require(value > 0) { "The number of points on the x-axis must be > 0" }
             field = value
         }
 
     override fun buildPlot(): Plot {
         val limits = Pair(interval.lowerLimit, interval.upperLimit)
         val p = ggplot(null) +
-                geomFunction(xlim = limits, fn = function, n = numPoints)  +
+                geomFunction(xlim = limits, fn = function, n = numPoints) +
+                ggtitle(title) +
+                ggsize(width, height)
+        return p
+    }
+
+}
+
+class HistogramPlot(
+    private val histogram: HistogramIfc,
+    var density: ((Double) -> Double)? = null
+) : PlotImp() {
+
+//    constructor(histogram: HistogramIfc, density: PDFIfc? = null) :
+//            this(histogram, density = { x: Double -> density?.pdf(x)!! })
+
+    override fun buildPlot(): Plot {
+        val data = mapOf<String, DoubleArray>(
+            "xmin" to histogram.lowerLimits,
+            "xmax" to histogram.upperLimits,
+            "ymax" to histogram.binCounts,
+        )
+        val p = ggplot() +
+                geomRect(data, ymin = 0.0) {
+                    xmin = "xmin"
+                    xmax = "xmax"
+                    ymax = "ymax"
+                } +
                 ggtitle(title) +
                 ggsize(width, height)
         return p
