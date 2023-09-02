@@ -535,3 +535,37 @@ class WelchPlot(avgs: DoubleArray, cumAvgs: DoubleArray, val responseName: Strin
     }
 
 }
+
+class StateVariablePlot(
+    values: DoubleArray,
+    times: DoubleArray,
+    val responseName: String
+): PlotImp(){
+    private val data: Map<String, DoubleArray>
+
+    init {
+        xLabel = "t"
+        yLabel = "y(t)"
+        title = "Sample path for y(t)"
+        data = mapOf(
+            xLabel to times,
+            yLabel to values
+        )
+    }
+
+    override fun buildPlot(): Plot {
+        val p = ggplot(data) +
+                geomStep(){
+                    x = xLabel
+                    y = yLabel
+                }
+                geomPoint(color = "#de2d26") {
+                    x = xLabel
+                    y = yLabel
+                } +
+                ggtitle(title) +
+                ggsize(width, height)
+        return p
+    }
+
+}
