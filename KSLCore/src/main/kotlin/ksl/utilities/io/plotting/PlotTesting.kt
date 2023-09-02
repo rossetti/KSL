@@ -320,3 +320,9 @@ fun testHistogramPlot(){
     hp3.saveToFile("The Third Histogram Plot")
 
 }
+
+fun testStateVariablePlot(){
+    val t = doubleArrayOf(0.0, 2.0, 5.0, 11.0, 14.0, 17.0, 22.0, 26.0, 28.0, 31.0, 35.0, 36.0)
+    val n = doubleArrayOf(0.0, 1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0, 0.0, 0.0)
+
+}
