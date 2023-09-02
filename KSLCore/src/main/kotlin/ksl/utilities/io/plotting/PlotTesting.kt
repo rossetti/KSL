@@ -71,8 +71,8 @@ fun testPlot(){
 //            geomRect(xmin = 0.0, xmax = 1.5, ymin = 0.0, ymax = 1.0) +
 //            geomRect(xmin = 1.5, xmax = 2.0, ymin = 0.0, ymax = 2.0)
 
-    PlotUtil.showPlotInBrowser(p)
-    PlotUtil.showPlotInBrowser(p2)
+    PlotIfc.showPlotInBrowser(p)
+    PlotIfc.showPlotInBrowser(p2)
 
 }
 

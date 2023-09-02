@@ -87,6 +87,26 @@ interface PlotIfc {
      */
     fun showInBrowser(plotTitle: String = title): File
 
+    companion object {
+        /**
+         *  Shows a lets-plot plot in a browser window
+         */
+        fun showPlotInBrowser(plot: Plot, tmpFileName: String? = null): File {
+            val spec = plot.toSpec()
+            // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
+            val html = PlotHtmlExport.buildHtmlFromRawSpecs(
+                spec, iFrame = true,
+                scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
+            )
+            val fileName = if (tmpFileName == null) {
+                "tempPlotFile_"
+            } else {
+                tmpFileName.replace(" ", "_") + "_"
+            }
+            return KSLFileUtil.openInBrowser(fileName, html)
+        }
+    }
+
 }
 
 interface PlottingIfc {
@@ -97,11 +117,11 @@ interface PlottingIfc {
 
     fun multiBoxPlot(map: Map<String, BoxPlotSummary>, title: String = ""): PlotIfc
 
-    fun histogram(histogram: Histogram, density: ((Double) -> Double)? = null, title: String = ""): PlotIfc
+    fun histogram(histogram: Histogram, proportions: Boolean = false, title: String = ""): PlotIfc
 
-    fun frequency(frequency: IntegerFrequency, title: String = ""): PlotIfc
+    fun frequency(frequency: IntegerFrequency, proportions: Boolean = false, title: String = ""): PlotIfc
 
-    fun frequency(frequency: StateFrequency, title: String = ""): PlotIfc
+    fun frequency(frequency: StateFrequency, proportions: Boolean = false, title: String = ""): PlotIfc
 
     fun confidenceIntervals(map: Map<String, Interval>, title: String = "", referencePoint: Double? = null): PlotIfc
 
