@@ -2,6 +2,7 @@ package ksl.utilities.io.plotting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
+import ksl.utilities.multiplyConstant
 import ksl.utilities.random.rvariable.BivariateNormalRV
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -11,6 +12,7 @@ import org.jetbrains.letsPlot.*
 import org.jetbrains.letsPlot.core.spec.back.transform.bistro.util.tooltips
 import org.jetbrains.letsPlot.geom.geomBar
 import org.jetbrains.letsPlot.geom.geomRect
+import kotlin.math.exp
 
 
 class PlotTesting {
@@ -290,18 +292,31 @@ fun testFunctionPlot(){
 
 fun testHistogramPlot(){
     val d = ExponentialRV(2.0)
-//    val points = Histogram.createBreakPoints(0.0, 10, 0.25)
-//    val h1: HistogramIfc = Histogram(points)
-//    val h2: HistogramIfc = Histogram(Histogram.addPositiveInfinity(points))
-//    for (i in 1..10000) {
-//        val x = d.value
-//        h1.collect(x)
-//        h2.collect(x)
-//    }
+
     val data = d.sample(1000)
     val h1 = Histogram.create(data)
     println(h1)
     val hp = HistogramPlot(h1, proportions = true)
+    hp.density = {x: Double -> 0.5*exp(-0.5*x) }
     hp.showInBrowser()
-    hp.saveToFile("The Histogram Plot")
+    hp.saveToFile("The First Histogram Plot")
+
+    val points = Histogram.createBreakPoints(0.0, 20, 0.25)
+    val h2: HistogramIfc = Histogram(Histogram.addPositiveInfinity(points))
+    h2.collect(data)
+    println(h2)
+    val hp2 = HistogramPlot(h2)
+    hp2.showInBrowser()
+    hp2.saveToFile("The Second Histogram Plot")
+
+    val d2 = data.multiplyConstant(-1.0)
+    val pts = points.multiplyConstant(-1.0)
+    pts.sort()
+    val h3: HistogramIfc = Histogram(Histogram.addNegativeInfinity(pts))
+    h3.collect(d2)
+    println(h3)
+    val hp3 = HistogramPlot(h3)
+    hp3.showInBrowser()
+    hp3.saveToFile("The Third Histogram Plot")
+
 }

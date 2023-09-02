@@ -36,11 +36,9 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
         get() = (upperLimit - lowerLimit)/2.0
 
     private var count = 0
+
     /**
-     * @return the label for the bin
-     */
-    /**
-     * @param label The label for the bin
+     * The label for the bin
      */
     var binLabel: String = String.format("%3d [%5.2f,%5.2f) ", theBinNumber, theLowerLimit, theUpperLimit)
 

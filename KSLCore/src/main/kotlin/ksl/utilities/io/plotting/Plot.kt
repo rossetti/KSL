@@ -397,30 +397,53 @@ class HistogramPlot(
     var proportions: Boolean = false
 ) : PlotImp() {
 
-//    constructor(histogram: HistogramIfc, density: PDFIfc? = null) :
-//            this(histogram, density = { x: Double -> density?.pdf(x)!! })
+    var density: ((Double) -> Double)? = null
+    var numPoints: Int = 512
+        set(value) {
+            require(value > 0) { "The number of points on the x-axis must be > 0" }
+            field = value
+        }
 
     override fun buildPlot(): Plot {
+        val ul = histogram.upperLimits
+        if (ul.last().isInfinite()){
+            ul[ul.lastIndex] = histogram.max + 1.0
+        }
+        val ll = histogram.lowerLimits
+        if (ll.first().isInfinite()){
+            ll[0] = histogram.min - 1
+        }
         val data = if (proportions){
             yLabel = "Bin Proportions"
             mapOf(
-                "xmin" to histogram.lowerLimits,
-                "xmax" to histogram.upperLimits,
+                "xmin" to ll,
+                "xmax" to ul,
                 "ymax" to histogram.binFractions)
         } else {
             yLabel = "Bin Counts"
             mapOf<String, DoubleArray>(
-                "xmin" to histogram.lowerLimits,
-                "xmax" to histogram.upperLimits,
+                "xmin" to ll,
+                "xmax" to ul,
                 "ymax" to histogram.binCounts)
         }
-        val p = ggplot() +
-                geomRect(data, ymin = 0.0, tooltips = layerTooltips().line("@ymax")) {
+        var p = ggplot() +
+                geomRect(data, ymin = 0.0,
+                    tooltips = layerTooltips()
+                        .format("xmin", ".1f")
+                        .format("xmax", ".1f")
+                        .line("@ymax")
+                        .line("[@xmin, @xmax]")
+                ) {
                     xmin = "xmin"
                     xmax = "xmax"
                     ymax = "ymax"
-                } +
-                ylab(yLabel) +
+                }
+
+        if (density != null){
+            val limits = Pair(ll[0], ul[ul.lastIndex])
+            p = p + geomFunction(xlim = limits, fn = density, n = numPoints, color = "#de2d26")
+        }
+         p = p + ylab(yLabel) +
                 ggtitle(title) +
                 ggsize(width, height)
         return p

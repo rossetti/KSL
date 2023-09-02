@@ -351,7 +351,6 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
         return sb.toString()
     }
 
-
     companion object {
         /**
          * Create a histogram with lower limit set to zero
@@ -442,7 +441,7 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
             val b = DoubleArray(breakPoints.size + 1)
             System.arraycopy(breakPoints, 0, b, 1, breakPoints.size)
-            b[0] = kotlin.Double.NEGATIVE_INFINITY
+            b[0] = Double.NEGATIVE_INFINITY
             return b
         }
 
