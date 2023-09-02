@@ -21,24 +21,6 @@ import java.io.File
 
 object PlotUtil : PlottingIfc {
 
-    /**
-     *  Shows a lets-plot plot in a browser window
-     */
-    fun showPlotInBrowser(plot: Plot, tmpFileName: String? = null): File {
-        val spec = plot.toSpec()
-        // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
-        val html = PlotHtmlExport.buildHtmlFromRawSpecs(
-            spec, iFrame = true,
-            scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
-        )
-        val fileName = if (tmpFileName == null) {
-            "tempPlotFile_"
-        } else {
-            tmpFileName.replace(" ", "_") + "_"
-        }
-        return KSLFileUtil.openInBrowser(fileName, html)
-    }
-
     override fun scatterPlot(x: DoubleArray, y: DoubleArray, title: String): PlotIfc {
         return ScatterPlot(x, y).apply { this.title = title }
     }
@@ -51,16 +33,16 @@ object PlotUtil : PlottingIfc {
         return MultiBoxPlot(map).apply { this.title = title }
     }
 
-    override fun histogram(histogram: Histogram, density: ((Double) -> Double)?, title: String): PlotIfc {
-        TODO("Not yet implemented")
+    override fun histogram(histogram: Histogram, proportions: Boolean, title: String): PlotIfc {
+        return HistogramPlot(histogram, proportions).apply { this.title = title }
     }
 
-    override fun frequency(frequency: IntegerFrequency, title: String): PlotIfc {
-        return IntegerFrequencyPlot(frequency).apply { this.title = title }
+    override fun frequency(frequency: IntegerFrequency, proportions: Boolean, title: String): PlotIfc {
+        return IntegerFrequencyPlot(frequency, proportions).apply { this.title = title }
     }
 
-    override fun frequency(frequency: StateFrequency, title: String): PlotIfc {
-        return StateFrequencyPlot(frequency).apply { this.title = title }
+    override fun frequency(frequency: StateFrequency, proportions: Boolean, title: String): PlotIfc {
+        return StateFrequencyPlot(frequency, proportions).apply { this.title = title }
     }
 
     override fun confidenceIntervals(map: Map<String, Interval>, title: String, referencePoint: Double?): PlotIfc {

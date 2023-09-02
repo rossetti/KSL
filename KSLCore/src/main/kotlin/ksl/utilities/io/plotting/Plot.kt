@@ -9,6 +9,7 @@ import ksl.utilities.io.StatisticReporter
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.orderStatistics
 import ksl.utilities.statistic.*
+import org.jetbrains.kotlinx.dataframe.impl.asList
 import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.asDiscrete
 import org.jetbrains.letsPlot.core.util.PlotHtmlExport
@@ -448,5 +449,33 @@ class HistogramPlot(
                 ggsize(width, height)
         return p
     }
+
+}
+
+class PartialSumsPlot(private val partialSums: DoubleArray, dataName: String? = null) : PlotImp(){
+
+    private val data: Map<String, List<Number>>
+
+    init {
+        yLabel = "Partial Sums"
+        xLabel = "Indices"
+        title = if (dataName != null) "Partial Sums Plot for $dataName" else "Partial Sums Plot"
+        data = mapOf(
+            xLabel to (1..partialSums.size).asList(),
+            yLabel to partialSums.asList()
+        )
+    }
+
+    override fun buildPlot(): Plot {
+        val p = ggplot(data) +
+                geomLine() {
+                    x = xLabel
+                    y = yLabel
+                } +
+                ggtitle(title) +
+                ggsize(width, height)
+        return p
+    }
+
 
 }
