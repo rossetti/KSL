@@ -500,7 +500,7 @@ class WelchPlot(avgs: DoubleArray, cumAvgs: DoubleArray, val responseName: Strin
         title = "Welch Plot for $responseName, 1 obs = $ts time units"
     }
 
-    constructor(analyzer: WelchDataFileAnalyzer, totalNumObservations: Int): this(
+    constructor(analyzer: WelchDataFileAnalyzer, totalNumObservations: Int = analyzer.minNumObservationsInReplications.toInt()): this(
         avgs = analyzer.welchAveragesNE(totalNumObservations),
         cumAvgs = analyzer.cumulativeWelchAverages(totalNumObservations),
         responseName = analyzer.responseName
