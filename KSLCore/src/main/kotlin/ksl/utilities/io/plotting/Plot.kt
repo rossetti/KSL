@@ -477,5 +477,6 @@ class PartialSumsPlot(private val partialSums: DoubleArray, dataName: String? = 
         return p
     }
 
-
 }
+
+class WelchPlot(avgs: DoubleArray, cumAvgs: DoubleArray)
