@@ -2,6 +2,8 @@
 
 package ksl.utilities.io.plotting
 
+import ksl.observers.welch.WelchDataArrayObserver
+import ksl.observers.welch.WelchDataFileAnalyzer
 import ksl.utilities.Interval
 import ksl.utilities.distributions.*
 import ksl.utilities.io.KSLFileUtil
@@ -9,6 +11,8 @@ import ksl.utilities.io.StatisticReporter
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.orderStatistics
 import ksl.utilities.statistic.*
+import ksl.utilities.statistics
+import ksl.utilities.toDoubles
 import org.jetbrains.kotlinx.dataframe.impl.asList
 import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.asDiscrete
@@ -407,28 +411,31 @@ class HistogramPlot(
 
     override fun buildPlot(): Plot {
         val ul = histogram.upperLimits
-        if (ul.last().isInfinite()){
+        if (ul.last().isInfinite()) {
             ul[ul.lastIndex] = histogram.max + 1.0
         }
         val ll = histogram.lowerLimits
-        if (ll.first().isInfinite()){
+        if (ll.first().isInfinite()) {
             ll[0] = histogram.min - 1
         }
-        val data = if (proportions){
+        val data = if (proportions) {
             yLabel = "Bin Proportions"
             mapOf(
                 "xmin" to ll,
                 "xmax" to ul,
-                "ymax" to histogram.binFractions)
+                "ymax" to histogram.binFractions
+            )
         } else {
             yLabel = "Bin Counts"
             mapOf<String, DoubleArray>(
                 "xmin" to ll,
                 "xmax" to ul,
-                "ymax" to histogram.binCounts)
+                "ymax" to histogram.binCounts
+            )
         }
         var p = ggplot() +
-                geomRect(data, ymin = 0.0,
+                geomRect(
+                    data, ymin = 0.0,
                     tooltips = layerTooltips()
                         .format("xmin", ".1f")
                         .format("xmax", ".1f")
@@ -440,11 +447,11 @@ class HistogramPlot(
                     ymax = "ymax"
                 }
 
-        if (density != null){
+        if (density != null) {
             val limits = Pair(ll[0], ul[ul.lastIndex])
             p = p + geomFunction(xlim = limits, fn = density, n = numPoints, color = "#de2d26")
         }
-         p = p + ylab(yLabel) +
+        p = p + ylab(yLabel) +
                 ggtitle(title) +
                 ggsize(width, height)
         return p
@@ -452,7 +459,7 @@ class HistogramPlot(
 
 }
 
-class PartialSumsPlot(private val partialSums: DoubleArray, dataName: String? = null) : PlotImp(){
+class PartialSumsPlot(partialSums: DoubleArray, dataName: String? = null) : PlotImp() {
 
     private val data: Map<String, List<Number>>
 
@@ -479,4 +486,52 @@ class PartialSumsPlot(private val partialSums: DoubleArray, dataName: String? = 
 
 }
 
-class WelchPlot(avgs: DoubleArray, cumAvgs: DoubleArray)
+class WelchPlot(avgs: DoubleArray, cumAvgs: DoubleArray, val responseName: String) : PlotImp() {
+
+    private val data: Map<String, DoubleArray>
+
+    constructor(dataArrayObserver: WelchDataArrayObserver) : this(
+        avgs = dataArrayObserver.welchAverages,
+        cumAvgs = dataArrayObserver.welchCumulativeAverages,
+        responseName = dataArrayObserver.responseName
+    ){
+        val deltaT = dataArrayObserver.avgTimeBtwObservationsForEachReplication.statistics().average
+        val ts = "%.2f".format(deltaT)
+        title = "Welch Plot for $responseName, 1 obs = $ts time units"
+    }
+
+    constructor(analyzer: WelchDataFileAnalyzer, totalNumObservations: Int): this(
+        avgs = analyzer.welchAveragesNE(totalNumObservations),
+        cumAvgs = analyzer.cumulativeWelchAverages(totalNumObservations),
+        responseName = analyzer.responseName
+    ){
+        val deltaT = analyzer.averageTimePerObservation
+        val ts = "%.2f".format(deltaT)
+        title = "Welch Plot for $responseName, 1 obs = $ts time units"
+    }
+
+    init {
+        xLabel = "Observation Number"
+        data = mapOf(
+            xLabel to (1..avgs.size).toList().toIntArray().toDoubles(),
+            "Welch Average" to avgs,
+            "Cumulative Average" to cumAvgs
+        )
+    }
+
+    override fun buildPlot(): Plot {
+        val p = ggplot(data) +
+                geomLine() {
+                    x = xLabel
+                    y = "Welch Average"
+                } +
+                geomLine(color = "#de2d26") {
+                    x = xLabel
+                    y = "Cumulative Average"
+                }
+        ggtitle(title) +
+                ggsize(width, height)
+        return p
+    }
+
+}
