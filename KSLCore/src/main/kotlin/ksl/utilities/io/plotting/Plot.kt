@@ -71,7 +71,8 @@ abstract class PlotImp() : PlotIfc {
         extType: PlotIfc.ExtType
     ): File {
         title = plotTitle
-        val plot = buildPlot()
+        //val plot = buildPlot()
+        println(this)
         val fn = fileName + "." + extType.name
         val pn = ggsave(plot, fn, defaultScale, defaultDPI, directory.toString())
         return File(pn)
@@ -81,7 +82,6 @@ abstract class PlotImp() : PlotIfc {
         title = plotTitle
         //TODO
         val spec = plot.toSpec()
-
         // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
         val html = PlotHtmlExport.buildHtmlFromRawSpecs(
             spec, iFrame = true,
@@ -96,6 +96,19 @@ abstract class PlotImp() : PlotIfc {
     }
 
     protected abstract fun buildPlot(): Plot
+    override fun toString(): String {
+        return "PlotImp(" +
+                "defaultScale=$defaultScale, " +
+                "defaultDPI=$defaultDPI, " +
+                "width=$width, " +
+                "height=$height, " +
+                "title='$title', " +
+                "xLabel='$xLabel', " +
+                "yLabel='$yLabel'" +
+                ")"
+    }
+
+
 }
 
 class ScatterPlot(
@@ -554,6 +567,7 @@ class StateVariablePlot(
     }
 
     override fun buildPlot(): Plot {
+        println(this)
         val p = ggplot(data) +
                 geomStep(){
                     x = xLabel
