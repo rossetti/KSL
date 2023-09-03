@@ -1,5 +1,9 @@
 package ksl.examples.general.utilities
 
+import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
+import ksl.observers.welch.WelchDataCollectorIfc
+import ksl.observers.welch.WelchFileObserver
+import ksl.simulation.Model
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
 import ksl.utilities.io.plotting.*
@@ -26,6 +30,8 @@ fun main(){
 //    testFunctionPlot()
 //    testHistogramPlot()
 //    testStateVariablePlot()
+
+    testWelchPlotting()
 }
 
 fun testPlot(){
@@ -329,5 +335,38 @@ fun testStateVariablePlot(){
 }
 
 fun testWelchPlotting(){
+    val model = Model("Drive Through Pharmacy")
+    // add DriveThroughPharmacy to the main model
+    val dtp = DriveThroughPharmacyWithQ(model, 1)
+    dtp.arrivalRV.initialRandomSource = ExponentialRV(1.0, 1)
+    dtp.serviceRV.initialRandomSource = ExponentialRV(0.7, 2)
 
+    val rvWelch = WelchFileObserver(dtp.systemTime, 1.0)
+    val twWelch = WelchFileObserver(dtp.numInSystem, 10.0)
+    model.numberOfReplications = 5
+    model.lengthOfReplication = 50000.0
+
+    model.simulate()
+    model.print()
+    println(rvWelch)
+    println(twWelch)
+
+    val rvFileAnalyzer = rvWelch.createWelchDataFileAnalyzer()
+    val twFileAnalyzer = twWelch.createWelchDataFileAnalyzer()
+
+    rvFileAnalyzer.createCSVWelchPlotDataFile()
+    twFileAnalyzer.createCSVWelchPlotDataFile()
+
+    val wp = WelchPlot(analyzer = rvFileAnalyzer)
+    wp.defaultPlotDir = model.outputDirectory.plotDir
+    wp.showInBrowser()
+    wp.saveToFile("SystemTimeWelchPlot")
+
+//    val n = rvFileAnalyzer.minNumObservationsInReplications.toInt()
+//    val wa = rvFileAnalyzer.batchWelchAverages()
+//    val ps = Statistic.partialSums(wa)
+
+    val psp = PartialSumsPlot(rvFileAnalyzer)
+    psp.showInBrowser()
+    psp.saveToFile("SystemTimePartialSumsPlot")
 }

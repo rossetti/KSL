@@ -7,6 +7,7 @@ import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
+import java.nio.file.Path
 
 class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : BasePlot() {
 

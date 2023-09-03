@@ -16,6 +16,8 @@ interface PlotIfc {
         PNG, JPEG, HTML, TIF, SVG
     }
 
+    var defaultPlotDir: Path
+
     /** the scale associated with the plot **/
     var defaultScale: Int
 
@@ -64,7 +66,7 @@ interface PlotIfc {
      */
     fun saveToFile(
         fileName: String,
-        directory: Path = KSL.plotDir,
+        directory: Path = defaultPlotDir,
         plotTitle: String = title,
         extType: ExtType = ExtType.PNG
     ): File
@@ -82,7 +84,7 @@ interface PlotIfc {
         /**
          *  Shows a lets-plot plot in a browser window
          */
-        fun showPlotInBrowser(plot: Plot, tmpFileName: String? = null): File {
+        fun showPlotInBrowser(plot: Plot, tmpFileName: String? = null, directory: Path = KSL.plotDir): File {
             val spec = plot.toSpec()
             // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
             val html = PlotHtmlExport.buildHtmlFromRawSpecs(
@@ -94,7 +96,7 @@ interface PlotIfc {
             } else {
                 tmpFileName.replace(" ", "_") + "_"
             }
-            return KSLFileUtil.openInBrowser(fileName, html)
+            return KSLFileUtil.openInBrowser(fileName, html, directory)
         }
     }
 
