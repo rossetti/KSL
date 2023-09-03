@@ -760,8 +760,8 @@ object KSLFileUtil {
         desktop.browse(file.toURI())
     }
 
-    fun openInBrowser(fileName: String, html: String): File {
-        val file = createTemporaryFile(fileName)
+    fun openInBrowser(fileName: String, html: String, dir: Path): File {
+        val file = createTemporaryFile(fileName, dir)
         FileWriter(file).use {
             it.write(html)
         }
@@ -769,8 +769,8 @@ object KSLFileUtil {
         return file
     }
 
-    fun createTemporaryFile(fileName: String): File {
-        val tmpDir = File(KSL.plotDir.toString())
+    fun createTemporaryFile(fileName: String, dir: Path): File {
+        val tmpDir = File(dir.toString())
         if (!tmpDir.exists()) {
             tmpDir.mkdir()
         }

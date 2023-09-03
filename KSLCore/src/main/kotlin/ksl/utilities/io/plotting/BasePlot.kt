@@ -2,6 +2,7 @@
 
 package ksl.utilities.io.plotting
 
+import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import org.jetbrains.letsPlot.core.util.PlotHtmlExport
 import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
@@ -12,6 +13,8 @@ import java.io.File
 import java.nio.file.Path
 
 abstract class BasePlot() : PlotIfc {
+
+    override var defaultPlotDir: Path = KSL.plotDir
 
     override var defaultScale: Int = 2
         set(value) {
@@ -65,7 +68,7 @@ abstract class BasePlot() : PlotIfc {
         } else {
             title.replace(" ", "_") + "_"
         }
-        return KSLFileUtil.openInBrowser(fileName, html)
+        return KSLFileUtil.openInBrowser(fileName, html, defaultPlotDir)
     }
 
     override fun toString(): String {
