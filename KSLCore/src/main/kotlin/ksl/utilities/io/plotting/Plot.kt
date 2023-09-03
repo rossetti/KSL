@@ -400,6 +400,36 @@ class HistogramPlot(
     var proportions: Boolean = false
 ) : PlotImp() {
 
+    private val data: Map<String, DoubleArray>
+    private val lowerLimits: DoubleArray
+    private val upperLimits: DoubleArray
+
+    init {
+        upperLimits = histogram.upperLimits
+        if (upperLimits.last().isInfinite()) {
+            upperLimits[upperLimits.lastIndex] = histogram.max + 1.0
+        }
+        lowerLimits = histogram.lowerLimits
+        if (lowerLimits.first().isInfinite()) {
+            lowerLimits[0] = histogram.min - 1
+        }
+        data = if (proportions) {
+            yLabel = "Bin Proportions"
+            mapOf(
+                "xmin" to lowerLimits,
+                "xmax" to upperLimits,
+                "ymax" to histogram.binFractions
+            )
+        } else {
+            yLabel = "Bin Counts"
+            mapOf<String, DoubleArray>(
+                "xmin" to lowerLimits,
+                "xmax" to upperLimits,
+                "ymax" to histogram.binCounts
+            )
+        }
+    }
+
     constructor(data: DoubleArray, proportions: Boolean = false) :
             this(Histogram.create(data), proportions)
 
@@ -411,29 +441,6 @@ class HistogramPlot(
         }
 
     override fun buildPlot(): Plot {
-        val ul = histogram.upperLimits
-        if (ul.last().isInfinite()) {
-            ul[ul.lastIndex] = histogram.max + 1.0
-        }
-        val ll = histogram.lowerLimits
-        if (ll.first().isInfinite()) {
-            ll[0] = histogram.min - 1
-        }
-        val data = if (proportions) {
-            yLabel = "Bin Proportions"
-            mapOf(
-                "xmin" to ll,
-                "xmax" to ul,
-                "ymax" to histogram.binFractions
-            )
-        } else {
-            yLabel = "Bin Counts"
-            mapOf<String, DoubleArray>(
-                "xmin" to ll,
-                "xmax" to ul,
-                "ymax" to histogram.binCounts
-            )
-        }
         var p = ggplot() +
                 geomRect(
                     data, ymin = 0.0,
@@ -449,8 +456,8 @@ class HistogramPlot(
                 }
 
         if (density != null) {
-            val limits = Pair(ll[0], ul[ul.lastIndex])
-            p = p + geomFunction(xlim = limits, fn = density, n = numPoints, color = "#de2d26")
+            val limits = Pair(lowerLimits[0], upperLimits[upperLimits.lastIndex])
+            p = p + geomFunction(xlim = limits, fn = density, n = numPoints, color = "red")
         }
         p = p + ylab(yLabel) +
                 ggtitle(title) +
@@ -469,16 +476,16 @@ class PartialSumsPlot(partialSums: DoubleArray, dataName: String? = null) : Plot
         xLabel = "Indices"
         title = if (dataName != null) "Partial Sums Plot for $dataName" else "Partial Sums Plot"
         data = mapOf(
-            xLabel to (1..partialSums.size).asList(),
-            yLabel to partialSums.asList()
+            "indices" to (1..partialSums.size).asList(),
+            "partial sums" to partialSums.asList()
         )
     }
 
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomLine() {
-                    x = xLabel
-                    y = yLabel
+                    x = "indices"
+                    y = "partial sums"
                 } +
                 labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
@@ -531,7 +538,7 @@ class WelchPlot(avgs: DoubleArray, cumAvgs: DoubleArray, val responseName: Strin
                     x = "Observation Number"
                     y = "Welch Average"
                 } +
-                geomLine(color = "#de2d26") {
+                geomLine(color = "red") {
                     x = "Observation Number"
                     y = "Cumulative Average"
                 } +
@@ -554,20 +561,20 @@ class StateVariablePlot(
         yLabel = "y(t)"
         title = "Sample path for y(t)"
         data = mapOf(
-            xLabel to times,
-            yLabel to values
+            "times" to times,
+            "values" to values
         )
     }
 
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomStep() {
-                    x = xLabel
-                    y = yLabel
+                    x = "times"
+                    y = "values"
                 } +
-                geomPoint(color = "#de2d26") {
-                    x = xLabel
-                    y = yLabel
+                geomPoint(color = "red") {
+                    x = "times"
+                    y = "values"
                 } +
                 labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)

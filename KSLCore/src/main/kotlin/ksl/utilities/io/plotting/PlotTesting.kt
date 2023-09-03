@@ -16,16 +16,16 @@ import kotlin.math.exp
 
 fun main(){
 //    testPlot()
-    testScatterPlot()
-    testBoxPlot()
-    testMultiBoxPlot()
-    testConfidenceIntervalPlots()
-    testFrequencyPlot()
-    testStateFrequencyPlot()
-    testPPandQQ_Plots()
-    testFunctionPlot()
+//    testScatterPlot()
+//    testBoxPlot()
+//    testMultiBoxPlot()
+//    testConfidenceIntervalPlots()
+//    testFrequencyPlot()
+//    testStateFrequencyPlot()
+//    testPPandQQ_Plots()
+//    testFunctionPlot()
     testHistogramPlot()
-    testStateVariablePlot()
+//    testStateVariablePlot()
 }
 
 fun testPlot(){
