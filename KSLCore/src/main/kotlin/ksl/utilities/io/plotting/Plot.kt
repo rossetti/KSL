@@ -178,7 +178,7 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
 
 }
 
-class MultiBoxPlot(private val boxPlotMap: Map<String, BoxPlotSummary>) : PlotImp() {
+class MultiBoxPlot(boxPlotMap: Map<String, BoxPlotSummary>) : PlotImp() {
 
     private val data: MutableMap<String, MutableList<Any>> = mutableMapOf()
 
@@ -199,7 +199,7 @@ class MultiBoxPlot(private val boxPlotMap: Map<String, BoxPlotSummary>) : PlotIm
         }
     }
 
-    constructor(dataMap: Map<String, DoubleArray>) : this(Statistic.boxPlotSummaries(dataMap))
+//    constructor(dataMap: Map<String, DoubleArray>) : this(Statistic.boxPlotSummaries(dataMap))
 
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
