@@ -27,7 +27,7 @@ import ksl.utilities.statistic.IntegerFrequency
  * a sample.
  */
 fun main() {
-    val f = IntegerFrequency("Frequency Demo")
+    val f = IntegerFrequency(name = "Frequency Demo")
     val bn = BinomialRV(0.5, 100)
     val sample = bn.sample(10000)
     f.collect(sample)

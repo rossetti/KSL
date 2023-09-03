@@ -45,14 +45,19 @@ import ksl.utilities.toDoubles
  * @param lowerLimit the defined lower limit of the integers, values less than this are not tabulated
  * @param upperLimit the defined upper limit of the integers, values less than this are not tabulated
  * @param name a name for the instance
+ * @param data an array of data to tabulate
  */
 class IntegerFrequency(
+    name: String? = null,
+    data: IntArray? = null,
     val lowerLimit: Int = Int.MIN_VALUE,
-    val upperLimit: Int = Int.MAX_VALUE,
-    name: String? = null
+    val upperLimit: Int = Int.MAX_VALUE
 ) : IdentityIfc by Identity(name) {
     init {
         require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
+        if (data != null){
+            collect(data)
+        }
     }
 
     /**
@@ -77,18 +82,6 @@ class IntegerFrequency(
      */
     var overFlowCount = 0
         private set
-
-    /**
-     *  The values in [data] are tabulated upon construction.
-     */
-    constructor(
-        data: IntArray,
-        lowerLimit: Int = Int.MIN_VALUE,
-        upperLimit: Int = Int.MAX_VALUE,
-        name: String? = null
-    ) : this(lowerLimit, upperLimit, name) {
-        collect(data)
-    }
 
     /**
      * @param intArray collects on the values in the array
