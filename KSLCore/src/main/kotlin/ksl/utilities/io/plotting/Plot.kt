@@ -198,7 +198,7 @@ class MultiBoxPlot(boxPlotMap: Map<String, BoxPlotSummary>) : PlotImp() {
             data["upperWhisker"]!!.add(bps.upperWhisker)
         }
     }
-
+// TODO causes platform crash same signature??
 //    constructor(dataMap: Map<String, DoubleArray>) : this(Statistic.boxPlotSummaries(dataMap))
 
     override fun buildPlot(): Plot {
