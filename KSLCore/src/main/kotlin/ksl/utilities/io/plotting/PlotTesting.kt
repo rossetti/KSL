@@ -15,16 +15,16 @@ import org.jetbrains.letsPlot.geom.geomRect
 import kotlin.math.exp
 
 fun main(){
- //   testPlot()
-//    testScatterPlot()
-//    testBoxPlot()
-//    testMultiBoxPlot()
-//    testConfidenceIntervalPlots()
-//    testFrequencyPlot()
-//    testStateFrequencyPlot()
-//    testPPandQQ_Plots()
-//    testFunctionPlot()
-//     testHistogramPlot()
+//    testPlot()
+    testScatterPlot()
+    testBoxPlot()
+    testMultiBoxPlot()
+    testConfidenceIntervalPlots()
+    testFrequencyPlot()
+    testStateFrequencyPlot()
+    testPPandQQ_Plots()
+    testFunctionPlot()
+    testHistogramPlot()
     testStateVariablePlot()
 }
 

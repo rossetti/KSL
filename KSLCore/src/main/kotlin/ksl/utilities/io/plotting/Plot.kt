@@ -36,9 +36,6 @@ import kotlin.math.floor
 
 abstract class PlotImp() : PlotIfc {
 
-    override val plot: Plot
-        get() = buildPlot()
-
     override var defaultScale: Int = 2
         set(value) {
             require(value > 0) { "The scale must be > 0" }
@@ -71,8 +68,7 @@ abstract class PlotImp() : PlotIfc {
         extType: PlotIfc.ExtType
     ): File {
         title = plotTitle
-        //val plot = buildPlot()
-        println(this)
+        val plot = buildPlot()
         val fn = fileName + "." + extType.name
         val pn = ggsave(plot, fn, defaultScale, defaultDPI, directory.toString())
         return File(pn)
@@ -80,7 +76,7 @@ abstract class PlotImp() : PlotIfc {
 
     override fun showInBrowser(plotTitle: String): File {
         title = plotTitle
-        //TODO
+        val plot = buildPlot()
         val spec = plot.toSpec()
         // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
         val html = PlotHtmlExport.buildHtmlFromRawSpecs(
@@ -95,7 +91,6 @@ abstract class PlotImp() : PlotIfc {
         return KSLFileUtil.openInBrowser(fileName, html)
     }
 
-    protected abstract fun buildPlot(): Plot
     override fun toString(): String {
         return "PlotImp(" +
                 "defaultScale=$defaultScale, " +
@@ -131,7 +126,7 @@ class ScatterPlot(
                     x = xLabel
                     y = yLabel
                 } +
-                ggtitle(title) +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
     }
@@ -145,7 +140,7 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
         // looks like data must be in lists and column names
         // are used to the mapping to plot aesthetics
         data = mapOf(
-            "xLabel" to List(1) { boxPlotSummary.name },
+            "name" to List(1) { boxPlotSummary.name },
             "lowerWhisker" to List(1) { boxPlotSummary.lowerWhisker },
             "firstQuartile" to List(1) { boxPlotSummary.firstQuartile },
             "median" to List(1) { boxPlotSummary.median },
@@ -154,20 +149,11 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
         )
     }
 
+    constructor(data: DoubleArray, name: String? = null) : this(
+        BoxPlotSummary(data, name)
+    )
+
     override fun buildPlot(): Plot {
-        // this works by directly assigning to geomBoxplot() parameters
-        // but does not allow plot to be "live"  with data in generated html
-
-//        val p = ggplot(null) +
-//                geomBoxplot(stat = Stat.identity,
-//                    lower = boxPlotSummary.firstQuartile,
-//                    middle = boxPlotSummary.median,
-//                    upper = boxPlotSummary.thirdQuartile,
-//                    ymin = boxPlotSummary.lowerWhisker,
-//                    ymax = boxPlotSummary.upperWhisker)  +
-//                ggtitle(title) +
-//                ggsize(width, height)
-
         /* Stat.identity prevents the statistical transformation of the data.
            The data values represent the already computed box plot aesthetics.
            Note that in the geomBoxplot() closure, we define the mapping
@@ -178,17 +164,15 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : PlotImp() {
          */
         val p = ggplot(data) +
                 geomBoxplot(stat = Stat.identity) {
-                    x = asDiscrete("xLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    x = "name"
                     lower = "firstQuartile"
                     middle = "median"
                     upper = "thirdQuartile"
                     ymin = "lowerWhisker"
                     ymax = "upperWhisker"
                 } +
-                ggtitle(title) +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
-
-        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
         return p
     }
 
@@ -199,14 +183,14 @@ class MultiBoxPlot(private val boxPlotMap: Map<String, BoxPlotSummary>) : PlotIm
     private val data: MutableMap<String, MutableList<Any>> = mutableMapOf()
 
     init {
-        data["xLabel"] = mutableListOf()
+        data["distribution"] = mutableListOf()
         data["lowerWhisker"] = mutableListOf()
         data["firstQuartile"] = mutableListOf()
         data["median"] = mutableListOf()
         data["thirdQuartile"] = mutableListOf()
         data["upperWhisker"] = mutableListOf()
         for ((n, bps) in boxPlotMap) {
-            data["xLabel"]!!.add(n)
+            data["distribution"]!!.add(n)
             data["lowerWhisker"]!!.add(bps.lowerWhisker)
             data["firstQuartile"]!!.add(bps.firstQuartile)
             data["median"]!!.add(bps.median)
@@ -215,20 +199,20 @@ class MultiBoxPlot(private val boxPlotMap: Map<String, BoxPlotSummary>) : PlotIm
         }
     }
 
+    constructor(dataMap: Map<String, DoubleArray>) : this(Statistic.boxPlotSummaries(dataMap))
+
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomBoxplot(stat = Stat.identity) {
-                    x = asDiscrete("xLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    x = "distribution"
                     lower = "firstQuartile"
                     middle = "median"
                     upper = "thirdQuartile"
                     ymin = "lowerWhisker"
                     ymax = "upperWhisker"
                 } +
-                ggtitle(title) +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
-
-        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
         return p
     }
 
@@ -244,13 +228,16 @@ class ConfidenceIntervalsPlot(
     constructor(list: List<StatisticIfc>, level: Double = 0.95, referencePoint: Double? = null) :
             this(StatisticReporter.confidenceIntervals(list, level), referencePoint)
 
+    constructor(data: Map<String, DoubleArray>, level: Double = 0.95, referencePoint: Double? = null) :
+            this(Statistic.confidenceIntervals(data, level), referencePoint)
+
     init {
-        data["yLabel"] = mutableListOf()
+        data["CI"] = mutableListOf()
         data["upperLimit"] = mutableListOf()
         data["average"] = mutableListOf()
         data["lowerLimit"] = mutableListOf()
         for ((n, ci) in intervals) {
-            data["yLabel"]!!.add(n)
+            data["CI"]!!.add(n)
             data["upperLimit"]!!.add(ci.upperLimit)
             data["average"]!!.add(ci.midPoint)
             data["lowerLimit"]!!.add(ci.lowerLimit)
@@ -260,19 +247,17 @@ class ConfidenceIntervalsPlot(
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomErrorBar(stat = Stat.identity) {
-                    y = asDiscrete("yLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    y = "CI"
                     width = "average"
                     xmin = "lowerLimit"
                     xmax = "upperLimit"
                 } +
                 geomPoint {
-                    y = asDiscrete("yLabel")
+                    y = "CI"
                     x = "average"
-                } + geomVLine(xintercept = referencePoint, color = "#de2d26", linetype = "dashed") +
-                ggtitle(title) +
+                } + geomVLine(xintercept = referencePoint, color = "red", linetype = "dashed") +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
-
-        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
         return p
     }
 
@@ -284,7 +269,7 @@ class IntegerFrequencyPlot(private val frequency: IntegerFrequency, proportions:
     private var dataType: String
 
     init {
-        data["xLabel"] = frequency.values.asList()
+        data["values"] = frequency.values.asList()
         if (proportions) {
             dataType = "proportions"
             data[dataType] = frequency.proportions.asList()
@@ -292,19 +277,18 @@ class IntegerFrequencyPlot(private val frequency: IntegerFrequency, proportions:
             dataType = "counts"
             data[dataType] = frequency.frequencies.asList()
         }
-
+        xLabel = "values"
+        yLabel = dataType
     }
 
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomBar(stat = Stat.identity) {
-                    x = asDiscrete("xLabel") // this causes x to be categorical and removes the x-axis scaling, etc.
+                    x = asDiscrete("values") // this causes x to be categorical and removes the x-axis scaling, etc.
                     y = dataType
                 } +
-                ggtitle(title) +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
-
-        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
         return p
     }
 
@@ -316,7 +300,7 @@ class StateFrequencyPlot(private val frequency: StateFrequency, proportions: Boo
     private var dataType: String
 
     init {
-        data["xLabel"] = frequency.stateNames
+        data["states"] = frequency.stateNames
         if (proportions) {
             dataType = "proportions"
             data[dataType] = frequency.proportions.asList()
@@ -324,19 +308,18 @@ class StateFrequencyPlot(private val frequency: StateFrequency, proportions: Boo
             dataType = "counts"
             data[dataType] = frequency.frequencies.asList()
         }
-
+        xLabel = "states"
+        yLabel = dataType
     }
 
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomBar(stat = Stat.identity) {
-                    x = "xLabel"
+                    x = "states"
                     y = dataType
                 } +
-                ggtitle(title) +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
-
-        //TODO need to look into xlab() or themes() to remove x labels, need way to specify y label
         return p
     }
 
@@ -357,7 +340,8 @@ class QQPlot(
         get() = DoubleArray(orderStats.size) { i -> quantileFunction.invCDF(empProbabilities[i]) }
 
     override fun buildPlot(): Plot {
-        val p = ScatterPlot(quantiles, orderStats).plot +
+        val sp = ScatterPlot(quantiles, orderStats)
+        val p = sp.buildPlot() +
                 labs(x = "Theoretical Quantiles", y = "Empirical Quantiles")
         return p
     }
@@ -379,8 +363,9 @@ class PPPlot(
         get() = DoubleArray(orderStats.size) { i -> cdfFunction.cdf(orderStats[i]) }
 
     override fun buildPlot(): Plot {
-        var p = ScatterPlot(theoreticalProbabilities, empProbabilities).plot +
-                geomABLine(slope = 1.0, intercept = 0.0, color = "#de2d26") +
+        val sp = ScatterPlot(theoreticalProbabilities, empProbabilities)
+        val p = sp.buildPlot() +
+                geomABLine(slope = 1.0, intercept = 0.0, color = "red") +
                 labs(x = "Theoretical Probabilities", y = "Empirical Probabilities")
         return p
     }
@@ -403,7 +388,7 @@ class FunctionPlot(
         val limits = Pair(interval.lowerLimit, interval.upperLimit)
         val p = ggplot(null) +
                 geomFunction(xlim = limits, fn = function, n = numPoints) +
-                ggtitle(title) +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
     }
@@ -414,6 +399,9 @@ class HistogramPlot(
     private val histogram: HistogramIfc,
     var proportions: Boolean = false
 ) : PlotImp() {
+
+    constructor(data: DoubleArray, proportions: Boolean = false) :
+            this(Histogram.create(data), proportions)
 
     var density: ((Double) -> Double)? = null
     var numPoints: Int = 512
@@ -492,7 +480,7 @@ class PartialSumsPlot(partialSums: DoubleArray, dataName: String? = null) : Plot
                     x = xLabel
                     y = yLabel
                 } +
-                ggtitle(title) +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
     }
@@ -503,46 +491,51 @@ class WelchPlot(avgs: DoubleArray, cumAvgs: DoubleArray, val responseName: Strin
 
     private val data: Map<String, DoubleArray>
 
-    constructor(dataArrayObserver: WelchDataArrayObserver) : this(
-        avgs = dataArrayObserver.welchAverages,
-        cumAvgs = dataArrayObserver.welchCumulativeAverages,
-        responseName = dataArrayObserver.responseName
-    ){
-        val deltaT = dataArrayObserver.avgTimeBtwObservationsForEachReplication.statistics().average
-        val ts = "%.2f".format(deltaT)
-        title = "Welch Plot for $responseName, 1 obs = $ts time units"
-    }
-
-    constructor(analyzer: WelchDataFileAnalyzer, totalNumObservations: Int = analyzer.minNumObservationsInReplications.toInt()): this(
-        avgs = analyzer.welchAveragesNE(totalNumObservations),
-        cumAvgs = analyzer.cumulativeWelchAverages(totalNumObservations),
-        responseName = analyzer.responseName
-    ){
-        val deltaT = analyzer.averageTimePerObservation
-        val ts = "%.2f".format(deltaT)
-        title = "Welch Plot for $responseName, 1 obs = $ts time units"
-    }
-
     init {
         xLabel = "Observation Number"
+        yLabel = responseName
+        title = "Welch Plot for $responseName"
         data = mapOf(
-            xLabel to (1..avgs.size).toList().toIntArray().toDoubles(),
+            "Observation Number" to (1..avgs.size).toList().toIntArray().toDoubles(),
             "Welch Average" to avgs,
             "Cumulative Average" to cumAvgs
         )
     }
 
+    constructor(dataArrayObserver: WelchDataArrayObserver) : this(
+        avgs = dataArrayObserver.welchAverages,
+        cumAvgs = dataArrayObserver.welchCumulativeAverages,
+        responseName = dataArrayObserver.responseName
+    ) {
+        val deltaT = dataArrayObserver.avgTimeBtwObservationsForEachReplication.statistics().average
+        val ts = "%.2f".format(deltaT)
+        title = "$title, 1 obs = $ts time units"
+    }
+
+    constructor(
+        analyzer: WelchDataFileAnalyzer,
+        totalNumObservations: Int = analyzer.minNumObservationsInReplications.toInt()
+    ) : this(
+        avgs = analyzer.welchAveragesNE(totalNumObservations),
+        cumAvgs = analyzer.cumulativeWelchAverages(totalNumObservations),
+        responseName = analyzer.responseName
+    ) {
+        val deltaT = analyzer.averageTimePerObservation
+        val ts = "%.2f".format(deltaT)
+        title = "$title, 1 obs = $ts time units"
+    }
+
     override fun buildPlot(): Plot {
         val p = ggplot(data) +
                 geomLine() {
-                    x = xLabel
+                    x = "Observation Number"
                     y = "Welch Average"
                 } +
                 geomLine(color = "#de2d26") {
-                    x = xLabel
+                    x = "Observation Number"
                     y = "Cumulative Average"
-                }
-        ggtitle(title) +
+                } +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
     }
@@ -553,7 +546,7 @@ class StateVariablePlot(
     values: DoubleArray,
     times: DoubleArray,
     val responseName: String
-): PlotImp(){
+) : PlotImp() {
     private val data: Map<String, DoubleArray>
 
     init {
@@ -567,17 +560,16 @@ class StateVariablePlot(
     }
 
     override fun buildPlot(): Plot {
-        println(this)
         val p = ggplot(data) +
-                geomStep(){
+                geomStep() {
                     x = xLabel
                     y = yLabel
-                }
+                } +
                 geomPoint(color = "#de2d26") {
                     x = xLabel
                     y = yLabel
                 } +
-                ggtitle(title) +
+                labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
     }
