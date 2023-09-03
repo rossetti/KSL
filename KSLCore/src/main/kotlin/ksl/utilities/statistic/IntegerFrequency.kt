@@ -78,11 +78,17 @@ class IntegerFrequency(
     var overFlowCount = 0
         private set
 
-    /** Can tabulate any integer value
-     *
-     * @param name a name for the instance
+    /**
+     *  The values in [data] are tabulated upon construction.
      */
-    constructor(name: String?) : this(Int.MIN_VALUE, Int.MAX_VALUE, name)
+    constructor(
+        data: IntArray,
+        lowerLimit: Int = Int.MIN_VALUE,
+        upperLimit: Int = Int.MAX_VALUE,
+        name: String? = null
+    ) : this(lowerLimit, upperLimit, name) {
+        collect(data)
+    }
 
     /**
      * @param intArray collects on the values in the array
