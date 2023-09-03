@@ -1,7 +1,8 @@
-package ksl.utilities.io.plotting
+package ksl.examples.general.utilities
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
+import ksl.utilities.io.plotting.*
 import ksl.utilities.multiplyConstant
 import ksl.utilities.random.rvariable.BivariateNormalRV
 import ksl.utilities.random.rvariable.DEmpiricalRV
@@ -9,23 +10,22 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.*
 import org.jetbrains.letsPlot.*
-import org.jetbrains.letsPlot.core.spec.back.transform.bistro.util.tooltips
 import org.jetbrains.letsPlot.geom.geomBar
 import org.jetbrains.letsPlot.geom.geomRect
 import kotlin.math.exp
 
 fun main(){
 //    testPlot()
-//    testScatterPlot()
-//    testBoxPlot()
-//    testMultiBoxPlot()
-//    testConfidenceIntervalPlots()
-//    testFrequencyPlot()
-//    testStateFrequencyPlot()
-//    testPPandQQ_Plots()
-//    testFunctionPlot()
+    testScatterPlot()
+    testBoxPlot()
+    testMultiBoxPlot()
+    testConfidenceIntervalPlots()
+    testFrequencyPlot()
+    testStateFrequencyPlot()
+    testPPandQQ_Plots()
+    testFunctionPlot()
     testHistogramPlot()
-//    testStateVariablePlot()
+    testStateVariablePlot()
 }
 
 fun testPlot(){
@@ -326,4 +326,8 @@ fun testStateVariablePlot(){
     plot.showInBrowser()
 
     plot.saveToFile("StateVariablePlot", plotTitle = "This is a test of StateVariablePlot plot")
+}
+
+fun testWelchPlotting(){
+
 }

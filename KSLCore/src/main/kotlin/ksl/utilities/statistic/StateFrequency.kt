@@ -37,7 +37,7 @@ class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Ident
         for (i in 0 until numStates) {
             myStates.add(State(i))
         }
-        myFreq = IntegerFrequency(0, numStates - 1, name)
+        myFreq = IntegerFrequency(lowerLimit = 0, upperLimit = numStates - 1, name = name)
         myTransCnts = Array(numStates) { IntArray(numStates) }
     }
     /**
