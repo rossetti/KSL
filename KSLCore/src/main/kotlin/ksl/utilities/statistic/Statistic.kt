@@ -17,6 +17,7 @@
  */
 package ksl.utilities.statistic
 
+import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
 import ksl.utilities.distributions.StudentT
 import kotlin.math.*
@@ -623,6 +624,40 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                 EmpDistType.Continuity1 -> DoubleArray(n) { i -> (i + 1.0 - 0.5) / n }
                 EmpDistType.Continuity2 -> DoubleArray(n) { i -> (i + 1.0 - 0.375) / (n + 0.25) }
             }
+        }
+
+        /**
+         *  Computes the box plot summaries for the data within the map
+         */
+        fun boxPlotSummaries(dataMap: Map<String, DoubleArray>): Map<String, BoxPlotSummary> {
+            val m = mutableMapOf<String, BoxPlotSummary>()
+            for ((name, data) in dataMap) {
+                m[name] = BoxPlotSummary(data, name)
+            }
+            return m
+        }
+
+        /**
+         *  Computes the statistical summaries for the data within the map
+         */
+        fun statisticalSummaries(dataMap: Map<String, DoubleArray>): Map<String, StatisticIfc> {
+            val m = mutableMapOf<String, StatisticIfc>()
+            for ((name, data) in dataMap) {
+                m[name] = Statistic(name, data)
+            }
+            return m
+        }
+
+        /**
+         *  Computes the confidence intervals for the data in the map
+         */
+        fun confidenceIntervals(dataMap: Map<String, DoubleArray>, level: Double = 0.95) : Map<String, Interval>{
+            val m = mutableMapOf<String, Interval>()
+            val s = statisticalSummaries(dataMap)
+            for ((name, stat) in s) {
+                m[name] = stat.confidenceInterval(level)
+            }
+            return m
         }
     }
 
