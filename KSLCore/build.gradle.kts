@@ -79,6 +79,7 @@ dependencies {
 
  //   implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
     // replacement for apache math commons
+    //TODO I'm not using it anywhere
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
     implementation("org.hipparchus:hipparchus-core:2.3")
 
