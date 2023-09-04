@@ -383,4 +383,5 @@ fun testWelchPlotting(){
     plot.showInBrowser()
     plot.saveToFile("StateVariablePlot", plotTitle = "This is a test of StateVariablePlot plot")
 
+    println(rt.asDataFrame())
 }

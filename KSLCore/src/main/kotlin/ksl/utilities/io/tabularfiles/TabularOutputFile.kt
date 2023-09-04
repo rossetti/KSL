@@ -219,6 +219,13 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
     }
 
     /**
+     *  Opens the file as a TabularInputFile
+     */
+    fun asTabularInputFile(): TabularInputFile {
+        return TabularInputFile(this.columnTypes, this.path)
+    }
+
+    /**
      * @param buffer the array of data to load into the file
      * @return the number of executed statements that occurred during the loading process
      */
