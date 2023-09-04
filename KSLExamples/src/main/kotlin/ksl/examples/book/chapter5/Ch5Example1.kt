@@ -1,7 +1,7 @@
 package ksl.examples.book.chapter5
 
 import ksl.observers.ReplicationDataCollector
-import ksl.observers.ResponseTrace
+import ksl.observers.ResponseTraceCSV
 import ksl.simulation.Model
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
@@ -13,7 +13,7 @@ fun main() {
     val palletWorkCenter = PalletWorkCenter(model)
 
     // demonstrate how to capture a trace of a response variable
-    val trace = ResponseTrace(palletWorkCenter.numInSystem)
+    val trace = ResponseTraceCSV(palletWorkCenter.numInSystem)
 
     // demonstrate capture of replication data for specific response variables
     val repData = ReplicationDataCollector(model)

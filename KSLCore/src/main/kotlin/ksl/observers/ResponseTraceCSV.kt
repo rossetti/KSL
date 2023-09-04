@@ -25,7 +25,7 @@ import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
 import java.nio.file.Path
 
-class ResponseTrace(
+class ResponseTraceCSV(
     theResponse: Response,
     val pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace.csv"),
     header: Boolean = true

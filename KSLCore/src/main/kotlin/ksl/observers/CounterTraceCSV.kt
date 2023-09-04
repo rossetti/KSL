@@ -24,7 +24,7 @@ import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
 import java.nio.file.Path
 
-class CounterTrace(
+class CounterTraceCSV(
     theCounter: Counter,
     pathToFile: Path = theCounter.myModel.outputDirectory.outDir.resolve(theCounter.name + "_Trace.csv"),
     header: Boolean = true
