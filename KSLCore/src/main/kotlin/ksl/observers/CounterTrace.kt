@@ -8,7 +8,9 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.tabularfiles.DataType
 import ksl.utilities.io.tabularfiles.RowSetterIfc
+import ksl.utilities.io.tabularfiles.TabularInputFile
 import ksl.utilities.io.tabularfiles.TabularOutputFile
+import org.jetbrains.kotlinx.dataframe.AnyFrame
 import java.nio.file.Path
 import java.sql.PreparedStatement
 import java.sql.SQLException
@@ -47,7 +49,7 @@ class CounterTrace(
         theCounter: CounterCIfc,
         pathToFile: Path = (theCounter as Response).myModel.outputDirectory.outDir.resolve(theCounter.name + "_Trace"),
     ) : this(theCounter as Counter, pathToFile)
-    
+
     /**
      * The maximum number of replications to include in the trace.
      * Once the maximum is reached no further replications are traced.
@@ -164,4 +166,15 @@ class CounterTrace(
         return dataMap
     }
 
+    fun asDataFrame() : AnyFrame {
+        return tf.asDataFrame()
+    }
+
+    fun asTabularInputFile() : TabularInputFile {
+        return tf.asTabularInputFile()
+    }
+
+    fun asDatabase() : DatabaseIfc{
+        return tf.asDatabase()
+    }
 }

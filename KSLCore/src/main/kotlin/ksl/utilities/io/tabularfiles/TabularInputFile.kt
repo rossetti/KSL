@@ -46,7 +46,7 @@ import kotlin.math.min
  * @see ksl.utilities.io.tabularfiles.TabularFile
  * @see ksl.examples.utilities.TestTabularWork  For example code
  */
-class TabularInputFile private constructor(columnTypes: Map<String, DataType>, path: Path) :
+class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, path: Path) :
     TabularFile(columnTypes, path) {
 
     constructor(path: Path) : this(columnTypes(path), path)
