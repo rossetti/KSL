@@ -44,7 +44,7 @@ import kotlin.math.max
  *  to call the flushRows() method to ensure that all buffered rows are committed to the file.
  *
  * @see ksl.utilities.io.tabularfiles.TabularFile
- * @see ksl.utilities.io.tabularfiles.TestTabularWork  For example code
+ * @see ksl.examples.utilities.TestTabularWork  For example code
  */
 
 class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : TabularFile(columnTypes, path) {
@@ -54,7 +54,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      */
     constructor(tabularData: TabularData, path: Path) : this(tabularData.extractColumnDataTypes(), path)
 
-    private val myDb: DatabaseIfc
+    internal val myDb: DatabaseIfc
 
     /** Allows the user to configure the size of the batch writing if performance becomes an issue.
      * This may or may not provide any benefit. The static methods related to this functionality
@@ -69,7 +69,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
     private var myRowCount = 0
     private val myRow: RowSetterIfc
     private val myTableMetaData: List<ColumnMetaData>
-    private val dataTableName: String
+    val dataTableName: String
 
     init {
         val fileName = path.fileName.toString()
@@ -206,13 +206,15 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      *  Converts the columns and rows to a Dataframe.
      *  @return the data frame or an empty data frame if conversion does not work
      */
-    fun asDataFrame(): AnyFrame {
+    override fun asDataFrame(): AnyFrame {
         val resultSet = myDb.selectAllIntoOpenResultSet(dataTableName)
-        return if (resultSet!= null){
+        val df  = if (resultSet!= null){
             DatabaseIfc.toDataFrame(resultSet)
         }else{
             emptyDataFrame<Nothing>()
         }
+        resultSet?.close()
+        return df
     }
 
     /**
