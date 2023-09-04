@@ -77,7 +77,10 @@ dependencies {
     // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
 //    implementation("org.ktorm:ktorm-core:3.5.0")
 
-    implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
+ //   implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
+    // replacement for apache math commons
+// https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
+    implementation("org.hipparchus:hipparchus-core:2.3")
 
     implementation("com.google.guava:guava:32.1.1-jre")
 
