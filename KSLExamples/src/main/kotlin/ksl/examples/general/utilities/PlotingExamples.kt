@@ -1,6 +1,7 @@
 package ksl.examples.general.utilities
 
 import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
+import ksl.observers.ResponseTrace
 import ksl.observers.welch.WelchDataCollectorIfc
 import ksl.observers.welch.WelchFileObserver
 import ksl.simulation.Model
@@ -341,6 +342,11 @@ fun testWelchPlotting(){
     dtp.arrivalRV.initialRandomSource = ExponentialRV(1.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(0.7, 2)
 
+    val rt = ResponseTrace(dtp.numInSystem)
+
+    rt.maxNumReplications = 2
+    rt.maxRepObsTime = 100.0
+
     val rvWelch = WelchFileObserver(dtp.systemTime, 1.0)
     val twWelch = WelchFileObserver(dtp.numInSystem, 10.0)
     model.numberOfReplications = 5
@@ -369,4 +375,12 @@ fun testWelchPlotting(){
     val psp = PartialSumsPlot(rvFileAnalyzer)
     psp.showInBrowser()
     psp.saveToFile("SystemTimePartialSumsPlot")
+
+    val traceValues = rt.traceValues(1.0, 100.0)
+    val v = traceValues["values"]!!
+    val t = traceValues["times"]!!
+    val plot = StateVariablePlot(v, t, "response")
+    plot.showInBrowser()
+    plot.saveToFile("StateVariablePlot", plotTitle = "This is a test of StateVariablePlot plot")
+
 }

@@ -43,10 +43,11 @@ import kotlin.math.max
  *  Use the methods of this class to write rows.  After writing the rows, it is important
  *  to call the flushRows() method to ensure that all buffered rows are committed to the file.
  *
+ * @param columnTypes a map that defines the column names and their data types
+ * @param path the path to the file for writing the data
  * @see ksl.utilities.io.tabularfiles.TabularFile
  * @see ksl.examples.utilities.TestTabularWork  For example code
  */
-
 class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : TabularFile(columnTypes, path) {
 
     /**
