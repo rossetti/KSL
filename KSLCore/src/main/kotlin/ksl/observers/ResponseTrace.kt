@@ -1,6 +1,7 @@
 package ksl.observers
 
 import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.tabularfiles.DataType
@@ -40,24 +41,44 @@ class ResponseTrace(
     private var myRepObservationCount: Int = 0
     private var myRepNum = 0.0
 
+    constructor(
+        theResponse: ResponseCIfc,
+        pathToFile: Path = (theResponse as Response).myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace"),
+    ) : this(theResponse as Response, pathToFile)
     /**
      * The maximum number of replications to include in the trace.
      * Once the maximum is reached no further replications are traced.
      */
     var maxNumReplications: Int = Int.MAX_VALUE
-
+        set(value) {
+            require(value > 0){"The maximum number of replications to observe must > 0"}
+            field = value
+        }
     /**
      *  The maximum number of observations to trace within each replication.
      *  Once the maximum is reached no further collection occurs within
      *  the replication.
      */
     var maxNumObsPerReplication: Long = Long.MAX_VALUE
-
+        set(value) {
+            require(value > 0){"The maximum number of observations per replications to observe must > 0"}
+            field = value
+        }
     /**
      *  The maximum number of observations to collect across all replications.
      *  Once the maximum is reached no further collection occurs.
      */
     var maxNumObservations: Double = Double.MAX_VALUE
+        set(value) {
+            require(value > 0){"The maximum number of observations to observe must > 0"}
+            field = value
+        }
+
+    var maxRepObsTime: Double = Double.MAX_VALUE
+        set(value) {
+            require(value > 0){"The maximum time for each replication to observe must be > 0"}
+            field = value
+        }
 
     override fun update(modelElement: ModelElement) {
         val model = variable.model
@@ -70,6 +91,9 @@ class ResponseTrace(
         }
         myRepObservationCount++
         if (myRepObservationCount >= maxNumObsPerReplication) {
+            return
+        }
+        if (variable.timeOfChange > maxRepObsTime){
             return
         }
         myRepNum = model.currentReplicationNumber.toDouble()
