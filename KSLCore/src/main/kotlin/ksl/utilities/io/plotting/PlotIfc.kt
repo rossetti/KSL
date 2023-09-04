@@ -5,6 +5,7 @@ import ksl.utilities.io.KSLFileUtil
 import org.jetbrains.letsPlot.core.util.PlotHtmlExport
 import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
 import org.jetbrains.letsPlot.export.VersionChecker
+import org.jetbrains.letsPlot.export.ggsave
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.intern.toSpec
 import java.io.File
@@ -97,6 +98,22 @@ interface PlotIfc {
                 tmpFileName.replace(" ", "_") + "_"
             }
             return KSLFileUtil.openInBrowser(fileName, html, directory)
+        }
+
+        /**
+         *  Saves the supplied plot to a file
+         */
+        fun saveToFile(
+            plot: Plot,
+            fileName: String,
+            directory: Path = KSL.plotDir,
+            extType: ExtType = ExtType.PNG,
+            defaultScale: Int = 2,
+            defaultDPI: Int = 144
+        ): File {
+            val fn = fileName + "." + extType.name
+            val pn = ggsave(plot, fn, defaultScale, defaultDPI, directory.toString())
+            return File(pn)
         }
     }
 
