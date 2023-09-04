@@ -19,8 +19,10 @@ package ksl.utilities.statistic
 
 import ksl.utilities.Interval
 import ksl.utilities.KSLArrays
+import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.distributions.Normal
 import ksl.utilities.distributions.StudentT
+import ksl.utilities.orderStatistics
 import kotlin.math.*
 
 private var StatCounter: Int = 0
@@ -618,13 +620,28 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *  The default [type] is Continuity1.
          *  @return the empirical probabilities
          */
-        fun empDist(n: Int, type: EmpDistType = EmpDistType.Continuity1): DoubleArray {
+        fun empiricalProbabilities(n: Int, type: EmpDistType = EmpDistType.Continuity1): DoubleArray {
             require(n >= 1) { "The number of observations must be >=1" }
             return when (type) {
                 EmpDistType.Base -> DoubleArray(n) { i -> ((i+1) / n).toDouble() }
                 EmpDistType.Continuity1 -> DoubleArray(n) { i -> (i + 1.0 - 0.5) / n }
                 EmpDistType.Continuity2 -> DoubleArray(n) { i -> (i + 1.0 - 0.375) / (n + 0.25) }
             }
+        }
+
+        /**
+         *  Computes the empirical quantiles based on the empirical probabilities for
+         *  a data set of size [n] using the supplied [quantileFunction] inverse
+         *  CDF. The [type] represents the continuity type as per the empiricalProbabilities()
+         *  function.
+         */
+        fun empiricalQuantiles(
+            n: Int,
+            quantileFunction: InverseCDFIfc,
+            type: EmpDistType = EmpDistType.Continuity1
+        ): DoubleArray{
+            val p = empiricalProbabilities(n, type)
+            return DoubleArray(p.size) { i -> quantileFunction.invCDF(p[i]) }
         }
 
         /**

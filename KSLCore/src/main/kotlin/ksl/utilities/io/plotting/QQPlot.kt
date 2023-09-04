@@ -15,14 +15,15 @@ class QQPlot(
     var empDistType: EmpDistType = EmpDistType.Continuity1
     val orderStats = data.orderStatistics()
 
-    val empProbabilities
-        get() = Statistic.empDist(orderStats.size, empDistType)
+    val empiricalProbabilities
+        get() = Statistic.empiricalProbabilities(orderStats.size, empDistType)
 
-    val quantiles: DoubleArray
-        get() = DoubleArray(orderStats.size) { i -> quantileFunction.invCDF(empProbabilities[i]) }
+    val empiricalQuantiles: DoubleArray
+        get() = DoubleArray(orderStats.size) { i -> quantileFunction.invCDF(empiricalProbabilities[i]) }
+    //        get() = Statistic.empiricalQuantiles(orderStats.size, quantileFunction, empDistType)
 
     override fun buildPlot(): Plot {
-        val sp = ScatterPlot(quantiles, orderStats)
+        val sp = ScatterPlot(empiricalQuantiles, orderStats)
         val p = sp.buildPlot() +
                 labs(x = "Theoretical Quantiles", y = "Empirical Quantiles")
         return p

@@ -17,7 +17,7 @@ class PPPlot(
     val orderStats = data.orderStatistics()
 
     val empProbabilities
-        get() = Statistic.empDist(orderStats.size, empDistType)
+        get() = Statistic.empiricalProbabilities(orderStats.size, empDistType)
 
     val theoreticalProbabilities: DoubleArray
         get() = DoubleArray(orderStats.size) { i -> cdfFunction.cdf(orderStats[i]) }
