@@ -17,12 +17,12 @@
  */
 package ksl.utilities.statistic
 
-import ksl.utilities.Interval
-import ksl.utilities.KSLArrays
+import ksl.utilities.*
+import ksl.utilities.distributions.CDFIfc
 import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.distributions.Normal
 import ksl.utilities.distributions.StudentT
-import ksl.utilities.orderStatistics
+import kotlin.collections.max
 import kotlin.math.*
 
 private var StatCounter: Int = 0
@@ -814,6 +814,17 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             return if (denom == 0.0) {
                 Double.NaN
             } else num / denom
+        }
+
+        fun ksTestStatistic(data: DoubleArray, fn: CDFIfc) : Double {
+            val tp = data.orderStatistics()
+            tp.mapInPlace { x -> fn.cdf(x)}
+            val n = tp.size
+            val ep = empiricalProbabilities(n, EmpDistType.Base)
+            val dp = KSLArrays.subtractElements(ep, tp).max()
+            val epm = KSLArrays.subtractConstant(ep, (1.0/n))
+            val dm  = KSLArrays.subtractElements(tp, epm).max()
+            return max(dp, dm)
         }
     }
 
