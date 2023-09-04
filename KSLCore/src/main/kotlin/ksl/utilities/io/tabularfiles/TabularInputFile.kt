@@ -51,7 +51,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
 
     constructor(path: Path) : this(columnTypes(path), path)
 
-    private val myDb: DatabaseIfc
+    internal val myDb: DatabaseIfc
     private val dataTableName: String
 
     var rowBufferSize = DEFAULT_ROW_BUFFER_SIZE // maximum number of records held inside iterators
@@ -356,13 +356,15 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      *  Converts the columns and rows to a Dataframe.
      *  @return the data frame or an empty data frame if conversion does not work
      */
-    fun asDataFrame(): AnyFrame {
+    override fun asDataFrame(): AnyFrame {
         val resultSet = myDb.selectAllIntoOpenResultSet(dataTableName)
-        return if (resultSet!= null){
+        val df  = if (resultSet!= null){
             DatabaseIfc.toDataFrame(resultSet)
         }else{
             emptyDataFrame<Nothing>()
         }
+        resultSet?.close()
+        return df
     }
 
     /**

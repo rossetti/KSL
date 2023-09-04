@@ -22,6 +22,7 @@ import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.SQLiteDb
 import ksl.utilities.maps.HashBiMap
 import ksl.utilities.maps.MutableBiMap
+import org.jetbrains.kotlinx.dataframe.AnyFrame
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -337,6 +338,12 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
         Files.copy(path, dbFile, StandardCopyOption.REPLACE_EXISTING)
         return SQLiteDb.openDatabase(dbFile)
     }
+
+    /**
+     *  Converts the columns and rows to a Dataframe.
+     *  @return the data frame or an empty data frame if conversion does not work
+     */
+    abstract fun asDataFrame(): AnyFrame
 
     companion object {
         /**
