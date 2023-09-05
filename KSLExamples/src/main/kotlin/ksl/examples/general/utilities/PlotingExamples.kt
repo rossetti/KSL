@@ -31,8 +31,9 @@ fun main(){
 //    testFunctionPlot()
 //    testHistogramPlot()
 //    testStateVariablePlot()
+//    testWelchPlotting()
 
-    testWelchPlotting()
+    testObservationPlot()
 }
 
 fun testPlot(){
@@ -384,4 +385,12 @@ fun testWelchPlotting(){
     plot.saveToFile("StateVariablePlot", plotTitle = "This is a test of StateVariablePlot plot")
 
     println(rt.asDataFrame())
+}
+
+fun testObservationPlot(){
+    val d = ExponentialRV(2.0)
+    val data = d.sample(100)
+    val plot = ObservationsPlot(data, confLevel = null)
+    plot.showInBrowser()
+    plot.saveToFile("ObservationsPlot", plotTitle = "This is a test of ObservationsPlot plot")
 }
