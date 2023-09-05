@@ -10,8 +10,11 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class ObservationsPlot(data: DoubleArray, private val confLevel: Double? = 0.95, dataName: String? = null) :
-    BasePlot() {
+class ObservationsPlot(
+    data: DoubleArray,
+    private val confLevel: Double? = 0.95,
+    dataName: String? = null
+) : BasePlot() {
 
     private val dataMap: Map<String, List<Number>>
     private val stats = Statistic(data)
