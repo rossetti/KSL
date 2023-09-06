@@ -6,6 +6,7 @@ import ksl.observers.welch.WelchDataCollectorIfc
 import ksl.observers.welch.WelchFileObserver
 import ksl.simulation.Model
 import ksl.utilities.Interval
+import ksl.utilities.distributions.DEmpiricalCDF
 import ksl.utilities.distributions.Normal
 import ksl.utilities.io.plotting.*
 import ksl.utilities.multiplyConstant
@@ -19,7 +20,7 @@ import org.jetbrains.letsPlot.geom.geomBar
 import org.jetbrains.letsPlot.geom.geomRect
 import kotlin.math.exp
 
-fun main(){
+fun main() {
 //    testPlot()
 //    testScatterPlot()
 //    testBoxPlot()
@@ -32,11 +33,12 @@ fun main(){
 //    testHistogramPlot()
 //    testStateVariablePlot()
 //    testWelchPlotting()
-
-    testObservationPlot()
+    //   testObservationPlot()
+ //   testACFPlot()
+    testPMFPlot()
 }
 
-fun testPlot(){
+fun testPlot() {
     val data = mapOf<String, DoubleArray>(
         "xbar" to doubleArrayOf(0.2, 1.0, 1.5, 2.1, 2.6, 3.0, 3.5, 4.0),
         "ybar" to doubleArrayOf(1.0, 6.0, 2.0, 3.0, 4.0, 2.0, 2.0, 1.0),
@@ -80,9 +82,9 @@ fun testPlot(){
 
 }
 
-fun testScatterPlot(){
+fun testScatterPlot() {
     val bvn = BivariateNormalRV(0.0, 1.0, 0.0, 1.0, 0.8)
-    val sample = Array(100){DoubleArray(2)}
+    val sample = Array(100) { DoubleArray(2) }
 
     val data = bvn.sampleByColumn(1000)
 
@@ -95,7 +97,7 @@ fun testScatterPlot(){
     plot.showInBrowser(plotTitle = "This is a test of scatter plot")
 }
 
-fun testBoxPlot(){
+fun testBoxPlot() {
     val boxPlotSummary = BoxPlotSummary(testData, "Some Data")
 
     val plot = BoxPlot(boxPlotSummary)
@@ -105,10 +107,10 @@ fun testBoxPlot(){
     println(boxPlotSummary)
 }
 
-fun testMultiBoxPlot(){
+fun testMultiBoxPlot() {
     val n = NormalRV()
     val m = mutableMapOf<String, BoxPlotSummary>()
-    for (i in 1..5){
+    for (i in 1..5) {
         val bps = BoxPlotSummary(n.sample(200), "BPS$i")
         m[bps.name] = bps
     }
@@ -117,10 +119,10 @@ fun testMultiBoxPlot(){
     plot.saveToFile("The boxplots")
 }
 
-fun testConfidenceIntervalPlots(){
+fun testConfidenceIntervalPlots() {
     val n = NormalRV()
     val m = mutableMapOf<String, Interval>()
-    for (i in 1..5){
+    for (i in 1..5) {
         val s = Statistic(n.sample(200))
         m[s.name] = s.confidenceInterval
     }
@@ -129,7 +131,7 @@ fun testConfidenceIntervalPlots(){
     plot.saveToFile("The CI Plots")
 }
 
-fun testFrequencyPlot(){
+fun testFrequencyPlot() {
     val freq = IntegerFrequency()
     val rv = DEmpiricalRV(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(0.2, 0.7, 1.0))
     for (i in 1..10000) {
@@ -147,13 +149,13 @@ fun testFrequencyPlot(){
     println(freq)
 }
 
-fun testStateFrequencyPlot(){
+fun testStateFrequencyPlot() {
     val rv = DEmpiricalRV(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(0.2, 0.7, 1.0))
     val sf = StateFrequency(3)
     val states = sf.states
     for (i in 1..20000) {
         val x: Int = rv.value().toInt()
-        sf.collect(states[x-1])
+        sf.collect(states[x - 1])
     }
 
     val fPlot = StateFrequencyPlot(sf)
@@ -167,7 +169,7 @@ fun testStateFrequencyPlot(){
     println(sf)
 }
 
-fun testPPandQQ_Plots(){
+fun testPPandQQ_Plots() {
     val nd = Normal(10.0, 1.0)
     val nRV = nd.randomVariable
     val data = nRV.sample(200)
@@ -180,8 +182,8 @@ fun testPPandQQ_Plots(){
     ppPlot.saveToFile("The PP Plot")
 }
 
-fun testFunctionPlot(){
-    val fn = {x: Double -> x*x}
+fun testFunctionPlot() {
+    val fn = { x: Double -> x * x }
     val r = Interval(-1.0, 1.0)
     val fPlot = FunctionPlot(fn, r)
     fPlot.showInBrowser()
@@ -192,14 +194,14 @@ fun testFunctionPlot(){
     fPlot.saveToFile("A function plot")
 }
 
-fun testHistogramPlot(){
+fun testHistogramPlot() {
     val d = ExponentialRV(2.0)
 
     val data = d.sample(1000)
     val h1 = Histogram.create(data)
     println(h1)
     val hp = HistogramPlot(h1, proportions = true)
-    hp.density = {x: Double -> 0.5*exp(-0.5*x) }
+    hp.density = { x: Double -> 0.5 * exp(-0.5 * x) }
     hp.showInBrowser()
     hp.saveToFile("The First Histogram Plot")
 
@@ -223,7 +225,7 @@ fun testHistogramPlot(){
 
 }
 
-fun testStateVariablePlot(){
+fun testStateVariablePlot() {
     val t = doubleArrayOf(0.0, 2.0, 5.0, 11.0, 14.0, 17.0, 22.0, 26.0, 28.0, 31.0, 35.0, 36.0)
     val n = doubleArrayOf(0.0, 1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0, 0.0, 0.0)
 
@@ -234,7 +236,7 @@ fun testStateVariablePlot(){
     plot.saveToFile("StateVariablePlot", plotTitle = "This is a test of StateVariablePlot plot")
 }
 
-fun testWelchPlotting(){
+fun testWelchPlotting() {
     val model = Model("Drive Through Pharmacy")
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacyWithQ(model, 1)
@@ -285,10 +287,27 @@ fun testWelchPlotting(){
     println(rt.asDataFrame())
 }
 
-fun testObservationPlot(){
+fun testObservationPlot() {
     val d = ExponentialRV(2.0)
     val data = d.sample(100)
     val plot = ObservationsPlot(data, confLevel = null)
     plot.showInBrowser()
     plot.saveToFile("ObservationsPlot", plotTitle = "This is a test of ObservationsPlot plot")
 }
+
+fun testACFPlot() {
+    val plot = ACFPlot(testData, 10)
+    plot.showInBrowser()
+    plot.saveToFile("ACFPlot", plotTitle = "This is a test of ACFPlot plot")
+}
+
+fun testPMFPlot() {
+    val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+    val cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
+    val de = DEmpiricalCDF(values, cdf)
+    val plot = PMFPlot(de)
+    plot.showInBrowser()
+    plot.saveToFile("PMFPlot", plotTitle = "This is a test of PMFPlot plot")
+
+}
+

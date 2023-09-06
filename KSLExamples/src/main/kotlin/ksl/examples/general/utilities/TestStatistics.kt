@@ -46,8 +46,8 @@ class TestStatistics {
 
 fun main(){
  //   testData.writeToFile("testData.txt")
- //   testAutoCorrelation()
-    testPearsonCorrelation()
+     testAutoCorrelation()
+ //   testPearsonCorrelation()
 }
 
 
