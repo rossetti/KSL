@@ -623,7 +623,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         fun empiricalProbabilities(n: Int, type: EmpDistType = EmpDistType.Continuity1): DoubleArray {
             require(n >= 1) { "The number of observations must be >=1" }
             return when (type) {
-                EmpDistType.Base -> DoubleArray(n) { i -> ((i+1) / n).toDouble() }
+                EmpDistType.Base -> DoubleArray(n) { i -> ((i + 1) / n).toDouble() }
                 EmpDistType.Continuity1 -> DoubleArray(n) { i -> (i + 1.0 - 0.5) / n }
                 EmpDistType.Continuity2 -> DoubleArray(n) { i -> (i + 1.0 - 0.375) / (n + 0.25) }
             }
@@ -639,7 +639,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             n: Int,
             quantileFunction: InverseCDFIfc,
             type: EmpDistType = EmpDistType.Continuity1
-        ): DoubleArray{
+        ): DoubleArray {
             val p = empiricalProbabilities(n, type)
             return DoubleArray(p.size) { i -> quantileFunction.invCDF(p[i]) }
         }
@@ -669,7 +669,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         /**
          *  Computes the confidence intervals for the data in the map
          */
-        fun confidenceIntervals(dataMap: Map<String, DoubleArray>, level: Double = 0.95) : Map<String, Interval>{
+        fun confidenceIntervals(dataMap: Map<String, DoubleArray>, level: Double = 0.95): Map<String, Interval> {
             val m = mutableMapOf<String, Interval>()
             val s = statisticalSummaries(dataMap)
             for ((name, stat) in s) {
@@ -816,15 +816,44 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             } else num / denom
         }
 
-        fun ksTestStatistic(data: DoubleArray, fn: CDFIfc) : Double {
+        fun ksTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
             val tp = data.orderStatistics()
-            tp.mapInPlace { x -> fn.cdf(x)}
+            tp.mapInPlace { x -> fn.cdf(x) }
             val n = tp.size
             val ep = empiricalProbabilities(n, EmpDistType.Base)
             val dp = KSLArrays.subtractElements(ep, tp).max()
-            val epm = KSLArrays.subtractConstant(ep, (1.0/n))
-            val dm  = KSLArrays.subtractElements(tp, epm).max()
+            val epm = KSLArrays.subtractConstant(ep, (1.0 / n))
+            val dm = KSLArrays.subtractElements(tp, epm).max()
             return max(dp, dm)
+        }
+
+        fun pearsonCorrelation(x: DoubleArray, y: DoubleArray): Double {
+            val s = StatisticXY()
+            val n = min(x.size, y.size)
+            for (i in 0 until n) {
+                s.collectXY(x[i], y[i])
+            }
+            return s.correlationXY
+        }
+
+        fun autoCorrelation(x: DoubleArray, lag: Int): Double {
+            require(lag >= 0) { "The lag must be >= 0" }
+            require(lag < x.size){"The lag must be < ${x.size}"}
+            if (lag == 0) {
+                return 1.0
+            }
+            // 1 <= lag < x.size
+            val statX = Statistic() // captures all values to get denominator
+            val statXY = StatisticXY() // captures lagged values
+            for(i in x.indices){
+                statX.collect(x[i])
+                if (i + lag < x.size){
+                    statXY.collectXY(x[i], x[i+lag])
+                }
+            }
+            val dp = statX.deviationSumOfSquares
+            val np = statXY.sumOfSquaredXY
+            return np/dp
         }
     }
 
