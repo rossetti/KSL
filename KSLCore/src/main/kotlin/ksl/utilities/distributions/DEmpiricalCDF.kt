@@ -67,6 +67,15 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
             return valArr
         }
 
+    val probPoints: DoubleArray
+        get() {
+            val valArr = DoubleArray(myProbabilityPoints.size)
+            for (i in myProbabilityPoints.indices) {
+                valArr[i] = myProbabilityPoints[i].prob
+            }
+            return valArr
+        }
+
     val cdf: DoubleArray
         get() {
             val cdfArr = DoubleArray(myProbabilityPoints.size)

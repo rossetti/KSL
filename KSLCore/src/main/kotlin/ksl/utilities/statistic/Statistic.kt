@@ -827,33 +827,65 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             return max(dp, dm)
         }
 
+        /**
+         *  Computes the Pearson correlation between the elements of the array
+         *  based on n = min(x.size, y.size) elements.  If no elements, then
+         *  Double.NaN is returned.
+         */
         fun pearsonCorrelation(x: DoubleArray, y: DoubleArray): Double {
             val s = StatisticXY()
             val n = min(x.size, y.size)
+            if (n == 0) {
+                return Double.NaN
+            }
             for (i in 0 until n) {
                 s.collectXY(x[i], y[i])
             }
             return s.correlationXY
         }
 
+        /**
+         *  Computes the lag-k auto-correlation for the supplied array
+         *  [lag] must be greater than or equal to 0 and less than x.size.
+         *  [lag] = 0 always returns 1.0
+         *  The array [x] must have 2 or more elements
+         */
         fun autoCorrelation(x: DoubleArray, lag: Int): Double {
+            //TODO does not match R past 3 decimal places, need to investigate formulas
+            require(x.size >= 2) { " There must be 2 or more elements in the array" }
             require(lag >= 0) { "The lag must be >= 0" }
-            require(lag < x.size){"The lag must be < ${x.size}"}
+            require(lag < x.size) { "The lag must be < ${x.size}" }
             if (lag == 0) {
                 return 1.0
             }
             // 1 <= lag < x.size
             val statX = Statistic() // captures all values to get denominator
             val statXY = StatisticXY() // captures lagged values
-            for(i in x.indices){
+            for (i in x.indices) {
                 statX.collect(x[i])
-                if (i + lag < x.size){
-                    statXY.collectXY(x[i], x[i+lag])
+                if (i + lag < x.size) {
+                    statXY.collectXY(x[i], x[i + lag])
                 }
             }
             val dp = statX.deviationSumOfSquares
             val np = statXY.sumOfSquaredXY
-            return np/dp
+            return np / dp
+        }
+
+        /**
+         *  Computes the auto-correlations for k = 1 to and including [maxLag]
+         *  The returned array is zero based indexed such that, ac[0] is the lag-1
+         *  lag-0 is not returned because it is always 1.0
+         */
+        fun autoCorrelations(x: DoubleArray, maxLag: Int): DoubleArray {
+            require(maxLag >= 1) { "The number of lags requested must be >= 1" }
+            require(maxLag < x.size) { "The number of lags requested must be < ${x.size}" }
+            val ac = DoubleArray(maxLag) // no need to include 0 lag
+            for (k in ac.indices) {
+                ac[k] = autoCorrelation(x, k+1)
+ //               println("ac[$k] = ${ac[k]}")
+            }
+            return ac
         }
     }
 
