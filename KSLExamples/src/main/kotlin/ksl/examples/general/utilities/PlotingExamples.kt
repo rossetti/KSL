@@ -34,8 +34,8 @@ fun main() {
 //    testStateVariablePlot()
 //    testWelchPlotting()
     //   testObservationPlot()
- //   testACFPlot()
-    testPMFPlot()
+//    testACFPlot()
+//    testPMFPlot()
 }
 
 fun testPlot() {
