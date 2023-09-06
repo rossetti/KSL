@@ -36,6 +36,7 @@ fun main() {
     //   testObservationPlot()
 //    testACFPlot()
 //    testPMFPlot()
+    testCDFPlot()
 }
 
 fun testPlot() {
@@ -308,6 +309,16 @@ fun testPMFPlot() {
     val plot = PMFPlot(de)
     plot.showInBrowser()
     plot.saveToFile("PMFPlot", plotTitle = "This is a test of PMFPlot plot")
+
+}
+
+fun testCDFPlot() {
+    val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+    val cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
+    val de = DEmpiricalCDF(values, cdf)
+    val plot = DiscreteCDFPlot(de)
+    plot.showInBrowser()
+    plot.saveToFile("CDFPlot", plotTitle = "This is a test of CDFPlot plot")
 
 }
 
