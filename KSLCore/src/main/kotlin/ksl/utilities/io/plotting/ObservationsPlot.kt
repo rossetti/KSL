@@ -1,5 +1,6 @@
 package ksl.utilities.io.plotting
 
+import ksl.utilities.Interval
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.impl.asList
 import org.jetbrains.letsPlot.geom.geomHLine
@@ -12,7 +13,7 @@ import org.jetbrains.letsPlot.label.labs
 
 class ObservationsPlot(
     data: DoubleArray,
-    private val confLevel: Double? = 0.95,
+    private val interval: Interval? = null,
     dataName: String? = null
 ) : BasePlot() {
 
@@ -40,11 +41,10 @@ class ObservationsPlot(
                     x = "indices"
                     y = "data"
                 }
-        if (confLevel != null) {
-            val ci = stats.confidenceInterval(confLevel)
-            p = p + geomHLine(yintercept = ci.upperLimit, color = "blue", linetype = "dashed") +
-                    geomHLine(yintercept = stats.average, color = "red", linetype = "dashed") +
-                    geomHLine(yintercept = ci.lowerLimit, color = "blue", linetype = "dashed")
+        if (interval != null) {
+            p = p + geomHLine(yintercept = interval.upperLimit, color = "blue", linetype = "dashed") +
+                    geomHLine(yintercept = interval.midPoint, color = "red", linetype = "dashed") +
+                    geomHLine(yintercept = interval.lowerLimit, color = "blue", linetype = "dashed")
         }
         p = p + labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)

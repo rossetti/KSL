@@ -33,10 +33,10 @@ fun main() {
 //    testHistogramPlot()
 //    testStateVariablePlot()
 //    testWelchPlotting()
-    //   testObservationPlot()
+       testObservationPlot()
 //    testACFPlot()
 //    testPMFPlot()
-    testCDFPlot()
+//    testCDFPlot()
 }
 
 fun testPlot() {
@@ -291,7 +291,10 @@ fun testWelchPlotting() {
 fun testObservationPlot() {
     val d = ExponentialRV(2.0)
     val data = d.sample(100)
-    val plot = ObservationsPlot(data, confLevel = null)
+    val s = Statistic(data)
+    val me = 3.0 * s.standardError
+    val interval = Interval(s.average - me, s.average + me)
+    val plot = ObservationsPlot(data, interval)
     plot.showInBrowser()
     plot.saveToFile("ObservationsPlot", plotTitle = "This is a test of ObservationsPlot plot")
 }
