@@ -44,17 +44,19 @@ val testData = doubleArrayOf(
 class TestStatistics {
 }
 
-fun main(){
- //   testData.writeToFile("testData.txt")
-     testAutoCorrelation()
- //   testPearsonCorrelation()
+fun main() {
+    //   testData.writeToFile("testData.txt")
+    testAutoCorrelation()
+    //   testPearsonCorrelation()
 }
 
 
 fun testPearsonCorrelation() {
-   val wt = doubleArrayOf(2.620, 2.875, 2.320, 3.215, 3.440, 3.460, 3.570, 3.190, 3.150, 3.440, 3.440,
-       4.070, 3.730, 3.780, 5.250, 5.424, 5.345, 2.200, 1.615, 1.835, 2.465, 3.520, 3.435, 3.840, 3.845, 1.935, 
-       2.140, 1.513, 3.170, 2.770, 3.570, 2.780)
+    val wt = doubleArrayOf(
+        2.620, 2.875, 2.320, 3.215, 3.440, 3.460, 3.570, 3.190, 3.150, 3.440, 3.440,
+        4.070, 3.730, 3.780, 5.250, 5.424, 5.345, 2.200, 1.615, 1.835, 2.465, 3.520, 3.435, 3.840, 3.845, 1.935,
+        2.140, 1.513, 3.170, 2.770, 3.570, 2.780
+    )
     val mpg = doubleArrayOf(
         21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2, 17.8, 16.4, 17.3, 15.2, 10.4, 10.4, 14.7,
         32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7, 15.0, 21.4
@@ -71,17 +73,6 @@ fun testPearsonCorrelation() {
 
 fun testAutoCorrelation() {
     /*
-      From JMP
-      1.00000000
-        -0.11855873
-        0.09881208
-    0.00625506
-    -0.06350614
-    0.16243098
-    -0.06389482
-    0.04841732
-    -0.10704144
-
      From R:
       [1,]  1.000000000
  [2,] -0.118558728
@@ -94,22 +85,10 @@ fun testAutoCorrelation() {
  [9,] -0.107041444
 [10,] -0.034641810
 [11,]  0.039512419
-
-     results match to 3 decimal places, but not further
-ac[0] = 1.0
-ac[1] = -0.1186126547589329
-ac[2] = 0.09897115640976274
-ac[3] = 0.006279694997728156
-ac[4] = -0.06353178740459209
-ac[5] = 0.16243941755446112
-ac[6] = -0.06369860227588492
-ac[7] = 0.048733655161496976
-ac[8] = -0.10717387999514491
-ac[9] = -0.03436405590510631
+     results match to at least 7 decimal places
      */
-    val ac = DoubleArray(10)
-    for(k in ac.indices){
-        ac[k] = Statistic.autoCorrelation(testData, k)
+    val ac = Statistic.autoCorrelations(testData, 10)
+    for (k in ac.indices) {
         println("ac[$k] = ${ac[k]}")
     }
 }

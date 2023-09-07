@@ -848,10 +848,11 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *  Computes the lag-k auto-correlation for the supplied array
          *  [lag] must be greater than or equal to 0 and less than x.size.
          *  [lag] = 0 always returns 1.0
-         *  The array [x] must have 2 or more elements
+         *  The array [x] must have 2 or more elements.
+         *  If you need multiple values for different lags, then using
+         *  autoCorrelations() is more efficient.
          */
         fun autoCorrelation(x: DoubleArray, lag: Int): Double {
-            //TODO does not match R past 3 decimal places, need to investigate formulas
             require(x.size >= 2) { " There must be 2 or more elements in the array" }
             require(lag >= 0) { "The lag must be >= 0" }
             require(lag < x.size) { "The lag must be < ${x.size}" }
@@ -859,17 +860,13 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                 return 1.0
             }
             // 1 <= lag < x.size
-            val statX = Statistic() // captures all values to get denominator
-            val statXY = StatisticXY() // captures lagged values
-            for (i in x.indices) {
-                statX.collect(x[i])
-                if (i + lag < x.size) {
-                    statXY.collectXY(x[i], x[i + lag])
-                }
+            val xStat = Statistic(x)
+            if (lag == 1) {
+                return xStat.lag1Correlation
             }
-            val dp = statX.deviationSumOfSquares
-            val np = statXY.sumOfSquaredXY
-            return np / dp
+            val avg = xStat.average
+            val dssq = xStat.deviationSumOfSquares
+            return (productSumOfSquares(x, avg, lag)/dssq)
         }
 
         /**
@@ -878,14 +875,29 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *  lag-0 is not returned because it is always 1.0
          */
         fun autoCorrelations(x: DoubleArray, maxLag: Int): DoubleArray {
+            require(x.size >= 2) { " There must be 2 or more elements in the array" }
             require(maxLag >= 1) { "The number of lags requested must be >= 1" }
             require(maxLag < x.size) { "The number of lags requested must be < ${x.size}" }
             val ac = DoubleArray(maxLag) // no need to include 0 lag
-            for (k in ac.indices) {
-                ac[k] = autoCorrelation(x, k+1)
- //               println("ac[$k] = ${ac[k]}")
+            val xStat = Statistic(x)
+            ac[0] = xStat.lag1Correlation
+            if (maxLag == 1) {
+                return ac
+            }
+            val avg = xStat.average
+            val dssq = xStat.deviationSumOfSquares
+            for (k in 2..maxLag) {
+                ac[k-1] = productSumOfSquares(x, avg, k)/dssq
             }
             return ac
+        }
+
+        private fun productSumOfSquares(x: DoubleArray, xAvg: Double, lag: Int): Double {
+            var sq = 0.0
+            for (i in 0 until (x.size - lag)) {
+                sq = sq + (x[i] - xAvg) * (x[i + lag] - xAvg)
+            }
+            return sq
         }
     }
 
