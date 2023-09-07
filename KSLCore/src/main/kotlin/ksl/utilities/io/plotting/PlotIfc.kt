@@ -59,6 +59,11 @@ interface PlotIfc {
     fun buildPlot(): Plot
 
     /**
+     * An HTML representation of the plot for rendering
+     */
+    fun toHTML(): String
+
+    /**
      * @param fileName the name of the file without an extension
      * @param directory the path to the directory to contain the file
      * @param plotTitle the title of the plot if different from title property
