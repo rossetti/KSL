@@ -33,10 +33,12 @@ fun main() {
 //    testHistogramPlot()
 //    testStateVariablePlot()
 //    testWelchPlotting()
-       testObservationPlot()
+ //      testObservationPlot()
 //    testACFPlot()
 //    testPMFPlot()
 //    testCDFPlot()
+
+    testECDFPlot()
 }
 
 fun testPlot() {
@@ -325,3 +327,10 @@ fun testCDFPlot() {
 
 }
 
+fun testECDFPlot() {
+    val n = Normal(10.3, 3.484)
+    val density: ((Double) -> Double) = n::cdf
+    val plot = ECDFPlot(testData, density)
+    plot.showInBrowser()
+    plot.saveToFile("ECDFPlot", plotTitle = "This is a test of ECDF plot")
+}

@@ -48,6 +48,8 @@ fun main() {
     //   testData.writeToFile("testData.txt")
     testAutoCorrelation()
     //   testPearsonCorrelation()
+
+    println(Statistic(testData))
 }
 
 

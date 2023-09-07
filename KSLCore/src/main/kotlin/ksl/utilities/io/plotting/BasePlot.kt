@@ -83,6 +83,15 @@ abstract class BasePlot() : PlotIfc {
                 ")"
     }
 
-
+    override fun toHTML(): String {
+        val plot = buildPlot()
+        val spec = plot.toSpec()
+        // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
+        val html = PlotHtmlExport.buildHtmlFromRawSpecs(
+            spec, iFrame = true,
+            scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
+        )
+        return html
+    }
 }
 
