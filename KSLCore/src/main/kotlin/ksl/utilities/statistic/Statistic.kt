@@ -623,7 +623,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         fun empiricalProbabilities(n: Int, type: EmpDistType = EmpDistType.Continuity1): DoubleArray {
             require(n >= 1) { "The number of observations must be >=1" }
             return when (type) {
-                EmpDistType.Base -> DoubleArray(n) { i -> ((i + 1) / n).toDouble() }
+                EmpDistType.Base -> DoubleArray(n) { i -> ((i + 1.0) / n) }
                 EmpDistType.Continuity1 -> DoubleArray(n) { i -> (i + 1.0 - 0.5) / n }
                 EmpDistType.Continuity2 -> DoubleArray(n) { i -> (i + 1.0 - 0.375) / (n + 0.25) }
             }
