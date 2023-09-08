@@ -18,6 +18,8 @@
 
 package ksl.examples.general.utilities
 
+import ksl.utilities.distributions.KolmogorovSmirnovDist
+import ksl.utilities.distributions.Normal
 import ksl.utilities.io.writeToFile
 import ksl.utilities.statistic.Statistic
 
@@ -46,10 +48,12 @@ class TestStatistics {
 
 fun main() {
     //   testData.writeToFile("testData.txt")
-    testAutoCorrelation()
+    // testAutoCorrelation()
     //   testPearsonCorrelation()
 
-    println(Statistic(testData))
+    //println(Statistic(testData))
+
+    testKSStatistic()
 }
 
 
@@ -93,4 +97,14 @@ fun testAutoCorrelation() {
     for (k in ac.indices) {
         println("ac[$k] = ${ac[k]}")
     }
+}
+
+fun testKSStatistic(){
+    val n = Normal(10.3, 3.484)
+    val cdf: ((Double) -> Double) = n::cdf
+
+    val ks = Statistic.ksTestStatistic(testData, cdf)
+    println("KS Test Statistic = $ks")
+    val pv = KolmogorovSmirnovDist.complementaryCDF(testData.size, ks)
+    println("KS p-value = $pv")
 }
