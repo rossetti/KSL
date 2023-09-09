@@ -1,5 +1,6 @@
 package ksl.utilities.io.plotting
 
+import ksl.observers.ResponseTrace
 import org.jetbrains.letsPlot.geom.geomPoint
 import org.jetbrains.letsPlot.geom.geomStep
 import org.jetbrains.letsPlot.ggplot
@@ -14,6 +15,12 @@ class StateVariablePlot(
 ) : BasePlot() {
     private val data: Map<String, DoubleArray>
 
+   constructor(responseTrace: ResponseTrace, repNum: Double, time: Double = Double.MAX_VALUE): this(
+       responseTrace.traceValues(repNum, time),
+       responseTrace.traceTimes(repNum, time),
+       responseTrace.name
+   )
+    
     init {
         xLabel = "t"
         yLabel = "y(t)"

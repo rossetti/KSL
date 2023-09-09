@@ -133,8 +133,22 @@ class ResponseTrace(
      *  Element "times" holds the times that the variable changed
      *  Element "values" holds the values associated with each time change.
      */
-    fun traceValues(repNum: Double, time: Double = Double.MAX_VALUE) : Map<String, DoubleArray>{
+    fun traceMap(repNum: Double, time: Double = Double.MAX_VALUE) : Map<String, DoubleArray>{
         return selectTimeAndValue(repNum, time)
+    }
+
+    /**
+     *  An array of the time values that were traced.
+     */
+    fun traceTimes(repNum: Double, time: Double = Double.MAX_VALUE) : DoubleArray {
+        return traceMap(repNum, time)["times"]!!
+    }
+
+    /**
+     *  An array of the values that were traced.
+     */
+    fun traceValues(repNum: Double, time: Double = Double.MAX_VALUE) : DoubleArray {
+        return traceMap(repNum, time)["values"]!!
     }
 
     private fun selectTimeAndValue(repNum: Double, time: Double): Map<String, DoubleArray> {
