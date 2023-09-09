@@ -21,7 +21,6 @@ package ksl.modeling.variable
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
 import ksl.utilities.PreviousValueIfc
-import ksl.utilities.observers.DoublePairEmitterIfc
 
 /**
  * This file defines small interfaces for use with variables
@@ -66,7 +65,7 @@ interface RangeIfc {
 }
 
 interface ResponseIfc : IdentityIfc, ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc,
-    DefaultReportingOptionIfc, RangeIfc, DoublePairEmitterIfc
+    DefaultReportingOptionIfc, RangeIfc
 
 interface TimeWeightedIfc : ResponseIfc, WeightIfc, VariableIfc
 

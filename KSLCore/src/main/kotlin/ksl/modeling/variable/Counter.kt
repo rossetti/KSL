@@ -51,7 +51,7 @@ import ksl.utilities.statistic.StatisticIfc
  *   The naming convention "CIfc" is used to denote controlled interface.
  *
  */
-interface CounterCIfc : ResponseIfc {
+interface CounterCIfc {
 
     /**
      *  If true, the response will emit pairs Pair(time, value) every time
@@ -72,7 +72,7 @@ interface CounterCIfc : ResponseIfc {
      */
     var initialValue: Double
     val acrossReplicationStatistic: StatisticIfc
-    override var defaultReportingOption: Boolean
+    var defaultReportingOption: Boolean
     fun addCountLimitAction(action: CountActionIfc)
     fun removeCountLimitAction(action: CountActionIfc)
     fun addCountLimitStoppingAction(initialCountLimit: Int): CountActionIfc
