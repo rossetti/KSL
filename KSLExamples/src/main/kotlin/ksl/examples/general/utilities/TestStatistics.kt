@@ -20,6 +20,7 @@ package ksl.examples.general.utilities
 
 import ksl.utilities.distributions.KolmogorovSmirnovDist
 import ksl.utilities.distributions.Normal
+import ksl.utilities.io.asDataFrame
 import ksl.utilities.io.writeToFile
 import ksl.utilities.statistic.Statistic
 
@@ -53,9 +54,17 @@ fun main() {
 
     //println(Statistic(testData))
 
-    testKSStatistic()
+ //   testKSStatistic()
+
+    testStatistics()
 }
 
+fun testStatistics(){
+    val s = Statistic(testData)
+    println(s)
+    println()
+    println(s.asDataFrame())
+}
 
 fun testPearsonCorrelation() {
     val wt = doubleArrayOf(

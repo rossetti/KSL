@@ -29,9 +29,11 @@ import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.toMapOfColumns
 import ksl.utilities.toMapOfLists
+import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.DataRow
+import org.jetbrains.kotlinx.dataframe.annotations.DataSchema
 import org.jetbrains.kotlinx.dataframe.api.*
 import java.io.PrintWriter
 import java.lang.Appendable
@@ -217,7 +219,10 @@ object DataFrameUtil {
     /**
      *  @return the histogram on the column
      */
-    fun histogram(dc: DataColumn<Double>, breakPoints: DoubleArray = Histogram.recommendBreakPoints(dc.toDoubleArray())): Histogram {
+    fun histogram(
+        dc: DataColumn<Double>,
+        breakPoints: DoubleArray = Histogram.recommendBreakPoints(dc.toDoubleArray())
+    ): Histogram {
         return Histogram.create(dc.toDoubleArray(), breakPoints)
     }
 
@@ -234,7 +239,7 @@ object DataFrameUtil {
     /**
      *  @return a box plot summary for the column
      */
-    fun boxPlotSummary(dc: DataColumn<Double>) : BoxPlotSummary {
+    fun boxPlotSummary(dc: DataColumn<Double>): BoxPlotSummary {
         return BoxPlotSummary(dc.toDoubleArray())
     }
 
@@ -342,6 +347,18 @@ object DataFrameUtil {
 }
 
 /**
+ *  Converts a statistic to a data frame with two columns.
+ *  The first column holds the names of the statistics and the
+ *  second column holds the values.
+ */
+fun Statistic.asDataFrame(): AnyFrame {
+    val map = this.statisticsAsMap
+    val c1 = column(map.keys) named "Statistic"
+    val c2 = column(map.values) named "Value"
+    return dataFrameOf(c1, c2)
+}
+
+/**
  *  @return the statistics on the column
  */
 fun DataColumn<Double>.statistics(): Statistic {
@@ -361,6 +378,7 @@ fun DataColumn<Double>.histogram(breakPoints: DoubleArray = Histogram.recommendB
 fun DataColumn<Double>.boxPlotSummary(): BoxPlotSummary {
     return DataFrameUtil.boxPlotSummary(this)
 }
+
 /**
  *  @return the frequency tabulation on the column
  */
