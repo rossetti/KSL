@@ -33,12 +33,14 @@ fun main() {
 //    testHistogramPlot()
 //    testStateVariablePlot()
 //    testWelchPlotting()
- //      testObservationPlot()
+    //      testObservationPlot()
 //    testACFPlot()
 //    testPMFPlot()
 //    testCDFPlot()
 
-    testECDFPlot()
+ //   testECDFPlot()
+
+    testFitDistPlot()
 }
 
 fun testPlot() {
@@ -333,4 +335,11 @@ fun testECDFPlot() {
     val plot = ECDFPlot(testData, cdf)
     plot.showInBrowser()
     plot.saveToFile("ECDFPlot", plotTitle = "This is a test of ECDF plot")
+}
+
+fun testFitDistPlot() {
+    val n = Normal(10.3, 3.484)
+    val plot = FitDistPlot(testData, n, n)
+    plot.showInBrowser()
+    plot.saveToFile("FitDistPlot")
 }

@@ -1839,8 +1839,6 @@ object KSLArrays {
     }
 
     // contributed by Andrew Gibson
-
-    // contributed by Andrew Gibson
     /**
      * contributed by Andrew Gibson
      * simple way to create a n-element vector of the same value (x)
@@ -1849,7 +1847,7 @@ object KSLArrays {
      * @param n - number of replications
      * @return - 1D array of length n filled with values x
      */
-    fun replicate(x: Double, n: Int): DoubleArray? {
+    fun replicate(x: Double, n: Int): DoubleArray {
         require(n >= 0) { "n cannot be negative" }
         val res = DoubleArray(n)
         Arrays.fill(res, x)
@@ -1927,7 +1925,7 @@ object KSLArrays {
      * @param granularity - Double
      * @return - 1D array the same size as x
      */
-    fun mround(x: DoubleArray, granularity: Double): DoubleArray? {
+    fun mround(x: DoubleArray, granularity: Double): DoubleArray {
         val gr = DoubleArray(x.size)
         Arrays.fill(gr, granularity)
         return mround(x, gr)
@@ -2133,7 +2131,7 @@ object KSLArrays {
      * @param x the values to compute statistics for
      * @return a BoxPlotSummary summarizing the data
      */
-    fun boxPlotSummary(x: DoubleArray): BoxPlotSummary{
+    fun boxPlotSummary(x: DoubleArray): BoxPlotSummary {
         return BoxPlotSummary(x)
     }
 
@@ -2184,6 +2182,35 @@ object KSLArrays {
             DoubleArray(nCols) { j -> x.value }
         }
     }
+
+    /**
+     *  Computes the difference, (d[i] = x[i+k] - x[i]) for i = 0 until x.size - k
+     *  This is the discrete difference operator.  For example, if k = 1, then
+     *  d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]
+     *  and returns the new array of differences.
+     */
+    fun diff(x: DoubleArray, k: Int = 1): DoubleArray {
+        require(k >= 1) { "The differencing delta must be >= 1" }
+        return DoubleArray(x.size - k) { x[it + k] - x[it] }
+    }
+
+    /**
+     * Returns a new array of size (x.size -k) that is lagged by k elements
+     * y[i] = x[i+k] for i=0,1,...
+     */
+    fun lag(x: DoubleArray, k: Int = 1): DoubleArray {
+        require(k >= 1) { "The lag must be >= 1" }
+        return DoubleArray(x.size - k) { x[it + k] }
+    }
+
+    /**
+     * Returns a new array of size (x.size -k) that is lagged by k elements
+     * y[i] = x[i+k] for i=0,1,...
+     */
+    inline fun <reified T> lag(x: Array<T>, k: Int = 1): Array<T> {
+        require(k >= 1) { "The lag must be >= 1" }
+        return Array(x.size - k) { x[it + k] }
+    }
 }
 
 /** Extension functions and other functions for working with arrays
@@ -2194,6 +2221,24 @@ inline fun <reified T> matrixOfNulls(n: Int, m: Int) = Array(n) { arrayOfNulls<T
 
 inline fun <reified T> to2DArray(lists: List<List<T>>): Array<Array<T>> {
     return Array(lists.size) { row -> lists[row].toTypedArray() }
+}
+
+/**
+ *  Computes the difference, (d[i] = x[i+k] - x[i]) for i = 0 until x.size - k
+ *  This is the discrete difference operator.  For example, if k = 1, then
+ *  d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]
+ *  and returns the new array of differences.
+ */
+fun DoubleArray.diff(k: Int = 1): DoubleArray {
+    return KSLArrays.diff(this, k)
+}
+
+/**
+ * Returns a new array of size (x.size -k) that is lagged by k elements
+ * y[i] = x[i+k] for i=0,1,...
+ */
+fun DoubleArray.lag(k: Int = 1): DoubleArray {
+    return KSLArrays.lag(this, k)
 }
 
 /**

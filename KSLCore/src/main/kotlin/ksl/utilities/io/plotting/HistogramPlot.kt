@@ -11,6 +11,7 @@ import org.jetbrains.letsPlot.label.ggtitle
 import org.jetbrains.letsPlot.label.ylab
 import org.jetbrains.letsPlot.tooltips.layerTooltips
 
+//TODO the height scaling is not right for the density overlay
 class HistogramPlot(
     private val histogram: HistogramIfc,
     var proportions: Boolean = false
