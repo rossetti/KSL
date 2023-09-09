@@ -2,6 +2,7 @@ package ksl.utilities.io.plotting
 
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
+import org.jetbrains.letsPlot.Figure
 import org.jetbrains.letsPlot.core.util.PlotHtmlExport
 import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
 import org.jetbrains.letsPlot.export.VersionChecker
@@ -90,8 +91,8 @@ interface PlotIfc {
         /**
          *  Shows a lets-plot plot in a browser window
          */
-        fun showPlotInBrowser(plot: Plot, tmpFileName: String? = null, directory: Path = KSL.plotDir): File {
-            val spec = plot.toSpec()
+        fun showPlotInBrowser(figure: Figure, tmpFileName: String? = null, directory: Path = KSL.plotDir): File {
+            val spec = figure.toSpec()
             // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
             val html = PlotHtmlExport.buildHtmlFromRawSpecs(
                 spec, iFrame = true,
@@ -109,7 +110,7 @@ interface PlotIfc {
          *  Saves the supplied plot to a file
          */
         fun saveToFile(
-            plot: Plot,
+            figure: Figure,
             fileName: String,
             directory: Path = KSL.plotDir,
             extType: ExtType = ExtType.PNG,
@@ -117,7 +118,7 @@ interface PlotIfc {
             defaultDPI: Int = 144
         ): File {
             val fn = fileName + "." + extType.name
-            val pn = ggsave(plot, fn, defaultScale, defaultDPI, directory.toString())
+            val pn = ggsave(figure, fn, defaultScale, defaultDPI, directory.toString())
             return File(pn)
         }
     }

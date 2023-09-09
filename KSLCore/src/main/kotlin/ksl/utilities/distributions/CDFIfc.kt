@@ -18,6 +18,9 @@
 
 package ksl.utilities.distributions
 
+import ksl.utilities.Interval
+import ksl.utilities.statistic.HistogramBin
+
 /** Provides an interface for functions related to
  *  a cumulative distribution function CDF
  *
@@ -32,6 +35,40 @@ fun interface CDFIfc {
      */
     fun cdf(x: Double): Double
 
+    /**
+     *  Returns an array of probabilities each representing
+     *  F(x_i). The CDF is evaluated for each point in the input array [x]
+     *  and the probabilities are returned in the returned array.
+     */
+    fun cdf(x: DoubleArray): DoubleArray {
+        return DoubleArray(x.size) { cdf(x[it]) }
+    }
+
+    /**
+     * Returns the probability of being in the interval,
+     * F(upper limit) - F(lower limit)
+     */
+    fun cdf(interval: Interval): Double {
+        return cdf(interval.lowerLimit, interval.upperLimit)
+    }
+
+    /**
+     * Returns the probability of being in the bin,
+     * F(upper limit) - F(lower limit)
+     */
+    fun cdf(bin: HistogramBin): Double {
+        return cdf(bin.lowerLimit, bin.upperLimit)
+    }
+
+    /**
+     * Returns the probability of being in each bin,
+     * F(upper limit) - F(lower limit) within the bins
+     * with p[0] for bins[0] etc.
+     */
+    fun cdf(bins: List<HistogramBin>): DoubleArray {
+        return DoubleArray(bins.size) { cdf(bins[it]) }
+    }
+
     /** Returns the Pr{x1&lt;=X&lt;=x2} for the distribution
      *
      * @param x1 a double representing the lower limit
@@ -40,10 +77,7 @@ fun interface CDFIfc {
      * @throws IllegalArgumentException if x1 &gt; x2
      */
     fun cdf(x1: Double, x2: Double): Double {
-        if (x1 > x2) {
-            val msg = "x1 = $x1 > x2 = $x2 in cdf(x1,x2)"
-            throw IllegalArgumentException(msg)
-        }
+        require(x1 > x2) { "x1 = $x1 > x2 = $x2 in cdf(x1,x2)" }
         return cdf(x2) - cdf(x1)
     }
 
