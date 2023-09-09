@@ -32,7 +32,7 @@ fun main() {
 //    testFunctionPlot()
 //    testHistogramPlot()
 //    testStateVariablePlot()
-//    testWelchPlotting()
+    testWelchPlotting()
     //      testObservationPlot()
 //    testACFPlot()
 //    testPMFPlot()
@@ -40,7 +40,7 @@ fun main() {
 
  //   testECDFPlot()
 
-    testFitDistPlot()
+//    testFitDistPlot()
 }
 
 fun testPlot() {
@@ -282,10 +282,11 @@ fun testWelchPlotting() {
     psp.showInBrowser()
     psp.saveToFile("SystemTimePartialSumsPlot")
 
-    val traceValues = rt.traceValues(1.0, 100.0)
+    val traceValues = rt.traceDataMap(1.0, 100.0)
     val v = traceValues["values"]!!
     val t = traceValues["times"]!!
-    val plot = StateVariablePlot(v, t, "response")
+//    val plot = StateVariablePlot(v, t, "response")
+    val plot = StateVariablePlot(rt, 1.0, 100.0)
     plot.showInBrowser()
     plot.saveToFile("StateVariablePlot", plotTitle = "This is a test of StateVariablePlot plot")
 

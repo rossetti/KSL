@@ -15,12 +15,25 @@ class StateVariablePlot(
 ) : BasePlot() {
     private val data: Map<String, DoubleArray>
 
-   constructor(responseTrace: ResponseTrace, repNum: Double, time: Double = Double.MAX_VALUE): this(
-       responseTrace.traceValues(repNum, time),
-       responseTrace.traceTimes(repNum, time),
-       responseTrace.name
-   )
-    
+    /**
+     *  Constructs a plot that has the times and values for the provided replication [repNum]
+     *  up to and including the [time]. The default value of time is Double.MAX_VALUE,
+     *  which will result in all values for the replication.
+     */
+    constructor(responseTrace: ResponseTrace, repNum: Double, time: Double = Double.MAX_VALUE) : this(
+        responseTrace.traceDataMap(repNum, time),
+        responseTrace.name
+    )
+
+    /**
+     *  The data map is assumed to have keys "times" and "values"
+     *  Element "times" holds the times that the variable changed
+     *  Element "values" holds the values associated with each time change.
+     */
+    constructor(dataMap: Map<String, DoubleArray>, responseName: String) : this(
+        dataMap["values"]!!, dataMap["times"]!!, responseName
+    )
+
     init {
         xLabel = "t"
         yLabel = "y(t)"
