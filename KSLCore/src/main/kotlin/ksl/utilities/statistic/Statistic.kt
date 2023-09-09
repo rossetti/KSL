@@ -899,6 +899,21 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             }
             return sq
         }
+
+        /**
+         *  Computes the chi-squared test statistic based on the observed [counts]
+         *  and the [expected] counts. The [expected] counts must not contain a zero
+         *  value.  The size of the arrays must match.
+         */
+        fun chiSqTestStatistic(counts: DoubleArray, expected: DoubleArray) : Double {
+            require(counts.size == expected.size) {"The size of the counts and expected value array must match."}
+            require(!expected.hasZero()) {"The expected array contains a 0.0 value"}
+            var sum = 0.0
+            for (i in counts.indices){
+                sum = sum + ((counts[i] - expected[i])*(counts[i] - expected[i]))/expected[i]
+            }
+            return sum
+        }
     }
 
 }

@@ -20,7 +20,9 @@ package ksl.utilities.statistic
 
 import ksl.utilities.IdentityIfc
 import ksl.utilities.KSLArrays
+import ksl.utilities.distributions.CDFIfc
 import ksl.utilities.math.KSLMath
+import ksl.utilities.multiplyConstant
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
@@ -107,11 +109,11 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     val binCounts: DoubleArray
 
     val binFractions: DoubleArray
-        get(){
+        get() {
             val m = DoubleArray(bins.size)
             val n = count
-            for((index, bin) in bins.withIndex()){
-                m[index]= bin.count()/n
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.count() / n
             }
             return m
         }
@@ -120,10 +122,10 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      * @return the mid-point of each bin as an array
      */
     val midPoints: DoubleArray
-        get(){
+        get() {
             val m = DoubleArray(bins.size)
-            for((index, bin) in bins.withIndex()){
-                m[index]= bin.midPoint
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.midPoint
             }
             return m
         }
@@ -132,10 +134,10 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      * @return the lower limit of each bin as an array
      */
     val lowerLimits: DoubleArray
-        get(){
+        get() {
             val m = DoubleArray(bins.size)
-            for((index, bin) in bins.withIndex()){
-                m[index]= bin.lowerLimit
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.lowerLimit
             }
             return m
         }
@@ -144,10 +146,10 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      * @return the upper limit of each bin as an array
      */
     val upperLimits: DoubleArray
-        get(){
+        get() {
             val m = DoubleArray(bins.size)
-            for((index, bin) in bins.withIndex()){
-                m[index]= bin.upperLimit
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.upperLimit
             }
             return m
         }
@@ -257,6 +259,23 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      * @return the cumulative fraction
      */
     fun cumulativeFraction(x: Double): Double
+
+    /**
+     *  The expected number of observations within the bin given
+     *  a particular [cdf]
+     */
+    fun expectedCount(binNum: Int, cdf: CDFIfc): Double {
+        return count * cdf.cdf(bin(binNum))
+    }
+
+    /**
+     *  The expected number of observations in each bin given
+     *  a particular [cdf].
+     */
+    fun expectedCounts(cdf: CDFIfc) : DoubleArray {
+        val p = cdf.cdf(bins)
+        return p.multiplyConstant(count)
+    }
 
     /**
      * Total number of observations collected including overflow and underflow
