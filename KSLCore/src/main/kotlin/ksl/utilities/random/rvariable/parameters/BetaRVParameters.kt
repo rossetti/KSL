@@ -1,11 +1,12 @@
 package ksl.utilities.random.rvariable.parameters
 
+import ksl.utilities.distributions.Beta
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.BetaRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class BetaRVParameters : RVParameters() {
+class BetaRVParameters : RVParameters(), CreateDistributionIfc<Beta>  {
     override fun fillParameters() {
         addDoubleParameter("alpha1", 1.0)
         addDoubleParameter("alpha2", 1.0)
@@ -17,5 +18,11 @@ class BetaRVParameters : RVParameters() {
         val alpha1 = doubleParameter("alpha1")
         val alpha2 = doubleParameter("alpha2")
         return BetaRV(alpha1, alpha2, rnStream)
+    }
+
+    override fun createDistribution(): Beta {
+        val alpha1 = doubleParameter("alpha1")
+        val alpha2 = doubleParameter("alpha2")
+        return Beta(alpha1, alpha2)
     }
 }
