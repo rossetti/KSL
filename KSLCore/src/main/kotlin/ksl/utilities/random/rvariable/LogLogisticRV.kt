@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.LogLogisticRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * LogLogistic(shape, scale) random variable
@@ -52,7 +54,7 @@ class LogLogisticRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.LogLogisticRVParameters()
+            val parameters: RVParameters = LogLogisticRVParameters()
             parameters.changeDoubleParameter("shape", shape)
             parameters.changeDoubleParameter("scale", scale)
             return parameters

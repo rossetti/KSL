@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.PearsonType5RVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Pearson Type 5(shape, scale) random variable
@@ -52,7 +54,7 @@ class PearsonType5RV (
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.PearsonType5RVParameters()
+            val parameters: RVParameters = PearsonType5RVParameters()
             parameters.changeDoubleParameter("shape", shape)
             parameters.changeDoubleParameter("scale", scale)
             return parameters

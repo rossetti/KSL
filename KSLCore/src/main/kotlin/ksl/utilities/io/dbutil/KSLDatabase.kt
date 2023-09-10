@@ -28,8 +28,8 @@ import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
-import ksl.utilities.random.rvariable.RVParameterData
-import ksl.utilities.random.rvariable.RVParameterSetter
+import ksl.utilities.random.rvariable.parameters.RVParameterData
+import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.StatisticIfc

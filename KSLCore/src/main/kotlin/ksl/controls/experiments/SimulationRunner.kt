@@ -25,7 +25,7 @@ import ksl.simulation.Experiment
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
 import ksl.utilities.maps.KSLMaps
-import ksl.utilities.random.rvariable.RVParameterSetter
+import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.toPrimitives
 import java.io.PrintWriter
 import java.io.StringWriter

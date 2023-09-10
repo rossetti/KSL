@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.NormalRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 import kotlin.math.sqrt
 
 /**
@@ -58,7 +60,7 @@ class NormalRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.NormalRVParameters()
+            val parameters: RVParameters = NormalRVParameters()
             parameters.changeDoubleParameter("mean", mean)
             parameters.changeDoubleParameter("variance", variance)
             return parameters

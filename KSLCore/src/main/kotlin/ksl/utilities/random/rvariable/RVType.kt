@@ -18,6 +18,11 @@
 
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rvariable.parameters.*
+import ksl.utilities.random.rvariable.parameters.AR1NormalRVParameters
+import ksl.utilities.random.rvariable.parameters.BernoulliRVParameters
+import ksl.utilities.random.rvariable.parameters.BetaRVParameters
+import ksl.utilities.random.rvariable.parameters.BinomialRVParameters
 import kotlin.reflect.KClass
 
 /**
@@ -27,107 +32,107 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) {
 
     Bernoulli(BernoulliRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.BernoulliRVParameters()
+            get() = BernoulliRVParameters()
     },
     Beta(BetaRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.BetaRVParameters()
+            get() = BetaRVParameters()
     },
     ChiSquared(ChiSquaredRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.ChiSquaredRVParameters()
+            get() = ChiSquaredRVParameters()
     },
     Binomial(BinomialRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.BinomialRVParameters()
+            get() = BinomialRVParameters()
     },
     Constant(ConstantRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.ConstantRVParameters()
+            get() = ConstantRVParameters()
     },
     DUniform(DUniformRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.DUniformRVParameters()
+            get() = DUniformRVParameters()
     },
     Exponential(ExponentialRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.ExponentialRVParameters()
+            get() = ExponentialRVParameters()
     },
     Gamma(GammaRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.GammaRVParameters()
+            get() = GammaRVParameters()
     },
     GeneralizedBeta(GeneralizedBetaRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.GeneralizedBetaRVParameters()
+            get() = GeneralizedBetaRVParameters()
     },
     Geometric(GeometricRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.GeometricRVParameters()
+            get() = GeometricRVParameters()
     },
     JohnsonB(JohnsonBRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.JohnsonBRVParameters()
+            get() = JohnsonBRVParameters()
     },
     Laplace(LaplaceRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.LaplaceRVParameters()
+            get() = LaplaceRVParameters()
     },
     LogLogistic(LogLogisticRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.LogLogisticRVParameters()
+            get() = LogLogisticRVParameters()
     },
     Lognormal(LognormalRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.LognormalRVParameters()
+            get() = LognormalRVParameters()
     },
     NegativeBinomial(NegativeBinomialRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.NegativeBinomialRVParameters()
+            get() = NegativeBinomialRVParameters()
     },
     Normal(NormalRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.NormalRVParameters()
+            get() = NormalRVParameters()
     },
     PearsonType5(PearsonType5RV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.PearsonType5RVParameters()
+            get() = PearsonType5RVParameters()
     },
     PearsonType6(PearsonType6RV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.PearsonType6RVParameters()
+            get() = PearsonType6RVParameters()
     },
     Poisson(PoissonRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.PoissonRVParameters()
+            get() = PoissonRVParameters()
     },
     ShiftedGeometric(ShiftedGeometricRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.ShiftedGeometricRVParameters()
+            get() = ShiftedGeometricRVParameters()
     },
     Triangular(TriangularRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.TriangularRVParameters()
+            get() = TriangularRVParameters()
     },
     Uniform(UniformRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.UniformRVParameters()
+            get() = UniformRVParameters()
     },
     Weibull(WeibullRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.WeibullRVParameters()
+            get() = WeibullRVParameters()
     },
     DEmpirical(DEmpiricalRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.DEmpiricalRVParameters()
+            get() = DEmpiricalRVParameters()
     },
     Empirical(EmpiricalRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.EmpiricalRVParameters()
+            get() = EmpiricalRVParameters()
     },
     AR1Normal(AR1NormalRV::class) {
         override val rvParameters: RVParameters
-            get() = RVParameters.AR1NormalRVParameters()
+            get() = AR1NormalRVParameters()
     };
 
     val parametrizedRVClass: KClass<out ParameterizedRV> = rvClass

@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.EmpiricalRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * A random variable that samples from the provided data. Each value is
@@ -59,7 +61,7 @@ class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStre
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.EmpiricalRVParameters()
+            val parameters: RVParameters = EmpiricalRVParameters()
             parameters.changeDoubleArrayParameter("population", values)
             return parameters
 

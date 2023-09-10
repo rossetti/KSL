@@ -31,7 +31,7 @@ import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
-import ksl.utilities.random.rvariable.RVParameterSetter
+import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
 import io.github.oshai.kotlinlogging.KotlinLogging

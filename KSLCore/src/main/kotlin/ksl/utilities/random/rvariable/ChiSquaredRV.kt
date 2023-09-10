@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.ChiSquaredRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Chi-Squared(degrees of freedom) random variable
@@ -51,7 +53,7 @@ class ChiSquaredRV (val degreesOfFreedom: Double, stream: RNStreamIfc = KSLRando
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.ChiSquaredRVParameters()
+            val parameters: RVParameters = ChiSquaredRVParameters()
             parameters.changeDoubleParameter("dof", degreesOfFreedom)
             return parameters
 

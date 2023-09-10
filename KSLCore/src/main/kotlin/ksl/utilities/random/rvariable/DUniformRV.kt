@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.DUniformRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Discrete uniform(min, max) random variable
@@ -67,7 +69,7 @@ class DUniformRV(val min: Int, val max: Int, stream: RNStreamIfc = KSLRandom.nex
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.DUniformRVParameters()
+            val parameters: RVParameters = DUniformRVParameters()
             parameters.changeIntegerParameter("min", min)
             parameters.changeIntegerParameter("max", max)
             return parameters

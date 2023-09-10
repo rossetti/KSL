@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.BernoulliRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 
 /**
@@ -83,7 +85,7 @@ class BernoulliRV (
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.BernoulliRVParameters()
+            val parameters: RVParameters = BernoulliRVParameters()
             parameters.changeDoubleParameter("probOfSuccess", probOfSuccess)
             return parameters
         }

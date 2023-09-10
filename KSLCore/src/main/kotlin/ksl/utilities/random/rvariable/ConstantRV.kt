@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.ConstantRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Allows a constant value to pretend to be a random variable
@@ -42,7 +44,7 @@ open class ConstantRV(var constVal: Double, name: String? = null) : Parameterize
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.ConstantRVParameters()
+            val parameters: RVParameters = ConstantRVParameters()
             parameters.changeDoubleParameter("value", constVal)
             return parameters
         }
