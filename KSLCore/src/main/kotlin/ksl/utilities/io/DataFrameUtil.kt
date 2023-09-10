@@ -16,6 +16,8 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+
 package ksl.utilities.io
 
 import ksl.observers.ReplicationDataCollector
@@ -29,13 +31,11 @@ import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.Statistic
-import ksl.utilities.toMapOfColumns
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.DataRow
-import org.jetbrains.kotlinx.dataframe.annotations.DataSchema
 import org.jetbrains.kotlinx.dataframe.api.*
 import java.io.PrintWriter
 import java.lang.Appendable
@@ -394,8 +394,21 @@ fun DataColumn<Int>.frequencies(): IntegerFrequency {
  *  The 2D array must be rectangular
  */
 fun Array<DoubleArray>.toDataFrame(): DataFrame<*> {
+    require(this.isRectangular()) {"The array must be rectangular"}
     val map = this.toMapOfLists()
     return map.toDataFrame()
+}
+
+/**
+ *  Converts the data stored in each array to columns within
+ *  a DataFrame, with the column names as the key from the map and
+ *  the columns holding the data. Each array must have the same size.
+ */
+fun Map<String, DoubleArray>.toDataFrame() : AnyFrame {
+    val arrays = this.values.toList()
+    val da = Array(this.size){arrays[it]}
+    require(KSLArrays.isRectangular(da)){"The arrays must all have the sam size"}
+    return toMapOfLists().toDataFrame()
 }
 
 /**
