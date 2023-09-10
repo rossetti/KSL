@@ -18,8 +18,10 @@
 
 package ksl.utilities.io
 
+import ksl.observers.ReplicationDataCollector
 import ksl.utilities.KSLArrays
 import ksl.utilities.isRectangular
+import ksl.utilities.maps.toMapOfLists
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.sample
@@ -394,6 +396,15 @@ fun DataColumn<Int>.frequencies(): IntegerFrequency {
 fun Array<DoubleArray>.toDataFrame(): DataFrame<*> {
     val map = this.toMapOfLists()
     return map.toDataFrame()
+}
+
+/**
+ *  Converts the data collected by the ReplicationDataCollector to
+ *  a DataFrame, with the column names as the response names and
+ *  the columns holding the data across replications
+ */
+fun ReplicationDataCollector.toDataFrame(): AnyFrame {
+    return allReplicationDataAsMap.toMapOfLists().toDataFrame()
 }
 
 fun <T> DataFrame<T>.writeMarkDownTable(writer: PrintWriter = KSL.createPrintWriter("dataFrame.md")) {

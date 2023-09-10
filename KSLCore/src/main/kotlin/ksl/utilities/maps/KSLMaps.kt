@@ -146,3 +146,14 @@ object KSLMaps {
 fun Map<String, Double>.toJson(): String {
     return KSLMaps.stringDoubleMapToJson(this)
 }
+
+/**
+ *  Converts the inner DoubleArray to List<Double>
+ */
+fun Map<String, DoubleArray>.toMapOfLists() : Map<String, List<Double>> {
+    val map = mutableMapOf<String, List<Double>>()
+    for((name, array) in this){
+        map[name] = array.toList()
+    }
+    return map
+}
