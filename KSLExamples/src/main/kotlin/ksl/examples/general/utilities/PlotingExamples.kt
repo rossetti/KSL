@@ -282,9 +282,9 @@ fun testWelchPlotting() {
     psp.showInBrowser()
     psp.saveToFile("SystemTimePartialSumsPlot")
 
-    val traceValues = rt.traceDataMap(1.0, 100.0)
-    val v = traceValues["values"]!!
-    val t = traceValues["times"]!!
+//    val traceValues = rt.traceDataMap(1.0, 100.0)
+//    val v = traceValues["values"]!!
+//    val t = traceValues["times"]!!
 //    val plot = StateVariablePlot(v, t, "response")
     val plot = StateVariablePlot(rt, 1.0, 100.0)
     plot.showInBrowser()
