@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.DEmpiricalRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Discrete Empirical Random Variable. Randomly selects from the supplied
@@ -71,7 +73,7 @@ class DEmpiricalRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.DEmpiricalRVParameters()
+            val parameters: RVParameters = DEmpiricalRVParameters()
             parameters.changeDoubleArrayParameter("values", values)
             parameters.changeDoubleArrayParameter("cdf", cdf)
             return parameters

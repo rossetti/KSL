@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.random.rvariable
+package ksl.utilities.random.rvariable.parameters
 
 interface RVParametersIfc {
     /**

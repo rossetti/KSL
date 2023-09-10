@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Lognormal(mean, variance). The mean and variance are for the lognormal random variables
@@ -53,7 +55,7 @@ class LognormalRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.LognormalRVParameters()
+            val parameters: RVParameters = LognormalRVParameters()
             parameters.changeDoubleParameter("mean", mean)
             parameters.changeDoubleParameter("variance", variance)
             return parameters

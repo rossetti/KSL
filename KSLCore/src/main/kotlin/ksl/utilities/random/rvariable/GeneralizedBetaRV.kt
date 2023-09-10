@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.GeneralizedBetaRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * GeneralizeBetaRV(alpha1, alpha2, min, max) random variable
@@ -69,7 +71,7 @@ class GeneralizedBetaRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.GeneralizedBetaRVParameters()
+            val parameters: RVParameters = GeneralizedBetaRVParameters()
             parameters.changeDoubleParameter("alpha1", alpha1)
             parameters.changeDoubleParameter("alpha2", alpha2)
             parameters.changeDoubleParameter("min", minimum)

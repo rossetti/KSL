@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.BetaRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Beta(alpha1, alpha2) random variable, range (0,1)
@@ -52,7 +54,7 @@ class BetaRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.BetaRVParameters()
+            val parameters: RVParameters = BetaRVParameters()
             parameters.changeDoubleParameter("alpha1", alpha1)
             parameters.changeDoubleParameter("alpha2", alpha2)
             return parameters

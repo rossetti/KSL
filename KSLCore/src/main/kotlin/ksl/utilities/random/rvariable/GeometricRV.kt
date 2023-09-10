@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.GeometricRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Geometric(probability of success) random variable, range 0, 1, 2, etc.
@@ -54,7 +56,7 @@ class GeometricRV (val probOfSuccess: Double, stream: RNStreamIfc = KSLRandom.ne
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.GeometricRVParameters()
+            val parameters: RVParameters = GeometricRVParameters()
             parameters.changeDoubleParameter("ProbOfSuccess", probOfSuccess)
             return parameters
         }

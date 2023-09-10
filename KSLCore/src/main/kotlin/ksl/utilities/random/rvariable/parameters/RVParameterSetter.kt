@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.random.rvariable
+package ksl.utilities.random.rvariable.parameters
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -25,8 +25,8 @@ import ksl.simulation.Model
 import ksl.utilities.maps.KSLMaps
 import ksl.utilities.maps.toJson
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.ParameterizedRV
 import java.lang.StringBuilder
-import kotlin.reflect.full.declaredMemberProperties
 
 data class RVParameterData(
     val clazzName: String,

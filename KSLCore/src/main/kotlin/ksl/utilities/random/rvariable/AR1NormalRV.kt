@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.AR1NormalRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /** Creates an autoregressive order 1 normal process
  *
@@ -79,7 +81,7 @@ class AR1NormalRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.AR1NormalRVParameters()
+            val parameters: RVParameters = AR1NormalRVParameters()
             parameters.changeDoubleParameter("mean", mean)
             parameters.changeDoubleParameter("variance", variance)
             parameters.changeDoubleParameter("correlation", lag1Corr)
