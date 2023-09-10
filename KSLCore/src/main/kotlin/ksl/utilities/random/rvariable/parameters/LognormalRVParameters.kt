@@ -1,11 +1,12 @@
 package ksl.utilities.random.rvariable.parameters
 
+import ksl.utilities.distributions.Lognormal
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class LognormalRVParameters : RVParameters() {
+class LognormalRVParameters : RVParameters(), CreateDistributionIfc<Lognormal> {
     override fun fillParameters() {
         addDoubleParameter("mean", 1.0)
         addDoubleParameter("variance", 1.0)
@@ -17,5 +18,11 @@ class LognormalRVParameters : RVParameters() {
         val mean = doubleParameter("mean")
         val variance = doubleParameter("variance")
         return LognormalRV(mean, variance, rnStream)
+    }
+
+    override fun createDistribution(): Lognormal {
+        val mean = doubleParameter("mean")
+        val variance = doubleParameter("variance")
+        return Lognormal(mean, variance)
     }
 }
