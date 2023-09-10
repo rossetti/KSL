@@ -40,7 +40,7 @@ import ksl.utilities.maps.KSLMaps
  * the collector as an observer of the model prior to running subsequent simulations.
  * @param model the model that has the responses, must not be null
  * @param addAll if true then ALL currently defined response variables and counters within the
- * model will be automatically added to the data collector
+ * model will be automatically added to the data collector. The default is false.
  */
 class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
     private val myResponses: MutableList<Response> = mutableListOf()
