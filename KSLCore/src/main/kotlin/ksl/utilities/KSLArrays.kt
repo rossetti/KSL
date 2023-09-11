@@ -2114,6 +2114,16 @@ object KSLArrays {
     }
 
     /**
+     *  Returns a new array with duplicate data values removed from the original array,
+     *  preserving the order of the observations.
+     */
+    fun removeDuplicates(data:DoubleArray) : DoubleArray {
+        val doubles = data.copyOf()
+        val set = doubles.toSet()
+        return set.toTypedArray().toDoubleArray()
+    }
+
+    /**
      * Returns a statistic that summarizes the passed in array of values
      *
      * @param x the values to compute statistics for
@@ -2273,6 +2283,14 @@ fun DoubleArray.histogram(breakPoints: DoubleArray = Histogram.recommendBreakPoi
  */
 fun DoubleArray.orderStatistics(): DoubleArray {
     return KSLArrays.orderStatistics(this)
+}
+
+/**
+ *  Returns a new array with duplicate data values removed from the original array,
+ *  preserving the order of the observations.
+ */
+fun DoubleArray.removeDuplicates(): DoubleArray {
+    return KSLArrays.removeDuplicates(this)
 }
 
 /**
