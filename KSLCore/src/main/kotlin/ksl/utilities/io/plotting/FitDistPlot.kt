@@ -16,20 +16,19 @@ class FitDistPlot(
 ) {
     var defaultPlotDir: Path = KSL.plotDir
     var title = if (dataName != null) "Fit Distribution Plot for $dataName" else "Fit Distribution Plot"
-    val histogramPlot: HistogramPlot
+    val densityPlot: DensityPlot
     val ecdfPlot: ECDFPlot
     val qqPlot: QQPlot = QQPlot(data, quantileFun)
     val ppPlot: PPPlot = PPPlot(data, cdfFunction)
 
     init {
-        histogramPlot = HistogramPlot(data, proportions = true)
-        histogramPlot.density = cdfFunction::pdf
+        densityPlot = DensityPlot(data, cdfFunction::pdf)
         val fn: (Double) -> Double = cdfFunction::cdf
         ecdfPlot = ECDFPlot(data, fn)
     }
 
     private fun buildFigure(): Figure {
-        val p1 = histogramPlot.buildPlot()
+        val p1 = densityPlot.buildPlot()
         val p2 = qqPlot.buildPlot()
         val p3 = ecdfPlot.buildPlot()
         val p4 = ppPlot.buildPlot()

@@ -155,6 +155,30 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
         }
 
     /**
+     *  @return the width of each bin as an array
+     */
+    val binWidths: DoubleArray
+        get() {
+            val m = DoubleArray(bins.size)
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.width
+            }
+            return m
+        }
+
+    /**
+     * @return the area associated with the bin, width*count
+     */
+    val binAreas: DoubleArray
+        get() {
+            val m = DoubleArray(bins.size)
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = (bin.width * bin.count())
+            }
+            return m
+        }
+
+    /**
      * Returns the current bin count for the bin associated with x
      *
      * @param x the data to check
@@ -272,7 +296,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      *  The expected number of observations in each bin given
      *  a particular [cdf].
      */
-    fun expectedCounts(cdf: CDFIfc) : DoubleArray {
+    fun expectedCounts(cdf: CDFIfc): DoubleArray {
         val p = cdf.cdf(bins)
         return p.multiplyConstant(count)
     }

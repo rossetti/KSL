@@ -1,5 +1,6 @@
 package ksl.utilities.io.plotting
 
+import ksl.utilities.isAllEqual
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.HistogramIfc
 import org.jetbrains.letsPlot.geom.geomFunction
@@ -11,16 +12,23 @@ import org.jetbrains.letsPlot.label.ggtitle
 import org.jetbrains.letsPlot.label.ylab
 import org.jetbrains.letsPlot.tooltips.layerTooltips
 
-class HistogramPlot(
+//TODO the height scaling is not right for the density overlay
+class DensityPlot(
     private val histogram: HistogramIfc,
-    var proportions: Boolean = false
+    val density: ((Double) -> Double)
 ) : BasePlot() {
 
     private val data: Map<String, DoubleArray>
     private val lowerLimits: DoubleArray
     private val upperLimits: DoubleArray
+    val densityEstimate: DoubleArray
 
     init {
+        val bws = histogram.binWidths
+        require(bws.isAllEqual()) { "The width of each bin must be the same" }
+        val bw = bws[0]
+        require(bw > 0.0) { "The bin width must be > 0.0" }
+        title = "Density Estimation Plot"
         upperLimits = histogram.upperLimits
         if (upperLimits.last().isInfinite()) {
             upperLimits[upperLimits.lastIndex] = histogram.max + 1.0
@@ -29,27 +37,30 @@ class HistogramPlot(
         if (lowerLimits.first().isInfinite()) {
             lowerLimits[0] = histogram.min - 1
         }
-        data = if (proportions) {
-            yLabel = "Bin Proportions"
-            mapOf(
-                "xmin" to lowerLimits,
-                "xmax" to upperLimits,
-                "ymax" to histogram.binFractions
-            )
-        } else {
-            yLabel = "Bin Counts"
-            mapOf<String, DoubleArray>(
-                "xmin" to lowerLimits,
-                "xmax" to upperLimits,
-                "ymax" to histogram.binCounts
-            )
+        yLabel = "Density"
+        densityEstimate = DoubleArray(bws.size)
+        val h = histogram.binFractions
+        for (i in densityEstimate.indices) {
+            densityEstimate[i] = h[i] / bw
         }
+        data = mapOf(
+            "xmin" to lowerLimits,
+            "xmax" to upperLimits,
+            "ymax" to densityEstimate
+        )
     }
 
-    constructor(data: DoubleArray, proportions: Boolean = false) :
-            this(Histogram.create(data), proportions)
+    constructor(data: DoubleArray, density: ((Double) -> Double)) :
+            this(Histogram.create(data), density)
+
+    var numPoints: Int = 512
+        set(value) {
+            require(value > 0) { "The number of points on the x-axis must be > 0" }
+            field = value
+        }
 
     override fun buildPlot(): Plot {
+        val limits = Pair(lowerLimits[0], upperLimits[upperLimits.lastIndex])
         val p = ggplot() +
                 geomRect(
                     data, ymin = 0.0,
@@ -62,7 +73,8 @@ class HistogramPlot(
                     xmin = "xmin"
                     xmax = "xmax"
                     ymax = "ymax"
-                } + ylab(yLabel) +
+                } + geomFunction(xlim = limits, fn = density, n = numPoints, color = "red") +
+                ylab(yLabel) +
                 ggtitle(title) +
                 ggsize(width, height)
         return p

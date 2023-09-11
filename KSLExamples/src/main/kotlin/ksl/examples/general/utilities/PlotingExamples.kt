@@ -32,7 +32,7 @@ fun main() {
 //    testFunctionPlot()
 //    testHistogramPlot()
 //    testStateVariablePlot()
-    testWelchPlotting()
+//    testWelchPlotting()
     //      testObservationPlot()
 //    testACFPlot()
 //    testPMFPlot()
@@ -40,7 +40,7 @@ fun main() {
 
  //   testECDFPlot()
 
-//    testFitDistPlot()
+    testFitDistPlot()
 }
 
 fun testPlot() {
@@ -206,7 +206,6 @@ fun testHistogramPlot() {
     val h1 = Histogram.create(data)
     println(h1)
     val hp = HistogramPlot(h1, proportions = true)
-    hp.density = { x: Double -> 0.5 * exp(-0.5 * x) }
     hp.showInBrowser()
     hp.saveToFile("The First Histogram Plot")
 
