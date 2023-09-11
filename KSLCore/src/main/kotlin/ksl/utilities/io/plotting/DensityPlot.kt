@@ -12,7 +12,9 @@ import org.jetbrains.letsPlot.label.ggtitle
 import org.jetbrains.letsPlot.label.ylab
 import org.jetbrains.letsPlot.tooltips.layerTooltips
 
-//TODO the height scaling is not right for the density overlay
+/**
+ *  The histogram must have bins that all have the same bin width
+ */
 class DensityPlot(
     private val histogram: HistogramIfc,
     val density: ((Double) -> Double)
@@ -21,13 +23,9 @@ class DensityPlot(
     private val data: Map<String, DoubleArray>
     private val lowerLimits: DoubleArray
     private val upperLimits: DoubleArray
-    val densityEstimate: DoubleArray
+    private val densityEstimate: DoubleArray = histogram.densityEstimates
 
     init {
-        val bws = histogram.binWidths
-        require(bws.isAllEqual()) { "The width of each bin must be the same" }
-        val bw = bws[0]
-        require(bw > 0.0) { "The bin width must be > 0.0" }
         title = "Density Estimation Plot"
         upperLimits = histogram.upperLimits
         if (upperLimits.last().isInfinite()) {
@@ -38,11 +36,6 @@ class DensityPlot(
             lowerLimits[0] = histogram.min - 1
         }
         yLabel = "Density"
-        densityEstimate = DoubleArray(bws.size)
-        val h = histogram.binFractions
-        for (i in densityEstimate.indices) {
-            densityEstimate[i] = h[i] / bw
-        }
         data = mapOf(
             "xmin" to lowerLimits,
             "xmax" to upperLimits,

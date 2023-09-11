@@ -21,6 +21,7 @@ package ksl.utilities.statistic
 import ksl.utilities.IdentityIfc
 import ksl.utilities.KSLArrays
 import ksl.utilities.distributions.CDFIfc
+import ksl.utilities.isAllEqual
 import ksl.utilities.math.KSLMath
 import ksl.utilities.multiplyConstant
 import kotlin.math.ceil
@@ -174,6 +175,20 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
             val m = DoubleArray(bins.size)
             for ((index, bin) in bins.withIndex()) {
                 m[index] = (bin.width * bin.count())
+            }
+            return m
+        }
+
+    val densityEstimates: DoubleArray
+        get() {
+            val bws = binWidths
+            require(bws.isAllEqual()) { "The width of each bin must be the same" }
+            val bw = bws[0]
+            require(bw > 0.0) { "The bin width must be > 0.0" }
+            val m = DoubleArray(bins.size)
+            val delta = count * bw
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.count() / delta
             }
             return m
         }
