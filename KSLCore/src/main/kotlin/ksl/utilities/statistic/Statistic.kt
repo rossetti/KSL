@@ -926,6 +926,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             }
             return sum
         }
+
     }
 
 }
