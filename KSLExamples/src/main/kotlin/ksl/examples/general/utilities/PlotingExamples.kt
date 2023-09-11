@@ -40,7 +40,9 @@ fun main() {
 
  //   testECDFPlot()
 
-    testFitDistPlot()
+//    testFitDistPlot()
+
+    testCDFDiffPlot()
 }
 
 fun testPlot() {
@@ -342,4 +344,11 @@ fun testFitDistPlot() {
     val plot = FitDistPlot(testData, n, n)
     plot.showInBrowser()
     plot.saveToFile("FitDistPlot")
+}
+
+fun testCDFDiffPlot() {
+    val n = Normal(10.3, 3.484)
+    val plot = CDFDiffPlot(testData, n)
+    plot.showInBrowser()
+    plot.saveToFile("CDFDiffPlot")
 }
