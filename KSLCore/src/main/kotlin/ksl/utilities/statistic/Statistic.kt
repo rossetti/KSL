@@ -645,6 +645,18 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         }
 
         /**
+         *  Computes the proportion of the observations that are less than
+         *  or equal to the supplied value of x. If the array is empty,
+         *  then 0.0 is returned.
+         */
+        fun empiricalCDF(data: DoubleArray, x: Double) : Double {
+            if (data.isEmpty())
+                return 0.0
+            val n = data.size.toDouble()
+            return data.countLessEqualTo(x)/n
+        }
+
+        /**
          *  Computes the box plot summaries for the data within the map
          */
         fun boxPlotSummaries(dataMap: Map<String, DoubleArray>): Map<String, BoxPlotSummary> {
