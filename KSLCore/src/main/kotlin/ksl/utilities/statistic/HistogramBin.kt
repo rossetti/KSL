@@ -32,6 +32,9 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
 
     val lowerLimit: Double = theLowerLimit
     val upperLimit: Double = theUpperLimit
+    val width
+        get() = upperLimit - lowerLimit
+
     val midPoint
         get() = (upperLimit - lowerLimit)/2.0
 

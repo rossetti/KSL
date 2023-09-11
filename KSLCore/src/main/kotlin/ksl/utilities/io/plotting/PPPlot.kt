@@ -24,6 +24,7 @@ class PPPlot(
 
     override fun buildPlot(): Plot {
         val sp = ScatterPlot(theoreticalProbabilities, empProbabilities)
+        sp.title = "Probability-Probability Plot"
         val p = sp.buildPlot() +
                 geomABLine(slope = 1.0, intercept = 0.0, color = "red") +
                 labs(x = "Theoretical Probabilities", y = "Empirical Probabilities")

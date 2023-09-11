@@ -24,6 +24,7 @@ class QQPlot(
 
     override fun buildPlot(): Plot {
         val sp = ScatterPlot(empiricalQuantiles, orderStats)
+        sp.title = "Quantile-Quantile Plot"
         val p = sp.buildPlot() +
                 labs(x = "Theoretical Quantiles", y = "Empirical Quantiles")
         return p
