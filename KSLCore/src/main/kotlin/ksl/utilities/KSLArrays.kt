@@ -2308,6 +2308,14 @@ fun DoubleArray.countLessEqualTo(x: Double): Int {
 }
 
 /**
+ * @param x the ordinate to check
+ * @return the proportion of the data points that are less than or equal to x
+ */
+fun DoubleArray.empiricalCDF(x: Double): Double {
+    return Statistic.empiricalCDF(this, x)
+}
+
+/**
  * Returns the index associated with the minimum element in the array For
  * ties, this returns the first found.
  *

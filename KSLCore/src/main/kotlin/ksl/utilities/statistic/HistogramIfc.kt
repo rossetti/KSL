@@ -179,6 +179,11 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
             return m
         }
 
+    /**
+     *  A simple estimate of the "density" function
+     *  for each bin using bin fraction/bin width values for each bin
+     *  The bin width must be constant across the bins and not equal to 0.0
+     */
     val densityEstimates: DoubleArray
         get() {
             val bws = binWidths
