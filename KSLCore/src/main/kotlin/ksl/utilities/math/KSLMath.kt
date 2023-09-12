@@ -17,8 +17,8 @@
  */
 package ksl.utilities.math
 
-import ksl.utilities.distributions.Gamma
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.utilities.distributions.Gamma
 import kotlin.math.*
 
 /**
@@ -301,6 +301,14 @@ object KSLMath {
         } else {
             -1.0
         }
+    }
+
+    /**
+     *  Computes the [k]th root of [x]
+     */
+    fun kthRoot(x: Double, k: Int): Double {
+        val y = k.toDouble()
+        return y.pow(1.0 / y * (ln(x) / ln(y)))
     }
 
     /**
