@@ -54,9 +54,9 @@ fun main() {
 
     //println(Statistic(testData))
 
- //   testKSStatistic()
+    testKSStatistic()
 
-    testStatistics()
+//    testStatistics()
 }
 
 fun testStatistics(){
@@ -115,5 +115,8 @@ fun testKSStatistic(){
     val ks = Statistic.ksTestStatistic(testData, cdf)
     println("KS Test Statistic = $ks")
     val pv = KolmogorovSmirnovDist.complementaryCDF(testData.size, ks)
+    val cv = KolmogorovSmirnovDist.cdf(testData.size, ks)
+    // this matches R if "exact" is specified: ks.test(x, "pnorm", exact=TRUE, 10.3, sqrt(3.484))
     println("KS p-value = $pv")
+    println("cv = $cv")
 }
