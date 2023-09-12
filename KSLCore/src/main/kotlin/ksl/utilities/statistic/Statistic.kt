@@ -600,7 +600,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          * @param level     the confidence level (must be between 0 and 1)
          * @return the estimated sample size
          */
-        fun estimateSampleSize(desiredHW: Double, stdDev: Double, level: Double): Long {
+        fun estimateSampleSize(desiredHW: Double, stdDev: Double, level: Double = 0.95): Long {
             require(desiredHW > 0.0) { "The desired half-width must be > 0" }
             require(stdDev >= 0.0) { "The desired std. dev. must be >= 0" }
             require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
@@ -609,6 +609,30 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             val z = Normal.stdNormalInvCDF(1.0 - a2)
             val m = z * stdDev / desiredHW * (z * stdDev / desiredHW)
             return (m + .5).roundToLong()
+        }
+
+        /**
+         * Estimate the sample size based on iterating the half-width equation based on the
+         * Student-T distribution:  hw = t(1-alpha/2, n-1)*s/sqrt(n) <= epsilon
+         *
+         * @param desiredHW the desired half-width (must be bigger than 0)
+         * @param initStdDevEst  an initial estimate of the standard deviation (must be bigger than or equal to 0)
+         * @param level     the confidence level (must be between 0 and 1)
+         * @return the estimated sample size
+         */
+        fun estimateSampleSizeViaStudentT(desiredHW: Double, initStdDevEst: Double, level: Double = 0.95) : Long {
+            require(desiredHW > 0.0) { "The desired half-width must be > 0" }
+            require(initStdDevEst >= 0.0) { "The desired std. dev. must be >= 0" }
+            require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+            val a = 1.0 - level
+            val a2 = a / 2.0
+            val p = 1.0 - a2
+            var n = 1.0
+            do {
+                n = n + 1
+                val h = (StudentT.invCDF(n, p) * initStdDevEst)/sqrt(n)
+            } while(h <= desiredHW)
+            return n.toLong()
         }
 
         /**
