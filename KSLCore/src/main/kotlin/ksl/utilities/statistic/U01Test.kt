@@ -19,6 +19,7 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.distributions.Normal
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RandU01Ifc
 import java.util.*
 import kotlin.math.ceil
@@ -92,6 +93,25 @@ object U01Test {
         require(u.size >= 15) { "The array must have at least 15 observations" }
         require(k <= (u.size / 5.0)) { "The number of intervals should be <= ${u.size / 5.0} to guarantee expected in intervals >= 5.0" }
         return chiSquaredTestStatistic(u, k)
+    }
+
+    /**
+     *  Recommends the number of intervals for a chi-squared goodness of fit test based on the
+     *  supplied sample size.
+     *
+     *  On the Choice of the Number and Width of Classes for the Chi-Square Test of Goodness of Fit
+     *  Author(s): C. Arthur Williams, Jr.
+     * Source: Journal of the American Statistical Association , Mar., 1950, Vol. 45, No. 249 (Mar., 1950), pp. 77-86
+     * Published by: Taylor & Francis, Ltd. on behalf of the American Statistical Association Stable
+     * URL: http://www.jstor.com/stable/2280429
+     */
+    fun recommendNumChiSquaredIntervals(sampleSize: Int, confidenceLevel: Double = 0.95): Int {
+        require(sampleSize >= 1) { "The sample size must be >=1" }
+        require((0 < confidenceLevel) && (confidenceLevel < 1.0)) { "The confidence level must be in (0.0, 1.0)" }
+        val c = Normal.stdNormalInvCDF(confidenceLevel)
+        val x = (2.0 * (sampleSize - 1.0) * (sampleSize - 1.0)) / (c * c)
+        val k = floor(4.0 * KSLMath.kthRoot(x, 5))
+        return k.toInt()
     }
 
     /** Computes the chi-squared test statistic
