@@ -116,7 +116,8 @@ object U01Test {
 
     /**
      *  Recommends the number of intervals for a chi-squared goodness of fit test based on the
-     *  supplied sample size.  This does not assume anything about the distribution.
+     *  supplied sample size.  This does not assume anything about the distribution.  An adjustment
+     *  ensures that there are at least 3 intervals based on other theory.
      *
      *  On the Choice of the Number and Width of Classes for the Chi-Square Test of Goodness of Fit
      *  Author(s): C. Arthur Williams, Jr.
@@ -130,7 +131,7 @@ object U01Test {
         val c = Normal.stdNormalInvCDF(confidenceLevel)
         val x = (2.0 * (sampleSize - 1.0) * (sampleSize - 1.0)) / (c * c)
         val k = floor(4.0 * KSLMath.kthRoot(x, 5))
-        return k.toInt()
+        return 3.coerceAtLeast(k.toInt())
     }
 
     /** Computes the chi-squared test statistic
