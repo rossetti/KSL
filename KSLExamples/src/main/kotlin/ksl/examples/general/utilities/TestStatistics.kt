@@ -23,6 +23,7 @@ import ksl.utilities.distributions.Normal
 import ksl.utilities.io.asDataFrame
 import ksl.utilities.io.writeToFile
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.U01Test
 
 val testData = doubleArrayOf(
     9.57386907765005, 12.2683505035727, 9.57737208532118, 9.46483590382401, 10.7426270820019, 13.6417539779286,
@@ -54,8 +55,9 @@ fun main() {
 
     //println(Statistic(testData))
 
-    testKSStatistic()
-
+//    testKSStatistic()
+    val k = U01Test.recommendNumChiSquaredIntervals(100, 0.95)
+    println("k = $k")
 //    testStatistics()
 }
 
