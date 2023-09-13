@@ -96,8 +96,27 @@ object U01Test {
     }
 
     /**
+     *  Recommends the number of intervals for a chi-squared goodness of fit test of possible U(0,1) data based on the
+     *  supplied sample size.  Adjusts the result of Williams approximation to ensure at 5 or more
+     *  expected within the intervals and a minimum of at least 3 intervals.
+     *
+     *  On the Choice of the Number and Width of Classes for the Chi-Square Test of Goodness of Fit
+     *  Author(s): C. Arthur Williams, Jr.
+     * Source: Journal of the American Statistical Association , Mar., 1950, Vol. 45, No. 249 (Mar., 1950), pp. 77-86
+     * Published by: Taylor & Francis, Ltd. on behalf of the American Statistical Association Stable
+     * URL: http://www.jstor.com/stable/2280429
+     *
+     */
+    fun recommendNumChiSquareU01Intervals(sampleSize: Int, confidenceLevel: Double = 0.95) : Int {
+        require(sampleSize >= 15) { "The sample must have at least 15 observations" }
+        val k1 = recommendNumChiSquaredIntervals(sampleSize, confidenceLevel)
+        val k2 = floor(sampleSize/5.0).toInt()
+        return 3.coerceAtLeast(min(k1, k2))
+    }
+
+    /**
      *  Recommends the number of intervals for a chi-squared goodness of fit test based on the
-     *  supplied sample size.
+     *  supplied sample size.  This does not assume anything about the distribution.
      *
      *  On the Choice of the Number and Width of Classes for the Chi-Square Test of Goodness of Fit
      *  Author(s): C. Arthur Williams, Jr.
