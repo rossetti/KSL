@@ -22,6 +22,7 @@ import ksl.utilities.distributions.KolmogorovSmirnovDist
 import ksl.utilities.distributions.Normal
 import ksl.utilities.io.asDataFrame
 import ksl.utilities.io.writeToFile
+import ksl.utilities.math.KSLMath
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.U01Test
 

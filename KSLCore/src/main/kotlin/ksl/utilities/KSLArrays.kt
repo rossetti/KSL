@@ -1879,7 +1879,7 @@ object KSLArrays {
     /**
      * contributed by Andrew Gibson
      * round a scalar double to a multiple of granularity
-     * note that 0 or null granularity values are interpreted as "no rounding"
+     * note that 0 a  granularity value is interpreted as "no rounding"
      *
      * @param x           - input
      * @param granularity a scalar Double
@@ -1887,7 +1887,6 @@ object KSLArrays {
      */
     fun mround(x: Double, granularity: Double): Double {
         // interpret 0 and null  granularity as "no rounding"
-        granularity.compareTo(0.0)
         return if (granularity.compareTo(0.0) < 1) {
             x
         } else {
