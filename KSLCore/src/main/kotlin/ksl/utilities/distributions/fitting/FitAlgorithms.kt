@@ -18,8 +18,15 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.countLessEqualTo
+import ksl.utilities.distributions.Lognormal
 import ksl.utilities.orderStatistics
 import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
+import ksl.utilities.random.rvariable.parameters.NormalRVParameters
+import ksl.utilities.statistics
+import kotlin.math.exp
+import kotlin.math.ln
 
 object FitAlgorithms {
 
@@ -48,5 +55,38 @@ object FitAlgorithms {
         val top = min * max - xk * xk
         val bottom = min + max - 2.0 * xk
         return top / bottom
+    }
+
+    fun estimateNormal(data: DoubleArray): EstimatedParameters {
+        require(data.size >= 2) { "There must be at least two observations" }
+        val s = data.statistics()
+        val parameters = NormalRVParameters()
+        parameters.changeDoubleParameter("average", s.average)
+        parameters.changeDoubleParameter("variance", s.variance)
+        return EstimatedParameters(parameters, success = true)
+    }
+
+    fun estimateLognormal(data: DoubleArray): EstimatedParameters {
+        require(data.size >= 2) { "There must be at least two observations" }
+        if (data.countLessEqualTo(0.0) == 0) {
+            return EstimatedParameters(
+                null,
+                message = "Cannot fit lognormal distribution when observations are <= 0.0",
+                success = false
+            )
+        }
+        // transform to normal on ln scale
+        val lnData = DoubleArray(data.size) { ln(data[it]) }
+        // estimate parameters of normal distribution
+        val s = lnData.statistics()
+        val mu = s.average
+        val sigma2 = s.variance
+        // compute the parameters of the log-normal distribution
+        val mean = exp(mu + sigma2 / 2.0)
+        val variance = exp(2.0 * mu + sigma2) * (exp(sigma2) - 1.0)
+        val parameters = LognormalRVParameters()
+        parameters.changeDoubleParameter("average", mean)
+        parameters.changeDoubleParameter("variance", variance)
+        return EstimatedParameters(parameters, success = true)
     }
 }
