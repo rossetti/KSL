@@ -18,17 +18,11 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
-class FitResult(
-    val distributionType: RVType,
-    val parameters: RVParameters
-) {
-    // type of distribution
-
-    // parameters of distribution
-
-
-    // messages
-}
+data class EstimatedParameters(
+    val parameters: RVParameters? = null,
+    val shift: Double = 0.0,
+    var message: String? = null,
+    var success: Boolean
+)
