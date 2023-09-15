@@ -21,6 +21,10 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.random.rvariable.parameters.NormalRVParameters
 import ksl.utilities.statistics
 
+/**
+ *  Uses the sample average and sample variance of the data, which
+ *  are the MLE estimators.  There must be at least two observations.
+ */
 object NormalParameterEstimator : ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray): EstimatedParameters {

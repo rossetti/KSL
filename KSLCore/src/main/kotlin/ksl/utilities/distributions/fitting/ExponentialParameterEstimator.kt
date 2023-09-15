@@ -22,6 +22,10 @@ import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
 import ksl.utilities.statistics
 
+/**
+ *  Uses the sample average of the observations, which is the MLE
+ *  estimator. The data must not contain negative values.
+ */
 object ExponentialParameterEstimator : ParameterEstimatorIfc {
     override fun estimate(data: DoubleArray): EstimatedParameters {
         require(data.isNotEmpty()) { "There must be at least one observation" }
