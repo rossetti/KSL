@@ -24,6 +24,13 @@ import ksl.utilities.statistics
 import kotlin.math.exp
 import kotlin.math.ln
 
+/**
+ *   Takes the natural logarithm of the data and then estimates
+ *   the mean and variance of the associated normal distribution.
+ *   Then the parameters are converted to the mean and variance of
+ *   the lognormal distribution.  The supplied data must be strictly
+ *   positive and their must be at least 2 observations.
+ */
 object LognormalParameterEstimator : ParameterEstimatorIfc {
     override fun estimate(data: DoubleArray): EstimatedParameters {
         require(data.size >= 2) { "There must be at least two observations" }

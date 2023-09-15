@@ -18,12 +18,22 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.UniformRVParameters
 import ksl.utilities.statistics
 
+/**
+ *   Uses the minimum unbiased estimators based on the order statistics.
+ *   See: 1. Castillo E, Hadi AS. A method for estimating parameters and quantiles of
+ *   distributions of continuous random variables. Computational Statistics & Data Analysis.
+ *   1995 Oct;20(4):421–39.
+ *   There must be at least two observations and the observations cannot all be the same.
+ *
+ */
 object UniformParameterEstimator : ParameterEstimatorIfc{
     override fun estimate(data: DoubleArray): EstimatedParameters {
         require(data.size >= 2) { "There must be at least two observations" }
+        require(!data.isAllEqual()) {"The observations were all equal."}
         val s = data.statistics()
         val x1 = s.min
         val x2 = s.max
