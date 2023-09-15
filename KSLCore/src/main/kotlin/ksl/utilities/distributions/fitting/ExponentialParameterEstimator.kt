@@ -18,11 +18,23 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.countLessThan
+import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
+import ksl.utilities.statistics
 
-data class EstimatedParameters(
-    val parameters: RVParameters? = null,
-    val shift: Double = 0.0,
-    var message: String? = null,
-    var success: Boolean
-)
+object ExponentialParameterEstimator : ParameterEstimatorIfc {
+    override fun estimate(data: DoubleArray): EstimatedParameters {
+        require(data.isNotEmpty()) { "There must be at least one observation" }
+        if (data.countLessThan(0.0) > 0) {
+            return EstimatedParameters(
+                null,
+                message = "Cannot fit exponential distribution when some observations are less than 0.0",
+                success = false
+            )
+        }
+        val s = data.statistics()
+        val parameters = ExponentialRVParameters()
+        parameters.changeDoubleParameter("average", s.average)
+        return EstimatedParameters(parameters, success = true)
+    }
+}

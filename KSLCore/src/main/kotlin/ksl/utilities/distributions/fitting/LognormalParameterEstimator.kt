@@ -19,59 +19,18 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countLessEqualTo
-import ksl.utilities.distributions.Lognormal
-import ksl.utilities.orderStatistics
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
-import ksl.utilities.random.rvariable.parameters.NormalRVParameters
 import ksl.utilities.statistics
 import kotlin.math.exp
 import kotlin.math.ln
 
-object FitAlgorithms {
-
-    val discreteDistributions = setOf<RVType>(
-        RVType.Bernoulli, RVType.Geometric, RVType.NegativeBinomial, RVType.Poisson
-    )
-
-    val continuousDistributions = setOf<RVType>(
-        RVType.Exponential, RVType.Gamma, RVType.Lognormal, RVType.Normal, RVType.Triangular,
-        RVType.Uniform, RVType.Weibull, RVType.Beta, RVType.PearsonType5, RVType.PearsonType6
-    )
-
-    fun estimateShiftParameter(data: DoubleArray): Double {
+object LognormalParameterEstimator : ParameterEstimatorIfc {
+    override fun estimate(data: DoubleArray): EstimatedParameters {
         require(data.size >= 2) { "There must be at least two observations" }
-        // page 367 of Law(2007)
-        val sorted = data.orderStatistics()
-        val min = sorted.first()
-        val max = sorted.last()
-        var xk = sorted[1]
-        for (k in 1 until sorted.size - 1) {
-            if (sorted[k] > min) {
-                xk = sorted[k]
-                break
-            }
-        }
-        val top = min * max - xk * xk
-        val bottom = min + max - 2.0 * xk
-        return top / bottom
-    }
-
-    fun estimateNormal(data: DoubleArray): EstimatedParameters {
-        require(data.size >= 2) { "There must be at least two observations" }
-        val s = data.statistics()
-        val parameters = NormalRVParameters()
-        parameters.changeDoubleParameter("average", s.average)
-        parameters.changeDoubleParameter("variance", s.variance)
-        return EstimatedParameters(parameters, success = true)
-    }
-
-    fun estimateLognormal(data: DoubleArray): EstimatedParameters {
-        require(data.size >= 2) { "There must be at least two observations" }
-        if (data.countLessEqualTo(0.0) == 0) {
+        if (data.countLessEqualTo(0.0) > 0) {
             return EstimatedParameters(
                 null,
-                message = "Cannot fit lognormal distribution when observations are <= 0.0",
+                message = "Cannot fit lognormal distribution when some observations are <= 0.0",
                 success = false
             )
         }
