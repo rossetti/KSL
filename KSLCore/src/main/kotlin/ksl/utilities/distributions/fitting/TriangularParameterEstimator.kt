@@ -58,6 +58,6 @@ object TriangularParameterEstimator: ParameterEstimatorIfc {
         parameters.changeDoubleParameter("min", a)
         parameters.changeDoubleParameter("max", b)
         parameters.changeDoubleParameter("mode", c)
-        return EstimatedParameters(parameters, success = true)
+        return EstimatedParameters(parameters, statistics = s, success = true)
     }
 }

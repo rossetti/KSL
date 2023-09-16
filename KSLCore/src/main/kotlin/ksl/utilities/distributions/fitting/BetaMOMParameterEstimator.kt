@@ -60,6 +60,6 @@ object BetaMOMParameterEstimator : ParameterEstimatorIfc {
         val parameters = BetaRVParameters()
         parameters.changeDoubleParameter("alpha1", alphaMoM)
         parameters.changeDoubleParameter("alpha2", betaMOM)
-        return EstimatedParameters(parameters, success = true)
+        return EstimatedParameters(parameters, statistics = s, success = true)
     }
 }

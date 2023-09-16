@@ -54,6 +54,6 @@ object UniformParameterEstimator : ParameterEstimatorIfc{
         val parameters = UniformRVParameters()
         parameters.changeDoubleParameter("min", a)
         parameters.changeDoubleParameter("max", b)
-        return EstimatedParameters(parameters, success = true)
+        return EstimatedParameters(parameters, statistics = s, success = true)
     }
 }

@@ -18,12 +18,13 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.KSLArrays
-import ksl.utilities.isAllEqual
+import ksl.utilities.*
+import ksl.utilities.distributions.Gamma
 import ksl.utilities.math.KSLMath
-import ksl.utilities.orderStatistics
 import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.statistic.Statistic
 
 /**
  *  A data class to hold information from a parameter fitting algorithm.
@@ -33,12 +34,14 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  *  still considers the process a failure as indicated in the [success] field.
  *  The string [message] allows a general diagnostic explanation of success,
  *  failure, or other information about the estimation process. In the case
- *  of uni-variate distributions, there may be a [shift] parameter estimated
+ *  of uni-variate distributions, there may be a shift parameter estimated on [shiftedData]
  *  in order to handle data that has a lower range of domain that does not
- *  match well with the distribution.
+ *  match well with the distribution. The algorithm may compute [statistics] on the
+ *  supplied data.
  */
 data class EstimatedParameters(
     val parameters: RVParameters? = null,
+    var statistics: Statistic? = null,
     var shiftedData: ShiftedData? = null,
     var message: String? = null,
     var success: Boolean
@@ -155,6 +158,40 @@ fun interface ParameterEstimatorIfc {
         fun shiftData(data: DoubleArray, tolerance: Double = defaultZeroTolerance) :  ShiftedData {
             val shift = estimateShiftParameter(data,  tolerance)
             return ShiftedData(shift, KSLArrays.subtractConstant(data, shift))
+        }
+
+        internal fun gammaMOMEstimator(data: DoubleArray) : EstimatedParameters{
+            if (data.size < 2){
+                return EstimatedParameters(
+                    message = "There must be at least two observations",
+                    success = false
+                )
+            }
+            if (data.countLessThan(0.0) > 0) {
+                return EstimatedParameters(
+                    null,
+                    message = "Cannot fit gamma distribution when some observations are less than 0.0",
+                    success = false
+                )
+            }
+            val s = data.statistics()
+            if (s.average <= 0.0){
+                return EstimatedParameters(
+                    message = "The sample average of the data was <= 0.0",
+                    success = false
+                )
+            }
+            if (s.variance <= 0.0){
+                return EstimatedParameters(
+                    message = "The sample variance of the data was <= 0.0",
+                    success = false
+                )
+            }
+            val params = Gamma.parametersFromMeanAndVariance(s.average, s.variance)
+            val parameters = GammaRVParameters()
+            parameters.changeDoubleParameter("shape", params[0])
+            parameters.changeDoubleParameter("scale", params[1])
+            return EstimatedParameters(parameters, statistics = s, success = true)
         }
     }
 }
