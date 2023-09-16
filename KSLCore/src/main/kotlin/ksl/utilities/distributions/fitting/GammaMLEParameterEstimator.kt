@@ -1,5 +1,8 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.distributions.Gamma
+import kotlin.math.ln
+
 
 object GammaMLEParameterEstimator : ParameterEstimatorIfc {
 
@@ -9,6 +12,18 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
             return start
         }
         // use starting estimator to seed the MLE search
+        val shape = start.parameters!!.doubleParameter("shape")
+        val scale = start.parameters.doubleParameter("shape")
+        var sum = 0.0
+        for (x in data) {
+            sum = sum + ln(x)
+        }
+        val rhs = sum / data.size
+        val mean = start.statistics!!.average
+        // define the function
+        val fn: (Double) -> Double = { x: Double -> ln(mean / x) + Gamma.diGammaFunction(x) - rhs }
+        // define a search interval for the shape parameter search
+        
 
         TODO("Not yet implemented")
     }
