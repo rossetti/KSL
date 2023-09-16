@@ -28,10 +28,15 @@ import ksl.utilities.statistics
 object NormalParameterEstimator : ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray): EstimatedParameters {
-        require(data.size >= 2) { "There must be at least two observations" }
+        if (data.size < 2){
+            return EstimatedParameters(
+                message = "There must be at least two observations",
+                success = false
+            )
+        }
         val s = data.statistics()
         val parameters = NormalRVParameters()
-        parameters.changeDoubleParameter("average", s.average)
+        parameters.changeDoubleParameter("mean", s.average)
         parameters.changeDoubleParameter("variance", s.variance)
         return EstimatedParameters(parameters, success = true)
     }

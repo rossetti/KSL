@@ -33,10 +33,14 @@ import kotlin.math.ln
  */
 object LognormalParameterEstimator : ParameterEstimatorIfc {
     override fun estimate(data: DoubleArray): EstimatedParameters {
-        require(data.size >= 2) { "There must be at least two observations" }
+        if (data.size < 2){
+            return EstimatedParameters(
+                message = "There must be at least two observations",
+                success = false
+            )
+        }
         if (data.countLessEqualTo(0.0) > 0) {
             return EstimatedParameters(
-                null,
                 message = "Cannot fit lognormal distribution when some observations are <= 0.0",
                 success = false
             )
@@ -51,7 +55,7 @@ object LognormalParameterEstimator : ParameterEstimatorIfc {
         val mean = exp(mu + sigma2 / 2.0)
         val variance = exp(2.0 * mu + sigma2) * (exp(sigma2) - 1.0)
         val parameters = LognormalRVParameters()
-        parameters.changeDoubleParameter("average", mean)
+        parameters.changeDoubleParameter("mean", mean)
         parameters.changeDoubleParameter("variance", variance)
         return EstimatedParameters(parameters, success = true)
     }

@@ -16,7 +16,12 @@ import ksl.utilities.statistics
 object GammaMOMParameterEstimator : ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray): EstimatedParameters {
-        require(data.size >= 2) { "There must be at least two observations" }
+        if (data.size < 2){
+            return EstimatedParameters(
+                message = "There must be at least two observations",
+                success = false
+            )
+        }
         if (data.countLessThan(0.0) > 0) {
             return EstimatedParameters(
                 null,
@@ -25,8 +30,18 @@ object GammaMOMParameterEstimator : ParameterEstimatorIfc {
             )
         }
         val s = data.statistics()
-        require(s.average > 0.0) {"The sample average of the data was 0.0"}
-        require(s.variance > 0.0) {"The sample variance of the data was 0.0"}
+        if (s.average <= 0.0){
+            return EstimatedParameters(
+                message = "The sample average of the data was <= 0.0",
+                success = false
+            )
+        }
+        if (s.variance <= 0.0){
+            return EstimatedParameters(
+                message = "The sample variance of the data was <= 0.0",
+                success = false
+            )
+        }
         val params = Gamma.parametersFromMeanAndVariance(s.average, s.variance)
         val parameters = GammaRVParameters()
         parameters.changeDoubleParameter("shape", params[0])
