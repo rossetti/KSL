@@ -31,8 +31,18 @@ import ksl.utilities.statistics
 object TriangularParameterEstimator: ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray): EstimatedParameters {
-        require(data.size >= 2) { "There must be at least two observations" }
-        require(!data.isAllEqual()) {"The observations were all equal."}
+        if (data.size < 2){
+            return EstimatedParameters(
+                message = "There must be at least two observations",
+                success = false
+            )
+        }
+        if (data.isAllEqual()){
+            return EstimatedParameters(
+                message = "The observations were all equal.",
+                success = false
+            )
+        }
         val s = data.statistics()
         val x1 = s.min
         val x2 = s.max

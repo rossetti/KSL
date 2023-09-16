@@ -28,7 +28,12 @@ import ksl.utilities.statistics
  */
 object ExponentialParameterEstimator : ParameterEstimatorIfc {
     override fun estimate(data: DoubleArray): EstimatedParameters {
-        require(data.isNotEmpty()) { "There must be at least one observation" }
+        if (data.isEmpty()){
+            return EstimatedParameters(
+                message = "There must be at least one observations",
+                success = false
+            )
+        }
         if (data.countLessThan(0.0) > 0) {
             return EstimatedParameters(
                 null,
@@ -38,7 +43,7 @@ object ExponentialParameterEstimator : ParameterEstimatorIfc {
         }
         val s = data.statistics()
         val parameters = ExponentialRVParameters()
-        parameters.changeDoubleParameter("average", s.average)
+        parameters.changeDoubleParameter("mean", s.average)
         return EstimatedParameters(parameters, success = true)
     }
 }
