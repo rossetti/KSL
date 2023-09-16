@@ -39,7 +39,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  */
 data class EstimatedParameters(
     val parameters: RVParameters? = null,
-    val shiftedData: ShiftedData? = null,
+    var shiftedData: ShiftedData? = null,
     var message: String? = null,
     var success: Boolean
 )
