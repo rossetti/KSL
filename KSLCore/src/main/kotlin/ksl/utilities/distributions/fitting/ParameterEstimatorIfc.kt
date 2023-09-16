@@ -39,7 +39,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  */
 data class EstimatedParameters(
     val parameters: RVParameters? = null,
-    val shift: Double = 0.0,
+    val shiftedData: ShiftedData? = null,
     var message: String? = null,
     var success: Boolean
 )
@@ -47,7 +47,25 @@ data class EstimatedParameters(
 data class ShiftedData (
     val shift: Double,
     val data: DoubleArray
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ShiftedData
+
+        if (shift != other.shift) return false
+        if (!data.contentEquals(other.data)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = shift.hashCode()
+        result = 31 * result + data.contentHashCode()
+        return result
+    }
+}
 
 /**
  *  This interface defines a general function that uses
