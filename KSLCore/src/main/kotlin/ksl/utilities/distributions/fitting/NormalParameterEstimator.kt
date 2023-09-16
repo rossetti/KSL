@@ -38,6 +38,6 @@ object NormalParameterEstimator : ParameterEstimatorIfc {
         val parameters = NormalRVParameters()
         parameters.changeDoubleParameter("mean", s.average)
         parameters.changeDoubleParameter("variance", s.variance)
-        return EstimatedParameters(parameters, success = true)
+        return EstimatedParameters(parameters, statistics = s, success = true)
     }
 }

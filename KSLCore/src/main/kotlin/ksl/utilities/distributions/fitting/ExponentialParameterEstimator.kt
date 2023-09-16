@@ -44,6 +44,6 @@ object ExponentialParameterEstimator : ParameterEstimatorIfc {
         val s = data.statistics()
         val parameters = ExponentialRVParameters()
         parameters.changeDoubleParameter("mean", s.average)
-        return EstimatedParameters(parameters, success = true)
+        return EstimatedParameters(parameters, statistics = s, success = true)
     }
 }
