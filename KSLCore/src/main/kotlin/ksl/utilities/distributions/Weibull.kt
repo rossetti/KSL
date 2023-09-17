@@ -197,6 +197,10 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
          *  The returned pair has:
          *  component1 = shape
          *  component2 = scale
+         *  See: Marks, Neil B. “Estimation of Weibull Parameters from Common Percentiles.”
+         *  Journal of Applied Statistics 32, no. 1 (January 2005): 17–24.
+         *  https://doi.org/10.1080/0266476042000305122.
+         *
          */
         fun parametersFromPercentiles(xp1: Double, xp2: Double, p1: Double, p2: Double): Pair<Double, Double> {
             require(xp1 > 0.0) { "The first quantile estimate was <= 0.0" }
