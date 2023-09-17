@@ -5,6 +5,7 @@ import ksl.utilities.distributions.Gamma
 import ksl.utilities.distributions.fitting.ParameterEstimatorIfc.Companion.defaultZeroTolerance
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
+import ksl.utilities.rootfinding.RootFinder
 import kotlin.math.ln
 
 
@@ -57,12 +58,25 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
         // define an initial search interval for the shape parameter search
         val searchInterval = findInitialInterval(start)
         // need to test interval
+        if (!RootFinder.hasRoot(fn, searchInterval)){
+            // expand to find interval
+            if (!RootFinder.findInterval(fn, searchInterval)){
+                // a suitable interval was not found via iterations, return the MOM estimator with a new message
+                start.message = "MLE search failed to find suitable search interval. the MOM estimator was returned."
+                return start
+            }
+        }
         val solver = BisectionRootFinder(
             fn, searchInterval, shape,
             maxIter = maximumIterations, desiredPrec = desiredPrecision
         )
         solver.evaluate()
         // need to check for convergence
+        if (!solver.hasConverged()){
+            // a suitable root was not found via iterations, return the MOM estimator with a new message
+            start.message = "MLE search failed to converge. The MOM estimator was returned."
+            return start
+        }
         val alpha = solver.result
         val beta = mean * alpha
         val parameters = GammaRVParameters()
