@@ -515,23 +515,69 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         /**
          * Uses definition 7, as per R definitions
          *
-         * @param data the array of data. will be sorted
+         * @param unsortedData the array of data. The data will be sorted as a side effect of the call
          * @param p the percentile, must be within (0, 1)
          * @return the quantile
          */
-        fun quantile(data: DoubleArray, p: Double): Double {
+        fun quantile(unsortedData: DoubleArray, p: Double): Double {
             require((p <= 0.0) || (p < 1.0)) { "Percentile value must be (0,1)" }
-            val n = data.size
+            val n = unsortedData.size
             if (n == 1) {
-                return data[0]
+                return unsortedData[0]
             }
-            data.sort()
+            unsortedData.sort()
+            return quantileFromSortedData(unsortedData, p)
+        }
+
+        /**
+         * Uses definition 7, as per R definitions
+         *
+         * @param unsortedData the array of data. The data will be sorted as a side effect of the call
+         * @param p the percentile array, each element must be within (0, 1)
+         * @return the quantiles associated with each value of [p]. The default values for p
+         * are 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95
+         */
+        fun quantiles(
+            unsortedData: DoubleArray,
+            p: DoubleArray = doubleArrayOf(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)): DoubleArray {
+            require(p.isNotEmpty()) { "The array of requested percentiles was empty!" }
+            unsortedData.sort()
+            return DoubleArray(p.size) { quantileFromSortedData(unsortedData, p[it]) }
+        }
+
+        /**
+         * Uses definition 7, as per R definitions
+         *
+         * @param sortedData the array of data. It is assumed that the data is already sorted
+         * @param p the percentile array, each element must be within (0, 1)
+         * @return the quantiles associated with each value of [p]. The default values for p
+         * are 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95
+         */
+        fun quantilesFromSortedData(
+            sortedData: DoubleArray,
+            p: DoubleArray = doubleArrayOf(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)): DoubleArray {
+            require(p.isNotEmpty()) { "The array of requested percentiles was empty!" }
+            return DoubleArray(p.size) { quantileFromSortedData(sortedData, p[it]) }
+        }
+
+        /**
+         * Uses definition 7, as per R definitions
+         *
+         * @param sortedData the array of data. It is assumed that the data is already sorted
+         * @param p the percentile, must be within (0, 1)
+         * @return the quantile associated with the value of [p]
+         */
+        fun quantileFromSortedData(sortedData: DoubleArray, p: Double) : Double {
+            val n = sortedData.size
+            if (n == 1) {
+                return sortedData[0]
+            }
             val index = 1 + (n - 1) * p
             if (index < 1.0) {
-                return data[0]
+                return sortedData[0]
             }
             if (index >= n) {
-                return data[n - 1]
+                return sortedData[n - 1]
             }
             var lo = floor(index).toInt()
             var hi = ceil(index).toInt()
@@ -539,7 +585,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             // correct for 0 based arrays
             lo = lo - 1
             hi = hi - 1
-            return (1.0 - h) * data[lo] + h * data[hi]
+            return (1.0 - h) * sortedData[lo] + h * sortedData[hi]
         }
 
         /**
