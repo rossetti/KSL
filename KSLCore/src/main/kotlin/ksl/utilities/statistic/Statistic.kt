@@ -548,7 +548,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         /**
          * Uses definition 7, as per R definitions
          *
-         * @param sortedData the array of data. It is assumed that the data is already sorted
+         * @param sortedData the array of data. It is assumed that the data is already sorted. This
+         * requirement is not checked!
          * @param p the percentile array, each element must be within (0, 1)
          * @return the quantiles associated with each value of [p]. The default values for p
          * are 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95
@@ -563,7 +564,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         /**
          * Uses definition 7, as per R definitions
          *
-         * @param sortedData the array of data. It is assumed that the data is already sorted
+         * @param sortedData the array of data. It is assumed that the data is already sorted. This
+         * requirement is not checked!
          * @param p the percentile, must be within (0, 1)
          * @return the quantile associated with the value of [p]
          */
