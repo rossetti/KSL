@@ -207,9 +207,9 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
             require(p1 != p2) { "The probabilities must not be equal" }
             val c1 = -ln(1.0 - p1)
             val c2 = -ln(1.0 - p2)
-            val a = (ln(c1) - ln(c2)) / (ln(xp1) - ln(xp2))
-            val b = xp1.pow(a) / c1
-            return Pair(a, b)
+            val shape = (ln(c1) - ln(c2)) / (ln(xp1) - ln(xp2))
+            val scale = xp1.pow(shape) / c1
+            return Pair(shape, scale)
         }
 
     }
