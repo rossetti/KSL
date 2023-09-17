@@ -193,22 +193,24 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
          *  Estimates the shape and scale parameters based on supplied values of the percentiles
          *  [xp1] represents the estimated (from a sample) quantile for [p1]
          *  [xp2] represents the estimated (from a sample) quantile for [p2]
-         *  The quantiles must be non-negative. The probabilities must be within (0,1).
+         *  The quantiles must be non-negative and not equal. The probabilities must be within (0,1) and not equal.
          *  The returned pair has:
          *  component1 = shape
          *  component2 = scale
          */
-        fun parametersFromPercentiles(xp1: Double, xp2: Double, p1: Double, p2: Double) : Pair<Double, Double>{
-            require(xp1 > 0.0) { "The first percentile estimate was <= 0.0" }
-            require(xp2 > 0.0) { "The first percentile estimate was <= 0.0" }
+        fun parametersFromPercentiles(xp1: Double, xp2: Double, p1: Double, p2: Double): Pair<Double, Double> {
+            require(xp1 > 0.0) { "The first quantile estimate was <= 0.0" }
+            require(xp2 > 0.0) { "The second quantile estimate was <= 0.0" }
+            require(xp1 != xp2) { "The quantile estimates must not be equal" }
             require((0.0 < p1) && (p1 < 1.0)) { "The value of p1 must be within (0,1)" }
             require((0.0 < p2) && (p2 < 1.0)) { "The value of p2 must be within (0,1)" }
+            require(p1 != p2) { "The probabilities must not be equal" }
             val c1 = -ln(1.0 - p1)
             val c2 = -ln(1.0 - p2)
             val a = (ln(c1) - ln(c2)) / (ln(xp1) - ln(xp2))
-            val b = xp1.pow(a)/c1
+            val b = xp1.pow(a) / c1
             return Pair(a, b)
         }
-        
+
     }
 }
