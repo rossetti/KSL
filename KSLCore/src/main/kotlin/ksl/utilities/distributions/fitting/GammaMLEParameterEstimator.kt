@@ -40,6 +40,7 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
         }
 
     override fun estimate(data: DoubleArray): EstimatedParameters {
+        // use the MOM estimator to find a starting estimate
         val start = ParameterEstimatorIfc.gammaMOMEstimator(data)
         if (!start.success) {
             return start
@@ -65,7 +66,9 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
                 start.message = "MLE search failed to find suitable search interval. the MOM estimator was returned."
                 return start
             }
+            // if a suitable interval was found, the search interval object was changed to reflect the changes
         }
+        // if we get here then the interval should have a root
         val solver = BisectionRootFinder(
             fn, searchInterval, shape,
             maxIter = maximumIterations, desiredPrec = desiredPrecision
@@ -77,12 +80,16 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
             start.message = "MLE search failed to converge. The MOM estimator was returned."
             return start
         }
+        // use the estimates from the MLE approach
         val alpha = solver.result
         val beta = mean * alpha
         val parameters = GammaRVParameters()
         parameters.changeDoubleParameter("shape", alpha)
         parameters.changeDoubleParameter("scale", beta)
-        return EstimatedParameters(parameters, statistics = start.statistics, success = true)
+        return EstimatedParameters(parameters,
+            statistics = start.statistics,
+            message = "MLE estimates for gamma distribution were successfully found.",
+            success = true)
     }
 
     /**
@@ -91,13 +98,15 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
      *  prediction interval is formed based on the estimated sample average
      *  a MOM approximation for the shape parameter.  The returned
      *  interval might not contain the root. It may need further refinement.
-     *  The lower value of the range is limited to be no smaller than
+     *  The lower value of the interval is limited to be no smaller than
      *  the default zero tolerance as defined by the companion object of ParameterEstimatorIfc.
+     *  The property intervalFactor can be used to adjust the width of the interval around the
+     *  initial estimate of the shape.
      */
     private fun findInitialInterval(estimatedParameters: EstimatedParameters): Interval {
         val s = estimatedParameters.statistics!!
         val mean = s.average
-        val me = intervalFactor * s.variance
+        val me = intervalFactor * s.standardDeviation
         val ulm = mean + me
         val llm = (mean - me).coerceAtLeast(defaultZeroTolerance)
         var params = Gamma.parametersFromMeanAndVariance(ulm, s.variance)
