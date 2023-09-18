@@ -18,6 +18,8 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.countLessEqualTo
+import ksl.utilities.countLessThan
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -214,6 +216,44 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
             val shape = (ln(c1) - ln(c2)) / (ln(xp1) - ln(xp2))
             val scale = xp1.pow(shape) / c1
             return Pair(shape, scale)
+        }
+
+        /**
+         *  Based on the recommendation on page 188 of Law(2007)
+         *  There must be at least two observations. Returns
+         *  an estimated initial shape parameter.
+         */
+        fun initialShapeEstimate(data: DoubleArray): Double {
+            require(data.size >= 2) { "There must be at least two observations" }
+            require(data.countLessEqualTo(0.0) > 0) {"There were negative or zero values in the data."}
+            val n = data.size.toDouble()
+            var sumlnx = 0.0
+            var sumlnxsq = 0.0
+            for (x in data) {
+                val lnx = ln(x)
+                sumlnx = sumlnx + lnx
+                sumlnxsq = sumlnxsq + lnx * lnx
+            }
+            val coefficient = 6.0 / (Math.PI * Math.PI)
+            val diff = sumlnxsq - (sumlnx * sumlnx / n)
+            val f = sqrt(coefficient * diff / (n - 1.0))
+            return (1.0 / f)
+        }
+
+        /**
+         *  Given a [shape] parameter estimate, estimate the corresponding
+         *  scale parameter
+         */
+        fun estimateScale(shape: Double, data: DoubleArray) : Double {
+            require(shape > 0.0) {"The shape parameter must be > 0.0"}
+            require(data.isNotEmpty()) { "There must be at least one observation." }
+            require(data.countLessEqualTo(0.0) > 0) {"There were negative or zero values in the data."}
+            var sumB = 0.0
+            for (x in data) {
+                sumB = sumB + x.pow(shape)
+            }
+            val n = data.size.toDouble()
+            return (1.0/(sumB/n).pow(shape))
         }
 
     }
