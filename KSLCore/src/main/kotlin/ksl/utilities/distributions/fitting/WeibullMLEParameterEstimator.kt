@@ -11,12 +11,21 @@ import ksl.utilities.rootfinding.RootFinder
 import ksl.utilities.statistics
 import kotlin.math.ln
 import kotlin.math.pow
-import kotlin.math.sqrt
 
+/**
+ *  Estimates the parameters of the Weibull distribution based on a MLE algorithm.
+ *  See page 287-288 of Law (2007) Simulation Modeling and Analysis.  Uses
+ *  Newton steps followed by bi-section search (if needed).  Convergence is not
+ *  guaranteed and will be indicated in the EstimatedParameters success property
+ *  and the message.  Requires that the data be strictly positive and that there
+ *  are at least two observations. Also, requires that all the supplied data
+ *  are not equal. The user may vary some of the search control parameters
+ *  to assist with convergence.
+ */
 object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
 
     /**
-     * Desired precision.
+     * Desired precision. The default is 0.0001.
      */
     var desiredPrecision = 0.0001
         set(value) {
@@ -25,7 +34,7 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
         }
 
     /**
-     * Maximum allowed number of iterations.
+     * Maximum allowed number of iterations. The default is 100
      */
     var maximumIterations = 100
         set(value) {
@@ -33,12 +42,20 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
             field = value
         }
 
+    /**
+     *  The default number of Newton steps.  The default is 10. On average 3.5 steps
+     *  should provide 4 digit accuracy.
+     */
     var defaultNumNewtonSteps = 10
         set(value) {
             require(value >= 1) { "The maximum number of iterations must be >= 1: $value" }
             field = value
         }
 
+    /**
+     *  Default size of the bi-section search interval around the initial Newton
+     *  refined estimate. The default is 10.0.
+     */
     var defaultBiSectionSearchIntervalWidth = 10.0
         set(value) {
             require(value > 0) { "The search interval width must be > 0: $value" }
