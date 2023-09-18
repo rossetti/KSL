@@ -8,11 +8,20 @@ import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
 import kotlin.math.ln
 
-
+/**
+ *  Estimates the parameters of the Gamma distribution based on a MLE algorithm.
+ *  See page 285-286 of Law (2007) Simulation Modeling and Analysis.  Uses
+ *  bi-section search seeded by initial estimates based on MOM estimates.  Convergence is not
+ *  guaranteed and will be indicated in the EstimatedParameters success property
+ *  and the message.  Requires that the data be strictly positive and that there
+ *  are at least two observations. Also, requires that all the supplied data
+ *  are not equal. The user may vary some of the search control parameters
+ *  to assist with convergence.
+ */
 object GammaMLEParameterEstimator : ParameterEstimatorIfc {
 
     /**
-     * Desired precision.
+     * Desired precision. The default is 0.0001.
      */
     var desiredPrecision = 0.0001
         set(value) {
@@ -21,7 +30,7 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
         }
 
     /**
-     * Maximum allowed number of iterations.
+     * Maximum allowed number of iterations. The default is 100.
      */
     var maximumIterations = 100
         set(value) {
@@ -117,32 +126,3 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
     }
 
 }
-
-/*
-public class GammaParameters : ParameterEstimatorIfc {
-    /**
-     * Estimate the parameters for a gamma distribution
-     * Returns parameters in the form `[shape, scale`].
-     * @param [data] Input data.
-     * @return Array containing `[shape, scale`]
-     */
-    override fun estimate(data: DoubleArray): Result<DoubleArray> {
-        if (data.any { it <= 0 }) { return estimateFailure("Data must be positive") }
-        val solver = BisectionRootFinder(
-            FuncToSolve(data),
-            Interval(KSLMath.machinePrecision, Int.MAX_VALUE.toDouble())
-        )
-        solver.evaluate()
-        val alpha = solver.result
-        val beta = Statistic(data).average / alpha
-        return estimateSuccess(alpha, beta)
-    }
-
-    private class FuncToSolve(data: DoubleArray) : FunctionIfc {
-        val rhs = sumLog(data) / data.size
-        val mean = Statistic(data).average
-
-        override fun f(x: Double): Double = ln(mean / x) + Digamma.value(x) - rhs
-    }
-}
- */
