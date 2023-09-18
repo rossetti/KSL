@@ -1,5 +1,6 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.countLessEqualTo
 import ksl.utilities.countLessThan
 import ksl.utilities.isAllEqual
 import ksl.utilities.orderStatistics
@@ -12,10 +13,9 @@ object WeibullPercentileParameterEstimator : ParameterEstimatorIfc {
                 success = false
             )
         }
-        if (data.countLessThan(0.0) > 0) {
+        if (data.countLessEqualTo(0.0) > 0) {
             return EstimatedParameters(
-                null,
-                message = "Cannot fit Weibull distribution when some observations are less than 0.0",
+                message = "Cannot fit Weibull distribution when some observations are <= 0.0",
                 success = false
             )
         }
