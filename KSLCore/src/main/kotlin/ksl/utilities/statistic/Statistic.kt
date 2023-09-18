@@ -539,7 +539,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          */
         fun quantiles(
             unsortedData: DoubleArray,
-            p: DoubleArray = doubleArrayOf(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)): DoubleArray {
+            p: DoubleArray = doubleArrayOf(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)
+        ): DoubleArray {
             require(p.isNotEmpty()) { "The array of requested percentiles was empty!" }
             unsortedData.sort()
             return DoubleArray(p.size) { quantileFromSortedData(unsortedData, p[it]) }
@@ -556,7 +557,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          */
         fun quantilesFromSortedData(
             sortedData: DoubleArray,
-            p: DoubleArray = doubleArrayOf(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)): DoubleArray {
+            p: DoubleArray = doubleArrayOf(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)
+        ): DoubleArray {
             require(p.isNotEmpty()) { "The array of requested percentiles was empty!" }
             return DoubleArray(p.size) { quantileFromSortedData(sortedData, p[it]) }
         }
@@ -569,7 +571,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          * @param p the percentile, must be within (0, 1)
          * @return the quantile associated with the value of [p]
          */
-        fun quantileFromSortedData(sortedData: DoubleArray, p: Double) : Double {
+        fun quantileFromSortedData(sortedData: DoubleArray, p: Double): Double {
+            require(sortedData.isNotEmpty()) { "There were no observations in the provided data. The array was empty" }
             val n = sortedData.size
             if (n == 1) {
                 return sortedData[0]
@@ -598,6 +601,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          * @return the percentile
          */
         fun percentile(data: DoubleArray, p: Double): Double {
+            require(data.isNotEmpty()) { "There were no observations in the provided data. The array was empty" }
             require((p <= 0.0) || (p < 1.0)) { "Percentile value must be (0,1)" }
             val n = data.size
             if (n == 1) {
@@ -625,6 +629,10 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          * @return the median of the data
          */
         fun median(data: DoubleArray): Double {
+            require(data.isNotEmpty()) { "There were no observations in the provided data. The array was empty" }
+            if (data.size == 1) {
+                return data[0]
+            }
             data.sort()
             val size = data.size
             val median = if (size % 2 == 0) { //even
@@ -668,7 +676,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          * @param level     the confidence level (must be between 0 and 1)
          * @return the estimated sample size
          */
-        fun estimateSampleSizeViaStudentT(desiredHW: Double, initStdDevEst: Double, level: Double = 0.95) : Long {
+        fun estimateSampleSizeViaStudentT(desiredHW: Double, initStdDevEst: Double, level: Double = 0.95): Long {
             require(desiredHW > 0.0) { "The desired half-width must be > 0" }
             require(initStdDevEst >= 0.0) { "The desired std. dev. must be >= 0" }
             require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
@@ -678,8 +686,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             var n = 1.0
             do {
                 n = n + 1
-                val h = (StudentT.invCDF(n, p) * initStdDevEst)/sqrt(n)
-            } while(h <= desiredHW)
+                val h = (StudentT.invCDF(n, p) * initStdDevEst) / sqrt(n)
+            } while (h <= desiredHW)
             return n.toLong()
         }
 
@@ -721,11 +729,11 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *  or equal to the supplied value of x. If the array is empty,
          *  then 0.0 is returned.
          */
-        fun empiricalCDF(data: DoubleArray, x: Double) : Double {
+        fun empiricalCDF(data: DoubleArray, x: Double): Double {
             if (data.isEmpty())
                 return 0.0
             val n = data.size.toDouble()
-            return data.countLessEqualTo(x)/n
+            return data.countLessEqualTo(x) / n
         }
 
         /**
@@ -950,7 +958,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             }
             val avg = xStat.average
             val dssq = xStat.deviationSumOfSquares
-            return (productSumOfSquares(x, avg, lag)/dssq)
+            return (productSumOfSquares(x, avg, lag) / dssq)
         }
 
         /**
@@ -971,7 +979,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             val avg = xStat.average
             val dssq = xStat.deviationSumOfSquares
             for (k in 2..maxLag) {
-                ac[k-1] = productSumOfSquares(x, avg, k)/dssq
+                ac[k - 1] = productSumOfSquares(x, avg, k) / dssq
             }
             return ac
         }
@@ -989,12 +997,12 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *  and the [expected] counts. The [expected] counts must not contain a zero
          *  value.  The size of the arrays must match.
          */
-        fun chiSqTestStatistic(counts: DoubleArray, expected: DoubleArray) : Double {
-            require(counts.size == expected.size) {"The size of the counts and expected value array must match."}
-            require(!expected.hasZero()) {"The expected array contains a 0.0 value"}
+        fun chiSqTestStatistic(counts: DoubleArray, expected: DoubleArray): Double {
+            require(counts.size == expected.size) { "The size of the counts and expected value array must match." }
+            require(!expected.hasZero()) { "The expected array contains a 0.0 value" }
             var sum = 0.0
-            for (i in counts.indices){
-                sum = sum + ((counts[i] - expected[i])*(counts[i] - expected[i]))/expected[i]
+            for (i in counts.indices) {
+                sum = sum + ((counts[i] - expected[i]) * (counts[i] - expected[i])) / expected[i]
             }
             return sum
         }
