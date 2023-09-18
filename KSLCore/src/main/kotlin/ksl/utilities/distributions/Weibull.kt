@@ -221,7 +221,8 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         /**
          *  Based on the recommendation on page 188 of Law(2007)
          *  There must be at least two observations. Returns
-         *  an estimated initial shape parameter.
+         *  an estimated initial shape parameter. There should not be any negative
+         *  or zero values in the data.
          */
         fun initialShapeEstimate(data: DoubleArray): Double {
             require(data.size >= 2) { "There must be at least two observations" }
@@ -241,8 +242,10 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         }
 
         /**
-         *  Given a [shape] parameter estimate, estimate the corresponding
-         *  scale parameter
+         *  Given a [shape] parameter estimate the corresponding
+         *  scale parameter based on the data. The shape parameter must be greater
+         *  than 0.0. The data must not be empty and there should not be any negative
+         *  or zero values in the data.
          */
         fun estimateScale(shape: Double, data: DoubleArray) : Double {
             require(shape > 0.0) {"The shape parameter must be > 0.0"}
