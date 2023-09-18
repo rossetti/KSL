@@ -1,11 +1,50 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Interval
 import ksl.utilities.countLessThan
+import ksl.utilities.distributions.Weibull
+import ksl.utilities.distributions.fitting.ParameterEstimatorIfc.Companion.defaultZeroTolerance
 import ksl.utilities.isAllEqual
+import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
+import ksl.utilities.rootfinding.BisectionRootFinder
+import ksl.utilities.rootfinding.RootFinder
+import ksl.utilities.statistics
 import kotlin.math.ln
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
+
+    /**
+     * Desired precision.
+     */
+    var desiredPrecision = 0.0001
+        set(value) {
+            require(value > 0) { "The desired precision must be > 0: $value" }
+            field = value
+        }
+
+    /**
+     * Maximum allowed number of iterations.
+     */
+    var maximumIterations = 100
+        set(value) {
+            require(value >= 1) { "The maximum number of iterations must be >= 1: $value" }
+            field = value
+        }
+
+    var defaultNumNewtonSteps = 10
+        set(value) {
+            require(value >= 1) { "The maximum number of iterations must be >= 1: $value" }
+            field = value
+        }
+
+    var defaultBiSectionSearchIntervalWidth = 10.0
+        set(value) {
+            require(value > 0) { "The search interval width must be > 0: $value" }
+            field = value
+        }
+
     override fun estimate(data: DoubleArray): EstimatedParameters {
         if (data.size < 2) {
             return EstimatedParameters(
@@ -26,31 +65,100 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
                 success = false
             )
         }
-
-        TODO("Not yet implemented")
+        // get an initial estimate of the shape parameter
+        var shape = Weibull.initialShapeEstimate(data)
+        // take some newton iteration steps to refine estimated shape
+        // on average 3.5 steps gets to within 4 place accuracy, page 280 Law(2007)
+        for (i in 1..defaultNumNewtonSteps){
+            shape = newtonStep(shape, data)
+        }
+        // compute the initial scale
+        var scale = Weibull.estimateScale(shape, data)
+        // prepare for bi-section search to converge to root after newton steps
+        // define the root function for the search
+        val fn: (Double) -> Double = { x: Double -> rootFunction(x, data) }
+        val ll = (shape - defaultBiSectionSearchIntervalWidth).coerceAtLeast(defaultZeroTolerance)
+        // define the search interval
+        val searchInterval = Interval(ll, shape + defaultBiSectionSearchIntervalWidth)
+        // need to test interval
+        if (!RootFinder.hasRoot(fn, searchInterval)){
+            // expand to find interval
+            if (!RootFinder.findInterval(fn, searchInterval)){
+                // a suitable interval was not found via iterations, return the initial estimator with a new message
+                val parameters = WeibullRVParameters()
+                parameters.changeDoubleParameter("shape", shape)
+                parameters.changeDoubleParameter("scale", scale)
+                return EstimatedParameters(parameters,
+                    statistics = data.statistics(),
+                    message = "MLE search failed to find suitable search interval. Returned initial estimate.",
+                    success = false)
+            }
+            // if a suitable interval was found, the search interval object was changed to reflect the search
+        }
+        // if we get here then the interval should have a root
+        val solver = BisectionRootFinder(
+            fn, searchInterval, shape,
+            maxIter = maximumIterations, desiredPrec = desiredPrecision
+        )
+        solver.evaluate()
+        // need to check for convergence
+        shape = solver.result
+        scale = Weibull.estimateScale(shape, data)
+        if (!solver.hasConverged()){
+            // a suitable root was not found via bi-section iterations, return the current estimate with a new message
+            val parameters = WeibullRVParameters()
+            parameters.changeDoubleParameter("shape", shape)
+            parameters.changeDoubleParameter("scale", scale)
+            return EstimatedParameters(parameters,
+                statistics = data.statistics(),
+                message = "MLE search failed to converge. Returned the current estimates based on failed search.",
+                success = false)
+        }
+        val parameters = WeibullRVParameters()
+        parameters.changeDoubleParameter("shape", shape)
+        parameters.changeDoubleParameter("scale", scale)
+        return EstimatedParameters(parameters,
+            statistics = data.statistics(),
+            message = "MLE estimates for Weibull distribution were successfully estimated.",
+            success = true)
     }
 
-    /**
-     *  Based on the recommendation on page 188 of Law(2007)
-     *  There must be at least two observations. Returns
-     *  the average of ln(x(i)) and the estimated initial shape parameter
-     *  Pair(initial shape, average of ln(x(i)). The average of ln(x(i))
-     *  is a useful by-product of the estimation process.
-     */
-    fun initialShapeEstimate(data: DoubleArray): Pair<Double, Double> {
-        require(data.size >= 2) { "There must be at least two observations" }
-        val n = data.size.toDouble()
-        var sumlnx = 0.0
-        var sumlnxsq = 0.0
+    private fun rootFunction(shape: Double, data: DoubleArray) : Double {
+        var sumB = 0.0
+        var sumC = 0.0
+        var sumH = 0.0
+        var sumLnX = 0.0
         for (x in data) {
+            val xa = x.pow(shape)
             val lnx = ln(x)
-            sumlnx = sumlnx + lnx
-            sumlnxsq = sumlnxsq + lnx * lnx
+            sumLnX = sumLnX + lnx
+            sumB = sumB + xa
+            sumC = sumC + xa * lnx
+            sumH = sumH + xa * lnx * lnx
         }
-        val coefficient = 6.0 / (Math.PI * Math.PI)
-        val diff = sumlnxsq - (sumlnx * sumlnx / n)
-        val f = sqrt(coefficient * diff / (n - 1.0))
-        return Pair((1.0 / f), (sumlnx / n))
+        val n = data.size.toDouble()
+        val avgLnX = sumLnX / n
+        return (sumC/sumB) - (1.0/shape) - avgLnX
+    }
+
+    private fun newtonStep(previousShape: Double, data: DoubleArray): Double {
+        var sumB = 0.0
+        var sumC = 0.0
+        var sumH = 0.0
+        var sumLnX = 0.0
+        for (x in data) {
+            val xa = x.pow(previousShape)
+            val lnx = ln(x)
+            sumLnX = sumLnX + lnx
+            sumB = sumB + xa
+            sumC = sumC + xa * lnx
+            sumH = sumH + xa * lnx * lnx
+        }
+        val n = data.size.toDouble()
+        val avgLnX = sumLnX / n
+        val numerator = (avgLnX) + (1 / previousShape) - (sumC / sumB)
+        val denominator = (1.0 / (previousShape * previousShape)) + (((sumB * sumH) - sumC * sumC) / (sumB * sumB))
+        return previousShape + (numerator / denominator)
     }
 }
 

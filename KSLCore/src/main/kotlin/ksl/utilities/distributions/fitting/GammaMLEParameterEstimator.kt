@@ -14,7 +14,7 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
     /**
      * Desired precision.
      */
-    var desiredPrecision = 0.001
+    var desiredPrecision = 0.0001
         set(value) {
             require(value > 0) { "The desired precision must be > 0: $value" }
             field = value
@@ -55,7 +55,7 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
         val rhs = lnsum / data.size
         val mean = start.statistics!!.average
         // define the function
-        val fn: (Double) -> Double = { x: Double -> ln(mean / x) + Gamma.diGammaFunction(x) - rhs }
+        val fn: (Double) -> Double = { alpha: Double -> ln(mean / alpha) + Gamma.diGammaFunction(alpha) - rhs }
         // define an initial search interval for the shape parameter search
         val searchInterval = findInitialInterval(start)
         // need to test interval
