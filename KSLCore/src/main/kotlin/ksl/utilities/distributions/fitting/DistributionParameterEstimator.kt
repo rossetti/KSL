@@ -31,24 +31,63 @@ import ksl.utilities.random.rvariable.parameters.GammaRVParameters
  */
 object DistributionParameterEstimator {
 
+    val continuousEstimators: MutableMap<ParameterEstimatorIfc, RVType> = mutableMapOf(
+        ExponentialParameterEstimator to RVType.Exponential,
+        UniformParameterEstimator to RVType.Uniform,
+        TriangularParameterEstimator to RVType.Triangular,
+        NormalParameterEstimator to RVType.Normal,
+        LognormalParameterEstimator to RVType.Lognormal,
+        GammaMOMParameterEstimator to RVType.Gamma,
+        GammaMLEParameterEstimator to RVType.Gamma,
+        WeibullMLEParameterEstimator to RVType.Weibull,
+        WeibullPercentileParameterEstimator to RVType.Weibull,
+        BetaMOMParameterEstimator to RVType.Beta
+    )
+
     /**
-     *  How close we consider a double is to 0.0 to call it 0.0
+     *  How close we consider a double is to 0.0 to consider it 0.0
      *  Default is 0.001
      */
     var defaultZeroTolerance = 0.001
         set(value) {
-            require(value > 0.0){"The default zero precision must be > 0.0"}
+            require(value > 0.0) { "The default zero precision must be > 0.0" }
             field = value
         }
 
-    val discreteDistributions = setOf<RVType>(
-        RVType.Bernoulli, RVType.Geometric, RVType.NegativeBinomial, RVType.Poisson
-    )
+//    val discreteDistributions = setOf<RVType>(
+//        RVType.Bernoulli, RVType.Geometric, RVType.NegativeBinomial, RVType.Poisson
+//    )
+//
+//    val continuousDistributions = setOf<RVType>(
+//        RVType.Exponential, RVType.Gamma, RVType.Lognormal, RVType.Normal, RVType.Triangular,
+//        RVType.Uniform, RVType.Weibull, RVType.Beta, RVType.PearsonType5, RVType.PearsonType6
+//    )
 
-    val continuousDistributions = setOf<RVType>(
-        RVType.Exponential, RVType.Gamma, RVType.Lognormal, RVType.Normal, RVType.Triangular,
-        RVType.Uniform, RVType.Weibull, RVType.Beta, RVType.PearsonType5, RVType.PearsonType6
-    )
+    fun estimateAllContinuous(
+        data: DoubleArray,
+        estimators: MutableMap<ParameterEstimatorIfc, RVType> = continuousEstimators,
+        shift: Boolean = true
+    ): List<EstimatedParameters> {
+        val estimatedParameters = mutableListOf<EstimatedParameters>()
+        for ((estimator, type) in estimators) {
+            estimatedParameters.add(estimateParameters(data, estimator, shift))
+        }
+        return estimatedParameters
+    }
+
+    fun estimateParameters(
+        data: DoubleArray,
+        parameterEstimator: ParameterEstimatorIfc,
+        shift: Boolean = true
+    ): EstimatedParameters {
+        if (shift) {
+            val shiftedData = shiftData(data)
+            val parameters = parameterEstimator.estimate(shiftedData.data)
+            parameters.shiftedData = shiftedData
+            return parameters
+        }
+        return parameterEstimator.estimate(data)
+    }
 
     /**
      *  Uses the method described on page 360 of Law (2007)
@@ -61,7 +100,7 @@ object DistributionParameterEstimator {
      */
     fun estimateShiftParameter(data: DoubleArray, tolerance: Double = defaultZeroTolerance): Double {
         require(data.size >= 2) { "There must be at least two observations" }
-        require(!data.isAllEqual()) {"The observations were all equal."}
+        require(!data.isAllEqual()) { "The observations were all equal." }
         val sorted = data.orderStatistics()
         val min = sorted.first()
         val max = sorted.last()
@@ -73,11 +112,11 @@ object DistributionParameterEstimator {
             }
         }
         val top = min * max - xk * xk
-        if (top == 0.0){
+        if (top == 0.0) {
             return 0.0
         }
         val bottom = min + max - 2.0 * xk
-        val shift = top/bottom
+        val shift = top / bottom
         return if (KSLMath.within(shift, 0.0, tolerance)) 0.0 else shift
     }
 
@@ -88,13 +127,13 @@ object DistributionParameterEstimator {
      *
      *  val (shift, shiftedData) = shiftData(data)
      */
-    fun shiftData(data: DoubleArray, tolerance: Double = defaultZeroTolerance) :  ShiftedData {
-        val shift = estimateShiftParameter(data,  tolerance)
+    fun shiftData(data: DoubleArray, tolerance: Double = defaultZeroTolerance): ShiftedData {
+        val shift = estimateShiftParameter(data, tolerance)
         return ShiftedData(shift, KSLArrays.subtractConstant(data, shift))
     }
 
-    internal fun gammaMOMEstimator(data: DoubleArray) : EstimatedParameters{
-        if (data.size < 2){
+    internal fun gammaMOMEstimator(data: DoubleArray): EstimatedParameters {
+        if (data.size < 2) {
             return EstimatedParameters(
                 message = "There must be at least two observations",
                 success = false
@@ -108,13 +147,13 @@ object DistributionParameterEstimator {
             )
         }
         val s = data.statistics()
-        if (s.average <= 0.0){
+        if (s.average <= 0.0) {
             return EstimatedParameters(
                 message = "The sample average of the data was <= 0.0",
                 success = false
             )
         }
-        if (s.variance <= 0.0){
+        if (s.variance <= 0.0) {
             return EstimatedParameters(
                 message = "The sample variance of the data was <= 0.0",
                 success = false
