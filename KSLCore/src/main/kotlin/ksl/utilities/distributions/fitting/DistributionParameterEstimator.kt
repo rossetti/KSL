@@ -21,6 +21,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.*
 import ksl.utilities.distributions.Gamma
 import ksl.utilities.math.KSLMath
+import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 
@@ -165,4 +166,11 @@ object DistributionParameterEstimator {
         parameters.changeDoubleParameter("scale", params[1])
         return EstimatedParameters(parameters, statistics = s, success = true)
     }
+}
+
+fun main(){
+    val e = ExponentialRV(10.0)
+    val data = e.sample(200)
+    val list = DistributionParameterEstimator.estimateAllContinuous(data)
+
 }

@@ -45,7 +45,17 @@ data class EstimatedParameters(
     var shiftedData: ShiftedData? = null,
     var message: String? = null,
     var success: Boolean
-)
+){
+    override fun toString(): String {
+        return "EstimatedParameters(" +
+                "parameters=$parameters, " +
+                "statistics=$statistics, " +
+                "shiftedData=$shiftedData, " +
+                "message=$message, " +
+                "success=$success" +
+                ")"
+    }
+}
 
 data class ShiftedData (
     val shift: Double,
@@ -67,6 +77,10 @@ data class ShiftedData (
         var result = shift.hashCode()
         result = 31 * result + data.contentHashCode()
         return result
+    }
+
+    override fun toString(): String {
+        return "ShiftedData(shift=$shift)"
     }
 }
 
