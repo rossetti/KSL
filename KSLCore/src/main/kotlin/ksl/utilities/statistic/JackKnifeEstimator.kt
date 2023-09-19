@@ -23,7 +23,7 @@ import ksl.utilities.distributions.StudentT
 import kotlin.math.sqrt
 
 
-class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc) {
+class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = BSEstimatorIfc.Average()) {
     init {
         require(originalData.size > 1) { "The supplied generate had only 1 data point" }
     }
