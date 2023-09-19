@@ -2220,6 +2220,44 @@ object KSLArrays {
         require(k >= 1) { "The lag must be >= 1" }
         return Array(x.size - k) { x[it + k] }
     }
+
+    /**
+     *  Computes the cartesian product of the two arrays. Returns
+     *  a list of pairs where the first element of the pair is from the
+     *  [first] array and the [second] element of the pair is from the second
+     *  array. This produces all possible combinations of the elements
+     *  as the pairs. If the first array has n elements and the second
+     *  array has m elements then the number of pairs produced is n x m.
+     *
+     */
+    fun cartesian(first: DoubleArray, second: DoubleArray) : List<Pair<Double, Double>>{
+        val list = mutableListOf<Pair<Double, Double>>()
+        for(x in first){
+            for(y in second){
+                list.add(Pair(x, y))
+            }
+        }
+        return list
+    }
+
+    /**
+     *  Computes the cartesian product of the two collections. Returns
+     *  a list of pairs where the first element of the pair is from the
+     *  [first] collection and the [second] element of the pair is from the second
+     *  collection. This produces all possible combinations of the elements
+     *  as the pairs. If the first collection has n elements and the second
+     *  collection has m elements then the number of pairs produced is n x m.
+     *
+     */
+    fun <F, S> cartesian(first: Collection<F>, second: Collection<S>) : List<Pair<F, S>> {
+        val list = mutableListOf<Pair<F, S>>()
+        for(x in first){
+            for(y in second){
+                list.add(Pair(x, y))
+            }
+        }
+        return list
+    }
 }
 
 /** Extension functions and other functions for working with arrays
