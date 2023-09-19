@@ -118,7 +118,7 @@ abstract class RVParameters {
      * Checks if the supplied key is contained in the parameters
      *
      * @param name the name of the parameter
-     * @return true if is has the named parameter
+     * @return true if it has the named parameter
      */
     fun containsParameter(name: String): Boolean {
         return dataTypes.containsKey(name)
