@@ -6,13 +6,48 @@ import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.statistic.JackKnifeEstimator
 import ksl.utilities.statistic.Statistic
 
+/**
+ *  Applies the percentile method to estimating the parameters of the Weibull distribution
+ *  as outline in these papers:
+ *
+ *  Marks NB. Estimation of Weibull parameters from common percentiles.
+ *  Journal of Applied Statistics. 2005 Jan;32(1):17–24.
+ *
+ *  Castillo E, Hadi AS. A method for estimating parameters and quantiles of distributions
+ *  of continuous random variables. Computational Statistics & Data Analysis. 1995 Oct;20(4):421–39.
+ *
+ * The strategy is to apply the method described in Marks (2005) using multiple pairings of
+ * complementary percentiles forming a sample of shape estimates as noted in Castillo and Hadi (1995).
+ *
+ * We then apply a jack knife estimation procedure on the generated shape estimates to form
+ * the final estimated shape.  Once the shape is estimated, the scale parameter is estimated using
+ * the recommended method described on pages 287-288 of Law (2007) Simulation Modeling and Analysis.
+ *
+ * The procedure requires that at least 10 observations are available. The user can
+ * adjust the percentiles used through the fields reducedPercentileSet or expandedPercentileSet.
+ * Alternative, the user can directly provide the lower half of the percentile set via the
+ * property percentileSet. After executing the estimation process on some date, the
+ * jackKnifeEstimator field can be used to access the computed shape estimates.
+ *
+ * The supplied data cannot be negative or zero and must not all be equal in value.
+ */
 object WeibullPercentileParameterEstimator : ParameterEstimatorIfc {
 
     val reducedPercentileSet = doubleArrayOf(0.1, 0.2, 0.3, 0.4)
     val expandedPercentileSet = doubleArrayOf(0.05, 0.1, 0.15, 0.2, 0.25, 0.30, 0.35, 0.40, 0.45)
 
+    /**
+     *   Use to specify the set of percentiles that will be used during the estimation
+     *   process. This is the lower half of the percentiles. These will be matched
+     *   with their complement values to form the pairs used to estimate shape and
+     *   scale.  For example 0.1 and 0.9 are a common pair used.
+     */
     var percentileSet = expandedPercentileSet
 
+    /**
+     *  Holds the estimated shape parameters from the percentile method.
+     *  This field will be overwritten during the estimation process.
+     */
     var jackKnifeEstimator: JackKnifeEstimator? = null
 
     /**
