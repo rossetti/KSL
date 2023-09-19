@@ -3,7 +3,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.Interval
 import ksl.utilities.countLessThan
 import ksl.utilities.distributions.Weibull
-import ksl.utilities.distributions.fitting.ParameterEstimatorIfc.Companion.defaultZeroTolerance
+import ksl.utilities.distributions.fitting.DistributionParameterEstimator.defaultZeroTolerance
 import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
