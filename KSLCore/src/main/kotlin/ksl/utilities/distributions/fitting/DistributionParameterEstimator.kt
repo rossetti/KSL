@@ -171,6 +171,9 @@ object DistributionParameterEstimator {
 fun main(){
     val e = ExponentialRV(10.0)
     val data = e.sample(200)
-    val list = DistributionParameterEstimator.estimateAllContinuous(data)
+    val list = DistributionParameterEstimator.estimateAllContinuous(data, shift = false)
 
+    for(element in list){
+        println(element.toString())
+    }
 }
