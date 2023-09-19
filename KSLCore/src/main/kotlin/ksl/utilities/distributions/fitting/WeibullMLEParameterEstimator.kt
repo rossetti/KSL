@@ -1,14 +1,11 @@
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.Interval
-import ksl.utilities.countLessThan
+import ksl.utilities.*
 import ksl.utilities.distributions.Weibull
 import ksl.utilities.distributions.fitting.DistributionParameterEstimator.defaultZeroTolerance
-import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
-import ksl.utilities.statistics
 import kotlin.math.ln
 import kotlin.math.pow
 
@@ -69,10 +66,10 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
                 success = false
             )
         }
-        if (data.countLessThan(0.0) > 0) {
+        if (data.countLessEqualTo(0.0) > 0) {
             return EstimatedParameters(
                 null,
-                message = "Cannot fit Weibull distribution when some observations are less than 0.0",
+                message = "Cannot fit Weibull distribution when some observations are less than or equal to 0.0",
                 success = false
             )
         }

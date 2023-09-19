@@ -226,7 +226,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
          */
         fun initialShapeEstimate(data: DoubleArray): Double {
             require(data.size >= 2) { "There must be at least two observations" }
-            require(data.countLessEqualTo(0.0) > 0) {"There were negative or zero values in the data."}
+            require(data.countLessEqualTo(0.0) == 0) {"There were negative or zero values in the data."}
             val n = data.size.toDouble()
             var sumlnx = 0.0
             var sumlnxsq = 0.0
@@ -250,7 +250,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         fun estimateScale(shape: Double, data: DoubleArray) : Double {
             require(shape > 0.0) {"The shape parameter must be > 0.0"}
             require(data.isNotEmpty()) { "There must be at least one observation." }
-            require(data.countLessEqualTo(0.0) > 0) {"There were negative or zero values in the data."}
+            require(data.countLessEqualTo(0.0) == 0) {"There were negative or zero values in the data."}
             var sumB = 0.0
             for (x in data) {
                 sumB = sumB + x.pow(shape)
