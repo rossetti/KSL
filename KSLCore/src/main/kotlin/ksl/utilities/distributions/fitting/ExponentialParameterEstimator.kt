@@ -21,29 +21,34 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
 import ksl.utilities.statistic.Statistic
-import ksl.utilities.statistics
 
 /**
  *  Uses the sample average of the observations, which is the MLE
  *  estimator. The data must not contain negative values.
  */
 object ExponentialParameterEstimator : ParameterEstimatorIfc {
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.isEmpty()){
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "There must be at least one observations",
                 success = false
             )
         }
         if (data.countLessThan(0.0) > 0) {
-            return EstimatedParameters(
-                null,
+            return EstimationResults(
+                statistics = statistics,
                 message = "Cannot fit exponential distribution when some observations are less than 0.0",
                 success = false
             )
         }
         val parameters = ExponentialRVParameters()
         parameters.changeDoubleParameter("mean", statistics.average)
-        return EstimatedParameters(parameters, statistics = statistics, success = true)
+        return EstimationResults(
+            statistics = statistics,
+            parameters = parameters,
+            message = "The exponential parameters were estimated successfully using a MLE technique",
+            success = true
+        )
     }
 }
