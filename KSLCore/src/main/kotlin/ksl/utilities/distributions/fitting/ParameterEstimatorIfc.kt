@@ -94,7 +94,7 @@ data class ShiftedData (
  *
 
  */
-fun interface ParameterEstimatorIfc {
+interface ParameterEstimatorIfc {
 
     /**
      *  Estimates the parameters associated with some distribution
@@ -102,6 +102,6 @@ fun interface ParameterEstimatorIfc {
      *  needs to be consistent with the intent of the desired distribution.
      *  Note the meaning of the fields associated with [EstimatedParameters]
      */
-    fun estimate(data: DoubleArray): EstimatedParameters
+    fun estimate(data: DoubleArray, statistics: Statistic = Statistic(data)): EstimatedParameters
 }
 

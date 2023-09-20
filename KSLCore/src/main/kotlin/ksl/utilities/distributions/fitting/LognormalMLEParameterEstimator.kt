@@ -20,6 +20,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countLessEqualTo
 import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
 import kotlin.math.exp
 import kotlin.math.ln
@@ -31,8 +32,8 @@ import kotlin.math.ln
  *   the lognormal distribution.  The supplied data must be strictly
  *   positive and their must be at least 2 observations.
  */
-object LognormalParameterEstimator : ParameterEstimatorIfc {
-    override fun estimate(data: DoubleArray): EstimatedParameters {
+object LognormalMLEParameterEstimator : ParameterEstimatorIfc {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
         if (data.size < 2){
             return EstimatedParameters(
                 message = "There must be at least two observations",
@@ -57,6 +58,6 @@ object LognormalParameterEstimator : ParameterEstimatorIfc {
         val parameters = LognormalRVParameters()
         parameters.changeDoubleParameter("mean", mean)
         parameters.changeDoubleParameter("variance", variance)
-        return EstimatedParameters(parameters, success = true)
+        return EstimatedParameters(parameters, statistics = statistics, success = true)
     }
 }

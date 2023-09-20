@@ -5,6 +5,7 @@ import ksl.utilities.distributions.Weibull
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
+import ksl.utilities.statistic.Statistic
 import kotlin.math.ln
 import kotlin.math.pow
 
@@ -68,7 +69,7 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
             field = value
         }
 
-    override fun estimate(data: DoubleArray): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
         if (data.size < 2) {
             return EstimatedParameters(
                 message = "There must be at least two observations",
@@ -112,7 +113,7 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
                 parameters.changeDoubleParameter("shape", shape)
                 parameters.changeDoubleParameter("scale", scale)
                 return EstimatedParameters(parameters,
-                    statistics = data.statistics(),
+                    statistics = statistics,
                     message = "MLE search failed to find suitable search interval. Returned initial estimate.",
                     success = false)
             }
@@ -133,7 +134,7 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
             parameters.changeDoubleParameter("shape", shape)
             parameters.changeDoubleParameter("scale", scale)
             return EstimatedParameters(parameters,
-                statistics = data.statistics(),
+                statistics = statistics,
                 message = "MLE search failed to converge. Returned the current estimates based on failed search.",
                 success = false)
         }
@@ -141,7 +142,7 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
         parameters.changeDoubleParameter("shape", shape)
         parameters.changeDoubleParameter("scale", scale)
         return EstimatedParameters(parameters,
-            statistics = data.statistics(),
+            statistics = statistics,
             message = "MLE estimates for Weibull distribution were successfully estimated.",
             success = true)
     }

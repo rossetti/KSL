@@ -20,6 +20,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
 
 /**
@@ -27,7 +28,7 @@ import ksl.utilities.statistics
  *  estimator. The data must not contain negative values.
  */
 object ExponentialParameterEstimator : ParameterEstimatorIfc {
-    override fun estimate(data: DoubleArray): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
         if (data.isEmpty()){
             return EstimatedParameters(
                 message = "There must be at least one observations",
@@ -41,9 +42,8 @@ object ExponentialParameterEstimator : ParameterEstimatorIfc {
                 success = false
             )
         }
-        val s = data.statistics()
         val parameters = ExponentialRVParameters()
-        parameters.changeDoubleParameter("mean", s.average)
-        return EstimatedParameters(parameters, statistics = s, success = true)
+        parameters.changeDoubleParameter("mean", statistics.average)
+        return EstimatedParameters(parameters, statistics = statistics, success = true)
     }
 }
