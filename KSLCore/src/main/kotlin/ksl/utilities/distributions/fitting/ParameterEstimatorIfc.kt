@@ -18,11 +18,6 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.*
-import ksl.utilities.distributions.Gamma
-import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rvariable.RVType
-import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
 
@@ -39,21 +34,30 @@ import ksl.utilities.statistic.Statistic
  *  match well with the distribution. The algorithm may compute [statistics] on the
  *  supplied data.
  */
-data class EstimatedParameters(
-    val parameters: RVParameters? = null,
-    var statistics: Statistic? = null,
+data class EstimationResults(
+    var statistics: Statistic,
     var shiftedData: ShiftedData? = null,
+    val parameters: RVParameters? = null,
     var message: String? = null,
     var success: Boolean
 ){
     override fun toString(): String {
-        return "EstimatedParameters(" +
-                "parameters=$parameters, " +
-                "statistics=$statistics, " +
-                "shiftedData=$shiftedData, " +
-                "message=$message, " +
-                "success=$success" +
-                ")"
+        val sb = StringBuilder()
+        sb.appendLine("Estimation Results:")
+        if (success){
+            sb.appendLine("The estimation was a SUCCESS!")
+        } else {
+            sb.appendLine("The estimation was a FAILURE!")
+        }
+        sb.appendLine("Statistics for the data:")
+        sb.appendLine(statistics)
+        sb.appendLine("Estimation message:")
+        sb.appendLine("Message: $message")
+        sb.appendLine("Shift estimation results:")
+        sb.appendLine(shiftedData)
+        sb.appendLine("Estimated parameters:")
+        sb.appendLine(parameters)
+        return sb.toString()
     }
 }
 
@@ -98,10 +102,10 @@ interface ParameterEstimatorIfc {
 
     /**
      *  Estimates the parameters associated with some distribution
-     *  based on the supplied [data]. The returned [EstimatedParameters]
+     *  based on the supplied [data]. The returned [EstimationResults]
      *  needs to be consistent with the intent of the desired distribution.
-     *  Note the meaning of the fields associated with [EstimatedParameters]
+     *  Note the meaning of the fields associated with [EstimationResults]
      */
-    fun estimate(data: DoubleArray, statistics: Statistic = Statistic(data)): EstimatedParameters
+    fun estimate(data: DoubleArray, statistics: Statistic = Statistic(data)): EstimationResults
 }
 

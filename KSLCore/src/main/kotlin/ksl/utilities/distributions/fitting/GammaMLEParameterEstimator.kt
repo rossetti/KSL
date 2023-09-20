@@ -5,6 +5,7 @@ import ksl.utilities.distributions.Gamma
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
+import ksl.utilities.statistic.Statistic
 import kotlin.math.ln
 
 /**
@@ -57,9 +58,9 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
             field = value
         }
 
-    override fun estimate(data: DoubleArray): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         // use the MOM estimator to find a starting estimate
-        val start = DistributionModeler.gammaMOMEstimator(data)
+        val start = DistributionModeler.gammaMOMEstimator(data, statistics)
         if (!start.success) {
             return start
         }
@@ -104,10 +105,12 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
         val parameters = GammaRVParameters()
         parameters.changeDoubleParameter("shape", alpha)
         parameters.changeDoubleParameter("scale", beta)
-        return EstimatedParameters(parameters,
-            statistics = start.statistics,
-            message = "MLE estimates for gamma distribution were successfully found.",
-            success = true)
+        return EstimationResults(
+            statistics = statistics,
+            parameters = parameters,
+            message = "The gamma parameters were estimated successfully using a MLE technique",
+            success = true
+        )
     }
 
     /**
@@ -121,8 +124,8 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
      *  The property intervalFactor can be used to adjust the width of the interval around the
      *  initial estimate of the shape.
      */
-    private fun findInitialInterval(estimatedParameters: EstimatedParameters): Interval {
-        val s = estimatedParameters.statistics!!
+    private fun findInitialInterval(estimationResults: EstimationResults): Interval {
+        val s = estimationResults.statistics!!
         val mean = s.average
         val me = intervalFactor * s.standardDeviation
         val ulm = mean + me

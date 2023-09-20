@@ -21,7 +21,6 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.UniformRVParameters
 import ksl.utilities.statistic.Statistic
-import ksl.utilities.statistics
 
 /**
  *   Uses the minimum unbiased estimators based on the order statistics.
@@ -32,15 +31,17 @@ import ksl.utilities.statistics
  *
  */
 object UniformParameterEstimator : ParameterEstimatorIfc{
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2){
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
         }
         if (data.isAllEqual()){
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "The observations were all equal.",
                 success = false
             )
@@ -54,6 +55,11 @@ object UniformParameterEstimator : ParameterEstimatorIfc{
         val parameters = UniformRVParameters()
         parameters.changeDoubleParameter("min", a)
         parameters.changeDoubleParameter("max", b)
-        return EstimatedParameters(parameters, statistics = statistics, success = true)
+        return EstimationResults(
+            statistics = statistics,
+            parameters = parameters,
+            message = "The uniform parameters were estimated successfully.",
+            success = true
+        )
     }
 }

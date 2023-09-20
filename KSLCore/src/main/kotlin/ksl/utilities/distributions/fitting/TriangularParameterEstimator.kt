@@ -20,7 +20,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
-import ksl.utilities.statistics
+import ksl.utilities.statistic.Statistic
 
 /**
  *  The approach is based on estimating the min and max via
@@ -30,34 +30,40 @@ import ksl.utilities.statistics
  */
 object TriangularParameterEstimator: ParameterEstimatorIfc {
 
-    override fun estimate(data: DoubleArray): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2){
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
         }
         if (data.isAllEqual()){
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "The observations were all equal.",
                 success = false
             )
         }
-        val s = data.statistics()
-        val x1 = s.min
-        val x2 = s.max
+        val x1 = statistics.min
+        val x2 = statistics.max
         val n = data.size
         val r = x2 - x1
         // estimate a and b like the uniform distribution
-        val a = x1 - r/(n - 1)
-        val b = x2 + r/(n - 1)
+        val a = x1 - (r/(n - 1))
+        val b = x2 + (r/(n - 1))
         // compute the mode by matching moments with the mean.
         // the mean = (a + c + b)/3.0
-        val c = 3.0*s.average - a - b
+        val c = 3.0*statistics.average - a - b
         val parameters = TriangularRVParameters()
         parameters.changeDoubleParameter("min", a)
         parameters.changeDoubleParameter("max", b)
         parameters.changeDoubleParameter("mode", c)
-        return EstimatedParameters(parameters, statistics = s, success = true)
+        return EstimationResults(
+            statistics = statistics,
+            parameters = parameters,
+            message = "The triangular parameters were estimated successfully.",
+            success = true
+        )
     }
 }
