@@ -47,11 +47,11 @@ object UniformParameterEstimator : ParameterEstimatorIfc{
             )
         }
         val x1 = statistics.min
-        val x2 = statistics.max
+        val xn = statistics.max
         val n = data.size
-        val r = x2 - x1
-        val a = x1 - (r/(n - 1))
-        val b = x2 + (r/(n - 1))
+        val range = xn - x1
+        val a = x1 - (range/(n - 1.0))
+        val b = xn + (range/(n - 1.0))
         val parameters = UniformRVParameters()
         parameters.changeDoubleParameter("min", a)
         parameters.changeDoubleParameter("max", b)

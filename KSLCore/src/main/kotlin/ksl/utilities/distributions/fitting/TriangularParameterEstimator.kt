@@ -46,15 +46,21 @@ object TriangularParameterEstimator: ParameterEstimatorIfc {
             )
         }
         val x1 = statistics.min
-        val x2 = statistics.max
-        val n = data.size
-        val r = x2 - x1
+        val xn = statistics.max
+        val n = data.size.toDouble()
+        val range = xn - x1
         // estimate a and b like the uniform distribution
-        val a = x1 - (r/(n - 1))
-        val b = x2 + (r/(n - 1))
+        val a = x1 - (range/(n - 1))
+        val b = xn + (range/(n - 1))
         // compute the mode by matching moments with the mean.
         // the mean = (a + c + b)/3.0
-        val c = 3.0*statistics.average - a - b
+        var c = 3.0*statistics.average - a - b
+        if(c > b){
+            c = b
+        }
+        if(c < a){
+            c = a
+        }
         val parameters = TriangularRVParameters()
         parameters.changeDoubleParameter("min", a)
         parameters.changeDoubleParameter("max", b)

@@ -55,7 +55,7 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc {
         val mu = s.average
         val sigma2 = s.variance
         // compute the parameters of the log-normal distribution
-        val mean = exp(mu + sigma2 / 2.0)
+        val mean = exp(mu + (sigma2 / 2.0))
         val variance = exp(2.0 * mu + sigma2) * (exp(sigma2) - 1.0)
         val parameters = LognormalRVParameters()
         parameters.changeDoubleParameter("mean", mean)
