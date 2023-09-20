@@ -2,7 +2,6 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
 import ksl.utilities.distributions.Weibull
-import ksl.utilities.distributions.fitting.DistributionParameterEstimator.defaultZeroTolerance
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
@@ -56,6 +55,16 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
     var defaultBiSectionSearchIntervalWidth = 10.0
         set(value) {
             require(value > 0) { "The search interval width must be > 0: $value" }
+            field = value
+        }
+
+    /**
+     *  How close we consider a double is to 0.0 to consider it 0.0
+     *  Default is 0.001
+     */
+    var defaultZeroTolerance = 0.001
+        set(value) {
+            require(value > 0.0) { "The default zero precision must be > 0.0" }
             field = value
         }
 
