@@ -33,15 +33,17 @@ import kotlin.math.ln
  *   positive and their must be at least 2 observations.
  */
 object LognormalMLEParameterEstimator : ParameterEstimatorIfc {
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2){
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
         }
         if (data.countLessEqualTo(0.0) > 0) {
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "Cannot fit lognormal distribution when some observations are <= 0.0",
                 success = false
             )
@@ -58,6 +60,11 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc {
         val parameters = LognormalRVParameters()
         parameters.changeDoubleParameter("mean", mean)
         parameters.changeDoubleParameter("variance", variance)
-        return EstimatedParameters(parameters, statistics = statistics, success = true)
+        return EstimationResults(
+            statistics = statistics,
+            parameters = parameters,
+            message = "The lognormal parameters were estimated successfully using a MLE technique",
+            success = true
+        )
     }
 }

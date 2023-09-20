@@ -49,12 +49,15 @@ data class EstimationResults(
         } else {
             sb.appendLine("The estimation was a FAILURE!")
         }
+        sb.appendLine("Estimation message:")
+        sb.appendLine(message)
+        sb.appendLine()
         sb.appendLine("Statistics for the data:")
         sb.appendLine(statistics)
-        sb.appendLine("Estimation message:")
-        sb.appendLine("Message: $message")
+        sb.appendLine()
         sb.appendLine("Shift estimation results:")
         sb.appendLine(shiftedData)
+        sb.appendLine()
         sb.appendLine("Estimated parameters:")
         sb.appendLine(parameters)
         return sb.toString()

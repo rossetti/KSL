@@ -69,22 +69,24 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
             field = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2) {
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
         }
         if (data.countLessEqualTo(0.0) > 0) {
-            return EstimatedParameters(
-                null,
+            return EstimationResults(
+                statistics = statistics,
                 message = "Cannot fit Weibull distribution when some observations are less than or equal to 0.0",
                 success = false
             )
         }
         if (data.isAllEqual()) {
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "Cannot estimate parameters.  The observations were all equal.",
                 success = false
             )
@@ -112,8 +114,9 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
                 val parameters = WeibullRVParameters()
                 parameters.changeDoubleParameter("shape", shape)
                 parameters.changeDoubleParameter("scale", scale)
-                return EstimatedParameters(parameters,
+                return EstimationResults(
                     statistics = statistics,
+                    parameters = parameters,
                     message = "MLE search failed to find suitable search interval. Returned initial estimate.",
                     success = false)
             }
@@ -133,18 +136,21 @@ object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
             val parameters = WeibullRVParameters()
             parameters.changeDoubleParameter("shape", shape)
             parameters.changeDoubleParameter("scale", scale)
-            return EstimatedParameters(parameters,
+            return EstimationResults(
                 statistics = statistics,
+                parameters = parameters,
                 message = "MLE search failed to converge. Returned the current estimates based on failed search.",
                 success = false)
         }
         val parameters = WeibullRVParameters()
         parameters.changeDoubleParameter("shape", shape)
         parameters.changeDoubleParameter("scale", scale)
-        return EstimatedParameters(parameters,
+        return EstimationResults(
             statistics = statistics,
-            message = "MLE estimates for Weibull distribution were successfully estimated.",
-            success = true)
+            parameters = parameters,
+            message = "The Weibull parameters were estimated successfully using a MLE technique",
+            success = true
+        )
     }
 
     private fun rootFunction(shape: Double, data: DoubleArray) : Double {

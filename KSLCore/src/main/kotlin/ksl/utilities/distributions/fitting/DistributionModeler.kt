@@ -111,8 +111,8 @@ class DistributionModeler {
         data: DoubleArray,
         estimators: MutableMap<ParameterEstimatorIfc, RVType> = continuousEstimators,
         shift: Boolean = true
-    ): List<EstimatedParameters> {
-        val estimatedParameters = mutableListOf<EstimatedParameters>()
+    ): List<EstimationResults> {
+        val estimatedParameters = mutableListOf<EstimationResults>()
         for ((estimator, type) in estimators) {
             estimatedParameters.add(estimateParameters(data, estimator, shift))
         }
@@ -123,7 +123,7 @@ class DistributionModeler {
         data: DoubleArray,
         parameterEstimator: ParameterEstimatorIfc,
         shift: Boolean = true
-    ): EstimatedParameters {
+    ): EstimationResults {
         if (shift) {
             val shiftedData = leftShiftData(data)
             val parameters = parameterEstimator.estimate(shiftedData.data)
@@ -145,28 +145,31 @@ class DistributionModeler {
                 field = value
             }
 
-        internal fun gammaMOMEstimator(data: DoubleArray, statistics: Statistic): EstimatedParameters {
+        internal fun gammaMOMEstimator(data: DoubleArray, statistics: Statistic): EstimationResults {
             if (data.size < 2) {
-                return EstimatedParameters(
+                return EstimationResults(
+                    statistics = statistics,
                     message = "There must be at least two observations",
                     success = false
                 )
             }
             if (data.countLessThan(0.0) > 0) {
-                return EstimatedParameters(
-                    null,
+                return EstimationResults(
+                    statistics = statistics,
                     message = "Cannot fit gamma distribution when some observations are less than 0.0",
                     success = false
                 )
             }
             if (statistics.average <= 0.0) {
-                return EstimatedParameters(
+                return EstimationResults(
+                    statistics = statistics,
                     message = "The sample average of the data was <= 0.0",
                     success = false
                 )
             }
             if (statistics.variance <= 0.0) {
-                return EstimatedParameters(
+                return EstimationResults(
+                    statistics = statistics,
                     message = "The sample variance of the data was <= 0.0",
                     success = false
                 )
@@ -175,7 +178,12 @@ class DistributionModeler {
             val parameters = GammaRVParameters()
             parameters.changeDoubleParameter("shape", params[0])
             parameters.changeDoubleParameter("scale", params[1])
-            return EstimatedParameters(parameters, statistics = statistics, success = true)
+            return EstimationResults(
+                statistics = statistics,
+                parameters = parameters,
+                message = "The gamma parameters were estimated successfully using a MOM technique",
+                success = true
+            )
         }
     }
 
