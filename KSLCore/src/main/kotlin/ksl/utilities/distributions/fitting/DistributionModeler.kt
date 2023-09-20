@@ -192,7 +192,7 @@ class DistributionModeler {
 fun main(){
     val d = DistributionModeler()
     val e = ExponentialRV(10.0)
-    val data = e.sample(200)
+    val data = e.sample(2000)
     val list = d.estimateAllContinuous(data, shift = false)
 
     for(element in list){
