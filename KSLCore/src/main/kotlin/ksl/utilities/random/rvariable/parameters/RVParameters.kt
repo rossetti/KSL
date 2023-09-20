@@ -363,13 +363,13 @@ abstract class RVParameters {
     override fun toString(): String {
         val sb = StringBuilder()
         sb.append("RV Type = ").append(rvType)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Double Parameters ")
         sb.append(doubleParameters.toString())
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Integer Parameters ")
         sb.append(integerParameters.toString())
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Double Array Parameters ")
         sb.append("{")
         for (key in doubleArrayParameters.keys) {
@@ -377,7 +377,7 @@ abstract class RVParameters {
             sb.append(key).append(" = ").append(doubleArrayParameters[key].contentToString())
         }
         sb.append("}")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         return sb.toString()
     }
 

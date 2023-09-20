@@ -87,7 +87,7 @@ data class ShiftedData (
     }
 
     override fun toString(): String {
-        return "ShiftedData(shift=$shift)"
+        return "shift = $shift)"
     }
 }
 
