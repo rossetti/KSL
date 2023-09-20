@@ -1,5 +1,7 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.statistic.Statistic
+
 /**
  *  Estimates the shape and scale of a gamma distribution based on
  *  the method of moments. Observations must be greater than or
@@ -9,7 +11,7 @@ package ksl.utilities.distributions.fitting
  */
 object GammaMOMParameterEstimator : ParameterEstimatorIfc {
 
-    override fun estimate(data: DoubleArray): EstimatedParameters {
-        return DistributionModeler.gammaMOMEstimator(data)
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+        return DistributionModeler.gammaMOMEstimator(data, statistics)
     }
 }

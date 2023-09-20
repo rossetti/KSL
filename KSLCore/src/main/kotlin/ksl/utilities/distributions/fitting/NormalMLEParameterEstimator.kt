@@ -27,9 +27,10 @@ import ksl.utilities.statistic.Statistic
  */
 object NormalMLEParameterEstimator : ParameterEstimatorIfc {
 
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2){
-            return EstimatedParameters(
+            return EstimationResults(
+                statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
@@ -37,6 +38,11 @@ object NormalMLEParameterEstimator : ParameterEstimatorIfc {
         val parameters = NormalRVParameters()
         parameters.changeDoubleParameter("mean", statistics.average)
         parameters.changeDoubleParameter("variance", statistics.variance)
-        return EstimatedParameters(parameters, statistics = statistics, success = true)
+        return EstimationResults(
+            statistics = statistics,
+            parameters = parameters,
+            message = "The normal parameters were estimated successfully using a MLE technique",
+            success = true
+        )
     }
 }
