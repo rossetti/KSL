@@ -3,6 +3,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.countGreaterThan
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.BetaRVParameters
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
 
 /**
@@ -18,7 +19,7 @@ import ksl.utilities.statistics
  *
  */
 object BetaMOMParameterEstimator : ParameterEstimatorIfc {
-    override fun estimate(data: DoubleArray): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
         if (data.size < 2){
             return EstimatedParameters(
                 message = "There must be at least two observations",
@@ -39,27 +40,26 @@ object BetaMOMParameterEstimator : ParameterEstimatorIfc {
                 success = false
             )
         }
-        val s = data.statistics()
-        if (s.average <= 0.0){
+        if (statistics.average <= 0.0){
             return EstimatedParameters(
                 message = "The sample average of the data was <= 0.0",
                 success = false
             )
         }
-        if (s.variance <= 0.0){
+        if (statistics.variance <= 0.0){
             return EstimatedParameters(
                 message = "The sample variance of the data was <= 0.0",
                 success = false
             )
         }
-        val xb = s.average
+        val xb = statistics.average
         val xb1m = 1.0 - xb
-        val xc = ((xb*xb1m)/s.variance) - 1.0
+        val xc = ((xb*xb1m)/statistics.variance) - 1.0
         val alphaMoM = xb*xc
         val betaMOM = xb1m*xc
         val parameters = BetaRVParameters()
         parameters.changeDoubleParameter("alpha1", alphaMoM)
         parameters.changeDoubleParameter("alpha2", betaMOM)
-        return EstimatedParameters(parameters, statistics = s, success = true)
+        return EstimatedParameters(parameters, statistics = statistics, success = true)
     }
 }

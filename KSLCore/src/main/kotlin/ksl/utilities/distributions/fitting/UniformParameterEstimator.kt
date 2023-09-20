@@ -20,6 +20,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.UniformRVParameters
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
 
 /**
@@ -31,7 +32,7 @@ import ksl.utilities.statistics
  *
  */
 object UniformParameterEstimator : ParameterEstimatorIfc{
-    override fun estimate(data: DoubleArray): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
         if (data.size < 2){
             return EstimatedParameters(
                 message = "There must be at least two observations",
@@ -44,16 +45,15 @@ object UniformParameterEstimator : ParameterEstimatorIfc{
                 success = false
             )
         }
-        val s = data.statistics()
-        val x1 = s.min
-        val x2 = s.max
+        val x1 = statistics.min
+        val x2 = statistics.max
         val n = data.size
         val r = x2 - x1
-        val a = x1 - r/(n - 1)
-        val b = x2 + r/(n - 1)
+        val a = x1 - (r/(n - 1))
+        val b = x2 + (r/(n - 1))
         val parameters = UniformRVParameters()
         parameters.changeDoubleParameter("min", a)
         parameters.changeDoubleParameter("max", b)
-        return EstimatedParameters(parameters, statistics = s, success = true)
+        return EstimatedParameters(parameters, statistics = statistics, success = true)
     }
 }

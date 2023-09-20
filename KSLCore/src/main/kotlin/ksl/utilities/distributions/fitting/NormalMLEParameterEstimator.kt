@@ -19,25 +19,24 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.random.rvariable.parameters.NormalRVParameters
-import ksl.utilities.statistics
+import ksl.utilities.statistic.Statistic
 
 /**
  *  Uses the sample average and sample variance of the data, which
  *  are the MLE estimators.  There must be at least two observations.
  */
-object NormalParameterEstimator : ParameterEstimatorIfc {
+object NormalMLEParameterEstimator : ParameterEstimatorIfc {
 
-    override fun estimate(data: DoubleArray): EstimatedParameters {
+    override fun estimate(data: DoubleArray, statistics: Statistic): EstimatedParameters {
         if (data.size < 2){
             return EstimatedParameters(
                 message = "There must be at least two observations",
                 success = false
             )
         }
-        val s = data.statistics()
         val parameters = NormalRVParameters()
-        parameters.changeDoubleParameter("mean", s.average)
-        parameters.changeDoubleParameter("variance", s.variance)
-        return EstimatedParameters(parameters, statistics = s, success = true)
+        parameters.changeDoubleParameter("mean", statistics.average)
+        parameters.changeDoubleParameter("variance", statistics.variance)
+        return EstimatedParameters(parameters, statistics = statistics, success = true)
     }
 }

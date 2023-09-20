@@ -24,6 +24,7 @@ import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
+import ksl.utilities.statistic.Statistic
 
 /**
  *  The purpose of this object is to serve as the general location
@@ -36,8 +37,8 @@ class DistributionModeler {
         ExponentialParameterEstimator to RVType.Exponential,
         UniformParameterEstimator to RVType.Uniform,
         TriangularParameterEstimator to RVType.Triangular,
-        NormalParameterEstimator to RVType.Normal,
-        LognormalParameterEstimator to RVType.Lognormal,
+        NormalMLEParameterEstimator to RVType.Normal,
+        LognormalMLEParameterEstimator to RVType.Lognormal,
         GammaMOMParameterEstimator to RVType.Gamma,
         GammaMLEParameterEstimator to RVType.Gamma,
         WeibullMLEParameterEstimator to RVType.Weibull,
@@ -144,7 +145,7 @@ class DistributionModeler {
                 field = value
             }
 
-        internal fun gammaMOMEstimator(data: DoubleArray): EstimatedParameters {
+        internal fun gammaMOMEstimator(data: DoubleArray, statistics: Statistic): EstimatedParameters {
             if (data.size < 2) {
                 return EstimatedParameters(
                     message = "There must be at least two observations",
@@ -158,24 +159,23 @@ class DistributionModeler {
                     success = false
                 )
             }
-            val s = data.statistics()
-            if (s.average <= 0.0) {
+            if (statistics.average <= 0.0) {
                 return EstimatedParameters(
                     message = "The sample average of the data was <= 0.0",
                     success = false
                 )
             }
-            if (s.variance <= 0.0) {
+            if (statistics.variance <= 0.0) {
                 return EstimatedParameters(
                     message = "The sample variance of the data was <= 0.0",
                     success = false
                 )
             }
-            val params = Gamma.parametersFromMeanAndVariance(s.average, s.variance)
+            val params = Gamma.parametersFromMeanAndVariance(statistics.average, statistics.variance)
             val parameters = GammaRVParameters()
             parameters.changeDoubleParameter("shape", params[0])
             parameters.changeDoubleParameter("scale", params[1])
-            return EstimatedParameters(parameters, statistics = s, success = true)
+            return EstimatedParameters(parameters, statistics = statistics, success = true)
         }
     }
 
