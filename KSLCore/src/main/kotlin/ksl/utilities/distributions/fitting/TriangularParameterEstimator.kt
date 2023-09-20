@@ -55,6 +55,7 @@ object TriangularParameterEstimator: ParameterEstimatorIfc {
         // compute the mode by matching moments with the mean.
         // the mean = (a + c + b)/3.0
         var c = 3.0*statistics.average - a - b
+        // ensure that the mode estimate is inside the range
         if(c > b){
             c = b
         }
