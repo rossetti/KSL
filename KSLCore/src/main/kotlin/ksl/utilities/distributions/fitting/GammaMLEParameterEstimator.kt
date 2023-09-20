@@ -2,7 +2,6 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Gamma
-import ksl.utilities.distributions.fitting.DistributionParameterEstimator.defaultZeroTolerance
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
@@ -48,9 +47,19 @@ object GammaMLEParameterEstimator : ParameterEstimatorIfc {
             field = value
         }
 
+    /**
+     *  How close we consider a double is to 0.0 to consider it 0.0
+     *  Default is 0.001
+     */
+    var defaultZeroTolerance = 0.001
+        set(value) {
+            require(value > 0.0) { "The default zero precision must be > 0.0" }
+            field = value
+        }
+
     override fun estimate(data: DoubleArray): EstimatedParameters {
         // use the MOM estimator to find a starting estimate
-        val start = DistributionParameterEstimator.gammaMOMEstimator(data)
+        val start = DistributionModeler.gammaMOMEstimator(data)
         if (!start.success) {
             return start
         }

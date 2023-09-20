@@ -10,6 +10,6 @@ package ksl.utilities.distributions.fitting
 object GammaMOMParameterEstimator : ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray): EstimatedParameters {
-        return DistributionParameterEstimator.gammaMOMEstimator(data)
+        return DistributionModeler.gammaMOMEstimator(data)
     }
 }
