@@ -26,6 +26,7 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  The purpose of this object is to serve as the general location
@@ -58,16 +59,16 @@ class PDFModeler(private val data: DoubleArray) {
     // facilitate plotting
 
     val continuousEstimators: MutableMap<ParameterEstimatorIfc, RVType> = mutableMapOf(
-        ExponentialMLEParameterEstimator() to RVType.Exponential,
-        UniformParameterEstimator() to RVType.Uniform,
-        TriangularParameterEstimator() to RVType.Triangular,
-        NormalMLEParameterEstimator() to RVType.Normal,
-        LognormalMLEParameterEstimator() to RVType.Lognormal,
-        GammaMOMParameterEstimator() to RVType.Gamma,
-        GammaMLEParameterEstimator() to RVType.Gamma,
-        WeibullMLEParameterEstimator() to RVType.Weibull,
-        WeibullPercentileParameterEstimator() to RVType.Weibull,
-        BetaMOMParameterEstimator() to RVType.Beta
+        ExponentialMLEParameterEstimator(data, histogram) to RVType.Exponential,
+        UniformParameterEstimator(data, histogram) to RVType.Uniform,
+        TriangularParameterEstimator(data, histogram) to RVType.Triangular,
+        NormalMLEParameterEstimator(data, histogram) to RVType.Normal,
+        LognormalMLEParameterEstimator(data, histogram) to RVType.Lognormal,
+        GammaMOMParameterEstimator(data, histogram) to RVType.Gamma,
+        GammaMLEParameterEstimator(data, histogram) to RVType.Gamma,
+        WeibullMLEParameterEstimator(data, histogram) to RVType.Weibull,
+        WeibullPercentileParameterEstimator(data, histogram) to RVType.Weibull,
+        BetaMOMParameterEstimator(data, histogram) to RVType.Beta
     )
 
 
@@ -81,30 +82,28 @@ class PDFModeler(private val data: DoubleArray) {
 //    )
 
     fun estimateAllContinuous(
-        data: DoubleArray,
         estimators: MutableMap<ParameterEstimatorIfc, RVType> = continuousEstimators,
-        shift: Boolean = true
     ): List<EstimationResults> {
         val estimatedParameters = mutableListOf<EstimationResults>()
         for ((estimator, type) in estimators) {
-            estimatedParameters.add(estimateParameters(data, estimator, shift))
+            estimatedParameters.add(estimator.estimate())
         }
         return estimatedParameters
     }
 
-    fun estimateParameters(
-        data: DoubleArray,
-        parameterEstimator: ParameterEstimatorIfc,
-        shift: Boolean = true
-    ): EstimationResults {
-        if (shift) {
-            val shiftedData = leftShiftData(data)
-            val parameters = parameterEstimator.estimate(shiftedData.data)
-            parameters.shiftedData = shiftedData
-            return parameters
-        }
-        return parameterEstimator.estimate(data)
-    }
+//    fun estimateParameters(
+//        data: DoubleArray,
+//        parameterEstimator: ParameterEstimatorIfc,
+//        shift: Boolean = true
+//    ): EstimationResults {
+//        if (shift) {
+//            val shiftedData = leftShiftData(data)
+//            val parameters = parameterEstimator.estimate(shiftedData.data)
+//            parameters.shiftedData = shiftedData
+//            return parameters
+//        }
+//        return parameterEstimator.estimate(data)
+//    }
 
     companion object {
 
@@ -170,7 +169,7 @@ class PDFModeler(private val data: DoubleArray) {
             return ShiftedData(shift, KSLArrays.subtractConstant(data, shift))
         }
 
-        internal fun gammaMOMEstimator(data: DoubleArray, statistics: Statistic): EstimationResults {
+        internal fun gammaMOMEstimator(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
             if (data.size < 2) {
                 return EstimationResults(
                     statistics = statistics,
@@ -219,7 +218,7 @@ fun main(){
     val data = e.sample(2000)
     val d = PDFModeler(data)
 
-    val list = d.estimateAllContinuous(data, shift = false)
+    val list = d.estimateAllContinuous()
 
     for(element in list){
         println(element.toString())

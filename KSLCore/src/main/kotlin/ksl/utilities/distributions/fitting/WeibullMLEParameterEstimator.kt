@@ -6,6 +6,7 @@ import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import kotlin.math.ln
 import kotlin.math.pow
 
@@ -19,7 +20,10 @@ import kotlin.math.pow
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-class WeibullMLEParameterEstimator : ParameterEstimatorIfc {
+class WeibullMLEParameterEstimator(
+    data: DoubleArray,
+    statistics: StatisticIfc = Statistic(data)
+) : ParameterEstimator(data, statistics){
 
     /**
      * Desired precision. The default is 0.0001.
@@ -69,7 +73,7 @@ class WeibullMLEParameterEstimator : ParameterEstimatorIfc {
             field = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+    override fun estimate(): EstimationResults {
         if (data.size < 2) {
             return EstimationResults(
                 statistics = statistics,

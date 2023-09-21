@@ -1,6 +1,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  Estimates the shape and scale of a gamma distribution based on
@@ -9,9 +10,12 @@ import ksl.utilities.statistic.Statistic
  *  at least two observations. The sample average and sample variance
  *  of the observations must be strictly greater than zero.
  */
-class GammaMOMParameterEstimator : ParameterEstimatorIfc {
+class GammaMOMParameterEstimator(
+    data: DoubleArray,
+    statistics: StatisticIfc = Statistic(data)
+) : ParameterEstimator(data, statistics){
 
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+    override fun estimate(): EstimationResults {
         return PDFModeler.gammaMOMEstimator(data, statistics)
     }
 }

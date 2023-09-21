@@ -23,7 +23,7 @@ import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
- *  A data class to hold information from a parameter fitting algorithm.
+ *  A data class to hold information from a parameter estimation algorithm.
  *  In general the algorithm may fail due to data or numerical computation issues.
  *  The [parameters] may be null because of such issues; however,
  *  there may be cases where the parameters are produced but the algorithm
@@ -104,16 +104,15 @@ data class ShiftedData (
 interface ParameterEstimatorIfc {
 
     /**
-     *  Estimates the parameters associated with some distribution
-     *  based on the supplied [data]. The returned [EstimationResults]
+     *  Estimates the parameters associated with some distribution. The returned [EstimationResults]
      *  needs to be consistent with the intent of the desired distribution.
      *  Note the meaning of the fields associated with [EstimationResults]
      */
-    fun estimate(data: DoubleArray, statistics: Statistic = Statistic(data)): EstimationResults
+    fun estimate(): EstimationResults
 }
 
 abstract class ParameterEstimator(
-    private val data: DoubleArray,
-    val statistics: Statistic = Statistic(data)
+    protected val data: DoubleArray,
+    val statistics: StatisticIfc = Statistic(data)
 ) : ParameterEstimatorIfc
 

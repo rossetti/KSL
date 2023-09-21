@@ -21,6 +21,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  The approach is based on estimating the min and max via
@@ -28,9 +29,12 @@ import ksl.utilities.statistic.Statistic
  *  the mode is estimated by solving for it in terms of the sample
  *  average.
  */
-class TriangularParameterEstimator: ParameterEstimatorIfc {
+class TriangularParameterEstimator(
+    data: DoubleArray,
+    statistics: StatisticIfc = Statistic(data)
+) : ParameterEstimator(data, statistics){
 
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+    override fun estimate(): EstimationResults {
         if (data.size < 2){
             return EstimationResults(
                 statistics = statistics,

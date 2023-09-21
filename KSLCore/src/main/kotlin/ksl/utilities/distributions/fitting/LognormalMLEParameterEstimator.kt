@@ -21,6 +21,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.countLessEqualTo
 import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.statistics
 import kotlin.math.exp
 import kotlin.math.ln
@@ -32,8 +33,11 @@ import kotlin.math.ln
  *   the lognormal distribution.  The supplied data must be strictly
  *   positive and their must be at least 2 observations.
  */
-class LognormalMLEParameterEstimator : ParameterEstimatorIfc {
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+class LognormalMLEParameterEstimator(
+    data: DoubleArray,
+    statistics: StatisticIfc = Statistic(data)
+) : ParameterEstimator(data, statistics){
+    override fun estimate(): EstimationResults {
         if (data.size < 2){
             return EstimationResults(
                 statistics = statistics,

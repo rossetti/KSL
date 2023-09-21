@@ -21,6 +21,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.UniformRVParameters
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 
 /**
  *   Uses the minimum unbiased estimators based on the order statistics.
@@ -30,8 +31,11 @@ import ksl.utilities.statistic.Statistic
  *   There must be at least two observations and the observations cannot all be the same.
  *
  */
-class UniformParameterEstimator : ParameterEstimatorIfc{
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+class UniformParameterEstimator(
+    data: DoubleArray,
+    statistics: StatisticIfc = Statistic(data)
+) : ParameterEstimator(data, statistics){
+    override fun estimate(): EstimationResults {
         if (data.size < 2){
             return EstimationResults(
                 statistics = statistics,
