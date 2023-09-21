@@ -19,7 +19,7 @@ import kotlin.math.pow
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-object WeibullMLEParameterEstimator : ParameterEstimatorIfc {
+class WeibullMLEParameterEstimator : ParameterEstimatorIfc {
 
     /**
      * Desired precision. The default is 0.0001.

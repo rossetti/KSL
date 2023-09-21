@@ -34,16 +34,16 @@ import ksl.utilities.statistic.Statistic
 class DistributionModeler {
 
     val continuousEstimators: MutableMap<ParameterEstimatorIfc, RVType> = mutableMapOf(
-        ExponentialParameterEstimator to RVType.Exponential,
-        UniformParameterEstimator to RVType.Uniform,
-        TriangularParameterEstimator to RVType.Triangular,
-        NormalMLEParameterEstimator to RVType.Normal,
-        LognormalMLEParameterEstimator to RVType.Lognormal,
-        GammaMOMParameterEstimator to RVType.Gamma,
-        GammaMLEParameterEstimator to RVType.Gamma,
-        WeibullMLEParameterEstimator to RVType.Weibull,
-        WeibullPercentileParameterEstimator to RVType.Weibull,
-        BetaMOMParameterEstimator to RVType.Beta
+        ExponentialParameterEstimator() to RVType.Exponential,
+        UniformParameterEstimator() to RVType.Uniform,
+        TriangularParameterEstimator() to RVType.Triangular,
+        NormalMLEParameterEstimator() to RVType.Normal,
+        LognormalMLEParameterEstimator() to RVType.Lognormal,
+        GammaMOMParameterEstimator() to RVType.Gamma,
+        GammaMLEParameterEstimator() to RVType.Gamma,
+        WeibullMLEParameterEstimator() to RVType.Weibull,
+        WeibullPercentileParameterEstimator() to RVType.Weibull,
+        BetaMOMParameterEstimator() to RVType.Beta
     )
 
     /**

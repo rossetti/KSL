@@ -25,7 +25,7 @@ import ksl.utilities.statistic.Statistic
  *  Uses the sample average and sample variance of the data, which
  *  are the MLE estimators.  There must be at least two observations.
  */
-object NormalMLEParameterEstimator : ParameterEstimatorIfc {
+class NormalMLEParameterEstimator : ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2){

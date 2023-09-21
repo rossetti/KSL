@@ -32,7 +32,7 @@ import kotlin.math.ln
  *   the lognormal distribution.  The supplied data must be strictly
  *   positive and their must be at least 2 observations.
  */
-object LognormalMLEParameterEstimator : ParameterEstimatorIfc {
+class LognormalMLEParameterEstimator : ParameterEstimatorIfc {
     override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2){
             return EstimationResults(
