@@ -26,7 +26,7 @@ import ksl.utilities.statistic.Statistic
  *  Uses the sample average of the observations, which is the MLE
  *  estimator. The data must not contain negative values.
  */
-class ExponentialParameterEstimator : ParameterEstimatorIfc {
+class ExponentialMLEParameterEstimator : ParameterEstimatorIfc {
     override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.isEmpty()){
             return EstimationResults(

@@ -42,7 +42,7 @@ class DistributionModeler(private val data: DoubleArray) {
     // facilitate plotting
 
     val continuousEstimators: MutableMap<ParameterEstimatorIfc, RVType> = mutableMapOf(
-        ExponentialParameterEstimator() to RVType.Exponential,
+        ExponentialMLEParameterEstimator() to RVType.Exponential,
         UniformParameterEstimator() to RVType.Uniform,
         TriangularParameterEstimator() to RVType.Triangular,
         NormalMLEParameterEstimator() to RVType.Normal,
