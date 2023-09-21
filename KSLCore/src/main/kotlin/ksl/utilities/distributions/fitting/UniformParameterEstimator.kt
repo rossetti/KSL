@@ -50,15 +50,10 @@ class UniformParameterEstimator(
                 success = false
             )
         }
-        val x1 = statistics.min
-        val xn = statistics.max
-        val n = data.size
-        val range = xn - x1
-        val a = x1 - (range/(n - 1.0))
-        val b = xn + (range/(n - 1.0))
+        val interval = PDFModeler.rangeEstimate(statistics.min, statistics.max, data.size)
         val parameters = UniformRVParameters()
-        parameters.changeDoubleParameter("min", a)
-        parameters.changeDoubleParameter("max", b)
+        parameters.changeDoubleParameter("min", interval.lowerLimit)
+        parameters.changeDoubleParameter("max", interval.upperLimit)
         return EstimationResults(
             statistics = statistics,
             parameters = parameters,

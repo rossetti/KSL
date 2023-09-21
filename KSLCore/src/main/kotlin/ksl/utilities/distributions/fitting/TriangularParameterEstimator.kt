@@ -49,13 +49,10 @@ class TriangularParameterEstimator(
                 success = false
             )
         }
-        val x1 = statistics.min
-        val xn = statistics.max
-        val n = data.size.toDouble()
-        val range = xn - x1
+        val interval = PDFModeler.rangeEstimate(statistics.min, statistics.max, data.size)
         // estimate a and b like the uniform distribution
-        val a = x1 - (range/(n - 1))
-        val b = xn + (range/(n - 1))
+        val a = interval.lowerLimit
+        val b = interval.upperLimit
         // compute the mode by matching moments with the mean.
         // the mean = (a + c + b)/3.0
         var c = 3.0*statistics.average - a - b
