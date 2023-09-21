@@ -31,7 +31,7 @@ import ksl.utilities.statistic.Statistic
  *  for implementing the estimation of distribution parameter across
  *  many distributions.
  */
-class DistributionModeler {
+class DistributionModeler(private val data: DoubleArray) {
 
     val continuousEstimators: MutableMap<ParameterEstimatorIfc, RVType> = mutableMapOf(
         ExponentialParameterEstimator() to RVType.Exponential,
@@ -190,9 +190,10 @@ class DistributionModeler {
 }
 
 fun main(){
-    val d = DistributionModeler()
     val e = ExponentialRV(10.0)
     val data = e.sample(2000)
+    val d = DistributionModeler(data)
+
     val list = d.estimateAllContinuous(data, shift = false)
 
     for(element in list){

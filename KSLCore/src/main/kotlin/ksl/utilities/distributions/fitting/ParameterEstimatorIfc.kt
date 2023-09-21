@@ -99,7 +99,6 @@ data class ShiftedData (
  *  The basic contract is that the returned EstimatedParameters
  *  is consistent with the required parameter estimation.
  *
-
  */
 interface ParameterEstimatorIfc {
 
@@ -111,4 +110,9 @@ interface ParameterEstimatorIfc {
      */
     fun estimate(data: DoubleArray, statistics: Statistic = Statistic(data)): EstimationResults
 }
+
+abstract class ParameterEstimator(
+    private val data: DoubleArray,
+    val statistics: Statistic = Statistic(data)
+) : ParameterEstimatorIfc
 
