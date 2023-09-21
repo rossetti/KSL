@@ -18,7 +18,7 @@ import kotlin.math.ln
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-object GammaMLEParameterEstimator : ParameterEstimatorIfc {
+class GammaMLEParameterEstimator : ParameterEstimatorIfc {
 
     /**
      * Desired precision. The default is 0.0001.

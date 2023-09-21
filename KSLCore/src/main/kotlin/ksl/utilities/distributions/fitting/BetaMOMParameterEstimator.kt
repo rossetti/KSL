@@ -17,7 +17,7 @@ import ksl.utilities.statistic.Statistic
  * The sample average and sample variance of the observations must be strictly greater than zero.
  *
  */
-object BetaMOMParameterEstimator : ParameterEstimatorIfc {
+class BetaMOMParameterEstimator : ParameterEstimatorIfc {
     override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2){
             return EstimationResults(

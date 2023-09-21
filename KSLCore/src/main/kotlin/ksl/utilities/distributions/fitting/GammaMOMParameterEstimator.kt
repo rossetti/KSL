@@ -9,7 +9,7 @@ import ksl.utilities.statistic.Statistic
  *  at least two observations. The sample average and sample variance
  *  of the observations must be strictly greater than zero.
  */
-object GammaMOMParameterEstimator : ParameterEstimatorIfc {
+class GammaMOMParameterEstimator : ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         return DistributionModeler.gammaMOMEstimator(data, statistics)

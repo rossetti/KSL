@@ -30,7 +30,7 @@ import ksl.utilities.statistic.Statistic
  *   There must be at least two observations and the observations cannot all be the same.
  *
  */
-object UniformParameterEstimator : ParameterEstimatorIfc{
+class UniformParameterEstimator : ParameterEstimatorIfc{
     override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2){
             return EstimationResults(

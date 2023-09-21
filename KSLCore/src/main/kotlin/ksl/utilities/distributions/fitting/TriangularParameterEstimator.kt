@@ -28,7 +28,7 @@ import ksl.utilities.statistic.Statistic
  *  the mode is estimated by solving for it in terms of the sample
  *  average.
  */
-object TriangularParameterEstimator: ParameterEstimatorIfc {
+class TriangularParameterEstimator: ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         if (data.size < 2){
