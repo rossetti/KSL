@@ -24,6 +24,7 @@ import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
+import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 
 /**
@@ -33,7 +34,21 @@ import ksl.utilities.statistic.Statistic
  */
 class PDFModeler(private val data: DoubleArray) {
 
-    // analyze data, check for negative and zero values, compute basic statistics/histogram
+    val histogram : Histogram
+
+    val hasZeroes: Boolean
+        get() = histogram.zeroCount > 0
+
+    val hasNegatives: Boolean
+        get() = histogram.negativeCount > 0
+
+    init{
+        val breakPoints = Histogram.recommendBreakPoints(data)
+        histogram = Histogram(breakPoints)
+        histogram.collect(data)
+
+    }
+
     // check for need to shift data
     // provide methods to construct appropriate distributions for modeling given data characteristics
     // positive range distributions, full range distributions
@@ -54,57 +69,6 @@ class PDFModeler(private val data: DoubleArray) {
         BetaMOMParameterEstimator() to RVType.Beta
     )
 
-    /**
-     *  Uses the method described on page 360 of Law (2007)
-     *  Simulation Modeling and Analysis, ISBN 0073294411, 9780073294414
-     *  There must be at least two observations within the [data] and there
-     *  must be at least two different values.  That is, all the values must not be the same.
-     *  The observations should all be greater than or equal to 0.0. That is,
-     *  no negative values are allowed within the [data].
-     *
-     *  The value [tolerance] is used to consider whether the computed shift value is close enough
-     *  to zero to consider the shift 0.0.  The default is 0.001.  That is, a value
-     *  of the estimated shift that is less than the tolerance are considered 0.0.
-     *
-     *  This approach estimates a shift parameter that is intended to
-     *  shift the distribution to the left.  If X(i) is the original datum,
-     *  then the shifted data is intended to be Y(i) = X(i) - shift.  Thus, the distribution
-     *  is shifted to the left.  The estimated shift should be a positive quantity.
-     */
-    fun estimateLeftShiftParameter(data: DoubleArray, tolerance: Double = defaultZeroTolerance): Double {
-        require(data.size >= 2) { "There must be at least two observations" }
-        require(!data.isAllEqual()) { "The observations were all equal." }
-        require(data.countLessThan(0.0) == 0) {"There were negative values in the data."}
-        val sorted = data.orderStatistics()
-        val min = sorted.first()
-        val max = sorted.last()
-        var xk = sorted[1]
-        for (k in 1 until sorted.size - 1) {
-            if (sorted[k] > min) {
-                xk = sorted[k]
-                break
-            }
-        }
-        val top = min * max - xk * xk
-        if (top == 0.0) {
-            return 0.0
-        }
-        val bottom = min + max - 2.0 * xk
-        val shift = top / bottom
-        return if (KSLMath.within(shift, 0.0, tolerance)) 0.0 else shift
-    }
-
-    /**
-     *  Estimates the shift parameter and then shifts the
-     *  data by the estimated quantity. Also returns the computed
-     *  shift. Use destructuring if you want:
-     *
-     *  val (shift, shiftedData) = shiftData(data)
-     */
-    fun leftShiftData(data: DoubleArray, tolerance: Double = defaultZeroTolerance): ShiftedData {
-        val shift = estimateLeftShiftParameter(data, tolerance)
-        return ShiftedData(shift, KSLArrays.subtractConstant(data, shift))
-    }
 
 //    val discreteDistributions = setOf<RVType>(
 //        RVType.Bernoulli, RVType.Geometric, RVType.NegativeBinomial, RVType.Poisson
@@ -152,6 +116,58 @@ class PDFModeler(private val data: DoubleArray) {
                 require(value > 0.0) { "The default zero precision must be > 0.0" }
                 field = value
             }
+
+        /**
+         *  Uses the method described on page 360 of Law (2007)
+         *  Simulation Modeling and Analysis, ISBN 0073294411, 9780073294414
+         *  There must be at least two observations within the [data] and there
+         *  must be at least two different values.  That is, all the values must not be the same.
+         *  The observations should all be greater than or equal to 0.0. That is,
+         *  no negative values are allowed within the [data].
+         *
+         *  The value [tolerance] is used to consider whether the computed shift value is close enough
+         *  to zero to consider the shift 0.0.  The default is 0.001.  That is, a value
+         *  of the estimated shift that is less than the tolerance are considered 0.0.
+         *
+         *  This approach estimates a shift parameter that is intended to
+         *  shift the distribution to the left.  If X(i) is the original datum,
+         *  then the shifted data is intended to be Y(i) = X(i) - shift.  Thus, the distribution
+         *  is shifted to the left.  The estimated shift should be a positive quantity.
+         */
+        fun estimateLeftShiftParameter(data: DoubleArray, tolerance: Double = defaultZeroTolerance): Double {
+            require(data.size >= 2) { "There must be at least two observations" }
+            require(!data.isAllEqual()) { "The observations were all equal." }
+            require(data.countLessThan(0.0) == 0) {"There were negative values in the data."}
+            val sorted = data.orderStatistics()
+            val min = sorted.first()
+            val max = sorted.last()
+            var xk = sorted[1]
+            for (k in 1 until sorted.size - 1) {
+                if (sorted[k] > min) {
+                    xk = sorted[k]
+                    break
+                }
+            }
+            val top = min * max - xk * xk
+            if (top == 0.0) {
+                return 0.0
+            }
+            val bottom = min + max - 2.0 * xk
+            val shift = top / bottom
+            return if (KSLMath.within(shift, 0.0, tolerance)) 0.0 else shift
+        }
+
+        /**
+         *  Estimates the shift parameter and then shifts the
+         *  data by the estimated quantity. Also returns the computed
+         *  shift. Use destructuring if you want:
+         *
+         *  val (shift, shiftedData) = shiftData(data)
+         */
+        fun leftShiftData(data: DoubleArray, tolerance: Double = defaultZeroTolerance): ShiftedData {
+            val shift = estimateLeftShiftParameter(data, tolerance)
+            return ShiftedData(shift, KSLArrays.subtractConstant(data, shift))
+        }
 
         internal fun gammaMOMEstimator(data: DoubleArray, statistics: Statistic): EstimationResults {
             if (data.size < 2) {

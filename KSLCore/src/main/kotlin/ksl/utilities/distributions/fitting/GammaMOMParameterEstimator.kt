@@ -12,6 +12,6 @@ import ksl.utilities.statistic.Statistic
 class GammaMOMParameterEstimator : ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
-        return DistributionModeler.gammaMOMEstimator(data, statistics)
+        return PDFModeler.gammaMOMEstimator(data, statistics)
     }
 }

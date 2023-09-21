@@ -35,6 +35,10 @@ class AntitheticStatistic(theName: String = "AntitheticStatistic_${++StatCounter
         get() = myStatistic.average
     override val deviationSumOfSquares: Double
         get() = myStatistic.deviationSumOfSquares
+    override val negativeCount: Double
+        get() = myStatistic.negativeCount
+    override val zeroCount: Double
+        get() = myStatistic.zeroCount
     override val variance: Double
         get() = myStatistic.variance
     override val min: Double

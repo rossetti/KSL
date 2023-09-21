@@ -101,12 +101,17 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
 
     override val count: Double
         get() = myStatistic.count
+
     override val sum: Double
         get() = myStatistic.sum
     override val average: Double
         get() = myStatistic.average
     override val deviationSumOfSquares: Double
         get() = myStatistic.deviationSumOfSquares
+    override val negativeCount: Double
+        get() = myStatistic.negativeCount
+    override val zeroCount: Double
+        get() = myStatistic.zeroCount
     override val variance: Double
         get() = myStatistic.variance
     override val min: Double

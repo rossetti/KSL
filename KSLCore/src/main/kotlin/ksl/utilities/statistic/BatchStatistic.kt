@@ -354,6 +354,10 @@ class BatchStatistic constructor(
 
     override val deviationSumOfSquares: Double
         get() = myBMStatistic.deviationSumOfSquares
+    override val negativeCount: Double
+        get() = myBMStatistic.negativeCount
+    override val zeroCount: Double
+        get() = myBMStatistic.zeroCount
 
     override val variance: Double
         get() = myBMStatistic.variance
@@ -391,6 +395,7 @@ class BatchStatistic constructor(
 
     override val vonNeumannLag1TestStatisticPValue: Double
         get() = myBMStatistic.vonNeumannLag1TestStatisticPValue
+
 
     override fun leadingDigitRule(multiplier: Double): Int {
         return myBMStatistic.leadingDigitRule(multiplier)
