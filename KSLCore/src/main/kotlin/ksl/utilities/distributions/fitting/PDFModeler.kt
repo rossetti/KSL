@@ -122,7 +122,8 @@ class PDFModeler(private val data: DoubleArray) {
          *  There must be at least three observations within the [data] and there
          *  must be at least three different values.  That is, all the values must not be the same.
          *  The observations should all be greater than or equal to 0.0. That is,
-         *  no negative values are allowed within the [data].
+         *  no negative values are allowed within the [data]. If these conditions do not hold,
+         *  then 0.0 is returned for the shift. That is, no shift.
          *
          *  The value [tolerance] is used to consider whether the computed shift value is close enough
          *  to zero to consider the shift 0.0.  The default is 0.001.  That is, a value
@@ -134,13 +135,33 @@ class PDFModeler(private val data: DoubleArray) {
          *  is shifted to the left.  The estimated shift should be a positive quantity.
          */
         fun estimateLeftShiftParameter(data: DoubleArray, tolerance: Double = defaultZeroTolerance): Double {
-            require(data.size >= 3) { "There must be at least three observations" }
-            require(!data.isAllEqual()) { "The observations were all equal." }
-            require(data.countLessThan(0.0) == 0) {"There were negative values in the data."}
-            //TODO there should be a way to do this without sorting
+            if (data.size < 3){
+                return 0.0
+            }
+            val min = data.min()
+            if (min < 0.0){
+                return 0.0
+            }
+            val max = data.max()
+            if (max < 0.0){
+                return 0.0
+            }
+            if (min == max){
+                return 0.0
+            }
+            val nextSmallest = findNextSmallest(data, min)
+            if (nextSmallest == max){
+                return 0.0
+            }
+            return estimateLeftShift(min, nextSmallest, max, tolerance)
+        }
+
+        fun findNextSmallest(data: DoubleArray, min: Double): Double{
+            return data.removeValue(min).min()
+        }
+
+        private fun findNextSmallestV2(data: DoubleArray, min: Double): Double{
             val sorted = data.orderStatistics()
-            val min = sorted.first()
-            val max = sorted.last()
             var xk = sorted[1]
             for (k in 1 until sorted.size - 1) {
                 if (sorted[k] > min) {
@@ -148,7 +169,7 @@ class PDFModeler(private val data: DoubleArray) {
                     break
                 }
             }
-            return estimateLeftShift(min, xk, max, tolerance)
+            return xk
         }
 
         /**
@@ -240,11 +261,19 @@ class PDFModeler(private val data: DoubleArray) {
 fun main(){
     val e = ExponentialRV(10.0)
     val data = e.sample(2000)
-    val d = PDFModeler(data)
+    val shift = PDFModeler.estimateLeftShiftParameter(data, 0.000001)
+    val min = data.min()
+    println("min = $min")
+    println("next smallest = ${PDFModeler.findNextSmallest(data, min)}")
+    println("max = ${data.max()}")
+    println("shift = $shift")
+    assert(shift < min)
+    println(min - shift)
 
-    val list = d.estimateAllContinuous()
-
-    for(element in list){
-        println(element.toString())
-    }
+//    val d = PDFModeler(data)
+//    val list = d.estimateAllContinuous()
+//
+//    for(element in list){
+//        println(element.toString())
+//    }
 }
