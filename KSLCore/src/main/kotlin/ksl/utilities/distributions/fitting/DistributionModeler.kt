@@ -33,6 +33,14 @@ import ksl.utilities.statistic.Statistic
  */
 class DistributionModeler(private val data: DoubleArray) {
 
+    // analyze data, check for negative and zero values, compute basic statistics/histogram
+    // check for need to shift data
+    // provide methods to construct appropriate distributions for modeling given data characteristics
+    // positive range distributions, full range distributions
+    // use a map keyed by RVType holding a list of parameter estimator types (defined by an enum) available,
+    // allow the creation of the estimator from the defined types (like how RVType works)
+    // facilitate plotting
+
     val continuousEstimators: MutableMap<ParameterEstimatorIfc, RVType> = mutableMapOf(
         ExponentialParameterEstimator() to RVType.Exponential,
         UniformParameterEstimator() to RVType.Uniform,
