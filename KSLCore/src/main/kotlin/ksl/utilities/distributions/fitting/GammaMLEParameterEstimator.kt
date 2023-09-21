@@ -60,7 +60,7 @@ class GammaMLEParameterEstimator : ParameterEstimatorIfc {
 
     override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
         // use the MOM estimator to find a starting estimate
-        val start = DistributionModeler.gammaMOMEstimator(data, statistics)
+        val start = PDFModeler.gammaMOMEstimator(data, statistics)
         if (!start.success) {
             return start
         }

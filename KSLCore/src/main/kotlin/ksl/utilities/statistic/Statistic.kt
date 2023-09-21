@@ -77,6 +77,12 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
 
     private var myMax = Double.NEGATIVE_INFINITY
 
+    override var negativeCount = 0.0
+        private set
+
+    override var zeroCount = 0.0
+        private set
+
     init {
         if (values != null) {
             for (x in values) {
@@ -194,6 +200,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         s.mySumXX = mySumXX
         s.myMoments = myMoments.copyOf()
         s.lastValue = lastValue
+        s.negativeCount = negativeCount
+        s.zeroCount = zeroCount
         return s
     }
 
@@ -328,6 +336,12 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             numberMissing++
             return
         }
+        if (obs <  0.0){
+            negativeCount++
+        }
+        if (obs == 0.0){
+            zeroCount++
+        }
         // update moments
         myNum = myNum + 1
         myJsum = myJsum + myNum * obs
@@ -383,6 +397,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         for (i in myMoments.indices) {
             myMoments[i] = 0.0
         }
+        zeroCount = 0.0
+        negativeCount = 0.0
     }
 
     fun asString(): String {
