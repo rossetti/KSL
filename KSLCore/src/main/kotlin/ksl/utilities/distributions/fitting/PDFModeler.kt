@@ -48,7 +48,25 @@ class PDFModeler(private val data: DoubleArray) {
     val hasNegatives: Boolean
         get() = histogram.negativeCount > 0
 
+    /**
+     *  How close we consider a double is to 0.0 to consider it 0.0
+     *  Default is 0.001
+     */
+    var defaultZeroTolerance = PDFModeler.defaultZeroTolerance
+        set(value) {
+            require(value > 0.0) { "The default zero precision must be > 0.0" }
+            field = value
+        }
 
+    /**
+     *  Estimates a possible shift parameter for the data.
+     *  See PDFModeler.estimateLeftShiftParameter(). If any of the data are negative
+     *  then there will be no shift. There must be at least 3 different positive values
+     *  for a shift to be estimated; otherwise, it will be 0.0. Any estimated shift
+     *  that is less that the defaultZeroTolerance will be set to 0.0.
+     */
+    val leftShift: Double
+        get() = estimateLeftShiftParameter(data, defaultZeroTolerance)
 
     // check for need to shift data
     // provide methods to construct appropriate distributions for modeling given data characteristics
@@ -160,6 +178,22 @@ class PDFModeler(private val data: DoubleArray) {
             return data.removeValue(min).min()
         }
 
+        /**
+         *  Estimates the range on uniform distribution theory.
+         *   Uses the minimum unbiased estimators based on the order statistics.
+         *   See: 1. Castillo E, Hadi AS. A method for estimating parameters and quantiles of
+         *   distributions of continuous random variables. Computational Statistics & Data Analysis.
+         *   1995 Oct;20(4):421–39.
+         */
+        fun rangeEstimate(min: Double, max: Double, n: Int) : Interval {
+            require(n >= 2) {"There must be at least two observations."}
+            require(min < max) {"The minimum must be strictly less than the maximum."}
+            val range = max - min
+            val a = min - (range/(n - 1.0))
+            val b = max + (range/(n - 1.0))
+            return Interval(a, b)
+        }
+
         private fun findNextSmallestV2(data: DoubleArray, min: Double): Double{
             val sorted = data.orderStatistics()
             var xk = sorted[1]
@@ -269,6 +303,8 @@ fun main(){
     println("shift = $shift")
     assert(shift < min)
     println(min - shift)
+//    data.sort()
+//    println(data.joinToString())
 
 //    val d = PDFModeler(data)
 //    val list = d.estimateAllContinuous()
