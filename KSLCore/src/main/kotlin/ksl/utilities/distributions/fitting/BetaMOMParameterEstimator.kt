@@ -4,6 +4,7 @@ import ksl.utilities.countGreaterThan
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.BetaRVParameters
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  Estimates the parameters of the beta distribution via the method of moments.
@@ -17,8 +18,11 @@ import ksl.utilities.statistic.Statistic
  * The sample average and sample variance of the observations must be strictly greater than zero.
  *
  */
-class BetaMOMParameterEstimator : ParameterEstimatorIfc {
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+class BetaMOMParameterEstimator(
+    data: DoubleArray,
+    statistics: StatisticIfc = Statistic(data)
+) : ParameterEstimator(data, statistics) {
+    override fun estimate(): EstimationResults {
         if (data.size < 2){
             return EstimationResults(
                 statistics = statistics,

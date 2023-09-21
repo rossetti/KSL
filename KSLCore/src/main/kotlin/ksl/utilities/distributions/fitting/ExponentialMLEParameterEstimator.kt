@@ -21,13 +21,17 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  Uses the sample average of the observations, which is the MLE
  *  estimator. The data must not contain negative values.
  */
-class ExponentialMLEParameterEstimator : ParameterEstimatorIfc {
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+class ExponentialMLEParameterEstimator(
+    data: DoubleArray,
+    statistics: StatisticIfc = Statistic(data)
+) : ParameterEstimator(data, statistics){
+    override fun estimate(): EstimationResults {
         if (data.isEmpty()){
             return EstimationResults(
                 statistics = statistics,

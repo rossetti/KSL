@@ -6,6 +6,7 @@ import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import kotlin.math.ln
 
 /**
@@ -18,7 +19,10 @@ import kotlin.math.ln
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-class GammaMLEParameterEstimator : ParameterEstimatorIfc {
+class GammaMLEParameterEstimator(
+    data: DoubleArray,
+    statistics: StatisticIfc = Statistic(data)
+) : ParameterEstimator(data, statistics){
 
     /**
      * Desired precision. The default is 0.0001.
@@ -58,7 +62,7 @@ class GammaMLEParameterEstimator : ParameterEstimatorIfc {
             field = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+    override fun estimate(): EstimationResults {
         // use the MOM estimator to find a starting estimate
         val start = PDFModeler.gammaMOMEstimator(data, statistics)
         if (!start.success) {
@@ -72,7 +76,7 @@ class GammaMLEParameterEstimator : ParameterEstimatorIfc {
             lnsum = lnsum + ln(x)
         }
         val rhs = lnsum / data.size
-        val mean = start.statistics!!.average
+        val mean = start.statistics.average
         // define the function
         val fn: (Double) -> Double = { alpha: Double -> ln(mean / alpha) + Gamma.diGammaFunction(alpha) - rhs }
         // define an initial search interval for the shape parameter search

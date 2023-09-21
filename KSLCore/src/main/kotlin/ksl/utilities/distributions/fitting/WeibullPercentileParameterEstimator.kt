@@ -5,6 +5,7 @@ import ksl.utilities.distributions.Weibull
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.statistic.JackKnifeEstimator
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  Applies the percentile method to estimating the parameters of the Weibull distribution
@@ -31,7 +32,10 @@ import ksl.utilities.statistic.Statistic
  *
  * The supplied data cannot be negative or zero and must not all be equal in value.
  */
-class WeibullPercentileParameterEstimator : ParameterEstimatorIfc {
+class WeibullPercentileParameterEstimator(
+    data: DoubleArray,
+    statistics: StatisticIfc = Statistic(data)
+) : ParameterEstimator(data, statistics){
 
     val reducedPercentileSet = doubleArrayOf(0.1, 0.2, 0.3, 0.4)
     val expandedPercentileSet = doubleArrayOf(0.05, 0.1, 0.15, 0.2, 0.25, 0.30, 0.35, 0.40, 0.45)
@@ -59,7 +63,7 @@ class WeibullPercentileParameterEstimator : ParameterEstimatorIfc {
             field = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: Statistic): EstimationResults {
+    override fun estimate(): EstimationResults {
         if (data.size <= 10) {
             return EstimationResults(
                 statistics = statistics,
