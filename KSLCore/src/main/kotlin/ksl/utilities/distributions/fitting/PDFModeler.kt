@@ -35,6 +35,12 @@ import ksl.utilities.statistic.Statistic
 class PDFModeler(private val data: DoubleArray) {
 
     val histogram : Histogram
+    init{
+        val breakPoints = Histogram.recommendBreakPoints(data)
+        histogram = Histogram(breakPoints)
+        histogram.collect(data)
+
+    }
 
     val hasZeroes: Boolean
         get() = histogram.zeroCount > 0
@@ -42,12 +48,7 @@ class PDFModeler(private val data: DoubleArray) {
     val hasNegatives: Boolean
         get() = histogram.negativeCount > 0
 
-    init{
-        val breakPoints = Histogram.recommendBreakPoints(data)
-        histogram = Histogram(breakPoints)
-        histogram.collect(data)
 
-    }
 
     // check for need to shift data
     // provide methods to construct appropriate distributions for modeling given data characteristics

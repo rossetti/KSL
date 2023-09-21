@@ -20,6 +20,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  A data class to hold information from a parameter fitting algorithm.
@@ -35,7 +36,7 @@ import ksl.utilities.statistic.Statistic
  *  supplied data.
  */
 data class EstimationResults(
-    var statistics: Statistic,
+    var statistics: StatisticIfc,
     var shiftedData: ShiftedData? = null,
     val parameters: RVParameters? = null,
     var message: String? = null,
