@@ -31,7 +31,7 @@ import ksl.utilities.statistic.Statistic
  *  for implementing the estimation of distribution parameter across
  *  many distributions.
  */
-class DistributionModeler(private val data: DoubleArray) {
+class PDFModeler(private val data: DoubleArray) {
 
     // analyze data, check for negative and zero values, compute basic statistics/histogram
     // check for need to shift data
@@ -200,7 +200,7 @@ class DistributionModeler(private val data: DoubleArray) {
 fun main(){
     val e = ExponentialRV(10.0)
     val data = e.sample(2000)
-    val d = DistributionModeler(data)
+    val d = PDFModeler(data)
 
     val list = d.estimateAllContinuous(data, shift = false)
 
