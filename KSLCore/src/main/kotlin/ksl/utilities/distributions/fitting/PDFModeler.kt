@@ -25,7 +25,6 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -120,8 +119,8 @@ class PDFModeler(private val data: DoubleArray) {
         /**
          *  Uses the method described on page 360 of Law (2007)
          *  Simulation Modeling and Analysis, ISBN 0073294411, 9780073294414
-         *  There must be at least two observations within the [data] and there
-         *  must be at least two different values.  That is, all the values must not be the same.
+         *  There must be at least three observations within the [data] and there
+         *  must be at least three different values.  That is, all the values must not be the same.
          *  The observations should all be greater than or equal to 0.0. That is,
          *  no negative values are allowed within the [data].
          *
@@ -135,9 +134,10 @@ class PDFModeler(private val data: DoubleArray) {
          *  is shifted to the left.  The estimated shift should be a positive quantity.
          */
         fun estimateLeftShiftParameter(data: DoubleArray, tolerance: Double = defaultZeroTolerance): Double {
-            require(data.size >= 2) { "There must be at least two observations" }
+            require(data.size >= 3) { "There must be at least three observations" }
             require(!data.isAllEqual()) { "The observations were all equal." }
             require(data.countLessThan(0.0) == 0) {"There were negative values in the data."}
+            //TODO there should be a way to do this without sorting
             val sorted = data.orderStatistics()
             val min = sorted.first()
             val max = sorted.last()
@@ -148,13 +148,37 @@ class PDFModeler(private val data: DoubleArray) {
                     break
                 }
             }
-            val top = min * max - xk * xk
+            return estimateLeftShift(min, xk, max, tolerance)
+        }
+
+        /**
+         *  Uses the method described on page 360 of Law (2007)
+         *  Simulation Modeling and Analysis, ISBN 0073294411, 9780073294414
+         *  The [min] must be strictly less than the [max].  The [nextSmallest] is x(k)
+         *  where x(k) is the kth order statistic and k is the value in {2, 3, ..., n-1}
+         *  such that x(k) is strictly greater than x(1).
+         *
+         *  The value [tolerance] is used to consider whether the computed shift value is close enough
+         *  to zero to consider the shift 0.0.  The default is 0.001.  That is, a value
+         *  of the estimated shift that is less than the tolerance are considered 0.0.
+         *
+         *  This approach estimates a shift parameter that is intended to
+         *  shift the distribution to the left.  If X(i) is the original datum,
+         *  then the shifted data is intended to be Y(i) = X(i) - shift.  Thus, the distribution
+         *  is shifted to the left.  The estimated shift should be a positive quantity.
+         */
+        fun estimateLeftShift(min: Double, nextSmallest:Double, max:  Double, tolerance: Double = defaultZeroTolerance) :  Double {
+            require(min > 0.0) {"The minimum must be > 0.0"}
+            require( min < max) {"The minimum must be strictly less than the maximum."}
+            require(nextSmallest > min) {"The next smallest value must not be equal to the minimum."}
+            require(nextSmallest < max) {"The next smallest value must be strictly less than the maximum."}
+            val top = min * max - nextSmallest * nextSmallest
             if (top == 0.0) {
                 return 0.0
             }
-            val bottom = min + max - 2.0 * xk
+            val bottom = min + max - 2.0 * nextSmallest
             val shift = top / bottom
-            return if (KSLMath.within(shift, 0.0, tolerance)) 0.0 else shift
+            return if (shift <= tolerance) 0.0 else shift
         }
 
         /**
