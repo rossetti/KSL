@@ -2123,6 +2123,21 @@ object KSLArrays {
     }
 
     /**
+     *  Returns a new array in the same order as the original array but
+     *  with the specified value removed.  All instances of the value
+     *  will be removed.
+     */
+    fun removeValue(data: DoubleArray, value: Double): DoubleArray {
+        val values = mutableListOf<Double>()
+        for(x in data){
+            if (x != value){
+                values.add(x)
+            }
+        }
+        return values.toDoubleArray()
+    }
+
+    /**
      * Returns a statistic that summarizes the passed in array of values
      *
      * @param x the values to compute statistics for
@@ -2328,6 +2343,21 @@ fun DoubleArray.orderStatistics(): DoubleArray {
  */
 fun DoubleArray.removeDuplicates(): DoubleArray {
     return KSLArrays.removeDuplicates(this)
+}
+
+/**
+ *  Returns a new array in the same order as the original array but
+ *  with the specified value removed.  All instances of the value
+ *  will be removed.
+ */
+fun DoubleArray.removeValue(value: Double): DoubleArray {
+    val values = mutableListOf<Double>()
+    for(x in this){
+        if (x != value){
+            values.add(x)
+        }
+    }
+    return values.toDoubleArray()
 }
 
 /**
