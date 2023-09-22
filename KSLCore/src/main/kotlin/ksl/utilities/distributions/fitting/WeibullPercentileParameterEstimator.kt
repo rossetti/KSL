@@ -2,6 +2,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
 import ksl.utilities.distributions.Weibull
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.statistic.JackKnifeEstimator
 import ksl.utilities.statistic.Statistic

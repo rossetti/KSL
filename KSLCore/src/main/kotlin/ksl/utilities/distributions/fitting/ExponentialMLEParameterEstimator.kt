@@ -19,6 +19,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countLessThan
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -31,6 +32,7 @@ class ExponentialMLEParameterEstimator(
     data: DoubleArray,
     statistics: StatisticIfc = Statistic(data)
 ) : ParameterEstimator(data, statistics){
+
     override fun estimate(): EstimationResults {
         if (data.isEmpty()){
             return EstimationResults(

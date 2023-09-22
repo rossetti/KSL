@@ -57,7 +57,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         }
         myBootstraps = LinkedHashMap()
         for ((key, value) in dataMap) {
-            val bs = Bootstrap(key, value)
+            val bs = Bootstrap(value, key)
             myBootstraps[key] = bs
         }
     }

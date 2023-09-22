@@ -22,7 +22,10 @@ import ksl.utilities.*
 import ksl.utilities.distributions.Gamma
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.ShiftedRV
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
+import ksl.utilities.statistic.BSEstimatorIfc
+import ksl.utilities.statistic.Bootstrap
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.StatisticIfc
 
@@ -34,6 +37,7 @@ import ksl.utilities.statistic.StatisticIfc
 class PDFModeler(private val data: DoubleArray) {
 
     val histogram: Histogram
+
 
     init {
         val breakPoints = Histogram.recommendBreakPoints(data)
@@ -57,6 +61,15 @@ class PDFModeler(private val data: DoubleArray) {
             require(value > 0.0) { "The default zero precision must be > 0.0" }
             field = value
         }
+
+    /**
+     *  Uses bootstrapping to estimate a confidence interval for the minimum
+     */
+    fun confidenceIntervalForMinimum(numBootstrapSamples: Int = 399, level: Double = 0.95): Interval {
+        val bootStrap: Bootstrap = Bootstrap(data)
+        bootStrap.generateSamples(numBootstrapSamples, BSEstimatorIfc.Minimum())
+        return bootStrap.percentileBootstrapCI(level)
+    }
 
     /**
      *  Estimates a possible shift parameter for the data.
@@ -85,7 +98,16 @@ class PDFModeler(private val data: DoubleArray) {
         GammaMLEParameterEstimator(data, histogram) to RVType.Gamma,
         WeibullMLEParameterEstimator(data, histogram) to RVType.Weibull,
         WeibullPercentileParameterEstimator(data, histogram) to RVType.Weibull,
-        BetaMOMParameterEstimator(data, histogram) to RVType.Beta
+        GeneralizedBetaMOMParameterEstimator(data, histogram) to RVType.GeneralizedBeta
+    )
+
+    val strictlyPositiveEstimators: MutableMap<ParameterEstimatorIfc, RVType> = mutableMapOf(
+        ExponentialMLEParameterEstimator(data, histogram) to RVType.Exponential,
+        LognormalMLEParameterEstimator(data, histogram) to RVType.Lognormal,
+        GammaMOMParameterEstimator(data, histogram) to RVType.Gamma,
+        GammaMLEParameterEstimator(data, histogram) to RVType.Gamma,
+        WeibullMLEParameterEstimator(data, histogram) to RVType.Weibull,
+        WeibullPercentileParameterEstimator(data, histogram) to RVType.Weibull,
     )
 
 
@@ -311,22 +333,25 @@ class PDFModeler(private val data: DoubleArray) {
 
 fun main() {
     val e = ExponentialRV(10.0)
-    val data = e.sample(2000)
+    val se = ShiftedRV(5.0, e)
+    //val data = e.sample(2000)
+    val data = se.sample(2000)
     val shift = PDFModeler.estimateLeftShiftParameter(data, 0.000001)
     val min = data.min()
     println("min = $min")
     println("next smallest = ${PDFModeler.findNextLargest(data, min)}")
     println("max = ${data.max()}")
     println("shift = $shift")
-    assert(shift < min)
-    println(min - shift)
-//    data.sort()
-//    println(data.joinToString())
+    println("min after shift = ${min - shift}")
 
-//    val d = PDFModeler(data)
-//    val list = d.estimateAllContinuous()
-//
-//    for(element in list){
-//        println(element.toString())
-//    }
+    val d = PDFModeler(data)
+
+    val minCI = d.confidenceIntervalForMinimum()
+    println(minCI)
+    val list = d.estimateAllContinuous()
+
+    for(element in list){
+        println(element.toString())
+    }
+
 }

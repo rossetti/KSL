@@ -2,6 +2,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countGreaterThan
 import ksl.utilities.countLessThan
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.BetaRVParameters
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -22,8 +23,9 @@ class BetaMOMParameterEstimator(
     data: DoubleArray,
     statistics: StatisticIfc = Statistic(data)
 ) : ParameterEstimator(data, statistics) {
+
     override fun estimate(): EstimationResults {
-        if (data.size < 2){
+        if (data.size < 2) {
             return EstimationResults(
                 statistics = statistics,
                 message = "There must be at least two observations",
@@ -44,25 +46,25 @@ class BetaMOMParameterEstimator(
                 success = false
             )
         }
-        if (statistics.average <= 0.0){
+        if (statistics.average <= 0.0) {
             return EstimationResults(
                 statistics = statistics,
                 message = "The sample average of the data was <= 0.0",
                 success = false
             )
         }
-        if (statistics.variance <= 0.0){
+        if (statistics.variance == 0.0) {
             return EstimationResults(
                 statistics = statistics,
-                message = "The sample variance of the data was <= 0.0",
+                message = "The sample variance of the data was = 0.0",
                 success = false
             )
         }
         val xb = statistics.average
         val xb1m = 1.0 - xb
-        val xc = ((xb*xb1m)/statistics.variance) - 1.0
-        val alphaMoM = xb*xc
-        val betaMOM = xb1m*xc
+        val xc = ((xb * xb1m) / statistics.variance) - 1.0
+        val alphaMoM = xb * xc
+        val betaMOM = xb1m * xc
         val parameters = BetaRVParameters()
         parameters.changeDoubleParameter("alpha1", alphaMoM)
         parameters.changeDoubleParameter("alpha2", betaMOM)
@@ -70,6 +72,7 @@ class BetaMOMParameterEstimator(
             statistics = statistics,
             parameters = parameters,
             message = "The beta parameters were estimated successfully using a MOM technique",
-            success = true)
+            success = true
+        )
     }
 }
