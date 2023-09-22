@@ -2,11 +2,9 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Gamma
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
-import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import kotlin.math.ln
 
@@ -20,10 +18,7 @@ import kotlin.math.ln
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-class GammaMLEParameterEstimator(
-    data: DoubleArray,
-    statistics: StatisticIfc = Statistic(data)
-) : ParameterEstimator(data, statistics){
+class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
 
     override val checkForShift: Boolean = true
 
@@ -65,7 +60,7 @@ class GammaMLEParameterEstimator(
             field = value
         }
 
-    override fun estimate(): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         // use the MOM estimator to find a starting estimate
         val start = PDFModeler.gammaMOMEstimator(data, statistics)
         if (!start.success) {

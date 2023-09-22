@@ -19,9 +19,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.isAllEqual
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
-import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -30,14 +28,11 @@ import ksl.utilities.statistic.StatisticIfc
  *  the mode is estimated by solving for it in terms of the sample
  *  average.
  */
-class TriangularParameterEstimator(
-    data: DoubleArray,
-    statistics: StatisticIfc = Statistic(data)
-) : ParameterEstimator(data, statistics){
+object TriangularParameterEstimator : ParameterEstimatorIfc{
 
     override val checkForShift: Boolean = false
 
-    override fun estimate(): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         if (data.size < 2){
             return EstimationResults(
                 statistics = statistics,

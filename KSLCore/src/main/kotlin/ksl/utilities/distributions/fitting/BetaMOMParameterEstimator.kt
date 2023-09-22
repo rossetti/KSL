@@ -2,9 +2,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countGreaterThan
 import ksl.utilities.countLessThan
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.BetaRVParameters
-import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -19,14 +17,11 @@ import ksl.utilities.statistic.StatisticIfc
  * The sample average and sample variance of the observations must be strictly greater than zero.
  *
  */
-class BetaMOMParameterEstimator(
-    data: DoubleArray,
-    statistics: StatisticIfc = Statistic(data)
-) : ParameterEstimator(data, statistics) {
+class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
 
     override val checkForShift: Boolean = true
 
-    override fun estimate(): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         if (data.size < 2) {
             return EstimationResults(
                 statistics = statistics,

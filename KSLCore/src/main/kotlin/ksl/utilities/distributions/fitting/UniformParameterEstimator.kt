@@ -19,9 +19,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.isAllEqual
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.UniformRVParameters
-import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -32,14 +30,11 @@ import ksl.utilities.statistic.StatisticIfc
  *   There must be at least two observations and the observations cannot all be the same.
  *
  */
-class UniformParameterEstimator(
-    data: DoubleArray,
-    statistics: StatisticIfc = Statistic(data)
-) : ParameterEstimator(data, statistics){
+object UniformParameterEstimator : ParameterEstimatorIfc{
 
     override val checkForShift: Boolean = false
 
-    override fun estimate(): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         if (data.size < 2){
             return EstimationResults(
                 statistics = statistics,
