@@ -19,6 +19,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countLessEqualTo
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -37,6 +38,7 @@ class LognormalMLEParameterEstimator(
     data: DoubleArray,
     statistics: StatisticIfc = Statistic(data)
 ) : ParameterEstimator(data, statistics){
+
     override fun estimate(): EstimationResults {
         if (data.size < 2){
             return EstimationResults(

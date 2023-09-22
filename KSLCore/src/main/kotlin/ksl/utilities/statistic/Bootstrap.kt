@@ -204,15 +204,6 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
         }
 
     /** Creates a random variable to represent the data in each bootstrap generate for which
-     * the data was saved. By default, the stream for every random variable is the same across the
-     * bootstraps to facilitate common random number generation (CRN)
-     *
-     * @return a list of the random variables
-     */
-//    val empiricalRVForEachBootstrapSample: List<Any>
-//        get() = empiricalRVForEachBootstrapSample(true)
-
-    /** Creates a random variable to represent the data in each bootstrap generate for which
      * the data was saved.
      *
      * @param useCRN, if true the stream for every random variable is the same across the

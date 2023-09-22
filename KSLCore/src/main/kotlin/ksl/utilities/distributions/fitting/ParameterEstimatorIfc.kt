@@ -18,6 +18,7 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc

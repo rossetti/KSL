@@ -19,6 +19,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.isAllEqual
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc

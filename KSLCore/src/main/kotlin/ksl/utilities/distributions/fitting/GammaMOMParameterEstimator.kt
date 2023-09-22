@@ -1,5 +1,6 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
@@ -14,6 +15,8 @@ class GammaMOMParameterEstimator(
     data: DoubleArray,
     statistics: StatisticIfc = Statistic(data)
 ) : ParameterEstimator(data, statistics){
+
+    override val rvType: RVType = RVType.Gamma
 
     override fun estimate(): EstimationResults {
         return PDFModeler.gammaMOMEstimator(data, statistics)
