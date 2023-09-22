@@ -37,6 +37,8 @@ class UniformParameterEstimator(
     statistics: StatisticIfc = Statistic(data)
 ) : ParameterEstimator(data, statistics){
 
+    override val checkForShift: Boolean = false
+
     override fun estimate(): EstimationResults {
         if (data.size < 2){
             return EstimationResults(

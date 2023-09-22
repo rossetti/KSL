@@ -105,6 +105,12 @@ data class ShiftedData (
 interface ParameterEstimatorIfc {
 
     /**
+     *  Indicates if the estimator requires that the data be checked for a shift
+     *  before the estimation process.
+     */
+    val checkForShift: Boolean
+
+    /**
      *  Estimates the parameters associated with some distribution. The returned [EstimationResults]
      *  needs to be consistent with the intent of the desired distribution.
      *  Note the meaning of the fields associated with [EstimationResults]

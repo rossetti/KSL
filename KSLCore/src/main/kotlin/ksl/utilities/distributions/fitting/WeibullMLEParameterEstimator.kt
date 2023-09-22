@@ -26,6 +26,8 @@ class WeibullMLEParameterEstimator(
     statistics: StatisticIfc = Statistic(data)
 ) : ParameterEstimator(data, statistics){
 
+    override val checkForShift: Boolean = true
+
     /**
      * Desired precision. The default is 0.0001.
      */
