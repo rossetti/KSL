@@ -16,7 +16,7 @@ class GammaMOMParameterEstimator(
     statistics: StatisticIfc = Statistic(data)
 ) : ParameterEstimator(data, statistics){
 
-    override val rvType: RVType = RVType.Gamma
+    override val checkForShift: Boolean = true
 
     override fun estimate(): EstimationResults {
         return PDFModeler.gammaMOMEstimator(data, statistics)

@@ -39,6 +39,8 @@ class LognormalMLEParameterEstimator(
     statistics: StatisticIfc = Statistic(data)
 ) : ParameterEstimator(data, statistics){
 
+    override val checkForShift: Boolean = true
+
     override fun estimate(): EstimationResults {
         if (data.size < 2){
             return EstimationResults(

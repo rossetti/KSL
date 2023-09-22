@@ -24,10 +24,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.ShiftedRV
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
-import ksl.utilities.statistic.BSEstimatorIfc
-import ksl.utilities.statistic.Bootstrap
-import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.StatisticIfc
+import ksl.utilities.statistic.*
 
 /**
  *  The purpose of this object is to serve as the general location
@@ -36,21 +33,25 @@ import ksl.utilities.statistic.StatisticIfc
  */
 class PDFModeler(private val data: DoubleArray) {
 
-    val histogram: Histogram
+    private val myHistogram: Histogram
 
+   val histogram: HistogramIfc
+       get() = myHistogram
+
+    val statistics: StatisticIfc
+        get() = myHistogram
 
     init {
         val breakPoints = Histogram.recommendBreakPoints(data)
-        histogram = Histogram(breakPoints)
-        histogram.collect(data)
-
+        myHistogram = Histogram(breakPoints)
+        myHistogram.collect(data)
     }
 
     val hasZeroes: Boolean
-        get() = histogram.zeroCount > 0
+        get() = myHistogram.zeroCount > 0
 
     val hasNegatives: Boolean
-        get() = histogram.negativeCount > 0
+        get() = myHistogram.negativeCount > 0
 
     /**
      *  How close we consider a double is to 0.0 to consider it 0.0
@@ -88,43 +89,53 @@ class PDFModeler(private val data: DoubleArray) {
     // allow the creation of the estimator from the defined types (like how RVType works)
     // facilitate plotting
 
-    val continuousEstimators: MutableMap<ParameterEstimatorIfc, RVType> = mutableMapOf(
-        ExponentialMLEParameterEstimator(data, histogram) to RVType.Exponential,
-        UniformParameterEstimator(data, histogram) to RVType.Uniform,
-        TriangularParameterEstimator(data, histogram) to RVType.Triangular,
-        NormalMLEParameterEstimator(data, histogram) to RVType.Normal,
-        LognormalMLEParameterEstimator(data, histogram) to RVType.Lognormal,
-        GammaMOMParameterEstimator(data, histogram) to RVType.Gamma,
-        GammaMLEParameterEstimator(data, histogram) to RVType.Gamma,
-        WeibullMLEParameterEstimator(data, histogram) to RVType.Weibull,
-        WeibullPercentileParameterEstimator(data, histogram) to RVType.Weibull,
-        GeneralizedBetaMOMParameterEstimator(data, histogram) to RVType.GeneralizedBeta
-    )
+    /**
+     *  This set contains all the known estimators for estimating continuous
+     *  distributions. This is the union of nonRestrictedEstimators and positiveRestrictedEstimators
+     */
+    val allEstimators: Set<ParameterEstimatorIfc>
+        get() = nonRestrictedEstimators union positiveRestrictedEstimators
 
-    val strictlyPositiveEstimators: MutableMap<ParameterEstimatorIfc, RVType> = mutableMapOf(
-        ExponentialMLEParameterEstimator(data, histogram) to RVType.Exponential,
-        LognormalMLEParameterEstimator(data, histogram) to RVType.Lognormal,
-        GammaMOMParameterEstimator(data, histogram) to RVType.Gamma,
-        GammaMLEParameterEstimator(data, histogram) to RVType.Gamma,
-        WeibullMLEParameterEstimator(data, histogram) to RVType.Weibull,
-        WeibullPercentileParameterEstimator(data, histogram) to RVType.Weibull,
-    )
+    /**
+     *  This set holds estimators that can fit distributions for which
+     *  the domain is not restricted.
+     */
+    val nonRestrictedEstimators: Set<ParameterEstimatorIfc>
+        get() = setOf<ParameterEstimatorIfc>(
+            UniformParameterEstimator(data, statistics),
+            TriangularParameterEstimator(data, statistics),
+            NormalMLEParameterEstimator(data, statistics),
+            GeneralizedBetaMOMParameterEstimator(data, statistics)
+        )
 
+    /**
+     *  This set holds the recommended estimators for estimating the
+     *  parameters of distributions on the positive domain x in (0, infinity)
+     */
+    val positiveRestrictedEstimators: Set<ParameterEstimatorIfc>
+        get() = setOf<ParameterEstimatorIfc>(
+            ExponentialMLEParameterEstimator(data, statistics),
+            LognormalMLEParameterEstimator(data, statistics),
+            GammaMLEParameterEstimator(data, statistics),
+            WeibullMLEParameterEstimator(data, statistics)
+        )
 
-//    val discreteDistributions = setOf<RVType>(
-//        RVType.Bernoulli, RVType.Geometric, RVType.NegativeBinomial, RVType.Poisson
-//    )
-//
-//    val continuousDistributions = setOf<RVType>(
-//        RVType.Exponential, RVType.Gamma, RVType.Lognormal, RVType.Normal, RVType.Triangular,
-//        RVType.Uniform, RVType.Weibull, RVType.Beta, RVType.PearsonType5, RVType.PearsonType6
-//    )
-
-    fun estimateAllContinuous(
-        estimators: MutableMap<ParameterEstimatorIfc, RVType> = continuousEstimators,
+    fun estimateAll(
+        estimators: Set<ParameterEstimatorIfc>,
     ): List<EstimationResults> {
+        // estimate a confidence interval on the minimum value
+        val minCI = confidenceIntervalForMinimum()
+       // var theData = doubleArrayOf()
+        var shift = 0.0
+        val theData = if (minCI.contains(defaultZeroTolerance)){
+            val leftShift  = leftShiftData(data)
+            shift = leftShift.shift
+            leftShift.data
+        } else {
+            data
+        }
         val estimatedParameters = mutableListOf<EstimationResults>()
-        for ((estimator, type) in estimators) {
+        for (estimator in estimators) {
             estimatedParameters.add(estimator.estimate())
         }
         return estimatedParameters
@@ -334,7 +345,7 @@ class PDFModeler(private val data: DoubleArray) {
 fun main() {
     val e = ExponentialRV(10.0)
     val se = ShiftedRV(5.0, e)
-    //val data = e.sample(2000)
+//    val data = e.sample(2000)
     val data = se.sample(2000)
     val shift = PDFModeler.estimateLeftShiftParameter(data, 0.000001)
     val min = data.min()
@@ -348,10 +359,10 @@ fun main() {
 
     val minCI = d.confidenceIntervalForMinimum()
     println(minCI)
-    val list = d.estimateAllContinuous()
-
-    for(element in list){
-        println(element.toString())
-    }
+//    val list = d.estimateAll(d.allEstimators)
+//
+//    for (element in list) {
+//        println(element.toString())
+//    }
 
 }
