@@ -160,8 +160,6 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
             myOriginalPop.antithetic = flag
         }
 
-
-
     /**
      *
      * @return a copy of the original data
@@ -178,7 +176,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      *
      * If the save bootstrap data option was not turned on during the sampling then the list returned is empty.
      *
-     * @return a list of size getNumBootstrapSamples() holding statistics from every bootstrap generate
+     * @return a list of size numBootstrapSamples holding statistics from every bootstrap generated
      */
     val statisticForEachBootstrapSample: List<Statistic>
         get() {
@@ -305,7 +303,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
         get() = myBSEstimates.savedData()
 
     /**
-     * Each element is the bootstrap estimate for sample i minus getOriginalDataEstimate()
+     * Each element is the bootstrap estimate for sample i minus originalDataEstimate
      *
      * @return the array of bootstrap differences
      */
@@ -328,7 +326,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
         get() = myOriginalPopStat.average
 
     /**
-     * This is getAcrossBootstrapAverage() - getOriginalDataEstimate()
+     * This is acrossBootstrapAverage - originalDataEstimate
      *
      * @return an estimate the bias based on bootstrapping
      */
@@ -349,14 +347,6 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      */
     val originalDataStatistics: Statistic
         get() = myOriginalPopStat.instance()
-
-    /**
-     * Gets the standard normal based bootstrap confidence interval. Not recommended.
-     *
-     * @return the confidence interval
-     */
-//    val stdNormalBootstrapCI: Interval
-//        get() = getStdNormalBootstrapCI(defaultCILevel)
 
     /**
      * Gets the standard normal based bootstrap confidence interval. Not recommended.
@@ -382,18 +372,6 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      * and Bl is the lower (alpha/2) percentile, where level = 1-alpha of
      * the bootstrap replicates.
      *
-     * @return the confidence interval
-     */
-//    val basicBootstrapCI: Interval
-//        get() = basicBootstrapCI(defaultCILevel)
-
-    /**
-     * The "basic" method, but with no bias correction. This
-     * is the so-called centered percentile method (2θ − Bu , 2θ − Bl )
-     * where θ is the bootstrap estimator and Bu is the 1 - alpha/2 percentile
-     * and Bl is the lower (alpha/2) percentile, where level = 1-alpha of
-     * the bootstrap replicates.
-     *
      * @param level the confidence level, must be between 0 and 1
      * @return the confidence interval
      */
@@ -409,18 +387,6 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
         val ul = 2.0 * estimate - llq
         return Interval(ll, ul)
     }
-
-    /**
-     * The "percentile" method, but with no bias correction. This
-     * is the percentile method (θ − Bl , θ + Bu )
-     * where θ is the bootstrap estimator and Bu is the 1 - alpha/2 percentile
-     * and Bl is the lower (alpha/2) percentile, where level = 1-alpha of the
-     * bootstrap replicates
-     *
-     * @return the confidence interval
-     */
-//    val percentileBootstrapCI: Interval
-//        get() = percentileBootstrapCI(defaultCILevel)
 
     /**
      * The "percentile" method, but with no bias correction. This
