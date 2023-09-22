@@ -38,7 +38,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * Hyndman, R. J. and Fan, Y. (1996) Sample quantiles in statistical packages,
  * American Statistician 50, 361–365 as the default.  This can be changed by the user.
  */
-class Bootstrap(name: String? = null, originalData: DoubleArray) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc {
+class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc {
 
     init {
         require(originalData.size > 1) { "The supplied bootstrap generate had only 1 data point" }
@@ -485,23 +485,14 @@ class Bootstrap(name: String? = null, originalData: DoubleArray) : IdentityIfc b
     companion object {
 
         /**
-         * @param sampleSize the size of the original sample
-         * @param sampler something to generate the original sample of the provided size
-         * @return an instance of Bootstrap based on the sample
-         */
-        fun create(sampleSize: Int, sampler: SampleIfc): Bootstrap {
-            return create(null, sampleSize, sampler)
-        }
-
-        /**
          * @param name         the name of bootstrap instance
          * @param sampleSize the size of the original sample, must be greater than 1
          * @param sampler something to generate the original sample of the provided size
          * @return an instance of Bootstrap based on the sample
          */
-        fun create(name: String?, sampleSize: Int, sampler: SampleIfc): Bootstrap {
+        fun create(sampleSize: Int, sampler: SampleIfc, name: String? = null): Bootstrap {
             require(sampleSize > 1) { "The generate size must be greater than 1" }
-            return Bootstrap(name, sampler.sample(sampleSize))
+            return Bootstrap(sampler.sample(sampleSize), name)
         }
     }
 }
