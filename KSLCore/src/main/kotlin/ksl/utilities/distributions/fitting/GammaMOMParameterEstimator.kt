@@ -1,7 +1,5 @@
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.random.rvariable.RVType
-import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -11,14 +9,11 @@ import ksl.utilities.statistic.StatisticIfc
  *  at least two observations. The sample average and sample variance
  *  of the observations must be strictly greater than zero.
  */
-class GammaMOMParameterEstimator(
-    data: DoubleArray,
-    statistics: StatisticIfc = Statistic(data)
-) : ParameterEstimator(data, statistics){
+object GammaMOMParameterEstimator : ParameterEstimatorIfc{
 
     override val checkForShift: Boolean = true
 
-    override fun estimate(): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         return PDFModeler.gammaMOMEstimator(data, statistics)
     }
 }

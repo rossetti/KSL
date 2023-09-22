@@ -2,7 +2,6 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
 import ksl.utilities.distributions.Weibull
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.statistic.JackKnifeEstimator
 import ksl.utilities.statistic.Statistic
@@ -33,10 +32,7 @@ import ksl.utilities.statistic.StatisticIfc
  *
  * The supplied data cannot be negative or zero and must not all be equal in value.
  */
-class WeibullPercentileParameterEstimator(
-    data: DoubleArray,
-    statistics: StatisticIfc = Statistic(data)
-) : ParameterEstimator(data, statistics){
+class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc {
 
     override val checkForShift: Boolean = true
 
@@ -66,7 +62,7 @@ class WeibullPercentileParameterEstimator(
             field = value
         }
 
-    override fun estimate(): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         if (data.size <= 10) {
             return EstimationResults(
                 statistics = statistics,

@@ -101,11 +101,11 @@ class PDFModeler(private val data: DoubleArray) {
      *  the domain is not restricted.
      */
     val nonRestrictedEstimators: Set<ParameterEstimatorIfc>
-        get() = setOf<ParameterEstimatorIfc>(
-            UniformParameterEstimator(data, statistics),
-            TriangularParameterEstimator(data, statistics),
-            NormalMLEParameterEstimator(data, statistics),
-            GeneralizedBetaMOMParameterEstimator(data, statistics)
+        get() = setOf(
+            UniformParameterEstimator,
+            TriangularParameterEstimator,
+            NormalMLEParameterEstimator,
+            GeneralizedBetaMOMParameterEstimator
         )
 
     /**
@@ -113,11 +113,11 @@ class PDFModeler(private val data: DoubleArray) {
      *  parameters of distributions on the positive domain x in (0, infinity)
      */
     val positiveRestrictedEstimators: Set<ParameterEstimatorIfc>
-        get() = setOf<ParameterEstimatorIfc>(
-            ExponentialMLEParameterEstimator(data, statistics),
-            LognormalMLEParameterEstimator(data, statistics),
-            GammaMLEParameterEstimator(data, statistics),
-            WeibullMLEParameterEstimator(data, statistics)
+        get() = setOf(
+            ExponentialMLEParameterEstimator,
+            LognormalMLEParameterEstimator,
+            GammaMLEParameterEstimator(),
+            WeibullMLEParameterEstimator()
         )
 
     fun estimateAll(
@@ -125,18 +125,22 @@ class PDFModeler(private val data: DoubleArray) {
     ): List<EstimationResults> {
         // estimate a confidence interval on the minimum value
         val minCI = confidenceIntervalForMinimum()
-       // var theData = doubleArrayOf()
-        var shift = 0.0
-        val theData = if (minCI.contains(defaultZeroTolerance)){
-            val leftShift  = leftShiftData(data)
-            shift = leftShift.shift
-            leftShift.data
+        val shiftedData =if (!minCI.contains(defaultZeroTolerance)){
+            leftShiftData(data)
         } else {
-            data
+            null
         }
+        val shiftedStats = shiftedData?.data?.statistics()
         val estimatedParameters = mutableListOf<EstimationResults>()
         for (estimator in estimators) {
-            estimatedParameters.add(estimator.estimate())
+            val result  = if (estimator.checkForShift && (shiftedData != null)){
+                val r = estimator.estimate(shiftedData.data, shiftedStats!!)
+                r.shiftedData = shiftedData
+                r
+            } else {
+                estimator.estimate(data, statistics)
+            }
+            estimatedParameters.add(result)
         }
         return estimatedParameters
     }
@@ -359,10 +363,10 @@ fun main() {
 
     val minCI = d.confidenceIntervalForMinimum()
     println(minCI)
-//    val list = d.estimateAll(d.allEstimators)
-//
-//    for (element in list) {
-//        println(element.toString())
-//    }
+    val list = d.estimateAll(d.allEstimators)
+
+    for (element in list) {
+        println(element.toString())
+    }
 
 }

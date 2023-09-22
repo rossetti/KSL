@@ -18,19 +18,14 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GeneralizedBetaRVParameters
-import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
-class GeneralizedBetaMOMParameterEstimator(
-    data: DoubleArray,
-    statistics: StatisticIfc = Statistic(data)
-) : ParameterEstimator(data, statistics) {
+object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc {
 
     override val checkForShift: Boolean = false
 
-    override fun estimate(): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         if (data.size < 2) {
             return EstimationResults(
                 statistics = statistics,

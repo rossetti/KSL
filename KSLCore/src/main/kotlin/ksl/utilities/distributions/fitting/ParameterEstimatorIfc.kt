@@ -89,7 +89,7 @@ data class ShiftedData (
     }
 
     override fun toString(): String {
-        return "shift = $shift)"
+        return "shift = $shift"
     }
 }
 
@@ -115,11 +115,11 @@ interface ParameterEstimatorIfc {
      *  needs to be consistent with the intent of the desired distribution.
      *  Note the meaning of the fields associated with [EstimationResults]
      */
-    fun estimate(): EstimationResults
+    fun estimate(data: DoubleArray, statistics: StatisticIfc = Statistic(data)): EstimationResults
 }
 
-abstract class ParameterEstimator(
-    protected val data: DoubleArray,
-    val statistics: StatisticIfc = Statistic(data)
-) : ParameterEstimatorIfc
+//abstract class ParameterEstimator(
+//    protected val data: DoubleArray,
+//    val statistics: StatisticIfc = Statistic(data)
+//) : ParameterEstimatorIfc
 
