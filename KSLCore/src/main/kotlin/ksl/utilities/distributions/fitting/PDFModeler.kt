@@ -20,7 +20,6 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
 import ksl.utilities.distributions.Gamma
-import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
@@ -34,8 +33,9 @@ import ksl.utilities.statistic.StatisticIfc
  */
 class PDFModeler(private val data: DoubleArray) {
 
-    val histogram : Histogram
-    init{
+    val histogram: Histogram
+
+    init {
         val breakPoints = Histogram.recommendBreakPoints(data)
         histogram = Histogram(breakPoints)
         histogram.collect(data)
@@ -153,48 +153,60 @@ class PDFModeler(private val data: DoubleArray) {
          *  is shifted to the left.  The estimated shift should be a positive quantity.
          */
         fun estimateLeftShiftParameter(data: DoubleArray, tolerance: Double = defaultZeroTolerance): Double {
-            if (data.size < 3){
+            if (data.size < 3) {
                 return 0.0
             }
             val min = data.min()
-            if (min < 0.0){
+            if (min < 0.0) {
                 return 0.0
             }
             val max = data.max()
-            if (max < 0.0){
+            if (max < 0.0) {
                 return 0.0
             }
-            if (min == max){
+            if (min == max) {
                 return 0.0
             }
-            val nextSmallest = findNextSmallest(data, min)
-            if (nextSmallest == max){
+            val nextSmallest = findNextLargest(data, min)
+            if (nextSmallest == max) {
                 return 0.0
             }
             return estimateLeftShift(min, nextSmallest, max, tolerance)
         }
 
-        fun findNextSmallest(data: DoubleArray, min: Double): Double{
-            return data.removeValue(min).min()
+        /**
+         *  If [min] is the minimum of the [data], then this computes the observation
+         *  that is strictly larger than the observed minimum.  This is the minimum
+         *  of the observations if all observations of [min] are removed from
+         *  the data. There must be at least 2 observations and the observations
+         *  cannot all be equal.  There must be at least one observation that is
+         *  not equal to [min].
+         */
+        fun findNextLargest(data: DoubleArray, min: Double): Double {
+            require(data.size >= 2) { "There must be at least two observations." }
+            require(!data.isAllEqual()) { "The observations cannot all be equal." }
+            val remaining = data.removeValue(min)
+            require(remaining.isNotEmpty()) { "All observations were equal to the minimum." }
+            return remaining.min()
         }
 
         /**
-         *  Estimates the range on uniform distribution theory.
+         *  Estimates the range based on uniform distribution theory.
          *   Uses the minimum unbiased estimators based on the order statistics.
          *   See: 1. Castillo E, Hadi AS. A method for estimating parameters and quantiles of
          *   distributions of continuous random variables. Computational Statistics & Data Analysis.
          *   1995 Oct;20(4):421–39.
          */
-        fun rangeEstimate(min: Double, max: Double, n: Int) : Interval {
-            require(n >= 2) {"There must be at least two observations."}
-            require(min < max) {"The minimum must be strictly less than the maximum."}
+        fun rangeEstimate(min: Double, max: Double, n: Int): Interval {
+            require(n >= 2) { "There must be at least two observations." }
+            require(min < max) { "The minimum must be strictly less than the maximum." }
             val range = max - min
-            val a = min - (range/(n - 1.0))
-            val b = max + (range/(n - 1.0))
+            val a = min - (range / (n - 1.0))
+            val b = max + (range / (n - 1.0))
             return Interval(a, b)
         }
 
-        private fun findNextSmallestV2(data: DoubleArray, min: Double): Double{
+        private fun findNextSmallestV2(data: DoubleArray, min: Double): Double {
             val sorted = data.orderStatistics()
             var xk = sorted[1]
             for (k in 1 until sorted.size - 1) {
@@ -222,11 +234,16 @@ class PDFModeler(private val data: DoubleArray) {
          *  then the shifted data is intended to be Y(i) = X(i) - shift.  Thus, the distribution
          *  is shifted to the left.  The estimated shift should be a positive quantity.
          */
-        fun estimateLeftShift(min: Double, nextSmallest:Double, max:  Double, tolerance: Double = defaultZeroTolerance) :  Double {
-            require(min > 0.0) {"The minimum must be > 0.0"}
-            require( min < max) {"The minimum must be strictly less than the maximum."}
-            require(nextSmallest > min) {"The next smallest value must not be equal to the minimum."}
-            require(nextSmallest < max) {"The next smallest value must be strictly less than the maximum."}
+        fun estimateLeftShift(
+            min: Double,
+            nextSmallest: Double,
+            max: Double,
+            tolerance: Double = defaultZeroTolerance
+        ): Double {
+            require(min > 0.0) { "The minimum must be > 0.0" }
+            require(min < max) { "The minimum must be strictly less than the maximum." }
+            require(nextSmallest > min) { "The next smallest value must not be equal to the minimum." }
+            require(nextSmallest < max) { "The next smallest value must be strictly less than the maximum." }
             val top = min * max - nextSmallest * nextSmallest
             if (top == 0.0) {
                 return 0.0
@@ -292,13 +309,13 @@ class PDFModeler(private val data: DoubleArray) {
 
 }
 
-fun main(){
+fun main() {
     val e = ExponentialRV(10.0)
     val data = e.sample(2000)
     val shift = PDFModeler.estimateLeftShiftParameter(data, 0.000001)
     val min = data.min()
     println("min = $min")
-    println("next smallest = ${PDFModeler.findNextSmallest(data, min)}")
+    println("next smallest = ${PDFModeler.findNextLargest(data, min)}")
     println("max = ${data.max()}")
     println("shift = $shift")
     assert(shift < min)
