@@ -52,7 +52,8 @@ interface PDFIfc : DomainIfc, LogLikelihoodIfc {
      *  the likelihood function. This is computed using
      *  as the sum of the log-likelihood function raised
      *  to e. Implementation may want to specify other computationally
-     *  efficient formulas for this function.
+     *  efficient formulas for this function or (most likely)
+     *  the sum of the log-likelihood function.
      */
     fun likelihood(data: DoubleArray) : Double {
         return exp(sumLogLikelihood(data))
