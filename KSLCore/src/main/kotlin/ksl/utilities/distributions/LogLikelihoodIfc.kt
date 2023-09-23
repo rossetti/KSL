@@ -30,13 +30,11 @@ fun interface LogLikelihoodIfc {
 
     /**
      *  Computes the sum of the log-likelihood function
-     *  evaluated at each observation in the [data]. The
-     *  array must not be empty.
+     *  evaluated at each observation in the [data].
      *  Implementations may want to specify computationally efficient
      *  formulas for this function.
      */
     fun sumLogLikelihood(data: DoubleArray) : Double {
-        require(data.isNotEmpty()) {"The array was empty"}
         var sum = 0.0
         for(x in data){
             sum = sum + logLikelihood(x)
