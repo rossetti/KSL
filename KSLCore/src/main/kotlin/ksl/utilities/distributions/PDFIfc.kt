@@ -18,6 +18,7 @@
 
 package ksl.utilities.distributions
 
+import kotlin.math.exp
 import kotlin.math.ln
 
 /** Represents the probability density function for
@@ -43,5 +44,17 @@ interface PDFIfc : DomainIfc, LogLikelihoodIfc {
      */
     override fun logLikelihood(x: Double): Double {
         return ln(pdf(x))
+    }
+
+    /**
+     *  Assuming that the observations in the array [data]
+     *  are from a random sample, this function computes
+     *  the likelihood function. This is computed using
+     *  as the sum of the log-likelihood function raised
+     *  to e. Implementation may want to specify other computationally
+     *  efficient formulas for this function.
+     */
+    fun likelihood(data: DoubleArray) : Double {
+        return exp(sumLogLikelihood(data))
     }
 }

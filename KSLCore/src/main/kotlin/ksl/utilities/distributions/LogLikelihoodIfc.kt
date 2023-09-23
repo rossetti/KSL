@@ -23,7 +23,8 @@ import ksl.utilities.countLessEqualTo
 fun interface LogLikelihoodIfc {
 
     /**
-     *  Computes the natural log of the likelihood function
+     *  Computes the natural log of the likelihood function at
+     *  the value [x]
      */
     fun logLikelihood(x: Double) : Double
 
