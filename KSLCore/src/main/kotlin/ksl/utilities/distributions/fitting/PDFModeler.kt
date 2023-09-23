@@ -21,7 +21,6 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.*
 import ksl.utilities.distributions.Gamma
 import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.ShiftedRV
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.statistic.*
@@ -133,7 +132,7 @@ class PDFModeler(private val data: DoubleArray) {
         val shiftedStats = shiftedData?.data?.statistics()
         val estimatedParameters = mutableListOf<EstimationResults>()
         for (estimator in estimators) {
-            val result  = if (estimator.checkForShift && (shiftedData != null)){
+            val result  = if (estimator.checkRange && (shiftedData != null)){
                 val r = estimator.estimate(shiftedData.data, shiftedStats!!)
                 r.shiftedData = shiftedData
                 r

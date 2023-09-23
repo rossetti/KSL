@@ -32,66 +32,80 @@ import kotlin.math.*
 /**
  * Create Beta distribution with the supplied parameters
  *
- * @param shape1 the first shape parameter
- * @param shape2 the second shape parameter
+ * @param alphaShape the first shape parameter
+ * @param betaShape the second shape parameter
  */
-class Beta(shape1: Double, shape2: Double, name: String? = null) : Distribution<Beta>(name), ContinuousDistributionIfc,
-    InverseCDFIfc {
+class Beta(
+    alphaShape: Double,
+    betaShape: Double,
+    name: String? = null
+) : Distribution<Beta>(name), ContinuousDistributionIfc, InverseCDFIfc {
     init {
-        require(shape1 > 0) { "The 1st shape parameter must be > 0" }
-        require(shape2 > 0) { "The 2nd shape parameter must be > 0" }
+        require(alphaShape > 0) { "The 1st shape parameter must be > 0" }
+        require(betaShape > 0) { "The 2nd shape parameter must be > 0" }
     }
 
-    var alpha1: Double = shape1
+    var alpha: Double = alphaShape
         private set
 
-    var alpha2: Double = shape2
+    var beta: Double = betaShape
         private set
 
-    private var betaA1A2 = betaFunction(alpha1, alpha2)
-    private var lnBetaA1A2 = logBetaFunction(alpha1, alpha2)
+    private var betaA1A2 = betaFunction(alpha, beta)
+    private var lnBetaA1A2 = logBetaFunction(alpha, beta)
 
     /**
      * Changes the parameters to the supplied values
      *
-     * @param shape1 the first shape parameter
-     * @param shape2 the second shape parameter
+     * @param alphaShape the first shape parameter
+     * @param betaShape the second shape parameter
      */
-    fun parameters(shape1: Double, shape2: Double) {
-        require(shape1 > 0) { "The 1st shape parameter must be > 0" }
-        require(shape2 > 0) { "The 2nd shape parameter must be > 0" }
-        alpha1 = shape1
-        alpha2 = shape2
-        betaA1A2 = betaFunction(alpha1, alpha2)
-        lnBetaA1A2 = logBetaFunction(alpha1, alpha2)
+    fun parameters(alphaShape: Double, betaShape: Double) {
+        require(alphaShape > 0) { "The 1st shape parameter must be > 0" }
+        require(betaShape > 0) { "The 2nd shape parameter must be > 0" }
+        alpha = alphaShape
+        beta = betaShape
+        betaA1A2 = betaFunction(alpha, beta)
+        lnBetaA1A2 = logBetaFunction(alpha, beta)
     }
 
+    /**
+     * Changes the parameters to the supplied values
+     * params[0] the alpha shape parameter
+     * params[1]the beta shape parameter
+     */
     override fun parameters(params: DoubleArray) {
         parameters(params[0], params[1])
     }
 
+    /**
+     * Returns the parameters of the distribution.
+     * 
+     * params[0] the alpha shape parameter
+     * params[1]the beta shape parameter
+     */
     override fun parameters(): DoubleArray {
-        return doubleArrayOf(alpha1, alpha2)
+        return doubleArrayOf(alpha, beta)
     }
 
     override fun mean(): Double {
-        return alpha1 / (alpha1 + alpha2)
+        return alpha / (alpha + beta)
     }
 
     override fun variance(): Double {
-        val n = alpha1 * alpha2
-        val d = (alpha1 + alpha2) * (alpha1 + alpha2) * (alpha1 + alpha2 + 1.0)
+        val n = alpha * beta
+        val d = (alpha + beta) * (alpha + beta) * (alpha + beta + 1.0)
         return n / d
     }
 
     override fun cdf(x: Double): Double {
-        return stdBetaCDF(x, alpha1, alpha2, lnBetaA1A2)
+        return stdBetaCDF(x, alpha, beta, lnBetaA1A2)
     }
 
     override fun pdf(x: Double): Double {
         return if (0.0 < x && x < 1.0) {
-            val f1 = x.pow(alpha1 - 1.0)
-            val f2 = (1.0 - x).pow(alpha2 - 1.0)
+            val f1 = x.pow(alpha - 1.0)
+            val f2 = (1.0 - x).pow(beta - 1.0)
             f1 * f2 / betaA1A2
         } else {
             0.0
@@ -101,15 +115,15 @@ class Beta(shape1: Double, shape2: Double, name: String? = null) : Distribution<
     override fun domain(): Interval = Interval(0.0, 1.0)
 
     override fun invCDF(p: Double): Double {
-        return stdBetaInvCDF(p, alpha1, alpha2, lnBetaA1A2)
+        return stdBetaInvCDF(p, alpha, beta, lnBetaA1A2)
     }
 
     override fun instance(): Beta {
-        return Beta(alpha1, alpha2)
+        return Beta(alpha, beta)
     }
 
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return BetaRV(alpha1, alpha1, stream)
+        return BetaRV(alpha, alpha, stream)
     }
 
     companion object {

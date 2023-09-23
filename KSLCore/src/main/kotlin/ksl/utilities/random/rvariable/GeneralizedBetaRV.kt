@@ -23,59 +23,66 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * GeneralizeBetaRV(alpha1, alpha2, min, max) random variable
- * @param alpha1 the first shape parameter, must be greater than 0
- * @param alpha2 the second shape parameter, must be greater than 0
- * @param minimum the minimum of the range, must be less than maximum
- * @param maximum the maximum of the range
+ * @param alpha the alpha shape parameter, must be greater than 0
+ * @param beta the beta shape parameter, must be greater than 0
+ * @param min the minimum of the range, must be less than maximum
+ * @param max the maximum of the range
  * @param stream the random number stream
  */
 class GeneralizedBetaRV(
-    val alpha1: Double,
-    val alpha2: Double,
-    val minimum: Double,
-    val maximum: Double,
+    val alpha: Double,
+    val beta: Double,
+    val min: Double,
+    val max: Double,
     stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null
 ) : ParameterizedRV(stream, name) {
     init {
-        require(maximum > minimum) { "the min must be < than the max" }
+        require(max > min) { "the min must be < than the max" }
     }
 
-    private val myBeta: BetaRV = BetaRV(alpha1, alpha2, stream)
+    private val myBeta: BetaRV = BetaRV(alpha, beta, stream)
 
     /**
      * GeneralizeBetaRV(alpha1, alpha2, min, max) random variable
-     * @param alpha1 the first shape parameter
-     * @param alpha2 the second shape parameter
-     * @param minimum the minimum of the range
-     * @param maximum the maximum of the range
+     * @param alphaShape the alpha shape parameter
+     * @param betaShape the beta shape parameter
+     * @param min the minimum of the range
+     * @param max the maximum of the range
      * @param streamNum the random number stream number
      */
-    constructor(alpha1: Double, alpha2: Double, min: Double, max: Double, streamNum: Int) :
-            this(alpha1, alpha2, min, max, KSLRandom.rnStream(streamNum))
+    constructor(alphaShape: Double, betaShape: Double, min: Double, max: Double, streamNum: Int) :
+            this(alphaShape, betaShape, min, max, KSLRandom.rnStream(streamNum))
 
     /**
      * @param stream the RNStreamIfc to use
      * @return a new instance with same parameter value
      */
     override fun instance(stream: RNStreamIfc): GeneralizedBetaRV {
-        return GeneralizedBetaRV(alpha1, alpha2, minimum, maximum, stream)
+        return GeneralizedBetaRV(alpha, beta, min, max, stream)
     }
 
     override fun generate(): Double {
-        return minimum + (maximum - minimum) * myBeta.value
+        return min + (max - min) * myBeta.value
     }
 
     override fun toString(): String {
-        return "GeneralizedBetaRV(alpha1=$alpha1, alpha2=$alpha2, minimum=$minimum, maximum=$maximum)"
+        return "GeneralizedBetaRV(alpha=$alpha, beta=$beta, min=$min, max=$max)"
     }
 
+    /**
+     * Returns the parameters in a parameter map
+     * alpha the alpha shape parameter
+     * beta the beta shape parameter
+     * min the minimum of the range
+     * max the maximum of the range
+     */
     override val parameters: RVParameters
         get() {
             val parameters: RVParameters = GeneralizedBetaRVParameters()
-            parameters.changeDoubleParameter("alpha1", alpha1)
-            parameters.changeDoubleParameter("alpha2", alpha2)
-            parameters.changeDoubleParameter("min", minimum)
-            parameters.changeDoubleParameter("max", maximum)
+            parameters.changeDoubleParameter("alpha", alpha)
+            parameters.changeDoubleParameter("beta", beta)
+            parameters.changeDoubleParameter("min", min)
+            parameters.changeDoubleParameter("max", max)
             return parameters
         }
 

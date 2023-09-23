@@ -21,7 +21,7 @@ import kotlin.math.pow
  */
 class WeibullMLEParameterEstimator() : ParameterEstimatorIfc{
 
-    override val checkForShift: Boolean = true
+    override val checkRange: Boolean = true
 
     /**
      * Desired precision. The default is 0.0001.

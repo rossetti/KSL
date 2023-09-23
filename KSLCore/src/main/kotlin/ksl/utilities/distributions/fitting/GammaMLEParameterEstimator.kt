@@ -20,7 +20,7 @@ import kotlin.math.ln
  */
 class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
 
-    override val checkForShift: Boolean = true
+    override val checkRange: Boolean = true
 
     /**
      * Desired precision. The default is 0.0001.

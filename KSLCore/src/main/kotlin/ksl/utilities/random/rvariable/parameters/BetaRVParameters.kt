@@ -8,21 +8,21 @@ import ksl.utilities.random.rvariable.RVariableIfc
 
 class BetaRVParameters : RVParameters(), CreateDistributionIfc<Beta>  {
     override fun fillParameters() {
-        addDoubleParameter("alpha1", 1.0)
-        addDoubleParameter("alpha2", 1.0)
+        addDoubleParameter("alpha", 1.0)
+        addDoubleParameter("beta", 1.0)
         rvClassName = RVType.Beta.parametrizedRVClass.simpleName!!
         rvType = (RVType.Beta)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-        val alpha1 = doubleParameter("alpha1")
-        val alpha2 = doubleParameter("alpha2")
-        return BetaRV(alpha1, alpha2, rnStream)
+        val alpha = doubleParameter("alpha")
+        val beta = doubleParameter("beta")
+        return BetaRV(alpha, beta, rnStream)
     }
 
     override fun createDistribution(): Beta {
-        val alpha1 = doubleParameter("alpha1")
-        val alpha2 = doubleParameter("alpha2")
-        return Beta(alpha1, alpha2)
+        val alpha = doubleParameter("alpha")
+        val beta = doubleParameter("beta")
+        return Beta(alpha, beta)
     }
 }
