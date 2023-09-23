@@ -826,56 +826,56 @@ object KSLRandom {
     /**
      * This beta is restricted to the range of (0,1)
      *
-     * @param alpha1    alpha1 parameter
-     * @param alpha2    alpha2 parameter
+     * @param alpha  alpha (first shape) parameter
+     * @param beta  beta (second shape) parameter
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
-    fun rBeta(alpha1: Double, alpha2: Double, streamNum: Int): Double {
-        return rBeta(alpha1, alpha2, rnStream(streamNum))
+    fun rBeta(alpha: Double, beta: Double, streamNum: Int): Double {
+        return rBeta(alpha, beta, rnStream(streamNum))
     }
 
     /**
      * This beta is restricted to the range of (0,1)
      *
-     * @param alpha1 alpha1 parameter
-     * @param alpha2 alpha2 parameter
+     * @param alpha  alpha (first shape) parameter
+     * @param beta  beta (second shape) parameter
      * @param rng    the RNStreamIfc
      * @return the random value
      */
-    fun rBeta(alpha1: Double, alpha2: Double, rng: RNStreamIfc = defaultRNStream()): Double {
-        return Beta.stdBetaInvCDF(rng.randU01(), alpha1, alpha2);
+    fun rBeta(alpha: Double, beta: Double, rng: RNStreamIfc = defaultRNStream()): Double {
+        return Beta.stdBetaInvCDF(rng.randU01(), alpha, beta);
     }
 
     /**
      * This beta is restricted to the range of (minimum,maximum)
      *
-     * @param alpha1    alpha1 parameter
-     * @param alpha2    alpha2 parameter
+     * @param alpha  alpha (first shape) parameter
+     * @param beta  beta (second shape) parameter
      * @param minimum   the minimum of the range, must be less than maximum
      * @param maximum   the maximum of the range
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
     fun rBetaG(
-        alpha1: Double, alpha2: Double,
+        alpha: Double, beta: Double,
         minimum: Double, maximum: Double, streamNum: Int
     ): Double {
-        return rBetaG(alpha1, alpha2, minimum, maximum, rnStream(streamNum))
+        return rBetaG(alpha, beta, minimum, maximum, rnStream(streamNum))
     }
 
     /**
      * This beta is restricted to the range of (minimum,maximum)
      *
-     * @param alpha1  alpha1 parameter
-     * @param alpha2  alpha2 parameter
+     * @param alpha  alpha (first shape) parameter
+     * @param beta  beta (second shape) parameter
      * @param minimum the minimum of the range, must be less than maximum
      * @param maximum the maximum of the range
      * @param rng     the RNStreamIfc
      * @return the random value
      */
     fun rBetaG(
-        alpha1: Double, alpha2: Double,
+        alpha: Double, beta: Double,
         minimum: Double, maximum: Double, rng: RNStreamIfc = defaultRNStream()
     ): Double {
         if (minimum >= maximum) {
@@ -884,7 +884,7 @@ object KSLRandom {
                         + "limit. lower limit = " + minimum + " upper limit = " + maximum)
             )
         }
-        val x = rBeta(alpha1, alpha2, rng)
+        val x = rBeta(alpha, beta, rng)
         return minimum + (maximum - minimum) * x
     }
 

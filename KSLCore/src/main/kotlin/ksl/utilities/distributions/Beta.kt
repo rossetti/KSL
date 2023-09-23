@@ -80,7 +80,7 @@ class Beta(
 
     /**
      * Returns the parameters of the distribution.
-     * 
+     *
      * params[0] the alpha shape parameter
      * params[1]the beta shape parameter
      */
@@ -286,24 +286,24 @@ class Beta(
          * Computes the CDF of the standard beta distribution, has accuracy to about 10e-9
          *
          * @param p           the probability that needs to be evaluated
-         * @param alpha1      the first shape parameter, must be greater than 0
-         * @param alpha2      the second shape parameter, must be greater than 0
+         * @param alpha      the first shape parameter, must be greater than 0
+         * @param beta      the second shape parameter, must be greater than 0
          * @param lnBetaA1A2  the logBetaFunction(alpha1, alpha2)
          * @param initialX    an initial approximation for the returned value x
          * @param searchDelta the suggested delta around the initial approximation
          */
         fun stdBetaInvCDF(
             p: Double,
-            alpha1: Double,
-            alpha2: Double,
-            lnBetaA1A2: Double = logBetaFunction(alpha1, alpha2),
-            initialX: Double = approximateInvCDF(alpha1, alpha2, p, lnBetaA1A2),
+            alpha: Double,
+            beta: Double,
+            lnBetaA1A2: Double = logBetaFunction(alpha, beta),
+            initialX: Double = approximateInvCDF(alpha, beta, p, lnBetaA1A2),
             searchDelta: Double = delta
         ): Double {
             require(!(initialX < 0.0 || initialX > 1.0)) { "Supplied initial x was $initialX  must be [0,1]" }
             require(searchDelta > 0) { "The search delta must be > 0" }
-            require(alpha1 > 0) { "The 1st shape parameter must be > 0" }
-            require(alpha2 > 0) { "The 2nd shape parameter must be > 0" }
+            require(alpha > 0) { "The 1st shape parameter must be > 0" }
+            require(beta > 0) { "The 2nd shape parameter must be > 0" }
             if (KSLMath.equal(p, 1.0)) {
                 return 1.0
             }
@@ -319,7 +319,7 @@ class Beta(
             //TODO should RootFunction and BisectionRootFinder be encapsulated in a class, made once and used many times?
             class RootFunction : FunctionIfc {
                 override fun f(x: Double): Double {
-                    return stdBetaCDF(x, alpha1, alpha2, lnBetaA1A2) - p
+                    return stdBetaCDF(x, alpha, beta, lnBetaA1A2) - p
                 }
             }
 
@@ -336,7 +336,7 @@ class Beta(
             rootFinder.maximumIterations = 200
             rootFinder.evaluate()
             if (!rootFinder.hasConverged()) {
-                throw KSLTooManyIterationsException("Unable to invert CDF for Beta: Beta(x,$alpha1,$alpha2)=$p")
+                throw KSLTooManyIterationsException("Unable to invert CDF for Beta: Beta(x,$alpha,$beta)=$p")
             }
             return rootFinder.result
         }
