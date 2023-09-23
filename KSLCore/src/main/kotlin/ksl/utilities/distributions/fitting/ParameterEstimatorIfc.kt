@@ -18,7 +18,6 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -105,10 +104,10 @@ data class ShiftedData (
 interface ParameterEstimatorIfc {
 
     /**
-     *  Indicates if the estimator requires that the data be checked for a shift
+     *  Indicates if the estimator requires that the range of the data be checked for a shift
      *  before the estimation process.
      */
-    val checkForShift: Boolean
+    val checkRange: Boolean
 
     /**
      *  Estimates the parameters associated with some distribution. The returned [EstimationResults]
@@ -118,8 +117,4 @@ interface ParameterEstimatorIfc {
     fun estimate(data: DoubleArray, statistics: StatisticIfc = Statistic(data)): EstimationResults
 }
 
-//abstract class ParameterEstimator(
-//    protected val data: DoubleArray,
-//    val statistics: StatisticIfc = Statistic(data)
-//) : ParameterEstimatorIfc
 

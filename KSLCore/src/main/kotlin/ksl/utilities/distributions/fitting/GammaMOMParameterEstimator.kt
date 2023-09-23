@@ -11,7 +11,7 @@ import ksl.utilities.statistic.StatisticIfc
  */
 object GammaMOMParameterEstimator : ParameterEstimatorIfc{
 
-    override val checkForShift: Boolean = true
+    override val checkRange: Boolean = true
 
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         return PDFModeler.gammaMOMEstimator(data, statistics)

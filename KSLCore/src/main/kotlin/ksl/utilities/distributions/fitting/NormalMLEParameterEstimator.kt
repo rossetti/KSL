@@ -27,7 +27,7 @@ import ksl.utilities.statistic.StatisticIfc
  */
 object NormalMLEParameterEstimator : ParameterEstimatorIfc{
 
-    override val checkForShift: Boolean = false
+    override val checkRange: Boolean = false
 
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         if (data.size < 2){

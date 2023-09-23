@@ -41,7 +41,8 @@ class Uniform (theMinimum: Double = 0.0, theMaximum: Double = 1.0, name: String?
     var maximum = theMaximum
         private set
 
-    val range = maximum - minimum
+    val range : Double
+        get() = maximum - minimum
 
     /** Constructs a uniform distribution with
      * lower limit = parameters[0], upper limit = parameters[1]

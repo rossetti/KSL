@@ -28,7 +28,7 @@ import ksl.utilities.statistic.StatisticIfc
  */
 object ExponentialMLEParameterEstimator : ParameterEstimatorIfc{
 
-    override val checkForShift: Boolean = true
+    override val checkRange: Boolean = true
 
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         if (data.isEmpty()){

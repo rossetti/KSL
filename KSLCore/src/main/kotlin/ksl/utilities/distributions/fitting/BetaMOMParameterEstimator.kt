@@ -19,7 +19,7 @@ import ksl.utilities.statistic.StatisticIfc
  */
 class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
 
-    override val checkForShift: Boolean = true
+    override val checkRange: Boolean = true
 
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
         if (data.size < 2) {
@@ -63,8 +63,8 @@ class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
         val alphaMoM = xb * xc
         val betaMOM = xb1m * xc
         val parameters = BetaRVParameters()
-        parameters.changeDoubleParameter("alpha1", alphaMoM)
-        parameters.changeDoubleParameter("alpha2", betaMOM)
+        parameters.changeDoubleParameter("alpha", alphaMoM)
+        parameters.changeDoubleParameter("beta", betaMOM)
         return EstimationResults(
             statistics = statistics,
             parameters = parameters,
