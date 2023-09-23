@@ -610,7 +610,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         }
 
         /**
-         * As per Apache Math commons
+         * As per Apache Math commons definition
          *
          * @param data the array of data. will be sorted
          * @param p the percentile, must be within (0, 1)
