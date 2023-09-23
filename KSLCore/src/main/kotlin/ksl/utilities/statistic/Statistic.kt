@@ -336,10 +336,10 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             numberMissing++
             return
         }
-        if (obs <  0.0){
+        if (obs < 0.0) {
             negativeCount++
         }
-        if (obs == 0.0){
+        if (obs == 0.0) {
             zeroCount++
         }
         // update moments
@@ -1021,6 +1021,23 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                 sum = sum + ((counts[i] - expected[i]) * (counts[i] - expected[i])) / expected[i]
             }
             return sum
+        }
+
+        /**
+         *  Computes the Anderson-Darling test statistic
+         *  https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test
+         */
+        fun andersonDarlingTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
+            require(data.isNotEmpty()) { "The data array must have at least one observation" }
+            val orderStats = data.orderStatistics()
+            val n = data.size
+            var sum = 0.0
+            for (k in orderStats.indices) {
+                val i = k + 1
+                sum = sum + (2.0 * i - 1.0) * (ln(fn.cdf(orderStats[k])) + ln(1.0 - fn.cdf(orderStats[n - (k + 1)])))
+            }
+            sum = sum /n
+            return -(n + sum)
         }
 
     }
