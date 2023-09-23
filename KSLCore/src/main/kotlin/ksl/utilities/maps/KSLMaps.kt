@@ -21,6 +21,10 @@ package ksl.utilities.maps
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import ksl.utilities.Interval
+import ksl.utilities.statistic.BoxPlotSummary
+import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import java.util.*
 
 object KSLMaps {
@@ -39,7 +43,7 @@ object KSLMaps {
         }
         val map = LinkedHashMap<String, Double>()
         for (i in keys.indices) {
-            if (!values[i].isNaN()){
+            if (!values[i].isNaN()) {
                 map[keys[i]] = values[i]
             }
         }
@@ -117,7 +121,7 @@ object KSLMaps {
      * with keys that are strings and values that are doubles.
      * @return the map from the string
      */
-    fun stringDoubleMapFromJson(string: String): Map<String, Double>{
+    fun stringDoubleMapFromJson(string: String): Map<String, Double> {
         return Json.decodeFromString(string)
     }
 
@@ -150,10 +154,32 @@ fun Map<String, Double>.toJson(): String {
 /**
  *  Converts the inner DoubleArray to List<Double>
  */
-fun Map<String, DoubleArray>.toMapOfLists() : Map<String, List<Double>> {
+fun Map<String, DoubleArray>.toMapOfLists(): Map<String, List<Double>> {
     val map = mutableMapOf<String, List<Double>>()
-    for((name, array) in this){
+    for ((name, array) in this) {
         map[name] = array.toList()
     }
     return map
 }
+
+/**
+ *  Computes the box plot summaries for the data within the map
+ */
+fun Map<String, DoubleArray>.boxPlotSummaries(): Map<String, BoxPlotSummary> {
+    return Statistic.boxPlotSummaries(this)
+}
+
+/**
+ *  Computes the statistical summaries for the data within the map
+ */
+fun Map<String, DoubleArray>.statisticalSummaries(): Map<String, StatisticIfc> {
+    return Statistic.statisticalSummaries(this)
+}
+
+/**
+ *  Computes the confidence intervals for the data in the map
+ */
+fun Map<String, DoubleArray>.confidenceIntervals(level: Double = 0.95): Map<String, Interval> {
+    return Statistic.confidenceIntervals(this)
+}
+
