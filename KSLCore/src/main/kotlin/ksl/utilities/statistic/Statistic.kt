@@ -1036,8 +1036,90 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                 val i = k + 1
                 sum = sum + (2.0 * i - 1.0) * (ln(fn.cdf(orderStats[k])) + ln(1.0 - fn.cdf(orderStats[n - (k + 1)])))
             }
-            sum = sum /n
+            sum = sum / n
             return -(n + sum)
+        }
+
+        /**
+         *  Computes the Cramer-von Mises test statistic
+         *  https://en.wikipedia.org/wiki/Cram%C3%A9r%E2%80%93von_Mises_criterion
+         */
+        fun cramerVonMisesTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
+            require(data.isNotEmpty()) { "The data array must have at least one observation" }
+            val orderStats = data.orderStatistics()
+            val n = data.size
+            var sum = 0.0
+            for (k in orderStats.indices) {
+                val i = k + 1
+                val ei = (2.0 * i - 1.0) / 2.0 * n
+                val fi = fn.cdf((orderStats[i]))
+                sum = sum + (ei - fi) * (ei - fi)
+            }
+            return (1.0 / (12.0 * n)) + sum
+        }
+
+        /**
+         *  Computes the Watson test statistic
+         *  https://en.wikipedia.org/wiki/Cram%C3%A9r%E2%80%93von_Mises_criterion
+         */
+        fun watsonTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
+            require(data.isNotEmpty()) { "The data array must have at least one observation" }
+            val orderStats = data.orderStatistics()
+            val n = data.size
+            var sum = 0.0
+            var sumfi = 0.0
+            for (k in orderStats.indices) {
+                val i = k + 1
+                val ei = (2.0 * i - 1.0) / 2.0 * n
+                val fi = fn.cdf((orderStats[i]))
+                sumfi = sumfi + fi
+                sum = sum + (ei - fi) * (ei - fi)
+            }
+            val fBar = sumfi / n
+            return ((1.0 / (12.0 * n)) + sum) - n * (fBar - 0.5) * (fBar - 0.5)
+        }
+
+        /**
+         *  Computes the BIC based on the sample size [sampleSize], the number of parameters
+         *  estimated for the model [numParameters], and the maximized value [lnMax] of the log-likelihood
+         *  function of the model.
+         */
+        fun bayesianInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
+            require(sampleSize > 0) { "The size of the sample must be > 0" }
+            require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
+            return numParameters * ln(sampleSize.toDouble()) - 2.0 * lnMax
+        }
+
+        /**
+         *  Computes the AIC based on the sample size [sampleSize], the number of parameters
+         *  estimated for the model [numParameters], and the maximized value [lnMax] of the log-likelihood
+         *  function of the model.
+         */
+        fun akaikeInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
+            require(sampleSize > 0) { "The size of the sample must be > 0" }
+            require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
+            require(sampleSize - numParameters + 1 > 0) { "The sample size must be > (the number of parameters - 1)" }
+            val n = sampleSize.toDouble()
+            val k = numParameters.toDouble()
+            val num = n - 2.0 * k + 2
+            val deNom = n - k + 1.0
+            return (num / deNom) - 2.0 * lnMax
+        }
+
+        /**
+         *  Computes the AIC based on the sample size [sampleSize], the number of parameters
+         *  estimated for the model [numParameters], and the maximized value [lnMax] of the log-likelihood
+         *  function of the model.
+         */
+        fun hannanQuinnInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
+            require(sampleSize > 0) { "The size of the sample must be > 0" }
+            require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
+            require(sampleSize - numParameters + 1 > 0) { "The sample size must be > (the number of parameters - 1)" }
+            val n = sampleSize.toDouble()
+            val k = numParameters.toDouble()
+            val num = n - 2.0 * k + 2
+            val deNom = n - k + 1.0
+            return (num / deNom) * ln(ln(n)) - 2.0 * k * lnMax
         }
 
     }
