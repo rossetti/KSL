@@ -419,4 +419,9 @@ fun main() {
     println("number of bins = ${h.numberBins}")
 //    println(ec.joinToString())
 
+    val chiSq = Statistic.chiSqTestStatistic(h.binCounts, ec)
+    println("Chi-squared test statistic = $chiSq")
+    val df = h.numberBins - 1 - 1
+
+
 }
