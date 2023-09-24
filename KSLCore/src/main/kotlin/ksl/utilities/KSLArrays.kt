@@ -2273,6 +2273,28 @@ object KSLArrays {
         }
         return list
     }
+
+    /**
+     *  Returns a new array with the [value] inserted at the index.
+     */
+    fun insertAt(arr: IntArray, value: Int, index: Int): IntArray {
+        val result = IntArray(arr.size + 1)
+        arr.copyInto(result,0, 0, index)
+        result[index] = value
+        arr.copyInto(result, index + 1, index, arr.size - index)
+        return result
+    }
+
+    /**
+     *  Returns a new array with the [value] inserted at the index.
+     */
+    fun insertAt(arr: DoubleArray, value: Double, index: Int): DoubleArray {
+        val result = DoubleArray(arr.size + 1)
+        arr.copyInto(result,0, 0, index)
+        result[index] = value
+        arr.copyInto(result, index + 1, index, arr.size - index)
+        return result
+    }
 }
 
 /** Extension functions and other functions for working with arrays
@@ -2319,6 +2341,20 @@ fun DoubleArray.statistics(): Statistic {
  */
 fun DoubleArray.boxPlotSummary(): BoxPlotSummary {
     return KSLArrays.boxPlotSummary(this)
+}
+
+/**
+ *  Inserts the value at the index, returning a new array
+ */
+fun DoubleArray.insertAt(value: Double, index: Int) : DoubleArray {
+    return KSLArrays.insertAt(this, value, index)
+}
+
+/**
+ *  Inserts the value at the index, returning a new array
+ */
+fun IntArray.insertAt(value: Int, index: Int) : IntArray {
+    return KSLArrays.insertAt(this, value, index)
 }
 
 /**
