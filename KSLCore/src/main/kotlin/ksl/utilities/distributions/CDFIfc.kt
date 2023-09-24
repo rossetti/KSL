@@ -77,7 +77,7 @@ fun interface CDFIfc {
      * @throws IllegalArgumentException if x1 &gt; x2
      */
     fun cdf(x1: Double, x2: Double): Double {
-        require(x1 > x2) { "x1 = $x1 > x2 = $x2 in cdf(x1,x2)" }
+        require(x1 <= x2) { "x1 = $x1 > x2 = $x2 in cdf(x1,x2)" }
         return cdf(x2) - cdf(x1)
     }
 

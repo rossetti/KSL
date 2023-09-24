@@ -19,6 +19,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
+import ksl.utilities.distributions.Exponential
 import ksl.utilities.distributions.Gamma
 import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -400,10 +401,20 @@ fun main() {
 
     val minCI = d.confidenceIntervalForMinimum()
     println(minCI)
-    val list = d.estimateAll(d.allEstimators)
+//    val list = d.estimateAll(d.allEstimators)
+//
+//    for (element in list) {
+//        println(element.toString())
+//    }
 
-    for (element in list) {
-        println(element.toString())
-    }
+    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, Exponential(10.0))
+    bp = bp.insertAt(0.0, 0)
+    bp = Histogram.addPositiveInfinity(bp)
+    val h = Histogram(bp)
+    h.collect(data)
+    println(h)
+
+    val ec = h.expectedCounts(Exponential(10.0))
+    println(ec.joinToString())
 
 }
