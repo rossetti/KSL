@@ -20,6 +20,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
 import ksl.utilities.distributions.Gamma
+import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.ShiftedRV
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
@@ -162,6 +163,16 @@ class PDFModeler(private val data: DoubleArray) {
 
         /**
          *  How close we consider a double is to 0.0 to consider it 0.0
+         *  Default is 0.95
+         */
+        var defaultConfidenceLevel = 0.95
+            set(level) {
+                require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+                field = level
+            }
+
+        /**
+         *  How close we consider a double is to 0.0 to consider it 0.0
          *  Default is 0.001
          */
         var defaultZeroTolerance = 0.001
@@ -299,6 +310,19 @@ class PDFModeler(private val data: DoubleArray) {
         fun leftShiftData(data: DoubleArray, tolerance: Double = defaultZeroTolerance): ShiftedData {
             val shift = estimateLeftShiftParameter(data, tolerance)
             return ShiftedData(shift, KSLArrays.subtractConstant(data, shift))
+        }
+
+        /**
+         *  Computes breakpoints for the distribution that approximately ensure that
+         *  the expected number of observations within the intervals defined by the breakpoints
+         *  will be equal. That is, the probability associated with each interval is
+         *  equal. In addition, the expected number of observations will be approximately
+         *  equal to 5.  The [sampleSize] must be at least 15. There will be at least two breakpoints
+         *  and thus at least 3 intervals defined by the breakpoints.
+         */
+        fun cdfBreakPoints(sampleSize: Int, inverse: InverseCDFIfc) : DoubleArray {
+            val p = U01Test.recommendedU01BreakPoints(sampleSize, defaultConfidenceLevel)
+            return inverse.invCDF(p)
         }
 
         internal fun gammaMOMEstimator(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
