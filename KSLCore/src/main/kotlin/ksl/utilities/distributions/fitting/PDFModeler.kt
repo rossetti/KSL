@@ -19,6 +19,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
+import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.Exponential
 import ksl.utilities.distributions.Gamma
 import ksl.utilities.distributions.InverseCDFIfc
@@ -387,7 +388,8 @@ class PDFModeler(private val data: DoubleArray) {
 fun main() {
     val e = ExponentialRV(10.0)
     //   val se = ShiftedRV(5.0, e)
-    val data = e.sample(2000)
+    val n = 1000
+    val data = e.sample(n)
 //    val data = se.sample(2000)
     val shift = PDFModeler.estimateLeftShiftParameter(data, 0.000001)
     val min = data.min()
@@ -407,21 +409,23 @@ fun main() {
 //        println(element.toString())
 //    }
 
-    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, Exponential(10.0))
+    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, Exponential(10.2))
     bp = Histogram.addLowerLimit(0.0, bp)
     bp = Histogram.addPositiveInfinity(bp)
     val h = Histogram(bp)
     h.collect(data)
     println(h)
 
-    val ec = h.expectedCounts(Exponential(10.0))
+    val ec = h.expectedCounts(Exponential(10.2))
     println("number of counts = ${ec.size}")
     println("number of bins = ${h.numberBins}")
 //    println(ec.joinToString())
 
     val chiSq = Statistic.chiSqTestStatistic(h.binCounts, ec)
     println("Chi-squared test statistic = $chiSq")
-    val df = h.numberBins - 1 - 1
-
+    val dof = h.numberBins - 1 - 1
+    val chiDist = ChiSquaredDistribution(dof.toDouble())
+    val pValue = chiDist.complementaryCDF(chiSq)
+    println("P-Value = $pValue")
 
 }
