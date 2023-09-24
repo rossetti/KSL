@@ -321,7 +321,7 @@ class PDFModeler(private val data: DoubleArray) {
          *  If the sample size [sampleSize] is less than 15, then the approximate
          *  expected number of observations within the intervals may not be greater than or equal to 5.
          */
-        fun cdfBreakPoints(sampleSize: Int, inverse: InverseCDFIfc) : DoubleArray {
+        fun equalizedCDFBreakPoints(sampleSize: Int, inverse: InverseCDFIfc) : DoubleArray {
             if (sampleSize < 15){
                 // there should be at least two breakpoints, dividing U(0,1) equally
                 return inverse.invCDF(doubleArrayOf(1.0/3.0, 2.0/3.0))
