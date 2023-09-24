@@ -390,7 +390,11 @@ fun main() {
     //   val se = ShiftedRV(5.0, e)
     val n = 1000
     val data = e.sample(n)
-//    val data = se.sample(2000)
+    //testModeler(data)
+    testEstimation(data)
+}
+
+private fun testModeler(data: DoubleArray){
     val shift = PDFModeler.estimateLeftShiftParameter(data, 0.000001)
     val min = data.min()
     println("min = $min")
@@ -408,15 +412,22 @@ fun main() {
 //    for (element in list) {
 //        println(element.toString())
 //    }
+}
 
-    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, Exponential(10.2))
+private fun testEstimation(data: DoubleArray){
+    val estimator = ExponentialMLEParameterEstimator
+
+    val result = estimator.estimate(data)
+    val params = result.parameters!!
+    val mean = params.doubleParameter("mean")
+    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, Exponential(mean))
     bp = Histogram.addLowerLimit(0.0, bp)
     bp = Histogram.addPositiveInfinity(bp)
     val h = Histogram(bp)
     h.collect(data)
     println(h)
 
-    val ec = h.expectedCounts(Exponential(10.2))
+    val ec = h.expectedCounts(Exponential(mean))
     println("number of counts = ${ec.size}")
     println("number of bins = ${h.numberBins}")
 //    println(ec.joinToString())
@@ -427,5 +438,4 @@ fun main() {
     val chiDist = ChiSquaredDistribution(dof.toDouble())
     val pValue = chiDist.complementaryCDF(chiSq)
     println("P-Value = $pValue")
-
 }
