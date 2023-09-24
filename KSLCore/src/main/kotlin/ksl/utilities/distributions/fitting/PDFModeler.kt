@@ -320,6 +320,9 @@ class PDFModeler(private val data: DoubleArray) {
          *  equal to 5.  There will be at least two breakpoints and thus at least 3 intervals defined by the breakpoints.
          *  If the sample size [sampleSize] is less than 15, then the approximate
          *  expected number of observations within the intervals may not be greater than or equal to 5.
+         *  Note that the returned break points do not consider the range of the CDF
+         *  and may require end points to be added to the beginning or end of the array
+         *  to adjust for the range of the CDF. 
          */
         fun equalizedCDFBreakPoints(sampleSize: Int, inverse: InverseCDFIfc) : DoubleArray {
             if (sampleSize < 15){
