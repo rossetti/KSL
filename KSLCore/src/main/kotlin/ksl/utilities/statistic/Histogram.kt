@@ -18,6 +18,7 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.KSLArrays
+import ksl.utilities.insertAt
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlin.math.ceil
@@ -448,6 +449,16 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             System.arraycopy(breakPoints, 0, b, 1, breakPoints.size)
             b[0] = Double.NEGATIVE_INFINITY
             return b
+        }
+
+        /**
+         * @param breakPoints the break points w/o negative infinity
+         * @return the break points with Double.NEGATIVE_INFINITY as the first break point
+         */
+        fun addLowerLimit(lowerLimit: Double, breakPoints: DoubleArray): DoubleArray {
+            require(breakPoints.isNotEmpty()) { "The break points array was empty" }
+            require(lowerLimit < breakPoints[0]) {"The new lower limit must be less than the starting break point"}
+            return breakPoints.insertAt(lowerLimit, 0)
         }
 
         /**
