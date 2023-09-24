@@ -7,8 +7,8 @@ import ksl.utilities.random.rvariable.RVariableIfc
 
 class GeneralizedBetaRVParameters : RVParameters() {
     override fun fillParameters() {
-        addDoubleParameter("alpha1", 1.0)
-        addDoubleParameter("alpha2", 1.0)
+        addDoubleParameter("alpha", 1.0)
+        addDoubleParameter("beta", 1.0)
         addDoubleParameter("min", 0.0)
         addDoubleParameter("max", 1.0)
         rvClassName = RVType.GeneralizedBeta.parametrizedRVClass.simpleName!!
@@ -16,8 +16,8 @@ class GeneralizedBetaRVParameters : RVParameters() {
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
-        val alpha1 = doubleParameter("alpha1")
-        val alpha2 = doubleParameter("alpha2")
+        val alpha1 = doubleParameter("alpha")
+        val alpha2 = doubleParameter("beta")
         val min = doubleParameter("min")
         val max = doubleParameter("max")
         return GeneralizedBetaRV(alpha1, alpha2, min, max, rnStream)

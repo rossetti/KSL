@@ -385,9 +385,9 @@ class PDFModeler(private val data: DoubleArray) {
 
 fun main() {
     val e = ExponentialRV(10.0)
-    val se = ShiftedRV(5.0, e)
-//    val data = e.sample(2000)
-    val data = se.sample(2000)
+ //   val se = ShiftedRV(5.0, e)
+    val data = e.sample(2000)
+//    val data = se.sample(2000)
     val shift = PDFModeler.estimateLeftShiftParameter(data, 0.000001)
     val min = data.min()
     println("min = $min")
