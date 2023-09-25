@@ -379,8 +379,7 @@ class PDFModeler(private val data: DoubleArray) {
             )
         }
 
-        fun createDistribution(parameters: RVParameters?): ContinuousDistributionIfc? {
-            if (parameters == null) return null
+        fun createDistribution(parameters: RVParameters): ContinuousDistributionIfc? {
 
             return when (parameters.rvType) {
                 RVType.Beta -> {
@@ -485,7 +484,7 @@ private fun testEstimation(data: DoubleArray) {
 
     val result = estimator.estimate(data)
 
-    val d = PDFModeler.createDistribution(result.parameters)!!
+    val d = PDFModeler.createDistribution(result.parameters!!)!!
     println(d)
     val params = result.parameters!!
     val mean = params.doubleParameter("mean")
