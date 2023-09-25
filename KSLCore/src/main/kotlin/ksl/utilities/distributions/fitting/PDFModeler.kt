@@ -25,6 +25,7 @@ import ksl.utilities.distributions.Gamma
 import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.ShiftedRV
+import ksl.utilities.random.rvariable.parameters.CreateDistributionIfc
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.statistic.*
 
@@ -419,7 +420,12 @@ private fun testEstimation(data: DoubleArray){
 
     val result = estimator.estimate(data)
     val params = result.parameters!!
-
+    if (params is CreateDistributionIfc<*>){
+        println("can create distribution")
+        val d = params as CreateDistributionIfc<*>
+        val distribution = d.createDistribution()
+        println(distribution)
+    }
     val mean = params.doubleParameter("mean")
     var bp = PDFModeler.equalizedCDFBreakPoints(data.size, Exponential(mean))
     bp = Histogram.addLowerLimit(0.0, bp)

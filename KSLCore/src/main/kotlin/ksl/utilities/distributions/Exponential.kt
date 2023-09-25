@@ -28,7 +28,7 @@ import kotlin.math.pow
 
 /** Models exponentially distributed random variables
  * This distribution is commonly use to model the time between events
- * @param theMean The mean of the distribution, , must be &gt; 0.0
+ * @param theMean The mean of the distribution, must be &gt; 0.0
  * @param name an optional label/name
  */
 class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution<Exponential>(name),

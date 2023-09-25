@@ -142,7 +142,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
         if (x <= 0.0) {
             return 0.0
         }
-        val n : Int = if (x > numTrials) {
+        val n: Int = if (x > numTrials) {
             numTrials
         } else {
             x.toInt()
@@ -174,7 +174,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
 
 
     override fun parameters(params: DoubleArray) {
-        require(params.size == 2){"There must be two parameters (probOfSuccess, numTrials) for the Binomial distribution!"}
+        require(params.size == 2) { "There must be two parameters (probOfSuccess, numTrials) for the Binomial distribution!" }
         probOfSuccess = params[0]
         numTrials = params[1].toInt()
     }
@@ -493,7 +493,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
             if (x <= 0.0) {
                 return 0.0
             }
-            val n : Int = if (x > nTrials) {
+            val n: Int = if (x > nTrials) {
                 nTrials
             } else { // 0 < x <= nTrials
                 x.toInt()
