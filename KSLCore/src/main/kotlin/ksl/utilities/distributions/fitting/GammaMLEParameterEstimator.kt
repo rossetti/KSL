@@ -60,7 +60,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
             field = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         // use the MOM estimator to find a starting estimate
         val start = PDFModeler.gammaMOMEstimator(data, statistics)
         if (!start.success) {
@@ -107,7 +107,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
         val parameters = GammaRVParameters()
         parameters.changeDoubleParameter("shape", alpha)
         parameters.changeDoubleParameter("scale", beta)
-        return EstimationResults(
+        return EstimationResult(
             statistics = statistics,
             parameters = parameters,
             message = "The gamma parameters were estimated successfully using a MLE technique",
@@ -126,8 +126,8 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
      *  The property intervalFactor can be used to adjust the width of the interval around the
      *  initial estimate of the shape.
      */
-    private fun findInitialInterval(estimationResults: EstimationResults): Interval {
-        val s = estimationResults.statistics!!
+    private fun findInitialInterval(estimationResult: EstimationResult): Interval {
+        val s = estimationResult.statistics!!
         val mean = s.average
         val me = intervalFactor * s.standardDeviation
         val ulm = mean + me

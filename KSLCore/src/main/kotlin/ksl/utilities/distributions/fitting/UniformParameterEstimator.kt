@@ -34,16 +34,16 @@ object UniformParameterEstimator : ParameterEstimatorIfc{
 
     override val checkRange: Boolean = false
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
         }
         if (data.isAllEqual()){
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "The observations were all equal.",
                 success = false
@@ -53,7 +53,7 @@ object UniformParameterEstimator : ParameterEstimatorIfc{
         val parameters = UniformRVParameters()
         parameters.changeDoubleParameter("min", interval.lowerLimit)
         parameters.changeDoubleParameter("max", interval.upperLimit)
-        return EstimationResults(
+        return EstimationResult(
             statistics = statistics,
             parameters = parameters,
             message = "The uniform parameters were estimated successfully.",

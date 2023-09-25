@@ -30,16 +30,16 @@ object ExponentialMLEParameterEstimator : ParameterEstimatorIfc{
 
     override val checkRange: Boolean = true
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.isEmpty()){
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "There must be at least one observations",
                 success = false
             )
         }
         if (data.countLessThan(0.0) > 0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "Cannot fit exponential distribution when some observations are less than 0.0",
                 success = false
@@ -47,7 +47,7 @@ object ExponentialMLEParameterEstimator : ParameterEstimatorIfc{
         }
         val parameters = ExponentialRVParameters()
         parameters.changeDoubleParameter("mean", statistics.average)
-        return EstimationResults(
+        return EstimationResult(
             statistics = statistics,
             parameters = parameters,
             message = "The exponential parameters were estimated successfully using a MLE technique",

@@ -1,7 +1,6 @@
 package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.distributions.DUniform
-import ksl.utilities.distributions.Distribution
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.DUniformRV
 import ksl.utilities.random.rvariable.RVType

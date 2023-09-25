@@ -1,7 +1,6 @@
 package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.distributions.DEmpiricalCDF
-import ksl.utilities.distributions.Distribution
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.RVType
