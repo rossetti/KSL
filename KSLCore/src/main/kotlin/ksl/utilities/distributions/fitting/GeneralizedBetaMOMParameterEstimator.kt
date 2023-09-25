@@ -25,23 +25,23 @@ object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc {
 
     override val checkRange: Boolean = false
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
         }
         if (statistics.variance == 0.0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "The sample variance of the data was = 0.0",
                 success = false
             )
         }
         if ((statistics.max - statistics.min) == 0.0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "The sample range of the data was = 0.0",
                 success = false
@@ -58,14 +58,14 @@ object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc {
         val alpha = ((a - mu) * num1) / denominator
         val beta = ((mu - c) * num1) / denominator
         if (alpha <= 0.0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "The estimated alpha (first shape) value was <= 0.0",
                 success = false
             )
         }
         if (beta <= 0.0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "The estimated beta (second shape) value was <= 0.0",
                 success = false
@@ -76,7 +76,7 @@ object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc {
         parameters.changeDoubleParameter("beta", beta)
         parameters.changeDoubleParameter("min", a)
         parameters.changeDoubleParameter("max", c)
-        return EstimationResults(
+        return EstimationResult(
             statistics = statistics,
             parameters = parameters,
             message = "The generalized beta parameters were estimated successfully using a MOM technique",

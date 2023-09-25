@@ -35,7 +35,7 @@ import ksl.utilities.statistic.StatisticIfc
  *  match well with the distribution. The algorithm may compute [statistics] on the
  *  supplied data.
  */
-data class EstimationResults(
+data class EstimationResult(
     var statistics: StatisticIfc,
     var shiftedData: ShiftedData? = null,
     val parameters: RVParameters? = null,
@@ -110,11 +110,11 @@ interface ParameterEstimatorIfc {
     val checkRange: Boolean
 
     /**
-     *  Estimates the parameters associated with some distribution. The returned [EstimationResults]
+     *  Estimates the parameters associated with some distribution. The returned [EstimationResult]
      *  needs to be consistent with the intent of the desired distribution.
-     *  Note the meaning of the fields associated with [EstimationResults]
+     *  Note the meaning of the fields associated with [EstimationResult]
      */
-    fun estimate(data: DoubleArray, statistics: StatisticIfc = Statistic(data)): EstimationResults
+    fun estimate(data: DoubleArray, statistics: StatisticIfc = Statistic(data)): EstimationResult
 }
 
 

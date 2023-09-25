@@ -1,7 +1,6 @@
 package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.distributions.Bernoulli
-import ksl.utilities.distributions.Distribution
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.BernoulliRV
 import ksl.utilities.random.rvariable.RVType

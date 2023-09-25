@@ -36,16 +36,16 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc{
 
     override val checkRange: Boolean = true
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
         }
         if (data.countLessEqualTo(0.0) > 0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "Cannot fit lognormal distribution when some observations are <= 0.0",
                 success = false
@@ -63,7 +63,7 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc{
         val parameters = LognormalRVParameters()
         parameters.changeDoubleParameter("mean", mean)
         parameters.changeDoubleParameter("variance", variance)
-        return EstimationResults(
+        return EstimationResult(
             statistics = statistics,
             parameters = parameters,
             message = "The lognormal parameters were estimated successfully using a MLE technique",

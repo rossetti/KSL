@@ -19,14 +19,10 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
-import ksl.utilities.distributions.ChiSquaredDistribution
-import ksl.utilities.distributions.Exponential
-import ksl.utilities.distributions.Gamma
-import ksl.utilities.distributions.InverseCDFIfc
+import ksl.utilities.distributions.*
 import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.ShiftedRV
-import ksl.utilities.random.rvariable.parameters.CreateDistributionIfc
-import ksl.utilities.random.rvariable.parameters.GammaRVParameters
+import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.statistic.*
 
 /**
@@ -125,7 +121,7 @@ class PDFModeler(private val data: DoubleArray) {
 
     fun estimateAll(
         estimators: Set<ParameterEstimatorIfc>,
-    ): List<EstimationResults> {
+    ): List<EstimationResult> {
         // estimate a confidence interval on the minimum value
         val minCI = confidenceIntervalForMinimum()
         val shiftedData = if (!minCI.contains(defaultZeroTolerance)) {
@@ -134,7 +130,7 @@ class PDFModeler(private val data: DoubleArray) {
             null
         }
         val shiftedStats = shiftedData?.data?.statistics()
-        val estimatedParameters = mutableListOf<EstimationResults>()
+        val estimatedParameters = mutableListOf<EstimationResult>()
         for (estimator in estimators) {
             val result = if (estimator.checkRange && (shiftedData != null)) {
                 val r = estimator.estimate(shiftedData.data, shiftedStats!!)
@@ -342,30 +338,30 @@ class PDFModeler(private val data: DoubleArray) {
             return inverse.invCDF(p)
         }
 
-        internal fun gammaMOMEstimator(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
+        internal fun gammaMOMEstimator(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
             if (data.size < 2) {
-                return EstimationResults(
+                return EstimationResult(
                     statistics = statistics,
                     message = "There must be at least two observations",
                     success = false
                 )
             }
             if (data.countLessThan(0.0) > 0) {
-                return EstimationResults(
+                return EstimationResult(
                     statistics = statistics,
                     message = "Cannot fit gamma distribution when some observations are less than 0.0",
                     success = false
                 )
             }
             if (statistics.average <= 0.0) {
-                return EstimationResults(
+                return EstimationResult(
                     statistics = statistics,
                     message = "The sample average of the data was <= 0.0",
                     success = false
                 )
             }
             if (statistics.variance <= 0.0) {
-                return EstimationResults(
+                return EstimationResult(
                     statistics = statistics,
                     message = "The sample variance of the data was <= 0.0",
                     success = false
@@ -375,12 +371,80 @@ class PDFModeler(private val data: DoubleArray) {
             val parameters = GammaRVParameters()
             parameters.changeDoubleParameter("shape", params[0])
             parameters.changeDoubleParameter("scale", params[1])
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 parameters = parameters,
                 message = "The gamma parameters were estimated successfully using a MOM technique",
                 success = true
             )
+        }
+
+        fun createDistribution(result: EstimationResult): ContinuousDistributionIfc? {
+            val parameters = result.parameters ?: return null
+            return when (parameters.rvType) {
+                RVType.Beta -> {
+                    val alpha = parameters.doubleParameter("alpha")
+                    val beta = parameters.doubleParameter("beta")
+                    return Beta(alpha, beta)
+                }
+
+                RVType.Exponential -> {
+                    val mean = parameters.doubleParameter("mean")
+                    return Exponential(mean)
+                }
+
+                RVType.Gamma -> {
+                    val scale = parameters.doubleParameter("scale")
+                    val shape = parameters.doubleParameter("shape")
+                    Gamma(shape, scale)
+                }
+
+                RVType.GeneralizedBeta -> {
+                    val alpha = parameters.doubleParameter("alpha")
+                    val beta = parameters.doubleParameter("beta")
+                    val min = parameters.doubleParameter("min")
+                    val max = parameters.doubleParameter("max")
+                    return GeneralizedBeta(alpha, beta, min, max)
+                }
+
+                RVType.Lognormal -> {
+                    val mean = parameters.doubleParameter("mean")
+                    val variance = parameters.doubleParameter("variance")
+                    return Lognormal(mean, variance)
+                }
+
+                RVType.Normal -> {
+                    val mean = parameters.doubleParameter("mean")
+                    val variance = parameters.doubleParameter("variance")
+                    return Normal(mean, variance)
+                }
+
+                RVType.Triangular -> {
+                    val mode = parameters.doubleParameter("mode")
+                    val min = parameters.doubleParameter("min")
+                    val max = parameters.doubleParameter("max")
+                    return Triangular(min, mode, max)
+                }
+
+                RVType.Uniform -> {
+                    val min = parameters.doubleParameter("min")
+                    val max = parameters.doubleParameter("max")
+                    return Uniform(min, max)
+                }
+
+                RVType.Weibull -> {
+                    val scale = parameters.doubleParameter("scale")
+                    val shape = parameters.doubleParameter("shape")
+                    return Weibull(shape, scale)
+                }
+//                RVType.JohnsonB -> TODO()
+//                RVType.Laplace -> TODO()
+//                RVType.LogLogistic -> TODO()
+//                RVType.ChiSquared -> TODO()
+//                RVType.PearsonType5 -> TODO()
+//                RVType.PearsonType6 -> TODO()
+                else -> null
+            }
         }
     }
 
@@ -395,7 +459,7 @@ fun main() {
     testEstimation(data)
 }
 
-private fun testModeler(data: DoubleArray){
+private fun testModeler(data: DoubleArray) {
     val shift = PDFModeler.estimateLeftShiftParameter(data, 0.000001)
     val min = data.min()
     println("min = $min")
@@ -415,17 +479,14 @@ private fun testModeler(data: DoubleArray){
 //    }
 }
 
-private fun testEstimation(data: DoubleArray){
+private fun testEstimation(data: DoubleArray) {
     val estimator = ExponentialMLEParameterEstimator
 
     val result = estimator.estimate(data)
+
+    val distribution1 = PDFModeler.createDistribution(result)
+    println(distribution1)
     val params = result.parameters!!
-    if (params is CreateDistributionIfc<*>){
-        println("can create distribution")
-        val d = params as CreateDistributionIfc<*>
-        val distribution = d.createDistribution()
-        println(distribution)
-    }
     val mean = params.doubleParameter("mean")
     var bp = PDFModeler.equalizedCDFBreakPoints(data.size, Exponential(mean))
     bp = Histogram.addLowerLimit(0.0, bp)

@@ -29,9 +29,9 @@ object NormalMLEParameterEstimator : ParameterEstimatorIfc{
 
     override val checkRange: Boolean = false
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
@@ -40,7 +40,7 @@ object NormalMLEParameterEstimator : ParameterEstimatorIfc{
         val parameters = NormalRVParameters()
         parameters.changeDoubleParameter("mean", statistics.average)
         parameters.changeDoubleParameter("variance", statistics.variance)
-        return EstimationResults(
+        return EstimationResult(
             statistics = statistics,
             parameters = parameters,
             message = "The normal parameters were estimated successfully using a MLE technique",

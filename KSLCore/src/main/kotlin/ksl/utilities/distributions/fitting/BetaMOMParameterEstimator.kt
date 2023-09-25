@@ -21,37 +21,37 @@ class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
 
     override val checkRange: Boolean = true
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
         }
         if (data.countLessThan(0.0) > 0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "Cannot fit beta distribution when some observations are less than 0.0",
                 success = false
             )
         }
         if (data.countGreaterThan(1.0) > 0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "Cannot fit beta distribution when some observations are greater than 1.0",
                 success = false
             )
         }
         if (statistics.average <= 0.0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "The sample average of the data was <= 0.0",
                 success = false
             )
         }
         if (statistics.variance == 0.0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "The sample variance of the data was = 0.0",
                 success = false
@@ -65,7 +65,7 @@ class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
         val parameters = BetaRVParameters()
         parameters.changeDoubleParameter("alpha", alphaMoM)
         parameters.changeDoubleParameter("beta", betaMOM)
-        return EstimationResults(
+        return EstimationResult(
             statistics = statistics,
             parameters = parameters,
             message = "The beta parameters were estimated successfully using a MOM technique",

@@ -71,23 +71,23 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc{
             field = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResults {
+    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
             )
         }
         if (data.countLessEqualTo(0.0) > 0) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "Cannot fit Weibull distribution when some observations are less than or equal to 0.0",
                 success = false
             )
         }
         if (data.isAllEqual()) {
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 message = "Cannot estimate parameters.  The observations were all equal.",
                 success = false
@@ -116,7 +116,7 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc{
                 val parameters = WeibullRVParameters()
                 parameters.changeDoubleParameter("shape", shape)
                 parameters.changeDoubleParameter("scale", scale)
-                return EstimationResults(
+                return EstimationResult(
                     statistics = statistics,
                     parameters = parameters,
                     message = "MLE search failed to find suitable search interval. Returned initial estimate.",
@@ -138,7 +138,7 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc{
             val parameters = WeibullRVParameters()
             parameters.changeDoubleParameter("shape", shape)
             parameters.changeDoubleParameter("scale", scale)
-            return EstimationResults(
+            return EstimationResult(
                 statistics = statistics,
                 parameters = parameters,
                 message = "MLE search failed to converge. Returned the current estimates based on failed search.",
@@ -147,7 +147,7 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc{
         val parameters = WeibullRVParameters()
         parameters.changeDoubleParameter("shape", shape)
         parameters.changeDoubleParameter("scale", scale)
-        return EstimationResults(
+        return EstimationResult(
             statistics = statistics,
             parameters = parameters,
             message = "The Weibull parameters were estimated successfully using a MLE technique",
