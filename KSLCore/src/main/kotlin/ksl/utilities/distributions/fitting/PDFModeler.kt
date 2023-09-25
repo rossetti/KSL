@@ -484,10 +484,11 @@ private fun testEstimation(data: DoubleArray) {
 
     val result = estimator.estimate(data)
 
-    val distribution1 = PDFModeler.createDistribution(result)
-    println(distribution1)
+    val d = PDFModeler.createDistribution(result)
+    println(d)
     val params = result.parameters!!
     val mean = params.doubleParameter("mean")
+    //val d = Exponential(mean)
     var bp = PDFModeler.equalizedCDFBreakPoints(data.size, Exponential(mean))
     bp = Histogram.addLowerLimit(0.0, bp)
     bp = Histogram.addPositiveInfinity(bp)
