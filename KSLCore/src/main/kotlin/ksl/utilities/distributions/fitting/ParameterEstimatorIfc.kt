@@ -18,6 +18,7 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -42,6 +43,10 @@ data class EstimationResult(
     var message: String? = null,
     var success: Boolean
 ){
+
+    val distribution: ContinuousDistributionIfc?
+        get() = PDFModeler.createDistribution(this)
+
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Estimation Results:")
