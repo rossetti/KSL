@@ -379,8 +379,9 @@ class PDFModeler(private val data: DoubleArray) {
             )
         }
 
-        fun createDistribution(result: EstimationResult): ContinuousDistributionIfc? {
-            val parameters = result.parameters ?: return null
+        fun createDistribution(parameters: RVParameters?): ContinuousDistributionIfc? {
+            if (parameters == null) return null
+
             return when (parameters.rvType) {
                 RVType.Beta -> {
                     val alpha = parameters.doubleParameter("alpha")
@@ -484,19 +485,19 @@ private fun testEstimation(data: DoubleArray) {
 
     val result = estimator.estimate(data)
 
-    val d = PDFModeler.createDistribution(result)
+    val d = PDFModeler.createDistribution(result.parameters)!!
     println(d)
     val params = result.parameters!!
     val mean = params.doubleParameter("mean")
     //val d = Exponential(mean)
-    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, Exponential(mean))
+    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, d)
     bp = Histogram.addLowerLimit(0.0, bp)
     bp = Histogram.addPositiveInfinity(bp)
     val h = Histogram(bp)
     h.collect(data)
     println(h)
 
-    val ec = h.expectedCounts(Exponential(mean))
+    val ec = h.expectedCounts(d)
     println("number of counts = ${ec.size}")
     println("number of bins = ${h.numberBins}")
 //    println(ec.joinToString())
