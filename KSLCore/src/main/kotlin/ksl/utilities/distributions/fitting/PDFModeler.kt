@@ -80,7 +80,7 @@ class PDFModeler(private val data: DoubleArray) {
      */
     val leftShift: Double
         get() = estimateLeftShiftParameter(data, defaultZeroTolerance)
-    
+
     // facilitate plotting
 
     /**
@@ -333,6 +333,11 @@ class PDFModeler(private val data: DoubleArray) {
             return inverse.invCDF(p)
         }
 
+        /**
+         *  Uses the method of moments to fit a gamma distribution to the supplied data.
+         *  The supplied statistics must be the statistics for the supplied data for
+         *  this method to return results consistent with the supplied data.
+         */
         internal fun gammaMOMEstimator(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
             if (data.size < 2) {
                 return EstimationResult(
@@ -379,6 +384,11 @@ class PDFModeler(private val data: DoubleArray) {
             )
         }
 
+        /**
+         *  Constructs an instance of the appropriate continuous probability distribution
+         *  for the provided random variable [parameters].  If no probability distribution
+         *  is defined for the supplied type of random variable, then null is returned.
+         */
         fun createDistribution(parameters: RVParameters): ContinuousDistributionIfc? {
 
             return when (parameters.rvType) {
