@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class NegativeBinomialRVParameters : RVParameters(), CreateDistributionIfc<NegativeBinomial> {
     override fun fillParameters() {
         addDoubleParameter("probOfSuccess", 0.5)
-        addIntegerParameter("numSuccesses", 1)
+        addDoubleParameter("numSuccesses", 1.0)
         rvClassName = RVType.NegativeBinomial.parametrizedRVClass.simpleName!!
         rvType = (RVType.NegativeBinomial)
     }
