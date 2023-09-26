@@ -81,7 +81,7 @@ dependencies {
     // replacement for apache math commons
     //TODO I'm not using it anywhere, consider removing it altogether
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
-    api("org.hipparchus:hipparchus-core:2.3")
+    implementation("org.hipparchus:hipparchus-core:2.3")
 
     implementation("com.google.guava:guava:32.1.1-jre")
 
