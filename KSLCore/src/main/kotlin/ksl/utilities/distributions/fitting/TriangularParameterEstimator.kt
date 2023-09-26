@@ -35,6 +35,7 @@ object TriangularParameterEstimator : ParameterEstimatorIfc{
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
@@ -42,6 +43,7 @@ object TriangularParameterEstimator : ParameterEstimatorIfc{
         }
         if (data.isAllEqual()){
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "The observations were all equal.",
                 success = false
@@ -66,6 +68,7 @@ object TriangularParameterEstimator : ParameterEstimatorIfc{
         parameters.changeDoubleParameter("max", b)
         parameters.changeDoubleParameter("mode", c)
         return EstimationResult(
+            originalData = data,
             statistics = statistics,
             parameters = parameters,
             message = "The triangular parameters were estimated successfully.",

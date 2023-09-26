@@ -80,12 +80,7 @@ class PDFModeler(private val data: DoubleArray) {
      */
     val leftShift: Double
         get() = estimateLeftShiftParameter(data, defaultZeroTolerance)
-
-    // check for need to shift data
-    // provide methods to construct appropriate distributions for modeling given data characteristics
-    // positive range distributions, full range distributions
-    // use a map keyed by RVType holding a list of parameter estimator types (defined by an enum) available,
-    // allow the creation of the estimator from the defined types (like how RVType works)
+    
     // facilitate plotting
 
     /**
@@ -341,6 +336,7 @@ class PDFModeler(private val data: DoubleArray) {
         internal fun gammaMOMEstimator(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
             if (data.size < 2) {
                 return EstimationResult(
+                    originalData = data,
                     statistics = statistics,
                     message = "There must be at least two observations",
                     success = false
@@ -348,6 +344,7 @@ class PDFModeler(private val data: DoubleArray) {
             }
             if (data.countLessThan(0.0) > 0) {
                 return EstimationResult(
+                    originalData = data,
                     statistics = statistics,
                     message = "Cannot fit gamma distribution when some observations are less than 0.0",
                     success = false
@@ -355,6 +352,7 @@ class PDFModeler(private val data: DoubleArray) {
             }
             if (statistics.average <= 0.0) {
                 return EstimationResult(
+                    originalData = data,
                     statistics = statistics,
                     message = "The sample average of the data was <= 0.0",
                     success = false
@@ -362,6 +360,7 @@ class PDFModeler(private val data: DoubleArray) {
             }
             if (statistics.variance <= 0.0) {
                 return EstimationResult(
+                    originalData = data,
                     statistics = statistics,
                     message = "The sample variance of the data was <= 0.0",
                     success = false
@@ -372,6 +371,7 @@ class PDFModeler(private val data: DoubleArray) {
             parameters.changeDoubleParameter("shape", params[0])
             parameters.changeDoubleParameter("scale", params[1])
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 parameters = parameters,
                 message = "The gamma parameters were estimated successfully using a MOM technique",

@@ -36,7 +36,8 @@ import ksl.utilities.statistic.StatisticIfc
  *  match well with the distribution. The algorithm may compute [statistics] on the
  *  supplied data.
  */
-data class EstimationResult(
+class EstimationResult(
+    val originalData: DoubleArray,
     var statistics: StatisticIfc,
     var shiftedData: ShiftedData? = null,
     val parameters: RVParameters? = null,
