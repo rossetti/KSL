@@ -18,7 +18,6 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -70,7 +69,7 @@ class EstimationResult(
 
 data class ShiftedData (
     val shift: Double,
-    val data: DoubleArray
+    val shiftedData: DoubleArray
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -79,14 +78,14 @@ data class ShiftedData (
         other as ShiftedData
 
         if (shift != other.shift) return false
-        if (!data.contentEquals(other.data)) return false
+        if (!shiftedData.contentEquals(other.shiftedData)) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = shift.hashCode()
-        result = 31 * result + data.contentHashCode()
+        result = 31 * result + shiftedData.contentHashCode()
         return result
     }
 
