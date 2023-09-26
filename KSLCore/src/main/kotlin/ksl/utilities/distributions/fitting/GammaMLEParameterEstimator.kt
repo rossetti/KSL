@@ -108,6 +108,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
         parameters.changeDoubleParameter("shape", alpha)
         parameters.changeDoubleParameter("scale", beta)
         return EstimationResult(
+            originalData = data,
             statistics = statistics,
             parameters = parameters,
             message = "The gamma parameters were estimated successfully using a MLE technique",

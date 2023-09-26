@@ -24,6 +24,7 @@ class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2) {
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
@@ -31,6 +32,7 @@ class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
         }
         if (data.countLessThan(0.0) > 0) {
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "Cannot fit beta distribution when some observations are less than 0.0",
                 success = false
@@ -38,6 +40,7 @@ class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
         }
         if (data.countGreaterThan(1.0) > 0) {
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "Cannot fit beta distribution when some observations are greater than 1.0",
                 success = false
@@ -45,6 +48,7 @@ class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
         }
         if (statistics.average <= 0.0) {
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "The sample average of the data was <= 0.0",
                 success = false
@@ -52,6 +56,7 @@ class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
         }
         if (statistics.variance == 0.0) {
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "The sample variance of the data was = 0.0",
                 success = false
@@ -66,6 +71,7 @@ class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
         parameters.changeDoubleParameter("alpha", alphaMoM)
         parameters.changeDoubleParameter("beta", betaMOM)
         return EstimationResult(
+            originalData = data,
             statistics = statistics,
             parameters = parameters,
             message = "The beta parameters were estimated successfully using a MOM technique",

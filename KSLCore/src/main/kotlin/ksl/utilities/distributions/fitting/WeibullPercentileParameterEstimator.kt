@@ -65,6 +65,7 @@ class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc {
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size <= 10) {
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "The percentile parameter estimation approach is not recommended with less than 10 observations",
                 success = false
@@ -72,6 +73,7 @@ class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc {
         }
         if (data.countLessEqualTo(0.0) > 0) {
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "Cannot fit Weibull distribution when some observations are <= 0.0",
                 success = false
@@ -79,6 +81,7 @@ class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc {
         }
         if (data.isAllEqual()) {
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "Cannot estimate parameters.  The observations were all equal.",
                 success = false
@@ -107,6 +110,7 @@ class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc {
         parameters.changeDoubleParameter("shape", shape)
         parameters.changeDoubleParameter("scale", scale)
         return EstimationResult(
+            originalData = data,
             statistics = statistics,
             parameters = parameters,
             message = "The Weibull parameters were estimated successfully using the percentile technique",

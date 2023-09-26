@@ -39,6 +39,7 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc{
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
@@ -46,6 +47,7 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc{
         }
         if (data.countLessEqualTo(0.0) > 0) {
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "Cannot fit lognormal distribution when some observations are <= 0.0",
                 success = false
@@ -64,6 +66,7 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc{
         parameters.changeDoubleParameter("mean", mean)
         parameters.changeDoubleParameter("variance", variance)
         return EstimationResult(
+            originalData = data,
             statistics = statistics,
             parameters = parameters,
             message = "The lognormal parameters were estimated successfully using a MLE technique",

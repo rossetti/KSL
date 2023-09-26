@@ -32,6 +32,7 @@ object NormalMLEParameterEstimator : ParameterEstimatorIfc{
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
             return EstimationResult(
+                originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
                 success = false
@@ -41,6 +42,7 @@ object NormalMLEParameterEstimator : ParameterEstimatorIfc{
         parameters.changeDoubleParameter("mean", statistics.average)
         parameters.changeDoubleParameter("variance", statistics.variance)
         return EstimationResult(
+            originalData = data,
             statistics = statistics,
             parameters = parameters,
             message = "The normal parameters were estimated successfully using a MLE technique",
