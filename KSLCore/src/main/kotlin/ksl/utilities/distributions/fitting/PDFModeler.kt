@@ -114,21 +114,44 @@ class PDFModeler(private val data: DoubleArray) {
             WeibullMLEParameterEstimator()
         )
 
+    /**
+     *  Estimates the parameters for all estimators represented by
+     *  the set of [estimators]. The parameter [automaticShifting] controls
+     *  whether the data will be automatically shifted.
+     *
+     *  If the automatic shift parameter is true (the default), then a
+     *  confidence interval for the minimum of the data is estimated from the data.
+     *  If the confidence interval does not contain the value specified by the default
+     *  zero tolerance property, then the data is shifted to the left and used in the estimation process.
+     *  The estimated shift will be recorded in the result.  Automated shift estimation
+     *  will occur only if the automatic shifting parameter is true, and
+     *  the estimator requires that its range be checked and
+     *  if the data actually requires a shift.  If the automatic shifting
+     *  parameter is false, then no shifting will occur.  In this case it is up to
+     *  the user to ensure that the supplied data is representative of the set
+     *  of estimators to be estimated.
+     *
+     *  The returned list will contain the results for
+     *  each estimator.  Keep in mind that some estimators may fail the estimation
+     *  process, which will be noted in the success property of the estimation results.
+     */
     fun estimateAll(
         estimators: Set<ParameterEstimatorIfc>,
+        automaticShifting: Boolean = true
     ): List<EstimationResult> {
         // estimate a confidence interval on the minimum value
-        val minCI = confidenceIntervalForMinimum()
-        val shiftedData = if (!minCI.contains(defaultZeroTolerance)) {
-            leftShiftData(data)
-        } else {
-            null
+        var shiftedData: ShiftedData? = null
+        if (automaticShifting){
+            val minCI = confidenceIntervalForMinimum()
+            if (!minCI.contains(defaultZeroTolerance)) {
+                shiftedData  = leftShiftData(data)
+            }
         }
-        val shiftedStats = shiftedData?.data?.statistics()
+        val shiftedStats = shiftedData?.shiftedData?.statistics()
         val estimatedParameters = mutableListOf<EstimationResult>()
         for (estimator in estimators) {
             val result = if (estimator.checkRange && (shiftedData != null)) {
-                val r = estimator.estimate(shiftedData.data, shiftedStats!!)
+                val r = estimator.estimate(shiftedData.shiftedData, shiftedStats!!)
                 r.shiftedData = shiftedData
                 r
             } else {
