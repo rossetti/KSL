@@ -44,9 +44,6 @@ data class EstimationResult(
     var success: Boolean
 ){
 
-    val distribution: ContinuousDistributionIfc?
-        get() = PDFModeler.createDistribution(this)
-
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Estimation Results:")
