@@ -29,12 +29,12 @@ import ksl.utilities.statistic.StatisticIfc
  *  process assumes that the supplied data are integer valued counts
  *  over the range {0,1,2,...}
  */
-object PoissonMLEParameterEstimator : ParameterEstimatorIfc{
+object PoissonMLEParameterEstimator : ParameterEstimatorIfc {
 
     override val checkRange: Boolean = true
 
     override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
-        if (data.isEmpty()){
+        if (data.isEmpty()) {
             return EstimationResult(
                 originalData = data,
                 statistics = statistics,
@@ -50,7 +50,7 @@ object PoissonMLEParameterEstimator : ParameterEstimatorIfc{
                 success = false
             )
         }
-        if (statistics.average == 0.0){
+        if (statistics.average == 0.0) {
             return EstimationResult(
                 originalData = data,
                 statistics = statistics,
