@@ -553,7 +553,7 @@ private fun testExponentialEstimation(data: DoubleArray) {
 
 private fun testWeibullEstimation(data: DoubleArray) {
     val estimator = WeibullMLEParameterEstimator()
-
+ //   val estimator = WeibullPercentileParameterEstimator()
     val result = estimator.estimate(data)
 
     val d = PDFModeler.createDistribution(result.parameters!!)!!
@@ -562,7 +562,7 @@ private fun testWeibullEstimation(data: DoubleArray) {
     val params = result.parameters
 
     var bp = PDFModeler.equalizedCDFBreakPoints(data.size, d)
-    println(bp.joinToString())
+   // println(bp.joinToString())
     println()
     bp = Histogram.addLowerLimit(0.0, bp)
     bp = Histogram.addPositiveInfinity(bp)
@@ -573,11 +573,12 @@ private fun testWeibullEstimation(data: DoubleArray) {
     val ec = h.expectedCounts(d)
     println("number of counts = ${ec.size}")
     println("number of bins = ${h.numberBins}")
-    println(ec.joinToString())
+    println("expected count = ${ec[0]}")
+   // println(ec.joinToString())
 
     val chiSq = Statistic.chiSqTestStatistic(h.binCounts, ec)
     println("Chi-squared test statistic = $chiSq")
-    val dof = h.numberBins - 1 - 1
+    val dof = h.numberBins - 2 - 1
     val chiDist = ChiSquaredDistribution(dof.toDouble())
     val pValue = chiDist.complementaryCDF(chiSq)
     println("P-Value = $pValue")
