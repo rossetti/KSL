@@ -2279,6 +2279,12 @@ object KSLArrays {
      */
     fun insertAt(arr: IntArray, value: Int, index: Int): IntArray {
         val result = IntArray(arr.size + 1)
+        if (index >= arr.size){
+            // past the end of the original array, copy it all
+            arr.copyInto(result)
+            result[result.lastIndex] = value
+            return result
+        }
         arr.copyInto(result,0, 0, index)
         result[index] = value
         arr.copyInto(result, index + 1, index, arr.size - index)
@@ -2290,6 +2296,12 @@ object KSLArrays {
      */
     fun insertAt(arr: DoubleArray, value: Double, index: Int): DoubleArray {
         val result = DoubleArray(arr.size + 1)
+        if (index >= arr.size){
+            // past the end of the original array, copy it all
+            arr.copyInto(result)
+            result[result.lastIndex] = value
+            return result
+        }
         arr.copyInto(result,0, 0, index)
         result[index] = value
         arr.copyInto(result, index + 1, index, arr.size - index)

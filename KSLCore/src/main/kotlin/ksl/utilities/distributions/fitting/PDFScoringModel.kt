@@ -49,7 +49,13 @@ interface PDFScoringModel {
         return if (parameters == null){
             badScore()
         } else {
-            val score = score(result.originalData, parameters)
+            // need to score the model based on data it was fit on
+            val data = if (result.shiftedData != null){
+                result.shiftedData!!.shiftedData
+            } else {
+                result.originalData
+            }
+            val score = score(data, parameters)
             result.scores[name] = score
             score
         }

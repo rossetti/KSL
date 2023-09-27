@@ -73,6 +73,10 @@ class EstimationResult(
         sb.appendLine()
         sb.appendLine("Estimated parameters:")
         sb.appendLine(parameters)
+        sb.appendLine("Scoring Results")
+        for(score in scores){
+            sb.appendLine(score)
+        }
         return sb.toString()
     }
 }

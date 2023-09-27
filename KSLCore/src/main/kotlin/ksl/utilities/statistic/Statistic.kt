@@ -1052,7 +1052,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             for (k in orderStats.indices) {
                 val i = k + 1
                 val ei = (2.0 * i - 1.0) / 2.0 * n
-                val fi = fn.cdf((orderStats[i]))
+                val fi = fn.cdf((orderStats[k]))
                 sum = sum + (ei - fi) * (ei - fi)
             }
             return (1.0 / (12.0 * n)) + sum
@@ -1071,7 +1071,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             for (k in orderStats.indices) {
                 val i = k + 1
                 val ei = (2.0 * i - 1.0) / 2.0 * n
-                val fi = fn.cdf((orderStats[i]))
+                val fi = fn.cdf((orderStats[k]))
                 sumfi = sumfi + fi
                 sum = sum + (ei - fi) * (ei - fi)
             }

@@ -109,8 +109,11 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
     }
 
     override fun cdf(x: Double): Double {
+        if ((x == Double.POSITIVE_INFINITY) || (x == Double.MAX_VALUE)) {
+            return 1.0
+        }
         return if (x > 0.0) {
-            1 - exp(-(x / scale).pow(shape))
+            1.0 - exp(-(x / scale).pow(shape))
         } else {
             0.0
         }
@@ -121,7 +124,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
             return 0.0
         }
         val e1 = -(x / scale).pow(shape)
-        var f = scale * scale.pow(-shape)
+        var f = shape * scale.pow(-shape)
         f = f * x.pow(shape - 1.0)
         f = f * exp(e1)
         return f

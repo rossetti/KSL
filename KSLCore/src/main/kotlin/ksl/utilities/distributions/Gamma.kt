@@ -33,7 +33,7 @@ import kotlin.math.*
  * @param theScale The scale parameter of the distribution, must be greater than 0
  * @param name an optional name/label
  */
-class Gamma (theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
+class Gamma(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
     Distribution<Gamma>(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc, GetRVariableIfc {
 
     init {
@@ -119,6 +119,19 @@ class Gamma (theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nul
     }
 
     override fun cdf(x: Double): Double {
+        if ((x == Double.POSITIVE_INFINITY) || (x == Double.MAX_VALUE)) {
+            return 1.0
+        }
+        // adjustment based on heuristic in SSJ
+        if (shape > 10.0) {
+            if (x > 10.0 * shape * scale) {
+                return 1.0
+            }
+        } else {
+            if (x > X_BIG * scale) {
+                return 1.0
+            }
+        }
         return if (x <= 0) {
             0.0
         } else incompleteGammaFunction(x / scale, shape, maxNumIterations, numericalPrecision)
@@ -267,6 +280,8 @@ class Gamma (theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nul
 
         private val sqrt2Pi = sqrt(2.0 * PI)
 
+        const val X_BIG = 40.0
+
         private val coefficients = doubleArrayOf(
             76.18009172947146, -86.50532032941677, 24.01409824083091,
             -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5
@@ -296,12 +311,12 @@ class Gamma (theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nul
          */
         fun invChiSquareDistribution(
             p: Double, dof: Double,
-            maxSeriesIterations : Int = CHISQ_CDF_SERIES_MAX_ITERATIONS,
+            maxSeriesIterations: Int = CHISQ_CDF_SERIES_MAX_ITERATIONS,
             maxIncGammaIterations: Int = INC_GAMMA_MAX_ITERATIONS,
             EPS: Double = KSLMath.defaultNumericalPrecision
         ): Double {
-            require(maxSeriesIterations > 0){"The maximum number of iterations for the series must be > 0"}
-            require(maxIncGammaIterations > 0){"The maximum number of iterations for the incomplete gamma computation must be > 0"}
+            require(maxSeriesIterations > 0) { "The maximum number of iterations for the series must be > 0" }
+            require(maxIncGammaIterations > 0) { "The maximum number of iterations for the incomplete gamma computation must be > 0" }
             require(EPS >= KSLMath.machinePrecision) {
                 "The precision must be >= ${KSLMath.machinePrecision}"
             }
@@ -473,9 +488,11 @@ class Gamma (theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nul
          * @param maxIterations maximum number of iterations for series/continued fraction evaluation
          * @param eps the numerical precision for convergence of series/continued fraction evaluation
          */
-        fun incompleteGammaFunction(x: Double, alpha: Double,
-                                    maxIterations: Int = INC_GAMMA_MAX_ITERATIONS,
-                                    eps: Double = KSLMath.defaultNumericalPrecision): Double {
+        fun incompleteGammaFunction(
+            x: Double, alpha: Double,
+            maxIterations: Int = INC_GAMMA_MAX_ITERATIONS,
+            eps: Double = KSLMath.defaultNumericalPrecision
+        ): Double {
             require(maxIterations > 0) {
                 "The maximum number of iterations for the incomplete gamma computation must be > 0"
             }

@@ -115,6 +115,21 @@ class PDFModeler(private val data: DoubleArray) {
         )
 
     /**
+     *  This set holds all defined scoring models for evaluating
+     *  the distribution goodness of fit.
+     */
+    val allScoringModels: Set<PDFScoringModel>
+        get() = setOf(
+            ChiSquaredScoringModel,
+            KSScoringModel,
+            SquaredErrorScoringModel,
+            AndersonDarlingScoringModel,
+            AkaikeInfoCriterionScoringModel,
+            CramerVonMisesScoringModel,
+            BayesianInfoCriterionScoringModel
+        )
+
+    /**
      *  Estimates the parameters for all estimators represented by
      *  the set of [estimators]. The parameter [automaticShifting] controls
      *  whether the data will be automatically shifted.
@@ -135,7 +150,7 @@ class PDFModeler(private val data: DoubleArray) {
      *  each estimator.  Keep in mind that some estimators may fail the estimation
      *  process, which will be noted in the success property of the estimation results.
      */
-    fun estimateAll(
+    fun estimateParameters(
         estimators: Set<ParameterEstimatorIfc>,
         automaticShifting: Boolean = true
     ): List<EstimationResult> {
@@ -162,19 +177,18 @@ class PDFModeler(private val data: DoubleArray) {
         return estimatedParameters
     }
 
-//    fun estimateParameters(
-//        data: DoubleArray,
-//        parameterEstimator: ParameterEstimatorIfc,
-//        shift: Boolean = true
-//    ): EstimationResults {
-//        if (shift) {
-//            val shiftedData = leftShiftData(data)
-//            val parameters = parameterEstimator.estimate(shiftedData.data)
-//            parameters.shiftedData = shiftedData
-//            return parameters
-//        }
-//        return parameterEstimator.estimate(data)
-//    }
+    /**
+     *  Every result in the list of [results] is scored by each scoring model in
+     *  the supplied set [scoringModels].  The score is added to the map of
+     *  scores for the result.
+     */
+    fun scoreResults(results: List<EstimationResult>, scoringModels: Set<PDFScoringModel> = allScoringModels){
+        for(result in results){
+            for(model in scoringModels){
+                model.score(result)
+            }
+        }
+    }
 
     companion object {
 
@@ -488,28 +502,17 @@ fun main() {
     //   val se = ShiftedRV(5.0, e)
     val n = 1000
     val data = e.sample(n)
-    //testModeler(data)
-    testEstimation(data)
+    testModeler(data)
+ //   testEstimation(data)
 }
 
 private fun testModeler(data: DoubleArray) {
-    val shift = PDFModeler.estimateLeftShiftParameter(data, 0.000001)
-    val min = data.min()
-    println("min = $min")
-    println("next smallest = ${PDFModeler.findNextLargest(data, min)}")
-    println("max = ${data.max()}")
-    println("shift = $shift")
-    println("min after shift = ${min - shift}")
-
     val d = PDFModeler(data)
-
-    val minCI = d.confidenceIntervalForMinimum()
-    println(minCI)
-//    val list = d.estimateAll(d.allEstimators)
-//
-//    for (element in list) {
-//        println(element.toString())
-//    }
+    val list = d.estimateParameters(d.allEstimators)
+    d.scoreResults(list)
+    for (element in list) {
+        println(element.toString())
+    }
 }
 
 private fun testEstimation(data: DoubleArray) {
@@ -519,7 +522,7 @@ private fun testEstimation(data: DoubleArray) {
 
     val d = PDFModeler.createDistribution(result.parameters!!)!!
     println(d)
-    val params = result.parameters!!
+    val params = result.parameters
     val mean = params.doubleParameter("mean")
     //val d = Exponential(mean)
     var bp = PDFModeler.equalizedCDFBreakPoints(data.size, d)
@@ -527,7 +530,7 @@ private fun testEstimation(data: DoubleArray) {
     bp = Histogram.addPositiveInfinity(bp)
     val h = Histogram(bp)
     h.collect(data)
-    println(h)
+//    println(h)
 
     val ec = h.expectedCounts(d)
     println("number of counts = ${ec.size}")
@@ -540,4 +543,9 @@ private fun testEstimation(data: DoubleArray) {
     val chiDist = ChiSquaredDistribution(dof.toDouble())
     val pValue = chiDist.complementaryCDF(chiSq)
     println("P-Value = $pValue")
+
+    // test the scoring
+    //val models = setOf(ChiSquaredScoringModel)
+    val score = ChiSquaredScoringModel.score(result)
+    println(score)
 }
