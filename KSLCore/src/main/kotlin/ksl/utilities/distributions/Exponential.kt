@@ -70,8 +70,11 @@ class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution<Ex
     val moment4: Double = mean.pow(4.0) * exp(Gamma.logGammaFunction(5.0))
 
     override fun cdf(x: Double): Double {
-        return if (x >= 0) {
-            1 - exp(-x / mean)
+        if ((x == Double.POSITIVE_INFINITY) || (x == Double.MAX_VALUE)) {
+            return 1.0
+        }
+        return if (x >= 0.0) {
+            1.0 - exp(-x / mean)
         } else {
             0.0
         }
@@ -121,5 +124,9 @@ class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution<Ex
 
     override fun secondOrderLossFunction(x: Double): Double {
         return firstOrderLossFunction(x) / mean
+    }
+
+    override fun toString(): String {
+        return "Exponential(mean=$mean)"
     }
 }
