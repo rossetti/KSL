@@ -192,6 +192,10 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         return WeibullRV(shape, scale, stream)
     }
 
+    override fun toString(): String {
+        return "Weibull(shape=$shape, scale=$scale)"
+    }
+
     companion object {
 
         /**
