@@ -502,9 +502,9 @@ fun main() {
     //   val se = ShiftedRV(5.0, e)
     val n = 1000
     val data = e.sample(n)
-//    testModeler(data)
+    testModeler(data)
  //   testExponentialEstimation(data)
-    testWeibullEstimation(data)
+ //   testWeibullEstimation(data)
 }
 
 private fun testModeler(data: DoubleArray) {
