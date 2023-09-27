@@ -18,6 +18,7 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -43,6 +44,15 @@ class EstimationResult(
     var message: String? = null,
     var success: Boolean
 ){
+
+    /**
+     *  The estimation results may be scored against a model.
+     *  There may be many ways to evaluate the quality of the estimated
+     *  model. This map may hold scores for each scoring method. The
+     *  key to the map should be a string to identify the scoring method,
+     *  most likely its name. The score records the value of the score.
+     */
+    val scores: MutableMap<String, Score> = mutableMapOf()
 
     override fun toString(): String {
         val sb = StringBuilder()
