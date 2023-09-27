@@ -452,13 +452,25 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
         }
 
         /**
-         * @param breakPoints the break points w/o negative infinity
-         * @return the break points with Double.NEGATIVE_INFINITY as the first break point
+         * @param lowerLimit the lower limit to add to the break points
+         * @param breakPoints the break points w/o a lower limit
+         * @return the break points with lower limit as the first break point
          */
         fun addLowerLimit(lowerLimit: Double, breakPoints: DoubleArray): DoubleArray {
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
             require(lowerLimit < breakPoints[0]) {"The new lower limit must be less than the starting break point"}
             return breakPoints.insertAt(lowerLimit, 0)
+        }
+
+        /**
+         * @param upperLimit the upper limit to add to the break points
+         * @param breakPoints the current break points
+         * @return the break points with [upperLimit] as the last break point
+         */
+        fun addUpperLimit(upperLimit: Double, breakPoints: DoubleArray): DoubleArray {
+            require(breakPoints.isNotEmpty()) { "The break points array was empty" }
+            require(upperLimit > breakPoints.last()) {"The new upper limit must be greater than the current last break point"}
+            return breakPoints.insertAt(upperLimit, breakPoints.size)
         }
 
         /**
