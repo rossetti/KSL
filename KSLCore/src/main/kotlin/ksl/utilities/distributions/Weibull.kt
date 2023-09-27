@@ -263,7 +263,8 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
                 sumB = sumB + x.pow(shape)
             }
             val n = data.size.toDouble()
-            return (1.0/(sumB/n).pow(shape))
+            return (sumB/n).pow(shape)
+            //return (1.0/(sumB/n).pow(shape))
         }
 
     }
