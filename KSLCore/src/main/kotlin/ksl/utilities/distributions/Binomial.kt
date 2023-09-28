@@ -183,6 +183,10 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
         return doubleArrayOf(probOfSuccess, numTrials.toDouble())
     }
 
+    override fun toString(): String {
+        return "Binomial(probOfSuccess=$probOfSuccess, numTrials=$numTrials)"
+    }
+
     companion object {
         /**
          *

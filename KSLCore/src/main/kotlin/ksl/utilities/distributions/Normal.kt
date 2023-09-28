@@ -84,6 +84,8 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
         return z * standardDeviation() + mean
     }
 
+
+
     override fun sumLogLikelihood(data: DoubleArray): Double {
         if (data.isEmpty()) {
             return 0.0
@@ -140,6 +142,10 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
 
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
         return NormalRV(mean, variance, stream)
+    }
+
+    override fun toString(): String {
+        return "Normal(mean=$mean, variance=$variance)"
     }
 
     companion object {

@@ -20,6 +20,8 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
 import ksl.utilities.distributions.*
+import ksl.utilities.io.KSL
+import ksl.utilities.io.write
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
@@ -124,9 +126,9 @@ class PDFModeler(private val data: DoubleArray) {
             KSScoringModel,
             SquaredErrorScoringModel,
             AndersonDarlingScoringModel,
-            AkaikeInfoCriterionScoringModel,
             CramerVonMisesScoringModel,
-            BayesianInfoCriterionScoringModel
+            //AkaikeInfoCriterionScoringModel,
+            //BayesianInfoCriterionScoringModel
         )
 
     /**
@@ -495,96 +497,4 @@ class PDFModeler(private val data: DoubleArray) {
         }
     }
 
-}
-
-fun main() {
-    val e = ExponentialRV(10.0)
-    //   val se = ShiftedRV(5.0, e)
-    val n = 1000
-    val data = e.sample(n)
-    testModeler(data)
- //   testExponentialEstimation(data)
- //   testWeibullEstimation(data)
-}
-
-private fun testModeler(data: DoubleArray) {
-    val d = PDFModeler(data)
-    val list = d.estimateParameters(d.allEstimators)
-    d.scoreResults(list)
-    for (element in list) {
-        println(element.toString())
-    }
-}
-
-private fun testExponentialEstimation(data: DoubleArray) {
-    val estimator = ExponentialMLEParameterEstimator
-
-    val result = estimator.estimate(data)
-
-    val d = PDFModeler.createDistribution(result.parameters!!)!!
-    println(d)
-    val params = result.parameters
-    val mean = params.doubleParameter("mean")
-    //val d = Exponential(mean)
-    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, d)
-    bp = Histogram.addLowerLimit(0.0, bp)
-    bp = Histogram.addPositiveInfinity(bp)
-    val h = Histogram(bp)
-    h.collect(data)
-//    println(h)
-
-    val ec = h.expectedCounts(d)
-    println("number of counts = ${ec.size}")
-    println("number of bins = ${h.numberBins}")
-//    println(ec.joinToString())
-
-    val chiSq = Statistic.chiSqTestStatistic(h.binCounts, ec)
-    println("Chi-squared test statistic = $chiSq")
-    val dof = h.numberBins - 1 - 1
-    val chiDist = ChiSquaredDistribution(dof.toDouble())
-    val pValue = chiDist.complementaryCDF(chiSq)
-    println("P-Value = $pValue")
-
-    // test the scoring
-    //val models = setOf(ChiSquaredScoringModel)
-    val score = ChiSquaredScoringModel.score(result)
-    println(score)
-}
-
-private fun testWeibullEstimation(data: DoubleArray) {
-    val estimator = WeibullMLEParameterEstimator()
- //   val estimator = WeibullPercentileParameterEstimator()
-    val result = estimator.estimate(data)
-
-    val d = PDFModeler.createDistribution(result.parameters!!)!!
-    println(d)
-    println()
-    val params = result.parameters
-
-    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, d)
-   // println(bp.joinToString())
-    println()
-    bp = Histogram.addLowerLimit(0.0, bp)
-    bp = Histogram.addPositiveInfinity(bp)
-    val h = Histogram(bp)
-    h.collect(data)
-    println(h)
-
-    val ec = h.expectedCounts(d)
-    println("number of counts = ${ec.size}")
-    println("number of bins = ${h.numberBins}")
-    println("expected count = ${ec[0]}")
-   // println(ec.joinToString())
-
-    val chiSq = Statistic.chiSqTestStatistic(h.binCounts, ec)
-    println("Chi-squared test statistic = $chiSq")
-    val dof = h.numberBins - 2 - 1
-    val chiDist = ChiSquaredDistribution(dof.toDouble())
-    val pValue = chiDist.complementaryCDF(chiSq)
-    println("P-Value = $pValue")
-
-    // test the scoring
-    //val models = setOf(ChiSquaredScoringModel)
-    val score = ChiSquaredScoringModel.score(result)
-    println(score)
 }

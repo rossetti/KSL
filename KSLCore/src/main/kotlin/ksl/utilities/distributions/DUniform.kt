@@ -168,4 +168,8 @@ class DUniform(min: Int = 0, max: Int = 1, name: String? = null) :
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
         return DUniformRV(minimum, maximum, stream)
     }
+
+    override fun toString(): String {
+        return "DUniform(minimum=$minimum, maximum=$maximum)"
+    }
 }

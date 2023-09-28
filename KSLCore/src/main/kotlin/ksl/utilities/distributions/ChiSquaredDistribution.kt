@@ -61,4 +61,8 @@ class ChiSquaredDistribution(
     override fun parameters(): DoubleArray {
         return doubleArrayOf(dof)
     }
+
+    override fun toString(): String {
+        return "ChiSquaredDistribution(dof=$dof)"
+    }
 }

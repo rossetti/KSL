@@ -82,6 +82,10 @@ class Constant (var value: Double = 0.0, name: String? = null) : Distribution<Co
         return ConstantRV(value)
     }
 
+    override fun toString(): String {
+        return "Constant(value=$value)"
+    }
+
     companion object {
         /**
          * A constant to represent zero for sharing

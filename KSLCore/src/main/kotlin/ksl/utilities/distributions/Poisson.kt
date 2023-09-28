@@ -188,6 +188,10 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisso
         return PoissonRV(mean, stream)
     }
 
+    override fun toString(): String {
+        return "Poisson(mean=$mean)"
+    }
+
     companion object {
         /** Used in the calculation of the incomplete gamma function
          *

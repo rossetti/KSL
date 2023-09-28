@@ -276,6 +276,10 @@ class Triangular(
         return TriangularRV(minimum, mode, maximum, stream)
     }
 
+    override fun toString(): String {
+        return "Triangular(minimum=$minimum, mode=$mode, maximum=$maximum)"
+    }
+
     companion object {
         /** Returns true if the parameters are valid for the distribution
          *

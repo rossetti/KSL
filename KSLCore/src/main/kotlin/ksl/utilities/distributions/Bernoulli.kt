@@ -112,4 +112,8 @@ class Bernoulli(successProb: Double= 0.5, name: String? = null) : Distribution<B
         return doubleArrayOf(probOfSuccess)
     }
 
+    override fun toString(): String {
+        return "Bernoulli(probOfSuccess=$probOfSuccess)"
+    }
+
 }

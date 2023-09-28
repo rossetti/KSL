@@ -24,7 +24,7 @@ import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 
 object SquaredErrorScoringModel : PDFScoringModel {
-    override val name: String = "Squared Error"
+    override val name: String = "Squared Error Criterion"
 
     override val range: Interval = Interval(0.0, Double.MAX_VALUE)
 

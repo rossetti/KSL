@@ -177,4 +177,8 @@ class PearsonType6 (
         return PearsonType6RV(shape1, shape2, scale, stream)
     }
 
+    override fun toString(): String {
+        return "PearsonType6(shape1=$shape1, shape2=$shape2, scale=$scale)"
+    }
+
 }
