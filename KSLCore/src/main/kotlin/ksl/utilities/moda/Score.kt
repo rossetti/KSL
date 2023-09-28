@@ -36,9 +36,10 @@ import ksl.utilities.Interval
 data class Score(
     val name: String,
     val value: Double,
-    var range: Interval = Interval(0.0, Double.MAX_VALUE),
+    var range: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
     var direction: Direction = Direction.BiggerIsBetter,
-    var valid: Boolean = true
+    var valid: Boolean = true,
+    var description: String? = null
 ) {
     enum class Direction {
         BiggerIsBetter, SmallerIsBetter
