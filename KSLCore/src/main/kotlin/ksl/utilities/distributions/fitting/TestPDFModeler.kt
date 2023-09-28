@@ -31,7 +31,7 @@ fun main() {
     val data = e.sample(n)
 //    data.write(KSL.out)
     testModeler(data)
-    //   testExponentialEstimation(data)
+ //      testExponentialEstimation(data)
     //   testWeibullEstimation(data)
 }
 
@@ -48,6 +48,10 @@ private fun testExponentialEstimation(data: DoubleArray) {
     val estimator = ExponentialMLEParameterEstimator
 
     val result = estimator.estimate(data)
+
+    println("Results for ${result.name}")
+
+    println()
 
     val d = PDFModeler.createDistribution(result.parameters!!)!!
     println(d)

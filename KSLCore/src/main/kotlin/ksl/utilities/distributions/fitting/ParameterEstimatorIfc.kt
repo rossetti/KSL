@@ -45,6 +45,19 @@ class EstimationResult(
     var success: Boolean
 ){
 
+    val name: String
+        get() {
+            return if ((parameters == null) || !success){
+                "Success=$success: $message"
+            } else {
+                if (shiftedData != null){
+                    "${shiftedData!!.shift} + ${PDFModeler.createDistribution(parameters).toString()}"
+                } else {
+                    PDFModeler.createDistribution(parameters).toString()
+                }
+            }
+        }
+
     /**
      *  The estimation results may be scored against a model.
      *  There may be many ways to evaluate the quality of the estimated

@@ -182,10 +182,23 @@ class PDFModeler(private val data: DoubleArray) {
     /**
      *  Every result in the list of [results] is scored by each scoring model in
      *  the supplied set [scoringModels].  The score is added to the map of
-     *  scores for the result.
+     *  scores for the result.  If the result does not have estimated parameters,
+     *  then the resulting score is the default bad score for the scoring model.
+     *  If the [filterResults] option is true, then any results that have
+     *  missing parameters or had success false will be filtered from the
+     *  scoring process.
      */
-    fun scoreResults(results: List<EstimationResult>, scoringModels: Set<PDFScoringModel> = allScoringModels){
+    fun scoreResults(
+        results: List<EstimationResult>,
+        scoringModels: Set<PDFScoringModel> = allScoringModels,
+        filterResults: Boolean = false
+    ){
         for(result in results){
+            if (filterResults){
+                if (!result.success || (result.parameters == null)){
+                    continue
+                }
+            }
             for(model in scoringModels){
                 model.score(result)
             }
