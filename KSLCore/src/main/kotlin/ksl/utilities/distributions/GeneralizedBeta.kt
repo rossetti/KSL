@@ -130,4 +130,10 @@ class GeneralizedBeta(
         val y = myBeta.invCDF(p)
         return y * range + min
     }
+
+    override fun toString(): String {
+        return "GeneralizedBeta(min=$min, max=$max, alpha=$alpha, beta=$beta)"
+    }
+
+
 }

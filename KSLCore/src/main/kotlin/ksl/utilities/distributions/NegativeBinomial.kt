@@ -213,6 +213,10 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
         return NegativeBinomialRV(probOfSuccess, numSuccesses, stream)
     }
 
+    override fun toString(): String {
+        return "NegativeBinomial(probOfSuccess=$probOfSuccess, numSuccesses=$numSuccesses)"
+    }
+
     companion object {
 
         /** Computes the probability mass function at j using a

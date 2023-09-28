@@ -1047,11 +1047,11 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         fun cramerVonMisesTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
             require(data.isNotEmpty()) { "The data array must have at least one observation" }
             val orderStats = data.orderStatistics()
-            val n = data.size
+            val n = data.size.toDouble()
             var sum = 0.0
             for (k in orderStats.indices) {
                 val i = k + 1
-                val ei = (2.0 * i - 1.0) / 2.0 * n
+                val ei = (2.0 * i - 1.0) / (2.0 * n)
                 val fi = fn.cdf((orderStats[k]))
                 sum = sum + (ei - fi) * (ei - fi)
             }

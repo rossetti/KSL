@@ -33,7 +33,7 @@ import ksl.utilities.statistic.Statistic
  *   a maximum likelihood approach.
  */
 object AkaikeInfoCriterionScoringModel : PDFScoringModel {
-    override val name: String = "Bayesian Info Criterion"
+    override val name: String = "Akaike Info Criterion"
 
     override val range: Interval = Interval(0.0, Double.MAX_VALUE)
 

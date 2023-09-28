@@ -163,6 +163,10 @@ class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distri
         return StudentTRV(degreesOfFreedom, stream)
     }
 
+    override fun toString(): String {
+        return "StudentT(degreesOfFreedom=$degreesOfFreedom)"
+    }
+
     companion object {
         /** A default instance for easily computing Student-T values
          *

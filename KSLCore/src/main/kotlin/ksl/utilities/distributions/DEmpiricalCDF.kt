@@ -154,7 +154,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
      * @return A String of probability, value pairs.
      */
     override fun toString(): String {
-        return myProbabilityPoints.toString()
+        return "DEmpirical(${myProbabilityPoints.joinToString()})"
     }
 
     /**

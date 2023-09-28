@@ -126,6 +126,10 @@ class Beta(
         return BetaRV(alpha, alpha, stream)
     }
 
+    override fun toString(): String {
+        return "Beta(alpha=$alpha, beta=$beta)"
+    }
+
     companion object {
         private val myContinuedFraction = IncompleteBetaFunctionFraction()
 

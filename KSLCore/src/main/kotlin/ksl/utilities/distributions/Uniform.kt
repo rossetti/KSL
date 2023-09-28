@@ -153,4 +153,8 @@ class Uniform (theMinimum: Double = 0.0, theMaximum: Double = 1.0, name: String?
         return UniformRV(minimum, maximum, stream)
     }
 
+    override fun toString(): String {
+        return "Uniform(minimum=$minimum, maximum=$maximum)"
+    }
+
 }

@@ -264,6 +264,10 @@ class Gamma(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null
         return GammaRV(shape, scale, stream)
     }
 
+    override fun toString(): String {
+        return "Gamma(shape=$shape, scale=$scale)"
+    }
+
     companion object {
         const val DEFAULT_MAX_ITERATIONS = 5000
 

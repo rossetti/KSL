@@ -186,6 +186,10 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution<
         return GeometricRV(pSuccess, stream)
     }
 
+    override fun toString(): String {
+        return "Geometric(pSuccess=$pSuccess)"
+    }
+
     companion object {
         fun canMatchMoments(vararg moments: Double): Boolean {
             require(moments.isNotEmpty()) { "Must provide a mean." }

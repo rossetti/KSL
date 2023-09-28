@@ -149,4 +149,8 @@ class PearsonType5 (theShape: Double = 1.0, theScale: Double = 1.0, name: String
         return PearsonType5RV(shape, scale, stream)
     }
 
+    override fun toString(): String {
+        return "PearsonType5(shape=$shape, scale=$scale)"
+    }
+
 }
