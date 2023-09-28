@@ -26,7 +26,7 @@ import ksl.utilities.statistic.Statistic
 object KSScoringModel : PDFScoringModel {
     override val name: String = "Kolmogorov-Smirnov Test Statistic"
 
-    override val range: Interval = Interval(0.0, Double.MAX_VALUE)
+    override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 
     override val direction: Score.Direction = Score.Direction.SmallerIsBetter
 
