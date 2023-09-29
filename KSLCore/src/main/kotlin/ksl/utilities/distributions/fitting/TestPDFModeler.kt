@@ -49,7 +49,7 @@ private fun testExponentialEstimation(data: DoubleArray) {
 
     val result = estimator.estimate(data)
 
-    println("Results for ${result.name}")
+    println("Results for ${result.distribution}")
 
     println()
 
