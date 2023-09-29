@@ -22,6 +22,7 @@ import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.io.KSL
 import ksl.utilities.io.write
+import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
@@ -158,10 +159,10 @@ class PDFModeler(private val data: DoubleArray) {
     ): List<EstimationResult> {
         // estimate a confidence interval on the minimum value
         var shiftedData: ShiftedData? = null
-        if (automaticShifting){
+        if (automaticShifting) {
             val minCI = confidenceIntervalForMinimum()
             if (!minCI.contains(defaultZeroTolerance)) {
-                shiftedData  = leftShiftData(data)
+                shiftedData = leftShiftData(data)
             }
         }
         val shiftedStats = shiftedData?.shiftedData?.statistics()
@@ -192,17 +193,23 @@ class PDFModeler(private val data: DoubleArray) {
         results: List<EstimationResult>,
         scoringModels: Set<PDFScoringModel> = allScoringModels,
         filterResults: Boolean = false
-    ){
-        for(result in results){
-            if (filterResults){
-                if (!result.success || (result.parameters == null)){
+    ): Map<EstimationResult, List<Score>> {
+        val map = mutableMapOf<EstimationResult, MutableList<Score>>()
+        for (result in results) {
+            if (filterResults) {
+                if (!result.success || (result.parameters == null)) {
                     continue
                 }
             }
-            for(model in scoringModels){
-                model.score(result)
+            if (!map.contains(result)) {
+                map[result] = mutableListOf()
+            }
+            for (model in scoringModels) {
+                val score = model.score(result)
+                map[result]?.add(score)
             }
         }
+        return map
     }
 
     companion object {
