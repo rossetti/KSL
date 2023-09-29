@@ -296,6 +296,9 @@ class PDFModeler(private val data: DoubleArray) {
          *   See: 1. Castillo E, Hadi AS. A method for estimating parameters and quantiles of
          *   distributions of continuous random variables. Computational Statistics & Data Analysis.
          *   1995 Oct;20(4):421–39.
+         *
+         *   This approach guarantees that the estimated lower limit will be less than the observed
+         *   minimum and that the estimate upper limit will be greater than the observed maximum.
          */
         fun rangeEstimate(min: Double, max: Double, n: Int): Interval {
             require(n >= 2) { "There must be at least two observations." }
