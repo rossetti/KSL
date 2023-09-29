@@ -38,10 +38,21 @@ fun main() {
 private fun testModeler(data: DoubleArray) {
     val d = PDFModeler(data)
     val list = d.estimateParameters(d.allEstimators)
-    d.scoreResults(list)
+    val scoreResults = d.scoreResults(list)
+
     for (element in list) {
         println(element.toString())
     }
+
+    println()
+    for((result, list) in scoreResults){
+        println("Distribution = ${result.distribution}")
+        for(score in list){
+            println("\t ${score.metric.name} = ${score.value}")
+        }
+        println()
+    }
+
 }
 
 private fun testExponentialEstimation(data: DoubleArray) {

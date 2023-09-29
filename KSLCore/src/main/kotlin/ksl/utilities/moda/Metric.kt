@@ -66,11 +66,11 @@ abstract class Metric(override val name: String) : MetricIfc {
 
     override val direction = MetricIfc.Direction.BiggerIsBetter
 
-    override val unitsOfMeasure: String? = null
+    override var unitsOfMeasure: String? = null
 
-    override val description: String? = null
+    override var description: String? = null
     override fun toString(): String {
         return "Metric(name='$name', range=$range, direction=$direction, unitsOfMeasure=$unitsOfMeasure, description=$description)"
     }
-    
+
 }
