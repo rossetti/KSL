@@ -45,7 +45,7 @@ class EstimationResult(
     var success: Boolean
 ){
 
-    val name: String
+    val distribution: String
         get() {
             return if ((parameters == null) || !success){
                 "Success=$success: $message"
