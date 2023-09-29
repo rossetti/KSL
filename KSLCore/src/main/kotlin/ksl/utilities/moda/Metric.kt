@@ -39,10 +39,10 @@ interface MetricIfc {
     }
 
     val name: String
-    var range: Interval
-    var direction: Direction
-    var unitsOfMeasure: String?
-    var description: String?
+    val range: Interval
+    val direction: Direction
+    val unitsOfMeasure: String?
+    val description: String?
 
 }
 
@@ -62,11 +62,15 @@ interface MetricIfc {
  */
 abstract class Metric(override val name: String) : MetricIfc {
 
-    override var range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 
-    override var direction = MetricIfc.Direction.BiggerIsBetter
+    override val direction = MetricIfc.Direction.BiggerIsBetter
 
-    override var unitsOfMeasure: String? = null
+    override val unitsOfMeasure: String? = null
 
-    override var description: String? = null
+    override val description: String? = null
+    override fun toString(): String {
+        return "Metric(name='$name', range=$range, direction=$direction, unitsOfMeasure=$unitsOfMeasure, description=$description)"
+    }
+    
 }

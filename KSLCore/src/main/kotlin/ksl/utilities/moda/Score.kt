@@ -18,30 +18,22 @@
 
 package ksl.utilities.moda
 
-import ksl.utilities.Interval
-
 /**
- *  A score represents an evaluation of an alternative or model based on some
- *  scoring context. Each score has a [name] to help identify it and a [value]
- *  that represents the value of the metric.  The [range] of the score represents
- *  the natural set of possible (real) legal values for the score's value. The
- *  default interval for the range is 0.0 to Double.MAX_VALUE. The [direction]
- *  provides the context for evaluation based on the score, with two cases:
- *  1) bigger values are considered better or 2) smaller values are considered
- *  better. The default direction is bigger is better. If there is an issue
+ *  A score represents an evaluation of an alternative, system, or entity based on some
+ *  metric. Each score is related to a metric and has a [value]
+ *  that represents the value of the metric. If there is an issue
  *  with computing the score, then the property [valid] indicates whether the
  *  score can be trusted (true) or not (false). The default value of the valid
- *  property is true.
+ *  property is true. The supplied [value] must be within the specified
+ *  range of the supplied metric; otherwise, an illegal argument exception will
+ *  occur.
  */
 data class Score(
-    val name: String,
+    val metric: MetricIfc,
     val value: Double,
-    var range: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
-    var direction: Direction = Direction.BiggerIsBetter,
-    var valid: Boolean = true,
-    var description: String? = null
+    var valid: Boolean = true
 ) {
-    enum class Direction {
-        BiggerIsBetter, SmallerIsBetter
+    init {
+        require(metric.range.contains(value)){"The supplied value is not valid for the range of the metric."}
     }
 }

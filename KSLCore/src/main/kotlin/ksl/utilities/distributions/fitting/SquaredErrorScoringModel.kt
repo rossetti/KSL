@@ -20,15 +20,15 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 
-object SquaredErrorScoringModel : PDFScoringModel {
-    override val name: String = "Squared Error Criterion"
+object SquaredErrorScoringModel : PDFScoringModel("Squared Error Criterion") {
 
-    override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val range = Interval(0.0, Double.POSITIVE_INFINITY)
 
-    override val direction: Score.Direction = Score.Direction.SmallerIsBetter
+    override val direction = MetricIfc.Direction.SmallerIsBetter
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
@@ -44,6 +44,6 @@ object SquaredErrorScoringModel : PDFScoringModel {
         for (i in 0.until(n)) {
             sum = sum + (predicted[i] - observed[i]) * (predicted[i] - observed[i])
         }
-        return Score(name, sum, range, direction, true)
+        return Score(this, sum,true)
     }
 }
