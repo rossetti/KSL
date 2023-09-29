@@ -20,16 +20,16 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 
-object ChiSquaredScoringModel : PDFScoringModel {
-    override val name: String = "Chi-Squared Test Statistic"
+object ChiSquaredScoringModel : PDFScoringModel("Chi-Squared Test Statistic") {
 
-    override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val range = Interval(0.0, Double.POSITIVE_INFINITY)
 
-    override val direction: Score.Direction = Score.Direction.SmallerIsBetter
+    override val direction = MetricIfc.Direction.SmallerIsBetter
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
@@ -40,6 +40,6 @@ object ChiSquaredScoringModel : PDFScoringModel {
         h.collect(data)
         val ec = h.expectedCounts(cdf)
         val chiSq = Statistic.chiSqTestStatistic(h.binCounts, ec)
-        return Score(name, chiSq, range, direction, true)
+        return Score(this, chiSq,true)
     }
 }

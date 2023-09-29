@@ -20,6 +20,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
@@ -32,17 +33,16 @@ import ksl.utilities.statistic.Statistic
  *   the distribution are not assumed to have been estimated from
  *   a maximum likelihood approach.
  */
-object AkaikeInfoCriterionScoringModel : PDFScoringModel {
-    override val name: String = "Akaike Info Criterion"
+object AkaikeInfoCriterionScoringModel : PDFScoringModel("Akaike Info Criterion") {
 
-    override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val range = Interval(0.0, Double.POSITIVE_INFINITY)
 
-    override val direction: Score.Direction = Score.Direction.SmallerIsBetter
+    override val direction = MetricIfc.Direction.SmallerIsBetter
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
         val score = Statistic.akaikeInfoCriterion(data.size, k, lm)
-        return Score(name, score, range, direction, true)
+        return Score(this, score, true)
     }
 }

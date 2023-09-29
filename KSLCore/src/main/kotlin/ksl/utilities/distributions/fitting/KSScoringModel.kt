@@ -20,18 +20,18 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
-object KSScoringModel : PDFScoringModel {
-    override val name: String = "Kolmogorov-Smirnov Test Statistic"
+object KSScoringModel : PDFScoringModel("KS Test Statistic") {
 
-    override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val range = Interval(0.0, Double.POSITIVE_INFINITY)
 
-    override val direction: Score.Direction = Score.Direction.SmallerIsBetter
+    override val direction = MetricIfc.Direction.SmallerIsBetter
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         val score = Statistic.ksTestStatistic(data, cdf)
-        return Score(name, score, range, direction, true)
+        return Score(this, score, true)
     }
 }

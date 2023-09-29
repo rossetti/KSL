@@ -20,6 +20,8 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.moda.Metric
+import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -27,13 +29,9 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  *  Computes a score to indicate the quality of fit for the proposed
  *  continuous distribution for the supplied data
  */
-interface PDFScoringModel {
+abstract class PDFScoringModel(name: String) : Metric(name){
 
-    val name: String
-    val range: Interval
-    val direction: Score.Direction
-
-    fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
+    abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
     fun score(data: DoubleArray, parameters: RVParameters) : Score {
         val cdf = PDFModeler.createDistribution(parameters)
@@ -61,11 +59,15 @@ interface PDFScoringModel {
         }
     }
 
+    /**
+     *  Returns an invalid score that has the worst possible value
+     *  according to the direction of the meaning of better.
+     */
     fun badScore() : Score {
-        return if (direction == Score.Direction.BiggerIsBetter){
-            Score(name, range.lowerLimit, range, direction,false)
+        return if (direction == MetricIfc.Direction.BiggerIsBetter){
+            Score(this, range.lowerLimit, false)
         } else {
-            Score(name, range.upperLimit, range, direction,false)
+            Score(this, range.upperLimit, false)
         }
     }
 }
