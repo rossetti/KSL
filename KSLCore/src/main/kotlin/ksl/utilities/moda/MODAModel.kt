@@ -3,10 +3,9 @@ package ksl.utilities.moda
 import ksl.utilities.Interval
 
 /**
- *  Creates a multi-objective decision analysis (MODA) model.
+ *  Defines a base class for creating multi-objective decision analysis (MODA) models.
  */
-class MODAModel(
-    val mavFunc: MultiAttributeValueFunctionIfc,
+abstract class MODAModel(
     val valueRange: Interval = Interval(0.0, 100.0)
 ) {
 
@@ -67,12 +66,6 @@ class MODAModel(
         }
     }
 
-    fun computeValues(){
-        for((alternative, scores) in myAlternatives){
-            
-        }
-    }
-
     /**
      *  Checks if there are sufficient metrics and if the metrics associated with
      *  each score are related to the defined metrics.
@@ -89,14 +82,33 @@ class MODAModel(
         return true
     }
 
+    /**
+     *  Computes the multi-objective value for the specified
+     *  alternative
+     */
+    abstract fun multiObjectiveValue(alternative: String) : Double
+
+    /**
+     *  Computes the overall values for all defined alternatives
+     *  based on the defined multi-objective value function.
+     */
+    fun multiObjectiveValues() : Map<String, Double> {
+        val map = mutableMapOf<String, Double> ()
+        for (alternative in alternatives){
+            map[alternative] = multiObjectiveValue(alternative)
+        }
+        return map
+    }
+
     companion object {
 
         fun assignLinearValueFunctions(
             metrics: Set<Metric>,
+            valueRange: Interval
         ): Map<Metric, ValueFunctionIfc> {
             val map = mutableMapOf<Metric, ValueFunctionIfc>()
             for (metric in metrics) {
-                map[metric] = LinearValueFunction(metric)
+                map[metric] = LinearValueFunction(metric, valueRange)
             }
             return map
         }
