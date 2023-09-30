@@ -27,7 +27,7 @@ import ksl.utilities.statistic.Statistic
 
 object ChiSquaredScoringModel : PDFScoringModel("Chi-Squared Test Statistic") {
 
-    override val range = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val domain = Interval(0.0, Double.POSITIVE_INFINITY)
 
     override val direction = MetricIfc.Direction.SmallerIsBetter
 

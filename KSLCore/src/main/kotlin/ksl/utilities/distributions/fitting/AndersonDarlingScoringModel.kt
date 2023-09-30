@@ -26,7 +26,7 @@ import ksl.utilities.statistic.Statistic
 
 object AndersonDarlingScoringModel : PDFScoringModel("Anderson Darling Test Statistic") {
 
-    override val range = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val domain = Interval(0.0, Double.POSITIVE_INFINITY)
 
     override val direction = MetricIfc.Direction.SmallerIsBetter
 

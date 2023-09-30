@@ -18,7 +18,6 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.moda.Metric
 import ksl.utilities.moda.MetricIfc
@@ -65,9 +64,9 @@ abstract class PDFScoringModel(name: String) : Metric(name){
      */
     fun badScore() : Score {
         return if (direction == MetricIfc.Direction.BiggerIsBetter){
-            Score(this, range.lowerLimit, false)
+            Score(this, domain.lowerLimit, false)
         } else {
-            Score(this, range.upperLimit, false)
+            Score(this, domain.upperLimit, false)
         }
     }
 }

@@ -25,9 +25,9 @@ import ksl.utilities.Interval
  *  a device, system, method, or entity, relative to its alternatives.
  *
  *  A metric has a required [name] to help identify it and an optional [description] to provide
- *  context for the metric.  The [range] of the metric represents
+ *  context for the metric.  The [domain] of the metric represents
  *  the natural set of possible (real) legal values for its values. The
- *  default interval for the range is 0.0 to positive infinity. The [direction]
+ *  default interval for the domain is 0.0 to positive infinity. The [direction]
  *  provides the context for evaluation based on the metric value, with two cases:
  *  1) bigger values are considered better or 2) smaller values are considered
  *  better. The default direction is bigger is better. The metric can have
@@ -39,7 +39,7 @@ interface MetricIfc {
     }
 
     val name: String
-    val range: Interval
+    val domain: Interval
     val direction: Direction
     val unitsOfMeasure: String?
     val description: String?
@@ -52,9 +52,9 @@ interface MetricIfc {
  *  a device, system, method, or entity, relative to its alternatives.
  *
  *  A metric has a required [name] to help identify it and an optional [description] to provide
- *  context for the metric.  The [range] of the metric represents
+ *  context for the metric.  The [domain] of the metric represents
  *  the natural set of possible (real) legal values for its values. The
- *  default interval for the range is 0.0 to positive infinity. The [direction]
+ *  default interval for the domain is 0.0 to positive infinity. The [direction]
  *  provides the context for evaluation based on the metric value, with two cases:
  *  1) bigger values are considered better or 2) smaller values are considered
  *  better. The default direction is bigger is better. The metric can have
@@ -62,7 +62,7 @@ interface MetricIfc {
  */
 abstract class Metric(override val name: String) : MetricIfc {
 
-    override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val domain: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 
     override val direction = MetricIfc.Direction.BiggerIsBetter
 
@@ -70,7 +70,7 @@ abstract class Metric(override val name: String) : MetricIfc {
 
     override var description: String? = null
     override fun toString(): String {
-        return "Metric(name='$name', range=$range, direction=$direction, unitsOfMeasure=$unitsOfMeasure, description=$description)"
+        return "Metric(name='$name', domain=$domain, direction=$direction, unitsOfMeasure=$unitsOfMeasure, description=$description)"
     }
 
 }
