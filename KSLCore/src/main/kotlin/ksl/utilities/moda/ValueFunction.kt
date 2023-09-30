@@ -13,7 +13,7 @@ interface ValueFunctionIfc {
 
 abstract class ValueFunction(
     override val metric: MetricIfc,
-    override val range: Interval = Interval(0.0, 100.0)
+    override val range: Interval
 ) : ValueFunctionIfc {
 
     init {
