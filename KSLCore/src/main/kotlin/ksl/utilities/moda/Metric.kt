@@ -54,17 +54,17 @@ interface MetricIfc {
  *  A metric has a required [name] to help identify it and an optional [description] to provide
  *  context for the metric.  The [domain] of the metric represents
  *  the natural set of possible (real) legal values for its values. The
- *  default interval for the domain is 0.0 to positive infinity. The [direction]
+ *  default interval for the domain is 0.0 to Double.MAX_VALUE. The [direction]
  *  provides the context for evaluation based on the metric value, with two cases:
  *  1) bigger values are considered better or 2) smaller values are considered
- *  better. The default direction is bigger is better. The metric can have
+ *  better. The default direction is smaller is better. The metric can have
  *  a description of its units of measure [unitsOfMeasure].
  */
 abstract class Metric(override val name: String) : MetricIfc {
 
-    override val domain: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val domain = Interval(0.0, Double.MAX_VALUE)
 
-    override val direction = MetricIfc.Direction.BiggerIsBetter
+    override val direction = MetricIfc.Direction.SmallerIsBetter
 
     override var unitsOfMeasure: String? = null
 

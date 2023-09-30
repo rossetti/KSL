@@ -26,10 +26,6 @@ import ksl.utilities.statistic.Statistic
 
 class KSScoringModel : PDFScoringModel("KS Test Statistic") {
 
-    override val domain = Interval(0.0, Double.POSITIVE_INFINITY)
-
-    override val direction = MetricIfc.Direction.SmallerIsBetter
-
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         val score = Statistic.ksTestStatistic(data, cdf)
         return Score(this, score, true)
