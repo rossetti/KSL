@@ -74,7 +74,7 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
      * @param xLower the lower limit
      * @param xUpper the upper limit
      */
-    fun setInterval(xLower: Double, xUpper: Double) {
+    internal fun setInterval(xLower: Double, xUpper: Double) {
         if (!xLower.isNaN() || !xUpper.isNaN()){
             require(xLower <= xUpper) { "The lower limit $xLower must be <= the upper limit $xUpper" }
         }
