@@ -118,16 +118,16 @@ class PDFModeler(private val data: DoubleArray) {
         )
 
     /**
-     *  This set holds all defined scoring models for evaluating
+     *  This set holds predefined scoring models for evaluating
      *  the distribution goodness of fit.
      */
     val allScoringModels: Set<PDFScoringModel>
         get() = setOf(
-            ChiSquaredScoringModel,
-            KSScoringModel,
-            SquaredErrorScoringModel,
-            AndersonDarlingScoringModel,
-            CramerVonMisesScoringModel,
+            ChiSquaredScoringModel(),
+            KSScoringModel(),
+            SquaredErrorScoringModel(),
+            AndersonDarlingScoringModel(),
+            CramerVonMisesScoringModel(),
             //AkaikeInfoCriterionScoringModel,
             //BayesianInfoCriterionScoringModel
         )
@@ -139,7 +139,7 @@ class PDFModeler(private val data: DoubleArray) {
      *
      *  If the automatic shift parameter is true (the default), then a
      *  confidence interval for the minimum of the data is estimated from the data.
-     *  If the confidence interval does not contain the value specified by the default
+     *  If the upper limit of the estimated confidence interval is greater than the value specified by the default
      *  zero tolerance property, then the data is shifted to the left and used in the estimation process.
      *  The estimated shift will be recorded in the result.  Automated shift estimation
      *  will occur only if the automatic shifting parameter is true, and
@@ -161,7 +161,7 @@ class PDFModeler(private val data: DoubleArray) {
         var shiftedData: ShiftedData? = null
         if (automaticShifting) {
             val minCI = confidenceIntervalForMinimum()
-            if (!minCI.contains(defaultZeroTolerance)) {
+            if (minCI.upperLimit <= defaultZeroTolerance) {
                 shiftedData = leftShiftData(data)
             }
         }

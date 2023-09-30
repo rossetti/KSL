@@ -24,7 +24,7 @@ import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 
-object SquaredErrorScoringModel : PDFScoringModel("Squared Error Criterion") {
+class SquaredErrorScoringModel : PDFScoringModel("Squared Error Criterion") {
 
     override val domain = Interval(0.0, Double.POSITIVE_INFINITY)
 

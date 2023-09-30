@@ -90,7 +90,7 @@ private fun testExponentialEstimation(data: DoubleArray) {
 
     // test the scoring
     //val models = setOf(ChiSquaredScoringModel)
-    val score = ChiSquaredScoringModel.score(result)
+    val score = ChiSquaredScoringModel().score(result)
     println(score)
 }
 
@@ -128,7 +128,7 @@ private fun testWeibullEstimation(data: DoubleArray) {
 
     // test the scoring
     //val models = setOf(ChiSquaredScoringModel)
-    val score = ChiSquaredScoringModel.score(result)
+    val score = ChiSquaredScoringModel().score(result)
     println(score)
 }
 

@@ -24,7 +24,7 @@ import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
-object KSScoringModel : PDFScoringModel("KS Test Statistic") {
+class KSScoringModel : PDFScoringModel("KS Test Statistic") {
 
     override val domain = Interval(0.0, Double.POSITIVE_INFINITY)
 

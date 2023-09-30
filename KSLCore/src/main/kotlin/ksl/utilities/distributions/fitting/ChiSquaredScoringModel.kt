@@ -25,7 +25,7 @@ import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 
-object ChiSquaredScoringModel : PDFScoringModel("Chi-Squared Test Statistic") {
+class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared Test Statistic") {
 
     override val domain = Interval(0.0, Double.POSITIVE_INFINITY)
 

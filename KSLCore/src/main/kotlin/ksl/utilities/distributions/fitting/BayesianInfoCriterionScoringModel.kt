@@ -33,7 +33,7 @@ import ksl.utilities.statistic.Statistic
  *   the distribution are not assumed to have been estimated from
  *   a maximum likelihood approach.
  */
-object BayesianInfoCriterionScoringModel : PDFScoringModel("Bayesian Info Criterion") {
+class BayesianInfoCriterionScoringModel : PDFScoringModel("Bayesian Info Criterion") {
 
     override val domain = Interval(0.0, Double.POSITIVE_INFINITY)
 

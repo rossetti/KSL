@@ -24,7 +24,7 @@ import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
-object CramerVonMisesScoringModel : PDFScoringModel("Cramer-von-Mises Test Statistic") {
+class CramerVonMisesScoringModel : PDFScoringModel("Cramer-von-Mises Test Statistic") {
 
     override val domain: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 
