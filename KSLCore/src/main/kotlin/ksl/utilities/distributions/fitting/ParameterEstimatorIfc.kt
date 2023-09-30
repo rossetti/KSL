@@ -58,14 +58,17 @@ class EstimationResult(
             }
         }
 
-    /**
-     *  The estimation results may be scored against a model.
-     *  There may be many ways to evaluate the quality of the estimated
-     *  model. This map may hold scores for each scoring method. The
-     *  key to the map should be a string to identify the scoring method,
-     *  most likely its name. The score records the value of the score.
-     */
-    val scores: MutableMap<String, Score> = mutableMapOf()
+//    /**
+//     *  The estimation results may be scored against a model.
+//     *  There may be many ways to evaluate the quality of the estimated
+//     *  model. This map may hold scores for each scoring method. The
+//     *  key to the map should be a string to identify the scoring method,
+//     *  most likely its name. The score records the value of the score.
+//     */
+//    val scores: List<Score>
+//        get() = myScores
+//
+//    internal val myScores: MutableList<Score> = mutableListOf()
 
     override fun toString(): String {
         val sb = StringBuilder()
@@ -86,10 +89,10 @@ class EstimationResult(
         sb.appendLine()
         sb.appendLine("Estimated parameters:")
         sb.appendLine(parameters)
-        sb.appendLine("Scoring Results")
-        for(score in scores){
-            sb.appendLine(score)
-        }
+//        sb.appendLine("Scoring Results")
+//        for(score in scores){
+//            sb.appendLine(score)
+//        }
         return sb.toString()
     }
 }

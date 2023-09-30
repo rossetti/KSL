@@ -53,7 +53,7 @@ abstract class PDFScoringModel(name: String) : Metric(name){
                 result.originalData
             }
             val score = score(data, parameters)
-            result.scores[name] = score
+//            result.myScores.add(score)
             score
         }
     }
