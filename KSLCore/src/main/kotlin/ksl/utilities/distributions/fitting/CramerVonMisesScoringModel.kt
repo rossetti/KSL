@@ -26,7 +26,7 @@ import ksl.utilities.statistic.Statistic
 
 object CramerVonMisesScoringModel : PDFScoringModel("Cramer-von-Mises Test Statistic") {
 
-    override val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val domain: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 
     override val direction = MetricIfc.Direction.SmallerIsBetter
 

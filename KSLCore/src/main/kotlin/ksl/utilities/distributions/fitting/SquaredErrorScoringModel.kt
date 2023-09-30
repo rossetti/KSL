@@ -26,7 +26,7 @@ import ksl.utilities.statistic.Histogram
 
 object SquaredErrorScoringModel : PDFScoringModel("Squared Error Criterion") {
 
-    override val range = Interval(0.0, Double.POSITIVE_INFINITY)
+    override val domain = Interval(0.0, Double.POSITIVE_INFINITY)
 
     override val direction = MetricIfc.Direction.SmallerIsBetter
 

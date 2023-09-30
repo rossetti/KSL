@@ -25,7 +25,7 @@ package ksl.utilities.moda
  *  with computing the score, then the property [valid] indicates whether the
  *  score can be trusted (true) or not (false). The default value of the valid
  *  property is true. The supplied [value] must be within the specified
- *  range of the supplied metric; otherwise, an illegal argument exception will
+ *  domain of the supplied metric; otherwise, an illegal argument exception will
  *  occur.
  */
 data class Score(
@@ -34,6 +34,6 @@ data class Score(
     var valid: Boolean = true
 ) {
     init {
-        require(metric.range.contains(value)){"The supplied value is not valid for the range of the metric."}
+        require(metric.domain.contains(value)){"The supplied value is not valid for the domain of the metric."}
     }
 }
