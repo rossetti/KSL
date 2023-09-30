@@ -1,6 +1,11 @@
 package ksl.utilities.moda
 
-class LinearValueFunction(metric: MetricIfc) : ValueFunction(metric) {
+import ksl.utilities.Interval
+
+class LinearValueFunction(
+    metric: MetricIfc,
+    range: Interval = Interval(0.0, 100.0)
+) : ValueFunction(metric, range) {
 
     override fun value(x: Double): Double {
         // convert from incoming x to values using linear transformation
