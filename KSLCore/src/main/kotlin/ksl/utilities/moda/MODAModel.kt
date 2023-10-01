@@ -12,13 +12,7 @@ import org.jetbrains.kotlinx.dataframe.impl.asList
 /**
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
  */
-abstract class MODAModel(
-    val valueRange: Interval = Interval(0.0, 100.0)
-) {
-
-    init {
-        require(valueRange.width > 0.0) { "The range of the value functions must have a width > 0.0" }
-    }
+abstract class MODAModel {
 
     private val metricFunctionMap: MutableMap<MetricIfc, ValueFunctionIfc> = mutableMapOf()
     private val myAlternatives: MutableMap<String, Map<MetricIfc, Score>> = mutableMapOf()
