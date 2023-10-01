@@ -22,11 +22,18 @@ import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.io.KSL
 import ksl.utilities.io.write
+import ksl.utilities.moda.AdditiveMODAModel
+import ksl.utilities.moda.MODAModel
+import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.statistic.*
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.api.into
+import org.jetbrains.kotlinx.dataframe.api.rename
+import org.jetbrains.kotlinx.dataframe.api.sortBy
 
 /**
  *  The purpose of this object is to serve as the general location
@@ -192,7 +199,7 @@ class PDFModeler(private val data: DoubleArray) {
     fun scoreResults(
         results: List<EstimationResult>,
         scoringModels: Set<PDFScoringModel> = allScoringModels,
-        filterResults: Boolean = false
+        filterResults: Boolean = true
     ): Map<EstimationResult, List<Score>> {
         val map = mutableMapOf<EstimationResult, MutableList<Score>>()
         for (result in results) {
@@ -210,6 +217,61 @@ class PDFModeler(private val data: DoubleArray) {
             }
         }
         return map
+    }
+
+    /**
+     *  Estimates the parameters and scores the results. Returns
+     *  the estimated distribution and their scores
+     */
+    fun scoresByDistribution(
+        estimators: Set<ParameterEstimatorIfc> = allEstimators,
+        automaticShifting: Boolean = true,
+        scoringModels: Set<PDFScoringModel> = allScoringModels,
+        filterResults: Boolean = true
+    ): Pair<MutableMap<String, List<Score>>, List<MetricIfc>> {
+        val list = estimateParameters(estimators, automaticShifting)
+        val scoreResults = scoreResults(list, scoringModels, filterResults)
+        val alternatives = mutableMapOf<String, List<Score>>()
+        for ((result, scores) in scoreResults) {
+            alternatives[result.distribution] = scores
+        }
+        val firstScores = scoreResults[list.first()]!!
+        val metrics = MODAModel.extractMetrics(firstScores)
+        return Pair(alternatives, metrics)
+    }
+
+    /**
+     *  Creates a multi-objective decision model based on the results of the estimation
+     *  and the scoring of the distributions
+     */
+    fun createEvaluationModel(
+        estimators: Set<ParameterEstimatorIfc> = allEstimators,
+        automaticShifting: Boolean = true,
+        scoringModels: Set<PDFScoringModel> = allScoringModels,
+        filterResults: Boolean = true
+    ): AdditiveMODAModel {
+        val (alternatives, metrics) =
+            scoresByDistribution(estimators, automaticShifting, scoringModels, filterResults)
+        val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
+        val model = AdditiveMODAModel(metricValueFunctionMap)
+        model.defineAlternatives(alternatives)
+        return model
+    }
+
+    /**
+     *  Returns a data frame that has the distribution criterion value results for each column
+     *  sorted by total value.
+     */
+    fun resultsByDistribution(
+        estimators: Set<ParameterEstimatorIfc> = allEstimators,
+        automaticShifting: Boolean = true,
+        scoringModels: Set<PDFScoringModel> = allScoringModels,
+        filterResults: Boolean = true
+    ): AnyFrame {
+        val model = createEvaluationModel(estimators, automaticShifting, scoringModels, filterResults)
+        val valueDf = model.alternativeValuesAsDataFrame("Distributions")
+        val tvCol = valueDf["Total Value"]
+        return valueDf.sortBy { tvCol.desc() }
     }
 
     companion object {
