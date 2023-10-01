@@ -24,7 +24,7 @@ import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 
-class SquaredErrorScoringModel : PDFScoringModel("Squared Error Criterion") {
+class SquaredErrorScoringModel : PDFScoringModel("Squared-Error") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)

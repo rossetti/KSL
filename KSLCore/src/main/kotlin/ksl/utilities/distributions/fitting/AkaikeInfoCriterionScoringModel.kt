@@ -33,7 +33,7 @@ import ksl.utilities.statistic.Statistic
  *   the distribution are not assumed to have been estimated from
  *   a maximum likelihood approach.
  */
-class AkaikeInfoCriterionScoringModel : PDFScoringModel("Akaike Info Criterion") {
+class AkaikeInfoCriterionScoringModel : PDFScoringModel("AIC") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         val k = cdf.parameters().size

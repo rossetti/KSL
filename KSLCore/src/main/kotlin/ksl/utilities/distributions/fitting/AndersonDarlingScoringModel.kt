@@ -24,7 +24,7 @@ import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
-class AndersonDarlingScoringModel : PDFScoringModel("Anderson Darling Test Statistic") {
+class AndersonDarlingScoringModel : PDFScoringModel("Anderson-Darling") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         val score = Statistic.andersonDarlingTestStatistic(data, cdf)
