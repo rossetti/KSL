@@ -1,7 +1,12 @@
 package ksl.utilities.moda
 
 import ksl.utilities.Interval
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.statistic.Statistic
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.DataColumn
+import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
+import org.jetbrains.kotlinx.dataframe.api.toColumn
 import org.jetbrains.kotlinx.dataframe.impl.asList
 
 /**
@@ -63,8 +68,8 @@ abstract class MODAModel(
      */
     fun defineAlternatives(
         alternatives: Map<String, List<Score>>,
-        adjustMetricLowerLimits : Boolean = false,
-        adjustMetricUpperLimits : Boolean = true
+        adjustMetricLowerLimits: Boolean = false,
+        adjustMetricUpperLimits: Boolean = true
     ) {
         if (metricFunctionMap.isEmpty()) {
             throw IllegalStateException("There were no metrics defined for the model")
@@ -76,19 +81,31 @@ abstract class MODAModel(
         }
         // actual scores may not encompass entire domain of metric
         // it may be useful to adjust domain limits based on realized scores
-        // to improve scalability.
-        adjustMetricDomains(adjustMetricLowerLimits, adjustMetricUpperLimits)
+        // to improve scalability. Only rescale if requested.
+        if (adjustMetricLowerLimits || adjustMetricUpperLimits) {
+            rescaleMetricDomains(adjustMetricLowerLimits, adjustMetricUpperLimits)
+        }
     }
 
-    private fun adjustMetricDomains(
-        adjustMetricLowerLimits : Boolean = false,
-        adjustMetricUpperLimits : Boolean = true
+    private fun rescaleMetricDomains(
+        adjustMetricLowerLimits: Boolean,
+        adjustMetricUpperLimits: Boolean
     ) {
-        if (!adjustMetricLowerLimits && !adjustMetricUpperLimits){
-            return
+        // need statistics for each alternative's metrics
+        val statisticsByMetric = scoreStatisticsByMetric()
+        for ((metric, stat) in statisticsByMetric) {
+            val interval = PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt())
+            if (!adjustMetricLowerLimits && adjustMetricUpperLimits) {
+                // no lower limit but yes on upper limit
+                metric.domain.setInterval(metric.domain.lowerLimit, interval.upperLimit)
+            } else if (adjustMetricLowerLimits && !adjustMetricUpperLimits) {
+                // yes on lower limit, no on upper limit
+                metric.domain.setInterval(interval.lowerLimit, metric.domain.upperLimit)
+            } else {
+                // adjust both
+                metric.domain.setInterval(interval.lowerLimit, interval.upperLimit)
+            }
         }
-        // assumes that the alternatives have been defined and the scores are available
-        TODO("not implemented yet")
     }
 
     /**
@@ -104,7 +121,7 @@ abstract class MODAModel(
     }
 
     /**
-     *  Returns the scores for each metric with each element
+     *  Returns the scores as doubles for each metric with each element
      *  of the returned list for a different alternative in the order
      *  that the alternatives are listed.
      */
@@ -130,16 +147,46 @@ abstract class MODAModel(
     }
 
     /**
+     *  Returns the transformed metric scores as values from the assigned
+     *  value function for each metric with each element
+     *  of the returned list for a different alternative in the order
+     *  that the alternatives are listed.
+     */
+    fun valuesByMetric(): Map<MetricIfc, List<Double>> {
+        val map = mutableMapOf<MetricIfc, List<Double>>()
+        for (metric in metrics) {
+            map[metric] = metricValues(metric)
+        }
+        return map
+    }
+
+    /**
+     *  Retrieves the values from the value functions for each alternative as a
+     *  list of transformed values based on the supplied [metric]
+     */
+    fun metricValues(metric: MetricIfc): List<Double>{
+        val list = mutableListOf<Double>()
+        for ((alternative, map) in myAlternatives) {
+            val score = map[metric]!!
+            val vf = metricFunctionMap[metric]!!
+            // apply the value function to the score
+            val v = vf.value(score.value)
+            list.add(v)
+        }
+        return list
+    }
+
+    /**
      *   Applies the value function to the scores associated with each alternative
      *   and metric combination to determine the associated value.
      */
-    fun alternativeValues(): Map<String, Map<MetricIfc, Double>> {
+    fun alternativeValuesByMetric(): Map<String, Map<MetricIfc, Double>> {
         val map = mutableMapOf<String, Map<MetricIfc, Double>>()
-        for((alternative, metricMap) in myAlternatives){
+        for ((alternative, metricMap) in myAlternatives) {
             // create the map to hold the values for each metric for the alternative
-            val valMap = mutableMapOf<MetricIfc, Double> ()
+            val valMap = mutableMapOf<MetricIfc, Double>()
             // process the scores for the alternative
-            for((metric, score) in metricMap){
+            for ((metric, score) in metricMap) {
                 // get the value function for the metric
                 val vf = metricFunctionMap[metric]!!
                 // apply the value function to the score
@@ -151,6 +198,34 @@ abstract class MODAModel(
             map[alternative] = valMap
         }
         return map
+    }
+
+    fun alternativeScoresAsDataFrame(): AnyFrame {
+        // make the alternative column
+        val alternativeColumn = alternatives.toColumn("Alternatives")
+        // then make columns for each metric
+        val columns = mutableListOf<DataColumn<*>>()
+        columns.add(alternativeColumn)
+        val metrics = scoresByMetric()
+        for((metric, score) in metrics){
+            val dataColumn = score.toColumn(metric.name)
+            columns.add(dataColumn)
+        }
+        return dataFrameOf(columns)
+    }
+
+    fun alternativeValuesAsDataFrame(): AnyFrame {
+        // make the alternative column
+        val alternativeColumn = alternatives.toColumn("Alternatives")
+        // then make columns for each metric
+        val columns = mutableListOf<DataColumn<*>>()
+        columns.add(alternativeColumn)
+        val metrics = valuesByMetric()
+        for((metric, score) in metrics){
+            val dataColumn = score.toColumn(metric.name)
+            columns.add(dataColumn)
+        }
+        return dataFrameOf(columns)
     }
 
     fun scoreStatisticsByMetric(): MutableMap<MetricIfc, Statistic> {
@@ -180,7 +255,6 @@ abstract class MODAModel(
         }
         return true
     }
-
 
 
     /**
