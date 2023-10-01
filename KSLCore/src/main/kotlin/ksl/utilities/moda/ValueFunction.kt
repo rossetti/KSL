@@ -7,7 +7,6 @@ package ksl.utilities.moda
  */
 interface ValueFunctionIfc {
     val metric: MetricIfc
-
     fun value(x: Double): Double
 
 }

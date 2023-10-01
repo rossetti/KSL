@@ -61,7 +61,11 @@ abstract class MODAModel(
      *  been created for each metric. If insufficient scores or incompatible
      *  scores are provided, the alternative is not added to the model.
      */
-    fun defineAlternatives(alternatives: Map<String, List<Score>>) {
+    fun defineAlternatives(
+        alternatives: Map<String, List<Score>>,
+        adjustMetricLowerLimits : Boolean = false,
+        adjustMetricUpperLimits : Boolean = true
+    ) {
         if (metricFunctionMap.isEmpty()) {
             throw IllegalStateException("There were no metrics defined for the model")
         }
@@ -70,10 +74,19 @@ abstract class MODAModel(
                 myAlternatives[name] = makeMetricScoreMap(list)
             }
         }
-        //TODO adjust the domain of the value functions based on the values of the scores??
+        // actual scores may not encompass entire domain of metric
+        // it may be useful to adjust domain limits based on realized scores
+        // to improve scalability.
+        adjustMetricDomains(adjustMetricLowerLimits, adjustMetricUpperLimits)
     }
 
-    private fun adjustValueFunctionDomains() {
+    private fun adjustMetricDomains(
+        adjustMetricLowerLimits : Boolean = false,
+        adjustMetricUpperLimits : Boolean = true
+    ) {
+        if (!adjustMetricLowerLimits && !adjustMetricUpperLimits){
+            return
+        }
         // assumes that the alternatives have been defined and the scores are available
         TODO("not implemented yet")
     }
@@ -139,8 +152,6 @@ abstract class MODAModel(
         }
         return map
     }
-
-
 
     fun scoreStatisticsByMetric(): MutableMap<MetricIfc, Statistic> {
         // need to compute statistics (across alternatives) for the raw scores for each metric
