@@ -1,6 +1,8 @@
 package ksl.utilities.moda
 
 import ksl.utilities.Interval
+import ksl.utilities.statistic.Statistic
+import org.jetbrains.kotlinx.dataframe.impl.asList
 
 /**
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
@@ -14,31 +16,38 @@ abstract class MODAModel(
     }
 
     private val metricFunctionMap: MutableMap<MetricIfc, ValueFunctionIfc> = mutableMapOf()
-    private val myAlternatives: MutableMap<String, List<Score>> = mutableMapOf()
+    private val myAlternatives: MutableMap<String, Map<MetricIfc, Score>> = mutableMapOf()
 
     /**
-     *  The set of metrics defined for the model.
+     *  The list of metrics defined for the model. The order of the metrics
+     *  is defined by the order entered into the map that was supplied by
+     *  the defineMetrics() function.
      */
-    val metrics: Set<MetricIfc>
-        get() = metricFunctionMap.keys
+    val metrics: List<MetricIfc>
+        get() = metricFunctionMap.keys.asList()
 
     /**
-     *  The set of alternative within the model.
+     *  The list of alternative within the model. The order of the alternatives
+     *  is defined by the order entered into the map that was supplied by
+     *  the defineAlternatives() function.
      */
-    val alternatives: Set<String>
-        get() = myAlternatives.keys
+    val alternatives: List<String>
+        get() = myAlternatives.keys.asList()
 
     /**
      *   Defines the metrics to be used in the evaluation of the alternatives.
      *   Each metric must be associated with the related value function. If not
      *   it is not added to the model.  The value functions are all adjusted so
      *   that they return values that are consisted with the defined value range
-     *   for the model. If there are previously defined metrics, they will be
-     *   cleared and replaced by the supplied definitions.
+     *   for the decision model. If there are previously defined metrics, they will be
+     *   cleared and replaced by the supplied definitions.  If there were previously
+     *   defined alternatives they will be cleared because they might not have
+     *   the defined metrics.
      */
     fun defineMetrics(definitions: Map<MetricIfc, ValueFunctionIfc>) {
         if (metricFunctionMap.isNotEmpty()) {
             metricFunctionMap.clear()
+            myAlternatives.clear()
         }
         for ((metric, valFunc) in definitions) {
             if (metric == valFunc.metric) {
@@ -51,9 +60,9 @@ abstract class MODAModel(
     /**
      *  Defines the alternatives and their scores that should be evaluated by the
      *  model. The metrics for the model must have been previously defined prior
-     *  to specifying the alternatives. The scores supplied for each must have
+     *  to specifying the alternatives. The scores supplied for each alternative must have
      *  been created for each metric. If insufficient scores or incompatible
-     *  score are provided, the alternative is not added to the model.
+     *  scores are provided, the alternative is not added to the model.
      */
     fun defineAlternatives(alternatives: Map<String, List<Score>>) {
         if (metricFunctionMap.isEmpty()) {
@@ -61,9 +70,65 @@ abstract class MODAModel(
         }
         for ((name, list) in alternatives) {
             if (hasValidScores(list)) {
-                myAlternatives[name] = list
+                myAlternatives[name] = makeMetricScoreMap(list)
             }
         }
+        //TODO adjust the domain of the value functions based on the values of the scores??
+    }
+
+    /**
+     *  Converts a list of scores to a map based on the metric for the score.
+     *  This facilitates accessing the scores by metric.
+     */
+    private fun makeMetricScoreMap(scores: List<Score>): Map<MetricIfc, Score> {
+        val map = mutableMapOf<MetricIfc, Score>()
+        for (score in scores) {
+            map[score.metric] = score
+        }
+        return map
+    }
+
+    /**
+     *  Returns the scores for each metric with each element
+     *  of the returned list for a different alternative in the order
+     *  that the alternatives are listed.
+     */
+    fun scoresByMetric(): Map<MetricIfc, List<Double>> {
+        val map = mutableMapOf<MetricIfc, List<Double>>()
+        for (metric in metrics) {
+            map[metric] = metricScores(metric)
+        }
+        return map
+    }
+
+    /**
+     *  Retrieves the scores for each alternative as a list of raw score values
+     *  based on the supplied [metric].
+     */
+    fun metricScores(metric: MetricIfc): List<Double> {
+        val list = mutableListOf<Double>()
+        for ((alternative, map) in myAlternatives) {
+            val score = map[metric]!!
+            list.add(score.value)
+        }
+        return list
+    }
+
+    private fun adjustValueFunctionDomains() {
+        // assumes that the alternatives have been defined and the scores are available
+
+    }
+
+    fun scoreStatisticsByMetric(): MutableMap<MetricIfc, Statistic> {
+        // need to compute statistics (across alternatives) for the raw scores for each metric
+        val metricStats = mutableMapOf<MetricIfc, Statistic>()
+        val metricScores = scoresByMetric()
+        for ((metric, scores) in metricScores) {
+            val stat = Statistic(metric.name)
+            stat.collect(scores)
+            metricStats[metric] = stat
+        }
+        return metricStats
     }
 
     /**
@@ -71,7 +136,7 @@ abstract class MODAModel(
      *  each score are related to the defined metrics.
      */
     private fun hasValidScores(list: List<Score>): Boolean {
-        if (metrics.size != list.size){
+        if (metrics.size != list.size) {
             return false
         }
         for (score in list) {
@@ -82,19 +147,28 @@ abstract class MODAModel(
         return true
     }
 
+    fun alternativeValues(): Map<String, Map<Metric, Double>> {
+        val map = mutableMapOf<String, Map<Metric, Double>>()
+
+        return map
+    }
+
     /**
-     *  Computes the multi-objective value for the specified
-     *  alternative
+     *  Computes the multi-objective (overall) value for the specified
+     *  [alternative].
      */
-    abstract fun multiObjectiveValue(alternative: String) : Double
+    abstract fun multiObjectiveValue(alternative: String): Double
 
     /**
      *  Computes the overall values for all defined alternatives
      *  based on the defined multi-objective value function.
+     *  The key to the map is the alternative name and the associated
+     *  value for the key is the overall multi-objective value for the
+     *  associated alternative.
      */
-    fun multiObjectiveValues() : Map<String, Double> {
-        val map = mutableMapOf<String, Double> ()
-        for (alternative in alternatives){
+    fun multiObjectiveValues(): Map<String, Double> {
+        val map = mutableMapOf<String, Double>()
+        for (alternative in alternatives) {
             map[alternative] = multiObjectiveValue(alternative)
         }
         return map

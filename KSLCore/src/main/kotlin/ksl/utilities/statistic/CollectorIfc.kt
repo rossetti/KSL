@@ -69,6 +69,15 @@ interface CollectorIfc : LastValueIfc, ValueIfc {
     }
 
     /**
+     *  Collects on all the values in the supplied collection.
+     */
+    fun collect(observations: Collection<Double>){
+        for(v in observations){
+            collect(v)
+        }
+    }
+
+    /**
      * Resets the collector as if no observations had been collected.
      */
     fun reset()
