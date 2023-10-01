@@ -73,6 +73,11 @@ abstract class MODAModel(
         //TODO adjust the domain of the value functions based on the values of the scores??
     }
 
+    private fun adjustValueFunctionDomains() {
+        // assumes that the alternatives have been defined and the scores are available
+        TODO("not implemented yet")
+    }
+
     /**
      *  Converts a list of scores to a map based on the metric for the score.
      *  This facilitates accessing the scores by metric.
@@ -111,10 +116,19 @@ abstract class MODAModel(
         return list
     }
 
-    private fun adjustValueFunctionDomains() {
-        // assumes that the alternatives have been defined and the scores are available
-
+    /**
+     *   Applies the value function to the scores associated with each alternative
+     *   and metric combination to determine the associated value.
+     */
+    fun alternativeValues(): Map<String, Map<Metric, Double>> {
+        val map = mutableMapOf<String, Map<Metric, Double>>()
+        for((alternative, metricMap) in myAlternatives){
+            TODO("not implemented yet")
+        }
+        return map
     }
+
+
 
     fun scoreStatisticsByMetric(): MutableMap<MetricIfc, Statistic> {
         // need to compute statistics (across alternatives) for the raw scores for each metric
@@ -144,11 +158,7 @@ abstract class MODAModel(
         return true
     }
 
-    fun alternativeValues(): Map<String, Map<Metric, Double>> {
-        val map = mutableMapOf<String, Map<Metric, Double>>()
 
-        return map
-    }
 
     /**
      *  Computes the multi-objective (overall) value for the specified
@@ -174,9 +184,9 @@ abstract class MODAModel(
     companion object {
 
         fun assignLinearValueFunctions(
-            metrics: Set<Metric>
-        ): Map<Metric, ValueFunctionIfc> {
-            val map = mutableMapOf<Metric, ValueFunctionIfc>()
+            metrics: Set<MetricIfc>
+        ): Map<MetricIfc, ValueFunctionIfc> {
+            val map = mutableMapOf<MetricIfc, ValueFunctionIfc>()
             for (metric in metrics) {
                 map[metric] = LinearValueFunction(metric)
             }
