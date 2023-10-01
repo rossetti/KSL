@@ -25,7 +25,7 @@ import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 
-class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared Test Statistic") {
+class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)

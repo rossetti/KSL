@@ -24,7 +24,7 @@ import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
-class CramerVonMisesScoringModel : PDFScoringModel("Cramer-von-Mises Test Statistic") {
+class CramerVonMisesScoringModel : PDFScoringModel("Cramer-von-Mises") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         val score = Statistic.cramerVonMisesTestStatistic(data, cdf)
