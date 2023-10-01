@@ -120,10 +120,22 @@ abstract class MODAModel(
      *   Applies the value function to the scores associated with each alternative
      *   and metric combination to determine the associated value.
      */
-    fun alternativeValues(): Map<String, Map<Metric, Double>> {
-        val map = mutableMapOf<String, Map<Metric, Double>>()
+    fun alternativeValues(): Map<String, Map<MetricIfc, Double>> {
+        val map = mutableMapOf<String, Map<MetricIfc, Double>>()
         for((alternative, metricMap) in myAlternatives){
-            TODO("not implemented yet")
+            // create the map to hold the values for each metric for the alternative
+            val valMap = mutableMapOf<MetricIfc, Double> ()
+            // process the scores for the alternative
+            for((metric, score) in metricMap){
+                // get the value function for the metric
+                val vf = metricFunctionMap[metric]!!
+                // apply the value function to the score
+                val v = vf.value(score.value)
+                // now store it in the map
+                valMap[metric] = v
+            }
+            // save the created map for the alternative
+            map[alternative] = valMap
         }
         return map
     }
