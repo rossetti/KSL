@@ -60,7 +60,9 @@ interface MetricIfc {
  *  better. The default direction is smaller is better. The metric can have
  *  a description of its units of measure [unitsOfMeasure].
  */
-abstract class Metric(override val name: String) : MetricIfc {
+abstract class Metric(
+    override val name: String
+) : MetricIfc {
 
     override val domain = Interval(0.0, Double.MAX_VALUE)
 
