@@ -22,6 +22,10 @@ import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
+import org.jetbrains.kotlinx.dataframe.api.getColumn
+import org.jetbrains.kotlinx.dataframe.api.into
+import org.jetbrains.kotlinx.dataframe.api.rename
+import org.jetbrains.kotlinx.dataframe.api.sortBy
 
 
 fun main() {
@@ -30,9 +34,11 @@ fun main() {
     val n = 1000
     val data = e.sample(n)
 //    data.write(KSL.out)
-    testModeler(data)
+ //   testModeler(data)
  //      testExponentialEstimation(data)
     //   testWeibullEstimation(data)
+
+    testEvaluationModel(data)
 }
 
 private fun testModeler(data: DoubleArray) {
@@ -130,6 +136,17 @@ private fun testWeibullEstimation(data: DoubleArray) {
     //val models = setOf(ChiSquaredScoringModel)
     val score = ChiSquaredScoringModel().score(result)
     println(score)
+}
+
+fun testEvaluationModel(data: DoubleArray){
+    val d = PDFModeler(data)
+    val model = d.createEvaluationModel()
+    val scoreDf = model.alternativeScoresAsDataFrame("Distributions")
+    println(scoreDf)
+    val valueDf = model.alternativeValuesAsDataFrame("Distributions")
+    println()
+    val tvCol = valueDf["Total Value"]
+    println(valueDf.sortBy{ tvCol.desc() })
 }
 
 /*

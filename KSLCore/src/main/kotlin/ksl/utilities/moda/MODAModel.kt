@@ -1,6 +1,5 @@
 package ksl.utilities.moda
 
-import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
@@ -12,10 +11,16 @@ import org.jetbrains.kotlinx.dataframe.impl.asList
 /**
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
  */
-abstract class MODAModel {
+abstract class MODAModel(
+    metricDefinitions: Map<MetricIfc, ValueFunctionIfc>
+) {
 
-    private val metricFunctionMap: MutableMap<MetricIfc, ValueFunctionIfc> = mutableMapOf()
-    private val myAlternatives: MutableMap<String, Map<MetricIfc, Score>> = mutableMapOf()
+    protected val metricFunctionMap: MutableMap<MetricIfc, ValueFunctionIfc> = mutableMapOf()
+    protected val myAlternatives: MutableMap<String, Map<MetricIfc, Score>> = mutableMapOf()
+
+    init {
+        defineMetrics(metricDefinitions)
+    }
 
     /**
      *  The list of metrics defined for the model. The order of the metrics
@@ -132,6 +137,7 @@ abstract class MODAModel {
      *  based on the supplied [metric].
      */
     fun metricScores(metric: MetricIfc): List<Double> {
+        require(metrics.contains(metric)) { "The metric (${metric.name} is not part of the model" }
         val list = mutableListOf<Double>()
         for ((alternative, map) in myAlternatives) {
             val score = map[metric]!!
@@ -158,7 +164,8 @@ abstract class MODAModel {
      *  Retrieves the values from the value functions for each alternative as a
      *  list of transformed values based on the supplied [metric]
      */
-    fun metricValues(metric: MetricIfc): List<Double>{
+    fun metricValues(metric: MetricIfc): List<Double> {
+        require(metrics.contains(metric)) { "The metric (${metric.name} is not part of the model" }
         val list = mutableListOf<Double>()
         for ((alternative, map) in myAlternatives) {
             val score = map[metric]!!
@@ -194,34 +201,74 @@ abstract class MODAModel {
         return map
     }
 
-    fun alternativeScoresAsDataFrame(): AnyFrame {
+    fun valuesByAlternative(alternative: String): Map<MetricIfc, Double> {
+        require(myAlternatives.contains(alternative)) { "The supplied alternative = $alternative is not part of the model." }
+        val map = mutableMapOf<MetricIfc, Double>()
+        val metricMap = myAlternatives[alternative]!!
+        for ((metric, score) in metricMap) {
+            // get the value function for the metric
+            val vf = metricFunctionMap[metric]!!
+            // apply the value function to the score
+            map[metric] = vf.value(score.value)
+        }
+        return map
+    }
+
+    private fun applyValueFunction(alternative: String, metric: MetricIfc): Double {
+        require(myAlternatives.contains(alternative)) { "The supplied alternative = $alternative is not part of the model." }
+        require(metrics.contains(metric)) { "The metric (${metric.name} is not part of the model" }
+        val metricMap = myAlternatives[alternative]!!
+        val score = metricMap[metric]!!
+        // get the value function for the metric
+        val vf = metricFunctionMap[metric]!!
+        // apply the value function to the score
+        return vf.value(score.value)
+    }
+
+    /**
+     *  Returns a data from with the first column being the alternatives
+     *  by name, a column of raw score values for each metric for each alternative.
+     */
+    fun alternativeScoresAsDataFrame(firstColumnName : String = "Alternatives"): AnyFrame {
         // make the alternative column
-        val alternativeColumn = alternatives.toColumn("Alternatives")
+        val alternativeColumn = alternatives.toColumn(firstColumnName)
         // then make columns for each metric
         val columns = mutableListOf<DataColumn<*>>()
         columns.add(alternativeColumn)
         val metrics = scoresByMetric()
-        for((metric, score) in metrics){
+        for ((metric, score) in metrics) {
             val dataColumn = score.toColumn(metric.name)
             columns.add(dataColumn)
         }
         return dataFrameOf(columns)
     }
 
-    fun alternativeValuesAsDataFrame(): AnyFrame {
+    /**
+     *  Returns a data from with the first column being the alternatives
+     *  by name, a column of values for each metric for each alternative,
+     *  and a final column representing the total value for the alternative.
+     */
+    fun alternativeValuesAsDataFrame(firstColumnName : String = "Alternatives"): AnyFrame {
         // make the alternative column
-        val alternativeColumn = alternatives.toColumn("Alternatives")
+        val alternativeColumn = alternatives.toColumn(firstColumnName)
         // then make columns for each metric
         val columns = mutableListOf<DataColumn<*>>()
         columns.add(alternativeColumn)
         val metrics = valuesByMetric()
-        for((metric, score) in metrics){
+        for ((metric, score) in metrics) {
             val dataColumn = score.toColumn(metric.name)
             columns.add(dataColumn)
         }
+        // no add the total value for each alternative
+        val valuesByAlternative = multiObjectiveValuesByAlternative()
+        val totalValue = valuesByAlternative.values.toColumn("Total Value")
+        columns.add(totalValue)
         return dataFrameOf(columns)
     }
 
+    /**
+     *  Computes statistics for each metric across the alternatives.
+     */
     fun scoreStatisticsByMetric(): MutableMap<MetricIfc, Statistic> {
         // need to compute statistics (across alternatives) for the raw scores for each metric
         val metricStats = mutableMapOf<MetricIfc, Statistic>()
@@ -250,10 +297,10 @@ abstract class MODAModel {
         return true
     }
 
-
     /**
      *  Computes the multi-objective (overall) value for the specified
-     *  [alternative].
+     *  [alternative]. The supplied alternative (name) must be within
+     *  the model.
      */
     abstract fun multiObjectiveValue(alternative: String): Double
 
@@ -264,7 +311,7 @@ abstract class MODAModel {
      *  value for the key is the overall multi-objective value for the
      *  associated alternative.
      */
-    fun multiObjectiveValues(): Map<String, Double> {
+    fun multiObjectiveValuesByAlternative(): Map<String, Double> {
         val map = mutableMapOf<String, Double>()
         for (alternative in alternatives) {
             map[alternative] = multiObjectiveValue(alternative)
@@ -278,13 +325,37 @@ abstract class MODAModel {
         // need to specify metrics for each column of the data frame
 
         fun assignLinearValueFunctions(
-            metrics: Set<MetricIfc>
+            metrics: List<MetricIfc>
         ): Map<MetricIfc, ValueFunctionIfc> {
             val map = mutableMapOf<MetricIfc, ValueFunctionIfc>()
             for (metric in metrics) {
                 map[metric] = LinearValueFunction(metric)
             }
             return map
+        }
+
+        /**
+         *  Creates a map of weights for each metric such that all weights are equal,
+         *  and they sum to 1.0
+         */
+        fun makeEqualWeights(metrics: Collection<MetricIfc>) : Map<MetricIfc, Double>{
+            val map = mutableMapOf<MetricIfc, Double>()
+            val n = metrics.size.toDouble()
+            for(metric in metrics){
+                map[metric] = 1.0/n
+            }
+            return map
+        }
+
+        /**
+         *  Extracts the metrics associated with each score.
+         */
+        fun extractMetrics(scores: List<Score>) : List<MetricIfc> {
+            val list = mutableListOf<MetricIfc>()
+            for(score in scores){
+                list.add(score.metric)
+            }
+            return list
         }
     }
 }
