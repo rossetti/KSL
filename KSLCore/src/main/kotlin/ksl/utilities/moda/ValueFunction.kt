@@ -1,30 +1,22 @@
 package ksl.utilities.moda
 
-import ksl.utilities.Interval
-
+/**
+ *  A value function maps values from some metric domain to
+ *  the value range of [0.0, 1.0], where 0.0 implies no value
+ *  and 1.0 implies maximal value.
+ */
 interface ValueFunctionIfc {
     val metric: MetricIfc
-    val domain: Interval
-    val range: Interval
 
     fun value(x: Double): Double
 
 }
 
+/**
+ *  A value function maps values from some metric domain to
+ *  the value range of [0.0, 1.0], where 0.0 implies no value
+ *  and 1.0 implies maximal value.
+ */
 abstract class ValueFunction(
-    override val metric: MetricIfc,
-    override val range: Interval
-) : ValueFunctionIfc {
-
-    init {
-        require(metric.domain.width > 0.0) { "The width of the domain must be > 0.0" }
-        require(metric.domain.width.isFinite()) { "The width of the domain must be finite." }
-        require(metric.domain.upperLimit.isFinite()) { "The upper limit of the domain of x must be finite. It was ${metric.domain.upperLimit}" }
-        require(range.width.isFinite()) {"The width of the range must be finite"}
-        require(range.width > 0.0) {"The width of the range must be > 0.0"}
-    }
-
-    override val domain: Interval
-        get() = metric.domain
-
-}
+    override val metric: MetricIfc
+) : ValueFunctionIfc

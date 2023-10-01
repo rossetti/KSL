@@ -61,10 +61,13 @@ interface MetricIfc {
  *  a description of its units of measure [unitsOfMeasure].
  */
 abstract class Metric(
-    override val name: String
+    override val name: String,
+    final override val domain: Interval = Interval(0.0, Double.MAX_VALUE)
 ) : MetricIfc {
-
-    override val domain = Interval(0.0, Double.MAX_VALUE)
+    init {
+        require(domain.width > 0.0) { "The width of the domain must be > 0.0. It was $domain" }
+        require(domain.width.isFinite()) { "The width of the domain must be finite. It was $domain" }
+    }
 
     override val direction = MetricIfc.Direction.SmallerIsBetter
 

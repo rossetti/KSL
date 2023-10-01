@@ -1,18 +1,20 @@
 package ksl.utilities.moda
 
-import ksl.utilities.Interval
-
+/**
+ *  Uses a linear transformation to transform from metric domain
+ *  to the value domain.
+ */
 class LinearValueFunction(
     metric: MetricIfc,
-    valueRange: Interval
-) : ValueFunction(metric, valueRange) {
+) : ValueFunction(metric) {
 
     override fun value(x: Double): Double {
-        // convert from incoming x to values using linear transformation
-        val m = range.width / domain.width
-        var y = m * (x - domain.lowerLimit) + range.lowerLimit
+        require(metric.domain.contains(x)) {"The value x = $x is not within domain = ${metric.domain}"}
+        // convert from incoming x to [0,1] values using a linear transformation
+        val domain = metric.domain
+        var y = (x - domain.lowerLimit)/ domain.width
         if (metric.direction == MetricIfc.Direction.SmallerIsBetter){
-            y = range.upperLimit - y
+            y = 1.0 - y
         }
         return y
     }
