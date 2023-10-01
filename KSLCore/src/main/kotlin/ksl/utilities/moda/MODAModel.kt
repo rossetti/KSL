@@ -37,9 +37,7 @@ abstract class MODAModel(
     /**
      *   Defines the metrics to be used in the evaluation of the alternatives.
      *   Each metric must be associated with the related value function. If not
-     *   it is not added to the model.  The value functions are all adjusted so
-     *   that they return values that are consisted with the defined value range
-     *   for the decision model. If there are previously defined metrics, they will be
+     *   it is not added to the model.  If there are previously defined metrics, they will be
      *   cleared and replaced by the supplied definitions.  If there were previously
      *   defined alternatives they will be cleared because they might not have
      *   the defined metrics.
@@ -52,7 +50,6 @@ abstract class MODAModel(
         for ((metric, valFunc) in definitions) {
             if (metric == valFunc.metric) {
                 metricFunctionMap[metric] = valFunc
-                valFunc.range.setInterval(valueRange.lowerLimit, valueRange.upperLimit)
             }
         }
     }
@@ -177,12 +174,11 @@ abstract class MODAModel(
     companion object {
 
         fun assignLinearValueFunctions(
-            metrics: Set<Metric>,
-            valueRange: Interval
+            metrics: Set<Metric>
         ): Map<Metric, ValueFunctionIfc> {
             val map = mutableMapOf<Metric, ValueFunctionIfc>()
             for (metric in metrics) {
-                map[metric] = LinearValueFunction(metric, valueRange)
+                map[metric] = LinearValueFunction(metric)
             }
             return map
         }
