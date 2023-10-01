@@ -280,6 +280,9 @@ abstract class MODAModel(
 
     companion object {
 
+        //TODO transform a data frame to Map<String, List<Score>)
+        // need to specify metrics for each column of the data frame
+
         fun assignLinearValueFunctions(
             metrics: Set<MetricIfc>
         ): Map<MetricIfc, ValueFunctionIfc> {
