@@ -59,11 +59,21 @@ abstract class MODAModel(
     }
 
     /**
+     *  Removes (clears) all the defined alternatives
+     */
+    fun clearAlternatives(){
+        myAlternatives.clear()
+    }
+
+    /**
      *  Defines the alternatives and their scores that should be evaluated by the
      *  model. The metrics for the model must have been previously defined prior
      *  to specifying the alternatives. The scores supplied for each alternative must have
      *  been created for each metric. If insufficient scores or incompatible
-     *  scores are provided, the alternative is not added to the model.
+     *  scores are provided, the alternative is not added to the model. If the alternative
+     *  has been previously defined, its data will be overwritten by the newly supplied
+     *  scores.  Any alternatives that are new will be added to the alternatives to
+     *  be evaluated (provided that they have scores for all defined metrics).
      */
     fun defineAlternatives(
         alternatives: Map<String, List<Score>>,
