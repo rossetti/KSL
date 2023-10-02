@@ -228,7 +228,7 @@ class PDFModeler(private val data: DoubleArray) {
         automaticShifting: Boolean = true,
         scoringModels: Set<PDFScoringModel> = allScoringModels,
         filterResults: Boolean = true
-    ): Pair<MutableMap<String, List<Score>>, List<MetricIfc>> {
+    ): Pair<Map<String, List<Score>>, List<MetricIfc>> {
         val list = estimateParameters(estimators, automaticShifting)
         val scoreResults = scoreResults(list, scoringModels, filterResults)
         val alternatives = mutableMapOf<String, List<Score>>()

@@ -2,11 +2,15 @@ package ksl.utilities.moda
 
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.statistic.Statistic
+import org.jetbrains.kotlinx.dataframe.AnyCol
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
+import org.jetbrains.kotlinx.dataframe.api.getValue
+import org.jetbrains.kotlinx.dataframe.api.rows
 import org.jetbrains.kotlinx.dataframe.api.toColumn
 import org.jetbrains.kotlinx.dataframe.impl.asList
+import org.jetbrains.letsPlot.core.plot.base.DataFrame
 
 /**
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
@@ -63,7 +67,7 @@ abstract class MODAModel(
      *  using this to clear out data associated with previous alternatives
      *  in preparation for a new evaluation across the same metrics.
      */
-    fun clearAlternatives(){
+    fun clearAlternatives() {
         myAlternatives.clear()
     }
 
@@ -248,7 +252,7 @@ abstract class MODAModel(
      *  The parameter [firstColumnName] can be used to name the first column of the
      *  returned data frame. By default, the first column name is "Alternatives".
      */
-    fun alternativeScoresAsDataFrame(firstColumnName : String = "Alternatives"): AnyFrame {
+    fun alternativeScoresAsDataFrame(firstColumnName: String = "Alternatives"): AnyFrame {
         // make the alternative column
         val alternativeColumn = alternatives.toColumn(firstColumnName)
         // then make columns for each metric
@@ -269,7 +273,7 @@ abstract class MODAModel(
      *  The parameter [firstColumnName] can be used to name the first column of the
      *  returned data frame. By default, the first column name is "Alternatives".
      */
-    fun alternativeValuesAsDataFrame(firstColumnName : String = "Alternatives"): AnyFrame {
+    fun alternativeValuesAsDataFrame(firstColumnName: String = "Alternatives"): AnyFrame {
         // make the alternative column
         val alternativeColumn = alternatives.toColumn(firstColumnName)
         // then make columns for each metric
@@ -341,9 +345,47 @@ abstract class MODAModel(
     }
 
     companion object {
-
-        //TODO transform a data frame to Map<String, List<Score>)
-        // need to specify metrics for each column of the data frame
+        /**
+         *  The [alternativeColumn] is the column index for the data frame that
+         *  represents the column holding the alternative names. The type of the
+         *  column must be String. The array [metricColumns] holds the indices of the
+         *  columns that hold the scores for each metric as Double values. Each of
+         *  the metric columns must be of type Double. The [dataFrame] is processed by
+         *  rows and the returned Map<String, List<Score>> hold the alternatives and
+         *  their scores suitable for use in the defineAlternatives() method. The second
+         *  element of the returned pair holds a list of metrics that were defined
+         *  for each score. The user may want to change the mutable properties of the
+         *  metrics before constructing a Map<MetricIfc, ValueFunctionIfc> for use
+         *  in the defineMetrics() method.
+         */
+        fun readDataFrame(
+            alternativeColumn: Int,
+            metricColumns: IntArray,
+            dataFrame: AnyFrame
+        ): Pair<Map<String, List<Score>>, List<Metric>> {
+            val columns = dataFrame.columns()
+            require(columns[alternativeColumn].type().classifier == String::class) { "The alternative column must hold Strings" }
+            val metrics = mutableMapOf<String, Metric>()
+            for (col in metricColumns) {
+                require(columns[col].type().classifier == Double::class) { "The metric columns must hold Doubles" }
+                val colName = columns[col].name()
+                metrics[colName] = Metric(colName)
+            }
+            val map = mutableMapOf<String, List<Score>>()
+            // process the rows of the data frame
+            for (row in dataFrame.rows()) {
+                val name = row[alternativeColumn] as String
+                val list = mutableListOf<Score>()
+                for (col in metricColumns) {
+                    val value = row[col] as Double
+                    val colName = columns[col].name()
+                    val score = Score(metrics[colName]!!, value)
+                    list.add(score)
+                }
+                map[name] = list
+            }
+            return Pair(map, metrics.values.asList())
+        }
 
         fun assignLinearValueFunctions(
             metrics: List<MetricIfc>
@@ -359,11 +401,11 @@ abstract class MODAModel(
          *  Creates a map of weights for each metric such that all weights are equal,
          *  and they sum to 1.0
          */
-        fun makeEqualWeights(metrics: Collection<MetricIfc>) : Map<MetricIfc, Double>{
+        fun makeEqualWeights(metrics: Collection<MetricIfc>): Map<MetricIfc, Double> {
             val map = mutableMapOf<MetricIfc, Double>()
             val n = metrics.size.toDouble()
-            for(metric in metrics){
-                map[metric] = 1.0/n
+            for (metric in metrics) {
+                map[metric] = 1.0 / n
             }
             return map
         }
@@ -371,15 +413,15 @@ abstract class MODAModel(
         /**
          *  Extracts the metrics associated with each score.
          */
-        fun extractMetrics(scores: List<Score>) : List<MetricIfc> {
-            return List(scores.size){scores[it].metric}
+        fun extractMetrics(scores: List<Score>): List<MetricIfc> {
+            return List(scores.size) { scores[it].metric }
         }
 
         /**
          *  Extracts the values of each score
          */
-        fun extractScoreValue(scores: List<Score>) : DoubleArray{
-            return DoubleArray(scores.size){ scores[it].value}
+        fun extractScoreValue(scores: List<Score>): DoubleArray {
+            return DoubleArray(scores.size) { scores[it].value }
         }
     }
 }
