@@ -15,4 +15,8 @@ fun main(){
     println()
     val tvCol = valueDf["Total Value"]
     println(valueDf.sortBy{ tvCol.desc() })
+
+    val cols = intArrayOf(1,2,3,4,5)
+    val map = MODAModel.readDataFrame(0, cols, scoreDf )
+    println(map)
 }

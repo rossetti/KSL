@@ -60,7 +60,7 @@ interface MetricIfc {
  *  better. The default direction is smaller is better. The metric can have
  *  a description of its units of measure [unitsOfMeasure].
  */
-abstract class Metric(
+open class Metric(
     override val name: String,
     final override val domain: Interval = Interval(0.0, Double.MAX_VALUE)
 ) : MetricIfc {
@@ -69,7 +69,7 @@ abstract class Metric(
         require(domain.width.isFinite()) { "The width of the domain must be finite. It was $domain" }
     }
 
-    override val direction = MetricIfc.Direction.SmallerIsBetter
+    override var direction = MetricIfc.Direction.SmallerIsBetter
 
     override var unitsOfMeasure: String? = null
 
