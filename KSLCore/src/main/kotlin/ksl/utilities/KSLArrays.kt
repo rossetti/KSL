@@ -1661,6 +1661,25 @@ object KSLArrays {
     }
 
     /**
+     * Examines each element, a_i starting at 0, and determines if any
+     * element is less than or equal to 0.0.
+     *
+     * @param array the array to check
+     * @return true if all are strictly positive
+     */
+    fun isStrictlyPositive(array: DoubleArray): Boolean {
+        if (array.isEmpty()) {
+            return false
+        }
+        for (x in array) {
+            if (x <= 0.0) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are strictly increasing a_0 lt a_1 lt a_2, etc.
      *
