@@ -40,7 +40,7 @@ abstract class MODAModel(
 
     /**
      *   Defines the metrics to be used in the evaluation of the alternatives.
-     *   Each metric must be associated with the related value function. If not
+     *   Each metric must be associated with the related value function. If not,
      *   it is not added to the model.  If there are previously defined metrics, they will be
      *   cleared and replaced by the supplied definitions.  If there were previously
      *   defined alternatives they will be cleared because they might not have
@@ -59,7 +59,9 @@ abstract class MODAModel(
     }
 
     /**
-     *  Removes (clears) all the defined alternatives
+     *  Removes (clears) all the defined alternatives.  Consider
+     *  using this to clear out data associated with previous alternatives
+     *  in preparation for a new evaluation across the same metrics.
      */
     fun clearAlternatives(){
         myAlternatives.clear()
@@ -144,7 +146,7 @@ abstract class MODAModel(
 
     /**
      *  Retrieves the scores for each alternative as a list of raw score values
-     *  based on the supplied [metric].
+     *  based on the supplied [metric].  The supplied metric must be part of the model.
      */
     fun metricScores(metric: MetricIfc): List<Double> {
         require(metrics.contains(metric)) { "The metric (${metric.name} is not part of the model" }
@@ -172,7 +174,8 @@ abstract class MODAModel(
 
     /**
      *  Retrieves the values from the value functions for each alternative as a
-     *  list of transformed values based on the supplied [metric]
+     *  list of transformed values based on the supplied [metric]. The supplied
+     *  metric must be part of the model.
      */
     fun metricValues(metric: MetricIfc): List<Double> {
         require(metrics.contains(metric)) { "The metric (${metric.name} is not part of the model" }
@@ -211,6 +214,10 @@ abstract class MODAModel(
         return map
     }
 
+    /**
+     *  Retrieves the value function values for each metric for the named [alternative]. The
+     *  alternative must be defined as part of the model.
+     */
     fun valuesByAlternative(alternative: String): Map<MetricIfc, Double> {
         require(myAlternatives.contains(alternative)) { "The supplied alternative = $alternative is not part of the model." }
         val map = mutableMapOf<MetricIfc, Double>()
@@ -238,6 +245,8 @@ abstract class MODAModel(
     /**
      *  Returns a data from with the first column being the alternatives
      *  by name, a column of raw score values for each metric for each alternative.
+     *  The parameter [firstColumnName] can be used to name the first column of the
+     *  returned data frame. By default, the first column name is "Alternatives".
      */
     fun alternativeScoresAsDataFrame(firstColumnName : String = "Alternatives"): AnyFrame {
         // make the alternative column
@@ -257,6 +266,8 @@ abstract class MODAModel(
      *  Returns a data from with the first column being the alternatives
      *  by name, a column of values for each metric for each alternative,
      *  and a final column representing the total value for the alternative.
+     *  The parameter [firstColumnName] can be used to name the first column of the
+     *  returned data frame. By default, the first column name is "Alternatives".
      */
     fun alternativeValuesAsDataFrame(firstColumnName : String = "Alternatives"): AnyFrame {
         // make the alternative column
