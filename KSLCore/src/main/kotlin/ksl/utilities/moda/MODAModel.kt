@@ -372,11 +372,14 @@ abstract class MODAModel(
          *  Extracts the metrics associated with each score.
          */
         fun extractMetrics(scores: List<Score>) : List<MetricIfc> {
-            val list = mutableListOf<MetricIfc>()
-            for(score in scores){
-                list.add(score.metric)
-            }
-            return list
+            return List(scores.size){scores[it].metric}
+        }
+
+        /**
+         *  Extracts the values of each score
+         */
+        fun extractScoreValue(scores: List<Score>) : DoubleArray{
+            return DoubleArray(scores.size){ scores[it].value}
         }
     }
 }
