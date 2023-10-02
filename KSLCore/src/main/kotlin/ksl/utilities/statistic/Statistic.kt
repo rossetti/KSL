@@ -1122,6 +1122,51 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             return (num / deNom) * ln(ln(n)) - 2.0 * k * lnMax
         }
 
+        /**
+         *   Returns the rank of each element in the supplied data
+         *   as a separate array of ranks.  If ranks is the returned
+         *   array, then ranks[0] indicates the rank of element 0 in
+         *   the [data] array.  Ties are handled by assigning the mean of the ranks
+         *   that would have been given otherwise, so that the sum of the ranks is preserved.
+         *   This is called [fractional ranking](https://en.wikipedia.org/wiki/Ranking)
+         */
+        fun fractionalRanks(data: DoubleArray) : DoubleArray {
+            // create the ranks array
+            val ranks = DoubleArray(data.size){0.0}
+            // Create an auxiliary array of pairs, each pair stores the data as well as its index
+            val pairs = Array<Pair<Double, Int>>(data.size){ Pair(data[it], it)}
+            // sort according to the data (first element in the pair
+            val comparator = compareBy<Pair<Double, Int>> { it.first }
+            pairs.sortWith(comparator)
+            var r = 1
+            var i = 0
+            val n = data.size
+            while (i < n) {
+                var j = i
+                // Get no of elements with equal rank
+                while ((j < n - 1) && (pairs[j].first == pairs[j + 1].first)) j += 1
+                val m = (j - i + 1)
+                for (k in 0..< m){
+                    val idx: Int = pairs[i + k].second
+                    ranks[idx] = r + (m - 1.0) * 0.5
+                }
+                // Increment rank and i
+                r += m
+                i = (i + m)
+            }
+            return ranks
+        }
+
     }
 
+}
+
+fun main(){
+    // test ranking function
+//    val y = doubleArrayOf(1.0, 2.0, 5.0, 2.0, 1.0, 25.0, 2.0)
+    //   val y = doubleArrayOf(1.0, 2.0, 5.0, 2.0, 1.0, 25.0, 2.0, 1.0, 1.0, 1.0)
+    val y = doubleArrayOf(1.0, 1.0, 2.0, 3.0, 3.0, 4.0, 5.0, 5.0, 5.0)
+    println(y.joinToString())
+    val r = Statistic.fractionalRanks(y)
+    println(r.joinToString())
 }
