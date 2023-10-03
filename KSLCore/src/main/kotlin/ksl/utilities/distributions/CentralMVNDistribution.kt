@@ -17,7 +17,8 @@ import ksl.utilities.statistic.Statistic
 /**
  * Represents a multi-variate normal distribution with means = 0.0
  * and the provided covariances.  The computed CDF values are to about 2 decimal places
- * using Monte-Carlo integration.
+ * using Monte-Carlo integration.  There are more efficient and accurate methods
+ * to do this computation than done here.
  *
  * @param covariances the variance-covariance matrix, must not be null, must be square and positive definite
  * @param stream      the stream for the sampler
@@ -185,6 +186,10 @@ fun testCDF1() {
     intervals.add(i5)
     val d = CentralMVNDistribution(cov)
     println(d)
+//    d.mcIntegrationController.maxSampleSize =10000
+//    d.mcIntegrationController.microRepSampleSize = 500
+//    d.mcIntegrationController.desiredHWErrorBound = 0.0001
+
     println()
     val v: Double = d.cdf(intervals)
     println("Answer should be = 0.4741284")

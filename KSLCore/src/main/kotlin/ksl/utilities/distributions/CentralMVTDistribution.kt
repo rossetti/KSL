@@ -111,7 +111,7 @@ class CentralMVTDistribution(
 fun main() {
     testCDF()
     testQuantile()
-    //        enumerateQuantiles();
+//    enumerateQuantiles();
 }
 
 fun testCDF() {
@@ -144,7 +144,11 @@ fun testCDF() {
 }
 
 fun testQuantile() {
-    val cov = arrayOf(doubleArrayOf(1.0, 0.5, 0.5), doubleArrayOf(0.5, 1.0, 0.5), doubleArrayOf(0.5, 0.5, 1.0))
+    val cov = arrayOf(
+        doubleArrayOf(1.0, 0.5, 0.5),
+        doubleArrayOf(0.5, 1.0, 0.5),
+        doubleArrayOf(0.5, 0.5, 1.0)
+    )
     val d = CentralMVTDistribution(20.0, cov)
     val i1 = Interval(Double.NEGATIVE_INFINITY, 2.191936)
     val i2 = Interval(Double.NEGATIVE_INFINITY, 2.191936)
