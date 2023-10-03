@@ -109,7 +109,7 @@ class CentralMVTDistribution(
 
 }
 
-fun main(args: Array<String>) {
+fun main() {
     testCDF()
     testQuantile()
     //        enumerateQuantiles();
@@ -128,7 +128,7 @@ fun testCDF() {
     val i3 = Interval(-3.0, 4.0)
     val i4 = Interval(-2.0, 3.0)
     val i5 = Interval(-1.0, 2.0)
-    val intervals: MutableList<Interval> = ArrayList<Interval>()
+    val intervals: MutableList<Interval> = ArrayList()
     intervals.add(i1)
     intervals.add(i2)
     intervals.add(i3)
@@ -165,7 +165,11 @@ fun testQuantile() {
 }
 
 fun enumerateQuantiles() {
-    val cov = arrayOf(doubleArrayOf(1.0, 0.5, 0.5), doubleArrayOf(0.5, 1.0, 0.5), doubleArrayOf(0.5, 0.5, 1.0))
+    val cov = arrayOf(
+        doubleArrayOf(1.0, 0.5, 0.5),
+        doubleArrayOf(0.5, 1.0, 0.5),
+        doubleArrayOf(0.5, 0.5, 1.0)
+    )
     val d = CentralMVTDistribution(20.0, cov)
     val grid = GridEnumerator(d.quantileFunction)
     grid.evaluate(2.1, 0.01, 20)
