@@ -8,11 +8,10 @@ import ksl.utilities.mcintegration.MCExperimentSetUpIfc
 import ksl.utilities.mcintegration.MCMultiVariateIntegration
 import ksl.utilities.random.mcmc.FunctionMVIfc
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.MVIndependentRV
-import ksl.utilities.random.rvariable.MVNormalRV
-import ksl.utilities.random.rvariable.UniformRV
+import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.Statistic
+//import org.hipparchus.random.RandomVectorGenerator
+//import org.hipparchus.random.SobolSequenceGenerator
 
 /**
  * Represents a multi-variate normal distribution with means = 0.0
@@ -32,7 +31,7 @@ open class CentralMVNDistribution (
     protected val cfL: Array<DoubleArray>
     protected val nDim: Int
     protected var integrator: MCMultiVariateIntegration
-    protected var sampler: MVIndependentRV
+    protected var sampler: MVRVariableIfc
 
     init {
         require(MVNormalRV.isValidCovariance(covariances)) { "The covariance array is not a valid covariance matrix" }
@@ -40,6 +39,7 @@ open class CentralMVNDistribution (
         cfL = MVNormalRV.choleskyDecomposition(covariances)
         this.covariances = KSLArrays.copy2DArray(covariances)
         sampler = MVIndependentRV(nDim, UniformRV(0.0, 1.0, stream))
+//        sampler = SobolSequence(nDim)  // doesn't improve the accuracy, but a little faster
         val genzFunc = GenzFunc(nDim)
         integrator = MCMultiVariateIntegration(genzFunc, sampler)
         //integrator.desiredHWErrorBound = 0.001
@@ -159,6 +159,49 @@ open class CentralMVNDistribution (
 
     val quantileFunction: QuantileFunction
         get() = QuantileFunction()
+
+//    protected inner class SobolSequence(override val dimension: Int) : MVRVariableIfc {
+//
+//        private val generator: RandomVectorGenerator = SobolSequenceGenerator(dimension)
+//
+//        override fun instance(stream: RNStreamIfc): MVRVariableIfc {
+//            return this
+//        }
+//
+//        override fun antitheticInstance(): MVRVariableIfc {
+//            return this
+//        }
+//
+//        override fun resetStartStream() {
+//        }
+//
+//        override fun resetStartSubStream() {
+//        }
+//
+//        override fun advanceToNextSubStream() {
+//        }
+//
+//        override var antithetic: Boolean = false
+//            get() = false
+//            set(value) { field = false}
+//        override var advanceToNextSubStreamOption: Boolean = false
+//            get() = false
+//            set(value) { field = false}
+//        override var resetStartStreamOption: Boolean = false
+//            get() = false
+//            set(value) { field = false}
+//
+//        override fun sample(array: DoubleArray) {
+//            val nextVector = generator.nextVector()
+//            nextVector.copyInto(array)
+//        }
+//
+//        override var rnStream: RNStreamIfc
+//            get() = TODO("Not yet implemented")
+//            set(value) {}
+//
+//    }
+
 }
 
 fun main(){
@@ -186,8 +229,8 @@ fun testCDF1() {
     intervals.add(i5)
     val d = CentralMVNDistribution(cov)
     println(d)
-//    d.mcIntegrationController.maxSampleSize =10000
-//    d.mcIntegrationController.microRepSampleSize = 500
+//    d.mcIntegrationController.maxSampleSize =1000
+//    d.mcIntegrationController.microRepSampleSize = 5000
 //    d.mcIntegrationController.desiredHWErrorBound = 0.0001
 
     println()
