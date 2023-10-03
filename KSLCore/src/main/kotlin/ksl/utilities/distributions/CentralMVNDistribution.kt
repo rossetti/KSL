@@ -13,7 +13,6 @@ import ksl.utilities.random.rvariable.MVIndependentRV
 import ksl.utilities.random.rvariable.MVNormalRV
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.Statistic
-import java.util.*
 
 /**
  * Represents a multi-variate normal distribution with means = 0.0
@@ -23,7 +22,7 @@ import java.util.*
  * @param covariances the variance-covariance matrix, must not be null, must be square and positive definite
  * @param stream      the stream for the sampler
  */
-class CentralMVNDistribution (
+open class CentralMVNDistribution (
     covariances: Array<DoubleArray>,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : MVCDF(covariances.size) {
