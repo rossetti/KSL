@@ -63,7 +63,6 @@ class CentralMVTDistribution(
      * Uses the Genz transform function for Monte-carlo evaluation of the integral.
      * Accuracy depends on the sampling.  Should be to about 2 decimal places with default settings.
      *
-     *
      * Refer to equation (3) of this [paper](https://informs-sim.org/wsc15papers/032.pdf)
      *
      * @return the estimated value
