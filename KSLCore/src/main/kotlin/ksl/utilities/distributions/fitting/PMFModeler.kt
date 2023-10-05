@@ -18,7 +18,9 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.distributions.InverseCDFIfc
+import ksl.utilities.distributions.*
+import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.toDoubles
@@ -107,6 +109,30 @@ class PMFModeler(
             // make sure that they are sorted from smallest to largest
             bp.sort()
             return bp
+        }
+
+        /**
+         *  Constructs an instance of the appropriate discrete probability distribution
+         *  for the provided random variable [parameters].  If no probability distribution
+         *  is defined for the supplied type of random variable, then null is returned.
+         */
+        fun createDistribution(parameters: RVParameters): DiscreteDistributionIfc? {
+
+            return when (parameters.rvType) {
+                RVType.Binomial-> {
+                    val p = parameters.doubleParameter("probOfSuccess")
+                    val n = parameters.doubleParameter("numTrials")
+                    return Binomial(p, n.toInt())
+                }
+
+//                RVType.JohnsonB -> TODO()
+//                RVType.Laplace -> TODO()
+//                RVType.LogLogistic -> TODO()
+//                RVType.ChiSquared -> TODO()
+//                RVType.PearsonType5 -> TODO()
+//                RVType.PearsonType6 -> TODO()
+                else -> null
+            }
         }
     }
 }
