@@ -82,6 +82,8 @@ dependencies {
     //TODO I'm not using it anywhere, consider removing it altogether
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
     implementation("org.hipparchus:hipparchus-core:2.3")
+// https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
+    implementation("org.hipparchus:hipparchus-stat:2.3")
 
     implementation("com.google.guava:guava:32.1.1-jre")
 

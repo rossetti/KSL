@@ -18,21 +18,22 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.Interval
-import ksl.utilities.distributions.ContinuousDistributionIfc
-import ksl.utilities.moda.MetricIfc
-import ksl.utilities.moda.Score
-import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.Statistic
+import ksl.utilities.distributions.InverseCDFIfc
 
-class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared") {
+class PMFModeler {
 
-    override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
-        var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
-        val domain = cdf.domain()
-        bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
-        bp = Histogram.addUpperLimit(domain.upperLimit, bp)
-        val chiSq = Statistic.chiSqTestStatistic(data, bp, cdf)
-        return Score(this, chiSq,true)
+
+    companion object {
+
+        fun equalizedCDFBreakPoints(sampleSize: Int, inverse: InverseCDFIfc): DoubleArray {
+            var bp = PDFModeler.equalizedCDFBreakPoints(sampleSize, inverse)
+            // there could be duplicate values, remove them
+            val set = LinkedHashSet<Double>(bp.asList())
+            // convert back to array
+            bp = set.toDoubleArray()
+            // make sure that they are sorted from smallest to largest
+            bp.sort()
+            return bp
+        }
     }
 }

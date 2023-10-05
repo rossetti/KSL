@@ -1024,6 +1024,18 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         }
 
         /**
+         *   Computes the chi-squared test statistic based on the supplied [data]
+         *   and hypothesized distribution function, [fn].  The break points [breakPoints]
+         *   are used to define the binning and tabulation of the counts for the data.
+         */
+        fun chiSqTestStatistic(data: DoubleArray, breakPoints: DoubleArray, fn: CDFIfc): Double {
+            val h = Histogram(breakPoints)
+            h.collect(data)
+            val ec = h.expectedCounts(fn)
+            return chiSqTestStatistic(h.binCounts, ec)
+        }
+
+        /**
          *  Computes the Anderson-Darling test statistic
          *  https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test
          */
