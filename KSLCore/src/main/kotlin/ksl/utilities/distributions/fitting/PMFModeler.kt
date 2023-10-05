@@ -19,9 +19,52 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.InverseCDFIfc
+import ksl.utilities.statistic.IntegerFrequency
+import ksl.utilities.statistic.StatisticIfc
+import ksl.utilities.toDoubles
 
-class PMFModeler {
+class PMFModeler(
+    private val data: IntArray
+) {
 
+ //   constructor(data : IntArray) : this(data.toDoubles())
+
+    val frequency: IntegerFrequency = IntegerFrequency(data= data)
+
+    val statistics: StatisticIfc
+        get() = frequency.statistic()
+
+    /**
+     *  This set holds the default set of estimators to try
+     *  during the estimation process of the discrete distributions.
+     */
+    val defaultEstimators: Set<ParameterEstimatorIfc>
+        get() = setOf(
+            NegBinomialMOMParameterEstimator,
+            PoissonMLEParameterEstimator,
+            BinomialMOMParameterEstimator,
+            BinomialMaxParameterEstimator
+        )
+
+    /**
+     *  Estimates the parameters for all estimators represented by
+     *  the set of [estimators]. Shifting of the data is not
+     *  performed. It is assumed that the supplied estimators are
+     *  appropriate for the supplied data.
+     *
+     *  The returned list will contain the results for
+     *  each estimator.  Keep in mind that some estimators may fail the estimation
+     *  process, which will be noted in the success property of the estimation results.
+     */
+    fun estimateParameters(estimators: Set<ParameterEstimatorIfc>
+    ): List<EstimationResult> {
+        val estimatedParameters = mutableListOf<EstimationResult>()
+        for (estimator in estimators) {
+            val result  =estimator.estimate(data.toDoubles(), statistics)
+            estimatedParameters.add(result)
+        }
+        return estimatedParameters
+    }
 
     companion object {
 
