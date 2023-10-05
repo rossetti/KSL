@@ -18,5 +18,5 @@
 
 package ksl.utilities.distributions
 
-interface DiscreteDistributionIfc : CDFIfc, PMFIfc {
+interface DiscreteDistributionIfc : CDFIfc, PMFIfc, InverseCDFIfc {
 }
