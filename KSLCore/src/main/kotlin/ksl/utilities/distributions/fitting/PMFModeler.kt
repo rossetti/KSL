@@ -27,12 +27,18 @@ class PMFModeler(
     private val data: IntArray
 ) {
 
- //   constructor(data : IntArray) : this(data.toDoubles())
+    //   constructor(data : IntArray) : this(data.toDoubles())
+    private val dataAsDoubles = data.toDoubles()
 
-    val frequency: IntegerFrequency = IntegerFrequency(data= data)
+    val frequency: IntegerFrequency = IntegerFrequency(data = data)
 
-    val statistics: StatisticIfc
-        get() = frequency.statistic()
+    val statistics: StatisticIfc = frequency.statistic()
+
+    val hasZeroes: Boolean
+        get() = statistics.zeroCount > 0
+
+    val hasNegatives: Boolean
+        get() = statistics.negativeCount > 0
 
     /**
      *  This set holds the default set of estimators to try
@@ -56,11 +62,12 @@ class PMFModeler(
      *  each estimator.  Keep in mind that some estimators may fail the estimation
      *  process, which will be noted in the success property of the estimation results.
      */
-    fun estimateParameters(estimators: Set<ParameterEstimatorIfc>
+    fun estimateParameters(
+        estimators: Set<ParameterEstimatorIfc>
     ): List<EstimationResult> {
         val estimatedParameters = mutableListOf<EstimationResult>()
         for (estimator in estimators) {
-            val result  =estimator.estimate(data.toDoubles(), statistics)
+            val result = estimator.estimate(dataAsDoubles, statistics)
             estimatedParameters.add(result)
         }
         return estimatedParameters
