@@ -18,5 +18,8 @@
 
 package ksl.utilities.distributions
 
-interface DiscreteDistributionIfc : CDFIfc, PMFIfc, InverseCDFIfc {
+import ksl.utilities.random.ParametersIfc
+import ksl.utilities.random.rvariable.GetRVariableIfc
+
+interface DiscreteDistributionIfc : CDFIfc, PMFIfc, InverseCDFIfc, GetRVariableIfc, ParametersIfc {
 }
