@@ -572,12 +572,6 @@ class PDFModeler(private val data: DoubleArray) {
                     return Weibull(shape, scale)
                 }
 
-//                RVType.Binomial-> {
-//                    val p = parameters.doubleParameter("probOfSuccess")
-//                    val n = parameters.doubleParameter("numTrials")
-//                    return Binomial(p, n.toInt())
-//                }
-
 //                RVType.JohnsonB -> TODO()
 //                RVType.Laplace -> TODO()
 //                RVType.LogLogistic -> TODO()
