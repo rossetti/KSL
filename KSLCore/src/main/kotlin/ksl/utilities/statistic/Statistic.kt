@@ -1031,7 +1031,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         fun chiSqTestStatistic(data: DoubleArray, breakPoints: DoubleArray, fn: CDFIfc): Double {
             val h = Histogram(breakPoints)
             h.collect(data)
-            val ec = h.expectedCounts(fn)
+            val ec = h.expectedCounts(fn) //TODO reconsider this, should this be limited to continuous
             return chiSqTestStatistic(h.binCounts, ec)
         }
 
