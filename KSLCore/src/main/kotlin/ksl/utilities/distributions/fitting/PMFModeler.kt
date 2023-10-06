@@ -81,7 +81,7 @@ class PMFModeler(
         /**
          *  This function is similar in purpose to the similarly named function in PDFModeler.
          *  The primary difference is that this function ensures that the returned break points
-         *  are unique because a set of probability may map to the same value for a discrete
+         *  are unique because a set of probability values may map to the same value for a discrete
          *  distribution.
          *
          *  Computes breakpoints for the distribution that ensures (approximately) that
@@ -101,8 +101,8 @@ class PMFModeler(
          *  CDF and do not account for any shift that may be needed during the modeling
          *  process.
          */
-        fun equalizedCDFBreakPoints(sampleSize: Int, inverse: InverseCDFIfc): DoubleArray {
-            var bp = PDFModeler.equalizedCDFBreakPoints(sampleSize, inverse)
+        fun equalizedCDFBreakPoints(sampleSize: Int, dist: DiscreteDistributionIfc): DoubleArray {
+            var bp = PDFModeler.equalizedCDFBreakPoints(sampleSize, dist)
             // there could be duplicate values, remove them by forcing them into a set
             val set = LinkedHashSet<Double>(bp.asList())
             // convert back to array
