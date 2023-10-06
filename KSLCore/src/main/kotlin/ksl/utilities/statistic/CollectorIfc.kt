@@ -51,6 +51,24 @@ interface CollectorIfc : LastValueIfc, ValueIfc {
     }
 
     /**
+     * Collects on the Int value
+     *
+     * @param obs the observation to collect on
+     */
+    fun collect(obs: Int) {
+        collect(obs.toDouble())
+    }
+
+    /**
+     * Collects on the Long value
+     *
+     * @param obs the observation to collect on
+     */
+    fun collect(obs: Long) {
+        collect(obs.toDouble())
+    }
+
+    /**
      * Collect on the supplied value
      *
      * @param obs a double representing the observation
@@ -63,6 +81,39 @@ interface CollectorIfc : LastValueIfc, ValueIfc {
      * @param observations the values, must not be null
      */
     fun collect(observations: DoubleArray) {
+        for (v in observations) {
+            collect(v)
+        }
+    }
+
+    /**
+     * Collects on the values in the supplied array.
+     *
+     * @param observations the values, must not be null
+     */
+    fun collect(observations: IntArray) {
+        for (v in observations) {
+            collect(v)
+        }
+    }
+
+    /**
+     * Collects on the values in the supplied array.
+     *
+     * @param observations the values, must not be null
+     */
+    fun collect(observations: LongArray) {
+        for (v in observations) {
+            collect(v)
+        }
+    }
+
+    /**
+     * Collects on the values in the supplied array.
+     *
+     * @param observations the values, must not be null
+     */
+    fun collect(observations: BooleanArray) {
         for (v in observations) {
             collect(v)
         }

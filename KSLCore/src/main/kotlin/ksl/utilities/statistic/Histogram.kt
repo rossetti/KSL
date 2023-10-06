@@ -585,6 +585,6 @@ fun main() {
         h1.collect(x)
         h2.collect(x)
     }
-    println(h1)
+//    println(h1)
     println(h2)
 }

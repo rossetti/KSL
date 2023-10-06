@@ -87,6 +87,12 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisso
     }
 
     override fun cdf(x: Double): Double {
+        if ((x == Double.POSITIVE_INFINITY) || (x >= Integer.MAX_VALUE)){
+            return 1.0
+        }
+        if (x < 0.0){
+            return 0.0
+        }
         return cdf(x.toInt())
     }
 
