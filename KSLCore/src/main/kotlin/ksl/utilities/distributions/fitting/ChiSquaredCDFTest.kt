@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.DiscreteDistributionIfc
 import ksl.utilities.distributions.DistributionFunctionIfc
 
 
@@ -31,8 +33,17 @@ class ChiSquaredCDFTest(
 ) {
 
     private val dist = df
-    
+
 
     //TODO constructor for discrete, for continuous?
     // automatically determine the break points, but allow them to be changed
+    // maybe an interface with two implementations for discrete and continuous
+}
+
+class ChiSquaredTestPMF(data: DoubleArray, df: DiscreteDistributionIfc){
+
+}
+
+class ChiSquaredTestPDF(data: DoubleArray, df: ContinuousDistributionIfc){
+
 }
