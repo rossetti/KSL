@@ -40,10 +40,16 @@ class ChiSquaredCDFTest(
     // maybe an interface with two implementations for discrete and continuous
 }
 
-class ChiSquaredTestPMF(data: DoubleArray, df: DiscreteDistributionIfc){
-
+class ChiSquaredTestPMF(
+    private val data: IntArray,
+    private val df: DiscreteDistributionIfc
+){
+    // cannot check if data is in domain of distribution
 }
 
-class ChiSquaredTestPDF(data: DoubleArray, df: ContinuousDistributionIfc){
-
+class ChiSquaredTestPDF(
+    private val data: DoubleArray,
+    private val df: ContinuousDistributionIfc
+){
+    // can check if data is in domain of distribution
 }
