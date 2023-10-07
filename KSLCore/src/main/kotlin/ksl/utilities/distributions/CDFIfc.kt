@@ -52,23 +52,6 @@ fun interface CDFIfc {
         return cdf(interval.lowerLimit, interval.upperLimit)
     }
 
-    /**
-     * Returns the probability of being in the bin,
-     * F(upper limit) - F(lower limit)
-     */
-    fun cdf(bin: HistogramBin): Double {
-        return cdf(bin.lowerLimit, bin.upperLimit)
-    }
-
-    /**
-     * Returns the probability of being in each bin,
-     * F(upper limit) - F(lower limit) within the bins
-     * with p[0] for bins[0] etc.
-     */
-    fun cdf(bins: List<HistogramBin>): DoubleArray {
-        return DoubleArray(bins.size) { cdf(bins[it]) }
-    }
-
     /** Returns the Pr{x1&lt;=X&lt;=x2} for the distribution
      *
      * @param x1 a double representing the lower limit

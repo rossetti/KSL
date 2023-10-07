@@ -305,23 +305,6 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     fun cumulativeFraction(x: Double): Double
 
     /**
-     *  The expected number of observations within the bin given
-     *  a particular [cdf]
-     */
-    fun expectedCount(binNum: Int, cdf: CDFIfc): Double { //TODO reconsider this, should this be limited to continuous
-        return count * cdf.cdf(bin(binNum))
-    }
-
-    /**
-     *  The expected number of observations in each bin given
-     *  a particular [cdf].
-     */
-    fun expectedCounts(cdf: CDFIfc): DoubleArray { //TODO reconsider this, should this be limited to continuous
-        val p = cdf.cdf(bins)
-        return p.multiplyConstant(count)
-    }
-
-    /**
      * Total number of observations collected including overflow and underflow
      *
      * @return Total number of observations
