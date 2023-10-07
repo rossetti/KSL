@@ -19,6 +19,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.ParametersIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 
@@ -31,41 +32,4 @@ interface DiscreteDistributionIfc : CDFIfc, PMFIfc, InverseCDFIfc, GetRVariableI
         return cdf(x) - pmf(x)
     }
 
-    /**
-     *  Computes the sum of the probabilities over the provided range.
-     *  If the range is closed a..b then the end point b is included in the
-     *  sum. If the range is open a..&ltb then the point b is not included
-     *  in the sum.
-     */
-    fun pmf(range: IntRange) : Double {
-        var sum = 0.0
-        for (i in range){
-            sum = sum + pmf(i)
-        }
-        return sum
-    }
-
-//    /**
-//     * Returns the probability of being in the open [interval],
-//     * Be careful, this is Pr{lower limit &lt;= X &lt; upper limit}
-//     * which excludes the upper limit.
-//     * @return the probability
-//     */
-//    fun openRightCDF(interval: Interval): Double {
-//        return openRightCDF(interval.lowerLimit, interval.upperLimit)
-//    }
-//
-//    /** Returns the Pr{x1 &lt;= X &lt; x2} for the distribution.
-//     * Be careful, this is Pr{x1 &lt;= X &lt; x2}
-//     * which excludes the upper limit.
-//     *
-//     * @param x1 a double representing the lower limit
-//     * @param x2 a double representing the upper limit
-//     * @return the probability
-//     * @throws IllegalArgumentException if x1 &gt;= x2
-//     */
-//    fun openRightCDF(x1: Double, x2: Double): Double {
-//        require(x1 < x2) { "x1 = $x1 >= x2 = $x2 in openRightCDF(x1,x2)" }
-//        return strictlyLessCDF(x2) - cdf(x1)
-//    }
 }

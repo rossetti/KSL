@@ -124,6 +124,27 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
         return negBinomialPMF(i, numSuccesses, probOfSuccess, recursiveAlgorithmFlag)
     }
 
+    /**
+     *  Computes the sum of the probabilities over the provided range.
+     *  If the range is closed a..b then the end point b is included in the
+     *  sum. If the range is open a..&ltb then the point b is not included
+     *  in the sum.
+     */
+    fun pmf(range: IntRange) : Double {
+        if (range.last < 0){
+            return 0.0
+        }
+        var sum = 0.0
+        for (i in range){
+            val p = pmf(i)
+            if ((i > KSLMath.maxNumIterations) && KSLMath.equal(p, 0.0)){
+                break
+            }
+            sum = sum + p
+        }
+        return sum
+    }
+
     override fun cdf(x: Double): Double {
         return cdf(x.toInt())
     }
