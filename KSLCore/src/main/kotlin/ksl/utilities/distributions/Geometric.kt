@@ -93,27 +93,13 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution<
     /** computes the pmf of the distribution
      * f(x) = p(1-p)^(x) for x&gt;=0, 0 otherwise
      *
-     * @param x the value to evaluate
+     * @param i the value to evaluate
      * @return the probability
      */
-    fun pmf(x: Int): Double {
-        return if (x < 0) {
+    override fun pmf(i: Int): Double {
+        return if (i < 0) {
             0.0
-        } else pSuccess * pFailure.pow(x.toDouble())
-    }
-
-    /** If x is not and integer value, then the probability must be zero
-     * otherwise pmf(int x) is used to determine the probability
-     *
-     * @param x the value to evaluate
-     * @return the probability
-     */
-    override fun pmf(x: Double): Double {
-        return if (floor(x) == x) {
-            pmf(x.toInt())
-        } else {
-            0.0
-        }
+        } else pSuccess * pFailure.pow(i.toDouble())
     }
 
     /** computes the cdf of the distribution
