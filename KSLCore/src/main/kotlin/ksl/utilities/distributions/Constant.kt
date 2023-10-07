@@ -58,6 +58,14 @@ class Constant (var value: Double = 0.0, name: String? = null) : Distribution<Co
         }
     }
 
+    override fun pmf(i: Int): Double {
+        return if (i.toDouble() == value) {
+            1.0
+        } else {
+            0.0
+        }
+    }
+
     override fun cdf(x: Double): Double {
         return if (x < value) {
             0.0

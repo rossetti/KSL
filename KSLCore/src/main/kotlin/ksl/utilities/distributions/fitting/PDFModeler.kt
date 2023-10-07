@@ -457,7 +457,7 @@ class PDFModeler(private val data: DoubleArray) {
          * F(upper limit) - F(lower limit)
          */
         fun binProbability(bin: HistogramBin, df: ContinuousDistributionIfc): Double {
-            return df.closedIntervalProbability(bin.lowerLimit, bin.upperLimit)
+            return df.cdf(bin.lowerLimit, bin.upperLimit)
         }
 
         /**

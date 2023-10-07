@@ -113,23 +113,15 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
         return numSuccesses * probOfFailure / (probOfSuccess * probOfSuccess)
     }
 
-    override fun pmf(x: Double): Double {
-        return if (floor(x) == x) {
-            pmf(x.toInt())
-        } else {
-            0.0
-        }
-    }
-
     /**
      * Returns the prob of getting x failures before the rth success where r is
      * the desired number of successes parameter
      *
-     * @param j the value to evaluate
+     * @param i the value to evaluate
      * @return the probability
      */
-    fun pmf(j: Int): Double {
-        return negBinomialPMF(j, numSuccesses, probOfSuccess, recursiveAlgorithmFlag)
+    override fun pmf(i: Int): Double {
+        return negBinomialPMF(i, numSuccesses, probOfSuccess, recursiveAlgorithmFlag)
     }
 
     override fun cdf(x: Double): Double {

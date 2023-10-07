@@ -73,21 +73,13 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
         return binomialCDF(x, numTrials, probOfSuccess, useRecursiveAlgorithm)
     }
 
-    override fun pmf(x: Double): Double {
-        return if (floor(x) == x) {
-            pmf(x.toInt())
-        } else {
-            0.0
-        }
-    }
-
     /**
      *
-     * @param x value to evaluate
+     * @param i value to evaluate
      * @return the associated probability
      */
-    fun pmf(x: Int): Double {
-        return binomialPMF(x, numTrials, probOfSuccess, useRecursiveAlgorithm)
+    override fun pmf(i: Int): Double {
+        return binomialPMF(i, numTrials, probOfSuccess, useRecursiveAlgorithm)
     }
 
     override fun mean(): Double {

@@ -148,6 +148,16 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
         return 0.0
     }
 
+    override fun pmf(i: Int): Double {
+        for(pp in myProbabilityPoints) {
+            if (pp.value == i.toDouble()){
+                return pp.prob
+            }
+        }
+        // went through all values and not found
+        return 0.0
+    }
+
     /**
      * Returns the pmf as a string.
      *

@@ -50,8 +50,8 @@ fun interface CDFIfc {
      * which includes the lower limit and has implications if
      * the distribution is discrete
      */
-    fun closedIntervalProbability(interval: Interval): Double {
-        return closedIntervalProbability(interval.lowerLimit, interval.upperLimit)
+    fun cdf(interval: Interval): Double {
+        return cdf(interval.lowerLimit, interval.upperLimit)
     }
 
     /** Returns the Pr{x1 &lt;= X &lt;= x2} for the distribution.
@@ -63,7 +63,7 @@ fun interface CDFIfc {
      * @return cdf(x2)-cdf(x1)
      * @throws IllegalArgumentException if x1 &gt; x2
      */
-    fun closedIntervalProbability(x1: Double, x2: Double): Double {
+    fun cdf(x1: Double, x2: Double): Double {
         require(x1 <= x2) { "x1 = $x1 > x2 = $x2 in cdf(x1,x2)" }
         return cdf(x2) - cdf(x1)
     }

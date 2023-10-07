@@ -151,23 +151,8 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisso
         } else poissonInvCDF(p, mean, useRecursiveAlgorithm).toDouble()
     }
 
-    fun pmf(x: Int): Double {
-        return poissonPMF(x, mean, useRecursiveAlgorithm)
-    }
-
-    /**
-     * If x is not and integer value, then the probability must be zero
-     * otherwise pmf(int x) is used to determine the probability
-     *
-     * @param x the value to evaluate
-     * @return the probability at the point
-     */
-    override fun pmf(x: Double): Double {
-        return if (floor(x) == x) {
-            pmf(x.toInt())
-        } else {
-            0.0
-        }
+    override fun pmf(i: Int): Double {
+        return poissonPMF(i, mean, useRecursiveAlgorithm)
     }
 
     /**
