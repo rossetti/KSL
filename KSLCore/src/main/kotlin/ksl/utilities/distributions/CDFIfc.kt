@@ -46,7 +46,7 @@ fun interface CDFIfc {
     /**
      * Returns the probability of being in the interval,
      * F(upper limit) - F(lower limit)
-     * Be careful, this is Pr{lower limit&lt;=X&lt;=upper limit}
+     * Be careful, this is Pr{lower limit &lt; = X &lt; = upper limit}
      * which includes the lower limit and has implications if
      * the distribution is discrete
      */
@@ -54,8 +54,8 @@ fun interface CDFIfc {
         return closedIntervalProbability(interval.lowerLimit, interval.upperLimit)
     }
 
-    /** Returns the Pr{x1&lt;=X&lt;=x2} for the distribution.
-     * Be careful, this is Pr{x1&lt;=X&lt;=x2}
+    /** Returns the Pr{x1 &lt;= X &lt;= x2} for the distribution.
+     * Be careful, this is Pr{x1 &lt;= X &lt;= x2}
      * which includes the lower limit and has implications if
      * the distribution is discrete
      * @param x1 a double representing the lower limit
