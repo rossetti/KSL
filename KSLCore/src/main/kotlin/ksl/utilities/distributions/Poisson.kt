@@ -165,6 +165,9 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisso
         if (range.last < 0){
             return 0.0
         }
+        if (range.last == Int.MAX_VALUE){
+            return 1.0 - strictlyLessCDF(range.first.toDouble())
+        }
         var sum = 0.0
         for (i in range){
             val p = pmf(i)
