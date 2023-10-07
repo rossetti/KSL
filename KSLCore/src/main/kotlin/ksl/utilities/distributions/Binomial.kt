@@ -82,6 +82,26 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
         return binomialPMF(i, numTrials, probOfSuccess, useRecursiveAlgorithm)
     }
 
+    /**
+     *  Computes the sum of the probabilities over the provided range.
+     *  If the range is closed a..b then the end point b is included in the
+     *  sum. If the range is open a..&ltb then the point b is not included
+     *  in the sum.
+     */
+    fun pmf(range: IntRange): Double {
+        if (range.last < 0){
+            return 0.0
+        }
+        if ((range.first == 0) && range.last >= numTrials){
+            return 1.0
+        }
+        var sum = 0.0
+        for (i in range){
+            sum = sum + pmf(i)
+        }
+        return sum
+    }
+
     override fun mean(): Double {
         return (numTrials * probOfSuccess)
     }

@@ -32,6 +32,19 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
 
     val lowerLimit: Double = theLowerLimit
     val upperLimit: Double = theUpperLimit
+
+    val closedRange: ClosedFloatingPointRange<Double>
+        get() = lowerLimit.rangeTo(upperLimit)
+
+    val openRange: OpenEndRange<Double>
+        get() = lowerLimit.rangeUntil(upperLimit)
+
+    val openIntRange: IntRange
+        get() = lowerLimit.toInt().rangeUntil(upperLimit.toInt())
+
+    val closedIntRange: IntRange
+        get() = lowerLimit.toInt().rangeTo(upperLimit.toInt())
+
     val width
         get() = upperLimit - lowerLimit
 

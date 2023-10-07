@@ -41,11 +41,21 @@ class PoissonGoodnessOfFit(
         }
         histogram = Histogram(myBreakPoints)
         histogram.collect(data)
+
+        for(bin in histogram.bins){
+            val range = bin.openIntRange
+            print(range)
+            print("  ")
+            println("P{${range}} = ${distribution.pmf(range)}")
+        }
+
+        println()
+
         for(bin in histogram.bins){
             val u = bin.upperLimit
             val l = bin.lowerLimit
-            //val p = distribution.cdf(u) - distribution.cdf(l)
-            val p = distribution.strictlyLessCDF(u) - distribution.cdf(l)
+            val p = distribution.cdf(u) - distribution.cdf(l)
+            //val p = distribution.strictlyLessCDF(u) - distribution.cdf(l)
             println("$bin   p(bin) = $p     l = $l, u = $u")
         }
 
@@ -57,7 +67,7 @@ class PoissonGoodnessOfFit(
 fun main(){
     val dist = Poisson(5.0)
 
-    println("pmf(${0..<0}) = ${dist.pmf(0..<0)}")
+    println("pmf(${0..<1}) = ${dist.pmf(0..<1)}")
 
     for (i in 0..10){
         val p = dist.cdf(i) - dist.cdf(i-1)
