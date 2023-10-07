@@ -19,7 +19,6 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
-import ksl.utilities.statistic.HistogramBin
 
 /** Provides an interface for functions related to
  *  a cumulative distribution function CDF
@@ -47,25 +46,30 @@ fun interface CDFIfc {
     /**
      * Returns the probability of being in the interval,
      * F(upper limit) - F(lower limit)
+     * Be careful, this is Pr{lower limit&lt;=X&lt;=upper limit}
+     * which includes the lower limit and has implications if
+     * the distribution is discrete
      */
-    fun cdf(interval: Interval): Double {
-        return cdf(interval.lowerLimit, interval.upperLimit)
+    fun closedIntervalProbability(interval: Interval): Double {
+        return closedIntervalProbability(interval.lowerLimit, interval.upperLimit)
     }
 
-    /** Returns the Pr{x1&lt;=X&lt;=x2} for the distribution
-     *
+    /** Returns the Pr{x1&lt;=X&lt;=x2} for the distribution.
+     * Be careful, this is Pr{x1&lt;=X&lt;=x2}
+     * which includes the lower limit and has implications if
+     * the distribution is discrete
      * @param x1 a double representing the lower limit
      * @param x2 a double representing the upper limit
      * @return cdf(x2)-cdf(x1)
      * @throws IllegalArgumentException if x1 &gt; x2
      */
-    fun cdf(x1: Double, x2: Double): Double {
+    fun closedIntervalProbability(x1: Double, x2: Double): Double {
         require(x1 <= x2) { "x1 = $x1 > x2 = $x2 in cdf(x1,x2)" }
         return cdf(x2) - cdf(x1)
     }
 
     /** Computes the complementary cumulative probability
-     * distribution function for given value of x
+     * distribution function for given value of x.  This is P{X &gt x}
      * @param x The value to be evaluated
      * @return The probability, 1-P{X&lt;=x}
      */

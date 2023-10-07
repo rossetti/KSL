@@ -42,7 +42,7 @@ class ChiSquaredCDFTest(
     // maybe an interface with two implementations for discrete and continuous
 }
 
-class ChiSquaredTestPMF(
+abstract class ChiSquaredTestPMF(
     private val data: DoubleArray,
     val df: DiscreteDistributionIfc,
     val numEstimatedParameters:  Int,
@@ -50,7 +50,6 @@ class ChiSquaredTestPMF(
     val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 ){
     init {
-        TODO("needs fixing")
         require(numEstimatedParameters >= 0) {"The number of estimated parameters must be >= 0"}
     }
     // cannot check if data is in domain of distribution
@@ -68,7 +67,6 @@ class ChiSquaredTestPMF(
         histogram = Histogram(myBreakPoints)
         histogram.collect(data)
   //      println(histogram)
-        TODO("needs fixing")
 //        for(bin in histogram.bins){
 //            val p = df.cdf(bin)
 //            val u = bin.upperLimit
@@ -88,7 +86,7 @@ class ChiSquaredTestPMF(
 
 //    val chiSquaredTestStatistic = Statistic.chiSqTestStatistic(binCounts, expectedCounts)
 
-    val pValue : Double
+    abstract val pValue : Double
 
     init {
         val chiDist = ChiSquaredDistribution(dof.toDouble())
@@ -141,6 +139,6 @@ fun main(){
 //    bp = Histogram.addUpperLimit(Double.POSITIVE_INFINITY, bp)
 //    println(bp.joinToString())
     println()
-    val test = ChiSquaredTestPMF(data, dist, 0)
-    println(test)
+ //   val test = ChiSquaredTestPMF(data, dist, 0)
+ //   println(test)
 }
