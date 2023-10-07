@@ -20,19 +20,14 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
 import ksl.utilities.distributions.*
-import ksl.utilities.io.KSL
-import ksl.utilities.io.write
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
-import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.statistic.*
 import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.api.into
-import org.jetbrains.kotlinx.dataframe.api.rename
 import org.jetbrains.kotlinx.dataframe.api.sortBy
 
 /**
@@ -462,7 +457,7 @@ class PDFModeler(private val data: DoubleArray) {
          * F(upper limit) - F(lower limit)
          */
         fun binProbability(bin: HistogramBin, df: ContinuousDistributionIfc): Double {
-            return df.cdf(bin.lowerLimit, bin.upperLimit)
+            return df.closedIntervalProbability(bin.lowerLimit, bin.upperLimit)
         }
 
         /**
