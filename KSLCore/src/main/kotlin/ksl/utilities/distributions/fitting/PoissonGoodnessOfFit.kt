@@ -31,8 +31,8 @@ class PoissonGoodnessOfFit(
             var bp = PMFModeler.equalizedCDFBreakPoints(data.size, distribution)
             // start the intervals at 0
             bp = Histogram.addLowerLimit(0.0, bp)
-            // this ensures that 0 is the 2nd breakpoint
-            bp = Histogram.addNegativeInfinity(bp)
+//            // this ensures that 0 is the 2nd breakpoint
+//            bp = Histogram.addNegativeInfinity(bp)
             // this ensures that the last interval captures all remaining data
             bp = Histogram.addPositiveInfinity(bp)
             bp
@@ -41,6 +41,8 @@ class PoissonGoodnessOfFit(
         }
         histogram = Histogram(myBreakPoints)
         histogram.collect(data)
+
+        println()
 
         for(bin in histogram.bins){
             val range = bin.openIntRange
@@ -58,14 +60,14 @@ class PoissonGoodnessOfFit(
             //val p = distribution.strictlyLessCDF(u) - distribution.cdf(l)
             println("$bin   p(bin) = $p     l = $l, u = $u")
         }
-
+        println()
         println(histogram)
     }
 
 }
 
 fun main(){
-    val dist = Poisson(5.0)
+    val dist = Poisson(15.0)
 
     println("pmf(${0..<1}) = ${dist.pmf(0..<1)}")
 
@@ -77,6 +79,6 @@ fun main(){
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
 
-    PoissonGoodnessOfFit(data, theMean = 5.0)
+    PoissonGoodnessOfFit(data, theMean = 15.0)
 
 }
