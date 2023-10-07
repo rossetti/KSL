@@ -31,27 +31,27 @@ interface DiscreteDistributionIfc : CDFIfc, PMFIfc, InverseCDFIfc, GetRVariableI
         return cdf(x) - pmf(x)
     }
 
-    /**
-     * Returns the probability of being in the open [interval],
-     * Be careful, this is Pr{lower limit&lt; X &lt;=upper limit}
-     * which excludes the lower limit.
-     * @return the probability
-     */
-    fun openLeftIntervalProbability(interval: Interval): Double {
-        return openLeftIntervalProbability(interval.lowerLimit, interval.upperLimit)
-    }
-
-    /** Returns the Pr{x1 &lt X &lt;= x2} for the distribution.
-     * Be careful, this is Pr{x1 &lt X &lt;= x2}
-     * which excludes the lower limit.
-     *
-     * @param x1 a double representing the lower limit
-     * @param x2 a double representing the upper limit
-     * @return the probability
-     * @throws IllegalArgumentException if x1 &gt; x2
-     */
-    fun openLeftIntervalProbability(x1: Double, x2: Double): Double {
-        require(x1 <= x2) { "x1 = $x1 > x2 = $x2 in cdf(x1,x2)" }
-        return cdf(x2) - cdf(x1)
-    }
+//    /**
+//     * Returns the probability of being in the open [interval],
+//     * Be careful, this is Pr{lower limit&lt; X &lt;=upper limit}
+//     * which excludes the lower limit.
+//     * @return the probability
+//     */
+//    fun openLeftIntervalProbability(interval: Interval): Double {
+//        return openLeftIntervalProbability(interval.lowerLimit, interval.upperLimit)
+//    }
+//
+//    /** Returns the Pr{x1 &lt X &lt;= x2} for the distribution.
+//     * Be careful, this is Pr{x1 &lt X &lt;= x2}
+//     * which excludes the lower limit.
+//     *
+//     * @param x1 a double representing the lower limit
+//     * @param x2 a double representing the upper limit
+//     * @return the probability
+//     * @throws IllegalArgumentException if x1 &gt; x2
+//     */
+//    fun openLeftIntervalProbability(x1: Double, x2: Double): Double {
+//        require(x1 <= x2) { "x1 = $x1 > x2 = $x2 in cdf(x1,x2)" }
+//        return cdf(x2) - cdf(x1)
+//    }
 }
