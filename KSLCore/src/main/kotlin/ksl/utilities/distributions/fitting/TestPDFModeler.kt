@@ -82,7 +82,7 @@ private fun testExponentialEstimation(data: DoubleArray) {
     h.collect(data)
 //    println(h)
 
-    val ec = h.expectedCounts(d)
+    val ec =  PDFModeler.expectedCounts(h, d)
     println("number of counts = ${ec.size}")
     println("number of bins = ${h.numberBins}")
 //    println(ec.joinToString())
@@ -119,7 +119,7 @@ private fun testWeibullEstimation(data: DoubleArray) {
     h.collect(data)
     println(h)
 
-    val ec = h.expectedCounts(d)
+    val ec = PDFModeler.expectedCounts(h, d)
     println("number of counts = ${ec.size}")
     println("number of bins = ${h.numberBins}")
     println("expected count = ${ec[0]}")

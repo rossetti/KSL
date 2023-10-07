@@ -18,10 +18,8 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.*
-import ksl.utilities.distributions.CDFIfc
-import ksl.utilities.distributions.InverseCDFIfc
-import ksl.utilities.distributions.Normal
-import ksl.utilities.distributions.StudentT
+import ksl.utilities.distributions.*
+import ksl.utilities.distributions.fitting.PDFModeler
 import kotlin.collections.max
 import kotlin.math.*
 
@@ -1028,10 +1026,14 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *   and hypothesized distribution function, [fn].  The break points [breakPoints]
          *   are used to define the binning and tabulation of the counts for the data.
          */
-        fun chiSqTestStatistic(data: DoubleArray, breakPoints: DoubleArray, fn: CDFIfc): Double {
+        fun chiSqTestStatistic(
+            data: DoubleArray,
+            breakPoints: DoubleArray,
+            fn: ContinuousDistributionIfc
+        ): Double {
             val h = Histogram(breakPoints)
             h.collect(data)
-            val ec = h.expectedCounts(fn) //TODO reconsider this, should this be limited to continuous
+            val ec = PDFModeler.expectedCounts(h, fn)
             return chiSqTestStatistic(h.binCounts, ec)
         }
 

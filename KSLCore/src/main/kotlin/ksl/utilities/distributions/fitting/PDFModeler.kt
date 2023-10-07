@@ -458,6 +458,40 @@ class PDFModeler(private val data: DoubleArray) {
         }
 
         /**
+         * Returns the probability of being in the bin,
+         * F(upper limit) - F(lower limit)
+         */
+        fun binProbability(bin: HistogramBin, df: ContinuousDistributionIfc): Double {
+            return df.cdf(bin.lowerLimit, bin.upperLimit)
+        }
+
+        /**
+         * Returns the probability of being in each bin,
+         * F(upper limit) - F(lower limit) within the bins
+         * with p[0] for bins[0] etc.
+         */
+        fun binProbabilities(bins: List<HistogramBin>, df: ContinuousDistributionIfc): DoubleArray {
+            return DoubleArray(bins.size) { binProbability(bins[it], df) }
+        }
+
+        /**
+         *  The expected number of observations within the bin given
+         *  a particular [cdf]
+         */
+        fun expectedCount(histogram: Histogram, binNum: Int, cdf: ContinuousDistributionIfc): Double {
+            return histogram.count * binProbability(histogram.bin(binNum), cdf)
+        }
+
+        /**
+         *  The expected number of observations in each bin given
+         *  a particular [cdf].
+         */
+        fun expectedCounts(histogram: Histogram, cdf: ContinuousDistributionIfc): DoubleArray {
+            val p = binProbabilities(histogram.bins, cdf)
+            return p.multiplyConstant(histogram.count)
+        }
+
+        /**
          *  Uses the method of moments to fit a gamma distribution to the supplied data.
          *  The supplied statistics must be the statistics for the supplied data for
          *  this method to return results consistent with the supplied data.

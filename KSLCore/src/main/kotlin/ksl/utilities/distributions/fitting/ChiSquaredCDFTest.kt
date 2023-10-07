@@ -50,6 +50,7 @@ class ChiSquaredTestPMF(
     val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
 ){
     init {
+        TODO("needs fixing")
         require(numEstimatedParameters >= 0) {"The number of estimated parameters must be >= 0"}
     }
     // cannot check if data is in domain of distribution
@@ -67,50 +68,51 @@ class ChiSquaredTestPMF(
         histogram = Histogram(myBreakPoints)
         histogram.collect(data)
   //      println(histogram)
-
-        for(bin in histogram.bins){
-            val p = df.cdf(bin)
-            val u = bin.upperLimit
-            val l = bin.lowerLimit
-            val p1 = df.cdf(u) - df.cdf(l)
-            println("$bin   p(bin) = $p      p1 = $p1     l = $l, u = $u")
-        }
+        TODO("needs fixing")
+//        for(bin in histogram.bins){
+//            val p = df.cdf(bin)
+//            val u = bin.upperLimit
+//            val l = bin.lowerLimit
+//            val p1 = df.cdf(u) - df.cdf(l)
+//            println("$bin   p(bin) = $p      p1 = $p1     l = $l, u = $u")
+//        }
     }
 
     val breakPoints = myBreakPoints.copyOf()
 
-    val expectedCounts = histogram.expectedCounts(df)
+//    val expectedCounts = histogram.expectedCounts(df)
 
     val binCounts = histogram.binCounts
 
     val dof = histogram.numberBins - 1 - numEstimatedParameters
 
-    val chiSquaredTestStatistic = Statistic.chiSqTestStatistic(binCounts, expectedCounts)
+//    val chiSquaredTestStatistic = Statistic.chiSqTestStatistic(binCounts, expectedCounts)
 
     val pValue : Double
 
     init {
         val chiDist = ChiSquaredDistribution(dof.toDouble())
-        pValue = chiDist.complementaryCDF(chiSquaredTestStatistic)
+//        pValue = chiDist.complementaryCDF(chiSquaredTestStatistic)
     }
 
     override fun toString(): String {
-        val sb = StringBuilder()
-        sb.appendLine("Chi-Squared Test")
-        sb.appendLine()
-        sb.append(String.format("%3s %-12s %-5s %-5s", "Bin", "Range", "Observed", "Expected"))
-        sb.appendLine()
-        for ((i, bin) in histogram.bins.withIndex()) {
-            val s = String.format("%s %f %n", bin, expectedCounts[i])
-            sb.append(s)
-        }
-        sb.appendLine()
-        sb.appendLine("Number of estimate parameters = $numEstimatedParameters")
-        sb.appendLine("Number of intervals = ${histogram.numberBins}")
-        sb.appendLine("Degrees of Freedom = $dof")
-        sb.appendLine("Chi-Squared Test Statistic = $chiSquaredTestStatistic")
-        sb.appendLine("P-value = $pValue")
-        return sb.toString()
+        TODO("needs fixing")
+//        val sb = StringBuilder()
+//        sb.appendLine("Chi-Squared Test")
+//        sb.appendLine()
+//        sb.append(String.format("%3s %-12s %-5s %-5s", "Bin", "Range", "Observed", "Expected"))
+//        sb.appendLine()
+//        for ((i, bin) in histogram.bins.withIndex()) {
+//            val s = String.format("%s %f %n", bin, expectedCounts[i])
+//            sb.append(s)
+//        }
+//        sb.appendLine()
+//        sb.appendLine("Number of estimate parameters = $numEstimatedParameters")
+//        sb.appendLine("Number of intervals = ${histogram.numberBins}")
+//        sb.appendLine("Degrees of Freedom = $dof")
+//        sb.appendLine("Chi-Squared Test Statistic = $chiSquaredTestStatistic")
+//        sb.appendLine("P-value = $pValue")
+//        return sb.toString()
     }
 }
 
