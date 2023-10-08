@@ -45,10 +45,9 @@ class PoissonGoodnessOfFit(
         println()
 
         for(bin in histogram.bins){
-            val range = bin.openIntRange
-            print(range)
-            print("  ")
-            println("P{${range}} = ${distribution.pmf(range)}")
+            val openRange = bin.openIntRange
+            val closedRange = bin.closedIntRange
+            println("P{${openRange}} = ${distribution.pmf(openRange)} \t P{${closedRange}} = ${distribution.pmf(closedRange)}")
         }
 
         println()
