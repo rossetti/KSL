@@ -1,9 +1,6 @@
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.distributions.ChiSquaredDistribution
-import ksl.utilities.distributions.DiscretePMFInRangeDistributionIfc
-import ksl.utilities.distributions.NegativeBinomial
-import ksl.utilities.distributions.Poisson
+import ksl.utilities.distributions.*
 import ksl.utilities.removeAt
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.HistogramIfc
@@ -50,7 +47,9 @@ open class DiscretePMFGoodnessOfFit(
 fun main() {
    // testPoisson()
 
-    tesNegBinomial()
+   // tesNegBinomial()
+
+    testBinomial()
 }
 
 fun testPoisson(){
@@ -68,6 +67,19 @@ fun testPoisson(){
 
 fun tesNegBinomial(){
     val dist = NegativeBinomial(0.2, theNumSuccesses = 4.0)
+    val rv = dist.randomVariable
+    rv.advanceToNextSubStream()
+    val data = rv.sample(200)
+    var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
+//    breakPoints = breakPoints.removeAt(1)
+//    breakPoints = breakPoints.removeAt(1)
+    val pf = DiscretePMFGoodnessOfFit(data, dist, breakPoints = breakPoints)
+    println()
+    println(pf.chiSquaredTestResults())
+}
+
+fun testBinomial(){
+    val dist = Binomial(0.2, nTrials = 100)
     val rv = dist.randomVariable
     rv.advanceToNextSubStream()
     val data = rv.sample(200)

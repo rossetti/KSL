@@ -70,6 +70,12 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
     }
 
     fun cdf(x: Int): Double {
+        if (x < 0){
+            return 0.0
+        }
+        if (x >= numTrials){
+            return 1.0
+        }
         return binomialCDF(x, numTrials, probOfSuccess, useRecursiveAlgorithm)
     }
 
@@ -79,6 +85,12 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * @return the associated probability
      */
     override fun pmf(i: Int): Double {
+        if (i < 0){
+            return 0.0
+        }
+        if (i > numTrials){
+            return 0.0
+        }
         return binomialPMF(i, numTrials, probOfSuccess, useRecursiveAlgorithm)
     }
 
