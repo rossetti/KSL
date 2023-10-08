@@ -51,7 +51,8 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
     val midPoint
         get() = (upperLimit - lowerLimit)/2.0
 
-    private var count = 0
+    var count = 0
+        private set
 
     /**
      * The label for the bin

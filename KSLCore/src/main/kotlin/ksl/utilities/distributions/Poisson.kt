@@ -31,7 +31,7 @@ import kotlin.math.*
  * @param name an optional label/name
  */
 class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisson>(name),
-    DiscreteDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
 
     init {
         require(theMean > 0.0) { "Mean must be > 0)" }
@@ -161,7 +161,7 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisso
      *  sum. If the range is open a..&ltb then the point b is not included
      *  in the sum.
      */
-    fun probIn(range: IntRange) : Double {
+    override fun probIn(range: IntRange) : Double {
         if (range.last < 0){
             return 0.0
         }

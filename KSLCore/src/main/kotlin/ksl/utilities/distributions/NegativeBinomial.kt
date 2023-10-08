@@ -32,7 +32,8 @@ import kotlin.math.*
  * @param name an optional name/label
  */
 class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1.0, name: String? = null) :
-    Distribution<NegativeBinomial>(name), DiscreteDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
+    Distribution<NegativeBinomial>(name), DiscretePMFInRangeDistributionIfc,
+    LossFunctionDistributionIfc, GetRVariableIfc {
 
     init {
         require(!(theProbSuccess <= 0.0 || theProbSuccess >= 1.0)) { "Success Probability must be (0,1)" }
@@ -130,7 +131,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
      *  sum. If the range is open a..&ltb then the point b is not included
      *  in the sum.
      */
-    fun pmf(range: IntRange) : Double {
+    override fun probIn(range: IntRange) : Double {
         if (range.last < 0){
             return 0.0
         }
