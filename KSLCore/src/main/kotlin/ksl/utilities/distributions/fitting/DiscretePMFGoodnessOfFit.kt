@@ -7,7 +7,7 @@ import ksl.utilities.statistic.HistogramIfc
 import ksl.utilities.statistic.Statistic
 
 open class DiscretePMFGoodnessOfFit(
-    private val data: DoubleArray,
+    protected val data: DoubleArray,
     final override val distribution : DiscretePMFInRangeDistributionIfc,
     final override val numEstimatedParameters: Int = 1,
     breakPoints: DoubleArray = PMFModeler.makeZeroToInfinityBreakPoints(data.size, distribution),
@@ -16,10 +16,10 @@ open class DiscretePMFGoodnessOfFit(
         require(numEstimatedParameters >= 0) { "The number of estimated parameters must be >= 0" }
     }
 
-    private val myBreakPoints: DoubleArray = breakPoints.copyOf()
-    private val myHistogram: Histogram = Histogram.create(data, myBreakPoints)
-    private val myBinProb: DoubleArray
-    private val myExpectedCounts: DoubleArray
+    protected val myBreakPoints: DoubleArray = breakPoints.copyOf()
+    protected val myHistogram: Histogram = Histogram.create(data, myBreakPoints)
+    protected val myBinProb: DoubleArray
+    protected val myExpectedCounts: DoubleArray
 
     init {
         val (ec, bp) = PMFModeler.expectedCounts(myHistogram, distribution)
