@@ -2,6 +2,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.DiscretePMFInRangeDistributionIfc
+import ksl.utilities.distributions.NegativeBinomial
 import ksl.utilities.distributions.Poisson
 import ksl.utilities.removeAt
 import ksl.utilities.statistic.Histogram
@@ -12,7 +13,7 @@ open class DiscretePMFGoodnessOfFit(
     private val data: DoubleArray,
     final override val distribution : DiscretePMFInRangeDistributionIfc,
     final override val numEstimatedParameters: Int = 1,
-    breakPoints: DoubleArray,
+    breakPoints: DoubleArray = PMFModeler.makeZeroToInfinityBreakPoints(data.size, distribution),
 ) : DiscreteDistributionGOFIfc {
     init {
         require(numEstimatedParameters >= 0) { "The number of estimated parameters must be >= 0" }
@@ -27,10 +28,6 @@ open class DiscretePMFGoodnessOfFit(
         val (ec, bp) = PMFModeler.expectedCounts(myHistogram, distribution)
         myExpectedCounts = ec
         myBinProb = bp
-    }
-
-    protected open fun makeBreakPoints(sampleSize: Int, pmf : DiscretePMFInRangeDistributionIfc) : DoubleArray {
-        return PMFModeler.makeZeroToInfinityBreakPoints(sampleSize, pmf)
     }
 
     override val histogram: HistogramIfc
@@ -51,9 +48,28 @@ open class DiscretePMFGoodnessOfFit(
 }
 
 fun main() {
+   // testPoisson()
+
+    tesNegBinomial()
+}
+
+fun testPoisson(){
     val dist = Poisson(5.0)
     val rv = dist.randomVariable
 //    rv.advanceToNextSubStream()
+    val data = rv.sample(200)
+    var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
+//    breakPoints = breakPoints.removeAt(1)
+//    breakPoints = breakPoints.removeAt(1)
+    val pf = DiscretePMFGoodnessOfFit(data, dist, breakPoints = breakPoints)
+    println()
+    println(pf.chiSquaredTestResults())
+}
+
+fun tesNegBinomial(){
+    val dist = NegativeBinomial(0.2, theNumSuccesses = 4.0)
+    val rv = dist.randomVariable
+    rv.advanceToNextSubStream()
     val data = rv.sample(200)
     var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
 //    breakPoints = breakPoints.removeAt(1)
