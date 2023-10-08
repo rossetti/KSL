@@ -2326,6 +2326,32 @@ object KSLArrays {
         arr.copyInto(result, index + 1, index, arr.size - index)
         return result
     }
+
+    /**
+     *  Removes the element at the index. If the index is out
+     *  of bounds, then a copy of the array is returned.
+     */
+    fun removeAt(arr: IntArray, index: Int): IntArray {
+        if (index < 0 || index >= arr.size) {
+            return arr.copyOf()
+        }
+        val result = arr.toMutableList()
+        result.removeAt(index)
+        return result.toIntArray()
+    }
+
+    /**
+     *  Removes the element at the index. If the index is out
+     *  of bounds, then a copy of the array is returned.
+     */
+    fun removeAt(arr: DoubleArray, index: Int): DoubleArray {
+        if (index < 0 || index >= arr.size) {
+            return arr.copyOf()
+        }
+        val result = arr.toMutableList()
+        result.removeAt(index)
+        return result.toDoubleArray()
+    }
 }
 
 /** Extension functions and other functions for working with arrays
@@ -2386,6 +2412,20 @@ fun DoubleArray.insertAt(value: Double, index: Int) : DoubleArray {
  */
 fun IntArray.insertAt(value: Int, index: Int) : IntArray {
     return KSLArrays.insertAt(this, value, index)
+}
+
+/**
+ *  Remove the element at the index, returning a new array
+ */
+fun DoubleArray.removeAt(index: Int) : DoubleArray {
+    return KSLArrays.removeAt(this, index)
+}
+
+/**
+ *  Remove the element at the index, returning a new array
+ */
+fun IntArray.removeAt(index: Int) : IntArray {
+    return KSLArrays.removeAt(this, index)
 }
 
 /**

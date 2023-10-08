@@ -3,6 +3,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.DiscretePMFInRangeDistributionIfc
 import ksl.utilities.distributions.Poisson
+import ksl.utilities.removeAt
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.HistogramIfc
 import ksl.utilities.statistic.Statistic
@@ -52,9 +53,11 @@ open class DiscretePMFGoodnessOfFit(
 fun main() {
     val dist = Poisson(5.0)
     val rv = dist.randomVariable
-    rv.advanceToNextSubStream()
+//    rv.advanceToNextSubStream()
     val data = rv.sample(200)
-    val breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
+    var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
+//    breakPoints = breakPoints.removeAt(1)
+//    breakPoints = breakPoints.removeAt(1)
     val pf = DiscretePMFGoodnessOfFit(data, dist, breakPoints = breakPoints)
     println()
     println(pf.chiSquaredTestResults())
