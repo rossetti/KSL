@@ -132,7 +132,8 @@ class PMFModeler(
         /**
          *  Creates break points for discrete distributions with domain 0 to positive infinity such
          *  as the Poisson and NegativeBinomial distributions. An attempt is made to achieve
-         *  breakpoints with approximately equal probabilities.
+         *  breakpoints with approximately equal probabilities. Zero is added as the first break point
+         *  and positive infinity is added as the last break point.
          *
          *  If the sample size [sampleSize] is less than 15, then the approximate
          *  expected number of observations within the intervals may not be greater than or equal to 5.
