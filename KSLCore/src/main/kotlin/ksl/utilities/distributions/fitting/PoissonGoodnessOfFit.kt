@@ -7,13 +7,24 @@ import ksl.utilities.statistic.HistogramIfc
 import ksl.utilities.statistic.Statistic
 
 class PoissonGoodnessOfFit(
-    private val data: DoubleArray,
+    data: DoubleArray,
     mean: Double,
     numEstimatedParameters: Int = 1,
     breakPoints: DoubleArray = PMFModeler.makeZeroToInfinityBreakPoints(data.size, Poisson(mean)),
 ) : DiscretePMFGoodnessOfFit(data, Poisson(mean), numEstimatedParameters, breakPoints) {
 
     //TODO other tests for "Poisson-ness"
+    val fishersIndexOfDispersion: Double
+        get() {
+            if (data.size == 1) {
+                return 0.0
+            }
+            // n > 1
+            val v = histogram.variance
+            val a = histogram.average
+            val n = histogram.count
+            return ((n - 1.0) * v / a)
+        }
 }
 
 fun main() {
@@ -26,7 +37,7 @@ fun main() {
         println("i = $i  p(i) = ${dist.pmf(i)}   cp(i) = ${dist.cdf(i)}   p = $p")
     }
     val rv = dist.randomVariable
-   // rv.advanceToNextSubStream()
+    // rv.advanceToNextSubStream()
     val data = rv.sample(500)
 
     val pf = PoissonGoodnessOfFit(data, mean = 5.0)
