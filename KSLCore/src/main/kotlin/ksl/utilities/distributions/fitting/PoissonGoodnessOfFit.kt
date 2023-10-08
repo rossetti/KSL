@@ -1,6 +1,5 @@
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.distributions.DiscreteDistributionIfc
 import ksl.utilities.distributions.Poisson
 import ksl.utilities.statistic.Histogram
 
@@ -31,8 +30,6 @@ class PoissonGoodnessOfFit(
             var bp = PMFModeler.equalizedCDFBreakPoints(data.size, distribution)
             // start the intervals at 0
             bp = Histogram.addLowerLimit(0.0, bp)
-//            // this ensures that 0 is the 2nd breakpoint
-//            bp = Histogram.addNegativeInfinity(bp)
             // this ensures that the last interval captures all remaining data
             bp = Histogram.addPositiveInfinity(bp)
             bp
@@ -47,15 +44,16 @@ class PoissonGoodnessOfFit(
         for(bin in histogram.bins){
             val openRange = bin.openIntRange
             val closedRange = bin.closedIntRange
-            println("P{${openRange}} = ${distribution.pmf(openRange)} \t P{${closedRange}} = ${distribution.pmf(closedRange)}")
+            println("P{${openRange}} = ${distribution.probIn(openRange)} \t P{${closedRange}} = ${distribution.probIn(closedRange)}")
         }
 
         println()
 
         for(bin in histogram.bins){
-            val u = bin.upperLimit
-            val l = bin.lowerLimit
-            val p = distribution.cdf(u) - distribution.cdf(l)
+            val u = bin.openIntRange.last
+            val l = bin.openIntRange.first
+            //val p = distribution.cdf(u) - distribution.cdf(l)
+            val p = distribution.probIn(bin.openIntRange)
             //val p = distribution.strictlyLessCDF(u) - distribution.cdf(l)
             println("$bin   p(bin) = $p     l = $l, u = $u")
         }
@@ -63,12 +61,16 @@ class PoissonGoodnessOfFit(
         println(histogram)
     }
 
+    fun chiSquaredTestStatistic(){
+
+    }
+
 }
 
 fun main(){
     val dist = Poisson(15.0)
 
-    println("pmf(${0..<1}) = ${dist.pmf(0..<1)}")
+    println("pmf(${0..<1}) = ${dist.probIn(0..<1)}")
 
     for (i in 0..10){
         val p = dist.cdf(i) - dist.cdf(i-1)
