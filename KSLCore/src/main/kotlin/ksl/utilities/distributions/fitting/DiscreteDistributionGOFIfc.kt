@@ -44,7 +44,7 @@ interface DiscreteDistributionGOFIfc {
         if (chiSquaredPValue >= type1Error){
             sb.appendLine("The p-value = $chiSquaredPValue is >= $type1Error : Do not reject hypothesis.")
         } else {
-            sb.appendLine("The p-value = $chiSquaredPValue is < $type1Error : Insufficient evidence to reject the null hypothesis")
+            sb.appendLine("The p-value = $chiSquaredPValue is < $type1Error : Reject the null hypothesis")
         }
         return sb.toString()
     }
