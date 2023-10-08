@@ -245,7 +245,7 @@ object KSLRandom {
         rSuccesses: Double,
         stream: RNStreamIfc = defaultRNStream()
     ): Int {
-        return NegativeBinomial.negBinomialInvCDF(stream.randU01(), pSuccess, rSuccesses)
+        return NegativeBinomial.negBinomialInvCDF(stream.randU01(), rSuccesses, pSuccess)
     }
 
     /**

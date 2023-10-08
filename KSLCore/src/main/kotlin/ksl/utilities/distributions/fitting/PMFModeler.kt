@@ -141,7 +141,9 @@ class PMFModeler(
         fun makeZeroToInfinityBreakPoints(sampleSize: Int, dist: DiscreteDistributionIfc): DoubleArray {
             var bp = equalizedPMFBreakPoints(sampleSize, dist)
             // start the intervals at 0
-            bp = Histogram.addLowerLimit(0.0, bp)
+            if (bp.min() > 0.0){
+                bp = Histogram.addLowerLimit(0.0, bp)
+            }
             // this ensures that the last interval captures all remaining data
             return Histogram.addPositiveInfinity(bp)
         }
