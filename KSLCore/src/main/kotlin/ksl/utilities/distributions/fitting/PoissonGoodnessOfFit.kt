@@ -1,85 +1,93 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.Poisson
 import ksl.utilities.statistic.Histogram
+import ksl.utilities.statistic.Statistic
 
 class PoissonGoodnessOfFit(
     private val data: DoubleArray,
-    theMean: Double,
+    val mean: Double,
     val numEstimatedParameters: Int = 1,
     breakPoints: DoubleArray? = null,
 ) {
     init {
         require(numEstimatedParameters >= 0) { "The number of estimated parameters must be >= 0" }
+        require(mean > 0.0) { "The supplied mean must be > 0.0" }
     }
-    init {
-        require(theMean > 0.0) { "The supplied mean must be > 0.0" }
-    }
-    var mean: Double = theMean
-        set(value) {
-            require(value > 0.0) { "The supplied mean must be > 0.0" }
-            field = value
-        }
 
     private val myBreakPoints: DoubleArray
-    private val histogram: Histogram
-    private val distribution = Poisson(mean)
+    private val myHistogram: Histogram
+    private val myDistribution = Poisson(mean)
+    private val myBinProb: DoubleArray
+    private val myExpectedCounts: DoubleArray
 
     init {
-        myBreakPoints = if (breakPoints == null){
-            var bp = PMFModeler.equalizedCDFBreakPoints(data.size, distribution)
-            // start the intervals at 0
-            bp = Histogram.addLowerLimit(0.0, bp)
-            // this ensures that the last interval captures all remaining data
-            bp = Histogram.addPositiveInfinity(bp)
-            bp
+        myBreakPoints = breakPoints?.copyOf() ?: PMFModeler.makeZeroToInfinityBreakPoints(data.size, myDistribution)
+        myHistogram = Histogram.create(data, myBreakPoints)
+        val (ec, bp) = PMFModeler.expectedCounts(myHistogram, myDistribution)
+        myExpectedCounts = ec
+        myBinProb = bp
+    }
+
+    val breakPoints = myBreakPoints.copyOf()
+    val expectedCounts = myExpectedCounts.copyOf()
+    val binCounts = myHistogram.binCounts
+    val dof = myHistogram.numberBins - 1 - numEstimatedParameters
+    val chiSquaredTestStatistic = Statistic.chiSqTestStatistic(binCounts, myExpectedCounts)
+    val chiSquaredPValue: Double
+
+    init {
+        val chiDist = ChiSquaredDistribution(dof.toDouble())
+        chiSquaredPValue = chiDist.complementaryCDF(chiSquaredTestStatistic)
+    }
+
+    fun chiSquaredTestResults(type1Error: Double = 0.05): String {
+        require((0.0 < type1Error) && (type1Error < 1.0)) { "Type 1 error must be in (0,1)" }
+        val sb = StringBuilder()
+        sb.appendLine("Chi-Squared Test Results:")
+        sb.append(String.format("%-20s %-10s %10s %10s", "Bin Range", "P(Bin)", "Observed", "Expected"))
+        sb.appendLine()
+        for ((i, bin) in myHistogram.bins.withIndex()) {
+            val r = bin.openIntRange
+            val o = bin.count
+            val e = expectedCounts[i]
+            val p = myBinProb[i]
+            val s = String.format("%-20s %-10f %10d %10f %n", r, p, o, e)
+            sb.append(s)
+        }
+        sb.appendLine()
+        sb.appendLine("Number of estimate parameters = $numEstimatedParameters")
+        sb.appendLine("Number of intervals = ${myHistogram.numberBins}")
+        sb.appendLine("Degrees of Freedom = $dof")
+        sb.appendLine("Chi-Squared Test Statistic = $chiSquaredTestStatistic")
+        sb.appendLine("P-value = $chiSquaredPValue")
+        sb.append("Hypothesis test at $type1Error level: ")
+        if (chiSquaredPValue >= type1Error){
+            sb.appendLine("Do not reject hypothesis that data is Poisson($mean)")
         } else {
-            breakPoints.copyOf()
+            sb.appendLine("Insufficient evidence to conclude that the data is Poisson($mean)")
         }
-        histogram = Histogram(myBreakPoints)
-        histogram.collect(data)
-
-        println()
-
-        for(bin in histogram.bins){
-            val openRange = bin.openIntRange
-            val closedRange = bin.closedIntRange
-            println("P{${openRange}} = ${distribution.probIn(openRange)} \t P{${closedRange}} = ${distribution.probIn(closedRange)}")
-        }
-
-        println()
-
-        for(bin in histogram.bins){
-            val u = bin.openIntRange.last
-            val l = bin.openIntRange.first
-            //val p = distribution.cdf(u) - distribution.cdf(l)
-            val p = distribution.probIn(bin.openIntRange)
-            //val p = distribution.strictlyLessCDF(u) - distribution.cdf(l)
-            println("$bin   p(bin) = $p     l = $l, u = $u")
-        }
-        println()
-        println(histogram)
+        return sb.toString()
     }
-
-    fun chiSquaredTestStatistic(){
-
-    }
-
 }
 
-fun main(){
-    val dist = Poisson(15.0)
+fun main() {
+    val dist = Poisson(5.0)
 
     println("pmf(${0..<1}) = ${dist.probIn(0..<1)}")
 
-    for (i in 0..10){
-        val p = dist.cdf(i) - dist.cdf(i-1)
+    for (i in 0..10) {
+        val p = dist.cdf(i) - dist.cdf(i - 1)
         println("i = $i  p(i) = ${dist.pmf(i)}   cp(i) = ${dist.cdf(i)}   p = $p")
     }
     val rv = dist.randomVariable
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
 
-    PoissonGoodnessOfFit(data, theMean = 15.0)
+    val pf = PoissonGoodnessOfFit(data, mean = 5.0)
+
+    println()
+    println(pf.chiSquaredTestResults())
 
 }

@@ -33,3 +33,5 @@ interface DiscreteDistributionIfc : CDFIfc, PMFIfc, InverseCDFIfc, GetRVariableI
     }
 
 }
+
+interface DiscretePMFInRangeDistributionIfc : DiscreteDistributionIfc, ProbInRangeIfc

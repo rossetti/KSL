@@ -20,9 +20,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.*
-import ksl.utilities.orderStatistics
 import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.Statistic
 
 
 /**
@@ -44,7 +42,7 @@ class ChiSquaredCDFTest(
 
 abstract class ChiSquaredTestPMF(
     private val data: DoubleArray,
-    val df: DiscreteDistributionIfc,
+    val df: DiscretePMFInRangeDistributionIfc,
     val numEstimatedParameters:  Int,
     breakPoints: DoubleArray? = null,
     val range: Interval = Interval(0.0, Double.POSITIVE_INFINITY)
@@ -58,7 +56,7 @@ abstract class ChiSquaredTestPMF(
 
     init {
         myBreakPoints = if (breakPoints == null){
-            var bp = PMFModeler.equalizedCDFBreakPoints(data.size, df)
+            var bp = PMFModeler.equalizedPMFBreakPoints(data.size, df)
             bp = Histogram.addLowerLimit(range.lowerLimit, bp)
             Histogram.addUpperLimit(range.upperLimit, bp)
         } else {
@@ -75,6 +73,8 @@ abstract class ChiSquaredTestPMF(
 //            println("$bin   p(bin) = $p      p1 = $p1     l = $l, u = $u")
 //        }
     }
+
+
 
     val breakPoints = myBreakPoints.copyOf()
 

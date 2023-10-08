@@ -21,6 +21,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.distributions.*
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.toDoubles
@@ -101,7 +102,7 @@ class PMFModeler(
          *  CDF and do not account for any shift that may be needed during the modeling
          *  process.
          */
-        fun equalizedCDFBreakPoints(sampleSize: Int, dist: DiscreteDistributionIfc): DoubleArray {
+        fun equalizedPMFBreakPoints(sampleSize: Int, dist: DiscreteDistributionIfc): DoubleArray {
             var bp = PDFModeler.equalizedCDFBreakPoints(sampleSize, dist)
             // there could be duplicate values, remove them by forcing them into a set
             val set = LinkedHashSet<Double>(bp.asList())
@@ -110,6 +111,38 @@ class PMFModeler(
             // make sure that they are sorted from smallest to largest
             bp.sort()
             return bp
+        }
+
+        /**
+         *  Returns the expected counts for each bin of the histogram as the
+         *  first element of the Pair. The second element is the probability
+         *  associated with each bin of the [histogram]. The discrete distribution, [discreteCDF]
+         *  must implement the ProbInRangeIfc interface
+         */
+        fun expectedCounts(histogram: Histogram, discreteCDF : ProbInRangeIfc) : Pair<DoubleArray, DoubleArray>{
+            val binProb = DoubleArray(histogram.numberBins)
+            val expectedCounts = DoubleArray(histogram.numberBins)
+            for((i, bin) in histogram.bins.withIndex()){
+                binProb[i] = discreteCDF.probIn(bin.openIntRange)
+                expectedCounts[i] = binProb[i]*histogram.count
+            }
+            return Pair(expectedCounts, binProb)
+        }
+
+        /**
+         *  Creates break points for discrete distributions with domain 0 to positive infinity such
+         *  as the Poisson and NegativeBinomial distributions. An attempt is made to achieve
+         *  breakpoints with approximately equal probabilities.
+         *
+         *  If the sample size [sampleSize] is less than 15, then the approximate
+         *  expected number of observations within the intervals may not be greater than or equal to 5.
+         */
+        fun makeZeroToInfinityBreakPoints(sampleSize: Int, dist: DiscreteDistributionIfc): DoubleArray {
+            var bp = equalizedPMFBreakPoints(sampleSize, dist)
+            // start the intervals at 0
+            bp = Histogram.addLowerLimit(0.0, bp)
+            // this ensures that the last interval captures all remaining data
+            return Histogram.addPositiveInfinity(bp)
         }
 
         /**
