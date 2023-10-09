@@ -18,6 +18,8 @@
 
 package ksl.utilities.statistic
 
+import ksl.utilities.Interval
+
 /**
  * @param theBinNumber the bin number
  * @param theLowerLimit the lower limit of the bin
@@ -32,6 +34,8 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
 
     val lowerLimit: Double = theLowerLimit
     val upperLimit: Double = theUpperLimit
+
+    val interval: Interval = Interval(lowerLimit, upperLimit)
 
     val closedRange: ClosedFloatingPointRange<Double>
         get() = lowerLimit.rangeTo(upperLimit)

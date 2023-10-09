@@ -21,6 +21,8 @@ package ksl.utilities.statistic
 import ksl.utilities.IdentityIfc
 import ksl.utilities.KSLArrays
 import ksl.utilities.distributions.CDFIfc
+import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.ProbInRangeIfc
 import ksl.utilities.isAllEqual
 import ksl.utilities.math.KSLMath
 import ksl.utilities.multiplyConstant
@@ -324,4 +326,30 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      * @return last bin's upper limit
      */
     val lastBinUpperLimit: Double
+
+    /**
+     *  Returns the probability for each bin of the histogram based on an open
+     *  integer range interpretation of the bin .
+     *  The discrete distribution, [discreteCDF] must implement the ProbInRangeIfc interface
+     */
+    fun binProbabilities(discreteCDF : ProbInRangeIfc) : DoubleArray {
+        val binProb = DoubleArray(numberBins)
+        for((i, bin) in bins.withIndex()){
+            binProb[i] = discreteCDF.probIn(bin.openIntRange)
+        }
+        return binProb
+    }
+
+    /**
+     *  Returns the probability for each bin of the histogram based on a continuous interval
+     *  interpretation of the bin .
+     *  The distribution, [cdf] must implement the ContinuousDistributionIfc interface
+     */
+    fun binProbabilities(cdf : ContinuousDistributionIfc) : DoubleArray {
+        val binProb = DoubleArray(numberBins)
+        for((i, bin) in bins.withIndex()){
+            binProb[i] = cdf.cdf(bin.interval)
+        }
+        return binProb
+    }
 }

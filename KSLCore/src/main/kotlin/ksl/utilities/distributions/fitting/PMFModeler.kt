@@ -114,6 +114,19 @@ class PMFModeler(
         }
 
         /**
+         *  Returns the probability for each bin of the [histogram] based on an open
+         *  integer range interpretation of the bin .
+         *  The discrete distribution, [discreteCDF] must implement the ProbInRangeIfc interface
+         */
+        fun binProbabilities(histogram: Histogram, discreteCDF : ProbInRangeIfc) : DoubleArray {
+            val binProb = DoubleArray(histogram.numberBins)
+            for((i, bin) in histogram.bins.withIndex()){
+                binProb[i] = discreteCDF.probIn(bin.openIntRange)
+            }
+            return binProb
+        }
+
+        /**
          *  Returns the expected counts for each bin of the histogram as the
          *  first element of the Pair. The second element is the probability
          *  associated with each bin of the [histogram]. The discrete distribution, [discreteCDF]
