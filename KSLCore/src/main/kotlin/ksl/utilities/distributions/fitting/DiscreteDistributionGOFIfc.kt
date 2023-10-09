@@ -16,6 +16,31 @@ interface DiscreteDistributionGOFIfc {
     val chiSquaredTestStatistic: Double
     val chiSquaredPValue: Double
 
+    val poissonVarianceTestStatistic: Double
+        get() {
+            if (histogram.count == 1.0) {
+                return 0.0
+            }
+            // n > 1
+            val v = histogram.variance
+            val a = histogram.average
+            val n = histogram.count
+            return ((n - 1.0) * v / a)
+        }
+
+    val indexOfDispersion: Double
+        get() {
+            if (histogram.count == 1.0) {
+                return 0.0
+            }
+            val a = histogram.average
+            if (a == 0.0){
+                return Double.POSITIVE_INFINITY
+            }
+            val v = histogram.variance
+            return v/a
+        }
+
     fun chiSquaredTestResults(type1Error: Double = 0.05): String {
         require((0.0 < type1Error) && (type1Error < 1.0)) { "Type 1 error must be in (0,1)" }
         val sb = StringBuilder()
