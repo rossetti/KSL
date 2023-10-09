@@ -14,30 +14,7 @@ class PoissonGoodnessOfFit(
 ) : DiscretePMFGoodnessOfFit(data, Poisson(mean), numEstimatedParameters, breakPoints) {
 
     //TODO other tests for "Poisson-ness"
-    val varianceTestStatistic: Double
-        get() {
-            if (data.size == 1) {
-                return 0.0
-            }
-            // n > 1
-            val v = histogram.variance
-            val a = histogram.average
-            val n = histogram.count
-            return ((n - 1.0) * v / a)
-        }
 
-        val indexOfDispersion: Double
-            get() {
-                if (data.size == 1) {
-                    return 0.0
-                }
-                val a = histogram.average
-                if (a == 0.0){
-                    return Double.POSITIVE_INFINITY
-                }
-                val v = histogram.variance
-                return v/a
-            }
 }
 
 fun main() {
