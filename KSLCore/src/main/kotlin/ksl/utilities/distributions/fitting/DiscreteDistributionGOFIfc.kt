@@ -18,7 +18,7 @@ interface DiscreteDistributionGOFIfc {
 
     val poissonVarianceTestStatistic: Double
         get() {
-            if (histogram.count == 1.0) {
+            if (histogram.count <= 1.0) {
                 return 0.0
             }
             // n > 1
@@ -30,7 +30,7 @@ interface DiscreteDistributionGOFIfc {
 
     val indexOfDispersion: Double
         get() {
-            if (histogram.count == 1.0) {
+            if (histogram.count <= 1.0) {
                 return 0.0
             }
             val a = histogram.average
