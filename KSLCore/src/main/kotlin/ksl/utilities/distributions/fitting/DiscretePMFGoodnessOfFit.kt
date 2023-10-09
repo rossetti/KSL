@@ -1,61 +1,37 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.*
+import ksl.utilities.multiplyConstant
 import ksl.utilities.removeAt
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.HistogramIfc
 import ksl.utilities.statistic.Statistic
 
 open class DiscretePMFGoodnessOfFit(
-    protected val data: DoubleArray,
-    final override val distribution : DiscretePMFInRangeDistributionIfc,
-    final override val numEstimatedParameters: Int = 1,
+    data: DoubleArray,
+    final override val distribution: DiscretePMFInRangeDistributionIfc,
+    numEstimatedParameters: Int = 1,
     breakPoints: DoubleArray = PMFModeler.makeZeroToInfinityBreakPoints(data.size, distribution),
-) : DiscreteDistributionGOFIfc {
-    init {
-        require(numEstimatedParameters >= 0) { "The number of estimated parameters must be >= 0" }
-    }
+) : DistributionGOF(data, numEstimatedParameters, breakPoints), DiscreteDistributionGOFIfc {
 
-    protected val myBreakPoints: DoubleArray = breakPoints.copyOf()
-    protected val myHistogram: Histogram = Histogram.create(data, myBreakPoints)
-    protected val myBinProb: DoubleArray
-    protected val myExpectedCounts: DoubleArray
+    final override val binProbabilities = histogram.binProbabilities(distribution)
 
-    init {
-        val (ec, bp) = PMFModeler.expectedCounts(myHistogram, distribution)
-        myExpectedCounts = ec
-        myBinProb = bp
-    }
-
-    override val histogram: HistogramIfc
-        get() = myHistogram
-    override val breakPoints = myBreakPoints.copyOf()
-    override val binProbabilities: DoubleArray = myBinProb.copyOf()
-    override val expectedCounts = myExpectedCounts.copyOf()
-    final override val binCounts = myHistogram.binCounts
-    final override val dof = myHistogram.numberBins - 1 - numEstimatedParameters
-    final override val chiSquaredTestStatistic = Statistic.chiSqTestStatistic(binCounts, myExpectedCounts)
-    final override val chiSquaredPValue: Double
-
-    init {
-        val chiDist = ChiSquaredDistribution(dof.toDouble())
-        chiSquaredPValue = chiDist.complementaryCDF(chiSquaredTestStatistic)
-    }
+    final override val expectedCounts = binProbabilities.multiplyConstant(histogram.count)
 
 }
 
 fun main() {
-   // testPoisson()
+     testPoisson()
 
-   // tesNegBinomial()
+ //    tesNegBinomial()
 
-    testBinomial()
+ //   testBinomial()
 }
 
-fun testPoisson(){
+fun testPoisson() {
     val dist = Poisson(5.0)
     val rv = dist.randomVariable
-//    rv.advanceToNextSubStream()
+    rv.advanceToNextSubStream()
     val data = rv.sample(200)
     var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
 //    breakPoints = breakPoints.removeAt(1)
@@ -65,7 +41,7 @@ fun testPoisson(){
     println(pf.chiSquaredTestResults())
 }
 
-fun tesNegBinomial(){
+fun tesNegBinomial() {
     val dist = NegativeBinomial(0.2, theNumSuccesses = 4.0)
     val rv = dist.randomVariable
     rv.advanceToNextSubStream()
@@ -78,15 +54,17 @@ fun tesNegBinomial(){
     println(pf.chiSquaredTestResults())
 }
 
-fun testBinomial(){
+fun testBinomial() {
     val dist = Binomial(0.2, nTrials = 100)
     val rv = dist.randomVariable
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
     var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
+    println("break points: ")
+    println(breakPoints.joinToString())
 //    breakPoints = breakPoints.removeAt(1)
 //    breakPoints = breakPoints.removeAt(1)
     val pf = DiscretePMFGoodnessOfFit(data, dist, breakPoints = breakPoints)
-    println()
+    println("constructed goodness of fit")
     println(pf.chiSquaredTestResults())
 }
