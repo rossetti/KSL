@@ -27,7 +27,7 @@ interface DistributionGOFIfc {
     val binProbabilities: DoubleArray
     val expectedCounts: DoubleArray
     val binCounts: DoubleArray
-    val dof: Int
+    val chiSquaredTestDOF: Int
     val chiSquaredTestStatistic: Double
     val chiSquaredPValue: Double
 
@@ -51,7 +51,7 @@ interface DistributionGOFIfc {
         sb.appendLine()
         sb.appendLine("Number of estimate parameters = $numEstimatedParameters")
         sb.appendLine("Number of intervals = ${histogram.numberBins}")
-        sb.appendLine("Degrees of Freedom = $dof")
+        sb.appendLine("Degrees of Freedom = $chiSquaredTestDOF")
         sb.appendLine("Chi-Squared Test Statistic = $chiSquaredTestStatistic")
         sb.appendLine("P-value = $chiSquaredPValue")
         sb.appendLine("Hypothesis test at $type1Error level: ")
