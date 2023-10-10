@@ -515,8 +515,8 @@ object KolmogorovSmirnovDist {
     /**
      * Computes the cumulative probability P[D_n <= x] of the
      * Kolmogorov-Smirnov distribution with sample size n at x.
-     * It returns at least 13 decimal degits of precision for n <= 140,
-     * at least 5 decimal degits of precision for 140 < n <= 100000,
+     * It returns at least 13 decimal digits of precision for n <= 140,
+     * at least 5 decimal digits of precision for 140 < n <= 100000,
      * and a few correct decimal digits for n > 100000.
      *
      * @param n sample size
