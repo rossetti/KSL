@@ -18,4 +18,15 @@ class ContinuousCDFGoodnessOfFit(
 
     override val expectedCounts = binProbabilities.multiplyConstant(histogram.count)
 
+    val andersonDarlingStatistic: Double
+        get() = Statistic.andersonDarlingTestStatistic(data, distribution)
+
+    val cramerVonMisesStatistic: Double
+        get() = Statistic.cramerVonMisesTestStatistic(data, distribution)
+
+    val watsonTestStatistic: Double
+        get() = Statistic.watsonTestStatistic(data, distribution)
+
+    val ksTestStatistic: Double
+        get() = Statistic.ksTestStatistic(data, distribution)
 }
