@@ -19,7 +19,6 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.ChiSquaredDistribution
-import ksl.utilities.multiplyConstant
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.HistogramIfc
 import ksl.utilities.statistic.Statistic
@@ -40,14 +39,14 @@ abstract class DistributionGOF(
 
     final override val binCounts = histogram.binCounts
 
-    final override val dof = histogram.numberBins - 1 - numEstimatedParameters
+    final override val chiSquaredTestDOF = histogram.numberBins - 1 - numEstimatedParameters
 
     final override val chiSquaredTestStatistic
         get() = Statistic.chiSqTestStatistic(binCounts, expectedCounts)
 
     final override val chiSquaredPValue: Double
         get() {
-            val chiDist = ChiSquaredDistribution(dof.toDouble())
+            val chiDist = ChiSquaredDistribution(chiSquaredTestDOF.toDouble())
             return chiDist.complementaryCDF(chiSquaredTestStatistic)
         }
 }
