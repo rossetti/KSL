@@ -38,12 +38,6 @@ abstract class DistributionGOF(
 
     final override val breakPoints = histogram.breakPoints
 
-//    final override val expectedCounts
-//        get() = DoubleArray(histogram.numberBins){ histogram.count*binProbabilities[it]}
-
-//    final override val expectedCounts
-//        get()  = binProbabilities.multiplyConstant(histogram.count)
-
     final override val binCounts = histogram.binCounts
 
     final override val dof = histogram.numberBins - 1 - numEstimatedParameters
