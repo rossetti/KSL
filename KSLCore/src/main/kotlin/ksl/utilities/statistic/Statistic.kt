@@ -1038,6 +1038,21 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         }
 
         /**
+         *  Computes the [G test statistic](https://en.wikipedia.org/wiki/G-test) based on the observed [counts]
+         *  and the [expected] counts. The [expected] counts must not contain a zero
+         *  value.  The size of the arrays must match.
+         */
+        fun GTestStatistic(counts: DoubleArray, expected: DoubleArray): Double {
+            require(counts.size == expected.size) { "The size of the counts and expected value array must match." }
+            require(!expected.hasZero()) { "The expected array contains a 0.0 value" }
+            var sum = 0.0
+            for (i in counts.indices) {
+                sum = sum + counts[i]*ln(counts[i]/expected[i])
+            }
+            return 2.0*sum
+        }
+
+        /**
          *  Computes the Anderson-Darling test statistic
          *  https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test
          */
