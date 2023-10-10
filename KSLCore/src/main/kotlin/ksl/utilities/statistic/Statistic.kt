@@ -1071,8 +1071,9 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         }
 
         /**
-         *  Computes the Cramer-von Mises test statistic
-         *  https://en.wikipedia.org/wiki/Cram%C3%A9r%E2%80%93von_Mises_criterion
+         *  Computes the [Cramer-von Mises](https://en.wikipedia.org/wiki/Cram%C3%A9r%E2%80%93von_Mises_criterion)
+         *  test statistic
+         *
          */
         fun cramerVonMisesTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
             require(data.isNotEmpty()) { "The data array must have at least one observation" }
@@ -1089,8 +1090,9 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         }
 
         /**
-         *  Computes the Watson test statistic
-         *  https://en.wikipedia.org/wiki/Cram%C3%A9r%E2%80%93von_Mises_criterion
+         *  Computes the [Watson](https://en.wikipedia.org/wiki/Cram%C3%A9r%E2%80%93von_Mises_criterion)
+         *  test statistic
+         *
          */
         fun watsonTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
             require(data.isNotEmpty()) { "The data array must have at least one observation" }
