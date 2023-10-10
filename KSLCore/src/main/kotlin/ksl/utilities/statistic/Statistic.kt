@@ -1042,7 +1042,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *  and the [expected] counts. The [expected] counts must not contain a zero
          *  value.  The size of the arrays must match.
          */
-        fun GTestStatistic(counts: DoubleArray, expected: DoubleArray): Double {
+        fun gTestStatistic(counts: DoubleArray, expected: DoubleArray): Double {
             require(counts.size == expected.size) { "The size of the counts and expected value array must match." }
             require(!expected.hasZero()) { "The expected array contains a 0.0 value" }
             var sum = 0.0
