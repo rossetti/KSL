@@ -27,6 +27,9 @@ class ContinuousCDFGoodnessOfFit(
     val watsonTestStatistic: Double
         get() = Statistic.watsonTestStatistic(data, distribution)
 
-    val ksTestStatistic: Double
+    val ksStatistic: Double
         get() = Statistic.ksTestStatistic(data, distribution)
+
+    val ksPValue: Double
+        get() = KolmogorovSmirnovDist.cdf(data.size, ksStatistic)
 }
