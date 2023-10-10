@@ -1053,8 +1053,9 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
         }
 
         /**
-         *  Computes the Anderson-Darling test statistic
-         *  https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test
+         *  Computes the [Anderson-Darling](https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test)
+         *  test statistic.
+         *
          */
         fun andersonDarlingTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
             require(data.isNotEmpty()) { "The data array must have at least one observation" }
