@@ -31,14 +31,14 @@ class ContinuousCDFGoodnessOfFit(
         get() = Statistic.ksTestStatistic(data, distribution)
 
     val ksPValue: Double
-        get() = KolmogorovSmirnovDist.cdf(data.size, ksStatistic)
+        get() = KolmogorovSmirnovDist.complementaryCDF(data.size, ksStatistic)
 
-//    val andersonDarlingPValue: Double
-//        get() = andersonDarlingCDF(data.size, andersonDarlingStatistic)
-//
-//    val cramerVonMisesPValue: Double
-//        get() = cramerVonMisesCDF(data.size, cramerVonMisesStatistic)
-//
-//    val watsonTestPValue: Double
-//        get() = watsonCDF(data.size, watsonTestStatistic)
+    val andersonDarlingPValue: Double
+        get() = 1.0 - andersonDarlingCDF(data.size, andersonDarlingStatistic)
+
+    val cramerVonMisesPValue: Double
+        get() = 1.0 - cramerVonMisesCDF(data.size, cramerVonMisesStatistic)
+
+    val watsonTestPValue: Double
+        get() = 1.0 - watsonCDF(data.size, watsonTestStatistic)
 }
