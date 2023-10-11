@@ -23,21 +23,19 @@ import kotlin.math.*
 /**
  * A port to Kotlin of the Java implementation provided in:
  *
- *  Simard R, L’Ecuyer P. Computing the Two-Sided Kolmogorov-Smirnov Distribution. J Stat Soft. 2011. ;39(11).
+ *  Simard R, L’Ecuyer P. Computing the Two-Sided Kolmogorov-Smirnov Distribution. J Stat Soft. 2011.; 39(11).
  *  Available from: http://www.jstatsoft.org/v39/i11/
  *
- * <p>Computes both the <i>cumulative</i> probability P[D_n <= x]
- * and the <i>complementary cumulative</i> probability P[D_n >= x] of the
- * 2-sided 1-sample Kolmogorov-Smirnov distribution.</p>
+ * Computes both the cumulative probability P[D_n <= x]
+ * and the complementary cumulative probability P[D_n >= x] of the
+ * 2-sided 1-sample Kolmogorov-Smirnov distribution.
  *
  * The Kolmogorov-Smirnov test statistic D_n is defined by
- * <p>
+ *
  *        D_n = sup_x |F(x) - S_n(x)|
- * </p>
+ *
  * where n is the sample size, S_n(x) is an empirical distribution function,
  * and F(x) is a completely specified theoretical distribution.
- *
- *
  */
 object KolmogorovSmirnovDist {
 
@@ -576,16 +574,6 @@ object KolmogorovSmirnovDist {
         return if (w >= 2.2) 2.0 * KSPlusbarUpper(n, x) else 1.0 - cdf(n, x)
     }
 
-    /*=========================================================================
-
-   The following implements the Durbin matrix algorithm and was programmed
-   by G. Marsaglia, Wai Wan Tsang and Jingbo Wong in C.
-
-   I have translated their program in Java. I have made small modifications
-   in their program. (Richard Simard)
-
-   =========================================================================*/
-
     /*
     The C program to compute Kolmogorov's distribution
 
@@ -598,32 +586,6 @@ object KolmogorovSmirnovDist {
        See G. Marsaglia, Wai Wan Tsang and Jingbo Wong,
           J.Stat.Software, 8, 18, pp 1--4, (2003).
    */
-
-    //=========================================================================
-
-
-    /*=========================================================================
-
-   The following implements the Durbin matrix algorithm and was programmed
-   by G. Marsaglia, Wai Wan Tsang and Jingbo Wong in C.
-
-   I have translated their program in Java. I have made small modifications
-   in their program. (Richard Simard)
-
-   =========================================================================*/
-    /*
-    The C program to compute Kolmogorov's distribution
-
-                K(n,d) = Prob(D_n < d),         where
-
-         D_n = max(x_1-0/n,x_2-1/n...,x_n-(n-1)/n,1/n-x_1,2/n-x_2,...,n/n-x_n)
-
-       with  x_1<x_2,...<x_n  a purported set of n independent uniform [0,1)
-       random variables sorted into increasing order.
-       See G. Marsaglia, Wai Wan Tsang and Jingbo Wong,
-          J.Stat.Software, 8, 18, pp 1--4, (2003).
-   */
-    //=========================================================================
     private fun DurbinMatrix(n: Int, d: Double): Double {
         val k: Int
         val m: Int
