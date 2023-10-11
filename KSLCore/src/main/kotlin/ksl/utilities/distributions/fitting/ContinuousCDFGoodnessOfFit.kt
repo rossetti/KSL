@@ -25,8 +25,8 @@ class ContinuousCDFGoodnessOfFit(
     val cramerVonMisesStatistic: Double
         get() = Statistic.cramerVonMisesTestStatistic(data, distribution)
 
-    val watsonTestStatistic: Double
-        get() = Statistic.watsonTestStatistic(data, distribution)
+//    val watsonTestStatistic: Double
+//        get() = Statistic.watsonTestStatistic(data, distribution)
 
     val ksStatistic: Double
         get() = Statistic.ksTestStatistic(data, distribution)
@@ -40,20 +40,23 @@ class ContinuousCDFGoodnessOfFit(
     val cramerVonMisesPValue: Double
         get() = 1.0 - cramerVonMisesCDF(data.size, cramerVonMisesStatistic)
 
-    val watsonTestPValue: Double
-        get() = 1.0 - watsonCDF(data.size, watsonTestStatistic)
+//    val watsonTestPValue: Double
+//        get() = 1.0 - watsonCDF(data.size, watsonTestStatistic)
 
     fun gofTestResults() : String {
         val sb = StringBuilder().apply {
+            appendLine()
             appendLine("Goodness of Fit Test Results:")
             appendLine("K-S test statistic = $ksStatistic")
             appendLine("K-S test p-value = $ksPValue")
+            appendLine()
             appendLine("Anderson-Darling test statistic = $andersonDarlingStatistic")
             appendLine("Anderson-Darling test p-value = $andersonDarlingPValue")
+            appendLine()
             appendLine("Cramer-Von-Mises test statistic = $cramerVonMisesStatistic")
             appendLine("Cramer-Von-Mises test p-value = $cramerVonMisesPValue")
-            appendLine("Watson test statistic = $watsonTestStatistic")
-            appendLine("Watson test p-value = $watsonTestPValue")
+//            appendLine("Watson test statistic = $watsonTestStatistic")
+//            appendLine("Watson test p-value = $watsonTestPValue")
         }
         return sb.toString()
     }
