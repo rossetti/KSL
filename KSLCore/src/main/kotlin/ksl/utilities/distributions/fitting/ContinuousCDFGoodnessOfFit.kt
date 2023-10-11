@@ -61,7 +61,7 @@ class ContinuousCDFGoodnessOfFit(
         return sb.toString()
     }
 
-    fun testResults(): String {
+    override fun toString(): String {
         val sb = StringBuilder().apply {
             append(chiSquaredTestResults())
             append(gofTestResults())

@@ -18,6 +18,12 @@ open class DiscretePMFGoodnessOfFit(
 
     final override val expectedCounts = binProbabilities.multiplyConstant(histogram.count)
 
+    override fun toString(): String {
+        val sb = StringBuilder().apply {
+            append(chiSquaredTestResults())
+        }
+        return sb.toString()
+    }
 }
 
 fun main() {
