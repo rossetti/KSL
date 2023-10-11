@@ -32,4 +32,13 @@ class ContinuousCDFGoodnessOfFit(
 
     val ksPValue: Double
         get() = KolmogorovSmirnovDist.cdf(data.size, ksStatistic)
+
+//    val andersonDarlingPValue: Double
+//        get() = andersonDarlingCDF(data.size, andersonDarlingStatistic)
+//
+//    val cramerVonMisesPValue: Double
+//        get() = cramerVonMisesCDF(data.size, cramerVonMisesStatistic)
+//
+//    val watsonTestPValue: Double
+//        get() = watsonCDF(data.size, watsonTestStatistic)
 }
