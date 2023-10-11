@@ -922,6 +922,10 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             } else num / denom
         }
 
+        /**
+         *  Computes the K-S test statistic for testing if the data
+         *  comes from the supplied distribution.
+         */
         fun ksTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
             val tp = data.orderStatistics()
             tp.mapInPlace { x -> fn.cdf(x) }
