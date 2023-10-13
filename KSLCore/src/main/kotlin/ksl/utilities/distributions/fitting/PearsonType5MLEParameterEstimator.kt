@@ -73,7 +73,7 @@ class PearsonType5MLEParameterEstimator() : ParameterEstimatorIfc {
                 statistics = statistics,
                 parameters = null,
                 message = "The parameters were not estimated successfully using a MLE technique",
-                success = true
+                success = false
             )
         }
 
