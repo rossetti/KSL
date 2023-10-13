@@ -287,7 +287,7 @@ fun testWelchPlotting() {
 //    val v = traceValues["values"]!!
 //    val t = traceValues["times"]!!
 //    val plot = StateVariablePlot(v, t, "response")
-    val plot = StateVariablePlot(rt, 1.0, 100.0)
+    val plot = StateVariablePlot(rt, 1, 100.0)
     plot.showInBrowser()
     plot.saveToFile("StateVariablePlot", plotTitle = "This is a test of StateVariablePlot plot")
 

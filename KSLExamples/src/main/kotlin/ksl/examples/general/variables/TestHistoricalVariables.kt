@@ -21,11 +21,13 @@ package ksl.examples.general.variables
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
+import ksl.observers.ResponseTrace
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.plotting.StateVariablePlot
 
 
 fun main(){
@@ -42,12 +44,19 @@ fun main(){
     val a = HistoricalVariable(m, arrivalsPath)
     val s = HistoricalVariable(m, serviceTimePath)
     val hq = HistoricalQueue(m, timeBtwArrivals = a, serviceTime = s)
-
+    val nOft = ResponseTrace(hq.numInSystem)
+    val qOft = ResponseTrace(hq.waitingQ.numInQ)
     m.lengthOfReplication = 31.0
- //   m.lengthOfReplication = 100.0
+//    m.lengthOfReplication = 100.0
     m.numberOfReplications = 1
     m.simulate()
     m.print()
+
+    val nsPlot = StateVariablePlot(nOft, repNum = 1)
+    nsPlot.showInBrowser()
+
+    val nqPlot = StateVariablePlot(qOft, repNum = 1)
+    nqPlot.showInBrowser()
 }
 
 class HistoricalQueue(
@@ -68,7 +77,11 @@ class HistoricalQueue(
         }
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
+    val numBusy: TWResponseCIfc
+        get() = myNumBusy
     private val myNS: TWResponse = TWResponse(this, "# in System")
+    val numInSystem: TWResponseCIfc
+        get() = myNS
     private val myNumCustomers: Counter = Counter(this, name = "Num Served")
 
     private val mySysTime: Response = Response(this, "System Time")
