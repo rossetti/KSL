@@ -1161,14 +1161,14 @@ class Model(
         myReplicationProcess.end(msg)
     }
 
-    /**
-     * Causes the simulation to stop the current replication and not complete any additional replications
-     *
-     * @param msg A message to indicate why the simulation was stopped
-     */
-    fun stopSimulation(msg: String?) {
-        myReplicationProcess.stop(msg)
-    }
+//    /**
+//     * Causes the simulation to stop the current replication and not complete any additional replications
+//     *
+//     * @param msg A message to indicate why the simulation was stopped
+//     */
+//    private fun stopSimulation(msg: String?) {
+//        myReplicationProcess.stop(msg)
+//    }
 
     override fun toString(): String {
         val sb = StringBuilder()
