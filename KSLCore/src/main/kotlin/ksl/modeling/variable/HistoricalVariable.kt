@@ -32,13 +32,59 @@ fun interface StopActionIfc {
     fun stopAction(historicalVariable: HistoricalVariable)
 }
 
+/**
+ *   A historical variable returns values read from a file. These
+ *   variables might be used in place of a RandomVariable to supply
+ *   data values into a simulation model. The user must supply a
+ *   valid path to the file [pathToFile]. The file should be a text
+ *   file with a single column of double values, each value on a new row.
+ *   All values in the file must be convertable to instances of Double.
+ *
+ *   The array option [arrayOption] indicates if the contents of the file
+ *   are read into an array upon creation of the instance.  Consider using
+ *   this option when the number of values can comfortably fit into memory.
+ *   This avoids having an open file and should permit faster access to the
+ *   values at the cost of increased memory requirements. The default for
+ *   the array option is true. The file is closed immediately after reading
+ *   all the values into the array.
+ *
+ *   If the array option is false, then values
+ *   are read from the file during the execution of the simulation. The
+ *   implication is that the file remains open during the simulation. The
+ *   file will be opened automatically when the simulation experiment starts
+ *   and closed automatically when the simulation experiment ends.
+ *
+ *   The user must specify what to do when there are no more values available
+ *   in the stream via the end stream option [endStreamOption]. There are four options available:
+ *
+ *   REPEAT: When the end of values is detected, the values will automatically
+ *   repeat with the next value returning to the first value available in the file.
+ *
+ *   STOP: When the end of values is detected, logic provided via the
+ *   function [stopAction] will be executed. The default action is to stop the
+ *   current replication and cause no future replications are executed.  By
+ *   providing a stop action function, the user may provide a more specific
+ *   actions that can occur when there are no more values.
+ *   The value of [stopValue] will be returned as the last value.
+ *   The default stopping value is Double.MAX_VALUE. The STOP option is the default behavior.
+ *
+ *   USE_LAST: When the end of values is detected, the last value from the file
+ *   will be repeatedly returned for any future requests for values.
+ *
+ *   USE_DEFAULT: When the end of values is detected, the values will be
+ *   returned from the supplied instance of the parameter defaultValue. In the case
+ *   of specifying USE_DEFAULT, the user must supply an instance of the
+ *   GetValueIfc interface to supply the values. If USE_DEFAULT is not specified,
+ *   a default value is optional.
+ *
+ */
 class HistoricalVariable(
     parent: ModelElement,
     val pathToFile: Path,
     val arrayOption: Boolean = true,
-    defaultValue: GetValueIfc? = null,
-    val stopValue: Double = Double.MAX_VALUE,
     val endStreamOption: EndStreamOption = EndStreamOption.STOP,
+    val stopValue: Double = Double.MAX_VALUE,
+    defaultValue: GetValueIfc? = null,
     name: String? = null
 ) : ModelElement(parent, name), GetValueIfc, PreviousValueIfc {
 
@@ -105,7 +151,7 @@ class HistoricalVariable(
     }
 
     private fun stoppingAction(historicalVariable: HistoricalVariable){
-        stopReplication("Replication stopped by historical variable: $name")
+        model.stopSimulation("Execution stopped by historical variable: $name")
     }
 
     private fun nextValue(): Double {

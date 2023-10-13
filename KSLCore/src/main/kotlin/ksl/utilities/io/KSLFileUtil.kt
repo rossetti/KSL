@@ -566,11 +566,11 @@ object KSLFileUtil {
      * Writes the data in the array to rows in the file, each row with one data point
      *
      * @param array    the array to write, must not be null
-     * @param fileName the name of the file, must not be null, file will appear in JSL.getInstance().getOutDir()
+     * @param fileName the name of the file, must not be null, file will appear in KSL.outDir
      */
-    fun writeToFile(array: DoubleArray, fileName: String, df: DecimalFormat? = null) {
+    fun writeToFile(array: DoubleArray, fileName: String, df: DecimalFormat? = null) : Path {
         val pathToFile = KSL.outDir.resolve(fileName)
-        writeToFile(array, pathToFile, df)
+        return writeToFile(array, pathToFile, df)
     }
 
     /**
@@ -579,9 +579,10 @@ object KSLFileUtil {
      * @param array      the array to write, must not be null
      * @param pathToFile the path to the file, must not be null
      */
-    fun writeToFile(array: DoubleArray, pathToFile: Path, df: DecimalFormat? = null) {
+    fun writeToFile(array: DoubleArray, pathToFile: Path, df: DecimalFormat? = null) : Path {
         val out = createPrintWriter(pathToFile)
         write(array, out, df)
+        return pathToFile
     }
 
     /**  Allows writing directly to a known PrintWriter.  Facilitates writing
