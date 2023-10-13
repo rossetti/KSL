@@ -28,12 +28,16 @@ import java.nio.file.Path
 import java.util.*
 import kotlin.collections.ArrayList
 
+fun interface StopActionIfc {
+    fun stopAction(historicalVariable: HistoricalVariable)
+}
 
 class HistoricalVariable(
     parent: ModelElement,
     val pathToFile: Path,
     val arrayOption: Boolean = true,
     defaultValue: GetValueIfc? = null,
+    val stopValue: Double = Double.MAX_VALUE,
     val endStreamOption: EndStreamOption = EndStreamOption.STOP,
     name: String? = null
 ) : ModelElement(parent, name), GetValueIfc, PreviousValueIfc {
@@ -42,11 +46,12 @@ class HistoricalVariable(
         REPEAT, STOP, USE_LAST, USE_DEFAULT
     }
 
+    var stopAction: (HistoricalVariable) -> Unit = ::stoppingAction
+
     private var myPreviousValue: Double = 0.0
     private var dataArray = ArrayList<Double>()
     private lateinit var myScanner: Scanner
     private lateinit var arrayIterator: Iterator<Double>
-//    private lateinit var stringIterator: Iterator<String>
 
     private val myDefaultValue: GetValueIfc by lazy {
         require(defaultValue != null) { "If the stream option is to use the default value, it must be supplied" }
@@ -82,10 +87,12 @@ class HistoricalVariable(
         private set
 
     override fun beforeExperiment() {
-        // if not using the array option then ensure a new scanner is made
         if (!arrayOption) {
+            myScanner.close()
+            // if not using the array option then ensure a new scanner is made
             myScanner = Scanner(pathToFile)
         } else {
+            // if using the array option then ensure a new iterator is assigned
             arrayIterator = dataArray.iterator()
         }
     }
@@ -93,8 +100,12 @@ class HistoricalVariable(
     override fun afterExperiment() {
         // always close the scanner if it was used
         if (!arrayOption) {
-            myScanner.reset()
+            myScanner.close()
         }
+    }
+
+    private fun stoppingAction(historicalVariable: HistoricalVariable){
+        stopReplication("Replication stopped by historical variable: $name")
     }
 
     private fun nextValue(): Double {
@@ -104,6 +115,20 @@ class HistoricalVariable(
                 return arrayIterator.next()
             } else {
                 // check the options
+                return when (endStreamOption) {
+                    EndStreamOption.REPEAT -> {
+                        arrayIterator = dataArray.iterator()
+                        arrayIterator.next()
+                    }
+
+                    EndStreamOption.STOP -> {
+                        stopAction.invoke(this)
+                        return stopValue
+                    }
+
+                    EndStreamOption.USE_LAST -> myPreviousValue
+                    EndStreamOption.USE_DEFAULT -> myDefaultValue.value
+                }
             }
         } else {
             // use scanner
@@ -111,8 +136,22 @@ class HistoricalVariable(
                 return myScanner.nextDouble()
             } else {
                 // check the options
+                return when (endStreamOption) {
+                    EndStreamOption.REPEAT -> {
+                        myScanner.close()
+                        myScanner = Scanner(pathToFile)
+                        myScanner.nextDouble()
+                    }
+
+                    EndStreamOption.STOP -> {
+                        stopAction.invoke(this)
+                        return stopValue
+                    }
+
+                    EndStreamOption.USE_LAST -> myPreviousValue
+                    EndStreamOption.USE_DEFAULT -> myDefaultValue.value
+                }
             }
         }
-        TODO("Not yet implemented")
     }
 }
