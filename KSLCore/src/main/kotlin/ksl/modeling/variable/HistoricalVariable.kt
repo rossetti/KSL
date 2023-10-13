@@ -151,6 +151,7 @@ class HistoricalVariable(
     }
 
     private fun stoppingAction(historicalVariable: HistoricalVariable){
+        println("stopping action time = $time")
         model.stopSimulation("Execution stopped by historical variable: $name")
     }
 

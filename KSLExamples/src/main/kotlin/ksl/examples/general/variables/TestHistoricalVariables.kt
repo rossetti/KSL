@@ -39,8 +39,8 @@ fun main(){
     val serviceTimePath = KSLFileUtil.writeToFile(serviceTimes,"serviceTimes")
 
     val m = Model("Test Historical Variables")
-    val a = HistoricalVariable(m, arrivalsPath)
-    val s = HistoricalVariable(m, serviceTimePath)
+    val a = HistoricalVariable(m, arrivalsPath, stopValue = 99.0)
+    val s = HistoricalVariable(m, serviceTimePath, stopValue = 99.0)
     val hq = HistoricalQueue(m, timeBtwArrivals = a, serviceTime = s)
 
  //   m.lengthOfReplication = 31.0
@@ -80,11 +80,15 @@ class HistoricalQueue(
 
     private val myArrivalEventAction: ArrivalEventAction = ArrivalEventAction()
     private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
-
+    private val repEndTime = Response(this, "Rep End Time")
     override fun initialize() {
         super.initialize()
         // start the arrivals
         schedule(myArrivalEventAction, timeBtwArrivals)
+    }
+
+    override fun replicationEnded() {
+        repEndTime.value = time
     }
 
     private inner class ArrivalEventAction : EventAction<Nothing>() {
