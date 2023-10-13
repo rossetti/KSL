@@ -20,8 +20,8 @@ class StateVariablePlot(
      *  up to and including the [time]. The default value of time is Double.MAX_VALUE,
      *  which will result in all values for the replication.
      */
-    constructor(responseTrace: ResponseTrace, repNum: Double, time: Double = Double.MAX_VALUE) : this(
-        responseTrace.traceDataMap(repNum, time),
+    constructor(responseTrace: ResponseTrace, repNum: Int, time: Double = Double.MAX_VALUE) : this(
+        responseTrace.traceDataMap(repNum.toDouble(), time),
         responseTrace.name
     )
 
@@ -37,7 +37,7 @@ class StateVariablePlot(
     init {
         xLabel = "t"
         yLabel = "y(t)"
-        title = "Sample path for y(t)"
+        title = "Sample path for $responseName"
         data = mapOf(
             "times" to times,
             "values" to values
