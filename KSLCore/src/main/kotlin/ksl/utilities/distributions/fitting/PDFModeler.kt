@@ -24,6 +24,7 @@ import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
+import ksl.utilities.random.rvariable.PearsonType5RV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.statistic.*
@@ -116,7 +117,8 @@ class PDFModeler(private val data: DoubleArray) {
             ExponentialMLEParameterEstimator,
             LognormalMLEParameterEstimator,
             GammaMLEParameterEstimator(),
-            WeibullMLEParameterEstimator()
+            WeibullMLEParameterEstimator(),
+            PearsonType5MLEParameterEstimator()
         )
 
     /**
@@ -601,11 +603,16 @@ class PDFModeler(private val data: DoubleArray) {
                     return Weibull(shape, scale)
                 }
 
+                RVType.PearsonType5 -> {
+                    val scale = parameters.doubleParameter("scale")
+                    val shape = parameters.doubleParameter("shape")
+                    return PearsonType5(shape, scale)
+                }
+
 //                RVType.JohnsonB -> TODO()
 //                RVType.Laplace -> TODO()
 //                RVType.LogLogistic -> TODO()
 //                RVType.ChiSquared -> TODO()
-//                RVType.PearsonType5 -> TODO()
 //                RVType.PearsonType6 -> TODO()
                 else -> null
             }
