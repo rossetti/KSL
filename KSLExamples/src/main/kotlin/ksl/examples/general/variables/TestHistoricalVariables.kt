@@ -39,8 +39,8 @@ fun main(){
     val serviceTimePath = KSLFileUtil.writeToFile(serviceTimes,"serviceTimes")
 
     val m = Model("Test Historical Variables")
-    val a = HistoricalVariable(m, arrivalsPath, stopValue = 99.0)
-    val s = HistoricalVariable(m, serviceTimePath, stopValue = 99.0)
+    val a = HistoricalVariable(m, arrivalsPath, stopValue = Double.MAX_VALUE)
+    val s = HistoricalVariable(m, serviceTimePath, stopValue = Double.MAX_VALUE)
     val hq = HistoricalQueue(m, timeBtwArrivals = a, serviceTime = s)
 
  //   m.lengthOfReplication = 31.0

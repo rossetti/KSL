@@ -152,7 +152,10 @@ class HistoricalVariable(
 
     private fun stoppingAction(historicalVariable: HistoricalVariable){
         println("stopping action time = $time")
-        model.stopSimulation("Execution stopped by historical variable: $name")
+        //TODO this is not working as intended, the replication doesn't end at this event time
+ //      model.stopSimulation("Execution stopped by historical variable: $name")
+        model.endSimulation("Trying to end the simulation")
+        executive.stop("Stopping the replication by historical variable: $name")
     }
 
     private fun nextValue(): Double {
