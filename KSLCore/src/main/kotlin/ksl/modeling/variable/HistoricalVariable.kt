@@ -20,9 +20,7 @@ package ksl.modeling.variable
 
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
-import ksl.utilities.KSLArrays
 import ksl.utilities.PreviousValueIfc
-import ksl.utilities.random.rvariable.ConstantRV
 import java.io.FileNotFoundException
 import java.nio.file.Path
 import java.util.*
@@ -30,6 +28,10 @@ import kotlin.collections.ArrayList
 
 fun interface StopActionIfc {
     fun stopAction(historicalVariable: HistoricalVariable)
+}
+
+enum class StoppingOption {
+    REPEAT, STOP, USE_LAST, USE_DEFAULT
 }
 
 /**
@@ -55,16 +57,16 @@ fun interface StopActionIfc {
  *   and closed automatically when the simulation experiment ends.
  *
  *   The user must specify what to do when there are no more values available
- *   in the stream via the end stream option [endStreamOption]. There are four options available:
+ *   in the stream via the end stream option [stoppingOption]. There are four options available:
  *
  *   REPEAT: When the end of values is detected, the values will automatically
  *   repeat with the next value returning to the first value available in the file.
  *
  *   STOP: When the end of values is detected, logic provided via the
  *   function [stopAction] will be executed. The default action is to stop the
- *   current replication and cause no future replications are executed.  By
- *   providing a stop action function, the user may provide a more specific
- *   actions that can occur when there are no more values.
+ *   current replication and cause no future replications to be executed.  By
+ *   providing a stop action function, the user may provide more specific
+ *   actions that can occur when there are no more values in the stream.
  *   The value of [stopValue] will be returned as the last value.
  *   The default stopping value is Double.MAX_VALUE. The STOP option is the default behavior.
  *
@@ -82,15 +84,11 @@ class HistoricalVariable(
     parent: ModelElement,
     val pathToFile: Path,
     val arrayOption: Boolean = true,
-    val endStreamOption: EndStreamOption = EndStreamOption.STOP,
+    val stoppingOption: StoppingOption = StoppingOption.STOP,
     val stopValue: Double = Double.MAX_VALUE,
     defaultValue: GetValueIfc? = null,
     name: String? = null
 ) : ModelElement(parent, name), GetValueIfc, PreviousValueIfc {
-
-    enum class EndStreamOption {
-        REPEAT, STOP, USE_LAST, USE_DEFAULT
-    }
 
     var stopAction: (HistoricalVariable) -> Unit = ::stoppingAction
 
@@ -118,7 +116,7 @@ class HistoricalVariable(
                 e.printStackTrace()
             }
         }
-        if (endStreamOption == EndStreamOption.USE_DEFAULT) {
+        if (stoppingOption == StoppingOption.USE_DEFAULT) {
             require(defaultValue != null) { "If the stream option is to use the default value, it must be supplied" }
         }
     }
@@ -151,11 +149,8 @@ class HistoricalVariable(
     }
 
     private fun stoppingAction(historicalVariable: HistoricalVariable){
-        println("stopping action time = $time")
-        //TODO this is not working as intended, the replication doesn't end at this event time
- //      model.stopSimulation("Execution stopped by historical variable: $name")
-        model.endSimulation("Trying to end the simulation")
-        executive.stop("Stopping the replication by historical variable: $name")
+        executive.stop("Historical variable: $name: Stopped replication = ${model.currentReplicationNumber} at time $time")
+        model.endSimulation("Ended all replications by historical variable: $name")
     }
 
     private fun nextValue(): Double {
@@ -165,19 +160,19 @@ class HistoricalVariable(
                 return arrayIterator.next()
             } else {
                 // check the options
-                return when (endStreamOption) {
-                    EndStreamOption.REPEAT -> {
+                return when (stoppingOption) {
+                    StoppingOption.REPEAT -> {
                         arrayIterator = dataArray.iterator()
                         arrayIterator.next()
                     }
 
-                    EndStreamOption.STOP -> {
+                    StoppingOption.STOP -> {
                         stopAction.invoke(this)
                         return stopValue
                     }
 
-                    EndStreamOption.USE_LAST -> myPreviousValue
-                    EndStreamOption.USE_DEFAULT -> myDefaultValue.value
+                    StoppingOption.USE_LAST -> myPreviousValue
+                    StoppingOption.USE_DEFAULT -> myDefaultValue.value
                 }
             }
         } else {
@@ -186,20 +181,20 @@ class HistoricalVariable(
                 return myScanner.nextDouble()
             } else {
                 // check the options
-                return when (endStreamOption) {
-                    EndStreamOption.REPEAT -> {
+                return when (stoppingOption) {
+                    StoppingOption.REPEAT -> {
                         myScanner.close()
                         myScanner = Scanner(pathToFile)
                         myScanner.nextDouble()
                     }
 
-                    EndStreamOption.STOP -> {
+                    StoppingOption.STOP -> {
                         stopAction.invoke(this)
                         return stopValue
                     }
 
-                    EndStreamOption.USE_LAST -> myPreviousValue
-                    EndStreamOption.USE_DEFAULT -> myDefaultValue.value
+                    StoppingOption.USE_LAST -> myPreviousValue
+                    StoppingOption.USE_DEFAULT -> myDefaultValue.value
                 }
             }
         }
