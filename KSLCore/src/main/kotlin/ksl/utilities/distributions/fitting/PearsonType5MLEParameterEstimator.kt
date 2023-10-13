@@ -11,14 +11,18 @@ import ksl.utilities.statistic.StatisticIfc
 import kotlin.math.ln
 
 /**
- *  Estimates the parameters of the Gamma distribution based on a MLE algorithm.
- *  See page 285-286 of Law (2007) Simulation Modeling and Analysis.  Uses
+ *  Estimates the parameters of the Pearson Type 5 distribution based on a MLE algorithm.
+ *  See page 293-294 of Law (2007) Simulation Modeling and Analysis.  Uses
  *  bi-section search seeded by initial estimates based on MOM estimates.  Convergence is not
  *  guaranteed and will be indicated in the EstimatedParameters success property
  *  and the message.  Requires that the data be strictly positive and that there
  *  are at least two observations. Also, requires that all the supplied data
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
+ *  The algorithm relies on the fact if X ~ PT5(shape, scale) if and only
+ *  if 1/X ~ gamma(shape, 1/scale).  Thus, the data is transformed as 1/X, and
+ *  a gamma distribution is fit. If the MLE of the gamma is successful
+ *  the correct parameters are returned.
  */
 class PearsonType5MLEParameterEstimator() : ParameterEstimatorIfc {
 
