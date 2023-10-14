@@ -49,8 +49,7 @@ fun interface PMFIfc {
      * @return f(i) the P(X=i)
      */
     fun pmf(i: Int) : Double
-
-
+    
     /**
      *  Computes the probabilities associated with the [range]
      *  and returns the value and the probability as a map
