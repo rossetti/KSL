@@ -31,7 +31,7 @@ fun main() {
 //    testPPandQQ_Plots()
 //    testFunctionPlot()
 //    testHistogramPlot()
-//    testStateVariablePlot()
+    testStateVariablePlot()
 //    testWelchPlotting()
     //      testObservationPlot()
 //    testACFPlot()
@@ -42,7 +42,7 @@ fun main() {
 
 //    testFitDistPlot()
 
-    testCDFDiffPlot()
+//    testCDFDiffPlot()
 }
 
 fun testPlot() {
@@ -240,6 +240,8 @@ fun testStateVariablePlot() {
     plot.showInBrowser()
 
     plot.saveToFile("StateVariablePlot", plotTitle = "This is a test of StateVariablePlot plot")
+
+    println(plot)
 }
 
 fun testWelchPlotting() {
