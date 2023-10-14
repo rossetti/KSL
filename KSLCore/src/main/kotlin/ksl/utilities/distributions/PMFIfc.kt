@@ -27,7 +27,7 @@ import kotlin.math.floor
  */
 fun interface PMFIfc {
 
-    /** If x is not and integer value, then the probability must be zero
+    /** If x is not an integer value, then the probability must be zero
      * otherwise pmf(int x) is used to determine the probability
      *
      * @param x the value to evaluate
@@ -49,4 +49,19 @@ fun interface PMFIfc {
      * @return f(i) the P(X=i)
      */
     fun pmf(i: Int) : Double
+
+
+    /**
+     *  Computes the probabilities associated with the [range]
+     *  and returns the value and the probability as a map
+     *  with the integer value as the key and the probability
+     *  as the related value.
+     */
+    fun pmf(range: IntRange) : Map<Int, Double>{
+        val map = mutableMapOf<Int, Double>()
+        for(i in range){
+            map[i] = pmf(i)
+        }
+        return map
+    }
 }

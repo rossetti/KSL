@@ -26,7 +26,7 @@ fun main() {
 //    testBoxPlot()
 //    testMultiBoxPlot()
 //    testConfidenceIntervalPlots()
-//    testFrequencyPlot()
+    testFrequencyPlot()
 //    testStateFrequencyPlot()
 //    testPPandQQ_Plots()
 //    testFunctionPlot()
