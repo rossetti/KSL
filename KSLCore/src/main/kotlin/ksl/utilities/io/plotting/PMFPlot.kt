@@ -1,7 +1,9 @@
 package ksl.utilities.io.plotting
 
 import ksl.utilities.distributions.DEmpiricalCDF
+import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.toDoubles
 import org.jetbrains.kotlinx.dataframe.impl.asList
 import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.geom.*
@@ -12,7 +14,7 @@ import org.jetbrains.letsPlot.label.labs
 import org.jetbrains.letsPlot.scale.ylim
 
 class PMFPlot(
-    private val pmf : DEmpiricalCDF,
+    val pmf: DEmpiricalCDF,
     dataName: String? = null
 ) : BasePlot() {
 
@@ -31,14 +33,20 @@ class PMFPlot(
         )
     }
 
+    constructor(
+        values: DoubleArray,
+        probabilities: DoubleArray,
+        dataName: String? = null
+    ) : this(DEmpiricalCDF(values, KSLRandom.makeCDF(probabilities)), dataName)
+
     override fun buildPlot(): Plot {
-        var p = ggplot(dataMap)  +
+        var p = ggplot(dataMap) +
                 geomPoint() {
                     x = "value"
                     y = "prob"
                 }
-        for (i in v.indices){
-            p = p + geomSegment(yend = 0){
+        for (i in v.indices) {
+            p = p + geomSegment(yend = 0) {
                 x = "value"
                 y = "prob"
                 xend = "value"

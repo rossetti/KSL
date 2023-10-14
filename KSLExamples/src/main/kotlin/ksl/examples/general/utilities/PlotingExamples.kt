@@ -33,12 +33,12 @@ fun main() {
 //    testHistogramPlot()
 //    testStateVariablePlot()
 //    testWelchPlotting()
-          testObservationPlot()
+//          testObservationPlot()
 //    testACFPlot()
-//    testPMFPlot()
+    testPMFPlot()
 //    testCDFPlot()
 
- //   testECDFPlot()
+//    testECDFPlot()
 
 //    testFitDistPlot()
 
