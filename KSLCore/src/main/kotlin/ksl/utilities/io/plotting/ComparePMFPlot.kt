@@ -10,6 +10,7 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 import org.jetbrains.letsPlot.pos.positionNudge
+import org.jetbrains.letsPlot.scale.scaleFillManual
 import org.jetbrains.letsPlot.themes.theme
 
 class ComparePMFPlot(
@@ -25,26 +26,23 @@ class ComparePMFPlot(
             require(!(value <= 0.0 || value >= 1.0)) { "nudge should be in (0,1)" }
             field = value
         }
+
     init {
         yLabel = "Probability"
         xLabel = "Value"
         title = if (dataName != null) "Compare PMF Plot for $dataName" else "Compare PMF Plot"
         val observedRange = frequency.min.rangeTo(frequency.max)
         val map = df.pmf(observedRange)
-        val s1 = List<Int>(frequency.proportions.size){1}
-        val s2 = List<Int>(frequency.proportions.size){2}
         this.dataMap = mapOf(
             "estimated" to frequency.proportions.asList(),
             "observed" to frequency.values.asList(),
             "probability" to map.values.asList(),
             "values" to map.keys.asList(),
-            "theoretical" to s1,
-            "fast" to s2
         )
     }
 
-
     override fun buildPlot(): Plot {
+        //
         val pd = positionNudge(nudge)
         var p = ggplot(dataMap) + theme().legendPositionRight() +
                 geomPoint(color = "red", position = pd) {
