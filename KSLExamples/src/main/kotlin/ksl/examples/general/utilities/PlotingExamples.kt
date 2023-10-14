@@ -62,11 +62,11 @@ fun main() {
 
 //    testCDFDiffPlot()
 
-//    testComparePMFPlot()
+    testComparePMFPlot()
 
 //    temp()
 
-    temp2()
+//    temp2()
 }
 
 fun testPlot() {
@@ -387,7 +387,7 @@ fun testComparePMFPlot() {
     val rv = bd.randomVariable
     val sample = rv.sample(1000)
     val data = IntArray(sample.size) { sample[it].toInt() }
-    val plot = ComparePMFPlot(data, bd)
+    val plot = ComparePMFPlotV2(data, bd)
     plot.showInBrowser()
     plot.saveToFile("ComparePMF Plot")
 }
