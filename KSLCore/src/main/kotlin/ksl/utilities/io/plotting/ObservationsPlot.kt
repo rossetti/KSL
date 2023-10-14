@@ -13,21 +13,31 @@ import org.jetbrains.letsPlot.label.labs
 
 class ObservationsPlot(
     data: DoubleArray,
-    private val interval: Interval? = null,
+    var interval: Interval? = null,
     dataName: String? = null
 ) : BasePlot() {
 
     private val dataMap: Map<String, List<Number>>
-    private val stats = Statistic(data)
+    val statistics: Statistic
 
     init {
         yLabel = "Observation"
         xLabel = "Observation Number"
         title = if (dataName != null) "Observation Plot for $dataName" else "Observation Plot"
+        statistics = if (dataName == null) {
+            Statistic(data)
+        } else {
+            Statistic(dataName, data)
+        }
         this.dataMap = mapOf(
             "indices" to (1..data.size).asList(),
             "data" to data.asList()
         )
+    }
+
+    fun confidenceInterval(level: Double = 0.99){
+        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+        interval = statistics.confidenceInterval(level)
     }
 
     override fun buildPlot(): Plot {
@@ -42,13 +52,17 @@ class ObservationsPlot(
                     y = "data"
                 }
         if (interval != null) {
-            p = p + geomHLine(yintercept = interval.upperLimit, color = "blue", linetype = "dashed") +
-                    geomHLine(yintercept = interval.midPoint, color = "red", linetype = "dashed") +
-                    geomHLine(yintercept = interval.lowerLimit, color = "blue", linetype = "dashed")
+            p = p + geomHLine(yintercept = interval!!.upperLimit, color = "blue", linetype = "dashed") +
+                    geomHLine(yintercept = interval!!.midPoint, color = "red", linetype = "dashed") +
+                    geomHLine(yintercept = interval!!.lowerLimit, color = "blue", linetype = "dashed")
         }
         p = p + labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
+    }
+
+    override fun toString(): String {
+        return statistics.toString()
     }
 
 }
