@@ -1,6 +1,7 @@
 package ksl.utilities.io.plotting
 
 import ksl.observers.ResponseTrace
+import ksl.utilities.statistic.TimeWeightedStatistic
 import org.jetbrains.letsPlot.geom.geomPoint
 import org.jetbrains.letsPlot.geom.geomStep
 import org.jetbrains.letsPlot.ggplot
@@ -14,6 +15,8 @@ class StateVariablePlot(
     val responseName: String
 ) : BasePlot() {
     private val data: Map<String, DoubleArray>
+
+    val timeWeightedStatistic = TimeWeightedStatistic(values, times)
 
     /**
      *  Constructs a plot that has the times and values for the provided replication [repNum]
@@ -57,6 +60,10 @@ class StateVariablePlot(
                 labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
+    }
+
+    override fun toString(): String {
+        return timeWeightedStatistic.toString()
     }
 
 }
