@@ -53,22 +53,23 @@ class IntegerFrequency(
     val lowerLimit: Int = Int.MIN_VALUE,
     val upperLimit: Int = Int.MAX_VALUE
 ) : IdentityIfc by Identity(name) {
-    init {
-        require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
-        if (data != null){
-            collect(data)
-        }
-    }
+
+    /**
+     * Collects statistical information
+     */
+    private var myStatistic: Statistic = Statistic(this.name)
 
     /**
      * A Cell represents a value, count pairing
      */
     private val myCells: MutableMap<Int, Cell> = HashMap()
 
-    /**
-     * Collects statistical information
-     */
-    private var myStatistic: Statistic = Statistic(this.name)
+    init {
+        require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
+        if (data != null){
+            collect(data)
+        }
+    }
 
     /**
      * The number of observations that fell below the first bin's lower limit

@@ -6,6 +6,8 @@ import ksl.observers.welch.WelchDataCollectorIfc
 import ksl.observers.welch.WelchFileObserver
 import ksl.simulation.Model
 import ksl.utilities.Interval
+import ksl.utilities.KSLArrays
+import ksl.utilities.distributions.Binomial
 import ksl.utilities.distributions.DEmpiricalCDF
 import ksl.utilities.distributions.Normal
 import ksl.utilities.io.plotting.*
@@ -26,7 +28,7 @@ fun main() {
 //    testBoxPlot()
 //    testMultiBoxPlot()
 //    testConfidenceIntervalPlots()
-    testFrequencyPlot()
+//    testFrequencyPlot()
 //    testStateFrequencyPlot()
 //    testPPandQQ_Plots()
 //    testFunctionPlot()
@@ -35,7 +37,7 @@ fun main() {
 //    testWelchPlotting()
 //          testObservationPlot()
 //    testACFPlot()
-    testPMFPlot()
+//    testPMFPlot()
 //    testCDFPlot()
 
 //    testECDFPlot()
@@ -43,6 +45,8 @@ fun main() {
 //    testFitDistPlot()
 
 //    testCDFDiffPlot()
+
+    testComparePMFPlot()
 }
 
 fun testPlot() {
@@ -356,4 +360,14 @@ fun testCDFDiffPlot() {
     val plot = CDFDiffPlot(testData, n)
     plot.showInBrowser()
     plot.saveToFile("CDFDiffPlot")
+}
+
+fun testComparePMFPlot() {
+    val bd = Binomial(0.8, 20)
+    val rv = bd.randomVariable
+    val sample = rv.sample(1000)
+    val data = IntArray(sample.size) { sample[it].toInt() }
+    val plot = ComparePMFPlot(data, bd)
+    plot.showInBrowser()
+    plot.saveToFile("ComparePMF Plot")
 }

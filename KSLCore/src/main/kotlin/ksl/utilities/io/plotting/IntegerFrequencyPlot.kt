@@ -9,10 +9,17 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class IntegerFrequencyPlot(private val frequency: IntegerFrequency, proportions: Boolean = false) : BasePlot() {
+class IntegerFrequencyPlot(
+    private val frequency: IntegerFrequency,
+    proportions: Boolean = false
+) : BasePlot() {
 
     private val data: MutableMap<String, List<Any>> = mutableMapOf()
     private var dataType: String
+
+    constructor(data: IntArray,
+                proportions: Boolean = false
+    ) : this(IntegerFrequency(data = data), proportions)
 
     init {
         data["values"] = frequency.values.asList()
