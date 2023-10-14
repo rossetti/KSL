@@ -39,6 +39,7 @@ class ComparePMFPlot(
             "probability" to map.values.asList(),
             "values" to map.keys.asList(),
         )
+        //TODO try two data maps, one for the points that has a color mapper, the other for the segments
     }
 
     override fun buildPlot(): Plot {

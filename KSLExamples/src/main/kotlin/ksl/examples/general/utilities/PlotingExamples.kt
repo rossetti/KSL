@@ -10,6 +10,8 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.distributions.Binomial
 import ksl.utilities.distributions.DEmpiricalCDF
 import ksl.utilities.distributions.Normal
+import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.*
 import ksl.utilities.multiplyConstant
 import ksl.utilities.random.rvariable.BivariateNormalRV
@@ -17,9 +19,22 @@ import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.*
+import org.jetbrains.kotlinx.dataframe.impl.asList
 import org.jetbrains.letsPlot.*
+import org.jetbrains.letsPlot.core.util.PlotHtmlExport
+import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
+import org.jetbrains.letsPlot.export.VersionChecker
 import org.jetbrains.letsPlot.geom.geomBar
+import org.jetbrains.letsPlot.geom.geomPoint
 import org.jetbrains.letsPlot.geom.geomRect
+import org.jetbrains.letsPlot.geom.geomSegment
+import org.jetbrains.letsPlot.intern.toSpec
+import org.jetbrains.letsPlot.label.labs
+import org.jetbrains.letsPlot.pos.positionNudge
+import org.jetbrains.letsPlot.themes.theme
+import java.awt.Desktop
+import java.io.File
+import java.io.FileWriter
 import kotlin.math.exp
 
 fun main() {
@@ -47,6 +62,8 @@ fun main() {
 //    testCDFDiffPlot()
 
     testComparePMFPlot()
+
+//    temp()
 }
 
 fun testPlot() {
@@ -370,4 +387,56 @@ fun testComparePMFPlot() {
     val plot = ComparePMFPlot(data, bd)
     plot.showInBrowser()
     plot.saveToFile("ComparePMF Plot")
+}
+
+fun temp(){
+    val dataMap = mapOf(
+        "estimated" to listOf(0.2, 0.3, 0.4, 0.1),
+        "observed" to listOf(1, 2, 3, 4),
+        "probability" to listOf(0.19, 0.31, 0.42, 0.08),
+        "values" to listOf(1, 2, 3, 4),
+    )
+    val pd = positionNudge(.1)
+    var p = ggplot(dataMap) + theme().legendPositionRight() +
+            geomPoint(color = "red", position = pd) {
+                x = "observed"
+                y = "estimated"
+            } +
+            geomPoint(color = "black") {
+                x = "values"
+                y = "probability"
+            }
+    for (i in 1..4) {
+        p = p + geomSegment(yend = 0, color = "red", position = pd) {
+            x = "observed"
+            y = "estimated"
+            xend = "observed"
+        }
+    }
+    for (i in 1..4) {
+        p = p + geomSegment(yend = 0, color = "black") {
+            x = "values"
+            y = "probability"
+            xend = "values"
+        }
+    }
+    p = p + labs(title = "some title", x = "xLabel", y = "yLabel") +
+            ggsize(500, 350)
+
+    val spec = p.toSpec()
+    // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
+    val html = PlotHtmlExport.buildHtmlFromRawSpecs(
+        spec, iFrame = true,
+        scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
+    )
+    val tmpDir = File("someDirectory")
+    if (!tmpDir.exists()) {
+        tmpDir.mkdir()
+    }
+    val file = File.createTempFile("someFileName", ".html", tmpDir)
+    FileWriter(file).use {
+        it.write(html)
+    }
+    val desktop = Desktop.getDesktop()
+    desktop.browse(file.toURI())
 }
