@@ -30,6 +30,7 @@ import org.jetbrains.letsPlot.geom.geomRect
 import org.jetbrains.letsPlot.geom.geomSegment
 import org.jetbrains.letsPlot.intern.toSpec
 import org.jetbrains.letsPlot.label.labs
+import org.jetbrains.letsPlot.pos.positionDodge
 import org.jetbrains.letsPlot.pos.positionNudge
 import org.jetbrains.letsPlot.themes.theme
 import java.awt.Desktop
@@ -61,9 +62,11 @@ fun main() {
 
 //    testCDFDiffPlot()
 
-    testComparePMFPlot()
+//    testComparePMFPlot()
 
 //    temp()
+
+    temp2()
 }
 
 fun testPlot() {
@@ -420,6 +423,61 @@ fun temp(){
             xend = "values"
         }
     }
+    p = p + labs(title = "some title", x = "xLabel", y = "yLabel") +
+            ggsize(500, 350)
+
+    val spec = p.toSpec()
+    // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
+    val html = PlotHtmlExport.buildHtmlFromRawSpecs(
+        spec, iFrame = true,
+        scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
+    )
+    val tmpDir = File("someDirectory")
+    if (!tmpDir.exists()) {
+        tmpDir.mkdir()
+    }
+    val file = File.createTempFile("someFileName", ".html", tmpDir)
+    FileWriter(file).use {
+        it.write(html)
+    }
+    val desktop = Desktop.getDesktop()
+    desktop.browse(file.toURI())
+}
+
+fun temp2(){
+    val dataMap = mapOf(
+        "probability" to listOf(0.2, 0.3, 0.4, 0.1, 0.19, 0.31, 0.42, 0.08),
+        "values" to listOf(1, 2, 3, 4,1, 2, 3, 4),
+        "type" to listOf("t","t","t","t", "e", "e", "e", "e")
+    )
+    //val pd = positionNudge(.1)
+    val pd = positionDodge(0.1)
+    var p = ggplot(dataMap) + theme().legendPositionRight() +
+            geomPoint(position = pd) {
+                x = "values"
+                y = "probability"
+                color = "type"
+            }
+//    +
+//            geomPoint(color = "black") {
+//                x = "values"
+//                y = "probability"
+//            }
+    for (i in 1..8) {
+        p = p + geomSegment(yend = 0, position = pd) {
+            x = "values"
+            y = "probability"
+            xend = "values"
+            color = "type"
+        }
+    }
+//    for (i in 1..4) {
+//        p = p + geomSegment(yend = 0, color = "black") {
+//            x = "values"
+//            y = "probability"
+//            xend = "values"
+//        }
+//    }
     p = p + labs(title = "some title", x = "xLabel", y = "yLabel") +
             ggsize(500, 350)
 
