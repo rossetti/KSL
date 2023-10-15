@@ -191,7 +191,8 @@ class PDFModeler(private val data: DoubleArray) {
      *  then the resulting score is the default bad score for the scoring model.
      *  If the [filterResults] option is true, then any results that have
      *  missing parameters or had success false will be filtered from the
-     *  scoring process.
+     *  scoring process. The returned map has the estimation result as the
+     *  key to a list of scores for each scoring model.
      */
     fun scoreResults(
         results: List<EstimationResult>,
@@ -218,7 +219,11 @@ class PDFModeler(private val data: DoubleArray) {
 
     /**
      *  Estimates the parameters and scores the results. Returns
-     *  the estimated distribution and their scores
+     *  the estimated distribution and their scores. The returned
+     *  pair has the distribution (name + parameters) as th key,
+     *  with its list of scores as the first element of the pair.
+     *  The second element of the pair is the list of metrics associated
+     *  with the distribution.
      */
     fun scoresByDistribution(
         estimators: Set<ParameterEstimatorIfc> = allEstimators,
