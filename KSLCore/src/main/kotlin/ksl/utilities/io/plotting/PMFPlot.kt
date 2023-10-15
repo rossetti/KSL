@@ -1,26 +1,25 @@
 package ksl.utilities.io.plotting
 
 import ksl.utilities.distributions.DEmpiricalCDF
+import ksl.utilities.distributions.PMFIfc
 import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.statistic.Statistic
-import ksl.utilities.toDoubles
-import org.jetbrains.kotlinx.dataframe.impl.asList
-import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.geom.*
 import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
-import org.jetbrains.letsPlot.scale.ylim
 
+/**
+ *   Plots a probability mass function as represented by a DEmpirical.
+ */
 class PMFPlot(
-    val pmf: DEmpiricalCDF,
+    val dEmpiricalCDF: DEmpiricalCDF,
     dataName: String? = null
 ) : BasePlot() {
 
     private val dataMap: Map<String, List<Number>>
-    private val p = pmf.probPoints
-    private val v = pmf.values
+    private val p = dEmpiricalCDF.probPoints
+    private val v = dEmpiricalCDF.values
 
     init {
         yLabel = "Probability"
@@ -33,11 +32,26 @@ class PMFPlot(
         )
     }
 
+    /**
+     *  Creates a DEmpirical based on the [values] and the [probabilities]
+     *  and then plots it.
+     */
     constructor(
         values: DoubleArray,
         probabilities: DoubleArray,
         dataName: String? = null
     ) : this(DEmpiricalCDF(values, KSLRandom.makeCDF(probabilities)), dataName)
+
+    /**
+     *   Can be used to make a plot of a probability mass function ([pmf]) over
+     *   a [range] of values.
+     */
+    constructor(
+        range: IntRange,
+        pmf: PMFIfc,
+        dataName: String? = null
+    ) : this(DEmpiricalCDF.makeDEmpirical(range, pmf), dataName)
+
 
     override fun buildPlot(): Plot {
         var p = ggplot(dataMap) +
