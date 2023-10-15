@@ -670,7 +670,7 @@ object KSLRandom {
         val p = rng.randU01()
         val x: Double
         /* ...special case: exponential distribution */if (shape == 1.0) {
-            x = -scale * Math.log(1.0 - p)
+            x = -scale * ln(1.0 - p)
             return (x)
         }
         /* ...compute the gamma(alpha, beta) inverse.                   *
