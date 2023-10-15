@@ -387,9 +387,9 @@ fun testComparePMFPlot() {
     val rv = bd.randomVariable
     val sample = rv.sample(1000)
     val data = IntArray(sample.size) { sample[it].toInt() }
-    val plot = ComparePMFPlotV2(data, bd)
+    val plot = PMFComparisonPlot(data, bd)
     plot.showInBrowser()
-    plot.saveToFile("ComparePMF Plot")
+    plot.saveToFile("PMF Comparison Plot")
 }
 
 fun temp(){
