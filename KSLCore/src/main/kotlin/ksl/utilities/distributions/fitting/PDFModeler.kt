@@ -118,7 +118,7 @@ class PDFModeler(private val data: DoubleArray) {
             LognormalMLEParameterEstimator,
             GammaMLEParameterEstimator(),
             WeibullMLEParameterEstimator(),
-            PearsonType5MLEParameterEstimator()
+//            PearsonType5MLEParameterEstimator()
         )
 
     /**
