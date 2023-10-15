@@ -266,6 +266,17 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
     companion object {
 
         /**
+         *  Creates a DEmpirical based on a probability mass function
+         */
+        fun makeDEmpirical(range: IntRange, pmf: PMFIfc) : DEmpiricalCDF {
+            val vp = pmf.pmf(range)
+            val values = vp.keys.toList()
+            val cdfArray = KSLRandom.makeCDF(vp.values.toDoubleArray())
+            val valueArray = DoubleArray(vp.size){ values[it].toDouble()}
+            return DEmpiricalCDF(valueArray, cdfArray)
+        }
+
+        /**
          * Assigns the probability associated with each cdf value
          * to the integers starting at 0.
          *
