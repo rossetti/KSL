@@ -89,8 +89,11 @@ class PearsonType5 (theShape: Double = 1.0, theScale: Double = 1.0, name: String
     }
 
     override fun cdf(x: Double): Double {
+        if ((x == Double.POSITIVE_INFINITY) || (x == Double.MAX_VALUE)) {
+            return 1.0
+        }
         return if (x > 0) {
-            1 - myGammaCDF.cdf(1 / x)
+            1.0 - myGammaCDF.cdf(1.0 / x)
         } else 0.0
     }
 
@@ -105,6 +108,7 @@ class PearsonType5 (theShape: Double = 1.0, theScale: Double = 1.0, name: String
     }
 
     /** Gets the parameters
+     *
      * parameters[0] = shape
      * parameters[1] = scale
      *
