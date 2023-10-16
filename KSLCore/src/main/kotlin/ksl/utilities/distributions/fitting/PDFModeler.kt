@@ -24,11 +24,11 @@ import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
-import ksl.utilities.random.rvariable.PearsonType5RV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.statistic.*
 import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.sortBy
 
 /**
@@ -39,6 +39,7 @@ import org.jetbrains.kotlinx.dataframe.api.sortBy
 class PDFModeler(private val data: DoubleArray) {
 
     private val myHistogram: Histogram
+    private lateinit var myMODAModel: AdditiveMODAModel
 
     val histogram: HistogramIfc
         get() = myHistogram
@@ -215,6 +216,53 @@ class PDFModeler(private val data: DoubleArray) {
             }
         }
         return map
+    }
+
+    fun scoreResultsV2(
+        results: List<EstimationResult>,
+        scoringModels: Set<PDFScoringModel> = allScoringModels,
+    ): List<ScoringResult> {
+        val list = mutableListOf<ScoringResult>()
+        for (result in results) {
+            if (!result.success || (result.parameters == null)) {
+                continue
+            }
+            val distribution = createDistribution(result.parameters) ?: continue
+            val name = if (result.shiftedData != null) {
+                "${result.shiftedData!!.shift} + ${distribution}"
+            } else {
+                distribution.toString()
+            }
+            val scores = mutableListOf<Score>()
+            for (model in scoringModels) {
+                val score = model.score(result)
+                scores.add(score)
+            }
+            val sr = ScoringResult(name, distribution, result, scores)
+            list.add(sr)
+        }
+        return list
+    }
+
+    fun evaluateScoringResults(scoringResults: List<ScoringResult>) : AnyFrame {
+        if (scoringResults.isEmpty()) {
+            return DataFrame.Empty
+        }
+        val metrics = scoringResults[0].metrics
+        val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
+        myMODAModel = AdditiveMODAModel(metricValueFunctionMap)
+        val alternatives = mutableMapOf<String, List<Score>>()
+        for (sr in scoringResults) {
+            alternatives[sr.name] = sr.scores
+        }
+        myMODAModel.defineAlternatives(alternatives)
+        for (sr in scoringResults) {
+            sr.values = myMODAModel.valuesByAlternative(sr.name)
+            sr.weightedValue = myMODAModel.multiObjectiveValue(sr.name)
+        }
+        val valueDf = myMODAModel.alternativeValuesAsDataFrame("Distributions")
+        val tvCol = valueDf["Total Value"]
+        return valueDf.sortBy { tvCol.desc() }
     }
 
     /**
