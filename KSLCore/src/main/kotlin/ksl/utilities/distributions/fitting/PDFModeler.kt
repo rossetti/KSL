@@ -220,7 +220,7 @@ class PDFModeler(private val data: DoubleArray) {
     /**
      *  Estimates the parameters and scores the results. Returns
      *  the estimated distribution and their scores. The returned
-     *  pair has the distribution (name + parameters) as th key,
+     *  pair has a map containing the distribution (name + parameters) as th key,
      *  with its list of scores as the first element of the pair.
      *  The second element of the pair is the list of metrics associated
      *  with the distribution.
