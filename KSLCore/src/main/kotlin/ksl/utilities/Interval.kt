@@ -18,6 +18,8 @@
 
 package ksl.utilities
 
+import ksl.utilities.statistic.Histogram
+
 /** Can be used to represent confidence intervals.  Intervals between two real
  * numbers where the lower limit must be less than or equal to the upper limit.
  * The interval is inclusive of both end points.
@@ -133,6 +135,16 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
         var result = lowerLimit.hashCode()
         result = 31 * result + upperLimit.hashCode()
         return result
+    }
+
+    /**
+     *  Creates an array that holds points from the interval
+     *  all with the same distance between the points with the
+     *  first point starting at the lower limit and stepping
+     *  up towards the upper limit based on the number of steps.
+     */
+    fun stepPoints(numSteps: Int) : DoubleArray{
+        return Histogram.createBreakPoints(lowerLimit, upperLimit, numSteps)
     }
 
 }
