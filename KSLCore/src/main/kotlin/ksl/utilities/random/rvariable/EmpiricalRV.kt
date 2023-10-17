@@ -55,8 +55,7 @@ class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStre
      */
     constructor(lowerLimit: Double, numPoints: Int, width: Double, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
             this(Histogram.createBreakPoints(lowerLimit, numPoints, width), stream)
-
-
+    
     /**
      *  Creates a series of [numPoints] points starting at the lower limit, each
      *  an equal distance apart based on the number of points.
