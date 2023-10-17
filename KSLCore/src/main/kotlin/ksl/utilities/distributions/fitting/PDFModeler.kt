@@ -39,7 +39,7 @@ import org.jetbrains.kotlinx.dataframe.api.sortBy
 class PDFModeler(private val data: DoubleArray) {
 
     private val myHistogram: Histogram
-    private lateinit var myMODAModel: AdditiveMODAModel
+//    private lateinit var myMODAModel: AdditiveMODAModel
 
     val histogram: HistogramIfc
         get() = myHistogram
@@ -250,17 +250,18 @@ class PDFModeler(private val data: DoubleArray) {
         }
         val metrics = scoringResults[0].metrics
         val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
-        myMODAModel = AdditiveMODAModel(metricValueFunctionMap)
+        val model = AdditiveMODAModel(metricValueFunctionMap)
         val alternatives = mutableMapOf<String, List<Score>>()
         for (sr in scoringResults) {
             alternatives[sr.name] = sr.scores
         }
-        myMODAModel.defineAlternatives(alternatives)
+        model.defineAlternatives(alternatives)
         for (sr in scoringResults) {
-            sr.values = myMODAModel.valuesByAlternative(sr.name)
-            sr.weightedValue = myMODAModel.multiObjectiveValue(sr.name)
+            sr.values = model.valuesByAlternative(sr.name)
+            sr.weightedValue = model.multiObjectiveValue(sr.name)
+            sr.weights = model.weights
         }
-        val valueDf = myMODAModel.alternativeValuesAsDataFrame("Distributions")
+        val valueDf = model.alternativeValuesAsDataFrame("Distributions")
         val tvCol = valueDf["Total Value"]
         return valueDf.sortBy { tvCol.desc() }
     }
