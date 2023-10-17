@@ -30,6 +30,9 @@ import ksl.utilities.statistic.*
 
 /**
  *  Holds all the results from the PDF modeling process.
+ *
+ *  The captured evaluation model permits the translation
+ *  of results to data frame representations.
  */
 data class PDFModelingResults(
     val estimationResults: List<EstimationResult>,
