@@ -5,6 +5,16 @@ import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 
+/**
+ *  The natural ordering is descending by weighted value.
+ *  That is scoring results with higher weighted value
+ *  are considered better (more value is better). The weighted
+ *  value will be a number within [0,1]. Thus, a natural
+ *  sort will cause elements with higher value to be first
+ *  in the list. If there are no values, then the weighted
+ *  value will be zero.  The weighting is determined
+ *  by the scoring method.
+ */
 data class ScoringResult(
     val name: String,
     val distribution: ContinuousDistributionIfc,
@@ -20,9 +30,12 @@ data class ScoringResult(
     var weightedValue: Double = 0.0
         internal set
 
-    override fun compareTo(other: ScoringResult): Int = compareBy(
-        ScoringResult::weightedValue,
-        ScoringResult::name
-    ).compare(this, other)
+    var weights: Map<MetricIfc, Double> = emptyMap()
+        internal set
+    override fun compareTo(other: ScoringResult): Int = -(weightedValue.compareTo(other.weightedValue))
+
+    override fun toString(): String {
+        return "weighted value = $weightedValue \t distribution = $name"
+    }
 
 }

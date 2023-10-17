@@ -39,6 +39,8 @@ fun main() {
     //   testWeibullEstimation(data)
 
     testEvaluationModel(data)
+
+//    testEvaluationModel2(data)
 }
 
 private fun testModeler(data: DoubleArray) {
@@ -158,3 +160,12 @@ fun testEvaluationModel(data: DoubleArray){
 # data:  y
 # omega2 = 0.055559, p-value = 0.842
  */
+
+fun testEvaluationModel2(data: DoubleArray){
+    val d = PDFModeler(data)
+    val estimationResults: List<EstimationResult> = d.estimateParameters(d.allEstimators)
+    val scoringResults = d.scoreResultsV2(estimationResults)
+    d.evaluateScoringResults(scoringResults)
+    scoringResults.sorted().forEach( ::println)
+
+}
