@@ -39,7 +39,8 @@ data class PDFModelingResults(
     val scoringResults: List<ScoringResult>,
     val evaluationModel: AdditiveMODAModel
 ) {
-    val sortedScoringResults = scoringResults.sorted()
+    val sortedScoringResults
+        get() = scoringResults.sorted()
 }
 
 /**

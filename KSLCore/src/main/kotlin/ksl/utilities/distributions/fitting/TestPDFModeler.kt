@@ -33,7 +33,7 @@ fun main() {
  //      testExponentialEstimation(data)
     //   testWeibullEstimation(data)
 
-    testEvaluationModel(data)
+//    testEvaluationModel(data)
     testAllInOne(data)
 }
 
@@ -160,4 +160,7 @@ fun testAllInOne(data: DoubleArray){
     val d = PDFModeler(data)
     val results  = d.estimateAndEvaluateScores()
     results.sortedScoringResults.forEach(::println)
+
+    val topResult = results.sortedScoringResults[0]
+    topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
 }

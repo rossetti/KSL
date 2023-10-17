@@ -2,6 +2,7 @@ package ksl.utilities.io.plotting
 
 import ksl.utilities.distributions.DiscreteDistributionIfc
 import ksl.utilities.statistic.IntegerFrequency
+import org.jetbrains.letsPlot.geom.geomLollipop
 import org.jetbrains.letsPlot.geom.geomPoint
 import org.jetbrains.letsPlot.geom.geomSegment
 import org.jetbrains.letsPlot.ggplot
@@ -53,6 +54,12 @@ class PMFComparisonPlot(
         val pd = positionDodge(dodge)
         var p = ggplot(dataMap) + theme().legendPositionRight() +
                 scaleColorManual(listOf("red", "black"), naValue="gray") +
+//                geomLollipop(position = pd) {
+//                    x = "values"
+//                    y = "probability"
+//                    color = "PMF Type"
+//                }
+
                 geomPoint(position = pd) {
                     x = "values"
                     y = "probability"

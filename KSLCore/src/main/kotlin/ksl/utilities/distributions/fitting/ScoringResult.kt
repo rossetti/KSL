@@ -1,6 +1,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.io.plotting.FitDistPlot
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
@@ -38,6 +39,15 @@ data class ScoringResult(
 
     override fun toString(): String {
         return "weighted value = $weightedValue \t distribution = $name"
+    }
+
+    fun distributionFitPlot() : FitDistPlot {
+        val data = if (estimationResult.shiftedData != null){
+            estimationResult.shiftedData!!.shiftedData
+        } else {
+            estimationResult.originalData
+        }
+        return  FitDistPlot(data, distribution, distribution)
     }
 
 }
