@@ -17,9 +17,11 @@
  */
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.parameters.EmpiricalRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.statistic.Histogram
 
 /**
  * A random variable that samples from the provided data. Each value is
@@ -46,6 +48,22 @@ class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStre
      * @param streamNum the random number stream to use
      */
     constructor(data: DoubleArray, streamNum: Int) : this(data, KSLRandom.rnStream(streamNum))
+
+    /**
+     *  Creates a series of [numPoints] points starting at the lower limit, each [width] units
+     *  apart. Each point in the series will be equally likely to occur.
+     */
+    constructor(lowerLimit: Double, numPoints: Int, width: Double, stream: RNStreamIfc) :
+            this(Histogram.createBreakPoints(lowerLimit, numPoints, width), stream)
+
+
+    /**
+     *  Creates a series of [numPoints] points starting at the lower limit, each
+     *  an equal distance apart based on the number of points.
+     *  Each point in the series will be equally likely to occur.
+     */
+    constructor(interval: Interval, numPoints: Int, stream: RNStreamIfc) :
+            this(interval.stepPoints(numPoints), stream)
 
     override fun instance(stream: RNStreamIfc): RVariableIfc {
         return EmpiricalRV(values, rnStream)
