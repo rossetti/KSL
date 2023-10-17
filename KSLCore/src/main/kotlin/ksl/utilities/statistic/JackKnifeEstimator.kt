@@ -35,7 +35,7 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = 
      *
      * @return the estimate from the supplied EstimatorIfc based on the original data
      */
-    var originalDataEstimate: Double = myEstimator.getEstimate(originalData)
+    var originalDataEstimate: Double = myEstimator.estimate(originalData)
         private set
 
     /**
@@ -68,7 +68,7 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = 
             // get the leave out generate missing i
             KSLArrays.copyWithout(i, myOriginalData, loos)
             // compute the estimator based on the leave out generate
-            jks[i] = myEstimator.getEstimate(loos)
+            jks[i] = myEstimator.estimate(loos)
             // observe each estimate for jackknife stats
             myJNStatistics.collect(jks[i])
             myJackKnifeData.save(jks[i])
