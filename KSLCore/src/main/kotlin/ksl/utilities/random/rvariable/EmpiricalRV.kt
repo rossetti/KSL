@@ -53,7 +53,7 @@ class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStre
      *  Creates a series of [numPoints] points starting at the lower limit, each [width] units
      *  apart. Each point in the series will be equally likely to occur.
      */
-    constructor(lowerLimit: Double, numPoints: Int, width: Double, stream: RNStreamIfc) :
+    constructor(lowerLimit: Double, numPoints: Int, width: Double, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
             this(Histogram.createBreakPoints(lowerLimit, numPoints, width), stream)
 
 
@@ -62,7 +62,7 @@ class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStre
      *  an equal distance apart based on the number of points.
      *  Each point in the series will be equally likely to occur.
      */
-    constructor(interval: Interval, numPoints: Int, stream: RNStreamIfc) :
+    constructor(interval: Interval, numPoints: Int, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
             this(interval.stepPoints(numPoints), stream)
 
     override fun instance(stream: RNStreamIfc): RVariableIfc {
