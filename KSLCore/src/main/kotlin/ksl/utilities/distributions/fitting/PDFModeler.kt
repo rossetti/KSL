@@ -28,7 +28,6 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.statistic.*
 import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.sortBy
 
 /**
@@ -244,13 +243,15 @@ class PDFModeler(private val data: DoubleArray) {
         return list
     }
 
-    fun evaluateScoringResults(scoringResults: List<ScoringResult>) : AnyFrame {
-        if (scoringResults.isEmpty()) {
-            return DataFrame.Empty
+    fun evaluateScoringResults(
+        scoringResults: List<ScoringResult>,
+        model: AdditiveMODAModel = createDefaultEvaluationModel(scoringResults)
+    ) : AdditiveMODAModel {
+        if (scoringResults.isEmpty()){
+            return model
         }
-        val metrics = scoringResults[0].metrics
-        val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
-        val model = AdditiveMODAModel(metricValueFunctionMap)
+        //TODO need to check for compatible metrics
+
         val alternatives = mutableMapOf<String, List<Score>>()
         for (sr in scoringResults) {
             alternatives[sr.name] = sr.scores
@@ -261,9 +262,13 @@ class PDFModeler(private val data: DoubleArray) {
             sr.weightedValue = model.multiObjectiveValue(sr.name)
             sr.weights = model.weights
         }
-        val valueDf = model.alternativeValuesAsDataFrame("Distributions")
-        val tvCol = valueDf["Total Value"]
-        return valueDf.sortBy { tvCol.desc() }
+        return model
+    }
+
+
+
+    fun scoreAndEvaluate() {
+//TODO see createEvaluationModel()
     }
 
     /**
@@ -326,6 +331,18 @@ class PDFModeler(private val data: DoubleArray) {
     }
 
     companion object {
+
+        /**
+         *  Creates an additive evaluation model based on the metrics within the
+         *  scoring results that has linear value functions for the metrics.
+         *  The list of scoring results must not be empty.
+         */
+        fun createDefaultEvaluationModel(scoringResults: List<ScoringResult>): AdditiveMODAModel {
+            require(scoringResults.isNotEmpty()) { "The list of scoring results was empty" }
+            val metrics = scoringResults[0].metrics
+            val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
+            return AdditiveMODAModel(metricValueFunctionMap)
+        }
 
         /**
          *  How close we consider a double is to 0.0 to consider it 0.0
