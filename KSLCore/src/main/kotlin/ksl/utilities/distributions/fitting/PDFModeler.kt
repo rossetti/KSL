@@ -27,13 +27,42 @@ import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.statistic.*
-import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.api.sortBy
 
 /**
- *  The purpose of this object is to serve as the general location
+ *  Holds all the results from the PDF modeling process.
+ */
+data class PDFModelingResults(
+    val estimationResults: List<EstimationResult>,
+    val scoringResults: List<ScoringResult>,
+    val evaluationModel: AdditiveMODAModel
+) {
+    val sortedScoringResults = scoringResults.sorted()
+}
+
+/**
+ *  The purpose of this class is to serve as the general location
  *  for implementing the estimation of distribution parameter across
- *  many distributions.
+ *  many distributions. The general use involves the following:
+ *
+ *      val d = PDFModeler(data)
+ *      val estimationResults: List<EstimationResult> = d.estimateParameters(d.allEstimators)
+ *      val scoringResults = d.scoringResults(estimationResults)
+ *      val model = d.evaluateScoringResults(scoringResults)
+ *      scoringResults.forEach( ::println)
+ *
+ *   The scoring results will be updated with the evaluation information
+ *   and will contain the evaluation scores. The scoring results can be
+ *   sorted to find the recommended distribution based on the evaluation score.
+ *
+ *   Alternatively, the single function can be used:
+ *
+ *      val d = PDFModeler(data)
+ *      val results  = d.estimateAndEvaluateScores()
+ *
+ *    This function returns an instance of PDFModelingResults, which
+ *    will have the results of the entire fitting process. The advantage of using
+ *    the individual functions may permit some further customization of
+ *    the estimation process.
  */
 class PDFModeler(private val data: DoubleArray) {
 
@@ -185,39 +214,13 @@ class PDFModeler(private val data: DoubleArray) {
     }
 
     /**
-     *  Every result in the list of [results] is scored by each scoring model in
-     *  the supplied set [scoringModels].  The score is added to the map of
-     *  scores for the result.  If the result does not have estimated parameters,
-     *  then the resulting score is the default bad score for the scoring model.
-     *  If the [filterResults] option is true, then any results that have
-     *  missing parameters or had success false will be filtered from the
-     *  scoring process. The returned map has the estimation result as the
-     *  key to a list of scores for each scoring model.
+     *  Estimation results in the list of [results] are scored by each scoring model in
+     *  the supplied set [scoringModels].  Any estimation results within the supplied list
+     *  that were not successfully estimated or had no parameters estimated will
+     *  not be scored.  The returned list contains instances holding the scoring
+     *  results for each successfully estimated distribution.
      */
-    fun scoreResults(
-        results: List<EstimationResult>,
-        scoringModels: Set<PDFScoringModel> = allScoringModels,
-        filterResults: Boolean = true
-    ): Map<EstimationResult, List<Score>> {
-        val map = mutableMapOf<EstimationResult, MutableList<Score>>()
-        for (result in results) {
-            if (filterResults) {
-                if (!result.success || (result.parameters == null)) {
-                    continue
-                }
-            }
-            if (!map.contains(result)) {
-                map[result] = mutableListOf()
-            }
-            for (model in scoringModels) {
-                val score = model.score(result)
-                map[result]?.add(score)
-            }
-        }
-        return map
-    }
-
-    fun scoreResultsV2(
+    fun scoringResults(
         results: List<EstimationResult>,
         scoringModels: Set<PDFScoringModel> = allScoringModels,
     ): List<ScoringResult> {
@@ -243,15 +246,21 @@ class PDFModeler(private val data: DoubleArray) {
         return list
     }
 
+    /**
+     *  Evaluates the supplied scoring results using the supplied
+     *  evaluation model.  A default additive MODA model is supplied
+     *  that uses linear value functions for each metric.
+     */
     fun evaluateScoringResults(
         scoringResults: List<ScoringResult>,
         model: AdditiveMODAModel = createDefaultEvaluationModel(scoringResults)
-    ) : AdditiveMODAModel {
-        if (scoringResults.isEmpty()){
+    ): AdditiveMODAModel {
+        if (scoringResults.isEmpty()) {
             return model
         }
-        //TODO need to check for compatible metrics
-
+        val metrics = scoringResults[0].metrics
+        val mm = model.metrics
+        require(metricsMatch(metrics, mm)) { "The metrics in the model do not match the metrics in the scores" }
         val alternatives = mutableMapOf<String, List<Score>>()
         for (sr in scoringResults) {
             alternatives[sr.name] = sr.scores
@@ -265,69 +274,35 @@ class PDFModeler(private val data: DoubleArray) {
         return model
     }
 
-
-
-    fun scoreAndEvaluate() {
-//TODO see createEvaluationModel()
-    }
-
     /**
-     *  Estimates the parameters and scores the results. Returns
-     *  the estimated distribution and their scores. The returned
-     *  pair has a map containing the distribution (name + parameters) as th key,
-     *  with its list of scores as the first element of the pair.
-     *  The second element of the pair is the list of metrics associated
-     *  with the distribution.
+     *  Checks if the two lists of metrics are the same.
      */
-    fun scoresByDistribution(
-        estimators: Set<ParameterEstimatorIfc> = allEstimators,
-        automaticShifting: Boolean = true,
-        scoringModels: Set<PDFScoringModel> = allScoringModels,
-        filterResults: Boolean = true
-    ): Pair<Map<String, List<Score>>, List<MetricIfc>> {
-        val list = estimateParameters(estimators, automaticShifting)
-        val scoreResults = scoreResults(list, scoringModels, filterResults)
-        val alternatives = mutableMapOf<String, List<Score>>()
-        for ((result, scores) in scoreResults) {
-            alternatives[result.distribution] = scores
+    private fun metricsMatch(m1: List<MetricIfc>, m2: List<MetricIfc>): Boolean {
+        require(m1.size == m2.size) { "The number of metrics in the model is not the same as the scoring metrics" }
+        for ((i, m) in m1.withIndex()) {
+            if (m1[i] != m2[i]) return false
         }
-        val firstScores = scoreResults[list.first()]!!
-        val metrics = MODAModel.extractMetrics(firstScores)
-        return Pair(alternatives, metrics)
+        return true
     }
 
     /**
-     *  Creates a multi-objective decision model based on the results of the estimation
-     *  and the scoring of the distributions
+     *   This function estimates the parameters based on the supplied
+     *   [estimators] and scores the estimators based on the supplied
+     *   scoring models [scoringModels]. By default, a shift parameter
+     *   for the distributions is estimated. The results
+     *   are bundles up into a class that holds the estimation results,
+     *   the scoring results, and the model used for evaluating
+     *   the model goodness of fit.
      */
-    fun createEvaluationModel(
+    fun estimateAndEvaluateScores(
         estimators: Set<ParameterEstimatorIfc> = allEstimators,
         automaticShifting: Boolean = true,
         scoringModels: Set<PDFScoringModel> = allScoringModels,
-        filterResults: Boolean = true
-    ): AdditiveMODAModel {
-        val (alternatives, metrics) =
-            scoresByDistribution(estimators, automaticShifting, scoringModels, filterResults)
-        val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
-        val model = AdditiveMODAModel(metricValueFunctionMap)
-        model.defineAlternatives(alternatives)
-        return model
-    }
-
-    /**
-     *  Returns a data frame that has the distribution criterion value results for each column
-     *  sorted by total value.
-     */
-    fun resultsByDistribution(
-        estimators: Set<ParameterEstimatorIfc> = allEstimators,
-        automaticShifting: Boolean = true,
-        scoringModels: Set<PDFScoringModel> = allScoringModels,
-        filterResults: Boolean = true
-    ): AnyFrame {
-        val model = createEvaluationModel(estimators, automaticShifting, scoringModels, filterResults)
-        val valueDf = model.alternativeValuesAsDataFrame("Distributions")
-        val tvCol = valueDf["Total Value"]
-        return valueDf.sortBy { tvCol.desc() }
+    ): PDFModelingResults {
+        val estimationResults = estimateParameters(estimators, automaticShifting)
+        val scoringResults = scoringResults(estimationResults, scoringModels)
+        val evaluationModel = evaluateScoringResults(scoringResults)
+        return PDFModelingResults(estimationResults, scoringResults, evaluationModel)
     }
 
     companion object {
@@ -680,11 +655,27 @@ class PDFModeler(private val data: DoubleArray) {
                     return PearsonType5(shape, scale)
                 }
 
-//                RVType.JohnsonB -> TODO()
-//                RVType.Laplace -> TODO()
-//                RVType.LogLogistic -> TODO()
-//                RVType.ChiSquared -> TODO()
-//                RVType.PearsonType6 -> TODO()
+                RVType.PearsonType6 -> {
+                    val alpha1 = parameters.doubleParameter("shape1")
+                    val alpha2 = parameters.doubleParameter("shape2")
+                    val beta = parameters.doubleParameter("scale")
+                    return PearsonType6(alpha1, alpha2, beta)
+                }
+
+                RVType.LogLogistic -> {
+                    val scale = parameters.doubleParameter("scale")
+                    val shape = parameters.doubleParameter("shape")
+                    return LogLogistic(shape, scale)
+                }
+
+                RVType.ChiSquared -> {
+                    val dof = parameters.doubleParameter("dof")
+                    return ChiSquaredDistribution(dof)
+                }
+
+//                RVType.JohnsonB -> TODO("No distribution implemented yet")
+//                RVType.Laplace -> TODO("No distribution implemented yet")
+
                 else -> null
             }
         }

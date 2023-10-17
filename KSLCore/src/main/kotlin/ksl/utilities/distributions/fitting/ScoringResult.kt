@@ -1,6 +1,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
@@ -32,6 +33,7 @@ data class ScoringResult(
 
     var weights: Map<MetricIfc, Double> = emptyMap()
         internal set
+
     override fun compareTo(other: ScoringResult): Int = -(weightedValue.compareTo(other.weightedValue))
 
     override fun toString(): String {

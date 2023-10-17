@@ -2,15 +2,10 @@ package ksl.utilities.moda
 
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.statistic.Statistic
-import org.jetbrains.kotlinx.dataframe.AnyCol
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
-import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
-import org.jetbrains.kotlinx.dataframe.api.getValue
-import org.jetbrains.kotlinx.dataframe.api.rows
-import org.jetbrains.kotlinx.dataframe.api.toColumn
+import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.impl.asList
-import org.jetbrains.letsPlot.core.plot.base.DataFrame
 
 /**
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
@@ -267,11 +262,13 @@ abstract class MODAModel(
     }
 
     /**
-     *  Returns a data from with the first column being the alternatives
+     *  Returns a data framed with the first column being the alternatives
      *  by name, a column of values for each metric for each alternative,
-     *  and a final column representing the total value for the alternative.
+     *  and a final column representing the overall value for the alternative.
      *  The parameter [firstColumnName] can be used to name the first column of the
      *  returned data frame. By default, the first column name is "Alternatives".
+     *  The resulting data frame will be sorted by the overall value column with
+     *  higher value being preferred.
      */
     fun alternativeValuesAsDataFrame(firstColumnName: String = "Alternatives"): AnyFrame {
         // make the alternative column
@@ -284,11 +281,11 @@ abstract class MODAModel(
             val dataColumn = score.toColumn(metric.name)
             columns.add(dataColumn)
         }
-        // no add the total value for each alternative
+        // no add the overall value for each alternative
         val valuesByAlternative = multiObjectiveValuesByAlternative()
-        val totalValue = valuesByAlternative.values.toColumn("Total Value")
-        columns.add(totalValue)
-        return dataFrameOf(columns)
+        val overallValue = valuesByAlternative.values.toColumn("Overall Value")
+        columns.add(overallValue)
+        return dataFrameOf(columns).sortByDesc(overallValue)
     }
 
     /**
