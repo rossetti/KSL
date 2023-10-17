@@ -22,11 +22,6 @@ import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
-import org.jetbrains.kotlinx.dataframe.api.getColumn
-import org.jetbrains.kotlinx.dataframe.api.into
-import org.jetbrains.kotlinx.dataframe.api.rename
-import org.jetbrains.kotlinx.dataframe.api.sortBy
-
 
 fun main() {
     val e = ExponentialRV(10.0)
@@ -39,23 +34,22 @@ fun main() {
     //   testWeibullEstimation(data)
 
     testEvaluationModel(data)
-
-//    testEvaluationModel2(data)
+    testAllInOne(data)
 }
 
 private fun testModeler(data: DoubleArray) {
     val d = PDFModeler(data)
     val list = d.estimateParameters(d.allEstimators)
-    val scoreResults = d.scoreResults(list)
+    val scoreResults = d.scoringResults(list)
 
     for (element in list) {
         println(element.toString())
     }
 
     println()
-    for((result, list) in scoreResults){
-        println("Distribution = ${result.distribution}")
-        for(score in list){
+    for(result in scoreResults){
+        println("Distribution = ${result.name}")
+        for(score in result.scores){
             println("\t ${score.metric.name} = ${score.value}")
         }
         println()
@@ -140,17 +134,6 @@ private fun testWeibullEstimation(data: DoubleArray) {
     println(score)
 }
 
-fun testEvaluationModel(data: DoubleArray){
-    val d = PDFModeler(data)
-    val model = d.createEvaluationModel()
-    val scoreDf = model.alternativeScoresAsDataFrame("Distributions")
-    println(scoreDf)
-    val valueDf = model.alternativeValuesAsDataFrame("Distributions")
-    println()
-    val tvCol = valueDf["Total Value"]
-    println(valueDf.sortBy{ tvCol.desc() })
-}
-
 /*
 # Cramer-von Mises test of goodness-of-fit
 # Null hypothesis: Weibull distribution
@@ -161,11 +144,20 @@ fun testEvaluationModel(data: DoubleArray){
 # omega2 = 0.055559, p-value = 0.842
  */
 
-fun testEvaluationModel2(data: DoubleArray){
+fun testEvaluationModel(data: DoubleArray){
     val d = PDFModeler(data)
     val estimationResults: List<EstimationResult> = d.estimateParameters(d.allEstimators)
-    val scoringResults = d.scoreResultsV2(estimationResults)
-    d.evaluateScoringResults(scoringResults)
-    scoringResults.sorted().forEach( ::println)
+    val scoringResults = d.scoringResults(estimationResults)
+    val model = d.evaluateScoringResults(scoringResults)
+    scoringResults.forEach( ::println)
 
+    println()
+    println(model.alternativeValuesAsDataFrame("Distributions"))
+}
+
+fun testAllInOne(data: DoubleArray){
+    println()
+    val d = PDFModeler(data)
+    val results  = d.estimateAndEvaluateScores()
+    results.sortedScoringResults.forEach(::println)
 }

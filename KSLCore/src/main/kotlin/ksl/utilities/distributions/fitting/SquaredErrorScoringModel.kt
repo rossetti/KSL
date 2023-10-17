@@ -33,7 +33,7 @@ class SquaredErrorScoringModel : PDFScoringModel("Squared-Error") {
         bp = Histogram.addUpperLimit(domain.upperLimit, bp)
         val h = Histogram(bp)
         h.collect(data)
-        val predicted =  PDFModeler.expectedCounts(h, cdf)
+        val predicted =  PDFModeler.binProbabilities(h.bins, cdf)
         val observed = h.binFractions
         val n = predicted.size.coerceAtMost(observed.size)
         var sum = 0.0
