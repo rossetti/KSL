@@ -43,12 +43,12 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
     init {
         require(originalData.size > 1) { "The supplied bootstrap generate had only 1 data point" }
     }
-    protected val myOriginalData: DoubleArray = originalData.copyOf()
-    protected val myOriginalPop: DPopulation = DPopulation(myOriginalData)
-    protected val myAcrossBSStat: Statistic = Statistic("Across Bootstrap Statistics")
-    protected val myBSArrayList = mutableListOf<DoubleArraySaver>()
-    protected val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", myOriginalData)
-    protected val myBSEstimates =  DoubleArraySaver()
+    private val myOriginalData: DoubleArray = originalData.copyOf()
+    private val myOriginalPop: DPopulation = DPopulation(myOriginalData)
+    private val myAcrossBSStat: Statistic = Statistic("Across Bootstrap Statistics")
+    private val myBSArrayList = mutableListOf<DoubleArraySaver>()
+    private val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", myOriginalData)
+    private val myBSEstimates =  DoubleArraySaver()
 
     override var rnStream: RNStreamIfc
         get() = myOriginalPop.rnStream
@@ -56,6 +56,10 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
             myOriginalPop.rnStream = value
         }
 
+    /**
+     * Tells the stream to start producing antithetic variates
+     *
+     */
     override var antithetic: Boolean
         get() = myOriginalPop.antithetic
         set(value) {
@@ -66,13 +70,13 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      * @return the number of requested bootstrap samples
      */
     var numBootstrapSamples = 0
-        protected set
+        private set
 
     /**
      * @return the estimate from the supplied EstimatorIfc based on the original data
      */
     var originalDataEstimate = 0.0
-        protected set
+        private set
 
     /**
      * the default confidence interval level
@@ -94,7 +98,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
         numBootstrapSamples: Int, estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
         saveBootstrapSamples: Boolean = false
     ) {
-        require(numBootstrapSamples > 1) { "The number of boot strap samples must be greater than 1" }
+        require(numBootstrapSamples > 1) { "The number of bootstrap samples must be greater than 1" }
         this.numBootstrapSamples = numBootstrapSamples
         myAcrossBSStat.reset()
         myBSEstimates.clearData()
@@ -102,10 +106,10 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
             s.clearData()
         }
         myBSArrayList.clear()
-        originalDataEstimate = estimator.getEstimate(myOriginalData)
+        originalDataEstimate = estimator.estimate(myOriginalData)
         for (i in 0 until numBootstrapSamples) {
             val sample: DoubleArray = myOriginalPop.sample(myOriginalPop.size())
-            val x = estimator.getEstimate(sample)
+            val x = estimator.estimate(sample)
             myAcrossBSStat.collect(x)
             myBSEstimates.save(x)
             if (saveBootstrapSamples) {
@@ -121,6 +125,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
         set(b) {
             myOriginalPop.advanceToNextSubStreamOption = b
         }
+
     override var resetStartStreamOption: Boolean
         get() = myOriginalPop.resetStartStreamOption
         set(b) {
@@ -149,16 +154,6 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
     override fun advanceToNextSubStream() {
         myOriginalPop.advanceToNextSubStream()
     }
-
-    /**
-     * Tells the stream to start producing antithetic variates
-     *
-     */
-    var antitheticOption: Boolean
-        get() = myOriginalPop.antithetic
-        set(flag) {
-            myOriginalPop.antithetic = flag
-        }
 
     /**
      *
@@ -206,7 +201,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
     /** Creates a random variable to represent the data in each bootstrap generate for which
      * the data was saved.
      *
-     * @param useCRN, if true the stream for every random variable is the same across the
+     * @param useCRN if true the stream for every random variable is the same across the
      * bootstraps to facilitate common random number generation (CRN). If false
      * different streams are used for each created random variable
      * @return a list of the random variables
