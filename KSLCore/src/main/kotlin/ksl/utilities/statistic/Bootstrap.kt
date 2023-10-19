@@ -27,6 +27,81 @@ import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariableIfc
 
 
+interface BootstrapEstimateIfc {
+    /**
+     * @return the estimate from the supplied EstimatorIfc based on the original data
+     */
+    var originalDataEstimate: Double
+
+    /**
+     * @return the observations of the estimator for each bootstrap generated, may be zero length if
+     * no samples have been generated
+     */
+    val bootstrapEstimates: DoubleArray
+
+    /**
+     * Each element is the bootstrap estimate for sample i minus originalDataEstimate
+     *
+     * @return the array of bootstrap differences
+     */
+    val bootstrapDifferences: DoubleArray
+
+    /**
+     * Each element is the bootstrap estimate for sample i minus getOriginalDataEstimate()
+     * divided by getBootstrapStdErrEstimate()
+     *
+     * @return the array of bootstrap differences
+     */
+    val standardizedBootstrapDifferences: DoubleArray
+
+    /**
+     * This is acrossBootstrapAverage - originalDataEstimate
+     *
+     * @return an estimate the bias based on bootstrapping
+     */
+    val bootstrapBiasEstimate: Double
+
+    /**
+     * This is the standard deviation of the across bootstrap observations of the estimator
+     * for each bootstrap generate
+     *
+     * @return the standard error of the estimate based on bootstrapping
+     */
+    val bootstrapStdErrEstimate: Double
+
+    /**
+     * Gets the standard normal based bootstrap confidence interval. Not recommended.
+     *
+     * @param level the confidence level, must be between 0 and 1
+     * @return the confidence interval
+     */
+    fun stdNormalBootstrapCI(level: Double = defaultCILevel): Interval
+
+    /**
+     * The "basic" method, but with no bias correction. This
+     * is the so-called centered percentile method (2θ − Bu , 2θ − Bl )
+     * where θ is the bootstrap estimator and Bu is the 1 - alpha/2 percentile
+     * and Bl is the lower (alpha/2) percentile, where level = 1-alpha of
+     * the bootstrap replicates.
+     *
+     * @param level the confidence level, must be between 0 and 1
+     * @return the confidence interval
+     */
+    fun basicBootstrapCI(level: Double = defaultCILevel): Interval
+
+    /**
+     * The "percentile" method, but with no bias correction. This
+     * is the percentile method (Bl , Bu )
+     * where Bu is the 1 - alpha/2 percentile
+     * and Bl is the lower (alpha/2) percentile, where level = 1-alpha of the
+     * bootstrap replicates
+     *
+     * @param level the confidence level, must be between 0 and 1
+     * @return the confidence interval
+     */
+    fun percentileBootstrapCI(level: Double = defaultCILevel): Interval
+}
+
 /**
  * A class to do statistical bootstrapping.  The calculations occur via the method generateSamples().
  * Until generateSamples() is called the results are meaningless.
@@ -38,7 +113,8 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * Hyndman, R. J. and Fan, Y. (1996) Sample quantiles in statistical packages,
  * American Statistician 50, 361–365 as the default.  This can be changed by the user.
  */
-class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc {
+class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc,
+    BootstrapEstimateIfc {
 
     init {
         require(originalData.size > 1) { "The supplied bootstrap generate had only 1 data point" }
@@ -75,7 +151,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
     /**
      * @return the estimate from the supplied EstimatorIfc based on the original data
      */
-    var originalDataEstimate = 0.0
+    override var originalDataEstimate = 0.0
         private set
 
     /**
@@ -285,7 +361,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      * @return the observations of the estimator for each bootstrap generated, may be zero length if
      * no samples have been generated
      */
-    val bootstrapEstimates: DoubleArray
+    override val bootstrapEstimates: DoubleArray
         get() = myBSEstimates.savedData()
 
     /**
@@ -293,7 +369,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      *
      * @return the array of bootstrap differences
      */
-    val bootstrapDifferences: DoubleArray
+    override val bootstrapDifferences: DoubleArray
         get() = bootstrapEstimates.subtractConstant(originalDataEstimate)
 
     /**
@@ -302,7 +378,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      *
      * @return the array of bootstrap differences
      */
-    val standardizedBootstrapDifferences: DoubleArray
+    override val standardizedBootstrapDifferences: DoubleArray
         get() = bootstrapDifferences.divideConstant(bootstrapStdErrEstimate)
 
     /**
@@ -316,7 +392,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      *
      * @return an estimate the bias based on bootstrapping
      */
-    val bootstrapBiasEstimate: Double
+    override val bootstrapBiasEstimate: Double
         get() = acrossBootstrapAverage - originalDataEstimate
 
     /**
@@ -325,7 +401,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      *
      * @return the standard error of the estimate based on bootstrapping
      */
-    val bootstrapStdErrEstimate: Double
+    override val bootstrapStdErrEstimate: Double
         get() = myAcrossBSStat.standardDeviation
 
     /**
@@ -340,7 +416,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      * @param level the confidence level, must be between 0 and 1
      * @return the confidence interval
      */
-    fun stdNormalBootstrapCI(level: Double = defaultCILevel): Interval {
+    override fun stdNormalBootstrapCI(level: Double): Interval {
         require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
         val alpha = 1.0 - level
         val z: Double = Normal.stdNormalInvCDF(1.0 - alpha / 2.0)
@@ -361,7 +437,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      * @param level the confidence level, must be between 0 and 1
      * @return the confidence interval
      */
-    fun basicBootstrapCI(level: Double = defaultCILevel): Interval {
+    override fun basicBootstrapCI(level: Double): Interval {
         require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
         val a = 1.0 - level
         val ad2 = a / 2.0
@@ -384,7 +460,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      * @param level the confidence level, must be between 0 and 1
      * @return the confidence interval
      */
-    fun percentileBootstrapCI(level: Double = defaultCILevel): Interval {
+    override fun percentileBootstrapCI(level: Double): Interval {
         require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
         val a = 1.0 - level
         val ad2 = a / 2.0
