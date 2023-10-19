@@ -20,6 +20,8 @@ package ksl.utilities.statistic
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.DEmpiricalCDF
+import ksl.utilities.io.plotting.IntegerFrequencyPlot
+import ksl.utilities.io.plotting.StateFrequencyPlot
 import ksl.utilities.random.rvariable.DEmpiricalRV
 
 /**
@@ -293,6 +295,15 @@ class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Ident
      * @return a Statistic over the observed integers mapped to the states
      */
     fun statistic(): Statistic = myFreq.statistic()
+
+    /**
+     *  Creates a plot for the state frequencies. The parameter, [proportions]
+     *  indicates whether proportions (true) or frequencies (false)
+     *  will be shown on the plot. The default is false.
+     */
+    fun frequencyPlot(proportions: Boolean = false) : StateFrequencyPlot {
+        return StateFrequencyPlot(this, proportions)
+    }
 
     /**
      *

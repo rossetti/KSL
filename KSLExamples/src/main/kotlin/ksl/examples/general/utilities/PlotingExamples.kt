@@ -48,7 +48,7 @@ fun main() {
 //    testStateFrequencyPlot()
 //    testPPandQQ_Plots()
 //    testFunctionPlot()
-//    testHistogramPlot()
+    testHistogramPlot()
 //    testStateVariablePlot()
 //    testWelchPlotting()
 //          testObservationPlot()
@@ -62,7 +62,7 @@ fun main() {
 
 //    testCDFDiffPlot()
 
-    testComparePMFPlot()
+//    testComparePMFPlot()
 
 //    temp()
 

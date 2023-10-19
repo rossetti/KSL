@@ -24,6 +24,7 @@ package ksl.utilities.statistic
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.DEmpiricalCDF
+import ksl.utilities.io.plotting.IntegerFrequencyPlot
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.toDoubles
@@ -452,6 +453,15 @@ class IntegerFrequency(
      */
     fun statistic(): Statistic {
         return myStatistic.instance()
+    }
+
+    /**
+     *  Creates a plot for the integer frequencies. The parameter, [proportions]
+     *  indicates whether proportions (true) or frequencies (false)
+     *  will be shown on the plot. The default is false.
+     */
+    fun frequencyPlot(proportions: Boolean = false) : IntegerFrequencyPlot {
+        return IntegerFrequencyPlot(this, proportions)
     }
 
     /**

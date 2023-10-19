@@ -32,4 +32,6 @@ fun main() {
     val sample = bn.sample(10000)
     f.collect(sample)
     println(f)
+    val plot = f.frequencyPlot()
+    plot.showInBrowser("Frequency Demo Plot")
 }

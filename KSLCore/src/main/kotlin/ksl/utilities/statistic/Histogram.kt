@@ -19,6 +19,7 @@ package ksl.utilities.statistic
 
 import ksl.utilities.KSLArrays
 import ksl.utilities.insertAt
+import ksl.utilities.io.plotting.HistogramPlot
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlin.math.ceil

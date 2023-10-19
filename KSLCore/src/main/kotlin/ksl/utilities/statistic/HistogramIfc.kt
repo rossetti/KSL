@@ -23,6 +23,7 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.distributions.CDFIfc
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.ProbInRangeIfc
+import ksl.utilities.io.plotting.HistogramPlot
 import ksl.utilities.isAllEqual
 import ksl.utilities.math.KSLMath
 import ksl.utilities.multiplyConstant
@@ -351,5 +352,14 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
             binProb[i] = cdf.cdf(bin.interval)
         }
         return binProb
+    }
+
+    /**
+     *  Creates a plot for the histogram. The parameter, [proportions]
+     *  indicates whether proportions (true) or frequencies (false)
+     *  will be shown on the plot. The default is true.
+     */
+    fun histogramPlot(proportions: Boolean = true) : HistogramPlot {
+        return HistogramPlot(this, proportions)
     }
 }

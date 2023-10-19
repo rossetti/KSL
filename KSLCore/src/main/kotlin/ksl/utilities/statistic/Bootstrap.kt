@@ -187,7 +187,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
      * If the save bootstrap data option was not turned on during the sampling then the list returned is empty.
      *
      * @return a list of size getNumBootstrapSamples() holding a copy of the data from
-     * every bootstrap generate
+     * every bootstrap generated
      */
     val dataForEachBootstrapSample: List<DoubleArray>
         get() {
@@ -282,7 +282,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
         get() = myAcrossBSStat.average
 
     /**
-     * @return the observations of the estimator for each bootstrap generate, may be zero length if
+     * @return the observations of the estimator for each bootstrap generated, may be zero length if
      * no samples have been generated
      */
     val bootstrapEstimates: DoubleArray

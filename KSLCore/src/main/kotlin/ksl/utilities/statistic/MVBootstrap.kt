@@ -27,6 +27,7 @@ import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.EmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.statistics
 
 /**
  *  Given some data, produce multiple estimated statistics
@@ -295,5 +296,33 @@ class MVBootstrap(
         return myBSArrayList[b].savedData()
     }
 
+    /** If the bootstrap samples were saved, this returns the
+     * generated averages for each of the samples
+     *
+     * @return an array of the bootstrap generate averages, will be zero length if
+     * no bootstrap samples were saved
+     */
+    val bootstrapSampleAverages: DoubleArray
+        get() {
+            val avg = DoubleArray(myBSArrayList.size)
+            for ((i, sda) in myBSArrayList.withIndex()) {
+                avg[i] = sda.savedData().statistics().average
+            }
+            return avg
+        }
 
+    /** If the bootstrap samples were saved, this returns the
+     * generated variance for each of the samples
+     *
+     * @return an array of the bootstrap generated variances, will be zero length if
+     * no bootstrap samples were saved
+     */
+    val bootstrapSampleVariances: DoubleArray
+        get() {
+            val v = DoubleArray(myBSArrayList.size)
+            for ((i, sda) in myBSArrayList.withIndex()) {
+                v[i] = sda.savedData().statistics().variance
+            }
+            return v
+        }
 }
