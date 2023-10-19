@@ -86,7 +86,7 @@ class MVBootstrap(
     private val myOriginalData: DoubleArray = originalData.copyOf()
     private val myOriginalPop: DPopulation = DPopulation(myOriginalData)
     private val myAcrossBSStat =  MVStatistic(dimension)
-    
+
     override var rnStream: RNStreamIfc
         get() = myOriginalPop.rnStream
         set(value) {

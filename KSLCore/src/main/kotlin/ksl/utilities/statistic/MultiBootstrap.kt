@@ -282,7 +282,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         get()  {
             var b = true
             for (bs in myBootstraps.values) {
-                b = bs.antitheticOption
+                b = bs.antithetic
                 if (b == false) {
                     return false
                 }
@@ -291,7 +291,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         }
         set(value) {
             for (bs in myBootstraps.values) {
-                bs.antitheticOption = value
+                bs.antithetic = value
             }
         }
 
