@@ -27,9 +27,15 @@ import ksl.utilities.statistic.Histogram
  */
 fun main() {
     val d = ExponentialRV(2.0)
-    val h = Histogram.create(0.0, 20, 0.1)
-    for (i in 1..100) {
-        h.collect(d.value)
+
+    val data = d.sample(1000)
+    var bp = Histogram.recommendBreakPoints(data)
+    bp = Histogram.addPositiveInfinity(bp)
+    val h = Histogram(breakPoints = bp)
+    for (x in data) {
+        h.collect(x)
     }
     println(h)
+    val plot = h.histogramPlot()
+    plot.showInBrowser("Exponentially Distributed Data")
 }

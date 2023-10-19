@@ -37,4 +37,6 @@ fun main() {
         sf.collect(state)
     }
     println(sf)
+    val plot = sf.frequencyPlot(proportions = true)
+    plot.showInBrowser("State Frequency Demo Plot")
 }
