@@ -198,7 +198,7 @@ class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc b
             return list
         }
 
-    /** Creates a random variable to represent the data in each bootstrap generate for which
+    /** Creates a random variable to represent the data in each bootstrap sample for which
      * the data was saved.
      *
      * @param useCRN if true the stream for every random variable is the same across the
