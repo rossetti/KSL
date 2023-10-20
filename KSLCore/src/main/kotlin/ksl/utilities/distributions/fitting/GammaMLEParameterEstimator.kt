@@ -23,6 +23,11 @@ import kotlin.math.ln
 class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val names: List<String> = listOf("shape", "scale")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
     override fun estimate(data: DoubleArray): DoubleArray {
         val er = estimate(data, Statistic(data))
         if (!er.success || er.parameters == null) {
