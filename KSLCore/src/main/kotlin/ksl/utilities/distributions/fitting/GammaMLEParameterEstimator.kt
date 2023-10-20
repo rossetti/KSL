@@ -128,7 +128,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
      *  initial estimate of the shape.
      */
     private fun findInitialInterval(estimationResult: EstimationResult): Interval {
-        val s = estimationResult.statistics!!
+        val s = estimationResult.statistics
         val mean = s.average
         val me = intervalFactor * s.standardDeviation
         val ulm = mean + me
