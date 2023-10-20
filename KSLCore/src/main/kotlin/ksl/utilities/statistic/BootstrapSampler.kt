@@ -18,8 +18,6 @@
 
 package ksl.utilities.statistic
 
-import ksl.utilities.Identity
-import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
@@ -28,6 +26,7 @@ import ksl.utilities.random.rvariable.EmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistics
+import ksl.utilities.transpose
 
 /**
  *  Given some data, produce multiple estimated statistics
@@ -37,93 +36,63 @@ import ksl.utilities.statistics
  */
 interface MVBSEstimatorIfc {
     /**
-     * the expected size of the array returned from estimate()
+     * The name to associate with each dimension of the
+     * array that is returned by estimate(). The names
+     * should be unique. The order of the list of names should
+     * match the order of elements in the returned array.
      */
-    val dimension: Int
+    val names: List<String>
 
     fun estimate(data: DoubleArray): DoubleArray
 }
 
-/**
- *  Collects statistics for each dimension of the presented array.
- */
-class MVStatistic(val dimension: Int = 2) {
-    init {
-        require(dimension >= 2) { "The dimension must be >= 2 to be considered multi-variate" }
-    }
-
-    val statistics = List(dimension) { Statistic(name = "dim_$it") }
-
-    /**
-     *  Statistics are collected on the dimensions of the supplied array.
-     *  For example, for each observation[0] presented statistics are collected
-     *  across all presented values of observation[0]. For each array
-     *  dimension, there will be a Statistic that summarizes the statistical
-     *  properties of that dimension.
-     */
-    fun collect(observation: DoubleArray) {
-        require(observation.size == dimension) { "The size of the observation array must match the dimension of the collector." }
-        for ((i, x) in observation.withIndex()) {
-            statistics[i].collect(x)
-        }
-    }
-
-    fun reset() {
-        for (s in statistics) {
-            s.reset()
-        }
-    }
-
-    /**
-     *  Returns the sample averages for each dimension
-     */
-    val averages: DoubleArray
-        get() {
-            val a = DoubleArray(dimension)
-            for((i, s) in statistics.withIndex()){
-                a[i] = s.average
-            }
-            return a
-        }
-
-    /**
-     *  Returns the sample variances for each dimension
-     */
-    val variances: DoubleArray
-        get() {
-            val v = DoubleArray(dimension)
-            for((i, s) in statistics.withIndex()){
-                v[i] = s.variance
-            }
-            return v
-        }
-}
-
-class MVBootstrap(
+class BootstrapSampler(
     originalData: DoubleArray,
-    val dimension: Int = 2,
-    name: String? = null
-) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc {
+    val estimator: MVBSEstimatorIfc,
+) : RNStreamControlIfc, RNStreamChangeIfc {
 
     init {
-        require(originalData.size > 1) { "The supplied bootstrap original data had only 1 data point" }
-        require(dimension >= 2) { "The dimension must be >= 2 to be considered multi-variate" }
+        require(originalData.size > 1) { "The supplied bootstrap original data had only 1 data point!" }
+        require(estimator.names.isNotEmpty()) { "The estimator has no defined names!" }
     }
 
-    // holds the original data from which the sampling will occur
-    private val myOriginalData: DoubleArray = originalData.copyOf()
+    /**
+     *
+     * @return a copy of the original data
+     */
+    val originalData: DoubleArray
+        get() = myOriginalPop.elements
+
+    /**
+     * @return the estimate from the supplied EstimatorIfc based on the original data
+     */
+    val originalDataEstimate = estimator.estimate(originalData)
 
     // use to perform the sampling from the original data
-    private val myOriginalPop: DPopulation = DPopulation(myOriginalData)
+    private val myOriginalPop: DPopulation = DPopulation(originalData)
 
     // collects statistics along each dimension of the multi-variate estimates from the bootstrap samples
-    private val myAcrossBSStat = MVStatistic(dimension)
+    private val myAcrossBSStat = MVStatistic(estimator.names)
 
     // if requested holds the bootstrap samples
     private val myBSArrayList = mutableListOf<DoubleArraySaver>()
 
-    // holds the estimated values (for each dimension) from the bootstrap samples
+    /** Holds the estimated values (for each dimension) from the bootstrap samples.
+     * When the MVEstimator is applied to each bootstrap sample, it results in an array of estimates
+     * from the sample. This list holds those arrays. It is cleared whenever new
+     * samples are generated and then filled during the bootstrapping process.
+     */
     private val myBSEstimates = mutableListOf<DoubleArray>()
+
+    /**
+     *  Returns an 2-D array representation of the estimates from
+     *  the bootstrapping process. The rows of the array are the
+     *  multi-variate estimates from each bootstrap sample. The columns
+     *  of the array represent the bootstrap estimates for each dimension
+     *  across all the bootstrap samples.
+     */
+    val bootStrapData: Array<DoubleArray>
+        get() = myBSEstimates.toTypedArray()
 
     override var rnStream: RNStreamIfc
         get() = myOriginalPop.rnStream
@@ -177,26 +146,6 @@ class MVBootstrap(
     }
 
     /**
-     * @return the number of requested bootstrap samples
-     */
-    var numBootstrapSamples = 0
-        private set
-
-    /**
-     *
-     * @return a copy of the original data
-     */
-    val originalData: DoubleArray
-        get() = myOriginalData.copyOf()
-
-
-    /**
-     * @return the estimate from the supplied EstimatorIfc based on the original data
-     */
-    var originalDataEstimate = doubleArrayOf()
-        private set
-
-    /**
      *  Statistics collected across each dimension based on
      *  the estimates computed from each bootstrap sample.
      *  These statistics are cleared whenever generateSamples() is invoked
@@ -209,23 +158,19 @@ class MVBootstrap(
      * the bootstrap sampling.
      *
      * @param numBootstrapSamples the number of bootstrap samples to generate
-     * @param estimator           a function of the data
      * @param saveBootstrapSamples   indicates that the statistics and data of each bootstrap generated should be saved
      */
-    fun generateSamples(
+    fun bootStrapEstimates(
         numBootstrapSamples: Int,
-        estimator: MVBSEstimatorIfc,
         saveBootstrapSamples: Boolean = false
-    ) {
+    ) : List<BootstrapEstimateIfc> {
         require(numBootstrapSamples > 1) { "The number of bootstrap samples must be greater than 1" }
-        this.numBootstrapSamples = numBootstrapSamples
         myAcrossBSStat.reset()
         myBSEstimates.clear()
         for (s in myBSArrayList) {
             s.clearData()
         }
         myBSArrayList.clear()
-        originalDataEstimate = estimator.estimate(myOriginalData)
         for (i in 0 until numBootstrapSamples) {
             val sample: DoubleArray = myOriginalPop.sample(myOriginalPop.size())
             val x = estimator.estimate(sample)
@@ -237,6 +182,28 @@ class MVBootstrap(
                 myBSArrayList.add(das)
             }
         }
+        return makeBootStrapEstimates()
+    }
+
+    /**
+     *  The returned list contains the bootstrap estimates for
+     *  each of the dimensions. From these elements the
+     *  bootstrap confidence intervals and other statistical analysis
+     *  can be performed.
+     */
+    private fun makeBootStrapEstimates() : List<BootstrapEstimateIfc>{
+        val list = mutableListOf<BootstrapEstimateIfc>()
+        // transpose the collected data, each row represents a dimension and the
+        // row contents are the bootstrap estimates for the dimension
+        val estimates = bootStrapData.transpose()
+        // now process the rows
+        for ((i, estimatesArray) in estimates.withIndex()){
+            // make the bootstrap estimates
+            val originalEstimate = originalDataEstimate[i]
+            val be = BootStrapEstimate(estimator.names[i], originalEstimate, estimatesArray)
+            list.add(be)
+        }
+        return list
     }
 
     /**

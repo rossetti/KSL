@@ -30,6 +30,11 @@ import ksl.utilities.random.rvariable.RVariableIfc
 interface BootstrapEstimateIfc {
 
     /**
+     *  A name for the estimate
+     */
+    val name : String
+
+    /**
      * the default confidence interval level
      */
     val defaultCILevel: Double
@@ -44,6 +49,12 @@ interface BootstrapEstimateIfc {
      * no samples have been generated
      */
     val bootstrapEstimates: DoubleArray
+
+    /**
+     *  The number of bootstrap samples that were used to produce the bootstrap estimate
+     */
+    val numberOfBootstraps: Int
+        get() = bootstrapEstimates.size
 
     /**
      * Each element is the bootstrap estimate for sample i minus originalDataEstimate
@@ -77,7 +88,7 @@ interface BootstrapEstimateIfc {
 
     /**
      * This is the standard deviation of the across bootstrap observations of the estimator
-     * for each bootstrap generate
+     * for each bootstrap generated
      *
      * @return the standard error of the estimate based on bootstrapping
      */
@@ -142,6 +153,32 @@ interface BootstrapEstimateIfc {
         val ulq: Double = Statistic.percentile(bse, 1.0 - ad2)
         return Interval(llq, ulq)
     }
+}
+
+open class BootStrapEstimate(
+    final override val name: String,
+    final override val originalDataEstimate: Double,
+    final override val bootstrapEstimates: DoubleArray
+) : BootstrapEstimateIfc {
+
+    /**
+     * @return a Statistic observed across the estimates from the bootstrap samples
+     */
+    val acrossBootstrapStatistics: Statistic = Statistic(bootstrapEstimates)
+
+    /**
+     * the default confidence interval level
+     */
+    override var defaultCILevel: Double = 0.95
+        set(level) {
+            require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+            field = level
+        }
+
+    override val acrossBootstrapAverage: Double
+        get() = acrossBootstrapStatistics.average
+    override val bootstrapStdErrEstimate: Double
+        get() = acrossBootstrapStatistics.standardError
 }
 
 /**
