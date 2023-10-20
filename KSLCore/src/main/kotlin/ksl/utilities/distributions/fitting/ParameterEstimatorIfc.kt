@@ -44,6 +44,7 @@ interface ParameterEstimatorIfc {
      *  Note the meaning of the fields associated with [EstimationResult]
      */
     fun estimate(data: DoubleArray, statistics: StatisticIfc = Statistic(data)): EstimationResult
+
 }
 
 
