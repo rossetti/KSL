@@ -192,8 +192,10 @@ open class BootStrapEstimate(
  * Hyndman, R. J. and Fan, Y. (1996) Sample quantiles in statistical packages,
  * American Statistician 50, 361–365 as the default.  This can be changed by the user.
  */
-class Bootstrap(originalData: DoubleArray, name: String? = null) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc,
-    BootstrapEstimateIfc {
+class Bootstrap(
+    originalData: DoubleArray,
+    name: String? = null
+) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc, BootstrapEstimateIfc {
 
     init {
         require(originalData.size > 1) { "The supplied bootstrap generate had only 1 data point" }
