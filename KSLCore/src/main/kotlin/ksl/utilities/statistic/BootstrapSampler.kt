@@ -208,12 +208,14 @@ class BootstrapSampler(
         for (i in 0 until numBootstrapSamples) {
             val sample: DoubleArray = myOriginalPop.sample(myOriginalPop.size())
             val x = estimator.estimate(sample)
-            myAcrossBSStat.collect(x)
-            myBSEstimates.add(x)
-            if (saveBootstrapSamples) {
-                val das = DoubleArraySaver()
-                das.save(sample)
-                myBSArrayList.add(das)
+            if (x.size == estimator.names.size){
+                myAcrossBSStat.collect(x)
+                myBSEstimates.add(x)
+                if (saveBootstrapSamples) {
+                    val das = DoubleArraySaver()
+                    das.save(sample)
+                    myBSArrayList.add(das)
+                }
             }
         }
         return makeBootStrapEstimates()
