@@ -46,6 +46,30 @@ interface MVBSEstimatorIfc {
     fun estimate(data: DoubleArray): DoubleArray
 }
 
+class BasicStatistics : MVBSEstimatorIfc{
+
+    private val stat = Statistic()
+
+    override val names: List<String> = listOf(
+        "average", "variance", "min", "max", "skewness", "kurtosis",
+        "lag1Correlation", "lag1Covariance")
+
+    override fun estimate(data: DoubleArray): DoubleArray {
+        stat.reset()
+        stat.collect(data)
+        val array = DoubleArray(8)
+        array[0] = stat.average
+        array[1] = stat.variance
+        array[2] = stat.min
+        array[3] = stat.max
+        array[4] = stat.skewness
+        array[5] = stat.kurtosis
+        array[6] = stat.lag1Correlation
+        array[7] = stat.lag1Covariance
+        return array
+    }
+}
+
 class BootstrapSampler(
     originalData: DoubleArray,
     val estimator: MVBSEstimatorIfc,
