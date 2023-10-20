@@ -22,15 +22,35 @@ import ksl.utilities.distributions.Lognormal
 import ksl.utilities.distributions.Normal
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.SampleIfc
-import ksl.utilities.statistic.Bootstrap
-import ksl.utilities.statistic.Statistic
-import ksl.utilities.statistic.BSEstimatorIfc
-import ksl.utilities.statistic.MultiBootstrap
+import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.statistic.*
 
 fun main() {
 //    example1();
     //example2();
-    example3()
+   // example3()
+
+    testBootStrapSampler()
+}
+
+fun testBootStrapSampler(){
+    val ed = ExponentialRV(10.0)
+    val data = ed.sample(50)
+    val stat = Statistic(data)
+    println(stat)
+    println()
+    val rns = KSLRandom.nextRNStream()
+    val bss = BootstrapSampler(data, BasicStatistics(), rns)
+    val estimates = bss.bootStrapEstimates(300)
+    for(e in estimates){
+        println(e.asString())
+    }
+    val bs = Bootstrap(data, rns, name = "average")
+    bs.resetStartStream()
+    bs.generateSamples(300)
+    println(bs)
+
 }
 
 fun example1() {

@@ -23,7 +23,6 @@ import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.EmpiricalRV
-import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistics
@@ -71,9 +70,19 @@ class BasicStatistics : MVBSEstimatorIfc{
     }
 }
 
+/**
+ *  This class facilitates bootstrap sampling. The [originalData] is sampled
+ *  from, with replacement, repeatedly to form bootstrap samples from which
+ *  bootstrap statistics are computed. The [estimator] provides the mechanism
+ *  for estimating statistical quantities from the original data. From the
+ *  data, it can produce 1 or more estimated quantities. Bootstrap estimates
+ *  are computed on the observed estimates from each bootstrap sample.
+ *  The specified stream controls the bootstrap sampling process.
+ */
 class BootstrapSampler(
     originalData: DoubleArray,
     val estimator: MVBSEstimatorIfc,
+    stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : RNStreamControlIfc, RNStreamChangeIfc {
 
     init {
@@ -89,12 +98,12 @@ class BootstrapSampler(
         get() = myOriginalPop.elements
 
     /**
-     * @return the estimate from the supplied EstimatorIfc based on the original data
+     * @return the estimate from the supplied MVBSEstimatorIfc based on the original data
      */
     val originalDataEstimate = estimator.estimate(originalData)
 
     // use to perform the sampling from the original data
-    private val myOriginalPop: DPopulation = DPopulation(originalData)
+    private val myOriginalPop: DPopulation = DPopulation(originalData, stream)
 
     // collects statistics along each dimension of the multi-variate estimates from the bootstrap samples
     private val myAcrossBSStat = MVStatistic(estimator.names)
@@ -317,14 +326,4 @@ class BootstrapSampler(
             }
             return v
         }
-}
-
-fun testBootStrapSampler(){
-
-    val data = ExponentialRV(10.0).sample(50)
-
-    val bss = BootstrapSampler(data, BasicStatistics())
-
-    val estimates = bss.bootStrapEstimates(300)
-
 }

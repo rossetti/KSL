@@ -167,11 +167,11 @@ interface BootstrapEstimateIfc {
         sb.appendLine("------------------------------------------------------")
         sb.appendLine("number of bootstrap samples = $numberOfBootstraps")
         sb.appendLine("size of original sample = $originalDataSampleSize")
-        sb.appendLine("original estimate = ").append(originalDataEstimate)
-        sb.appendLine("bias estimate = ").append(bootstrapBiasEstimate)
-        sb.appendLine("across bootstrap average = ").append(acrossBootstrapAverage)
-        sb.appendLine("std. err. estimate = ").append(bootstrapStdErrEstimate)
-        sb.appendLine("default c.i. level = ").append(defaultCILevel)
+        sb.appendLine("original estimate = $originalDataEstimate")
+        sb.appendLine("bias estimate = $bootstrapBiasEstimate")
+        sb.appendLine("across bootstrap average = $acrossBootstrapAverage")
+        sb.appendLine("std. err. estimate = $bootstrapStdErrEstimate")
+        sb.appendLine("default c.i. level = $defaultCILevel")
         sb.appendLine("norm c.i. = ${stdNormalBootstrapCI()}")
         sb.appendLine("basic c.i. = ${basicBootstrapCI()}")
         sb.appendLine("percentile c.i. = ${percentileBootstrapCI()}")
@@ -218,9 +218,14 @@ open class BootStrapEstimate(
  * intervals normal, basic, and percentile.  To estimate the quantiles it uses algorithm 8 from
  * Hyndman, R. J. and Fan, Y. (1996) Sample quantiles in statistical packages,
  * American Statistician 50, 361–365 as the default.  This can be changed by the user.
+ *
+ * @param originalData the data to sample from to form the bootstraps
+ * @param stream the random number stream for forming the bootstraps
+ * @param name a name for the bootstrap statistics
  */
 class Bootstrap(
     originalData: DoubleArray,
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
 ) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc, BootstrapEstimateIfc {
 
@@ -229,7 +234,7 @@ class Bootstrap(
     }
 
     private val myOriginalData: DoubleArray = originalData.copyOf()
-    private val myOriginalPop: DPopulation = DPopulation(originalData)
+    private val myOriginalPop: DPopulation = DPopulation(originalData, stream)
     private val myAcrossBSStat: Statistic = Statistic("Across Bootstrap Statistics")
     private val myBSArrayList = mutableListOf<DoubleArraySaver>()
     private val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", originalData)
@@ -507,11 +512,17 @@ class Bootstrap(
          * @param name         the name of bootstrap instance
          * @param sampleSize the size of the original sample, must be greater than 1
          * @param sampler something to generate the original sample of the provided size
+         * @param stream the random number stream for forming the bootstraps
          * @return an instance of Bootstrap based on the sample
          */
-        fun create(sampleSize: Int, sampler: SampleIfc, name: String? = null): Bootstrap {
-            require(sampleSize > 1) { "The generate size must be greater than 1" }
-            return Bootstrap(sampler.sample(sampleSize), name)
+        fun create(
+            sampleSize: Int,
+            sampler: SampleIfc,
+            stream: RNStreamIfc = KSLRandom.nextRNStream(),
+            name: String? = null
+        ): Bootstrap {
+            require(sampleSize > 1) { "The sample size must be greater than 1" }
+            return Bootstrap(sampler.sample(sampleSize), stream, name)
         }
     }
 }
