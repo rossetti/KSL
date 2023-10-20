@@ -70,6 +70,11 @@ interface BootstrapEstimateIfc {
         get() = bootstrapEstimates.subtractConstant(originalDataEstimate)
 
     /**
+     * @return a Statistic observed across the estimates from the bootstrap samples
+     */
+    val acrossBootstrapStatistics: StatisticIfc
+
+    /**
      * Each element is the bootstrap estimate for sample i minus getOriginalDataEstimate()
      * divided by getBootstrapStdErrEstimate()
      *
@@ -82,6 +87,7 @@ interface BootstrapEstimateIfc {
      * @return the generated average of the estimates from the bootstrap samples
      */
     val acrossBootstrapAverage: Double
+        get() = acrossBootstrapStatistics.average
 
     /**
      * This is acrossBootstrapAverage - originalDataEstimate
@@ -98,6 +104,7 @@ interface BootstrapEstimateIfc {
      * @return the standard error of the estimate based on bootstrapping
      */
     val bootstrapStdErrEstimate: Double
+        get() = acrossBootstrapStatistics.standardError
 
     /**
      * Gets the standard normal based bootstrap confidence interval. Not recommended.
@@ -190,7 +197,7 @@ open class BootStrapEstimate(
     /**
      * @return a Statistic observed across the estimates from the bootstrap samples
      */
-    val acrossBootstrapStatistics: Statistic = Statistic(bootstrapEstimates)
+    override val acrossBootstrapStatistics: StatisticIfc = Statistic(bootstrapEstimates)
 
     /**
      * the default confidence interval level
@@ -201,10 +208,10 @@ open class BootStrapEstimate(
             field = level
         }
 
-    override val acrossBootstrapAverage: Double
-        get() = acrossBootstrapStatistics.average
-    override val bootstrapStdErrEstimate: Double
-        get() = acrossBootstrapStatistics.standardError
+//    override val acrossBootstrapAverage: Double
+//        get() = acrossBootstrapStatistics.average
+//    override val bootstrapStdErrEstimate: Double
+//        get() = acrossBootstrapStatistics.standardError
 
 }
 
@@ -465,14 +472,8 @@ class Bootstrap(
     /**
      * @return a Statistic observed across the estimates from the bootstrap samples
      */
-    val acrossBootstrapStatistics: Statistic
-        get() = myAcrossBSStat.instance()
-
-    /**
-     * @return the generated average of the estimates from the bootstrap samples
-     */
-    override val acrossBootstrapAverage: Double
-        get() = myAcrossBSStat.average
+    override val acrossBootstrapStatistics: StatisticIfc
+        get() = myAcrossBSStat
 
     /**
      * @return the observations of the estimator for each bootstrap generated, may be zero length if
@@ -486,15 +487,6 @@ class Bootstrap(
      */
     val originalDataAverage: Double
         get() = myOriginalPopStat.average
-
-    /**
-     * This is the standard deviation of the across bootstrap observations of the estimator
-     * for each bootstrap generate
-     *
-     * @return the standard error of the estimate based on bootstrapping
-     */
-    override val bootstrapStdErrEstimate: Double
-        get() = myAcrossBSStat.standardDeviation
 
     /**
      * @return summary statistics for the original data
