@@ -1293,6 +1293,13 @@ object KSLArrays {
     }
 
     /**
+     *  Converts the list of arrays to an array of arrays.
+     */
+    fun to2DDoubleArray(list: List<DoubleArray>) : Array<DoubleArray>{
+        return list.toTypedArray()
+    }
+
+    /**
      * Convert the 2D array of int to a 2D array of Long with each element the
      * corresponding value
      *

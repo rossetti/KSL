@@ -45,6 +45,12 @@ class DPopulation(
 
     private var myElements: DoubleArray = elements.copyOf()
 
+    /**
+     *  A copy of the elements of the original population of elements
+     */
+    val elements: DoubleArray
+        get() = myElements.copyOf()
+
     /** Returns a new instance of the population with the same parameters
      * but an independent generator
      *
