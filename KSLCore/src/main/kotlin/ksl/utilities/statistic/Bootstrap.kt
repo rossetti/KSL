@@ -32,12 +32,17 @@ interface BootstrapEstimateIfc {
     /**
      *  A name for the estimate
      */
-    val name : String
+    val name: String
 
     /**
      * the default confidence interval level
      */
     val defaultCILevel: Double
+
+    /**
+     *  The sample size of the original data set
+     */
+    val originalDataSampleSize: Int
 
     /**
      * @return the estimate from the supplied EstimatorIfc based on the original data
@@ -121,7 +126,7 @@ interface BootstrapEstimateIfc {
      * @param level the confidence level, must be between 0 and 1
      * @return the confidence interval
      */
-    fun basicBootstrapCI(level: Double =defaultCILevel): Interval {
+    fun basicBootstrapCI(level: Double = defaultCILevel): Interval {
         require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
         val a = 1.0 - level
         val ad2 = a / 2.0
@@ -153,10 +158,31 @@ interface BootstrapEstimateIfc {
         val ulq: Double = Statistic.percentile(bse, 1.0 - ad2)
         return Interval(llq, ulq)
     }
+
+    fun asString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("------------------------------------------------------")
+        sb.appendLine("Bootstrap statistical results:")
+        sb.appendLine("name = $name")
+        sb.appendLine("------------------------------------------------------")
+        sb.appendLine("number of bootstrap samples = $numberOfBootstraps")
+        sb.appendLine("size of original sample = $originalDataSampleSize")
+        sb.appendLine("original estimate = ").append(originalDataEstimate)
+        sb.appendLine("bias estimate = ").append(bootstrapBiasEstimate)
+        sb.appendLine("across bootstrap average = ").append(acrossBootstrapAverage)
+        sb.appendLine("std. err. estimate = ").append(bootstrapStdErrEstimate)
+        sb.appendLine("default c.i. level = ").append(defaultCILevel)
+        sb.appendLine("norm c.i. = ${stdNormalBootstrapCI()}")
+        sb.appendLine("basic c.i. = ${basicBootstrapCI()}")
+        sb.appendLine("percentile c.i. = ${percentileBootstrapCI()}")
+        sb.appendLine("------------------------------------------------------")
+        return sb.toString()
+    }
 }
 
 open class BootStrapEstimate(
     final override val name: String,
+    final override val originalDataSampleSize: Int,
     final override val originalDataEstimate: Double,
     final override val bootstrapEstimates: DoubleArray
 ) : BootstrapEstimateIfc {
@@ -179,6 +205,7 @@ open class BootStrapEstimate(
         get() = acrossBootstrapStatistics.average
     override val bootstrapStdErrEstimate: Double
         get() = acrossBootstrapStatistics.standardError
+
 }
 
 /**
@@ -200,12 +227,13 @@ class Bootstrap(
     init {
         require(originalData.size > 1) { "The supplied bootstrap generate had only 1 data point" }
     }
+
     private val myOriginalData: DoubleArray = originalData.copyOf()
-    private val myOriginalPop: DPopulation = DPopulation(myOriginalData)
+    private val myOriginalPop: DPopulation = DPopulation(originalData)
     private val myAcrossBSStat: Statistic = Statistic("Across Bootstrap Statistics")
     private val myBSArrayList = mutableListOf<DoubleArraySaver>()
-    private val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", myOriginalData)
-    private val myBSEstimates =  DoubleArraySaver()
+    private val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", originalData)
+    private val myBSEstimates = DoubleArraySaver()
 
     override var rnStream: RNStreamIfc
         get() = myOriginalPop.rnStream
@@ -235,6 +263,8 @@ class Bootstrap(
     override var originalDataEstimate = 0.0
         private set
 
+    override val originalDataSampleSize = originalData.size
+
     /**
      * the default confidence interval level
      */
@@ -252,7 +282,8 @@ class Bootstrap(
      * @param saveBootstrapSamples   indicates that the statistics and data of each bootstrap generate should be saved
      */
     fun generateSamples(
-        numBootstrapSamples: Int, estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
+        numBootstrapSamples: Int,
+        estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
         saveBootstrapSamples: Boolean = false
     ) {
         require(numBootstrapSamples > 1) { "The number of bootstrap samples must be greater than 1" }
@@ -333,7 +364,7 @@ class Bootstrap(
     val statisticForEachBootstrapSample: List<Statistic>
         get() {
             val list = mutableListOf<Statistic>()
-            for(dsa in myBSArrayList){
+            for (dsa in myBSArrayList) {
                 list.add(Statistic(dsa.savedData()))
             }
             return list
@@ -468,42 +499,6 @@ class Bootstrap(
 
     override fun toString(): String {
         return asString()
-    }
-
-    fun asString(): String {
-        val sb = StringBuilder()
-        sb.append("------------------------------------------------------")
-        sb.append(System.lineSeparator())
-        sb.append("Bootstrap statistical results:")
-        sb.append(System.lineSeparator())
-        sb.append("id = ").append(id)
-        sb.append(System.lineSeparator())
-        sb.append("name = ").append(name)
-        sb.append(System.lineSeparator())
-        sb.append("------------------------------------------------------")
-        sb.append(System.lineSeparator())
-        sb.append("number of bootstrap samples = ").append(numBootstrapSamples)
-        sb.append(System.lineSeparator())
-        sb.append("size of original sample = ").append(myOriginalPopStat.count)
-        sb.append(System.lineSeparator())
-        sb.append("original estimate = ").append(originalDataEstimate)
-        sb.append(System.lineSeparator())
-        sb.append("bias estimate = ").append(bootstrapBiasEstimate)
-        sb.append(System.lineSeparator())
-        sb.append("across bootstrap average = ").append(acrossBootstrapAverage)
-        sb.append(System.lineSeparator())
-        sb.append("std. err. estimate = ").append(bootstrapStdErrEstimate)
-        sb.append(System.lineSeparator())
-        sb.append("default c.i. level = ").append(defaultCILevel)
-        sb.append(System.lineSeparator())
-        sb.append("norm c.i. = ").append(stdNormalBootstrapCI())
-        sb.append(System.lineSeparator())
-        sb.append("basic c.i. = ").append(basicBootstrapCI())
-        sb.append(System.lineSeparator())
-        sb.append("percentile c.i. = ").append(percentileBootstrapCI())
-        sb.append(System.lineSeparator())
-        sb.append("------------------------------------------------------")
-        return sb.toString()
     }
 
     companion object {
