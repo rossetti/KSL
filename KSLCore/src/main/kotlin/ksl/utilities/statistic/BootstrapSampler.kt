@@ -236,7 +236,7 @@ class BootstrapSampler(
         for ((i, estimatesArray) in estimates.withIndex()){
             // make the bootstrap estimates
             val originalEstimate = originalDataEstimate[i]
-            val be = BootStrapEstimate(estimator.names[i], myOriginalPop.size(), originalEstimate, estimatesArray)
+            val be = BootstrapEstimate(estimator.names[i], myOriginalPop.size(), originalEstimate, estimatesArray)
             list.add(be)
         }
         return list

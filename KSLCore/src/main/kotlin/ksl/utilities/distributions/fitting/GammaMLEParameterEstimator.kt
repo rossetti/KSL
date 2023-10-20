@@ -5,6 +5,8 @@ import ksl.utilities.distributions.Gamma
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import kotlin.math.ln
 
@@ -18,7 +20,20 @@ import kotlin.math.ln
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
+class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
+
+    override val names: List<String> = listOf("shape", "scale")
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimate(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("shape"),
+            er.parameters.doubleParameter("scale")
+        )
+    }
+
 
     override val checkRange: Boolean = true
 
@@ -80,9 +95,9 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
         // define an initial search interval for the shape parameter search
         val searchInterval = findInitialInterval(start)
         // need to test interval
-        if (!RootFinder.hasRoot(fn, searchInterval)){
+        if (!RootFinder.hasRoot(fn, searchInterval)) {
             // expand to find interval
-            if (!RootFinder.findInterval(fn, searchInterval)){
+            if (!RootFinder.findInterval(fn, searchInterval)) {
                 // a suitable interval was not found via iterations, return the MOM estimator with a new message
                 start.message = "MLE search failed to find suitable search interval. the MOM estimator was returned."
                 return start
@@ -96,7 +111,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc{
         )
         solver.evaluate()
         // need to check for convergence
-        if (!solver.hasConverged()){
+        if (!solver.hasConverged()) {
             // a suitable root was not found via iterations, return the MOM estimator with a new message
             start.message = "MLE search failed to converge. The MOM estimator was returned."
             return start
