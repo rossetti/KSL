@@ -55,26 +55,26 @@ abstract class RVParameters {
      * key = name of parameter
      * value = value of the parameter as a Double
      */
-    private val doubleParameters: MutableMap<String, Double> = HashMap()
+    private val doubleParameters: MutableMap<String, Double> = LinkedHashMap()
 
     /**
      * The Map that hold the parameters as pairs
      * key = name of parameter
      * value = value of the parameter as an Integer
      */
-    private val integerParameters: MutableMap<String, Int> = HashMap()
+    private val integerParameters: MutableMap<String, Int> = LinkedHashMap()
 
     /**
      * The Map that hold the parameters as pairs
      * key = name of parameter
      * value = value of the parameter as a double[]
      */
-    private val doubleArrayParameters: MutableMap<String, DoubleArray> = HashMap()
+    private val doubleArrayParameters: MutableMap<String, DoubleArray> = LinkedHashMap()
 
     /**
      * A map to keep track of parameter names and their types
      */
-    private val dataTypes: MutableMap<String, DataType> = HashMap()
+    private val dataTypes: MutableMap<String, DataType> = LinkedHashMap()
 
     init {
         fillParameters()
