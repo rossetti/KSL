@@ -23,6 +23,7 @@ import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.EmpiricalRV
+import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistics
@@ -224,7 +225,7 @@ class BootstrapSampler(
         for ((i, estimatesArray) in estimates.withIndex()){
             // make the bootstrap estimates
             val originalEstimate = originalDataEstimate[i]
-            val be = BootStrapEstimate(estimator.names[i], originalEstimate, estimatesArray)
+            val be = BootStrapEstimate(estimator.names[i], myOriginalPop.size(), originalEstimate, estimatesArray)
             list.add(be)
         }
         return list
@@ -316,4 +317,14 @@ class BootstrapSampler(
             }
             return v
         }
+}
+
+fun testBootStrapSampler(){
+
+    val data = ExponentialRV(10.0).sample(50)
+
+    val bss = BootstrapSampler(data, BasicStatistics())
+
+    val estimates = bss.bootStrapEstimates(300)
+
 }

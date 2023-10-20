@@ -106,6 +106,26 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         }
     }
 
+    /**
+     * This method changes the underlying state of the Bootstrap instance by performing
+     * the bootstrap sampling.
+     *
+     * @param numBootstrapSamples  the number of bootstrap samples to generate, assumes all are the same.
+     * @param estimator            a function of the data
+     * @param saveBootstrapSamples indicates that the statistics and data of each bootstrap generate should be saved
+     */
+    fun generateSamples(
+        numBootstrapSamples: Int,
+        estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
+        saveBootstrapSamples: Boolean = false
+    ) {
+        val map = mutableMapOf<String, Int>()
+        for (name in myBootstraps.keys) {
+            map[name] = numBootstrapSamples
+        }
+        generateSamples(map, estimator, saveBootstrapSamples)
+    }
+
     /** Gets a map with key = name, where name is the associated bootstrap name
      * and the value is the array holding the sample averages for each
      * bootstrap samples within the bootstrap
