@@ -187,7 +187,7 @@ interface BootstrapEstimateIfc {
     }
 }
 
-open class BootStrapEstimate(
+open class BootstrapEstimate(
     final override val name: String,
     final override val originalDataSampleSize: Int,
     final override val originalDataEstimate: Double,
