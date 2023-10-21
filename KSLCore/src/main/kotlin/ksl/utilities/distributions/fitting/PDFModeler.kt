@@ -121,7 +121,7 @@ class PDFModeler(private val data: DoubleArray) {
         level: Double = 0.95,
         stream: RNStreamIfc = KSLRandom.nextRNStream()
     ) : List<BootstrapEstimate>{
-        return bootStrapParameterEstimates(result.estimator, numBootstrapSamples, level, stream)
+        return bootStrapParameterEstimates(result.estimator, numBootstrapSamples, level, stream, result.distribution)
     }
 
     /**
@@ -132,12 +132,14 @@ class PDFModeler(private val data: DoubleArray) {
         estimator: MVBSEstimatorIfc,
         numBootstrapSamples: Int = 399,
         level: Double = 0.95,
-        stream: RNStreamIfc = KSLRandom.nextRNStream()
+        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+        label : String? = null
     ): List<BootstrapEstimate> {
         val bss = BootstrapSampler(data, estimator, stream)
         val list = bss.bootStrapEstimates(numBootstrapSamples)
         for(e in list){
             e.defaultCILevel = level
+            e.label = label
         }
         return list
     }
