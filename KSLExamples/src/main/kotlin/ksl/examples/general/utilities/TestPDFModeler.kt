@@ -16,9 +16,10 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions.fitting
+package ksl.examples.general.utilities
 
 import ksl.utilities.distributions.ChiSquaredDistribution
+import ksl.utilities.distributions.fitting.*
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
@@ -60,7 +61,7 @@ private fun testModeler(data: DoubleArray) {
 private fun testExponentialEstimation(data: DoubleArray) {
     val estimator = ExponentialMLEParameterEstimator
 
-    val result = estimator.estimateParameters(data)
+    val result = ExponentialMLEParameterEstimator.estimateParameters(data)
 
     println("Results for ${result.distribution}")
 
@@ -69,7 +70,7 @@ private fun testExponentialEstimation(data: DoubleArray) {
     val d = PDFModeler.createDistribution(result.parameters!!)!!
     println(d)
     val params = result.parameters
-    val mean = params.doubleParameter("mean")
+    val mean = params?.doubleParameter("mean")
     //val d = Exponential(mean)
     var bp = PDFModeler.equalizedCDFBreakPoints(data.size, d)
     bp = Histogram.addLowerLimit(0.0, bp)
@@ -78,7 +79,7 @@ private fun testExponentialEstimation(data: DoubleArray) {
     h.collect(data)
 //    println(h)
 
-    val ec =  PDFModeler.expectedCounts(h, d)
+    val ec = PDFModeler.expectedCounts(h, d)
     println("number of counts = ${ec.size}")
     println("number of bins = ${h.numberBins}")
 //    println(ec.joinToString())
