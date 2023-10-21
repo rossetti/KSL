@@ -163,4 +163,12 @@ fun testAllInOne(data: DoubleArray){
 
     val topResult = results.sortedScoringResults[0]
     topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
+
+    val secondResult = results.sortedScoringResults[1]
+    secondResult.distributionFitPlot().showInBrowser("Second Distribution ${secondResult.name}")
+    val gResult = secondResult.estimationResult
+
+    println()
+    val bsr = d.bootStrapParameterEstimates(gResult)
+    bsr.forEach(::println)
 }
