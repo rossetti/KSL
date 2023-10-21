@@ -19,8 +19,9 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countLessThan
-import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
 import ksl.utilities.random.rvariable.parameters.PoissonRVParameters
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -29,11 +30,27 @@ import ksl.utilities.statistic.StatisticIfc
  *  process assumes that the supplied data are integer valued counts
  *  over the range {0,1,2,...}
  */
-object PoissonMLEParameterEstimator : ParameterEstimatorIfc {
+object PoissonMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = true
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override val names: List<String> = listOf("mean")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("mean")
+        )
+    }
+
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.isEmpty()) {
             return EstimationResult(
                 originalData = data,

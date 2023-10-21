@@ -71,7 +71,7 @@ class PMFModeler(
     ): List<EstimationResult> {
         val estimatedParameters = mutableListOf<EstimationResult>()
         for (estimator in estimators) {
-            val result = estimator.estimate(dataAsDoubles, statistics)
+            val result = estimator.estimateParameters(dataAsDoubles, statistics)
             estimatedParameters.add(result)
         }
         return estimatedParameters

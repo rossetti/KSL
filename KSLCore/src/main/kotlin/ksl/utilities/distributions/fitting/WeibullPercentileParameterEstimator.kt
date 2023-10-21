@@ -4,6 +4,7 @@ import ksl.utilities.*
 import ksl.utilities.distributions.Weibull
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.statistic.JackKnifeEstimator
+import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
@@ -32,7 +33,24 @@ import ksl.utilities.statistic.StatisticIfc
  *
  * The supplied data cannot be negative or zero and must not all be equal in value.
  */
-class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc {
+class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
+
+    override val names: List<String> = listOf("shape", "scale")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("shape"),
+            er.parameters.doubleParameter("scale")
+        )
+    }
 
     override val checkRange: Boolean = true
 
@@ -62,7 +80,7 @@ class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc {
             field = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size <= 10) {
             return EstimationResult(
                 originalData = data,

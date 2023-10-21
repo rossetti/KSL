@@ -20,6 +20,8 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -28,11 +30,28 @@ import ksl.utilities.statistic.StatisticIfc
  *  the mode is estimated by solving for it in terms of the sample
  *  average.
  */
-object TriangularParameterEstimator : ParameterEstimatorIfc{
+object TriangularParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = false
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override val names: List<String> = listOf("min", "mode", "max")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("min"),
+            er.parameters.doubleParameter("mode"),
+            er.parameters.doubleParameter("max")
+        )
+    }
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
             return EstimationResult(
                 originalData = data,

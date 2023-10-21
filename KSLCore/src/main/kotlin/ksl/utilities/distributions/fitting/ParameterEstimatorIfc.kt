@@ -43,7 +43,7 @@ interface ParameterEstimatorIfc {
      *  needs to be consistent with the intent of the desired distribution.
      *  Note the meaning of the fields associated with [EstimationResult]
      */
-    fun estimate(data: DoubleArray, statistics: StatisticIfc = Statistic(data)): EstimationResult
+    fun estimateParameters(data: DoubleArray, statistics: StatisticIfc = Statistic(data)): EstimationResult
 
 }
 

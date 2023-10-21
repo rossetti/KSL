@@ -20,17 +20,35 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  Uses the sample average of the observations, which is the MLE
  *  estimator. The data must not contain negative values.
  */
-object ExponentialMLEParameterEstimator : ParameterEstimatorIfc{
+object ExponentialMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = true
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override val names: List<String> = listOf("mean")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("mean")
+        )
+    }
+
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.isEmpty()){
             return EstimationResult(
                 originalData = data,

@@ -19,13 +19,34 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.random.rvariable.parameters.GeneralizedBetaRVParameters
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
-object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc {
+object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = false
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override val names: List<String> = listOf("alpha", "beta", "min", "max")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("alpha"),
+            er.parameters.doubleParameter("beta"),
+            er.parameters.doubleParameter("min"),
+            er.parameters.doubleParameter("max")
+        )
+    }
+
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2) {
             return EstimationResult(
                 originalData = data,

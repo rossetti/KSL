@@ -60,7 +60,7 @@ private fun testModeler(data: DoubleArray) {
 private fun testExponentialEstimation(data: DoubleArray) {
     val estimator = ExponentialMLEParameterEstimator
 
-    val result = estimator.estimate(data)
+    val result = estimator.estimateParameters(data)
 
     println("Results for ${result.distribution}")
 
@@ -99,7 +99,7 @@ private fun testExponentialEstimation(data: DoubleArray) {
 private fun testWeibullEstimation(data: DoubleArray) {
     val estimator = WeibullMLEParameterEstimator()
     //   val estimator = WeibullPercentileParameterEstimator()
-    val result = estimator.estimate(data)
+    val result = estimator.estimateParameters(data)
 
     val d = PDFModeler.createDistribution(result.parameters!!)!!
     println(d)

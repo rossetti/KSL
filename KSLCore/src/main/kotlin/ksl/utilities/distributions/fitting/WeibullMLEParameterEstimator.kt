@@ -5,6 +5,8 @@ import ksl.utilities.distributions.Weibull
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import kotlin.math.ln
 import kotlin.math.pow
@@ -19,9 +21,26 @@ import kotlin.math.pow
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-class WeibullMLEParameterEstimator() : ParameterEstimatorIfc{
+class WeibullMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = true
+
+    override val names: List<String> = listOf("shape", "scale")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("shape"),
+            er.parameters.doubleParameter("scale")
+        )
+    }
 
     /**
      * Desired precision. The default is 0.0001.
@@ -71,7 +90,7 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc{
             field = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2) {
             return EstimationResult(
                 originalData = data,
