@@ -27,7 +27,10 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticData
 import ksl.utilities.statistic.StatisticIfc
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import java.text.DecimalFormat
 import java.util.*
 
@@ -75,6 +78,18 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
         }
         myRowFormat = StringBuilder(DEFAULT_ROW_FORMAT)
         myHeaderFormat = StringBuilder(DEFAULT_HEADER_FORMAT)
+    }
+
+    /**
+     * Converts the statistics in the reporter to a data frame
+     * containing the statistical data
+     */
+    fun asDataFrame() : DataFrame<StatisticData> {
+        val list = mutableListOf<StatisticData>()
+        for(element in myStats){
+            list.add(element.statisticData())
+        }
+        return list.toDataFrame()
     }
 
     /**
@@ -592,4 +607,7 @@ fun main() {
     val out = KSL.createPrintWriter("Report.md")
     out.print(r.halfWidthSummaryReportAsMarkDown())
     out.flush()
+
+    val df = r.asDataFrame()
+    println(df)
 }

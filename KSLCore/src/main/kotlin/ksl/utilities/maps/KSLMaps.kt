@@ -26,6 +26,9 @@ import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import java.util.*
+import kotlin.reflect.KClass
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.primaryConstructor
 
 object KSLMaps {
 
@@ -182,4 +185,45 @@ fun Map<String, DoubleArray>.statisticalSummaries(): Map<String, StatisticIfc> {
 fun Map<String, DoubleArray>.confidenceIntervals(level: Double = 0.95): Map<String, Interval> {
     return Statistic.confidenceIntervals(this)
 }
+
+/**
+ *  Can be used to convert an object of a data class to a map.
+ *  https://www.baeldung.com/kotlin/data-class-to-map
+ */
+@Suppress("UNCHECKED_CAST")
+fun <T : Any> toMap(obj: T): Map<String, Any?> {
+    return (obj::class as KClass<T>).memberProperties.associate { prop ->
+        prop.name to prop.get(obj)?.let { value ->
+            if (value::class.isData) {
+                toMap(value)
+            } else {
+                value
+            }
+        }
+    }
+}
+
+/**
+ *  Can be used to convert an object of a data class to a map.
+ *  https://www.baeldung.com/kotlin/data-class-to-map
+ */
+@Suppress("UNCHECKED_CAST")
+fun <T : Any> toMapWithOnlyPrimaryConstructorProperties(obj: T): Map<String, Any?> {
+    val kClass = obj::class as KClass<T>
+    val primaryConstructorPropertyNames = kClass.primaryConstructor?.parameters?.map { it.name } ?: run {
+        return toMap(obj)
+    }
+    return kClass.memberProperties.mapNotNull { prop ->
+        prop.name.takeIf { it in primaryConstructorPropertyNames }?.let {
+            it to prop.get(obj)?.let { value ->
+                if (value::class.isData) {
+                    toMap(value)
+                } else {
+                    value
+                }
+            }
+        }
+    }.toMap()
+}
+
 
