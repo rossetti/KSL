@@ -29,6 +29,8 @@ import ksl.utilities.random.rvariable.RVariableIfc
 
 interface BootstrapEstimateIfc {
 
+    var label: String?
+
     /**
      *  A name for the estimate
      */
@@ -170,8 +172,11 @@ interface BootstrapEstimateIfc {
         val sb = StringBuilder()
         sb.appendLine("------------------------------------------------------")
         sb.appendLine("Bootstrap statistical results:")
-        sb.appendLine("name = $name")
+        if (label != null) {
+            sb.appendLine("label = $label")
+        }
         sb.appendLine("------------------------------------------------------")
+        sb.appendLine("statistic name = $name")
         sb.appendLine("number of bootstrap samples = $numberOfBootstraps")
         sb.appendLine("size of original sample = $originalDataSampleSize")
         sb.appendLine("original estimate = $originalDataEstimate")
@@ -198,6 +203,8 @@ open class BootstrapEstimate(
      * @return a Statistic observed across the estimates from the bootstrap samples
      */
     override val acrossBootstrapStatistics: StatisticIfc = Statistic(bootstrapEstimates)
+
+    override var label: String? = null
 
     /**
      * the default confidence interval level
