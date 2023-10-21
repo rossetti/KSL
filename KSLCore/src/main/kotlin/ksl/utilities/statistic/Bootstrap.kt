@@ -208,11 +208,9 @@ open class BootstrapEstimate(
             field = level
         }
 
-//    override val acrossBootstrapAverage: Double
-//        get() = acrossBootstrapStatistics.average
-//    override val bootstrapStdErrEstimate: Double
-//        get() = acrossBootstrapStatistics.standardError
-
+    override fun toString(): String {
+        return super.asString()
+    }
 }
 
 /**

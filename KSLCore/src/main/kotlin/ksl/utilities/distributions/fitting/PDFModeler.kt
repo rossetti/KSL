@@ -116,11 +116,24 @@ class PDFModeler(private val data: DoubleArray) {
      *   parameters of the distribution
      */
     fun bootStrapParameterEstimates(
+        result: EstimationResult,
+        numBootstrapSamples: Int = 399,
+        level: Double = 0.95,
+        stream: RNStreamIfc = KSLRandom.nextRNStream()
+    ) : List<BootstrapEstimate>{
+        return bootStrapParameterEstimates(result.estimator, numBootstrapSamples, level, stream)
+    }
+
+    /**
+     *   Computes bootstrap confidence intervals for the estimated
+     *   parameters of the distribution
+     */
+    fun bootStrapParameterEstimates(
         estimator: MVBSEstimatorIfc,
         numBootstrapSamples: Int = 399,
         level: Double = 0.95,
         stream: RNStreamIfc = KSLRandom.nextRNStream()
-    ): List<BootstrapEstimateIfc> {
+    ): List<BootstrapEstimate> {
         val bss = BootstrapSampler(data, estimator, stream)
         val list = bss.bootStrapEstimates(numBootstrapSamples)
         for(e in list){
