@@ -3,6 +3,8 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.countGreaterThan
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.BetaRVParameters
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -17,11 +19,28 @@ import ksl.utilities.statistic.StatisticIfc
  * The sample average and sample variance of the observations must be strictly greater than zero.
  *
  */
-class BetaMOMParameterEstimator() : ParameterEstimatorIfc {
+class BetaMOMParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = true
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override val names: List<String> = listOf("alpha", "beta")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("alpha"),
+            er.parameters.doubleParameter("beta")
+        )
+    }
+
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2) {
             return EstimationResult(
                 originalData = data,

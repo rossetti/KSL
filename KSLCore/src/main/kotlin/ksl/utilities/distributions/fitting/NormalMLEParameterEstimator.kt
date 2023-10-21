@@ -19,17 +19,36 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.random.rvariable.parameters.NormalRVParameters
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  Uses the sample average and sample variance of the data, which
  *  are the MLE estimators.  There must be at least two observations.
  */
-object NormalMLEParameterEstimator : ParameterEstimatorIfc{
+object NormalMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = false
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override val names: List<String> = listOf("mean", "variance")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("mean"),
+            er.parameters.doubleParameter("variance")
+        )
+    }
+
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
             return EstimationResult(
                 originalData = data,

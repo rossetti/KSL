@@ -1,14 +1,9 @@
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.Interval
-import ksl.utilities.distributions.Gamma
-import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.random.rvariable.parameters.PearsonType5RVParameters
-import ksl.utilities.rootfinding.BisectionRootFinder
-import ksl.utilities.rootfinding.RootFinder
+import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
-import kotlin.math.ln
 
 /**
  *  Estimates the parameters of the Pearson Type 5 distribution based on a MLE algorithm.
@@ -24,9 +19,27 @@ import kotlin.math.ln
  *  a gamma distribution is fit. If the MLE of the gamma is successful
  *  the correct parameters are returned.
  */
-class PearsonType5MLEParameterEstimator() : ParameterEstimatorIfc {
+class PearsonType5MLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = true
+
+    override val names: List<String> = listOf("shape", "scale")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("shape"),
+            er.parameters.doubleParameter("scale")
+        )
+    }
+
     private val gammaMLEEstimator = GammaMLEParameterEstimator()
 
     /**
@@ -67,10 +80,10 @@ class PearsonType5MLEParameterEstimator() : ParameterEstimatorIfc {
             gammaMLEEstimator.defaultZeroTolerance = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         // fit 1/X(i) as Gamma
         val xData = DoubleArray(data.size) { 1.0 / data[it] }
-        val est = gammaMLEEstimator.estimate(xData, Statistic(xData))
+        val est = gammaMLEEstimator.estimateParameters(xData, Statistic(xData))
         if (!est.success) {
             return EstimationResult(
                 originalData = data,

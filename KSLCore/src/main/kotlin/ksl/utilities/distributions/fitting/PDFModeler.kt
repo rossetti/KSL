@@ -24,6 +24,8 @@ import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.statistic.*
@@ -71,7 +73,6 @@ data class PDFModelingResults(
 class PDFModeler(private val data: DoubleArray) {
 
     private val myHistogram: Histogram
-//    private lateinit var myMODAModel: AdditiveMODAModel
 
     val histogram: HistogramIfc
         get() = myHistogram
@@ -108,6 +109,24 @@ class PDFModeler(private val data: DoubleArray) {
         val bootStrap: Bootstrap = Bootstrap(data)
         bootStrap.generateSamples(numBootstrapSamples, BSEstimatorIfc.Minimum())
         return bootStrap.percentileBootstrapCI(level)
+    }
+
+    /**
+     *   Computes bootstrap confidence intervals for the estimated
+     *   parameters of the distribution
+     */
+    fun bootStrapParameterEstimates(
+        estimator: MVBSEstimatorIfc,
+        numBootstrapSamples: Int = 399,
+        level: Double = 0.95,
+        stream: RNStreamIfc = KSLRandom.nextRNStream()
+    ): List<BootstrapEstimateIfc> {
+        val bss = BootstrapSampler(data, estimator, stream)
+        val list = bss.bootStrapEstimates(numBootstrapSamples)
+        for(e in list){
+            e.defaultCILevel = level
+        }
+        return list
     }
 
     /**
@@ -206,11 +225,11 @@ class PDFModeler(private val data: DoubleArray) {
         val estimatedParameters = mutableListOf<EstimationResult>()
         for (estimator in estimators) {
             val result = if (estimator.checkRange && (shiftedData != null)) {
-                val r = estimator.estimate(shiftedData.shiftedData, shiftedStats!!)
+                val r = estimator.estimateParameters(shiftedData.shiftedData, shiftedStats!!)
                 r.shiftedData = shiftedData
                 r
             } else {
-                estimator.estimate(data, statistics)
+                estimator.estimateParameters(data, statistics)
             }
             estimatedParameters.add(result)
         }

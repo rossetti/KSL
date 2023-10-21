@@ -29,7 +29,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
      *  empty array is returned.
      */
     override fun estimate(data: DoubleArray): DoubleArray {
-        val er = estimate(data, Statistic(data))
+        val er = estimateParameters(data, Statistic(data))
         if (!er.success || er.parameters == null) {
             return doubleArrayOf()
         }
@@ -80,7 +80,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
             field = value
         }
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         // use the MOM estimator to find a starting estimate
         val start = PDFModeler.gammaMOMEstimator(data, statistics)
         if (!start.success) {

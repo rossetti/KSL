@@ -20,6 +20,8 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countLessEqualTo
 import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.statistics
 import kotlin.math.exp
@@ -32,11 +34,28 @@ import kotlin.math.ln
  *   the lognormal distribution.  The supplied data must be strictly
  *   positive and their must be at least 2 observations.
  */
-object LognormalMLEParameterEstimator : ParameterEstimatorIfc{
+object LognormalMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = true
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override val names: List<String> = listOf("mean", "variance")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("mean"),
+            er.parameters.doubleParameter("variance")
+        )
+    }
+
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
             return EstimationResult(
                 originalData = data,

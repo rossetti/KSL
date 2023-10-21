@@ -197,7 +197,7 @@ class BootstrapSampler(
     fun bootStrapEstimates(
         numBootstrapSamples: Int,
         saveBootstrapSamples: Boolean = false
-    ) : List<BootstrapEstimateIfc> {
+    ) : List<BootstrapEstimate> {
         require(numBootstrapSamples > 1) { "The number of bootstrap samples must be greater than 1" }
         myAcrossBSStat.reset()
         myBSEstimates.clear()
@@ -227,8 +227,8 @@ class BootstrapSampler(
      *  bootstrap confidence intervals and other statistical analysis
      *  can be performed.
      */
-    private fun makeBootStrapEstimates() : List<BootstrapEstimateIfc>{
-        val list = mutableListOf<BootstrapEstimateIfc>()
+    private fun makeBootStrapEstimates() : List<BootstrapEstimate>{
+        val list = mutableListOf<BootstrapEstimate>()
         // transpose the collected data, each row represents a dimension and the
         // row contents are the bootstrap estimates for the dimension
         val estimates = bootStrapData.transpose()

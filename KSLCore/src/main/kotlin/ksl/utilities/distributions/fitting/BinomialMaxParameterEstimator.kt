@@ -2,7 +2,8 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.BinomialRVParameters
-import ksl.utilities.random.rvariable.parameters.NegativeBinomialRVParameters
+import ksl.utilities.statistic.MVBSEstimatorIfc
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -17,11 +18,28 @@ import ksl.utilities.statistic.StatisticIfc
  *  the number of success in n trials.
  *  The estimation process does not ensure that n is integer valued.
  */
-object BinomialMaxParameterEstimator : ParameterEstimatorIfc {
+object BinomialMaxParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override val checkRange: Boolean = true
 
-    override fun estimate(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+    override val names: List<String> = listOf("probOfSuccess", "numTrials")
+
+    /**
+     *  If the estimation process is not successful, then an
+     *  empty array is returned.
+     */
+    override fun estimate(data: DoubleArray): DoubleArray {
+        val er = estimateParameters(data, Statistic(data))
+        if (!er.success || er.parameters == null) {
+            return doubleArrayOf()
+        }
+        return doubleArrayOf(
+            er.parameters.doubleParameter("probOfSuccess"),
+            er.parameters.doubleParameter("numTrials")
+        )
+    }
+
+    override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2) {
             return EstimationResult(
                 originalData = data,

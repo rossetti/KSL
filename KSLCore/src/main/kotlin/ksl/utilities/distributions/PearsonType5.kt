@@ -19,7 +19,6 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.AndersonDarlingScoringModel
-import ksl.utilities.distributions.fitting.ChiSquaredScoringModel
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PearsonType5MLEParameterEstimator
 import ksl.utilities.random.rng.RNStreamIfc
@@ -189,7 +188,7 @@ fun main(){
     println()
 
     val pe = PearsonType5MLEParameterEstimator()
-    val result = pe.estimate(data, Statistic(data))
+    val result = pe.estimateParameters(data, Statistic(data))
     println(result)
    // val sm = ChiSquaredScoringModel()
     val cdf = PDFModeler.createDistribution(result.parameters!!)
