@@ -54,7 +54,8 @@ object ExponentialMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIf
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least one observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.countLessThan(0.0) > 0) {
@@ -62,7 +63,8 @@ object ExponentialMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIf
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot fit exponential distribution when some observations are less than 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         val parameters = ExponentialRVParameters()
@@ -72,7 +74,8 @@ object ExponentialMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIf
             statistics = statistics,
             parameters = parameters,
             message = "The exponential parameters were estimated successfully using a MLE technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 }

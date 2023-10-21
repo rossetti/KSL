@@ -42,7 +42,8 @@ object NegBinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIf
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.countLessThan(0.0) > 0) {
@@ -50,7 +51,8 @@ object NegBinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIf
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot fit negative binomial distribution when some observations are less than 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (statistics.average <= 0.0) {
@@ -58,7 +60,8 @@ object NegBinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIf
                 originalData = data,
                 statistics = statistics,
                 message = "The sample average of the data was <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (statistics.variance <= 0.0) {
@@ -66,7 +69,8 @@ object NegBinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIf
                 originalData = data,
                 statistics = statistics,
                 message = "The sample variance of the data was <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (statistics.variance <= statistics.average) {
@@ -74,7 +78,8 @@ object NegBinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIf
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot match moments when sample variance <= sample average",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         val p = statistics.average / statistics.variance
@@ -87,7 +92,8 @@ object NegBinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIf
             statistics = statistics,
             parameters = parameters,
             message = "The negative binomial parameters were estimated successfully using a MOM technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 }

@@ -56,7 +56,8 @@ object PoissonMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least one observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.countLessThan(0.0) > 0) {
@@ -64,7 +65,8 @@ object PoissonMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot fit Poisson distribution when some observations are less than 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (statistics.average == 0.0) {
@@ -72,7 +74,8 @@ object PoissonMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot fit Poisson distribution when all observations are 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         val parameters = PoissonRVParameters()
@@ -82,7 +85,8 @@ object PoissonMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
             statistics = statistics,
             parameters = parameters,
             message = "The Poisson parameters were estimated successfully using a MLE technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 }

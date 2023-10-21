@@ -54,7 +54,8 @@ object NormalMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         val parameters = NormalRVParameters()
@@ -65,7 +66,8 @@ object NormalMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
             statistics = statistics,
             parameters = parameters,
             message = "The normal parameters were estimated successfully using a MLE technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 }

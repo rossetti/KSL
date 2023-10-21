@@ -42,7 +42,8 @@ object BinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.countLessThan(0.0) > 0) {
@@ -50,7 +51,8 @@ object BinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot fit binomial distribution when some observations are less than 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (statistics.average <= 0.0) {
@@ -58,7 +60,8 @@ object BinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "The sample average of the data was <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (statistics.variance <= 0.0) {
@@ -66,7 +69,8 @@ object BinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "The sample variance of the data was <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         val sigma2 = statistics.variance * (statistics.count - 1.0) / statistics.count
@@ -75,7 +79,8 @@ object BinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot match moments when sample average <= estimated variance",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         val p = 1.0 - (sigma2 / statistics.average)
@@ -88,7 +93,8 @@ object BinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
             statistics = statistics,
             parameters = parameters,
             message = "The binomial parameters were estimated successfully using a MOM technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 }

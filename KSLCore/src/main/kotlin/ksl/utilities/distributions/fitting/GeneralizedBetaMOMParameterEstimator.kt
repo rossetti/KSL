@@ -52,7 +52,8 @@ object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimat
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (statistics.variance == 0.0) {
@@ -60,7 +61,8 @@ object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimat
                 originalData = data,
                 statistics = statistics,
                 message = "The sample variance of the data was = 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if ((statistics.max - statistics.min) == 0.0) {
@@ -68,7 +70,8 @@ object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimat
                 originalData = data,
                 statistics = statistics,
                 message = "The sample range of the data was = 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         // estimate the range of the data
@@ -86,7 +89,8 @@ object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimat
                 originalData = data,
                 statistics = statistics,
                 message = "The estimated alpha (first shape) value was <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (beta <= 0.0) {
@@ -94,7 +98,8 @@ object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimat
                 originalData = data,
                 statistics = statistics,
                 message = "The estimated beta (second shape) value was <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         val parameters = GeneralizedBetaRVParameters()
@@ -107,7 +112,8 @@ object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimat
             statistics = statistics,
             parameters = parameters,
             message = "The generalized beta parameters were estimated successfully using a MOM technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 

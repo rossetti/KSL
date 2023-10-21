@@ -33,6 +33,6 @@ object GammaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
     override val checkRange: Boolean = true
 
     override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
-        return PDFModeler.gammaMOMEstimator(data, statistics)
+        return PDFModeler.gammaMOMEstimator(data, statistics, this)
     }
 }

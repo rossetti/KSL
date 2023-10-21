@@ -96,7 +96,8 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.countLessEqualTo(0.0) > 0) {
@@ -104,7 +105,8 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot fit Weibull distribution when some observations are less than or equal to 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.isAllEqual()) {
@@ -112,7 +114,8 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot estimate parameters.  The observations were all equal.",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         // get an initial estimate of the shape parameter
@@ -143,7 +146,8 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
                     statistics = statistics,
                     parameters = parameters,
                     message = "MLE search failed to find suitable search interval. Returned initial estimate.",
-                    success = false)
+                    success = false,
+                    estimator = this)
             }
             // if a suitable interval was found, the search interval object was changed to reflect the search
         }
@@ -166,7 +170,8 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 statistics = statistics,
                 parameters = parameters,
                 message = "MLE search failed to converge. Returned the current estimates based on failed search.",
-                success = false)
+                success = false,
+                estimator = this)
         }
         val parameters = WeibullRVParameters()
         parameters.changeDoubleParameter("shape", shape)
@@ -176,7 +181,8 @@ class WeibullMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
             statistics = statistics,
             parameters = parameters,
             message = "The Weibull parameters were estimated successfully using a MLE technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 
