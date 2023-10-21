@@ -45,7 +45,8 @@ object BinomialMaxParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.countLessThan(0.0) > 0) {
@@ -53,7 +54,8 @@ object BinomialMaxParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot fit binomial distribution when some observations are less than 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (statistics.average <= 0.0) {
@@ -61,7 +63,8 @@ object BinomialMaxParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "The sample average of the data was <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (statistics.variance <= 0.0) {
@@ -69,7 +72,8 @@ object BinomialMaxParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "The sample variance of the data was <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
 
@@ -84,7 +88,8 @@ object BinomialMaxParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
             statistics = statistics,
             parameters = parameters,
             message = "The binomial parameters were estimated successfully",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 }

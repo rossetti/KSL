@@ -90,7 +90,8 @@ class PearsonType5MLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimator
                 statistics = statistics,
                 parameters = null,
                 message = "The parameters were not estimated successfully using a MLE technique",
-                success = false
+                success = false,
+                estimator = this
             )
         }
 
@@ -105,7 +106,8 @@ class PearsonType5MLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimator
             statistics = statistics,
             parameters = parameters,
             message = "The Pearson Type 5 parameters were estimated successfully using a MLE technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 

@@ -82,7 +82,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         // use the MOM estimator to find a starting estimate
-        val start = PDFModeler.gammaMOMEstimator(data, statistics)
+        val start = PDFModeler.gammaMOMEstimator(data, statistics, this)
         if (!start.success) {
             return start
         }
@@ -132,7 +132,8 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
             statistics = statistics,
             parameters = parameters,
             message = "The gamma parameters were estimated successfully using a MLE technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 

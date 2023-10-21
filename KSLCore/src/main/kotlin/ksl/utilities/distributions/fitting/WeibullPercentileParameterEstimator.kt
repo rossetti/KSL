@@ -86,7 +86,8 @@ class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc, MVBSEstimat
                 originalData = data,
                 statistics = statistics,
                 message = "The percentile parameter estimation approach is not recommended with less than 10 observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.countLessEqualTo(0.0) > 0) {
@@ -94,7 +95,8 @@ class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc, MVBSEstimat
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot fit Weibull distribution when some observations are <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.isAllEqual()) {
@@ -102,7 +104,8 @@ class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc, MVBSEstimat
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot estimate parameters.  The observations were all equal.",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         val sorted = data.orderStatistics()
@@ -132,7 +135,8 @@ class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc, MVBSEstimat
             statistics = statistics,
             parameters = parameters,
             message = "The Weibull parameters were estimated successfully using the percentile technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 

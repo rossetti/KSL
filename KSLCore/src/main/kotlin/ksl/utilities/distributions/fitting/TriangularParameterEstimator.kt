@@ -57,7 +57,8 @@ object TriangularParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.isAllEqual()){
@@ -65,7 +66,8 @@ object TriangularParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 originalData = data,
                 statistics = statistics,
                 message = "The observations were all equal.",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         val interval = PDFModeler.rangeEstimate(statistics.min, statistics.max, data.size)
@@ -91,7 +93,8 @@ object TriangularParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
             statistics = statistics,
             parameters = parameters,
             message = "The triangular parameters were estimated successfully.",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 }

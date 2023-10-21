@@ -61,7 +61,8 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc 
                 originalData = data,
                 statistics = statistics,
                 message = "There must be at least two observations",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         if (data.countLessEqualTo(0.0) > 0) {
@@ -69,7 +70,8 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc 
                 originalData = data,
                 statistics = statistics,
                 message = "Cannot fit lognormal distribution when some observations are <= 0.0",
-                success = false
+                success = false,
+                estimator = this
             )
         }
         // transform to normal on ln scale
@@ -89,7 +91,8 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc 
             statistics = statistics,
             parameters = parameters,
             message = "The lognormal parameters were estimated successfully using a MLE technique",
-            success = true
+            success = true,
+            estimator = this
         )
     }
 }

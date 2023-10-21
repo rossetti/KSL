@@ -1,6 +1,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -22,7 +23,8 @@ class EstimationResult(
     var shiftedData: ShiftedData? = null,
     val parameters: RVParameters? = null,
     var message: String? = null,
-    var success: Boolean
+    var success: Boolean,
+    val estimator: MVBSEstimatorIfc
 ){
 
     val distribution: String

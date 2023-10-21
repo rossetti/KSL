@@ -562,13 +562,18 @@ class PDFModeler(private val data: DoubleArray) {
          *  The supplied statistics must be the statistics for the supplied data for
          *  this method to return results consistent with the supplied data.
          */
-        internal fun gammaMOMEstimator(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
+        internal fun gammaMOMEstimator(
+            data: DoubleArray,
+            statistics: StatisticIfc,
+            estimator: MVBSEstimatorIfc
+        ): EstimationResult {
             if (data.size < 2) {
                 return EstimationResult(
                     originalData = data,
                     statistics = statistics,
                     message = "There must be at least two observations",
-                    success = false
+                    success = false,
+                    estimator = estimator
                 )
             }
             if (data.countLessThan(0.0) > 0) {
@@ -576,7 +581,8 @@ class PDFModeler(private val data: DoubleArray) {
                     originalData = data,
                     statistics = statistics,
                     message = "Cannot fit gamma distribution when some observations are less than 0.0",
-                    success = false
+                    success = false,
+                    estimator = estimator
                 )
             }
             if (statistics.average <= 0.0) {
@@ -584,7 +590,8 @@ class PDFModeler(private val data: DoubleArray) {
                     originalData = data,
                     statistics = statistics,
                     message = "The sample average of the data was <= 0.0",
-                    success = false
+                    success = false,
+                    estimator = estimator
                 )
             }
             if (statistics.variance <= 0.0) {
@@ -592,7 +599,8 @@ class PDFModeler(private val data: DoubleArray) {
                     originalData = data,
                     statistics = statistics,
                     message = "The sample variance of the data was <= 0.0",
-                    success = false
+                    success = false,
+                    estimator = estimator
                 )
             }
             val params = Gamma.parametersFromMeanAndVariance(statistics.average, statistics.variance)
@@ -604,7 +612,8 @@ class PDFModeler(private val data: DoubleArray) {
                 statistics = statistics,
                 parameters = parameters,
                 message = "The gamma parameters were estimated successfully using a MOM technique",
-                success = true
+                success = true,
+                estimator = estimator
             )
         }
 
