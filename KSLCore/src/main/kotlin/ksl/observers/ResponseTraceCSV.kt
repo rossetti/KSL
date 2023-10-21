@@ -27,14 +27,14 @@ import java.nio.file.Path
 
 class ResponseTraceCSV(
     theResponse: Response,
-    val pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace.csv"),
+    val pathToFile: Path = theResponse.myModel.outputDirectory.csvDir.resolve(theResponse.name + "_Trace.csv"),
     header: Boolean = true
 ) :
     ModelElementObserver(theResponse.name) {
 
     constructor(
         theResponse: ResponseCIfc,
-        pathToFile: Path = (theResponse as Response).myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace.csv"),
+        pathToFile: Path = (theResponse as Response).myModel.outputDirectory.csvDir.resolve(theResponse.name + "_Trace.csv"),
         header: Boolean = true
     ) : this(theResponse as Response, pathToFile, header)
 

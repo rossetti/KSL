@@ -37,7 +37,7 @@ import java.nio.file.Path
 class CSVReplicationReport(
     model: Model,
     reportName: String = model.name + "_CSVReplicationReport",
-    directoryPath: Path = model.outputDirectory.outDir,
+    directoryPath: Path = model.outputDirectory.csvDir,
 ) : CSVReport(model, reportName, directoryPath) {
     /**
      * @return The number of times afterReplication was called
