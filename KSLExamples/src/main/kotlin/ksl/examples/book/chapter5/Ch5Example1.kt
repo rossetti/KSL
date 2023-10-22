@@ -3,6 +3,7 @@ package ksl.examples.book.chapter5
 import ksl.observers.ReplicationDataCollector
 import ksl.observers.ResponseTraceCSV
 import ksl.simulation.Model
+import ksl.utilities.io.asMarkDownTable
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import org.jetbrains.kotlinx.dataframe.api.describe
 
@@ -22,8 +23,8 @@ fun main() {
     repData.addResponse(palletWorkCenter.probOfOverTime)
 
     // demonstrate capturing data to database with an observer
-//    val kslDatabaseObserver = KSLDatabaseObserver(model)
-    val kslDatabaseObserver = KSLDatabaseObserver.createDerbyKSLDatabaseObserver(model)
+    val kslDatabaseObserver = KSLDatabaseObserver(model)
+//    val kslDatabaseObserver = KSLDatabaseObserver.createDerbyKSLDatabaseObserver(model)
 
     // simulate the model
     model.simulate()
@@ -46,6 +47,8 @@ fun main() {
     val dataFrame = kslDatabaseObserver.db.acrossReplicationStatistics
 
     println(dataFrame)
+    println()
+    println(dataFrame.asMarkDownTable())
 
     model.experimentName = "Three Workers"
     palletWorkCenter.numWorkers = 3

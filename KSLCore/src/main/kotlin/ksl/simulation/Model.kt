@@ -45,7 +45,7 @@ class Model(
     pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
     autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
-) : ModelElement("MainModel"), ExperimentIfc {
+) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
 //TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
 //TODO observers
 //TODO controls and parameters
