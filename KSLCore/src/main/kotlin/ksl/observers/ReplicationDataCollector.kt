@@ -24,7 +24,9 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.maps.KSLMaps
+import org.jetbrains.kotlinx.dataframe.AnyFrame
 
 //import java.util.*
 
@@ -134,7 +136,7 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
      */
     fun addResponse(responseName: String) {
         val responseVariable: Response? = myModel.response(responseName)
-        if (responseVariable!= null){
+        if (responseVariable != null) {
             addResponse(responseVariable)
         }
     }
@@ -144,7 +146,7 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
      * not be null
      */
     fun addResponse(response: Response) {
-        if (myResponses.contains(response)){
+        if (myResponses.contains(response)) {
             return
         }
         myResponses.add(response)
@@ -163,7 +165,7 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
      */
     fun addCounterResponse(counterName: String) {
         val counter: Counter? = myModel.counter(counterName)
-        if (counter != null){
+        if (counter != null) {
             addCounterResponse(counter)
         }
     }
@@ -173,7 +175,7 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
      * not be null
      */
     fun addCounterResponse(counter: Counter) {
-        if (myCounters.contains(counter)){
+        if (myCounters.contains(counter)) {
             return
         }
         myCounters.add(counter)
@@ -282,14 +284,22 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
             return dataMap
         }
 
+    fun toDataFrame() : AnyFrame {
+        return allReplicationDataAsMap.toDataFrame()
+    }
+
     /**
      * Translates property allReplicationDataAsMap to Json string
      */
-    fun allReplicationDataAsJson() : String{
+    fun allReplicationDataAsJson(): String {
         return KSLMaps.stringDoubleArrayMapToJson(allReplicationDataAsMap)
     }
 
     override fun toString(): String {
+        return toDataFrame().toString()
+    }
+
+    fun asString() : String {
         val sb = StringBuilder()
 //        val fmt = Formatter(sb)
         val headerFmt = "%-20s %-5s"
