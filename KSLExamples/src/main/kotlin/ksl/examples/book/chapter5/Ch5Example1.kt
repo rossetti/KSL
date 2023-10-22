@@ -4,6 +4,7 @@ import ksl.observers.ReplicationDataCollector
 import ksl.observers.ResponseTraceCSV
 import ksl.simulation.Model
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import org.jetbrains.kotlinx.dataframe.api.describe
 
 fun main() {
     val model = Model("Pallet Processing", autoCSVReports = true)
@@ -37,10 +38,13 @@ fun main() {
     println()
 
     //output the collected replication data to prove it was captured
+    println(repData.toDataFrame().describe())
     println(repData)
+    println()
 
     // use the database to create a Kotlin DataFrame
     val dataFrame = kslDatabaseObserver.db.acrossReplicationStatistics
+
     println(dataFrame)
 
     model.experimentName = "Three Workers"
