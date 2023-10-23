@@ -49,8 +49,8 @@ import ksl.utilities.toDoubles
  * @param data an array of data to tabulate
  */
 class IntegerFrequency(
-    name: String? = null,
     data: IntArray? = null,
+    name: String? = null,
     val lowerLimit: Int = Int.MIN_VALUE,
     val upperLimit: Int = Int.MAX_VALUE
 ) : IdentityIfc by Identity(name) {
@@ -70,6 +70,28 @@ class IntegerFrequency(
         if (data != null){
             collect(data)
         }
+    }
+
+    companion object {
+
+        fun create(
+            data: Array<Int>? = null,
+            name: String? = null,
+            lowerLimit: Int = Int.MIN_VALUE,
+            upperLimit: Int = Int.MAX_VALUE
+        ): IntegerFrequency{
+            return IntegerFrequency(data?.toIntArray(), name, lowerLimit, upperLimit)
+        }
+
+        fun create(
+            data: Collection<Int>? = null,
+            name: String? = null,
+            lowerLimit: Int = Int.MIN_VALUE,
+            upperLimit: Int = Int.MAX_VALUE
+        ): IntegerFrequency{
+            return IntegerFrequency(data?.toIntArray(), name, lowerLimit, upperLimit)
+        }
+
     }
 
     /**

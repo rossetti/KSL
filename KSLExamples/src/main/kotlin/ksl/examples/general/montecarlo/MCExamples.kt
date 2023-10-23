@@ -65,7 +65,7 @@ fun example2(){
         binomial = binomial + BernoulliRV(0.4)
     }
     val data = binomial.sample(10000)
-    val f = IntegerFrequency("Frequency Tabulation")
+    val f = IntegerFrequency(name = "Frequency Tabulation")
     f.collect(data)
     println(f)
 }
