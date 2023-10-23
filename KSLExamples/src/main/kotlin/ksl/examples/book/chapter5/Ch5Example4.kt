@@ -3,6 +3,7 @@ package ksl.examples.book.chapter5
 import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
 import ksl.observers.welch.WelchFileObserver
 import ksl.simulation.Model
+import ksl.utilities.io.plotting.WelchPlot
 import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main(){
@@ -27,7 +28,9 @@ fun main(){
 
     rvFileAnalyzer.createCSVWelchPlotDataFile()
     twFileAnalyzer.createCSVWelchPlotDataFile()
-//    val out = model.outputDirectory.createPrintWriter("hwSummary.md")
-//    val fmt = DecimalFormat(".####")
-//    model.simulationReporter.writeHalfWidthSummaryReportAsMarkDown(out, df = fmt)
+
+    val wp = WelchPlot(analyzer = rvFileAnalyzer)
+    wp.defaultPlotDir = model.outputDirectory.plotDir
+    wp.showInBrowser()
+    wp.saveToFile("SystemTimeWelchPlot")
 }
