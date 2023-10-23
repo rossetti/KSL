@@ -22,6 +22,8 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.toCSVString
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.awt.Desktop
+import java.awt.FileDialog
+import java.awt.Frame
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -776,6 +778,25 @@ object KSLFileUtil {
             tmpDir.mkdir()
         }
         return File.createTempFile(fileName, ".html", tmpDir)
+    }
+
+    fun chooseFile(): File? {
+        val dialog = FileDialog(null as Frame?, "Select File to Open")
+        dialog.directory = this.programLaunchDirectory.toString()
+        dialog.mode = FileDialog.LOAD
+        dialog.isVisible = true
+
+        val fileStr: String? = dialog.file
+        val dirStr: String? = dialog.directory
+        if (fileStr == null) {
+            return null
+        }
+        if (dirStr == null) {
+            return null
+        }
+        // both are not null
+        val dir = Paths.get(dirStr)
+        return dir.resolve(fileStr).toFile()
     }
 }
 

@@ -2,6 +2,7 @@ package ksl.utilities.io.plotting
 
 import ksl.utilities.Interval
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.toDoubles
 import org.jetbrains.kotlinx.dataframe.impl.asList
 import org.jetbrains.letsPlot.geom.geomHLine
 import org.jetbrains.letsPlot.geom.geomLine
@@ -20,6 +21,12 @@ class ObservationsPlot(
     private val dataMap: Map<String, List<Number>>
     val statistics: Statistic
 
+    constructor(
+        data: IntArray,
+        interval: Interval? = null,
+        dataName: String? = null
+    ) : this(data.toDoubles(), interval, dataName)
+
     init {
         yLabel = "Observation"
         xLabel = "Observation Number"
@@ -35,7 +42,7 @@ class ObservationsPlot(
         )
     }
 
-    fun confidenceInterval(level: Double = 0.99){
+    fun confidenceInterval(level: Double = 0.99) {
         require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
         interval = statistics.confidenceInterval(level)
     }

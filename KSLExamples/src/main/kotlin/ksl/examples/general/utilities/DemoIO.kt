@@ -21,17 +21,18 @@ package ksl.examples.general.utilities
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.CSVUtil
 import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.OutputDirectory
-import ksl.utilities.io.write
 import ksl.utilities.random.rvariable.NormalRV
-import org.jetbrains.kotlinx.dataframe.io.CSV
-import java.nio.file.Path
 import java.nio.file.Paths
 
 fun main() {
 //    demoOutputDirectory()
  //   demoKSLClass()
-    demoCSVUtil()
+//    demoCSVUtil()
+
+    val file =  KSLFileUtil.chooseFile()
+    println("The chosen file path was $file")
 }
 
 fun demoOutputDirectory() {
