@@ -628,12 +628,3 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
 
     }
 }
-
-fun main() {
-    val y = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
-    val stat = Statistic(y)
-    val avg: Double = stat.average
-    val partialSums: DoubleArray = Statistic.partialSums(avg, y)
-    println("avg = $avg")
-    println(partialSums.contentToString())
-}
