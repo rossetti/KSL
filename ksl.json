@@ -12,7 +12,6 @@
     "ksl.utilities.random.rvariable.*",
     "ksl.utilities.statistic.*",
     "ksl.utilities.random.rng.*",
-    "ksl.utilities.random.rvariable.KSLRandom.*",
     "ksl.utilities.math.*",
     "ksl.utilities.mcintegration.*",
     "ksl.utilities.io.*",
