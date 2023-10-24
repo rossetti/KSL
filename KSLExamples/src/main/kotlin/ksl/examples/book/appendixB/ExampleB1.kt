@@ -34,9 +34,6 @@ import org.jetbrains.kotlinx.dataframe.io.readCSV
 import java.nio.file.Path
 import java.nio.file.Paths
 
-class ExampleB1 {
-}
-
 @DataSchema
 interface Observation {
     val week: Int
