@@ -76,6 +76,12 @@ abstract class RVParameters {
      */
     private val dataTypes: MutableMap<String, DataType> = LinkedHashMap()
 
+    /**
+     *  The number of defined parameters (with names)
+     */
+    val numberOfParameters: Int
+        get() = dataTypes.size
+
     init {
         fillParameters()
     }
