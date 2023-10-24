@@ -49,7 +49,7 @@ interface DistributionGOFIfc {
             sb.appendLine()
         }
         sb.appendLine()
-        sb.appendLine("Number of estimate parameters = $numEstimatedParameters")
+        sb.appendLine("Number of estimated parameters = $numEstimatedParameters")
         sb.appendLine("Number of intervals = ${histogram.numberBins}")
         sb.appendLine("Degrees of Freedom = $chiSquaredTestDOF")
         sb.appendLine("Chi-Squared Test Statistic = $chiSquaredTestStatistic")

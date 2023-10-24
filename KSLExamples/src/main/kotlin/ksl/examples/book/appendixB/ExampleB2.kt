@@ -53,7 +53,7 @@ fun main(){
     println()
     println("Recommended Distribution ${topResult.name}")
     println()
-    val gof = ContinuousCDFGoodnessOfFit(data, topResult.distribution, numEstimatedParameters = 2)
+    val gof = ContinuousCDFGoodnessOfFit(data, topResult.distribution, numEstimatedParameters = topResult.numberOfParameters)
     println(gof)
 
 //    val gammaResult = results.sortedScoringResults.find { it.rvType == RVType.Gamma }

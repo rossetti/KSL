@@ -28,6 +28,9 @@ data class ScoringResult(
 
     val metrics: List<MetricIfc> = MODAModel.extractMetrics(scores)
 
+    val numberOfParameters: Int
+        get() = rvType.rvParameters.numberOfParameters
+
     var values: Map<MetricIfc, Double> = emptyMap()
         internal set
 
