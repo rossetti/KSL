@@ -6,6 +6,7 @@ import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
+import ksl.utilities.random.rvariable.RVType
 
 /**
  *  The natural ordering is descending by weighted value.
@@ -21,6 +22,7 @@ data class ScoringResult(
     val name: String,
     val distribution: ContinuousDistributionIfc,
     val estimationResult: EstimationResult,
+    val rvType: RVType,
     val scores: List<Score>
 ) : Comparable<ScoringResult> {
 
@@ -38,7 +40,7 @@ data class ScoringResult(
     override fun compareTo(other: ScoringResult): Int = -(weightedValue.compareTo(other.weightedValue))
 
     override fun toString(): String {
-        return "weighted value = $weightedValue \t distribution = $name"
+        return "weighted value = $weightedValue \t distribution = $name \t rv type = $rvType"
     }
 
     fun distributionFitPlot() : FitDistPlot {

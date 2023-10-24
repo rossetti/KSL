@@ -269,7 +269,7 @@ class PDFModeler(private val data: DoubleArray) {
             }
             val distribution = createDistribution(result.parameters) ?: continue
             val name = if (result.shiftedData != null) {
-                "${result.shiftedData!!.shift} + ${distribution}"
+                "${result.shiftedData!!.shift} + $distribution"
             } else {
                 distribution.toString()
             }
@@ -278,7 +278,7 @@ class PDFModeler(private val data: DoubleArray) {
                 val score = model.score(result)
                 scores.add(score)
             }
-            val sr = ScoringResult(name, distribution, result, scores)
+            val sr = ScoringResult(name, distribution, result, result.parameters.rvType, scores)
             list.add(sr)
         }
         return list
