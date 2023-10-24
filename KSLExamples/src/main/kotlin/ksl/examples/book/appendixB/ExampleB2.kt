@@ -53,24 +53,10 @@ fun main(){
     println()
     println("Recommended Distribution ${topResult.name}")
     println()
-    val gof = ContinuousCDFGoodnessOfFit(data, topResult.distribution, numEstimatedParameters = topResult.numberOfParameters)
+    val gof = ContinuousCDFGoodnessOfFit(data,
+        topResult.distribution,
+        numEstimatedParameters = topResult.numberOfParameters
+    )
     println(gof)
 
-//    val gammaResult = results.sortedScoringResults.find { it.rvType == RVType.Gamma }
-//    println()
-//    println("Gamma Distribution ${gammaResult!!.name}")
-//    println()
-//
-//    val breakPoints: DoubleArray = PDFModeler.equalizedCDFBreakPoints(data.size, gammaResult.distribution)
-//    println(breakPoints.joinToString())
-//    val histogram: HistogramIfc = Histogram.create(data, breakPoints)
-//    println(histogram)
-//
-////    val gammaFit = ContinuousCDFGoodnessOfFit(data, gammaResult.distribution, numEstimatedParameters = 2)
-////    println(gammaFit)
-//
-//    println()
-////    val result = GammaMOMParameterEstimator.estimateParameters(data)
-//
-// //   println("Results for ${result.distribution}")
 }
