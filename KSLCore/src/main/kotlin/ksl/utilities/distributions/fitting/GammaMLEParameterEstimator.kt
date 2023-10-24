@@ -123,7 +123,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
         }
         // use the estimates from the MLE approach
         val alpha = solver.result
-        val beta = mean * alpha
+        val beta = mean / alpha
         val parameters = GammaRVParameters()
         parameters.changeDoubleParameter("shape", alpha)
         parameters.changeDoubleParameter("scale", beta)

@@ -37,40 +37,40 @@ fun main(){
     println()
 
     val hPlot = d.histogram.histogramPlot()
-//    hPlot.showInBrowser()
+    hPlot.showInBrowser()
 
     val op = ObservationsPlot(data)
- //   op.showInBrowser()
+    op.showInBrowser()
 
     val acf = ACFPlot(data)
- //   acf.showInBrowser()
+    acf.showInBrowser()
 
     val results  = d.estimateAndEvaluateScores()
     results.sortedScoringResults.forEach(::println)
 
     val topResult = results.sortedScoringResults.first()
-//    topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
+    topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
     println()
     println("Recommended Distribution ${topResult.name}")
     println()
-    val gof = ContinuousCDFGoodnessOfFit(data, topResult.distribution, numEstimatedParameters = 3)
+    val gof = ContinuousCDFGoodnessOfFit(data, topResult.distribution, numEstimatedParameters = 2)
     println(gof)
 
-    val gammaResult = results.sortedScoringResults.find { it.rvType == RVType.Gamma }
-    println()
-    println("Gamma Distribution ${gammaResult!!.name}")
-    println()
-
-    val breakPoints: DoubleArray = PDFModeler.equalizedCDFBreakPoints(data.size, gammaResult.distribution)
-    println(breakPoints.joinToString())
-    val histogram: HistogramIfc = Histogram.create(data, breakPoints)
-    println(histogram)
-
-//    val gammaFit = ContinuousCDFGoodnessOfFit(data, gammaResult.distribution, numEstimatedParameters = 2)
-//    println(gammaFit)
-
-    println()
-    val result = GammaMOMParameterEstimator.estimateParameters(data)
-
-    println("Results for ${result.distribution}")
+//    val gammaResult = results.sortedScoringResults.find { it.rvType == RVType.Gamma }
+//    println()
+//    println("Gamma Distribution ${gammaResult!!.name}")
+//    println()
+//
+//    val breakPoints: DoubleArray = PDFModeler.equalizedCDFBreakPoints(data.size, gammaResult.distribution)
+//    println(breakPoints.joinToString())
+//    val histogram: HistogramIfc = Histogram.create(data, breakPoints)
+//    println(histogram)
+//
+////    val gammaFit = ContinuousCDFGoodnessOfFit(data, gammaResult.distribution, numEstimatedParameters = 2)
+////    println(gammaFit)
+//
+//    println()
+////    val result = GammaMOMParameterEstimator.estimateParameters(data)
+//
+// //   println("Results for ${result.distribution}")
 }
