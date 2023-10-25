@@ -38,7 +38,8 @@ class ContinuousCDFGoodnessOfFit(
                 // use the data to guide the choice, get a c.i. on the min
                 val minCI = PDFModeler.confidenceIntervalForMinimum(data, level = 0.99)
                 if (minCI.lowerLimit < bp.first()){
-                    bp = Histogram.addLowerLimit(floor(minCI.lowerLimit), bp)
+                    val delta = 6.0*data.statistics().standardDeviation
+                    bp = Histogram.addLowerLimit(floor(minCI.lowerLimit - delta), bp)
                 }
             }
             if (domain.upperLimit.isFinite()){
