@@ -46,12 +46,14 @@ fun main(){
     acf.showInBrowser()
 
     val results  = d.estimateAndEvaluateScores()
+    println("PDF Estimation Results for each Distribution:")
+    println("------------------------------------------------------")
     results.sortedScoringResults.forEach(::println)
 
     val topResult = results.sortedScoringResults.first()
     topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
     println()
-    println("Recommended Distribution ${topResult.name}")
+    println("** Recommended Distribution** ${topResult.name}")
     println()
     val gof = ContinuousCDFGoodnessOfFit(data,
         topResult.distribution,

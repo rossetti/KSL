@@ -34,31 +34,24 @@ fun main(){
     println(d.histogram)
     println()
 
-//    val hPlot = d.histogram.histogramPlot()
-//    hPlot.showInBrowser()
-//
-//    val op = ObservationsPlot(data)
-//    op.showInBrowser()
-//
-//    val acf = ACFPlot(data)
-//    acf.showInBrowser()
+    val hPlot = d.histogram.histogramPlot()
+    hPlot.showInBrowser()
 
-    val estimationResults  = d.estimateParameters(ExponentialMLEParameterEstimator)
-    val estimationResult = estimationResults.first()
-    println(estimationResult)
-    println()
+    val op = ObservationsPlot(data)
+    op.showInBrowser()
 
-    val results = d.evaluateScores(estimationResults)
+    val acf = ACFPlot(data)
+    acf.showInBrowser()
 
+    val results  = d.estimateAndEvaluateScores()
+    println("PDF Estimation Results for each Distribution:")
+    println("------------------------------------------------------")
     results.sortedScoringResults.forEach(::println)
 
     val topResult = results.sortedScoringResults.first()
- //   topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
+    topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
     println()
-    println("Recommended Distribution ${topResult.name}")
-    println()
-
-    println(topResult.distribution)
+    println("** Recommended Distribution** ${topResult.name}")
     println()
 
     val gof = ContinuousCDFGoodnessOfFit(data,
