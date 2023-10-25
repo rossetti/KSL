@@ -19,6 +19,7 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.distributions.Normal
+import ksl.utilities.io.write
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RandU01Ifc
 import java.util.*
@@ -26,6 +27,40 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.sqrt
+
+/**
+ *  Makes an array look like a RandU01Ifc
+ */
+class U01Array(doubleArray: DoubleArray) : RandU01Ifc {
+
+    private val array = doubleArray
+
+    val size: Int
+        get() = array.size
+
+    private var arrayIterator: DoubleIterator = array.iterator()
+
+    override var previousU: Double = Double.NaN
+        private set
+
+    override fun randU01(): Double {
+        previousU = U01()
+        return previousU
+    }
+
+    private fun U01(): Double {
+        return if (arrayIterator.hasNext()){
+            arrayIterator.next()
+        } else {
+            arrayIterator = array.iterator()
+            arrayIterator.next()
+        }
+    }
+
+    override val antitheticValue: Double
+        get() = 1.0 - previousU
+
+}
 
 object U01Test {
     private val a = arrayOf(
@@ -178,10 +213,20 @@ object U01Test {
         return sum
     }
 
+    /** Computes the chi-squared test statistic
+     *
+     * @param u the array of so called U(0,1) numbers
+     * @param k the number of intervals in the test
+     * @return the chi-squared test statistic
+     */
+    fun chiSquared1DTestStatistic(u : DoubleArray, k: Int): Double {
+        return chiSquared1DTestStatistic(U01Array(u), u.size.toLong(), k)
+    }
+
     /** Performs the 2-D chi-squared serial test
      *
      * @param rng the thing that produces U(0,1) numbers, must not null
-     * @param n number of random numbers to test
+     * @param n number of pairs of random numbers to test
      * @param k the number of intervals in the test for each dimension
      * @return the chi-squared test statistic
      */
@@ -205,14 +250,26 @@ object U01Test {
                 sum = sum + (f[j1][j2] - e) * (f[j1][j2] - e)
             }
         }
+        //f.write()
         sum = sum / e
         return sum
+    }
+
+    /** Computes the  2-D chi-squared serial test. Assumes
+     * that the pairs are (u(1), u(2)), (u(3), u(4)) ..., (u(n/2 - 1), u(n/2))
+     *
+     * @param u the array of so called U(0,1) numbers
+     * @param k the number of intervals along each of the 2 dimensions
+     * @return the chi-squared test statistic
+     */
+    fun chiSquaredSerial2DTestStatistic(u : DoubleArray, k: Int): Double {
+        return chiSquaredSerial2DTestStatistic(U01Array(u), (u.size/2).toLong(), k)
     }
 
     /** Performs the 3-D chi-squared serial test
      *
      * @param rng the thing that produces U(0,1) numbers, must not null
-     * @param n number of random numbers to test
+     * @param n number triplets of random numbers to test
      * @param k the number of intervals in the test for each dimension
      * @return the chi-squared test statistic
      */
@@ -248,6 +305,16 @@ object U01Test {
         }
         sum = sum / e
         return sum
+    }
+
+    /** Computes the  3-D chi-squared serial test
+     *  Tests triplets (u(i-1), u(i), u(i+1))
+     * @param u the array of so called U(0,1) numbers
+     * @param k the number of intervals in the test
+     * @return the chi-squared test statistic
+     */
+    fun chiSquaredSerial3DTestStatistic(u : DoubleArray, k: Int): Double {
+        return chiSquaredSerial3DTestStatistic(U01Array(u), (u.size/3).toLong(), k)
     }
 
     /** Performs the correlation test

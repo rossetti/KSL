@@ -43,61 +43,64 @@ interface Observation {
 }
 
 fun main() {
-    val path = Paths.get("/Users/rossetti/Documents/GitHub/KSL/KSLExamples/chapterFiles/Appendix-Distribution Fitting/PoissonCountData.csv")
-//    val file = KSLFileUtil.chooseFile()
-    val file = path.toFile()
-    val df = DataFrame.readCSV(file!!,
-        colTypes = mapOf(
-            "week" to ColType.Int,
-            "period" to ColType.Int,
-            "day" to ColType.String,
-            "count" to ColType.Int
-        )
-    ).cast<Observation>()
+    // choose file: KSL/KSLExamples/chapterFiles/Appendix-Distribution Fitting/PoissonCountData.csv
+    val file = KSLFileUtil.chooseFile()
+    if (file != null) {
+        val df = DataFrame.readCSV(
+            file,
+            colTypes = mapOf(
+                "week" to ColType.Int,
+                "period" to ColType.Int,
+                "day" to ColType.String,
+                "count" to ColType.Int
+            )
+        ).cast<Observation>()
 
-    val count by column<Int>()
-    val week by column<Int>()
-    val period by column<Int>()
-    val day by column<String>()
+        val count by column<Int>()
+        val week by column<Int>()
+        val period by column<Int>()
+        val day by column<String>()
 
-    val countData: DataColumn<Int> = df[count]
+        val countData: DataColumn<Int> = df[count]
 
-    println(df.schema())
-    println()
+        println(df.schema())
+        println()
 
-    println(df)
+        println(df)
 
-    println()
-    println(countData)
+        println()
+        println(countData)
 
-    val data = countData.toIntArray()
+        val data = countData.toIntArray()
 
-    val f = IntegerFrequency(data)
-    val fp = f.frequencyPlot()
-    fp.showInBrowser()
+        val f = IntegerFrequency(data)
+        val fp = f.frequencyPlot()
+        fp.showInBrowser()
 
-    val op = ObservationsPlot(data)
-    op.showInBrowser()
+        val op = ObservationsPlot(data)
+        op.showInBrowser()
 
-    val acf = ACFPlot(data.toDoubles())
-    acf.showInBrowser()
+        val acf = ACFPlot(data.toDoubles())
+        acf.showInBrowser()
 
-    println()
-    println(f)
+        println()
+        println(f)
 
-    val pmfModeler = PMFModeler(data)
+        val pmfModeler = PMFModeler(data)
 
-    val results = pmfModeler.estimateParameters(setOf(PoissonMLEParameterEstimator))
-    println()
+        val results = pmfModeler.estimateParameters(setOf(PoissonMLEParameterEstimator))
+        println()
 
-    val e = results.first()
-    println(e)
-    val mean = e.parameters!!.doubleParameter("mean")
+        val e = results.first()
+        println(e)
+        val mean = e.parameters!!.doubleParameter("mean")
 
-    val pf = PoissonGoodnessOfFit(data.toDoubles(), mean = mean)
-    println()
-    println(pf)
+        val pf = PoissonGoodnessOfFit(data.toDoubles(), mean = mean)
+        println()
+        println(pf)
 
-    val plot = PMFComparisonPlot(data, pf.distribution)
-    plot.showInBrowser()
+        val plot = PMFComparisonPlot(data, pf.distribution)
+        plot.showInBrowser()
+    }
+
 }
