@@ -18,17 +18,15 @@
 
 package ksl.examples.book.appendixB
 
-import ksl.utilities.distributions.fitting.*
+import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
+import ksl.utilities.distributions.fitting.ExponentialMLEParameterEstimator
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.ObservationsPlot
-import ksl.utilities.random.rvariable.RVType
-import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.HistogramIfc
-import ksl.utilities.toDoubles
 
 fun main(){
-    // select file:  /Example/taskTimes.txt
+    // select file: PharmacyInputModelingExampleData.txt
     val myFile = KSLFileUtil.chooseFile()!!
     val data = KSLFileUtil.scanToArray(myFile.toPath())
     val d = PDFModeler(data)
@@ -36,27 +34,36 @@ fun main(){
     println(d.histogram)
     println()
 
-    val hPlot = d.histogram.histogramPlot()
-    hPlot.showInBrowser()
+//    val hPlot = d.histogram.histogramPlot()
+//    hPlot.showInBrowser()
+//
+//    val op = ObservationsPlot(data)
+//    op.showInBrowser()
+//
+//    val acf = ACFPlot(data)
+//    acf.showInBrowser()
 
-    val op = ObservationsPlot(data)
-    op.showInBrowser()
+    val estimationResults  = d.estimateParameters(ExponentialMLEParameterEstimator)
+    val estimationResult = estimationResults.first()
+    println(estimationResult)
+    println()
 
-    val acf = ACFPlot(data)
-    acf.showInBrowser()
+    val results = d.evaluateScores(estimationResults)
 
-    val results  = d.estimateAndEvaluateScores()
     results.sortedScoringResults.forEach(::println)
 
     val topResult = results.sortedScoringResults.first()
-    topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
+ //   topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
     println()
     println("Recommended Distribution ${topResult.name}")
     println()
+
+    println(topResult.distribution)
+    println()
+
     val gof = ContinuousCDFGoodnessOfFit(data,
         topResult.distribution,
         numEstimatedParameters = topResult.numberOfParameters
     )
     println(gof)
-
 }

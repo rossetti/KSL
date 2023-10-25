@@ -106,9 +106,7 @@ class PDFModeler(private val data: DoubleArray) {
      *  Uses bootstrapping to estimate a confidence interval for the minimum
      */
     fun confidenceIntervalForMinimum(numBootstrapSamples: Int = 399, level: Double = 0.95): Interval {
-        val bootStrap: Bootstrap = Bootstrap(data)
-        bootStrap.generateSamples(numBootstrapSamples, BSEstimatorIfc.Minimum())
-        return bootStrap.percentileBootstrapCI(level)
+        return PDFModeler.confidenceIntervalForMinimum(data, numBootstrapSamples, level)
     }
 
     /**
@@ -120,7 +118,7 @@ class PDFModeler(private val data: DoubleArray) {
         numBootstrapSamples: Int = 399,
         level: Double = 0.95,
         stream: RNStreamIfc = KSLRandom.nextRNStream()
-    ) : List<BootstrapEstimate>{
+    ): List<BootstrapEstimate> {
         return bootStrapParameterEstimates(result.estimator, numBootstrapSamples, level, stream, result.distribution)
     }
 
@@ -133,11 +131,11 @@ class PDFModeler(private val data: DoubleArray) {
         numBootstrapSamples: Int = 399,
         level: Double = 0.95,
         stream: RNStreamIfc = KSLRandom.nextRNStream(),
-        label : String? = null
+        label: String? = null
     ): List<BootstrapEstimate> {
         val bss = BootstrapSampler(data, estimator, stream)
         val list = bss.bootStrapEstimates(numBootstrapSamples)
-        for(e in list){
+        for (e in list) {
             e.defaultCILevel = level
             e.label = label
         }
@@ -231,8 +229,11 @@ class PDFModeler(private val data: DoubleArray) {
         // estimate a confidence interval on the minimum value
         var shiftedData: ShiftedData? = null
         if (automaticShifting) {
+            //           println("Trying automated shifting")
             val minCI = confidenceIntervalForMinimum()
-            if (minCI.upperLimit <= defaultZeroTolerance) {
+            //           println("Confidence interval on minimum: $minCI")
+            if (defaultZeroTolerance < minCI.lowerLimit) {
+                //               println("Shifting the data")
                 shiftedData = leftShiftData(data)
             }
         }
@@ -249,6 +250,18 @@ class PDFModeler(private val data: DoubleArray) {
             estimatedParameters.add(result)
         }
         return estimatedParameters
+    }
+
+    /**
+     *   A convenience method for invoking parameter estimation for a single
+     *   instance of ParameterEstimatorIfc. The parameter [automaticShifting] controls
+     *   whether the data will be automatically shifted.
+     */
+    fun estimateParameters(
+        estimator: ParameterEstimatorIfc,
+        automaticShifting: Boolean = true
+    ): List<EstimationResult> {
+        return estimateParameters(setOf(estimator), automaticShifting)
     }
 
     /**
@@ -335,15 +348,51 @@ class PDFModeler(private val data: DoubleArray) {
     fun estimateAndEvaluateScores(
         estimators: Set<ParameterEstimatorIfc> = allEstimators,
         automaticShifting: Boolean = true,
-        scoringModels: Set<PDFScoringModel> = allScoringModels,
+        scoringModels: Set<PDFScoringModel> = allScoringModels
     ): PDFModelingResults {
         val estimationResults = estimateParameters(estimators, automaticShifting)
+        return evaluateScores(estimationResults, scoringModels)
+    }
+
+    /**
+     *   This function applies the supplied scoring models to the estimation results.
+     */
+    fun evaluateScores(
+        estimationResults: List<EstimationResult>,
+        scoringModels: Set<PDFScoringModel> = allScoringModels
+    ): PDFModelingResults {
         val scoringResults = scoringResults(estimationResults, scoringModels)
         val evaluationModel = evaluateScoringResults(scoringResults)
         return PDFModelingResults(estimationResults, scoringResults, evaluationModel)
     }
 
     companion object {
+
+        /**
+         *  Uses bootstrapping to estimate a confidence interval for the minimum
+         */
+        fun confidenceIntervalForMinimum(
+            data: DoubleArray,
+            numBootstrapSamples: Int = 399,
+            level: Double = 0.95
+        ): Interval {
+            val bootStrap: Bootstrap = Bootstrap(data)
+            bootStrap.generateSamples(numBootstrapSamples, BSEstimatorIfc.Minimum())
+            return bootStrap.percentileBootstrapCI(level)
+        }
+
+        /**
+         *  Uses bootstrapping to estimate a confidence interval for the maximum
+         */
+        fun confidenceIntervalForMaximum(
+            data: DoubleArray,
+            numBootstrapSamples: Int = 399,
+            level: Double = 0.95
+        ): Interval {
+            val bootStrap: Bootstrap = Bootstrap(data)
+            bootStrap.generateSamples(numBootstrapSamples, BSEstimatorIfc.Maximum())
+            return bootStrap.percentileBootstrapCI(level)
+        }
 
         /**
          *  Creates an additive evaluation model based on the metrics within the
@@ -473,7 +522,7 @@ class PDFModeler(private val data: DoubleArray) {
          *
          *  The value [tolerance] is used to consider whether the computed shift value is close enough
          *  to zero to consider the shift 0.0.  The default is 0.001.  That is, a value
-         *  of the estimated shift that is less than the tolerance are considered 0.0.
+         *  of the estimated shift that is less than the tolerance is considered 0.0.
          *
          *  This approach estimates a shift parameter that is intended to
          *  shift the distribution to the left.  If X(i) is the original datum,

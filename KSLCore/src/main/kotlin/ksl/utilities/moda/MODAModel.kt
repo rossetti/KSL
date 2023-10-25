@@ -1,5 +1,6 @@
 package ksl.utilities.moda
 
+import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
@@ -104,7 +105,11 @@ abstract class MODAModel(
         // need statistics for each alternative's metrics
         val statisticsByMetric = scoreStatisticsByMetric()
         for ((metric, stat) in statisticsByMetric) {
-            val interval = PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt())
+            val interval = if (stat.count >= 2) {
+                PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt())
+            } else {
+                Interval(stat.min, stat.max)
+            }
             if (!adjustMetricLowerLimits && adjustMetricUpperLimits) {
                 // no lower limit but yes on upper limit
                 metric.domain.setInterval(metric.domain.lowerLimit, interval.upperLimit)

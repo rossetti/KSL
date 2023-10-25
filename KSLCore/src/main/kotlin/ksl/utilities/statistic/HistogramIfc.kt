@@ -355,6 +355,15 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     }
 
     /**
+     *  Returns the expected count for each bin of the histogram based on a continuous interval
+     *  interpretation of the bin .
+     *  The distribution, [cdf] must implement the ContinuousDistributionIfc interface
+     */
+    fun expectedCounts(cdf : ContinuousDistributionIfc): DoubleArray{
+        return binProbabilities(cdf).multiplyConstant(count)
+    }
+
+    /**
      *  Creates a plot for the histogram. The parameter, [proportions]
      *  indicates whether proportions (true) or frequencies (false)
      *  will be shown on the plot. The default is true.
