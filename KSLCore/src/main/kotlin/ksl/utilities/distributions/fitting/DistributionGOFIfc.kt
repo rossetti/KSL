@@ -40,11 +40,12 @@ interface DistributionGOFIfc {
         for ((i, bin) in histogram.bins.withIndex()) {
             val o = bin.count
             val e = expectedCounts[i]
-            val p = binProbabilities[i]//TODO something wrong here
-            val s = String.format("%-25s %-10f %10d %10f", bin.binLabel, p, o, e)
+            val p = binProbabilities[i]
+            //println("expected = $e")
+            val s = String.format("%-25s %-10f %10d %10g", bin.binLabel, p, o, e)
             sb.append(s)
-            if (e <= 5){
-                sb.append("\t *** Warning: expected <= 5 ***")
+            if (e <= 4.99999){
+                sb.append("\t *** Warning: expected < 5 ***")
             }
             sb.appendLine()
         }

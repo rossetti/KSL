@@ -1,24 +1,62 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.*
+import ksl.utilities.min
 import ksl.utilities.multiplyConstant
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.removeAt
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.HistogramIfc
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistics
+import kotlin.math.ceil
+import kotlin.math.floor
 
 class ContinuousCDFGoodnessOfFit(
     data: DoubleArray,
     val distribution: ContinuousDistributionIfc,
     numEstimatedParameters: Int = 1,
-    breakPoints: DoubleArray = PDFModeler.equalizedCDFBreakPoints(data.size, distribution),
+    breakPoints: DoubleArray = suggestBreakPoints(data, distribution),
 ) : DistributionGOF(data, numEstimatedParameters, breakPoints) {
 
     override val binProbabilities = histogram.binProbabilities(distribution)
 
-    override val expectedCounts = binProbabilities.multiplyConstant(histogram.count)
+    override val expectedCounts = histogram.expectedCounts(distribution)
 
+    companion object{
+        fun suggestBreakPoints(data: DoubleArray, distribution: ContinuousDistributionIfc): DoubleArray {
+            // get initial break points based on equalized uniform test
+            var bp = PDFModeler.equalizedCDFBreakPoints(data.size, distribution)
+            // use domain of distribution to add lower or upper limits
+            val domain = distribution.domain()
+            if (domain.lowerLimit.isFinite()){
+                if (domain.lowerLimit < bp.first()){
+                    bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
+                }
+            } else {
+                // lower limit of domain is infinite (must be negative infinity)
+                // use the data to guide the choice, get a c.i. on the min
+                val minCI = PDFModeler.confidenceIntervalForMinimum(data, level = 0.99)
+                if (minCI.lowerLimit < bp.first()){
+                    bp = Histogram.addLowerLimit(floor(minCI.lowerLimit), bp)
+                }
+            }
+            if (domain.upperLimit.isFinite()){
+                if (domain.upperLimit > bp.last()){
+                    bp = Histogram.addUpperLimit(domain.upperLimit, bp)
+                }
+            } else {
+                // upper limit of domain is infinite (must be positive infinity)
+                // use data to guide choice of upper limit, get a c.i. on the max
+                val maxCI = PDFModeler.confidenceIntervalForMaximum(data, level = 0.99)
+                if (maxCI.upperLimit > bp.last()){
+                    val delta = 6.0*data.statistics().standardDeviation
+                    bp = Histogram.addUpperLimit(ceil(maxCI.upperLimit + delta), bp)
+                }
+            }
+            return bp
+        }
+    }
     val andersonDarlingStatistic: Double
         get() = Statistic.andersonDarlingTestStatistic(data, distribution)
 
@@ -63,6 +101,9 @@ class ContinuousCDFGoodnessOfFit(
 
     override fun toString(): String {
         val sb = StringBuilder().apply {
+            appendLine("GOF Results for Distribution: $distribution")
+            appendLine("---------------------------------------------------------")
+            appendLine()
             append(chiSquaredTestResults())
             append(gofTestResults())
         }
