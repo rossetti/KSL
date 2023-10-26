@@ -24,6 +24,10 @@ import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.toCSVString
 import java.io.PrintWriter
 
+/**
+ *  A class to save pairs of observations to an array of double arrays,
+ *  each with size 2.
+ */
 class DoublePairArraySaver : ObserverIfc<Pair<Double, Double>> {
 
     /**
