@@ -17,6 +17,7 @@
  */
 package ksl.utilities.statistic
 
+import ksl.utilities.DoublePairArraySaver
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.random.rvariable.UniformRV

@@ -21,7 +21,6 @@ package ksl.utilities
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.BoxPlotSummary
-import ksl.utilities.statistic.DoubleArraySaver
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 import java.text.DecimalFormat

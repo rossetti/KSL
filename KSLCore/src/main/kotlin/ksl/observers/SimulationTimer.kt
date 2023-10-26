@@ -22,7 +22,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.statistic.DoubleArraySaver
+import ksl.utilities.DoubleArraySaver
 import ksl.utilities.statistic.Statistic
 import kotlin.time.Duration
 

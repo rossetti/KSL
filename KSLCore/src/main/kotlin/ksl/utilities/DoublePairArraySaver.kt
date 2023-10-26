@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.statistic
+package ksl.utilities
 
 import ksl.utilities.copyOf
 import ksl.utilities.observers.ObservableIfc
