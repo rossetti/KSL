@@ -18,6 +18,7 @@
 
 package ksl.utilities.statistic
 
+import ksl.utilities.DoubleArraySaver
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
