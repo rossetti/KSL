@@ -343,13 +343,21 @@ object U01Test {
         return rho / sqrt(varrho)
     }
 
+    /**
+     *  Computes the runs up test statistic for the array of supposedly
+     *  U(0,1) values.
+     */
+    fun runsUpTestStatistic(doubleArray: DoubleArray): Double{
+        return runsUpTestStatistic(U01Array(doubleArray), doubleArray.size.toLong())
+    }
+
     /** Performs the runs up test
      *
      * @param rng the thing that produces U(0,1) numbers, must not null
      * @param n the number to sample
      * @return the test statistic
      */
-    fun runsUpTest(rng: RandU01Ifc, n: Long): Double {
+    fun runsUpTestStatistic(rng: RandU01Ifc, n: Long): Double {
         require(n > 0) { "The number of random numbers was <= 0" }
         val r = DoubleArray(7)
         var A: Double = rng.randU01()
