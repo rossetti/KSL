@@ -92,18 +92,23 @@ interface PlotIfc {
          *  Shows a lets-plot plot in a browser window
          */
         fun showPlotInBrowser(figure: Figure, tmpFileName: String? = null, directory: Path = KSL.plotDir): File {
-            val spec = figure.toSpec()
-            // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
-            val html = PlotHtmlExport.buildHtmlFromRawSpecs(
-                spec, iFrame = true,
-                scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
-            )
+            val html = toHTML(figure)
             val fileName = if (tmpFileName == null) {
                 "tempPlotFile_"
             } else {
                 tmpFileName.replace(" ", "_") + "_"
             }
             return KSLFileUtil.openInBrowser(fileName, html, directory)
+        }
+
+        fun toHTML(figure: Figure) : String {
+            val spec = figure.toSpec()
+            // Export: use PlotHtmlExport utility to generate dynamic HTML (optionally in iframe).
+            val html = PlotHtmlExport.buildHtmlFromRawSpecs(
+                spec, iFrame = true,
+                scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
+            )
+            return html
         }
 
         /**

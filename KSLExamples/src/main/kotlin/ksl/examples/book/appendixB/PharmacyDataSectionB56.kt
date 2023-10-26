@@ -21,6 +21,7 @@ package ksl.examples.book.appendixB
 import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
 import ksl.utilities.distributions.fitting.ExponentialMLEParameterEstimator
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.ObservationsPlot
@@ -50,7 +51,9 @@ fun main(){
         results.sortedScoringResults.forEach(::println)
 
         val topResult = results.sortedScoringResults.first()
-        topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
+        val distPlot = topResult.distributionFitPlot()
+
+        distPlot.showInBrowser("Recommended Distribution ${topResult.name}")
         println()
         println("** Recommended Distribution** ${topResult.name}")
         println()
@@ -60,6 +63,21 @@ fun main(){
             numEstimatedParameters = topResult.numberOfParameters
         )
         println(gof)
+
+//        val printWriter = KSL.createPrintWriter("plots.html")
+//        printWriter.println("<div>")
+//        printWriter.print(hPlot.toHTML())
+//        printWriter.println("</div>")
+//        printWriter.println("<div>")
+//        printWriter.print(op.toHTML())
+//        printWriter.println("</div>")
+//        printWriter.println("<div>")
+//        printWriter.print(acf.toHTML())
+//        printWriter.println("</div>")
+//        printWriter.println("<div>")
+//        printWriter.print(distPlot.toHTML())
+//        printWriter.println("</div>")
+//        printWriter.close()
     }
 
 }
