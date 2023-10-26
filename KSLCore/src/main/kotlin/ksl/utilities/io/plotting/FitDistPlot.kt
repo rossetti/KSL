@@ -75,4 +75,8 @@ class FitDistPlot(
         }
         return PlotIfc.showPlotInBrowser(figure, fileName, defaultPlotDir)
     }
+
+    fun toHTML() : String {
+        return PlotIfc.toHTML(buildFigure())
+    }
 }
