@@ -72,7 +72,7 @@ abstract class BasePlot() : PlotIfc {
     }
 
     override fun toString(): String {
-        return "PlotImp(" +
+        return "BasePlot(" +
                 "defaultScale=$defaultScale, " +
                 "defaultDPI=$defaultDPI, " +
                 "width=$width, " +
