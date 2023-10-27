@@ -525,17 +525,15 @@ object Tukey {
         val c4 = 1.208
         val c5 = 1.4142
         val vmax = 120.0
-        val ps: Double
         var q: Double
         var t: Double
-        val yi: Double
-        ps = 0.5 - 0.5 * p
-        yi = Math.sqrt(Math.log(1.0 / (ps * ps)))
+        val ps: Double = 0.5 - 0.5 * p
+        val yi: Double = sqrt(ln(1.0 / (ps * ps)))
         t = yi + ((((yi * p4 + p3) * yi + p2) * yi + p1) * yi + p0) / (((yi * q4 + q3) * yi + q2) * yi + q1) * yi + q0
         if (df < vmax) t += (t * t * t + t) / df / 4.0
         q = c1 - c2 * t
         if (df < vmax) q += -c3 / df + c4 * t / df
-        return t * (q * Math.log(nMeans - 1.0) + c5)
+        return t * (q * ln(nMeans - 1.0) + c5)
     }
 
     /*
