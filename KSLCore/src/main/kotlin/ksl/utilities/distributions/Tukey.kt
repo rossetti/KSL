@@ -19,6 +19,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.io.KSL
+import kotlin.math.*
 
 /*
  * Copyright (c) 2022. Manuel D. Rossetti, rossetti@uark.edu
@@ -97,7 +98,7 @@ object Tukey {
      * @param iterations the number of iterations
      */
     fun setQTukeyMaxIterations(iterations: Int) {
-        qTukeyMaxIterations = Math.max(50, iterations)
+        qTukeyMaxIterations = 50.coerceAtLeast(iterations)
     }
 
     /**
@@ -108,7 +109,7 @@ object Tukey {
      */
     fun invCDF(p: Double, nMeans: Double, df: Double): Double {
         require((0.0 < p) && (p < 1.0)) { "Supplied probability was $p Probability must be (0,1)" }
-        require(nMeans > 1.0) { "The number of groups must be >= 2" }
+        require(nMeans >= 2.0) { "The number of groups must be >= 2" }
         require(df >= 1.0) { "The degrees of freedom must be >= 1" }
         return qtukey(p, nMeans, df, 1.0, true, false)
     }
@@ -120,13 +121,14 @@ object Tukey {
      * @return the probability integral over [0, q]
      */
     fun cdf(q: Double, nMeans: Double, df: Double): Double {
-        require(nMeans > 1.0) { "The number of groups must be >= 2" }
+        require(nMeans >= 2.0) { "The number of groups must be >= 2" }
         require(df >= 1.0) { "The degrees of freedom must be >= 1" }
-        require(q >= 0.0) { "The value of the range for evaluation must be >= 0.0" }
-        return if (q == 0.0) {
-            0.0
-        } else ptukey(q, nMeans, df, 1.0, true, false)
+        if (q <= 0.0){
+            return 0.0
+        }
+        return ptukey(q, nMeans, df, 1.0, true, false)
     }
+
     /*  wprob() :
 
     This function calculates probability integral of Hartley's
@@ -164,6 +166,7 @@ object Tukey {
      * @return the value of the probability integral
      */
     private fun wprob(w: Double, rr: Double, cc: Double): Double {
+        require(!w.isNaN()) { "The supplied w value was Double.NaN in Tukey wprob()" }
         val nleg = 12
         val ihalf = 6
         val M_1_SQRT_2PI = 0.398942280401432677939946059934
@@ -215,14 +218,18 @@ object Tukey {
         qsqz = w * 0.5
 
         /* if w >= 16 then the integral lower bound (occurs for c=20) */
-        /* is 0.99999999999995 so return a value of 1. */if (qsqz >= bb) return 1.0
+        /* is 0.99999999999995 so return a value of 1. */
+        if (qsqz >= bb) return 1.0
 
         /* find (f(w/2) - 1) ^ cc */
-        /* (first term in integral of hartley's form). */pr_w = 2.0 * Normal.stdNormalCDF(qsqz) - 1.0
-        /* if pr_w ^ cc < 2e-22 then set pr_w = 0 */pr_w = if (pr_w >= Math.exp(C2 / cc)) Math.pow(pr_w, cc) else 0.0
+        /* (first term in integral of hartley's form). */
+        pr_w = 2.0 * Normal.stdNormalCDF(qsqz) - 1.0
+        /* if pr_w ^ cc < 2e-22 then set pr_w = 0 */
+        pr_w = if (pr_w >= Math.exp(C2 / cc)) Math.pow(pr_w, cc) else 0.0
 
         /* if w is large then the second component of the */
-        /* integral is small, so fewer intervals are needed. */wincr = if (w > wlar) wincr1 else wincr2
+        /* integral is small, so fewer intervals are needed. */
+        wincr = if (w > wlar) wincr1 else wincr2
 
         /* find the integral of second term of hartley's form */
         /* for the integral of the range for equal-length */
@@ -230,7 +237,8 @@ object Tukey {
         /* integration are from (w/2, 8).  two or three */
         /* equal-length intervals are used. */
 
-        /* blb and bub are lower and upper limits of integration. */blb = qsqz
+        /* blb and bub are lower and upper limits of integration. */
+        blb = qsqz
         binc = (bb - qsqz) / wincr
         bub = blb + binc
         einsum = 0.0
@@ -341,7 +349,17 @@ object Tukey {
     if degrees of freedom large, approximate integral
     with range distribution.
      */
-    fun ptukey(q: Double, nMeans: Double, df: Double, nRanges: Double, lower_tail: Boolean, log_p: Boolean): Double {
+    private fun ptukey(
+        q: Double,
+        nMeans: Double,
+        df: Double,
+        nRanges: Double,
+        lower_tail: Boolean,
+        log_p: Boolean
+    ): Double {
+        if (q.isInfinite() || nRanges.isInfinite() || nMeans.isInfinite() || df.isInfinite()) return Double.NaN
+
+        require(!q.isNaN()) { "q was Double.NaN in ptukey()" }
         val nlegq = 16
         val ihalfq = 8
         val M_LN2 = 0.693147180559945309417232121458
@@ -391,14 +409,12 @@ object Tukey {
         var i: Int
         var j: Int
         var jj: Int
-        if (java.lang.Double.isInfinite(q) || java.lang.Double.isInfinite(nRanges) || java.lang.Double.isInfinite(nMeans) || java.lang.Double.isInfinite(
-                df
-            )
-        ) return Double.NaN
+
         if (q <= 0) return if (lower_tail) if (log_p) Double.NEGATIVE_INFINITY else 0.0 else if (log_p) 0.0 else 1.0
 
         /* df must be > 1 */
-        /* there must be at least two values */if (df < 2 || nRanges < 1 || nMeans < 2) return Double.NaN
+        /* there must be at least two values */
+        if (df < 2 || nRanges < 1 || nMeans < 2) return Double.NaN
         if (java.lang.Double.isInfinite(q)) return if (lower_tail) if (log_p) 0.0 else 1.0 else if (log_p) Double.NEGATIVE_INFINITY else 0.0
         if (df > dlarg) {
             //return R_DT_val(wprob(q, rr, cc));
@@ -406,7 +422,8 @@ object Tukey {
             return if (lower_tail) if (log_p) Math.log(x) else x else if (log_p) Math.log1p(-x) else 0.5 - x + 0.5
         }
 
-        /* calculate leading constant */f2 = df * 0.5
+        /* calculate leading constant */
+        f2 = df * 0.5
         /* lgammafn(u) = log(gamma(u)) */
 //        f2lf = ((f2 * log(df)) - (df * M_LN2)) - lgammafn(f2);
         f2lf = f2 * Math.log(df) - df * M_LN2 - Gamma.logGammaFunction(f2)
@@ -414,17 +431,20 @@ object Tukey {
 
         /* integral is divided into unit, half-unit, quarter-unit, or */
         /* eighth-unit length intervals depending on the value of the */
-        /* degrees of freedom. */ff4 = df * 0.25
+        /* degrees of freedom. */
+        ff4 = df * 0.25
         ulen = if (df <= dhaf) ulen1 else if (df <= dquar) ulen2 else if (df <= deigh) ulen3 else ulen4
         f2lf += Math.log(ulen)
 
-        /* integrate over each subinterval */ans = 0.0
+        /* integrate over each subinterval */
+        ans = 0.0
         i = 1
         while (i <= 50) {
             otsum = 0.0
 
             /* legendre quadrature with order = nlegq */
-            /* nodes (stored in xlegq) are symmetric around zero. */twa1 = (2 * i - 1) * ulen
+            /* nodes (stored in xlegq) are symmetric around zero. */
+            twa1 = (2 * i - 1) * ulen
             jj = 1
             while (jj <= nlegq) {
                 if (ihalfq < jj) {
@@ -435,14 +455,20 @@ object Tukey {
                     t1 = f2lf + f21 * Math.log(twa1 - xlegq[j] * ulen) + (xlegq[j] * ulen - twa1) * ff4
                 }
 
-                /* if exp(t1) < 9e-14, then doesn't contribute to integral */if (t1 >= eps1) {
+                /* if exp(t1) < 9e-14, then doesn't contribute to integral */
+                if (t1 >= eps1) {
                     qsqz = if (ihalfq < jj) {
-                        q * Math.sqrt((xlegq[j] * ulen + twa1) * 0.5)
+                        val tmp = (xlegq[j] * ulen + twa1) * 0.5
+                        require(tmp >= 0.0) { "tmp was negative" }
+                        q * sqrt((xlegq[j] * ulen + twa1) * 0.5)
                     } else {
-                        q * Math.sqrt((-(xlegq[j] * ulen) + twa1) * 0.5)
+                        val tmp2 = (-(xlegq[j] * ulen) + twa1) * 0.5
+                        require(tmp2 >= 0.0) { "tmp2 was negative" }
+                        q * sqrt((-(xlegq[j] * ulen) + twa1) * 0.5)
                     }
-
-                    /* call wprob to find integral of range portion */wprb = wprob(qsqz, nRanges, nMeans)
+                    require(!qsqz.isNaN()) { "qsqz became Double.NaN" }
+                    /* call wprob to find integral of range portion */
+                    wprb = wprob(qsqz, nRanges, nMeans)
                     rotsum = wprb * alegq[j] * Math.exp(t1)
                     otsum += rotsum
                 }
@@ -536,18 +562,24 @@ object Tukey {
      *  If the difference between successive iterates is less than eps,
      *  the search is terminated
      */
-    fun qtukey(p: Double, nMeans: Double, df: Double, nRanges: Double, lower_tail: Boolean, log_p: Boolean): Double {
+    private fun qtukey(
+        p: Double,
+        nMeans: Double,
+        df: Double,
+        nRanges: Double,
+        lower_tail: Boolean,
+        log_p: Boolean
+    ): Double {
         var pp = p
         val eps = qTukeyEPS
         val maxiter = qTukeyMaxIterations
-        var ans: Double
+        var ans: Double = 0.0
         var valx0: Double
         var valx1: Double
         var x0: Double
         var x1: Double
         var xabs: Double
-        if (java.lang.Double.isNaN(pp) || java.lang.Double.isNaN(nRanges)
-            || java.lang.Double.isNaN(nMeans) || java.lang.Double.isNaN(df)) {
+        if (pp.isNaN() || nRanges.isNaN() || nMeans.isNaN() || df.isNaN()) {
             //ML_ERROR(ME_DOMAIN, "qtukey");
             return pp + nRanges + nMeans + df
         }
@@ -558,7 +590,7 @@ object Tukey {
         //R_Q_P01_boundaries(p, 0, ML_POSINF);
         if (log_p) {
             if (pp > 0) return Double.NaN
-            if (pp == 0.0) /* upper bound*/ return if (lower_tail) Double.POSITIVE_INFINITY else 0.0
+            if (pp == 0.0) return if (lower_tail) Double.POSITIVE_INFINITY else 0.0
             if (pp == Double.NEGATIVE_INFINITY) return if (lower_tail) 0.0 else Double.POSITIVE_INFINITY
         } else { /* !log_p */
             if (pp < 0 || pp > 1) return Double.NaN
@@ -567,32 +599,37 @@ object Tukey {
         }
 
         //p = R_DT_qIv(p); /* lower_tail,non-log "p"
-        pp = if (log_p) if (lower_tail) Math.exp(pp) else -Math.expm1(pp) else if (lower_tail) pp else 0.5 - pp + 0.5
+        pp = if (log_p) if (lower_tail) exp(pp) else -expm1(pp) else if (lower_tail) pp else 0.5 - pp + 0.5
 
         // Initial value
         x0 = qinv(pp, nMeans, df)
 
         // Find prob(value < x0)
-        valx0 = ptukey(x0, nMeans, df, nRanges,  /*LOWER*/true,  /*LOG_P*/false) - pp
+        valx0 = ptukey(x0, nMeans, df, nRanges, lower_tail = true, log_p = false) - pp
 
         // Find the second iterate and prob(value < x1).
         // If the first iterate has probability value
         // exceeding p then second iterate is 1 less than
         // first iterate; otherwise it is 1 greater.
-        x1 = if (valx0 > 0.0) Math.max(0.0, x0 - 1.0) else x0 + 1.0
+        x1 = if (valx0 > 0.0) 0.0.coerceAtLeast(x0 - 1.0) else x0 + 1.0
         valx1 = ptukey(x1, nMeans, df, nRanges, lower_tail = true, log_p = false) - pp
 
         // Find new iterate
         var iter = 1
         while (iter < maxiter) {
+//            require(!x1.isNaN()){"x1 iterated to Double.NaN"}
+//            require(!valx1.isNaN()){"valx1 iterated to Double.NaN"}
+//            require(!x0.isNaN()){"x0 iterated to Double.NaN"}
+            require((valx1 - valx0) != 0.0){"The denominator got to 0.0"}
             ans = x1 - valx1 * (x1 - x0) / (valx1 - valx0)
+            // require(!ans.isNaN()){"ans iterated to Double.NaN"}
             valx0 = valx1
 
             // New iterate must be >= 0
             x0 = x1
             if (ans < 0.0) {
                 ans = 0.0
-               // valx1 = -pp
+                valx1 = -pp
             }
             // Find prob(value < new iterate)
             valx1 = ptukey(ans, nMeans, df, nRanges, lower_tail = true, log_p = false) - pp
@@ -600,7 +637,7 @@ object Tukey {
 
             // If the difference between two successive
             // iterates is less than eps, stop
-            xabs = Math.abs(x1 - x0)
+            xabs = abs(x1 - x0)
             if (xabs < eps) return ans
             iter++
         }
@@ -610,6 +647,7 @@ object Tukey {
         KSL.logger.warn { "The computation of invCDF did not converge after $maxiter iterations" }
         return Double.NaN
     }
+
 }
 
 fun main() {

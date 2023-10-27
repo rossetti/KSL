@@ -117,7 +117,7 @@ class ExperimentDataCollector(model: Model) {
      *  Creates a multiple comparison analyzer for the response for each of the named
      *  experiments. If the experiment name does not exist or the response name does
      *  not exist, then no data is extracted.
-     *  
+     *
      * @param expNames     The set of experiment names for with the responses need extraction, must not be null
      * @param responseName the name of the response variable, time weighted variable or counter
      * @return a configured MultipleComparisonAnalyzer
