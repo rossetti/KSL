@@ -618,7 +618,14 @@ object Tukey {
 //            require(!x1.isNaN()){"x1 iterated to Double.NaN"}
 //            require(!valx1.isNaN()){"valx1 iterated to Double.NaN"}
 //            require(!x0.isNaN()){"x0 iterated to Double.NaN"}
+            println("iter = $iter")
+            println("x0 = $x0")
+            println("x1 = $x1")
+            println("valx0 = $valx0")
+            println("valx1 = $valx1")
+            println("valx1 - valx0 = ${valx1 - valx0}")
             require((valx1 - valx0) != 0.0){"The denominator got to 0.0"}
+
             ans = x1 - valx1 * (x1 - x0) / (valx1 - valx0)
             // require(!ans.isNaN()){"ans iterated to Double.NaN"}
             valx0 = valx1
