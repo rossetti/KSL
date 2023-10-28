@@ -65,8 +65,6 @@ import kotlin.math.*
  *
  * The algorithm is based on that of the reference.
  *
- * REFERENCE
- *
  * Copenhaver, Margaret Diponzio & Holland, Burt S.
  * Multiple comparisons of simple effects in
  * the two-way analysis of variance with fixed effects.
@@ -572,7 +570,6 @@ object Tukey {
         if (ans > 1.0) ans = 1.0
         return ans
     }
-
 
 }
 
