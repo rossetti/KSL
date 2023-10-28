@@ -509,6 +509,10 @@ object Tukey {
      *	is treated as infinity.
      */
     private fun qinv(p: Double, nMeans: Double, df: Double): Double {
+        println("pp = $p")
+        println("nMeans = $nMeans")
+        println("df = $df")
+        println()
         val p0 = 0.322232421088
         val q0 = 0.993484626060e-01
         val p1 = -1.0
@@ -529,7 +533,13 @@ object Tukey {
         var t: Double
         val ps: Double = 0.5 - 0.5 * p
         val yi: Double = sqrt(ln(1.0 / (ps * ps)))
-        t = yi + ((((yi * p4 + p3) * yi + p2) * yi + p1) * yi + p0) / (((yi * q4 + q3) * yi + q2) * yi + q1) * yi + q0
+        t = yi + ((((yi * p4 + p3) * yi + p2) * yi + p1) * yi + p0)/
+                ((((yi * q4 + q3) * yi + q2) * yi + q1) * yi + q0)
+
+//        t = yi + ((((yi * p4 + p3) * yi + p2) * yi + p1) * yi + p0) / (((yi * q4 + q3) * yi + q2) * yi + q1) * yi + q0
+        println("yi = $yi")
+        println("t = $t")
+        println()
         if (df < vmax) t += (t * t * t + t) / df / 4.0
         q = c1 - c2 * t
         if (df < vmax) q += -c3 / df + c4 * t / df
@@ -600,8 +610,12 @@ object Tukey {
         pp = if (log_p) if (lower_tail) exp(pp) else -expm1(pp) else if (lower_tail) pp else 0.5 - pp + 0.5
 
         // Initial value
-        x0 = qinv(pp, nMeans, df)
-
+        x0 = qinv(pp, nMeans, df) //TODO looks like something is wrong in here
+        println("pp = $pp")
+        println("nMeans = $nMeans")
+        println("df = $df")
+        println("x0 = $x0")
+        println()
         // Find prob(value < x0)
         valx0 = ptukey(x0, nMeans, df, nRanges, lower_tail = true, log_p = false) - pp
 
