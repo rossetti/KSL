@@ -549,8 +549,8 @@ object KSLArrays {
         return array[0].size
     }
 
-    /**
-     * @param a the array to add the constant to
+    /** This operation is in-place.
+     * @param a the array to add the constant to. The array is changed.
      * @param c the constant to add to each element
      * @return the transformed array
      */
@@ -561,8 +561,8 @@ object KSLArrays {
         return a
     }
 
-    /**
-     * @param a the array to add the constant to
+    /** This operation is in-place.
+     * @param a the array to add the constant to. The array is changed.
      * @param c the constant to subtract from each element
      * @return the transformed array
      */
@@ -570,8 +570,8 @@ object KSLArrays {
         return addConstant(a, -c)
     }
 
-    /**
-     * @param a the array to multiply the constant by
+    /** This operation is in-place.
+     * @param a the array to multiply the constant by. The array is changed.
      * @param c the constant to multiply against each element
      * @return the transformed array
      */
@@ -582,8 +582,8 @@ object KSLArrays {
         return a
     }
 
-    /**
-     * @param a the array to divide the constant by
+    /** This operation is in-place.
+     * @param a the array to divide the constant by. The array is changed.
      * @param c the constant to divide each element, cannot be zero
      * @return the transformed array
      */
@@ -597,7 +597,7 @@ object KSLArrays {
      *
      * @param a the first array
      * @param b the second array
-     * @return the array containing a[i]*b[i]
+     * @return a new array containing a[i]*b[i]
      */
     fun multiplyElements(a: DoubleArray, b: DoubleArray): DoubleArray {
         require(a.size == b.size) { "The array lengths must match" }

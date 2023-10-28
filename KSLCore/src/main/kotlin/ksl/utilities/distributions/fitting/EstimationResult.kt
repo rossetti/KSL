@@ -40,6 +40,19 @@ class EstimationResult(
             }
         }
 
+    /**
+     *  If the original data has been shifted, this returns the shifted data.
+     *  If the original data has not been shifted, this returns the original data.
+     */
+    val testData: DoubleArray
+        get() {
+            return if (shiftedData != null){
+                shiftedData!!.shiftedData
+            } else {
+                originalData
+            }
+        }
+
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Estimation Results:")

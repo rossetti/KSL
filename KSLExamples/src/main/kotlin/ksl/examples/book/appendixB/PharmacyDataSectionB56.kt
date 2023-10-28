@@ -27,6 +27,22 @@ import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.ObservationsPlot
 
 fun main(){
+
+    asBrowserResults()
+
+}
+
+fun asBrowserResults(){
+    // select file: PharmacyInputModelingExampleData.txt
+    val myFile = KSLFileUtil.chooseFile()
+    if (myFile != null){
+        val data = KSLFileUtil.scanToArray(myFile.toPath())
+        val d = PDFModeler(data)
+        d.showAllResultsInBrowser()
+    }
+}
+
+fun scriptedResults(){
     // select file: PharmacyInputModelingExampleData.txt
     val myFile = KSLFileUtil.chooseFile()
     if (myFile != null){
@@ -57,27 +73,10 @@ fun main(){
         println()
         println("** Recommended Distribution** ${topResult.name}")
         println()
-
-        val gof = ContinuousCDFGoodnessOfFit(data,
+        val gof = ContinuousCDFGoodnessOfFit(topResult.estimationResult.testData,
             topResult.distribution,
             numEstimatedParameters = topResult.numberOfParameters
         )
         println(gof)
-
-//        val printWriter = KSL.createPrintWriter("plots.html")
-//        printWriter.println("<div>")
-//        printWriter.print(hPlot.toHTML())
-//        printWriter.println("</div>")
-//        printWriter.println("<div>")
-//        printWriter.print(op.toHTML())
-//        printWriter.println("</div>")
-//        printWriter.println("<div>")
-//        printWriter.print(acf.toHTML())
-//        printWriter.println("</div>")
-//        printWriter.println("<div>")
-//        printWriter.print(distPlot.toHTML())
-//        printWriter.println("</div>")
-//        printWriter.close()
     }
-
 }
