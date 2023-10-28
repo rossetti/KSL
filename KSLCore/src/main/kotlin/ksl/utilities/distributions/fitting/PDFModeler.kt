@@ -20,6 +20,9 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
 import ksl.utilities.distributions.*
+import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.plotting.ACFPlot
+import ksl.utilities.io.plotting.ObservationsPlot
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
@@ -29,6 +32,8 @@ import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.*
 import ksl.utilities.statistic.*
+import org.jetbrains.kotlinx.dataframe.io.toHTML
+import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 
 /**
  *  Holds all the results from the PDF modeling process.
@@ -229,11 +234,8 @@ class PDFModeler(private val data: DoubleArray) {
         // estimate a confidence interval on the minimum value
         var shiftedData: ShiftedData? = null
         if (automaticShifting) {
-            //           println("Trying automated shifting")
             val minCI = confidenceIntervalForMinimum()
-            //           println("Confidence interval on minimum: $minCI")
             if (defaultZeroTolerance < minCI.lowerLimit) {
-                //               println("Shifting the data")
                 shiftedData = leftShiftData(data)
             }
         }
@@ -364,6 +366,136 @@ class PDFModeler(private val data: DoubleArray) {
         val scoringResults = scoringResults(estimationResults, scoringModels)
         val evaluationModel = evaluateScoringResults(scoringResults)
         return PDFModelingResults(estimationResults, scoringResults, evaluationModel)
+    }
+
+    /**
+     *  Makes a histogram, observations plot, auto-correlation plot,
+     *  performs the fitting and scoring process, and performs goodness
+     *  of fit tests on the top scoring distribution and displays
+     *  all the results by opening a browser window. The generated
+     *  html file is stored in the KSL.plotDir directory using the supplied
+     *  name as the pre-fix for a temporary file.
+     */
+    fun showAllResultsInBrowser(fileName: String = "pdfModelingResults"){
+        KSLFileUtil.openInBrowser(fileName = fileName, allResultsToHTML())
+    }
+
+    /**
+     *  Makes a histogram, observations plot, auto-correlation plot,
+     *  performs the fitting and scoring process, and performs goodness
+     *  of fit tests on the top scoring distribution and captures
+     *  the results as a string containing the html for display.
+     */
+    fun allResultsToHTML() : String {
+        val sb = StringBuilder().apply{
+            appendLine(histogramResultsAsHTML())
+            appendLine(observationsPlotAsHTML())
+            appendLine(acfPlotAsHTML())
+            appendLine(scoringResultsAsHTML())
+        }
+        return sb.toString()
+    }
+
+    /**
+     *  The histogram portion of the results as html
+     */
+    fun histogramResultsAsHTML() : String {
+        val hPlot = histogram.histogramPlot()
+        val sb = StringBuilder().apply{
+            appendLine("<h1>")
+            appendLine("Histogram Results")
+            appendLine("</h1>")
+            appendLine("<div>")
+            appendLine(hPlot.toHTML())
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine("<pre>")
+            appendLine(histogram.toString())
+            appendLine("</pre>")
+            appendLine("</div>")
+        }
+        return sb.toString()
+    }
+
+    /**
+     *  The observations plot portion of the results as html
+     */
+    fun observationsPlotAsHTML() : String {
+        val op = ObservationsPlot(data)
+        val sb = StringBuilder().apply{
+            appendLine("<h1>")
+            appendLine("Observation Plot Results")
+            appendLine("</h1>")
+            appendLine("<div>")
+            appendLine(op.toHTML())
+            appendLine("</div>")
+        }
+        return sb.toString()
+    }
+
+    /**
+     *  The ACF plot portion of the results as html
+     */
+    fun acfPlotAsHTML() : String {
+        val acf = ACFPlot(data)
+        val sb = StringBuilder().apply{
+            appendLine("<h1>")
+            appendLine("Autocorrelation Plot Results")
+            appendLine("</h1>")
+            appendLine("<div>")
+            appendLine(acf.toHTML())
+            appendLine("</div>")
+        }
+        return sb.toString()
+    }
+
+    /**
+     *  Just the scoring results as html
+     */
+    fun scoringResultsAsHTML() : String {
+        val results  = estimateAndEvaluateScores()
+        val scores = results.evaluationModel.alternativeScoresAsDataFrame("Distributions")
+        val values = results.evaluationModel.alternativeValuesAsDataFrame("Distributions")
+        val topResult = results.sortedScoringResults.first()
+        val distPlot = topResult.distributionFitPlot()
+        val gof = ContinuousCDFGoodnessOfFit(topResult.estimationResult.testData,
+            topResult.distribution,
+            numEstimatedParameters = topResult.numberOfParameters
+        )
+        val sb = StringBuilder().apply{
+            appendLine("<h1>")
+            appendLine("PDF Modeling Results")
+            appendLine("</h1>")
+            appendLine("<div>")
+            appendLine("<h2>")
+            appendLine("Scores")
+            appendLine("</h2>")
+            appendLine(scores.toStandaloneHTML())
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine("<h2>")
+            appendLine("Values")
+            appendLine("</h2>")
+            appendLine(values.toStandaloneHTML())
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine("<p>")
+            appendLine("<strong> Recommended Distribution</strong> ${topResult.name}")
+            appendLine("</p>")
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine("<h2>")
+            appendLine("Distribution Plot Results")
+            appendLine("</h2>")
+            appendLine(distPlot.toHTML())
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine("<pre>")
+            appendLine(gof.toString())
+            appendLine("</pre>")
+            appendLine("</div>")
+        }
+        return sb.toString()
     }
 
     companion object {
@@ -556,8 +688,9 @@ class PDFModeler(private val data: DoubleArray) {
          *  val (shift, shiftedData) = shiftData(data)
          */
         fun leftShiftData(data: DoubleArray, tolerance: Double = defaultZeroTolerance): ShiftedData {
-            val shift = estimateLeftShiftParameter(data, tolerance)
-            return ShiftedData(shift, KSLArrays.subtractConstant(data, shift))
+            val d = data.copyOf()
+            val shift = estimateLeftShiftParameter(d, tolerance)
+            return ShiftedData(shift, KSLArrays.subtractConstant(d, shift))
         }
 
         /**
