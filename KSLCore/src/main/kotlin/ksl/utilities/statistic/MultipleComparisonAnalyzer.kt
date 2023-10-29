@@ -742,21 +742,21 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         val names = dataNames
         val list = mcbMaxIntervals(delta)
         sb.append("MCB Maximum Intervals")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Indifference delta: ")
         sb.append(delta)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("Name")
         sb.append("\t \t")
         sb.append("Interval")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         for (i in 0 until n) {
             sb.append(names[i])
             sb.append("\t \t")
             sb.append(list[i].toString())
-            sb.append(System.lineSeparator())
+            sb.appendLine()
         }
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         return sb
     }
 
