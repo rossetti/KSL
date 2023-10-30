@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions
 
+import ksl.utilities.Interval
+
 /** Provides an interface for functions related to
  *  a cumulative distribution function CDF
  *
@@ -32,23 +34,42 @@ fun interface CDFIfc {
      */
     fun cdf(x: Double): Double
 
-    /** Returns the Pr{x1&lt;=X&lt;=x2} for the distribution
-     *
+    /**
+     *  Returns an array of probabilities each representing
+     *  F(x_i). The CDF is evaluated for each point in the input array [x]
+     *  and the probabilities are returned in the returned array.
+     */
+    fun cdf(x: DoubleArray): DoubleArray {
+        return DoubleArray(x.size) { cdf(x[it]) }
+    }
+
+    /**
+     * Returns the probability of being in the interval,
+     * F(upper limit) - F(lower limit)
+     * Be careful, this is Pr{lower limit &lt; = X &lt; = upper limit}
+     * which includes the lower limit and has implications if
+     * the distribution is discrete
+     */
+    fun cdf(interval: Interval): Double {
+        return cdf(interval.lowerLimit, interval.upperLimit)
+    }
+
+    /** Returns the Pr{x1 &lt;= X &lt;= x2} for the distribution.
+     * Be careful, this is Pr{x1 &lt;= X &lt;= x2}
+     * which includes the lower limit and has implications if
+     * the distribution is discrete
      * @param x1 a double representing the lower limit
      * @param x2 a double representing the upper limit
      * @return cdf(x2)-cdf(x1)
      * @throws IllegalArgumentException if x1 &gt; x2
      */
     fun cdf(x1: Double, x2: Double): Double {
-        if (x1 > x2) {
-            val msg = "x1 = $x1 > x2 = $x2 in cdf(x1,x2)"
-            throw IllegalArgumentException(msg)
-        }
+        require(x1 <= x2) { "x1 = $x1 > x2 = $x2 in cdf(x1,x2)" }
         return cdf(x2) - cdf(x1)
     }
 
     /** Computes the complementary cumulative probability
-     * distribution function for given value of x
+     * distribution function for given value of x.  This is P{X &gt x}
      * @param x The value to be evaluated
      * @return The probability, 1-P{X&lt;=x}
      */

@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.random.rvariable.parameters.ShiftedGeometricRVParameters
 
 /**
  * Shifted Geometric(probability of success) random variable, range 1, 2, 3, etc.
@@ -57,7 +59,7 @@ class ShiftedGeometricRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.ShiftedGeometricRVParameters()
+            val parameters: RVParameters = ShiftedGeometricRVParameters()
             parameters.changeDoubleParameter("probOfSuccess", probOfSuccess)
             return parameters
         }

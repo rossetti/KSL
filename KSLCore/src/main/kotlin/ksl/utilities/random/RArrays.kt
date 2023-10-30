@@ -212,16 +212,16 @@ fun <T> MutableList<T>.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream())
 }
 
 /** Randomly samples sampleSize elements from the list, returning a new list
+ * The elements in the list may repeat (sampling with replacement)
  *
  * @param sampleSize the size of the sample must be 1 or more
  * @return a new array containing the sample
  */
 fun <T> MutableList<T>.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.defaultRNStream()): MutableList<T> {
     require(sampleSize > 0) {"The sample size must be > 0"}
-    val arr = mutableListOf<T>().apply{
-        repeat(sampleSize){
-            this[it] = this.sample(stream)
-        }
+    val list = mutableListOf<T>()
+    for(i in 1..sampleSize){
+        list.add(this.sample(stream))
     }
-    return arr
+    return list
 }

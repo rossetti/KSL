@@ -19,16 +19,11 @@
 package ksl.modeling.variable
 
 import ksl.modeling.elements.RandomElement
-import ksl.modeling.elements.RandomElementIfc
-import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
 import ksl.utilities.PreviousValueIfc
 import ksl.utilities.random.RandomIfc
-import ksl.utilities.random.SampleIfc
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.StreamOptionIfc
 
 /**

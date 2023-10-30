@@ -17,25 +17,26 @@
  */
 package ksl.utilities.statistic
 
+import ksl.utilities.DoubleArraySaver
 import ksl.utilities.Interval
 import ksl.utilities.KSLArrays
 import ksl.utilities.distributions.StudentT
 import kotlin.math.sqrt
 
 
-class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc) {
+class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = BSEstimatorIfc.Average()) {
     init {
         require(originalData.size > 1) { "The supplied generate had only 1 data point" }
     }
     private val myEstimator: BSEstimatorIfc = estimator
     private val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", originalData)
-    private val myOrginalData: DoubleArray = originalData.copyOf()
-    private val myJackNnifeData =  DoubleArraySaver()
+    private val myOriginalData: DoubleArray = originalData.copyOf()
+    private val myJackKnifeData =  DoubleArraySaver()
     /**
      *
      * @return the estimate from the supplied EstimatorIfc based on the original data
      */
-    var originalDataEstimate: Double = myEstimator.getEstimate(originalData)
+    var originalDataEstimate: Double = myEstimator.estimate(originalData)
         private set
 
     /**
@@ -62,22 +63,22 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc) {
     }
 
     private fun computeJackknife() {
-        val loos = DoubleArray(myOrginalData.size - 1)
-        val jks = DoubleArray(myOrginalData.size)
-        for (i in myOrginalData.indices) {
+        val loos = DoubleArray(myOriginalData.size - 1)
+        val jks = DoubleArray(myOriginalData.size)
+        for (i in myOriginalData.indices) {
             // get the leave out generate missing i
-            KSLArrays.copyWithout(i, myOrginalData, loos)
+            KSLArrays.copyWithout(i, myOriginalData, loos)
             // compute the estimator based on the leave out generate
-            jks[i] = myEstimator.getEstimate(loos)
+            jks[i] = myEstimator.estimate(loos)
             // observe each estimate for jackknife stats
             myJNStatistics.collect(jks[i])
-            myJackNnifeData.save(jks[i])
+            myJackKnifeData.save(jks[i])
         }
         // now compute the std err of the jackknife
         val jne = jackKnifeEstimate
         val n: Double = myJNStatistics.count
         val s = Statistic()
-        for (i in myOrginalData.indices) {
+        for (i in myOriginalData.indices) {
             val tmp = (jks[i] - jne) * (jks[i] - jne)
             s.collect(tmp)
         }
@@ -92,10 +93,10 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc) {
      */
     val pseudoValues: DoubleArray
         get() {
-            val a = DoubleArray(myOrginalData.size)
-            val n = myOrginalData.size.toDouble()
+            val a = DoubleArray(myOriginalData.size)
+            val n = myOriginalData.size.toDouble()
             val ntheta = n * originalDataEstimate
-            val thetai: DoubleArray = myJackNnifeData.savedData()
+            val thetai: DoubleArray = myJackKnifeData.savedData()
             for (i in a.indices) {
                 a[i] = ntheta - (n - 1.0) * thetai[i]
             }
@@ -107,7 +108,7 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc) {
      * @return a copy of the original data
      */
     val originalData: DoubleArray
-        get() = myOrginalData.copyOf()
+        get() = myOriginalData.copyOf()
 
     /**
      *
@@ -173,7 +174,7 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc) {
      *
      * @return the bias corrected jackknife estimate, getOriginalDataEstimate() - getJackKnifeBiasEstimate()
      */
-    val biasCorrectedJackknifeEstimate: Double
+    val biasCorrectedJackKnifeEstimate: Double
         get() = originalDataEstimate - jackKnifeBiasEstimate
 
     override fun toString(): String {
@@ -196,7 +197,7 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc) {
         sb.append(System.lineSeparator())
         sb.append("jackknife bias estimate = ").append(jackKnifeBiasEstimate)
         sb.append(System.lineSeparator())
-        sb.append("bias corrected jackknife estimate = ").append(biasCorrectedJackknifeEstimate)
+        sb.append("bias corrected jackknife estimate = ").append(biasCorrectedJackKnifeEstimate)
         sb.append(System.lineSeparator())
         sb.append("std. err. of jackknife estimate = ").append(jackKnifeEstimateOfSE)
         sb.append(System.lineSeparator())

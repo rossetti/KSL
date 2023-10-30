@@ -24,7 +24,7 @@ import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.nhpp.PiecewiseLinearRateFunction
 import ksl.modeling.nhpp.PiecewiseRateFunction
 import ksl.modeling.variable.Counter
-import ksl.observers.CounterTrace
+import ksl.observers.CounterTraceCSV
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
@@ -46,7 +46,7 @@ class TestNHPP(parent: ModelElement, f: PiecewiseRateFunction, name: String? = n
         for (i in 0 until n) {
             val c = Counter(this, "Interval $i")
             myCounters.add(c)
-            CounterTrace(c)
+            CounterTraceCSV(c)
         }
     }
 

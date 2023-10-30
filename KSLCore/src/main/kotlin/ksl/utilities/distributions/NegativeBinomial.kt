@@ -32,7 +32,8 @@ import kotlin.math.*
  * @param name an optional name/label
  */
 class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1.0, name: String? = null) :
-    Distribution<NegativeBinomial>(name), DiscreteDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
+    Distribution<NegativeBinomial>(name), DiscretePMFInRangeDistributionIfc,
+    LossFunctionDistributionIfc, GetRVariableIfc {
 
     init {
         require(!(theProbSuccess <= 0.0 || theProbSuccess >= 1.0)) { "Success Probability must be (0,1)" }
@@ -113,23 +114,36 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
         return numSuccesses * probOfFailure / (probOfSuccess * probOfSuccess)
     }
 
-    override fun pmf(x: Double): Double {
-        return if (floor(x) == x) {
-            pmf(x.toInt())
-        } else {
-            0.0
-        }
-    }
-
     /**
      * Returns the prob of getting x failures before the rth success where r is
      * the desired number of successes parameter
      *
-     * @param j the value to evaluate
+     * @param i the value to evaluate
      * @return the probability
      */
-    fun pmf(j: Int): Double {
-        return negBinomialPMF(j, numSuccesses, probOfSuccess, recursiveAlgorithmFlag)
+    override fun pmf(i: Int): Double {
+        return negBinomialPMF(i, numSuccesses, probOfSuccess, recursiveAlgorithmFlag)
+    }
+
+    /**
+     *  Computes the sum of the probabilities over the provided range.
+     *  If the range is closed a..b then the end point b is included in the
+     *  sum. If the range is open a..&ltb then the point b is not included
+     *  in the sum.
+     */
+    override fun probIn(range: IntRange) : Double {
+        if (range.last < 0){
+            return 0.0
+        }
+        var sum = 0.0
+        for (i in range){
+            val p = pmf(i)
+            if ((i > KSLMath.maxNumIterations) && KSLMath.equal(p, 0.0)){
+                break
+            }
+            sum = sum + p
+        }
+        return sum
     }
 
     override fun cdf(x: Double): Double {
@@ -211,6 +225,10 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
 
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
         return NegativeBinomialRV(probOfSuccess, numSuccesses, stream)
+    }
+
+    override fun toString(): String {
+        return "NegativeBinomial(probOfSuccess=$probOfSuccess, numSuccesses=$numSuccesses)"
     }
 
     companion object {
@@ -413,7 +431,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
          * @param recursive true indicates that the recursive logarithmic algorithm should be used
          * @return the inverse CDF value
          */
-        fun negBinomialInvCDF(x: Double, p: Double, r: Double, recursive: Boolean = true): Int {
+        fun negBinomialInvCDF(x: Double, r: Double, p: Double, recursive: Boolean = true): Int {
             require(r > 0) { "The number of successes must be > 0" }
             require(!(p <= 0.0 || p >= 1.0)) { "Success Probability must be in (0,1)" }
             require(!(x < 0.0 || x > 1.0)) { "Supplied probability was $x Probability must be [0,1]" }

@@ -20,7 +20,8 @@ package ksl.utilities
 
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.ConstantRV
-import ksl.utilities.statistic.DoubleArraySaver
+import ksl.utilities.statistic.BoxPlotSummary
+import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 import java.text.DecimalFormat
 import java.util.*
@@ -548,8 +549,8 @@ object KSLArrays {
         return array[0].size
     }
 
-    /**
-     * @param a the array to add the constant to
+    /** This operation is in-place.
+     * @param a the array to add the constant to. The array is changed.
      * @param c the constant to add to each element
      * @return the transformed array
      */
@@ -560,8 +561,8 @@ object KSLArrays {
         return a
     }
 
-    /**
-     * @param a the array to add the constant to
+    /** This operation is in-place.
+     * @param a the array to add the constant to. The array is changed.
      * @param c the constant to subtract from each element
      * @return the transformed array
      */
@@ -569,8 +570,8 @@ object KSLArrays {
         return addConstant(a, -c)
     }
 
-    /**
-     * @param a the array to multiply the constant by
+    /** This operation is in-place.
+     * @param a the array to multiply the constant by. The array is changed.
      * @param c the constant to multiply against each element
      * @return the transformed array
      */
@@ -581,8 +582,8 @@ object KSLArrays {
         return a
     }
 
-    /**
-     * @param a the array to divide the constant by
+    /** This operation is in-place.
+     * @param a the array to divide the constant by. The array is changed.
      * @param c the constant to divide each element, cannot be zero
      * @return the transformed array
      */
@@ -596,7 +597,7 @@ object KSLArrays {
      *
      * @param a the first array
      * @param b the second array
-     * @return the array containing a[i]*b[i]
+     * @return a new array containing a[i]*b[i]
      */
     fun multiplyElements(a: DoubleArray, b: DoubleArray): DoubleArray {
         require(a.size == b.size) { "The array lengths must match" }
@@ -1023,6 +1024,7 @@ object KSLArrays {
      * T
      * @return a list that holds the items of the targetClass
     </T> */
+    @Suppress("UNCHECKED_CAST")
     fun <T> getElements(objects: List<*>, targetClass: Class<T>): List<T> {
         //TODO review, remove dependence on java Class
         val stuff: MutableList<T> = ArrayList()
@@ -1287,6 +1289,13 @@ object KSLArrays {
             return Array(0) { emptyArray() }
         }
         return Array(array.size) { array[it].toTypedArray() }
+    }
+
+    /**
+     *  Converts the list of arrays to an array of arrays.
+     */
+    fun to2DDoubleArray(list: List<DoubleArray>) : Array<DoubleArray>{
+        return list.toTypedArray()
     }
 
     /**
@@ -1658,6 +1667,25 @@ object KSLArrays {
     }
 
     /**
+     * Examines each element, a_i starting at 0, and determines if any
+     * element is less than or equal to 0.0.
+     *
+     * @param array the array to check
+     * @return true if all are strictly positive
+     */
+    fun isStrictlyPositive(array: DoubleArray): Boolean {
+        if (array.isEmpty()) {
+            return false
+        }
+        for (x in array) {
+            if (x <= 0.0) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are strictly increasing a_0 lt a_1 lt a_2, etc.
      *
@@ -1836,8 +1864,6 @@ object KSLArrays {
     }
 
     // contributed by Andrew Gibson
-
-    // contributed by Andrew Gibson
     /**
      * contributed by Andrew Gibson
      * simple way to create a n-element vector of the same value (x)
@@ -1846,7 +1872,7 @@ object KSLArrays {
      * @param n - number of replications
      * @return - 1D array of length n filled with values x
      */
-    fun replicate(x: Double, n: Int): DoubleArray? {
+    fun replicate(x: Double, n: Int): DoubleArray {
         require(n >= 0) { "n cannot be negative" }
         val res = DoubleArray(n)
         Arrays.fill(res, x)
@@ -1878,7 +1904,7 @@ object KSLArrays {
     /**
      * contributed by Andrew Gibson
      * round a scalar double to a multiple of granularity
-     * note that 0 or null granularity values are interpreted as "no rounding"
+     * note that 0 a  granularity value is interpreted as "no rounding"
      *
      * @param x           - input
      * @param granularity a scalar Double
@@ -1886,7 +1912,6 @@ object KSLArrays {
      */
     fun mround(x: Double, granularity: Double): Double {
         // interpret 0 and null  granularity as "no rounding"
-        granularity.compareTo(0.0)
         return if (granularity.compareTo(0.0) < 1) {
             x
         } else {
@@ -1924,7 +1949,7 @@ object KSLArrays {
      * @param granularity - Double
      * @return - 1D array the same size as x
      */
-    fun mround(x: DoubleArray, granularity: Double): DoubleArray? {
+    fun mround(x: DoubleArray, granularity: Double): DoubleArray {
         val gr = DoubleArray(x.size)
         Arrays.fill(gr, granularity)
         return mround(x, gr)
@@ -2113,6 +2138,31 @@ object KSLArrays {
     }
 
     /**
+     *  Returns a new array with duplicate data values removed from the original array,
+     *  preserving the order of the observations.
+     */
+    fun removeDuplicates(data:DoubleArray) : DoubleArray {
+        val doubles = data.copyOf()
+        val set = doubles.toSet()
+        return set.toTypedArray().toDoubleArray()
+    }
+
+    /**
+     *  Returns a new array in the same order as the original array but
+     *  with the specified value removed.  All instances of the value
+     *  will be removed.
+     */
+    fun removeValue(data: DoubleArray, value: Double): DoubleArray {
+        val values = mutableListOf<Double>()
+        for(x in data){
+            if (x != value){
+                values.add(x)
+            }
+        }
+        return values.toDoubleArray()
+    }
+
+    /**
      * Returns a statistic that summarizes the passed in array of values
      *
      * @param x the values to compute statistics for
@@ -2125,10 +2175,20 @@ object KSLArrays {
     }
 
     /**
+     * Returns a BoxPlotSummary that summarizes the passed in array of values
+     *
+     * @param x the values to compute statistics for
+     * @return a BoxPlotSummary summarizing the data
+     */
+    fun boxPlotSummary(x: DoubleArray): BoxPlotSummary {
+        return BoxPlotSummary(x)
+    }
+
+    /**
      * Creates a matrix of Doubles with [nRows] and [nCols] containing the
      * supplied [value]
      */
-    fun matrixOfDoubles(nRows: Int, nCols: Int, value: Double): Array<DoubleArray> {
+    fun matrixOfDoubles(nRows: Int, nCols: Int, value: Double = 0.0): Array<DoubleArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
         return Array(nRows) { i ->
@@ -2140,7 +2200,7 @@ object KSLArrays {
      * Creates a matrix of Ints with [nRows] and [nCols] containing the
      * supplied [value]
      */
-    fun matrixOfInts(nRows: Int, nCols: Int, value: Int): Array<IntArray> {
+    fun matrixOfInts(nRows: Int, nCols: Int, value: Int = 0): Array<IntArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
         return Array(nRows) { i ->
@@ -2152,7 +2212,7 @@ object KSLArrays {
      * Creates a matrix of Longs with [nRows] and [nCols] containing the
      * supplied [value]
      */
-    fun matrixOfLongs(nRows: Int, nCols: Int, value: Long): Array<LongArray> {
+    fun matrixOfLongs(nRows: Int, nCols: Int, value: Long = 0): Array<LongArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
         return Array(nRows) { i ->
@@ -2171,6 +2231,133 @@ object KSLArrays {
             DoubleArray(nCols) { j -> x.value }
         }
     }
+
+    /**
+     *  Computes the difference, (d[i] = x[i+k] - x[i]) for i = 0 until x.size - k
+     *  This is the discrete difference operator.  For example, if k = 1, then
+     *  d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]
+     *  and returns the new array of differences.
+     */
+    fun diff(x: DoubleArray, k: Int = 1): DoubleArray {
+        require(k >= 1) { "The differencing delta must be >= 1" }
+        return DoubleArray(x.size - k) { x[it + k] - x[it] }
+    }
+
+    /**
+     * Returns a new array of size (x.size -k) that is lagged by k elements
+     * y[i] = x[i+k] for i=0,1,...
+     */
+    fun lag(x: DoubleArray, k: Int = 1): DoubleArray {
+        require(k >= 1) { "The lag must be >= 1" }
+        return DoubleArray(x.size - k) { x[it + k] }
+    }
+
+    /**
+     * Returns a new array of size (x.size -k) that is lagged by k elements
+     * y[i] = x[i+k] for i=0,1,...
+     */
+    inline fun <reified T> lag(x: Array<T>, k: Int = 1): Array<T> {
+        require(k >= 1) { "The lag must be >= 1" }
+        return Array(x.size - k) { x[it + k] }
+    }
+
+    /**
+     *  Computes the cartesian product of the two arrays. Returns
+     *  a list of pairs where the first element of the pair is from the
+     *  [first] array and the [second] element of the pair is from the second
+     *  array. This produces all possible combinations of the elements
+     *  as the pairs. If the first array has n elements and the second
+     *  array has m elements then the number of pairs produced is n x m.
+     *
+     */
+    fun cartesian(first: DoubleArray, second: DoubleArray) : List<Pair<Double, Double>>{
+        val list = mutableListOf<Pair<Double, Double>>()
+        for(x in first){
+            for(y in second){
+                list.add(Pair(x, y))
+            }
+        }
+        return list
+    }
+
+    /**
+     *  Computes the cartesian product of the two collections. Returns
+     *  a list of pairs where the first element of the pair is from the
+     *  [first] collection and the [second] element of the pair is from the second
+     *  collection. This produces all possible combinations of the elements
+     *  as the pairs. If the first collection has n elements and the second
+     *  collection has m elements then the number of pairs produced is n x m.
+     *
+     */
+    fun <F, S> cartesian(first: Collection<F>, second: Collection<S>) : List<Pair<F, S>> {
+        val list = mutableListOf<Pair<F, S>>()
+        for(x in first){
+            for(y in second){
+                list.add(Pair(x, y))
+            }
+        }
+        return list
+    }
+
+    /**
+     *  Returns a new array with the [value] inserted at the index.
+     */
+    fun insertAt(arr: IntArray, value: Int, index: Int): IntArray {
+        val result = IntArray(arr.size + 1)
+        if (index >= arr.size){
+            // past the end of the original array, copy it all
+            arr.copyInto(result)
+            result[result.lastIndex] = value
+            return result
+        }
+        arr.copyInto(result,0, 0, index)
+        result[index] = value
+        arr.copyInto(result, index + 1, index, arr.size - index)
+        return result
+    }
+
+    /**
+     *  Returns a new array with the [value] inserted at the index.
+     */
+    fun insertAt(arr: DoubleArray, value: Double, index: Int): DoubleArray {
+        val result = DoubleArray(arr.size + 1)
+        if (index >= arr.size){
+            // past the end of the original array, copy it all
+            arr.copyInto(result)
+            result[result.lastIndex] = value
+            return result
+        }
+        arr.copyInto(result,0, 0, index)
+        result[index] = value
+        arr.copyInto(result, index + 1, index, arr.size - index)
+        return result
+    }
+
+    /**
+     *  Removes the element at the index. If the index is out
+     *  of bounds, then a copy of the array is returned.
+     */
+    fun removeAt(arr: IntArray, index: Int): IntArray {
+        if (index < 0 || index >= arr.size) {
+            return arr.copyOf()
+        }
+        val result = arr.toMutableList()
+        result.removeAt(index)
+        return result.toIntArray()
+    }
+
+    /**
+     *  Removes the element at the index. If the index is out
+     *  of bounds, then a copy of the array is returned.
+     */
+    fun removeAt(arr: DoubleArray, index: Int): DoubleArray {
+        if (index < 0 || index >= arr.size) {
+            return arr.copyOf()
+        }
+        val result = arr.toMutableList()
+        result.removeAt(index)
+        return result.toDoubleArray()
+    }
 }
 
 /** Extension functions and other functions for working with arrays
@@ -2184,6 +2371,24 @@ inline fun <reified T> to2DArray(lists: List<List<T>>): Array<Array<T>> {
 }
 
 /**
+ *  Computes the difference, (d[i] = x[i+k] - x[i]) for i = 0 until x.size - k
+ *  This is the discrete difference operator.  For example, if k = 1, then
+ *  d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]
+ *  and returns the new array of differences.
+ */
+fun DoubleArray.diff(k: Int = 1): DoubleArray {
+    return KSLArrays.diff(this, k)
+}
+
+/**
+ * Returns a new array of size (x.size -k) that is lagged by k elements
+ * y[i] = x[i+k] for i=0,1,...
+ */
+fun DoubleArray.lag(k: Int = 1): DoubleArray {
+    return KSLArrays.lag(this, k)
+}
+
+/**
  * Returns a statistic that summarizes the array of values
  *
  * @return a Statistic summarizing the data
@@ -2193,10 +2398,79 @@ fun DoubleArray.statistics(): Statistic {
 }
 
 /**
+ * Returns a BoxPlotSummary that summarizes the array of values
+ *
+ * @return a BoxPlotSummary summarizing the data
+ */
+fun DoubleArray.boxPlotSummary(): BoxPlotSummary {
+    return KSLArrays.boxPlotSummary(this)
+}
+
+/**
+ *  Inserts the value at the index, returning a new array
+ */
+fun DoubleArray.insertAt(value: Double, index: Int) : DoubleArray {
+    return KSLArrays.insertAt(this, value, index)
+}
+
+/**
+ *  Inserts the value at the index, returning a new array
+ */
+fun IntArray.insertAt(value: Int, index: Int) : IntArray {
+    return KSLArrays.insertAt(this, value, index)
+}
+
+/**
+ *  Remove the element at the index, returning a new array
+ */
+fun DoubleArray.removeAt(index: Int) : DoubleArray {
+    return KSLArrays.removeAt(this, index)
+}
+
+/**
+ *  Remove the element at the index, returning a new array
+ */
+fun IntArray.removeAt(index: Int) : IntArray {
+    return KSLArrays.removeAt(this, index)
+}
+
+/**
+ * Returns a histogram that summarizes the array of values
+ *
+ * @return a Histogram summarizing the data
+ */
+fun DoubleArray.histogram(breakPoints: DoubleArray = Histogram.recommendBreakPoints(this)): Histogram {
+    return Histogram.create(this, breakPoints)
+}
+
+/**
  * @return a copy of the sorted array in ascending order representing the order statistics
  */
 fun DoubleArray.orderStatistics(): DoubleArray {
     return KSLArrays.orderStatistics(this)
+}
+
+/**
+ *  Returns a new array with duplicate data values removed from the original array,
+ *  preserving the order of the observations.
+ */
+fun DoubleArray.removeDuplicates(): DoubleArray {
+    return KSLArrays.removeDuplicates(this)
+}
+
+/**
+ *  Returns a new array in the same order as the original array but
+ *  with the specified value removed.  All instances of the value
+ *  will be removed.
+ */
+fun DoubleArray.removeValue(value: Double): DoubleArray {
+    val values = mutableListOf<Double>()
+    for(x in this){
+        if (x != value){
+            values.add(x)
+        }
+    }
+    return values.toDoubleArray()
 }
 
 /**
@@ -2229,6 +2503,14 @@ fun DoubleArray.countLessThan(x: Double): Int {
  */
 fun DoubleArray.countLessEqualTo(x: Double): Int {
     return KSLArrays.countLessEqualTo(this, x)
+}
+
+/**
+ * @param x the ordinate to check
+ * @return the proportion of the data points that are less than or equal to x
+ */
+fun DoubleArray.empiricalCDF(x: Double): Double {
+    return Statistic.empiricalCDF(this, x)
 }
 
 /**
@@ -2878,6 +3160,57 @@ fun Array<DoubleArray>.toDoubles(): Array<Array<Double>> {
 }
 
 /**
+ *  Converts the 2D array of doubles to a map that holds the arrays
+ *  by column. If the column name is not supplied then the column is called col1, col2, etc. The
+ *  2D array must be rectangular.
+ *  @param colNames the names of the columns (optional)
+ */
+fun Array<DoubleArray>.toMapOfColumns(colNames: List<String> = emptyList()): Map<String, DoubleArray> {
+    val nCol = KSLArrays.numColumns(this)
+    val names = (1..nCol).map { "col$it" }.toList()
+    val map = mutableMapOf<String, DoubleArray>()
+    for ((i, name) in names.withIndex()) {
+        // use the supplied names but if it doesn't exist, use the made up name
+        map[colNames.getOrElse(i) { name }] = this.column(i)
+    }
+    return map
+}
+
+/**
+ *  Converts the 2D array of doubles to a map that holds the arrays
+ *  by column. If the column name is not supplied then the column is called col1, col2, etc. The
+ *  2D array must be rectangular.
+ *  @param colNames the names of the columns (optional)
+ */
+fun Array<DoubleArray>.toMapOfLists(colNames: List<String> = emptyList()): Map<String, List<Double>> {
+    val nCol = KSLArrays.numColumns(this)
+    val names = (1..nCol).map { "col$it" }.toList()
+    val map = mutableMapOf<String, List<Double>>()
+    for ((i, name) in names.withIndex()) {
+        // use the supplied names but if it doesn't exist, use the made up name
+        map[colNames.getOrElse(i) { name }] = this.column(i).toList()
+    }
+    return map
+}
+
+/**
+ *  Converts the 2D array of doubles to a map that holds the arrays
+ *  by rows. If the row name is not supplied then the row is called row1, row2, etc. The
+ *  2D array must be rectangular.
+ *  @param rowNames the names of the columns (optional)
+ */
+fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<String, DoubleArray> {
+    val nRows = this.size
+    val names = (1..nRows).map { "row$it" }.toList()
+    val map = mutableMapOf<String, DoubleArray>()
+    for ((i, name) in names.withIndex()) {
+        // use the supplied names but if it doesn't exist, use the made up name
+        map[rowNames.getOrElse(i) { name }] = this[i].copyOf()
+    }
+    return map
+}
+
+/**
  * Convert the 2D array of Int to a 2D array of Int with each element the
  * corresponding value
  *
@@ -2900,7 +3233,7 @@ fun Array<LongArray>.toLongs(): Array<Array<Long>> {
 /**
  * Converts the array of strings to Doubles
  *
- * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
+ * @param parseFail the value to use if the parse fails or string is null, by default Double.NaN
  * @return the parsed doubles as an array
  */
 fun Array<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
@@ -2910,7 +3243,7 @@ fun Array<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
 /**
  * Converts the list of strings to Doubles
  *
- * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
+ * @param parseFail the value to use if the parse fails or string is null, by default Double.NaN
  * @return the parsed doubles as an array
  */
 fun List<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {

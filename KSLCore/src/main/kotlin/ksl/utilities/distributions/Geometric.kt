@@ -34,7 +34,7 @@ import kotlin.math.*
  * @param name an optional label/name
  */
 class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution<Geometric>(name),
-    DiscreteDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
 
     init {
         require(!(successProb < 0.0 || successProb > 1.0)) { "Probability must be [0,1]" }
@@ -93,27 +93,34 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution<
     /** computes the pmf of the distribution
      * f(x) = p(1-p)^(x) for x&gt;=0, 0 otherwise
      *
-     * @param x the value to evaluate
+     * @param i the value to evaluate
      * @return the probability
      */
-    fun pmf(x: Int): Double {
-        return if (x < 0) {
+    override fun pmf(i: Int): Double {
+        return if (i < 0) {
             0.0
-        } else pSuccess * pFailure.pow(x.toDouble())
+        } else pSuccess * pFailure.pow(i.toDouble())
     }
 
-    /** If x is not and integer value, then the probability must be zero
-     * otherwise pmf(int x) is used to determine the probability
-     *
-     * @param x the value to evaluate
-     * @return the probability
+    /**
+     *  Computes the sum of the probabilities over the provided range.
+     *  If the range is closed a..b then the end point b is included in the
+     *  sum. If the range is open a..&ltb then the point b is not included
+     *  in the sum.
      */
-    override fun pmf(x: Double): Double {
-        return if (floor(x) == x) {
-            pmf(x.toInt())
-        } else {
-            0.0
+    override fun probIn(range: IntRange) : Double {
+        if (range.last < 0){
+            return 0.0
         }
+        var sum = 0.0
+        for (i in range){
+            val p = pmf(i)
+            if ((i > KSLMath.maxNumIterations) && KSLMath.equal(p, 0.0)){
+                break
+            }
+            sum = sum + p
+        }
+        return sum
     }
 
     /** computes the cdf of the distribution
@@ -184,6 +191,10 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution<
 
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
         return GeometricRV(pSuccess, stream)
+    }
+
+    override fun toString(): String {
+        return "Geometric(pSuccess=$pSuccess)"
     }
 
     companion object {

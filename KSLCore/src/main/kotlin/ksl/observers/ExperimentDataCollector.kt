@@ -24,6 +24,7 @@ package ksl.observers
 
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.statistic.MultipleComparisonAnalyzer
 
 /**
  * The purpose of this class is to store  replication data across a set of experiments
@@ -112,5 +113,29 @@ class ExperimentDataCollector(model: Model) {
         return sb.toString()
     }
 
+    /**
+     *  Creates a multiple comparison analyzer for the response for each of the named
+     *  experiments. If the experiment name does not exist or the response name does
+     *  not exist, then no data is extracted.
+     *
+     * @param expNames     The set of experiment names for with the responses need extraction, must not be null
+     * @param responseName the name of the response variable, time weighted variable or counter
+     * @return a configured MultipleComparisonAnalyzer
+     */
+    fun multipleComparisonAnalyzerFor(expNames: List<String>, responseName: String): MultipleComparisonAnalyzer {
+        require(expNames.isNotEmpty()) { "The list of experiment names was empty" }
+        val map = mutableMapOf<String, DoubleArray>()
+        for(eName in expNames){
+            if (myExpData.containsKey(eName)){
+                // experiment is stored, get it and get the data for the response
+                val dc =myExpData[eName]!!
+                val data = dc.replicationData(responseName)
+                if (data.isNotEmpty()){
+                    map["${eName}_$responseName"] = data
+                }
+            }
+        }
+        return MultipleComparisonAnalyzer(map)
+    }
 
 }

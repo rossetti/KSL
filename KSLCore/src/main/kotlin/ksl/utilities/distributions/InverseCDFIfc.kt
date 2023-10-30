@@ -18,6 +18,9 @@
 
 package ksl.utilities.distributions
 
+import ksl.utilities.countGreaterEqualTo
+import ksl.utilities.countLessEqualTo
+
 /**
  * Provides the inverse cumulative distribution function interface for a CDF
  *
@@ -37,4 +40,14 @@ fun interface InverseCDFIfc {
      * @return The inverse cdf evaluated at the supplied probability
      */
     fun invCDF(p: Double): Double
+
+    /**
+     *  Computes x_p where P(X <= x_p) = p for the supplied array of probabilities.
+     *  Requires that the values within the supplied array are in (0,1)
+     */
+    fun invCDF(probabilities: DoubleArray): DoubleArray {
+        require(probabilities.countLessEqualTo(0.0) == 0) { "There were probabilities <= 0.0" }
+        require(probabilities.countGreaterEqualTo(1.0) == 0) { "There were probabilities >= 1.0" }
+        return DoubleArray(probabilities.size) { invCDF(probabilities[it]) }
+    }
 }

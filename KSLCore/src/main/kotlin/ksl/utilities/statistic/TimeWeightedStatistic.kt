@@ -19,14 +19,56 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.GetTimeIfc
+import ksl.utilities.countLessThan
 
-class TimeWeightedStatistic (
-    timeGetter: GetTimeIfc,
+/**
+ *  The default time value is 1.0
+ */
+class DefaultTimeGetter : GetTimeIfc {
+    override fun time(): Double {
+        return 1.0
+    }
+}
+
+/**
+ *  A helper class that turns an array of time values to a supplier
+ *  of times
+ */
+class TimeArray(var timeValues: DoubleArray) : GetTimeIfc {
+    init {
+        require(timeValues.countLessThan(0.0) == 0) {"There were negative values in the time array"}
+    }
+    private var index = -1
+    override fun time(): Double {
+        if (index < timeValues.size - 1) {
+            index = index + 1
+            return timeValues[index]
+        }
+        return timeValues[index]
+    }
+
+    /**
+     *  Resets to the start of the array for returned values
+     */
+    fun reset() {
+        index = -1
+    }
+}
+
+/**
+ *   Collects time weighted statistics that are presented to the
+ *   collect() method. The property, [timeGetter], must provide
+ *   values for each observed value that appears in the collect
+ *   method.
+ *   @param initialTime assumed to be 0.0 by default
+ *   @param initialValue assumed to be 0.0 by default
+ */
+class TimeWeightedStatistic(
+    var timeGetter: GetTimeIfc = DefaultTimeGetter(),
     initialValue: Double = 0.0,
-    initialTime: Double = 0.0
+    initialTime: Double = 0.0,
 ) : Collector(), WeightedStatisticIfc {
 
-    private val myTimeGetter: GetTimeIfc
     private var myLastValue: Double
     private var myLastTime: Double
     private val myWeightedStatistic: WeightedStatistic
@@ -35,17 +77,30 @@ class TimeWeightedStatistic (
     init {
         require(initialTime >= 0.0) { "The initial time must be >= 0.0" }
         require(initialValue >= 0.0) { "The initial value must be >= 0.0" }
-        myTimeGetter = timeGetter
         myWeightedStatistic = WeightedStatistic()
         myLastTime = initialTime
         myLastValue = initialValue
     }
 
+    constructor(
+        values: DoubleArray,
+        times: DoubleArray,
+        initialValue: Double = 0.0,
+        initialTime: Double = 0.0
+    ) : this(TimeArray(times), initialValue, initialTime) {
+        for (v in values) {
+            collect(v)
+        }
+    }
+
     override fun collect(obs: Double) {
-        val time: Double = myTimeGetter.time()
+        collect(obs, timeGetter.time())
+    }
+
+    fun collect(obs: Double, time: Double) {
+        require(time >= 0.0) { "The value of time must be >= 0" }
         val weight = time - myLastTime
         myLastTime = time
-        //        System.out.println("time = " + time + " value = " + value + " last  = " + myLastValue + " weight = " + weight);
         myWeightedStatistic.collect(myLastValue, weight)
         myLastValue = obs
     }
@@ -68,7 +123,7 @@ class TimeWeightedStatistic (
     override fun reset() {
         myWeightedStatistic.reset()
         if (updateTimeAtReset) {
-            myLastTime = myTimeGetter.time()
+            myLastTime = timeGetter.time()
         }
     }
 
@@ -102,19 +157,15 @@ fun main() {
         tws.collect(x)
     }
     println(tws)
+
+    val tws2 = TimeWeightedStatistic()
+    for ((i, x) in n.withIndex()) {
+        tws2.collect(x, t[i])
+    }
+    println()
+    println(tws2)
+    println()
+    val tws3 = TimeWeightedStatistic(n, t)
+    println(tws3)
 }
 
-class TimeArray(var timeValues: DoubleArray) : GetTimeIfc {
-    private var index = -1
-    override fun time(): Double {
-        if (index < timeValues.size - 1) {
-            index = index + 1
-            return timeValues[index]
-        }
-        return timeValues[index]
-    }
-
-    fun reset() {
-        index = -1
-    }
-}

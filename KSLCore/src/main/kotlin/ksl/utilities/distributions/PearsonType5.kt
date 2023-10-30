@@ -18,44 +18,50 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.distributions.fitting.AndersonDarlingScoringModel
+import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.distributions.fitting.PearsonType5MLEParameterEstimator
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.PearsonType5RV
 import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.U01Test
 import kotlin.math.exp
 import kotlin.math.pow
 
 /** Represents a Pearson Type V distribution,
  * see Law (2007) Simulation Modeling and Analysis, McGraw-Hill, pg 293
  *
- * @param theShape must be &gt;0
- * @param theScale must be &gt; 0
+ * @param shape must be &gt;0
+ * @param scale must be &gt; 0
  * @param name an optional label/name
  */
-class PearsonType5 (theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
+class PearsonType5 (shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     Distribution<PearsonType5>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
 
     init {
-        require(theShape > 0) { "Alpha (shape parameter) should be > 0" }
-        require(theScale > 0) { "Beta (scale parameter) should > 0" }
+        require(shape > 0) { "Alpha (shape parameter) should be > 0" }
+        require(scale > 0) { "Beta (scale parameter) should > 0" }
     }
     /** Gets the shape parameter
      *
      * @return the shape parameter
      */
-    var shape = theShape
+    var shape = shape
         private set
 
     /** Gets the scale parameter
      *
      * @return the scale parameter
      */
-    var scale = theScale
+    var scale = scale
         private set
 
-    private var myGammaCDF: Gamma = Gamma(shape, 1.0 / scale)
+    private var myGammaCDF: Gamma = Gamma(this.shape, 1.0 / this.scale)
 
-    private var myGAlpha = Gamma.gammaFunction(shape)
+    private var myGAlpha = Gamma.gammaFunction(this.shape)
 
     /** Creates a PearsonType5 distribution
      * parameters[0] = shape
@@ -89,9 +95,22 @@ class PearsonType5 (theShape: Double = 1.0, theScale: Double = 1.0, name: String
     }
 
     override fun cdf(x: Double): Double {
-        return if (x > 0) {
-            1 - myGammaCDF.cdf(1 / x)
-        } else 0.0
+        if ((x == Double.POSITIVE_INFINITY) || (x == Double.MAX_VALUE)) {
+            return 1.0 - Double.MIN_VALUE
+        }
+        if (x > 0.0) {
+            val f = 1.0 - myGammaCDF.cdf(1.0 / x)
+            // the accuracy of the gamma computation may cause value outside (0,1)
+            if (f >= 1.0){
+                return 1.0 - Double.MIN_VALUE
+            }
+            if (f <= 0.0){
+                return Double.MIN_VALUE
+            }
+            return f
+        } else {
+            return 0.0
+        }
     }
 
     /**
@@ -105,6 +124,7 @@ class PearsonType5 (theShape: Double = 1.0, theScale: Double = 1.0, name: String
     }
 
     /** Gets the parameters
+     *
      * parameters[0] = shape
      * parameters[1] = scale
      *
@@ -125,7 +145,7 @@ class PearsonType5 (theShape: Double = 1.0, theScale: Double = 1.0, name: String
 
     override fun invCDF(p: Double): Double {
         require(!(p < 0.0 || p > 1.0)) { "Probability must be [0,1]" }
-        return 1.0 / myGammaCDF.invCDF(p)
+        return 1.0 / myGammaCDF.invCDF(1.0 - p)
     }
 
     override fun pdf(x: Double): Double {
@@ -148,5 +168,43 @@ class PearsonType5 (theShape: Double = 1.0, theScale: Double = 1.0, name: String
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
         return PearsonType5RV(shape, scale, stream)
     }
+
+    override fun toString(): String {
+        return "PearsonType5(shape=$shape, scale=$scale)"
+    }
+
+}
+
+fun main(){
+
+    val d = PearsonType5(shape = 0.40677819273863525, scale = 2.816753701768571)
+   // val rv = d.randomVariable
+
+    val e = ExponentialRV(10.0)
+    //   val se = ShiftedRV(5.0, e)
+    val n = 1000
+    val data = e.sample(n)
+    println(Statistic(data))
+    println()
+
+    val pe = PearsonType5MLEParameterEstimator()
+    val result = pe.estimateParameters(data, Statistic(data))
+    println(result)
+   // val sm = ChiSquaredScoringModel()
+    val cdf = PDFModeler.createDistribution(result.parameters!!)
+    println(cdf)
+
+    val p = U01Test.recommendedU01BreakPoints(1000, PDFModeler.defaultConfidenceLevel)
+    println()
+    println(p.joinToString())
+
+    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf!!)
+
+    println()
+    println(bp.joinToString())
+
+    val sm = AndersonDarlingScoringModel()
+
+    sm.score(data, result.parameters!!)
 
 }

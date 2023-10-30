@@ -67,6 +67,15 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
             return valArr
         }
 
+    val probPoints: DoubleArray
+        get() {
+            val valArr = DoubleArray(myProbabilityPoints.size)
+            for (i in myProbabilityPoints.indices) {
+                valArr[i] = myProbabilityPoints[i].prob
+            }
+            return valArr
+        }
+
     val cdf: DoubleArray
         get() {
             val cdfArr = DoubleArray(myProbabilityPoints.size)
@@ -139,13 +148,23 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
         return 0.0
     }
 
+    override fun pmf(i: Int): Double {
+        for(pp in myProbabilityPoints) {
+            if (pp.value == i.toDouble()){
+                return pp.prob
+            }
+        }
+        // went through all values and not found
+        return 0.0
+    }
+
     /**
      * Returns the pmf as a string.
      *
      * @return A String of probability, value pairs.
      */
     override fun toString(): String {
-        return myProbabilityPoints.toString()
+        return "DEmpirical(${myProbabilityPoints.joinToString()})"
     }
 
     /**
@@ -245,6 +264,17 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
     }
 
     companion object {
+
+        /**
+         *  Creates a DEmpirical based on a probability mass function
+         */
+        fun makeDEmpirical(range: IntRange, pmf: PMFIfc) : DEmpiricalCDF {
+            val vp = pmf.pmf(range)
+            val values = vp.keys.toList()
+            val cdfArray = KSLRandom.makeCDF(vp.values.toDoubleArray())
+            val valueArray = DoubleArray(vp.size){ values[it].toDouble()}
+            return DEmpiricalCDF(valueArray, cdfArray)
+        }
 
         /**
          * Assigns the probability associated with each cdf value

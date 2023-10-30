@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.random.rvariable.parameters.UniformRVParameters
 
 /**
  * Generates a continuous uniform over the range
@@ -52,7 +54,7 @@ class UniformRV (
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.UniformRVParameters()
+            val parameters: RVParameters = UniformRVParameters()
             parameters.changeDoubleParameter("min", min)
             parameters.changeDoubleParameter("max", max)
             return parameters

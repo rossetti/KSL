@@ -92,8 +92,9 @@ interface ResponseCIfc : ResponseIfc {
 
     /**
      *  Adds an action that will stop the replication when the count limit is reached.
+     *  @param initialCountLimit used to set the initialCountLimit when adding a stoping action
      */
-    fun addCountLimitStoppingAction() : CountActionIfc
+    fun addCountLimitStoppingAction(initialCountLimit: Int) : CountActionIfc
 }
 
 // not subclassing from Variable, Response does not have an initial value, but does have limits
@@ -138,12 +139,14 @@ open class Response(
         }
 
     /**
-     * indicates the count when the simulation should stop
-     * zero indicates no limit
+     * Changes the count action limit during the replication.  WARNING: This value will automatically be
+     * reset to the initialCountLimit at the beginning of each replication so that each
+     * replication starts in the same state. If you want to control the count limit for each
+     * replication, you should use the initialCountLimit.
      */
-    var countActionLimit: Double = countLimit
+    var replicationCountLimit: Double = countLimit
         set(limit) {
-            require(limit >= 0) { "The count stop limit, when set, must be >= 0" }
+            require(limit >= 0.0) { "The count stop limit, when set, must be >= 0" }
             if (model.isRunning) {
                 if (limit < field) {
                     Model.logger.info { "The count stop limit was reduced to $limit from $field for $name during the replication" }
@@ -183,7 +186,7 @@ open class Response(
         if (emissionsOn){
             emitter.emit(Pair(timeOfChange, myValue))
         }
-        if(myWithinReplicationStatistic.count == countActionLimit){
+        if(myWithinReplicationStatistic.count == replicationCountLimit){
             notifyCountLimitActions()
         }
     }
@@ -220,7 +223,7 @@ open class Response(
         myAcrossReplicationStatistic.reset()
         timeOfWarmUp = 0.0
         lastTimedUpdate = 0.0
-        countActionLimit = initialCountLimit
+        replicationCountLimit = initialCountLimit
     }
 
     override fun beforeReplication() {
@@ -229,7 +232,7 @@ open class Response(
         myWithinReplicationStatistic.reset()
         timeOfWarmUp = 0.0
         lastTimedUpdate = 0.0
-        countActionLimit = initialCountLimit
+        replicationCountLimit = initialCountLimit
     }
 
     override fun timedUpdate() {
@@ -256,7 +259,8 @@ open class Response(
         counterActions.remove(action)
     }
 
-    override fun addCountLimitStoppingAction() : CountActionIfc{
+    override fun addCountLimitStoppingAction(initialCountLimit: Int) : CountActionIfc{
+        this.initialCountLimit = initialCountLimit.toDouble()
         if (stoppingAction == null){
             stoppingAction = StoppingAction()
             addCountLimitAction(stoppingAction!!)
@@ -272,7 +276,7 @@ open class Response(
 
     private inner class StoppingAction : CountActionIfc {
         override fun action(response: ResponseIfc) {
-            executive.stop("Stopped because counter limit $countActionLimit was reached for $name")
+            executive.stop("Stopped because counter limit $replicationCountLimit was reached for $name")
         }
     }
 }

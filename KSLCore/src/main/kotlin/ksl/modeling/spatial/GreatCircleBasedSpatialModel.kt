@@ -203,7 +203,6 @@ class GreatCircleBasedSpatialModel () : SpatialModel() {
                 Direction.SOUTH -> -1.0
                 Direction.EAST -> 1.0
                 Direction.WEST -> -1.0
-                else -> 1.0
             }
         }
     }

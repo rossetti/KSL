@@ -18,7 +18,7 @@
 
 package ksl.examples.general.misc
 
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
 

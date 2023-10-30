@@ -19,7 +19,7 @@
 package ksl.examples.general.variables
 
 import ksl.modeling.variable.Response
-import ksl.observers.ResponseTrace
+import ksl.observers.ResponseTraceCSV
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -30,7 +30,7 @@ class TestResponseVariable(parent: ModelElement, name: String? = null) : ModelEl
     private val myRS: Response = Response(this, "test constants")
 
     init {
-        ResponseTrace(myRS)
+        ResponseTraceCSV(myRS)
     }
 
     override fun initialize() {

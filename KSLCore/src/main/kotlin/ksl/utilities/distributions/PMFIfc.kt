@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions
 
+import kotlin.math.floor
+
 /**
  * Represents the probability mass function for 1-d discrete distributions
  *
@@ -25,12 +27,40 @@ package ksl.utilities.distributions
  */
 fun interface PMFIfc {
 
+    /** If x is not an integer value, then the probability must be zero
+     * otherwise pmf(int x) is used to determine the probability
+     *
+     * @param x the value to evaluate
+     * @return the probability
+     */
+    fun pmf(x: Double): Double {
+        return if (floor(x) == x) {
+            pmf(x.toInt())
+        } else {
+            0.0
+        }
+    }
+
     /**
-     * Returns the f(x) where f represents the probability mass function for the
+     * Returns the f(i) where f represents the probability mass function for the
      * distribution.
      *
-     * @param x a double representing the value to be evaluated
-     * @return f(x) the P(X=x)
+     * @param i an integer representing the value to be evaluated
+     * @return f(i) the P(X=i)
      */
-    fun pmf(x: Double): Double
+    fun pmf(i: Int) : Double
+
+    /**
+     *  Computes the probabilities associated with the [range]
+     *  and returns the value and the probability as a map
+     *  with the integer value as the key and the probability
+     *  as the related value.
+     */
+    fun pmf(range: IntRange) : Map<Int, Double>{
+        val map = mutableMapOf<Int, Double>()
+        for(i in range){
+            map[i] = pmf(i)
+        }
+        return map
+    }
 }

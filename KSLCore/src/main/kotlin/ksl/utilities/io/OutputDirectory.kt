@@ -18,15 +18,11 @@
 
 package ksl.utilities.io
 
-import mu.KotlinLogging
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
-
-//private val logger = KotlinLogging.logger {}
 
 /**
  * This class provides basic context for creating and writing output files.
@@ -74,7 +70,7 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return try {
             Files.createDirectories(pathToDir)
         } catch (e: IOException) {
-            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory", pathToDir)
+            KSLFileUtil.logger.info { "There was a problem creating the directories for $pathToDir used program launch directory" }
             KSLFileUtil.programLaunchDirectory
         }
     }
@@ -86,10 +82,9 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
 
     private fun createExcelDirectory(): Path {
         return try {
-            Files.createDirectories(outDir.resolve("excel"))
+            Files.createDirectories(outDir.resolve("excelDir"))
         } catch (e: IOException) {
-            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
-                outDir.resolve("excel"))
+            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("excel")} used program launch directory" }
             KSLFileUtil.programLaunchDirectory
         }
     }
@@ -98,14 +93,34 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
 
     private fun createDatabaseDirectory(): Path {
         return try {
-            Files.createDirectories(outDir.resolve("db"))
+            Files.createDirectories(outDir.resolve("dbDir"))
         } catch (e: IOException) {
-            KSLFileUtil.logger.info("There was a problem creating the directories for {} used program launch directory",
-                outDir.resolve("db"))
+            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("db")} used program launch directory" }
             KSLFileUtil.programLaunchDirectory
         }
     }
 
+    val csvDir: Path = createCSVDirectory()
+    
+    private fun createCSVDirectory(): Path {
+        return try {
+            Files.createDirectories(outDir.resolve("csvDir"))
+        } catch (e: IOException) {
+            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("excel")} used program launch directory" }
+            KSLFileUtil.programLaunchDirectory
+        }
+    }
+
+    val plotDir: Path = createPlotDirectory()
+
+    private fun createPlotDirectory(): Path {
+        return try {
+            Files.createDirectories(outDir.resolve("plotDir"))
+        } catch (e: IOException) {
+            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("plotDir")} used program launch directory" }
+            KSLFileUtil.programLaunchDirectory
+        }
+    }
 
     /** Makes a new PrintWriter within the base directory with the given file name
      *
@@ -135,6 +150,18 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
      */
     fun createSubDirectory(dirName: String): Path {
         return KSLFileUtil.createSubDirectory(outDir, dirName)
+    }
+
+    override fun toString(): String {
+        return buildString {
+            appendLine("OutputDirectory")
+            appendLine("\t outDir   = $outDir")
+            appendLine("\t out      = $out")
+            appendLine("\t excelDir = $excelDir")
+            appendLine("\t dbDir    = $dbDir")
+            appendLine("\t csvDir   = $csvDir")
+            appendLine("\t plotDir   = $plotDir")
+        }
     }
 
 }

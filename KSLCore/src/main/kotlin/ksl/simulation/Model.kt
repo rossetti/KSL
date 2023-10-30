@@ -31,21 +31,21 @@ import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
-import ksl.utilities.random.rvariable.RVParameterSetter
+import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
-import mu.KLoggable
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.nio.file.Path
 import kotlin.time.Duration
 
 private var simCounter: Int = 0
 
 class Model(
-    simulationName: String = "Simulation${++simCounter}",
+    val simulationName: String = "Simulation${++simCounter}",
     pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
     autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
-) : ModelElement("MainModel"), ExperimentIfc {
+) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
 //TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
 //TODO observers
 //TODO controls and parameters
@@ -53,7 +53,7 @@ class Model(
      *
      * @return the defined OutputDirectory for the simulation
      */
-    val outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
+    var outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
 
     var autoPrintSummaryReport: Boolean = false
 
@@ -137,6 +137,14 @@ class Model(
     private var myRVParameterSetter: RVParameterSetter? = null
 
     /**
+     *  Checks if the model's rvParameterSetter property has been accessed
+     *  and thus that an RVParameterSetter was requested for the model
+     */
+    fun hasParameterSetter(): Boolean {
+        return myRVParameterSetter != null
+    }
+
+    /**
      * If the model parameters change then the user is responsible for
      * calling extractParameters(model) on the returned RVParameterSetter
      *
@@ -145,9 +153,8 @@ class Model(
      */
     val rvParameterSetter: RVParameterSetter
         get() {
-            if (myRVParameterSetter == null){
-                myRVParameterSetter = RVParameterSetter()
-                myRVParameterSetter!!.extractParameters(this)
+            if (myRVParameterSetter == null) {
+                myRVParameterSetter = RVParameterSetter(this)
             }
             return myRVParameterSetter!!
         }
@@ -165,7 +172,7 @@ class Model(
     }
 
     //TODO default stream?
-    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "default uniformRV")
+    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "${this.name}:DefaultUniformRV")
 
     val simulationReporter: SimulationReporter = SimulationReporter(this, autoCSVReports)
 
@@ -400,7 +407,7 @@ class Model(
     /**
      * @param option true means that streams will have their antithetic property set to true
      */
-    fun antitheticOption(option: Boolean){
+    fun antitheticOption(option: Boolean) {
         for (rs in myStreams) {
             rs.antithetic = option
         }
@@ -589,7 +596,7 @@ class Model(
             sb.append(" has already been added to the Model.")
             sb.appendLine()
             sb.append("Every model element must have a unique name!")
-            logger.error(sb.toString())
+            logger.error { sb.toString() }
             throw IllegalArgumentException(sb.toString())
         }
 
@@ -700,7 +707,7 @@ class Model(
      *
      * @return all the model elements in the model as a List
      */
-    internal fun getModelElements(): List<ModelElement>{
+    internal fun getModelElements(): List<ModelElement> {
         val list = mutableListOf<ModelElement>()
         getAllModelElements(list)
         return list
@@ -716,7 +723,7 @@ class Model(
         if (executive.isEndEventScheduled()) {
             logger.info { "Already scheduled end of replication event for time = ${executive.endEvent!!.time} is being cancelled" }
             // already scheduled end event, cancel it
-            executive.endEvent!!.cancelled = true
+            executive.endEvent!!.cancel = true
         }
         // schedule the new time
         if (time.isFinite()) {
@@ -861,19 +868,11 @@ class Model(
         }
 
         //TODO need to apply generic control types here someday
-
         if (hasExperimentalControls()) {
-            val cMap: Map<String, Double>? = experimentalControls
-            if (cMap != null) {
-                // extract controls and apply them
-                val k: Int = controls().setControlsAsDoubles(cMap)
-                logger.info(
-                    "{} out of {} controls were applied to Model {} to setup the experiment.",
-                    k,
-                    cMap.size,
-                    name
-                )
-            }
+            val cMap: Map<String, Double> = experimentalControls
+            // extract controls and apply them
+            val k: Int = controls().setControlsFromMap(cMap)
+            logger.info { "$k out of ${cMap.size} controls were applied to Model $name to setup the experiment." }
         }
 
         // if the user has asked for the parameters, then they may have changed
@@ -895,7 +894,7 @@ class Model(
             executive.maximumAllowedExecutionTime = maximumAllowedExecutionTimePerReplication
         }
         logger.info { "Initializing the executive" }
-        ModelElement.logger.info {"Initializing the executive"}
+        ModelElement.logger.info { "Initializing the executive" }
         executive.initialize()
         logger.info { "The executive was initialized prior to the replication. Current time = $time" }
         logger.info { "Setting up the replications for model elements" }
@@ -944,7 +943,7 @@ class Model(
                         sb.appendLine()
                         sb.append("The user is responsible for ensuring that the replications are stopped.")
                         sb.appendLine()
-                        logger.warn(sb.toString())
+                        logger.warn { sb.toString() }
                         println(sb.toString())
                         System.out.flush()
                     }
@@ -984,8 +983,20 @@ class Model(
 
     }
 
-    var simulationName: String = simulationName
-        private set
+    override val numChunks: Int
+        get() = myExperiment.numChunks
+
+    override val runName: String
+        get() = myExperiment.runName
+
+    override val repIdRange: IntRange
+        get() = myExperiment.repIdRange
+
+    override var runErrorMsg: String
+        get() = myExperiment.runErrorMsg
+        set(value) {
+            myExperiment.runErrorMsg = value
+        }
 
     override val experimentId: Int
         get() = myExperiment.experimentId
@@ -995,6 +1006,15 @@ class Model(
         set(value) {
             myExperiment.experimentName = value
         }
+
+    override var startingRepId: Int
+        get() = myExperiment.startingRepId
+        set(value) {
+            myExperiment.startingRepId = value
+        }
+
+    override val currentReplicationId: Int
+        get() = myExperiment.currentReplicationId
 
     override var numberOfReplications: Int
         get() = myExperiment.numberOfReplications
@@ -1057,7 +1077,7 @@ class Model(
             myExperiment.garbageCollectAfterReplicationFlag = value
         }
 
-    override var experimentalControls: Map<String, Double>?
+    override var experimentalControls: Map<String, Double>
         get() = myExperiment.experimentalControls
         set(value) {
             myExperiment.experimentalControls = value
@@ -1069,8 +1089,11 @@ class Model(
     override fun hasExperimentalControls() = myExperiment.hasExperimentalControls()
 
     override fun hasMoreReplications() = myExperiment.hasMoreReplications()
+    override fun changeRunParameters(runParameters: ExperimentRunParametersIfc) {
+        myExperiment.changeRunParameters(runParameters)
+    }
 
-    override fun setExperiment(e: Experiment) = myExperiment.setExperiment(e)
+    override fun experimentInstance(): Experiment = myExperiment.experimentInstance()
 
     /**
      * Returns true if additional replications need to be run
@@ -1138,14 +1161,14 @@ class Model(
         myReplicationProcess.end(msg)
     }
 
-    /**
-     * Causes the simulation to stop the current replication and not complete any additional replications
-     *
-     * @param msg A message to indicate why the simulation was stopped
-     */
-    fun stopSimulation(msg: String?) {
-        myReplicationProcess.stop(msg)
-    }
+//    /**
+//     * Causes the simulation to stop the current replication and not complete any additional replications
+//     *
+//     * @param msg A message to indicate why the simulation was stopped
+//     */
+//    private fun stopSimulation(msg: String?) {
+//        myReplicationProcess.stop(msg)
+//    }
 
     override fun toString(): String {
         val sb = StringBuilder()
@@ -1196,7 +1219,7 @@ class Model(
             return stats
         }
 
-    companion object : KLoggable {
+    companion object {
         /**
          * Used to assign unique enum constants
          */
@@ -1215,7 +1238,7 @@ class Model(
         /**
          * A global logger for logging
          */
-        override val logger = logger()
+        val logger = KotlinLogging.logger {}
     }
 }
 

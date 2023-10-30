@@ -207,17 +207,17 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
                 dbCreateTaskExecution()
 
             State.EXECUTED -> {
-                DatabaseIfc.logger.error("Tried to execute an already executed create task.\n {}", this)
+                DatabaseIfc.logger.error { "Tried to execute an already executed create task.\n $this" }
                 false
             }
 
             State.EXECUTION_ERROR -> {
-                DatabaseIfc.logger.error("Tried to execute a previously executed task that had errors.\n {}", this)
+                DatabaseIfc.logger.error { "Tried to execute a previously executed task that had errors.\n $this" }
                 false
             }
 
             State.NO_TABLES_ERROR -> {
-                DatabaseIfc.logger.error("Tried to execute a create task with no tables created.\n {}", this)
+                DatabaseIfc.logger.error { "Tried to execute a create task with no tables created.\n $this" }
                 false
             }
         }
@@ -228,23 +228,23 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
         //TODO is this working, is it falling through
         when (type) {
             Type.NONE -> {
-                DatabaseIfc.logger.warn("Attempted to execute a create task with no commands.\n {}", this)
+                DatabaseIfc.logger.warn { "Attempted to execute a create task with no commands.\n $this" }
                 execFlag = true
                 state = State.EXECUTED
             }
 
             Type.FULL_SCRIPT -> {
-                DatabaseIfc.logger.info("Attempting to execute full script create task...\n {}", this)
+                DatabaseIfc.logger.info { "Attempting to execute full script create task...\n $this" }
                 execFlag = myDatabase.executeCommands(creationScriptCommands)
             }
 
             Type.TABLES -> {
-                DatabaseIfc.logger.info("Attempting to execute tables only create task. \n{}", this)
+                DatabaseIfc.logger.info { "Attempting to execute tables only create task. \n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
             }
 
             Type.TABLES_INSERT -> {
-                DatabaseIfc.logger.info("Attempting to execute tables plus insert create task.\n{}", this)
+                DatabaseIfc.logger.info { "Attempting to execute tables plus insert create task.\n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = myDatabase.executeCommands(insertCommands)
@@ -252,7 +252,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.TABLES_ALTER -> {
-                DatabaseIfc.logger.info("Attempting to execute tables plus alter create task.\n{}", this)
+                DatabaseIfc.logger.info { "Attempting to execute tables plus alter create task.\n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = myDatabase.executeCommands(alterCommands)
@@ -260,7 +260,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.TABLES_INSERT_ALTER -> {
-                DatabaseIfc.logger.info("Attempting to execute create/insert/alter tables create task.\n {}", this)
+                DatabaseIfc.logger.info { "Attempting to execute create/insert/alter tables create task.\n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = myDatabase.executeCommands(insertCommands)
@@ -271,7 +271,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.TABLES_EXCEL -> {
-                DatabaseIfc.logger.info("Attempting to execute tables create plus Excel import task.\n {}", this)
+                DatabaseIfc.logger.info { "Attempting to execute tables create plus Excel import task.\n $this" }
                 DatabaseIfc.logger.info { "The Excel file holding data for import is $excelWorkbookPathForDataInsert" }
                 execFlag = myDatabase.executeCommands(tableCommands) //TODO should this be inside the try?
                 if (execFlag) {
@@ -289,10 +289,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
             }
 
             Type.TABLES_EXCEL_ALTER -> {
-                DatabaseIfc.logger.info(
-                    "Attempting to execute tables create plus Excel plus alter import task.\n {}",
-                    this
-                )
+                DatabaseIfc.logger.info { "Attempting to execute tables create plus Excel plus alter import task.\n $this" }
                 execFlag = myDatabase.executeCommands(tableCommands)
                 if (execFlag) {
                     execFlag = try {
@@ -310,10 +307,10 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
         }
         if (execFlag) {
             state = State.EXECUTED
-            DatabaseIfc.logger.info("The task was successfully executed.")
+            DatabaseIfc.logger.info { "The task was successfully executed." }
         } else {
             state = State.EXECUTION_ERROR
-            DatabaseIfc.logger.info("The task had execution errors.")
+            DatabaseIfc.logger.info { "The task had execution errors." }
             throw DataAccessException("There was an execution error for task $this see DbLog.log for details")
         }
         return execFlag // note can only get here if execFlag is true because of the execution exception
@@ -329,10 +326,10 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
         try {
             commands.addAll(DatabaseIfc.parseQueriesInSQLScript(pathToScript))
         } catch (e: IOException) {
-            DatabaseIfc.logger.warn("The script {} t failed to parse.", pathToScript)
+            DatabaseIfc.logger.warn { "The script $pathToScript failed to parse." }
         }
         if (commands.isEmpty()) {
-            DatabaseIfc.logger.warn("The script {} produced no commands to execute.", pathToScript)
+            DatabaseIfc.logger.warn { "The script $pathToScript produced no commands to execute." }
         }
         return commands
     }

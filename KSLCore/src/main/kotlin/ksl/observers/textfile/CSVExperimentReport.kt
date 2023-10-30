@@ -36,7 +36,7 @@ import java.nio.file.Path
 class CSVExperimentReport(
     model: Model,
     reportName: String = model.name + "_CSVExperimentReport",
-    directoryPath: Path = model.outputDirectory.outDir,
+    directoryPath: Path = model.outputDirectory.csvDir,
 ) : CSVReport(model, reportName, directoryPath) {
 
     override fun writeHeader() {

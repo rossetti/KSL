@@ -24,7 +24,7 @@ import com.opencsv.CSVWriter
 import com.opencsv.exceptions.CsvException
 import ksl.utilities.KSLArrays
 import ksl.utilities.toStrings
-import mu.KLoggable
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.FileReader
 import java.io.FileWriter
 import java.io.IOException
@@ -35,9 +35,9 @@ import java.util.*
  * A class to facilitate some basic CSV processing without having to worry about underlying csv library.
  * Helps with reading and writing arrays to csv files. Generally, exceptions are squashed.
  */
-object CSVUtil : KLoggable {
+object CSVUtil {
 
-    override val logger = logger()
+    val logger = KotlinLogging.logger {}
 
     /**
      * Reads all rows from a csv file that may have the first row as a header
@@ -66,9 +66,9 @@ object CSVUtil : KLoggable {
                 }
             }
         } catch (e: IOException) {
-            logger.warn("There was a problem reading the rows from file {}", pathToFile)
+            logger.warn { "There was a problem reading the rows from file $pathToFile" }
         } catch (e: CsvException) {
-            logger.warn("There was a problem reading the rows from file {}", pathToFile)
+            logger.warn { "There was a problem reading the rows from file $pathToFile" }
         }
         return emptyList()
     }
@@ -91,7 +91,7 @@ object CSVUtil : KLoggable {
         try {
             CSVReader(FileReader(pathToFile.toFile())).use { reader -> return reader.iterator() }
         } catch (e: IOException) {
-            logger.warn("There was a problem getting an iterator from file {}", pathToFile)
+            logger.warn { "There was a problem getting an iterator from file $pathToFile" }
         }
         return LinkedList<Array<String>>().iterator()
     }
@@ -187,7 +187,7 @@ object CSVUtil : KLoggable {
                 }
             }
         } catch (e: IOException) {
-            logger.warn("There was a problem writing an array to csv file {}", pathToFile)
+            logger.warn { "There was a problem writing an array to csv file $pathToFile" }
         }
     }
 }

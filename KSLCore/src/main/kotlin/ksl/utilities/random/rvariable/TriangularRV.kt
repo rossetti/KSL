@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
 
 /**
  * Triangular(min, mode, max) random variable
@@ -56,7 +58,7 @@ class TriangularRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.TriangularRVParameters()
+            val parameters: RVParameters = TriangularRVParameters()
             parameters.changeDoubleParameter("min", min)
             parameters.changeDoubleParameter("mode", mode)
             parameters.changeDoubleParameter("max", max)

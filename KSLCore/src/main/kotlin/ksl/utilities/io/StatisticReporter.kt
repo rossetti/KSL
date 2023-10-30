@@ -22,11 +22,15 @@
  */
 package ksl.utilities.io
 
+import ksl.utilities.Interval
 import ksl.utilities.KSLArrays
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticData
 import ksl.utilities.statistic.StatisticIfc
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import java.text.DecimalFormat
 import java.util.*
 
@@ -74,6 +78,18 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
         }
         myRowFormat = StringBuilder(DEFAULT_ROW_FORMAT)
         myHeaderFormat = StringBuilder(DEFAULT_HEADER_FORMAT)
+    }
+
+    /**
+     * Converts the statistics in the reporter to a data frame
+     * containing the statistical data
+     */
+    fun asDataFrame() : DataFrame<StatisticData> {
+        val list = mutableListOf<StatisticData>()
+        for(element in myStats){
+            list.add(element.statisticData())
+        }
+        return list.toDataFrame()
     }
 
     /**
@@ -545,6 +561,29 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
         }
         return sb
     }
+
+    /**
+     * The confidence intervals for the statistics on the report
+     *  with the key being the name of the statistic
+     */
+    fun confidenceIntervals(level: Double = 0.95): Map<String, Interval>{
+        return StatisticReporter.confidenceIntervals(this.myStats, level)
+    }
+
+    companion object{
+
+        /**
+         *  Converts a list of statistics to a map of confidence intervals
+         *  with the key being the name of the statistic
+         */
+        fun confidenceIntervals(list: List<StatisticIfc>, level: Double = 0.95) : Map<String, Interval>{
+            val map = mutableMapOf<String, Interval>()
+            for(s in list){
+                map[s.name] = s.confidenceInterval(level)
+            }
+            return map
+        }
+    }
 }
 
 fun main() {
@@ -568,4 +607,7 @@ fun main() {
     val out = KSL.createPrintWriter("Report.md")
     out.print(r.halfWidthSummaryReportAsMarkDown())
     out.flush()
+
+    val df = r.asDataFrame()
+    println(df)
 }

@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.NegativeBinomialRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * NegativeBinomial(probability of success, number of trials until rth success)
@@ -59,7 +61,7 @@ class NegativeBinomialRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.NegativeBinomialRVParameters()
+            val parameters: RVParameters = NegativeBinomialRVParameters()
             parameters.changeDoubleParameter("probOfSuccess", probOfSuccess)
             parameters.changeIntegerParameter("numSuccesses", numSuccess.toInt())
             return parameters

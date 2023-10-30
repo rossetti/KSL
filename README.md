@@ -62,8 +62,17 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.0.1"
+version = "R1.0.2"
 
 ## Release Notes
 
-Latest Release: R1.0.1
+Latest Release: R1.0.2
+	- added support for plotting output from simulation (ksl.utilities.io.plotting)
+	- added distribution fitting and testing capabilities (ksl.utilities.distributions.fitting)
+	- added conveyors for process modeling (ksl.modeling.entity.Conveyor)
+	- revised database structure (ksl.utilities.io.dbutil.KSLDatabase)
+	- added multi-objective decision analysis functionality (ksl.utilities.moda)
+	- dataframe I/O (ksl.utilities.io.DataFrameUtil)
+	- updated examples in KSLExamples project
+	- updated KSLProjectTemplate to use new release
+	

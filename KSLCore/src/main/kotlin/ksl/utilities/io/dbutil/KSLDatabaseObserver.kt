@@ -23,7 +23,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 
-/** The observer is automatically attached to the model upon creation. Use stopObserving() or stopObserving() as needed.
+/** The observer is automatically attached to the model upon creation. Use startObserving() or stopObserving() as needed.
  * @param model the model to observe
  * @param db the properly configured databased to hold KSL related results
  * @param clearDataBeforeExperimentOption indicates whether data should be cleared before each experiment. The
@@ -32,7 +32,7 @@ import ksl.utilities.io.KSL
  */
 class KSLDatabaseObserver(
     private val model: Model,
-    val db: KSLDatabase = KSLDatabase("${model.name}.db".replace(" ","_"), model.outputDirectory.dbDir),
+    val db: KSLDatabase = KSLDatabase("${model.simulationName}.db".replace(" ", "_"), model.outputDirectory.dbDir),
     var clearDataBeforeExperimentOption: Boolean = false
 ) {
 
@@ -40,6 +40,8 @@ class KSLDatabaseObserver(
 
     init {
         model.attachModelElementObserver(myObserver)
+        db.label = model.simulationName.replace(" ", "_").plus("_KSL_DB")
+        db.outputDirectory = model.outputDirectory
     }
 
     /**
@@ -61,41 +63,54 @@ class KSLDatabaseObserver(
     private inner class SimulationDatabaseObserver : ModelElementObserver() {
         override fun beforeExperiment(modelElement: ModelElement) {
             super.beforeExperiment(modelElement)
+            val simName: String = model.simulationName
+            val expName: String = model.experimentName
             //handle clearing of database here
             if (clearDataBeforeExperimentOption) {
                 db.clearSimulationData(model)
+                Model.logger.info { "KSLDatabaseObserver cleared data for experiment $expName of simulation $simName" }
             } else {
-                // no clear option specified, need to check if simulation record exists
-                val simName: String = model.simulationName
-                val expName: String = model.experimentName
-                if (db.doesSimulationRunRecordExist(simName, expName)) {
-                    KSL.logger.error(
-                        "A simulation run record exists for simulation: {}, and experiment: {} in database {}",
-                        simName, expName, db.label
-                    )
-                    KSL.logger.error("You attempted to run a simulation for a run that has ")
-                    KSL.logger.error(" the same name and experiment without allowing its data to be cleared.")
-                    KSL.logger.error("You should consider using the clearDataBeforeExperimentOption property on the observer.")
-                    KSL.logger.error("Or, you might change the name of the experiment before calling model.simulate().")
-                    KSL.logger.error(
-                        "This error is to prevent you from accidentally losing data associated with simulation: {}, and experiment: {} in database {}",
-                        simName, expName, db.label
-                    )
-                    throw DataAccessException("A simulation run record already exists with the name $simName and experiment name $expName. Check the ksl.log for details.")
+                Model.logger.info { "KSLDatabaseObserver no clear option set for experiment $expName of simulation $simName" }
+                if (model.numChunks > 1) {
+                    Model.logger.info { "Run ${model.runName} is a chunk of Experiment $expName of simulation $simName." }
+                    Model.logger.info { "KSLDatabase ACROSS_REP_STAT results only reflect the results for each individual chunk, not the overall experiment" }
                 }
             }
+            // experiment record may exist if run is a chunk
             db.beforeExperiment(model)
+            Model.logger.info { "Before Experiment: KSLDatabaseObserver set up the database for run ${model.runName} of experiment $expName of simulation $simName" }
         }
 
         override fun afterReplication(modelElement: ModelElement) {
             super.afterReplication(modelElement)
             db.afterReplication(model)
+            val simName: String = model.simulationName
+            val expName: String = model.experimentName
+            Model.logger.info { "After replication ${model.currentReplicationId}: KSLDatabaseObserver inserted replication results for experiment $expName of simulation $simName" }
         }
 
         override fun afterExperiment(modelElement: ModelElement) {
             super.afterExperiment(modelElement)
             db.afterExperiment(model)
+            val simName: String = model.simulationName
+            val expName: String = model.experimentName
+            Model.logger.info { "After Experiment: KSLDatabaseObserver inserted across replication results for experiment $expName of simulation $simName" }
         }
     }
 
+    companion object {
+
+        fun createSQLiteKSLDatabaseObserver(model: Model): KSLDatabaseObserver {
+            return KSLDatabaseObserver(model)
+        }
+
+        fun createDerbyKSLDatabaseObserver(model: Model): KSLDatabaseObserver {
+            val db = KSLDatabase.createEmbeddedDerbyKSLDatabase(
+                model.simulationName.replace(" ", "_"),
+                model.outputDirectory.dbDir
+            )
+            val kslDb = KSLDatabase(db, false)
+            return KSLDatabaseObserver(model, kslDb, false)
+        }
+    }
 }

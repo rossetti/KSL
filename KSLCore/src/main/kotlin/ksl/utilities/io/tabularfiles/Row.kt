@@ -18,6 +18,7 @@
 
 package ksl.utilities.io.tabularfiles
 
+import ksl.utilities.io.dbutil.TabularData
 import java.util.*
 import kotlin.math.min
 
@@ -139,7 +140,7 @@ interface RowSetterIfc : RowIfc {
      * Sets the numeric columns according to the data in the array.
      * If the array has more elements than the number of columns, then the columns
      * are filled with first elements of the array up to the number of columns.
-     * If the array has less elements than the number of columns, then only
+     * If the array has fewer elements than the number of columns, then only
      * the first data.length columns are set.
      *
      * @param data an array of data for the numeric rows. The array must not be null.
@@ -214,6 +215,25 @@ interface RowSetterIfc : RowIfc {
      * be equal to the number of columns
      */
     fun setElements(elements: List<Any?>)
+
+    /**
+     * The row is filled with the elements. Numeric elements are saved in
+     * numeric columns in the order presented. Non-numeric elements are all converted
+     * to strings and stored in the order presented. Numeric elements are of types
+     * {Double, Long, Integer, Boolean, Float, Short, Byte}. Any other type is
+     * converted to text via toString().
+     *
+     *
+     * The order and types of the elements must match the order and types associated
+     * with the columns.
+     *
+     * @param data the data to add to the row. The instance of TabularData
+     * must be consistent with the column names and data types representing a row
+     * in the tabular data file
+     */
+    fun setElements(data: TabularData){
+        setElements(data.extractPropertyValues())
+    }
 
     /**
      * @param colNum  the column number to set

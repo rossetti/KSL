@@ -245,7 +245,7 @@ object KSLRandom {
         rSuccesses: Double,
         stream: RNStreamIfc = defaultRNStream()
     ): Int {
-        return NegativeBinomial.negBinomialInvCDF(stream.randU01(), pSuccess, rSuccesses)
+        return NegativeBinomial.negBinomialInvCDF(stream.randU01(), rSuccesses, pSuccess)
     }
 
     /**
@@ -670,7 +670,7 @@ object KSLRandom {
         val p = rng.randU01()
         val x: Double
         /* ...special case: exponential distribution */if (shape == 1.0) {
-            x = -scale * Math.log(1.0 - p)
+            x = -scale * ln(1.0 - p)
             return (x)
         }
         /* ...compute the gamma(alpha, beta) inverse.                   *
@@ -751,7 +751,7 @@ object KSLRandom {
 
     /**
      * Generates a gamma(shape, scale=1) random variable via acceptance rejection. Uses
-     * uses Marsaglia and Tsang (2000) for shape greater than 1
+     * the algorithm in Marsaglia and Tsang (2000) for shape greater than 1
      *
      * @param shape the shape, must be greater than 1
      * @param rng   the random number stream, must not be null
@@ -826,56 +826,56 @@ object KSLRandom {
     /**
      * This beta is restricted to the range of (0,1)
      *
-     * @param alpha1    alpha1 parameter
-     * @param alpha2    alpha2 parameter
+     * @param alpha  alpha (first shape) parameter
+     * @param beta  beta (second shape) parameter
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
-    fun rBeta(alpha1: Double, alpha2: Double, streamNum: Int): Double {
-        return rBeta(alpha1, alpha2, rnStream(streamNum))
+    fun rBeta(alpha: Double, beta: Double, streamNum: Int): Double {
+        return rBeta(alpha, beta, rnStream(streamNum))
     }
 
     /**
      * This beta is restricted to the range of (0,1)
      *
-     * @param alpha1 alpha1 parameter
-     * @param alpha2 alpha2 parameter
+     * @param alpha  alpha (first shape) parameter
+     * @param beta  beta (second shape) parameter
      * @param rng    the RNStreamIfc
      * @return the random value
      */
-    fun rBeta(alpha1: Double, alpha2: Double, rng: RNStreamIfc = defaultRNStream()): Double {
-        return Beta.stdBetaInvCDF(rng.randU01(), alpha1, alpha2);
+    fun rBeta(alpha: Double, beta: Double, rng: RNStreamIfc = defaultRNStream()): Double {
+        return Beta.stdBetaInvCDF(rng.randU01(), alpha, beta);
     }
 
     /**
      * This beta is restricted to the range of (minimum,maximum)
      *
-     * @param alpha1    alpha1 parameter
-     * @param alpha2    alpha2 parameter
+     * @param alpha  alpha (first shape) parameter
+     * @param beta  beta (second shape) parameter
      * @param minimum   the minimum of the range, must be less than maximum
      * @param maximum   the maximum of the range
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
     fun rBetaG(
-        alpha1: Double, alpha2: Double,
+        alpha: Double, beta: Double,
         minimum: Double, maximum: Double, streamNum: Int
     ): Double {
-        return rBetaG(alpha1, alpha2, minimum, maximum, rnStream(streamNum))
+        return rBetaG(alpha, beta, minimum, maximum, rnStream(streamNum))
     }
 
     /**
      * This beta is restricted to the range of (minimum,maximum)
      *
-     * @param alpha1  alpha1 parameter
-     * @param alpha2  alpha2 parameter
+     * @param alpha  alpha (first shape) parameter
+     * @param beta  beta (second shape) parameter
      * @param minimum the minimum of the range, must be less than maximum
      * @param maximum the maximum of the range
      * @param rng     the RNStreamIfc
      * @return the random value
      */
     fun rBetaG(
-        alpha1: Double, alpha2: Double,
+        alpha: Double, beta: Double,
         minimum: Double, maximum: Double, rng: RNStreamIfc = defaultRNStream()
     ): Double {
         if (minimum >= maximum) {
@@ -884,7 +884,7 @@ object KSLRandom {
                         + "limit. lower limit = " + minimum + " upper limit = " + maximum)
             )
         }
-        val x = rBeta(alpha1, alpha2, rng)
+        val x = rBeta(alpha, beta, rng)
         return minimum + (maximum - minimum) * x
     }
 
@@ -1135,13 +1135,13 @@ object KSLRandom {
     /**
      * Randomly selects from the list using the supplied cdf
      *
-     * @param <T>       the type returned
+     * @param T       the type returned
      * @param list      list to select from
      * @param cdf       the cumulative probability associated with each element of
      * array
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected value
-    </T> */
+    */
     fun <T> randomlySelect(list: List<T>, cdf: DoubleArray, streamNum: Int): T {
         return randomlySelect(list, cdf, rnStream(streamNum))
     }
@@ -1149,13 +1149,13 @@ object KSLRandom {
     /**
      * Randomly selects from the list using the supplied cdf
      *
-     * @param <T>  the type returned
+     * @param T  the type returned
      * @param list list to select from
      * @param cdf  the cumulative probability associated with each element of
      * array
      * @param stream  the source of randomness
      * @return the randomly selected value
-    </T> */
+    */
     fun <T> randomlySelect(
         list: List<T>,
         cdf: DoubleArray,
@@ -1263,11 +1263,11 @@ object KSLRandom {
     /**
      * Randomly select from the list
      *
-     * @param <T>       The type of element in the list
+     * @param T      The type of element in the list
      * @param list      the list
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected element
-    </T> */
+    */
     fun <T> randomlySelect(list: List<T>, streamNum: Int): T {
         return randomlySelect(list, rnStream(streamNum))
     }
@@ -1275,11 +1275,11 @@ object KSLRandom {
     /**
      * Randomly select from the list
      *
-     * @param <T>  The type of element in the list
+     * @param T  The type of element in the list
      * @param list the list
      * @param stream  the source of randomness
      * @return the randomly selected element
-    </T> */
+    */
     fun <T> randomlySelect(list: List<T>, stream: RNStreamIfc = defaultRNStream()): T {
         require(list.isNotEmpty()){"Cannot select from an empty list"}
         return if (list.size == 1) {
@@ -1335,7 +1335,7 @@ object KSLRandom {
         rng: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = rng.randInt(j, x.size - 1)
@@ -1392,7 +1392,7 @@ object KSLRandom {
         rng: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = rng.randInt(j, x.size - 1)
@@ -1450,7 +1450,7 @@ object KSLRandom {
         rng: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = rng.randInt(j, x.size - 1)
@@ -1464,6 +1464,7 @@ object KSLRandom {
      * Randomly permutes the supplied array using the supplied stream
      * number, the array is changed
      *
+     * @param T the type of the array
      * @param x         the array
      * @param streamNum the stream number from the stream provider to use
      */
@@ -1475,6 +1476,7 @@ object KSLRandom {
      * Randomly permutes the supplied array using the supplied random
      * number generator, the array is changed
      *
+     * @param T the type of the array
      * @param x   the array
      * @param rng the source of randomness
      */
@@ -1486,6 +1488,7 @@ object KSLRandom {
      * The array x is changed, such that the first sampleSize elements contain the generated sample.
      * That is, x[0], x[1], ... , x[sampleSize-1] is the randomly sampled values without replacement
      *
+     * @param T the type of the array
      * @param x          the array
      * @param sampleSize the size to generate
      * @param streamNum  the stream number from the stream provider to use
@@ -1498,6 +1501,7 @@ object KSLRandom {
      * The array x is changed, such that the first sampleSize elements contain the generated sample.
      * That is, x[0], x[1], ... , x[sampleSize-1] is the randomly sampled values without replacement
      *
+     * @param T the type of the array
      * @param x          the array
      * @param sampleSize the size to generate
      * @param stream        the source of randomness
@@ -1508,7 +1512,7 @@ object KSLRandom {
         stream: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = stream.randInt(j, x.size - 1)
@@ -1522,10 +1526,10 @@ object KSLRandom {
      * Randomly permutes the supplied List using the supplied stream
      * number, the list is changed
      *
-     * @param <T>       the type of the list
+     * @param T      the type of the list
      * @param x         the list
      * @param streamNum the stream number from the stream provider to use
-    </T> */
+    */
     fun <T> permute(x: MutableList<T>, streamNum: Int) {
         permute(x, rnStream(streamNum))
     }
@@ -1534,10 +1538,10 @@ object KSLRandom {
      * Randomly permutes the supplied List using the supplied random
      * number generator, the list is changed
      *
-     * @param <T> the type of the list
+     * @param T the type of the list
      * @param x   the list
      * @param stream the source of randomness
-    </T> */
+    */
     fun <T> permute(x: MutableList<T>, stream: RNStreamIfc = defaultRNStream()) {
         sampleWithoutReplacement(x, x.size, stream)
     }
@@ -1546,10 +1550,10 @@ object KSLRandom {
      * The List x is changed, such that the first sampleSize elements contain the generate.
      * That is, x.get(0), x.get(1), ... , x.get(sampleSize-1) is the random sample without replacement
      *
-     * @param <T>        the type of the list
+     * @param T        the type of the list
      * @param x          the list
      * @param sampleSize the size to generate
-    </T> */
+     */
     fun <T> sampleWithoutReplacement(x: MutableList<T>, sampleSize: Int, streamNum: Int) {
         sampleWithoutReplacement(x, sampleSize, rnStream(streamNum))
     }
@@ -1558,16 +1562,18 @@ object KSLRandom {
      * The List x is changed, such that the first sampleSize elements contain the sampled values.
      * That is, x.get(0), x.get(1), ... , x.get(sampleSize-1) is the random sample without replacement
      *
-     * @param <T>        the type of the list
+     * @param T        the type of the list
      * @param x          the list
      * @param sampleSize the size to generate
      * @param stream        the source of randomness
-    </T> */
+     */
     fun <T> sampleWithoutReplacement(
-        x: MutableList<T>, sampleSize: Int, stream: RNStreamIfc = defaultRNStream()
+        x: MutableList<T>,
+        sampleSize: Int,
+        stream: RNStreamIfc = defaultRNStream()
     ) {
         require(sampleSize <= x.size) {
-            "Cannot draw without replacement for more than the number of elements $x.size"
+            "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
             val i = stream.randInt(j, x.size - 1)

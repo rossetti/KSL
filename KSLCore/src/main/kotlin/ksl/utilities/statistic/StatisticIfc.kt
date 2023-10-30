@@ -50,6 +50,23 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
     val deviationSumOfSquares: Double
 
     /**
+     *  Counts the number of observations that were negative, strictly
+     *  less than zero.
+     */
+    val negativeCount: Double
+
+    /**
+     *  Counts the number of observations that were exactly zero.
+     */
+    val zeroCount : Double
+
+    /**
+     *  Counts the number of observations that were positive, strictly greater than zero.
+     */
+    val positiveCount : Double
+        get() = count - (negativeCount + zeroCount)
+
+    /**
      * Gets the last observed data point
      *
      * @return A double representing the last observations

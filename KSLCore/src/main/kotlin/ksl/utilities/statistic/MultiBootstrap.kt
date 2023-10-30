@@ -22,13 +22,16 @@ import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
- * A collection of Bootstrap instances to permit multi-dimensional bootstrapping.
+ * A collection of Bootstrap instances to permit multidimensional bootstrapping.
  * Construction depends on a named mapping of double[] arrays that represent the
  * original samples.  A static create method also allows creation based on a mapping
  * to implementations of the SampleIfc.
  *
  * The name provided for each dataset (or sampler) should be unique and will be used
  * to identify the associated bootstrap results. We call this name a addFactor.
+ *
+ * @param name    the name of the instance
+ * @param dataMap a map holding the name for each data set, names cannot be null and the arrays cannot be null
  */
 class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : RNStreamControlIfc {
     /**
@@ -40,13 +43,9 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
      * @return the name of the bootstrap
      */
     val name: String
+
     protected var myBootstraps: MutableMap<String, Bootstrap>
 
-
-    /**
-     * @param name    the name of the instance
-     * @param dataMap a map holding the name for each data set, names cannot be null and the arrays cannot be null
-     */
     init {
         myIdCounter_ = myIdCounter_ + 1
         myId = myIdCounter_
@@ -57,7 +56,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         }
         myBootstraps = LinkedHashMap()
         for ((key, value) in dataMap) {
-            val bs = Bootstrap(key, value)
+            val bs = Bootstrap(value, name = key)
             myBootstraps[key] = bs
         }
     }
@@ -70,7 +69,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
 
     /**
      *
-     * @return the number of factors in the multibootstrap
+     * @return the number of factors in the multi-bootstrap
      */
     fun getNumberFactors(): Int {
         return myBootstraps.size
@@ -99,13 +98,32 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
         saveBootstrapSamples: Boolean = false
     ) {
-        requireNotNull(numBootstrapSamples) { "The specification of the bootstrap generate sizes was null." }
         for ((name1, n) in numBootstrapSamples) {
             if (n > 1) {
                 val bootstrap = myBootstraps[name1]
                 bootstrap!!.generateSamples(n, estimator, saveBootstrapSamples)
             }
         }
+    }
+
+    /**
+     * This method changes the underlying state of the Bootstrap instance by performing
+     * the bootstrap sampling.
+     *
+     * @param numBootstrapSamples  the number of bootstrap samples to generate, assumes all are the same.
+     * @param estimator            a function of the data
+     * @param saveBootstrapSamples indicates that the statistics and data of each bootstrap generate should be saved
+     */
+    fun generateSamples(
+        numBootstrapSamples: Int,
+        estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
+        saveBootstrapSamples: Boolean = false
+    ) {
+        val map = mutableMapOf<String, Int>()
+        for (name in myBootstraps.keys) {
+            map[name] = numBootstrapSamples
+        }
+        generateSamples(map, estimator, saveBootstrapSamples)
     }
 
     /** Gets a map with key = name, where name is the associated bootstrap name
@@ -164,7 +182,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
      * of bootstrap samples generated. Each element of the list is a RVariableIfc
      * representation of the data with the bootstrap generate.
      *
-     * @param useCRN, if true the stream for every random variable is the same across the
+     * @param useCRN if true the stream for every random variable is the same across the
      * bootstraps to facilitate common random number generation (CRN). If false
      * different streams are used for each created random variable
      * @return a map of the list of bootstrap random variable representations
@@ -284,7 +302,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         get()  {
             var b = true
             for (bs in myBootstraps.values) {
-                b = bs.antitheticOption
+                b = bs.antithetic
                 if (b == false) {
                     return false
                 }
@@ -293,7 +311,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         }
         set(value) {
             for (bs in myBootstraps.values) {
-                bs.antitheticOption = value
+                bs.antithetic = value
             }
         }
 

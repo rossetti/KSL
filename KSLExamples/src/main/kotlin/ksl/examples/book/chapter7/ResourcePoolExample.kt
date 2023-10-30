@@ -19,10 +19,7 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
-import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.Resource
-import ksl.modeling.entity.ResourcePoolWithQ
+import ksl.modeling.entity.*
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
@@ -45,9 +42,15 @@ class ResourcePoolExample(parent: ModelElement) : ProcessModel(parent, null) {
     private val list2 = listOf(ringo, george)
     private val pool1: ResourcePoolWithQ = ResourcePoolWithQ(this, list1, name = "pool1")
     private val pool2: ResourcePoolWithQ = ResourcePoolWithQ(this, list2, name = "pool2")
+
+    init {
+        val rule = LeastUtilizedAllocationRule()
+        pool1.resourceAllocationRule = rule
+        pool2.resourceAllocationRule = rule
+    }
     private val tba = RandomVariable(this, ExponentialRV(1.0, 1), "Arrival RV")
     private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
-    private val decideProcess = RandomVariable(this, BernoulliRV(0.7, 3))
+    private val decideProcess = RandomVariable(this, BernoulliRV(0.5, 3))
     private val wip1 = TWResponse(this, "${name}:WIP1")
     private val tip1 = Response(this, "${name}:TimeInSystem1")
     private val wip2 = TWResponse(this, "${name}:WIP2")

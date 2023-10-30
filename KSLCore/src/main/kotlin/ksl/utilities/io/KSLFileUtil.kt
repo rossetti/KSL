@@ -20,7 +20,10 @@ package ksl.utilities.io
 
 import ksl.utilities.KSLArrays
 import ksl.utilities.toCSVString
-import mu.KLoggable
+import io.github.oshai.kotlinlogging.KotlinLogging
+import java.awt.Desktop
+import java.awt.FileDialog
+import java.awt.Frame
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -33,13 +36,13 @@ import java.util.*
  * Apache Commons IO.  However, this basic IO provides basic needs without external libraries and
  * is integrated withe KSL functionality.
  */
-object KSLFileUtil : KLoggable {
+object KSLFileUtil {
     private var myFileCounter_ = 0
 
     /**
      *  Use for general logging
      */
-    override val logger = logger()
+    val logger = KotlinLogging.logger {}
 
     /**
      * System.out as a PrintWriter
@@ -104,7 +107,7 @@ object KSLFileUtil : KLoggable {
             PrintWriter(FileWriter(file), true)
         } catch (ex: IOException) {
             val str = "Problem creating PrintWriter for " + file.absolutePath
-            logger.error(str, ex)
+            logger.error(ex) { "$str" }
             PrintWriter(System.out)
         }
     }
@@ -144,7 +147,7 @@ object KSLFileUtil : KLoggable {
             LogPrintWriter(FileWriter(file), true)
         } catch (ex: IOException) {
             val str = "Problem creating LogPrintWriter for " + file.absolutePath
-            logger.error(str, ex)
+            logger.error(ex) { "$str" }
             LogPrintWriter(System.out)
         }
     }
@@ -159,7 +162,7 @@ object KSLFileUtil : KLoggable {
         try {
             return Files.createDirectories(path)
         } catch (e: IOException) {
-            logger.error("There was a problem creating the directories for {}", path)
+            logger.error { "There was a problem creating the directories for $path" }
             e.printStackTrace()
         }
         return null
@@ -177,7 +180,7 @@ object KSLFileUtil : KLoggable {
         return try {
             Files.createDirectories(newDirPath)
         } catch (e: IOException) {
-            logger.error("There was a problem creating the sub-directory for {}", newDirPath)
+            logger.error { "There was a problem creating the sub-directory for $newDirPath" }
             mainDir
         }
     }
@@ -565,11 +568,11 @@ object KSLFileUtil : KLoggable {
      * Writes the data in the array to rows in the file, each row with one data point
      *
      * @param array    the array to write, must not be null
-     * @param fileName the name of the file, must not be null, file will appear in JSL.getInstance().getOutDir()
+     * @param fileName the name of the file, must not be null, file will appear in KSL.outDir
      */
-    fun writeToFile(array: DoubleArray, fileName: String, df: DecimalFormat? = null) {
+    fun writeToFile(array: DoubleArray, fileName: String, df: DecimalFormat? = null) : Path {
         val pathToFile = KSL.outDir.resolve(fileName)
-        writeToFile(array, pathToFile, df)
+        return writeToFile(array, pathToFile, df)
     }
 
     /**
@@ -578,9 +581,10 @@ object KSLFileUtil : KLoggable {
      * @param array      the array to write, must not be null
      * @param pathToFile the path to the file, must not be null
      */
-    fun writeToFile(array: DoubleArray, pathToFile: Path, df: DecimalFormat? = null) {
+    fun writeToFile(array: DoubleArray, pathToFile: Path, df: DecimalFormat? = null) : Path {
         val out = createPrintWriter(pathToFile)
         write(array, out, df)
+        return pathToFile
     }
 
     /**  Allows writing directly to a known PrintWriter.  Facilitates writing
@@ -752,6 +756,47 @@ object KSLFileUtil : KLoggable {
             e.printStackTrace()
         }
         return DoubleArray(0)
+    }
+
+    fun openInBrowser(file: File) {
+        val desktop = Desktop.getDesktop()
+        desktop.browse(file.toURI())
+    }
+
+    fun openInBrowser(fileName: String, html: String, dir: Path = KSL.plotDir): File {
+        val file = createTemporaryFile(fileName, dir)
+        FileWriter(file).use {
+            it.write(html)
+        }
+        openInBrowser(file)
+        return file
+    }
+
+    fun createTemporaryFile(fileName: String, dir: Path = KSL.outDir): File {
+        val tmpDir = File(dir.toString())
+        if (!tmpDir.exists()) {
+            tmpDir.mkdir()
+        }
+        return File.createTempFile(fileName, ".html", tmpDir)
+    }
+
+    fun chooseFile(): File? {
+        val dialog = FileDialog(null as Frame?, "Select File to Open")
+        dialog.directory = this.programLaunchDirectory.toString()
+        dialog.mode = FileDialog.LOAD
+        dialog.isVisible = true
+
+        val fileStr: String? = dialog.file
+        val dirStr: String? = dialog.directory
+        if (fileStr == null) {
+            return null
+        }
+        if (dirStr == null) {
+            return null
+        }
+        // both are not null
+        val dir = Paths.get(dirStr)
+        return dir.resolve(fileStr).toFile()
     }
 }
 

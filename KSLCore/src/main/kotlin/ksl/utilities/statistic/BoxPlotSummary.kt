@@ -18,8 +18,7 @@
 
 package ksl.utilities.statistic
 
-import ksl.utilities.Interval
-import ksl.utilities.KSLArrays
+import ksl.utilities.*
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -27,9 +26,16 @@ import kotlin.math.floor
  * Prepares the statistical quantities typically found on a box plot.
  * This implementation uses a full sort of the data. The original data
  * is not changed. Users may want to look for more efficient methods for use with very large data sets.
+ *
+ *
+ *     Lower inner fence: Q1 – (1.5 * IQR)
+ *     Upper inner fence: Q3 + (1.5 * IQR)
+ *     Lower outer fence: Q1 – (3 * IQR)
+ *     upper outer fence: Q3 + (3 * IQR)
+ *
  * @param data the data to be summarized, must not be null and must not contain any Double.NaN values
  */
-class BoxPlotSummary(data: DoubleArray) {
+class BoxPlotSummary(data: DoubleArray, name: String? = null): IdentityIfc by Identity(name) {
     /**
      * @return the estimated median
      */
@@ -185,6 +191,32 @@ class BoxPlotSummary(data: DoubleArray) {
     val upperOuterFence = thirdQuartile + 3.0 * interQuartileRange
 
     /**
+     *  The largest data point that is less than or equal to the upperInnerFence
+     */
+    val upperWhisker: Double
+        get() {
+            for (i in orderStatistics.indices.reversed()) {
+                if (orderStatistics[i] <= upperInnerFence) {
+                    return orderStatistics[i]
+                }
+            }
+            return max
+        }
+
+    /**
+     *  The smallest data point that is greater than or equal to the lowerInnerFence
+     */
+    val lowerWhisker: Double
+        get() {
+            for (i in orderStatistics.indices) {
+                if (orderStatistics[i] >= lowerInnerFence) {
+                    return orderStatistics[i]
+                }
+            }
+            return min
+        }
+
+    /**
      * @return the data points less than or equal to the lower outer fence
      */
     fun lowerOuterPoints(): DoubleArray {
@@ -233,12 +265,49 @@ class BoxPlotSummary(data: DoubleArray) {
         return KSLArrays.dataInInterval(orderStatistics, i)
     }
 
+    /**
+     * The summary as a map of values
+     *
+     *         map["lowerOuterFence"] = lowerOuterFence
+     *         map["lowerInnerFence"] = lowerInnerFence
+     *         map["lowerWhisker"] = lowerWhisker
+     *         map["min"] = min
+     *         map["firstQuartile"] = firstQuartile
+     *         map["median"] = median
+     *         map["max"] = max
+     *         map["upperWhisker"] = upperWhisker
+     *         map["thirdQuartile"] = thirdQuartile
+     *         map["upperInnerFence"] = upperInnerFence
+     *         map["upperOuterFence"] = upperOuterFence
+     *         map["range"] = range
+     *         map["interQuartileRange"] = interQuartileRange
+     */
+    fun asMap(): Map<String, Double> {
+        val map = mutableMapOf<String, Double>()
+        map["lowerOuterFence"] = lowerOuterFence
+        map["lowerInnerFence"] = lowerInnerFence
+        map["lowerWhisker"] = lowerWhisker
+        map["min"] = min
+        map["firstQuartile"] = firstQuartile
+        map["median"] = median
+        map["max"] = max
+        map["upperWhisker"] = upperWhisker
+        map["thirdQuartile"] = thirdQuartile
+        map["upperInnerFence"] = upperInnerFence
+        map["upperOuterFence"] = upperOuterFence
+        map["range"] = range
+        map["interQuartileRange"] = interQuartileRange
+        return map
+    }
+
     override fun toString(): String {
         val sb = StringBuilder("BoxPlotSummary")
         sb.appendLine()
         sb.append("lower outer fence = ").append(lowerOuterFence)
         sb.appendLine()
         sb.append("lower inner fence = ").append(lowerInnerFence)
+        sb.appendLine()
+        sb.append("lower whisker = ").append(lowerWhisker)
         sb.appendLine()
         sb.append("min = ").append(min)
         sb.appendLine()
@@ -250,9 +319,15 @@ class BoxPlotSummary(data: DoubleArray) {
         sb.appendLine()
         sb.append("max = ").append(max)
         sb.appendLine()
+        sb.append("upper whisker = ").append(upperWhisker)
+        sb.appendLine()
         sb.append("upper inner fence = ").append(upperInnerFence)
         sb.appendLine()
         sb.append("upper outer fence = ").append(upperOuterFence)
+        sb.appendLine()
+        sb.append("range = ").append(range)
+        sb.appendLine()
+        sb.append("inter-quartile range = ").append(interQuartileRange)
         sb.appendLine()
         sb.appendLine()
         sb.append("Statistical Summary ")
@@ -367,4 +442,7 @@ fun main() {
     )
     val boxPlotSummary = BoxPlotSummary(x)
     println(boxPlotSummary)
+
+    println()
+    println(boxPlotSummary.orderStatistics().contentToString())
 }

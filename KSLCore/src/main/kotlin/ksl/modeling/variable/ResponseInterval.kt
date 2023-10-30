@@ -273,13 +273,13 @@ class ResponseInterval(
     fun cancelInterval() {
         isScheduled = false
         if (myStartEvent != null) {
-            if (myStartEvent!!.scheduled) {
-                myStartEvent!!.cancelled = true
+            if (myStartEvent!!.isScheduled) {
+                myStartEvent!!.cancel = true
             }
         }
         if (myEndEvent != null) {
-            if (myEndEvent!!.scheduled) {
-                myEndEvent!!.cancelled = true
+            if (myEndEvent!!.isScheduled) {
+                myEndEvent!!.cancel = true
             }
         }
         myStartEvent = null

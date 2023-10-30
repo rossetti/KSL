@@ -20,7 +20,13 @@ package ksl.utilities.statistic
 
 import ksl.utilities.IdentityIfc
 import ksl.utilities.KSLArrays
+import ksl.utilities.distributions.CDFIfc
+import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.ProbInRangeIfc
+import ksl.utilities.io.plotting.HistogramPlot
+import ksl.utilities.isAllEqual
 import ksl.utilities.math.KSLMath
+import ksl.utilities.multiplyConstant
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
@@ -106,14 +112,91 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      */
     val binCounts: DoubleArray
 
+    val binFractions: DoubleArray
+        get() {
+            val m = DoubleArray(bins.size)
+            val n = count
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.count() / n
+            }
+            return m
+        }
+
     /**
      * @return the mid-point of each bin as an array
      */
     val midPoints: DoubleArray
-        get(){
+        get() {
             val m = DoubleArray(bins.size)
-            for((index, bin) in bins.withIndex()){
-                m[index]= bin.midPoint
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.midPoint
+            }
+            return m
+        }
+
+    /**
+     * @return the lower limit of each bin as an array
+     */
+    val lowerLimits: DoubleArray
+        get() {
+            val m = DoubleArray(bins.size)
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.lowerLimit
+            }
+            return m
+        }
+
+    /**
+     * @return the upper limit of each bin as an array
+     */
+    val upperLimits: DoubleArray
+        get() {
+            val m = DoubleArray(bins.size)
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.upperLimit
+            }
+            return m
+        }
+
+    /**
+     *  @return the width of each bin as an array
+     */
+    val binWidths: DoubleArray
+        get() {
+            val m = DoubleArray(bins.size)
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.width
+            }
+            return m
+        }
+
+    /**
+     * @return the area associated with the bin, width*count
+     */
+    val binAreas: DoubleArray
+        get() {
+            val m = DoubleArray(bins.size)
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = (bin.width * bin.count())
+            }
+            return m
+        }
+
+    /**
+     *  A simple estimate of the "density" function
+     *  for each bin using bin fraction/bin width values for each bin
+     *  The bin width must be constant across the bins and not equal to 0.0
+     */
+    val densityEstimates: DoubleArray
+        get() {
+            val bws = binWidths
+            require(bws.isAllEqual()) { "The width of each bin must be the same" }
+            val bw = bws[0]
+            require(bw > 0.0) { "The bin width must be > 0.0" }
+            val m = DoubleArray(bins.size)
+            val delta = count * bw
+            for ((index, bin) in bins.withIndex()) {
+                m[index] = bin.count() / delta
             }
             return m
         }
@@ -244,4 +327,48 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      * @return last bin's upper limit
      */
     val lastBinUpperLimit: Double
+
+    /**
+     *  Returns the probability for each bin of the histogram based on an open
+     *  integer range interpretation of the bin .
+     *  The discrete distribution, [discreteCDF] must implement the ProbInRangeIfc interface
+     */
+    fun binProbabilities(discreteCDF : ProbInRangeIfc) : DoubleArray {
+        val binProb = DoubleArray(numberBins)
+        for((i, bin) in bins.withIndex()){
+            binProb[i] = discreteCDF.probIn(bin.openIntRange)
+        }
+        return binProb
+    }
+
+    /**
+     *  Returns the probability for each bin of the histogram based on a continuous interval
+     *  interpretation of the bin .
+     *  The distribution, [cdf] must implement the ContinuousDistributionIfc interface
+     */
+    fun binProbabilities(cdf : ContinuousDistributionIfc) : DoubleArray {
+        val binProb = DoubleArray(numberBins)
+        for((i, bin) in bins.withIndex()){
+            binProb[i] = cdf.cdf(bin.interval)
+        }
+        return binProb
+    }
+
+    /**
+     *  Returns the expected count for each bin of the histogram based on a continuous interval
+     *  interpretation of the bin .
+     *  The distribution, [cdf] must implement the ContinuousDistributionIfc interface
+     */
+    fun expectedCounts(cdf : ContinuousDistributionIfc): DoubleArray{
+        return binProbabilities(cdf).multiplyConstant(count)
+    }
+
+    /**
+     *  Creates a plot for the histogram. The parameter, [proportions]
+     *  indicates whether proportions (true) or frequencies (false)
+     *  will be shown on the plot. The default is true.
+     */
+    fun histogramPlot(proportions: Boolean = true) : HistogramPlot {
+        return HistogramPlot(this, proportions)
+    }
 }

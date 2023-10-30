@@ -18,6 +18,8 @@
 
 package ksl.modeling.variable
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Interval
@@ -73,7 +75,7 @@ interface CounterCIfc {
     var defaultReportingOption: Boolean
     fun addCountLimitAction(action: CountActionIfc)
     fun removeCountLimitAction(action: CountActionIfc)
-    fun addCountLimitStoppingAction(): CountActionIfc
+    fun addCountLimitStoppingAction(initialCountLimit: Int): CountActionIfc
 }
 
 open class Counter(
@@ -105,6 +107,11 @@ open class Counter(
      * Sets the initial value of the count limit. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next replication.
      */
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        name = "initialCounterLimit",
+        lowerBound = 0.0
+    )
     override var initialCounterLimit: Double = countLimit
         set(value) {
             require(value >= 0) { "The initial counter limit, when set, must be >= 0" }
@@ -116,9 +123,12 @@ open class Counter(
         }
 
     /**
-     * Indicates the count when the simulation should stop. Zero indicates no limit.
+     * Changes the count action limit during the replication.  WARNING: This value will automatically be
+     * reset to the initialCountLimit at the beginning of each replication so that each
+     * replication starts in the same state. If you want to control the count limit for each
+     * replication, you should use the initialCountLimit.
      */
-    var countActionLimit: Double = countLimit
+    var replicationCountLimit: Double = countLimit
         set(limit) {
             require(limit >= 0) { "The counter stop limit, when set, must be >= 0" }
             if (model.isRunning) {
@@ -140,13 +150,18 @@ open class Counter(
         }
 
     val isLimitReached: Boolean
-        get() = myValue >= countActionLimit
+        get() = myValue >= replicationCountLimit
 
     /**
      * Sets the initial value of the variable. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next
      * replication.
      */
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        name = "initialValue",
+        lowerBound = 0.0
+    )
     override var initialValue: Double = initialValue
         set(value) {
             require(value >= 0) { "The initial value $value must be >= 0" }
@@ -184,7 +199,8 @@ open class Counter(
         counterActions.remove(action)
     }
 
-    override fun addCountLimitStoppingAction(): CountActionIfc {
+    override fun addCountLimitStoppingAction(initialCountLimit: Int): CountActionIfc {
+        this.initialCounterLimit = initialCountLimit.toDouble()
         if (stoppingAction == null) {
             stoppingAction = StoppingAction()
             addCountLimitAction(stoppingAction!!)
@@ -209,7 +225,7 @@ open class Counter(
         if (emissionsOn){
             emitter.emit(Pair(timeOfChange, myValue))
         }
-        if (myValue == countActionLimit) {
+        if (myValue == replicationCountLimit) {
             notifyCountLimitActions()
         }
     }
@@ -229,7 +245,7 @@ open class Counter(
         timeOfChange = 0.0
         previousValue = value
         previousTimeOfChange = 0.0
-        countActionLimit = initialCounterLimit
+        replicationCountLimit = initialCounterLimit
     }
 
     /**
@@ -299,7 +315,7 @@ open class Counter(
      */
     fun resetCounter(value: Double, notifyUpdateObservers: Boolean) {
         require(value >= 0) { "The counter's value must be >= 0" }
-        require(value < countActionLimit) { "The counter's value, $value must be < the counter limit = $countActionLimit" }
+        require(value < replicationCountLimit) { "The counter's value, $value must be < the counter limit = $replicationCountLimit" }
         previousValue = value
         previousTimeOfChange = time
         myValue = value
@@ -311,7 +327,7 @@ open class Counter(
 
     private inner class StoppingAction : CountActionIfc {
         override fun action(response: ResponseIfc) {
-            executive.stop("Stopped because counter limit $countActionLimit was reached for $name")
+            executive.stop("Stopped because counter limit $replicationCountLimit was reached for $name")
         }
     }
 }

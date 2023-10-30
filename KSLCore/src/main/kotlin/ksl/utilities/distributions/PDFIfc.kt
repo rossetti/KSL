@@ -18,18 +18,44 @@
 
 package ksl.utilities.distributions
 
+import kotlin.math.exp
+import kotlin.math.ln
+
 /** Represents the probability density function for
  *  1-d continuous distributions
  *
  * @author rossetti
  */
-interface PDFIfc : DomainIfc {
+interface PDFIfc : DomainIfc, LogLikelihoodIfc {
+
     /** Returns the f(x) where f represents the probability
      * density function for the distribution.  Note this is not
      * a probability.
      *
      * @param x a double representing the value to be evaluated
-     * @return f(x)
+     * @return f(x)  This should be a strictly positive number
      */
     fun pdf(x: Double): Double
+
+    /**
+     *  Computes the natural log of the pdf function evaluated at [x].
+     *  Implementations may want to specify computationally efficient
+     *  formulas for this function.
+     */
+    override fun logLikelihood(x: Double): Double {
+        return ln(pdf(x))
+    }
+
+    /**
+     *  Assuming that the observations in the array [data]
+     *  are from a random sample, this function computes
+     *  the likelihood function. This is computed using
+     *  as the sum of the log-likelihood function raised
+     *  to e. Implementation may want to specify other computationally
+     *  efficient formulas for this function or (most likely)
+     *  the sum of the log-likelihood function.
+     */
+    fun likelihood(data: DoubleArray) : Double {
+        return exp(sumLogLikelihood(data))
+    }
 }

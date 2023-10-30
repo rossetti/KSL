@@ -28,7 +28,7 @@ import kotlin.math.pow
 
 /** Models exponentially distributed random variables
  * This distribution is commonly use to model the time between events
- * @param theMean The mean of the distribution, , must be &gt; 0.0
+ * @param theMean The mean of the distribution, must be &gt; 0.0
  * @param name an optional label/name
  */
 class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution<Exponential>(name),
@@ -70,8 +70,11 @@ class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution<Ex
     val moment4: Double = mean.pow(4.0) * exp(Gamma.logGammaFunction(5.0))
 
     override fun cdf(x: Double): Double {
-        return if (x >= 0) {
-            1 - exp(-x / mean)
+        if ((x == Double.POSITIVE_INFINITY) || (x == Double.MAX_VALUE)) {
+            return 1.0
+        }
+        return if (x >= 0.0) {
+            1.0 - exp(-x / mean)
         } else {
             0.0
         }
@@ -121,5 +124,9 @@ class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution<Ex
 
     override fun secondOrderLossFunction(x: Double): Double {
         return firstOrderLossFunction(x) / mean
+    }
+
+    override fun toString(): String {
+        return "Exponential(mean=$mean)"
     }
 }
