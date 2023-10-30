@@ -54,22 +54,22 @@ dependencies {
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
     implementation("org.apache.logging.log4j:log4j-to-slf4j:2.19.0")
 
-    api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+    api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.5.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.6.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
-    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.4.2")
+    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.4.3")
 
 // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-common
 //    implementation("org.jetbrains.lets-plot:lets-plot-common:4.0.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-image-export
-    api("org.jetbrains.lets-plot:lets-plot-image-export:4.0.0")
+    api("org.jetbrains.lets-plot:lets-plot-image-export:4.0.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
-    api("org.jetbrains.kotlinx:dataframe-core:0.11.0")
+    api("org.jetbrains.kotlinx:dataframe-core:0.12.0")
 
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.9.0")
@@ -81,9 +81,9 @@ dependencies {
     // replacement for apache math commons
     //TODO I'm not using it anywhere, consider removing it altogether
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
-    implementation("org.hipparchus:hipparchus-core:2.3")
+    implementation("org.hipparchus:hipparchus-core:3.0")
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
-    implementation("org.hipparchus:hipparchus-stat:2.3")
+    implementation("org.hipparchus:hipparchus-stat:3.0")
 
     implementation("com.google.guava:guava:32.1.1-jre")
 
