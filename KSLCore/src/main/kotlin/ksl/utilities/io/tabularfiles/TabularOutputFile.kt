@@ -21,8 +21,9 @@ package ksl.utilities.io.tabularfiles
 import ksl.utilities.countGreaterEqualTo
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.ColumnMetaData
-import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.DatabaseIfc
+import ksl.utilities.io.dbutil.SQLiteDb
+import ksl.utilities.io.dbutil.TabularData
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import java.io.IOException
@@ -42,13 +43,19 @@ import kotlin.math.max
  *  Use the methods of this class to write rows.  After writing the rows, it is important
  *  to call the flushRows() method to ensure that all buffered rows are committed to the file.
  *
+ * @param columnTypes a map that defines the column names and their data types
+ * @param path the path to the file for writing the data
  * @see ksl.utilities.io.tabularfiles.TabularFile
- * @see ksl.utilities.io.tabularfiles.TestTabularWork  For example code
+ * @see ksl.examples.utilities.TestTabularWork  For example code
  */
-
 class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : TabularFile(columnTypes, path) {
 
-    private val myDb: DatabaseIfc
+    /**
+     * Uses [tabularData] as the schema pattern for defining the columns and their data types
+     */
+    constructor(tabularData: TabularData, path: Path) : this(tabularData.extractColumnDataTypes(), path)
+
+    internal val myDb: DatabaseIfc
 
     /** Allows the user to configure the size of the batch writing if performance becomes an issue.
      * This may or may not provide any benefit. The static methods related to this functionality
@@ -63,12 +70,12 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
     private var myRowCount = 0
     private val myRow: RowSetterIfc
     private val myTableMetaData: List<ColumnMetaData>
-    private val dataTableName: String
+    val dataTableName: String
 
     init {
         val fileName = path.fileName.toString()
         val dir = path.parent
-        myDb = DatabaseFactory.createSQLiteDatabase(fileName, dir)
+        myDb = SQLiteDb.createDatabase(fileName, dir)
         val fixedFileName = fileName.replace("[^a-zA-Z]".toRegex(), "")
         dataTableName = fixedFileName + "_Data"
         val cmd = createTableCommand(dataTableName)
@@ -148,6 +155,17 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
     }
 
     /**
+     * Writes the data represented by the TabularData instance
+     * to the file. The operation cannot be undone.
+     *
+     * @param data the data represented by an instance of a TabularData
+     */
+    fun writeRow(data: TabularData){
+        myRow.setElements(data)
+        writeRow(myRow)
+    }
+
+    /**
      * Writes the data currently in the row to the file. Once
      * written, the operation cannot be undone.
      *
@@ -189,13 +207,22 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      *  Converts the columns and rows to a Dataframe.
      *  @return the data frame or an empty data frame if conversion does not work
      */
-    fun asDataFrame(): AnyFrame {
+    override fun asDataFrame(): AnyFrame {
         val resultSet = myDb.selectAllIntoOpenResultSet(dataTableName)
-        return if (resultSet!= null){
+        val df  = if (resultSet!= null){
             DatabaseIfc.toDataFrame(resultSet)
         }else{
             emptyDataFrame<Nothing>()
         }
+        resultSet?.close()
+        return df
+    }
+
+    /**
+     *  Opens the file as a TabularInputFile
+     */
+    fun asTabularInputFile(): TabularInputFile {
+        return TabularInputFile(this.columnTypes, this.path)
     }
 
     /**
@@ -207,7 +234,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
             myDb.getConnection().use { connection ->
                 connection.autoCommit = false
                 val n = numberColumns
-                val sql = myDb.createTableInsertStatement(dataTableName, n)
+                val sql = DatabaseIfc.insertIntoTableStatementSQL(dataTableName, n, schemaName = myDb.defaultSchemaName)
                 val ps = connection.prepareStatement(sql)
                 for (row in buffer) {
                     myDb.addBatch(row, n, ps)
@@ -215,7 +242,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
                 val numInserts = ps.executeBatch()
                 val k = numInserts.countGreaterEqualTo(0)
                 if (k < buffer.size) {
-                    KSL.logger.error("Unable to write all rows $k of buffer size ${buffer.size} to tabular file $dataTableName")
+                    KSL.logger.error{"Unable to write all rows $k of buffer size ${buffer.size} to tabular file $dataTableName"}
                     throw IOException("Unable to write rows to tabular file $dataTableName")
                 } else {
                     KSL.logger.trace { "Inserted $k rows of batch size ${buffer.size} into file $dataTableName" }
@@ -231,7 +258,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
                 is BatchUpdateException,
                 is SQLException,
                 is IOException -> {
-                    KSL.logger.error("Unable to write all rows to tabular file $dataTableName")
+                    KSL.logger.error{"Unable to write all rows to tabular file $dataTableName"}
                     throw IOException("Unable to write all rows to tabular file $dataTableName")
                 }
                 else -> throw ex

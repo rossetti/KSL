@@ -24,8 +24,7 @@ import javax.sql.rowset.CachedRowSet
 fun isEven(value: Int) = value % 2 == 0
 fun isOdd(value: Int) = value % 2 == 1
 
-//TODO need a default format
-class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = null) : Iterable<List<String>> {
+class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = "%.3f") : Iterable<List<String>> {
 
     private val myColumns = mutableListOf<DbColumn>()
 

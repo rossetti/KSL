@@ -19,7 +19,7 @@
 package ksl.utilities.io
 
 import com.opencsv.CSVWriterBuilder
-import mu.KLoggable
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException
 import org.apache.poi.openxml4j.opc.OPCPackage
 import org.apache.poi.openxml4j.opc.PackageAccess
@@ -37,9 +37,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
 
-object ExcelUtil : KLoggable {
+object ExcelUtil  {
 
-    override val logger = logger()
+    val logger = KotlinLogging.logger {}
 
     const val DEFAULT_MAX_CHAR_IN_CELL = 512
 
@@ -64,7 +64,7 @@ object ExcelUtil : KLoggable {
             val name = sheetName + "_" + n
             workbook.createSheet(WorkbookUtil.createSafeSheetName(name))
         }
-        logger.info("Created new sheet {} in workbook", sheetName)
+        logger.info { "Created new sheet $sheetName in workbook" }
         return sheet
     }
 
@@ -158,21 +158,21 @@ object ExcelUtil : KLoggable {
     fun openExistingXSSFWorkbookReadOnly(pathToWorkbook: Path): XSSFWorkbook? {
         val file = pathToWorkbook.toFile()
         if (!file.exists()) {
-            logger.warn("The file at {} does not exist", pathToWorkbook)
+            logger.warn { "The file at $pathToWorkbook does not exist" }
             return null
         }
         val pkg: OPCPackage? = try {
             OPCPackage.open(file, PackageAccess.READ)
         } catch (e: InvalidFormatException) {
-            logger.error("The workbook has an invalid format. See Apache POI InvalidFormatException")
+            logger.error { "The workbook has an invalid format. See Apache POI InvalidFormatException" }
             return null
         }
         var wb: XSSFWorkbook? = null
         try {
             wb = XSSFWorkbook(pkg)
-            logger.info("Opened workbook for reading only at: {}", pathToWorkbook)
+            logger.info { "Opened workbook for reading only at: $pathToWorkbook" }
         } catch (e: IOException) {
-            logger.error("There was an IO error when trying to open the workbook at: {}", pathToWorkbook)
+            logger.error { "There was an IO error when trying to open the workbook at: $pathToWorkbook" }
         }
         return wb
     }
@@ -288,7 +288,7 @@ object ExcelUtil : KLoggable {
                 s = readCellAsString(cell)
                 if (s.length > maxChar) {
                     s = s.substring(0, maxChar - 1)
-                    logger.warn("The cell {} was truncated to {} characters", cell.stringCellValue, maxChar)
+                    logger.warn { "The cell ${cell.stringCellValue} was truncated to $maxChar characters" }
                 }
             }
             list.add(s)

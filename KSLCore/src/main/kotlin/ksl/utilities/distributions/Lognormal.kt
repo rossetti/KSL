@@ -232,4 +232,8 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
         return LognormalRV(mean, variance, stream)
     }
 
+    override fun toString(): String {
+        return "Lognormal(mean=$mean, variance=$variance)"
+    }
+
 }

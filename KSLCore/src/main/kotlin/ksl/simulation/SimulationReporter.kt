@@ -324,8 +324,8 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
      */
     fun fillResponseReplicationStatistics(list: MutableList<StatisticIfc>) {
         for (r in responses) {
-            val stat = r.acrossReplicationStatistic
             if (r.defaultReportingOption) {
+                val stat = r.acrossReplicationStatistic
                 list.add(stat)
             }
         }
@@ -337,8 +337,8 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
      */
     fun fillCounterAcrossReplicationStatistics(list: MutableList<StatisticIfc>) {
         for (c in counters) {
-            val stat = c.acrossReplicationStatistic
             if (c.defaultReportingOption) {
+                val stat = c.acrossReplicationStatistic
                 list.add(stat)
             }
         }
@@ -360,15 +360,15 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
         sb.append(this)
         sb.append(System.lineSeparator())
         for (r in responses) {
-            val stat = r.acrossReplicationStatistic
             if (r.defaultReportingOption) {
+                val stat = r.acrossReplicationStatistic
                 sb.append(stat)
                 sb.appendLine()
             }
         }
         for (c in counters) {
-            val stat = c.acrossReplicationStatistic
             if (c.defaultReportingOption) {
+                val stat = c.acrossReplicationStatistic
                 sb.append(stat)
                 sb.appendLine()
             }

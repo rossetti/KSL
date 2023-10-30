@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 
 
 /**
@@ -50,7 +52,7 @@ name: String? = null) :
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.WeibullRVParameters()
+            val parameters: RVParameters = WeibullRVParameters()
             parameters.changeDoubleParameter("shape", shape)
             parameters.changeDoubleParameter("scale", scale)
             return parameters

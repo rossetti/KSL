@@ -18,8 +18,7 @@
 
 package ksl.utilities.random.rng
 
-import mu.KLoggable
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 //private val logger = KotlinLogging.logger {}
 
@@ -58,8 +57,8 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
         val stream = myStreamFactory.nextStream()
         myStreams.add(stream)
         if (myStreams.size > streamNumberWarningLimit) {
-            logger.warn("The number of streams made is now = {}", myStreams.size)
-            logger.warn("Increase the stream warning limit if you don't want to see this message")
+            logger.warn{"The number of streams made is now = ${myStreams.size}"}
+            logger.warn { "Increase the stream warning limit if you don't want to see this message" }
         }
         logger.info { "Provided stream ${stream.id}, stream ${lastRNStreamNumber()} of ${myStreams.size} streams" }
         return stream
@@ -131,7 +130,7 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
         myStreamFactory.setFactorySeed(seed)
     }
 
-    companion object : KLoggable {
-        override val logger = logger()
+    companion object {
+        val logger = KotlinLogging.logger {}
     }
 }

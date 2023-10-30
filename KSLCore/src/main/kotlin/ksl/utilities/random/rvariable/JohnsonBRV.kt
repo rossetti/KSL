@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.JohnsonBRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * JohnsonB(alpha1, alpha2, min, max) random variable
@@ -56,7 +58,7 @@ class JohnsonBRV (
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.JohnsonBRVParameters()
+            val parameters: RVParameters = JohnsonBRVParameters()
             parameters.changeDoubleParameter("alpha1", alpha1)
             parameters.changeDoubleParameter("alpha2", alpha2)
             parameters.changeDoubleParameter("min", min)

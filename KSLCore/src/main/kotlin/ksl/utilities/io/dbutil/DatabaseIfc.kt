@@ -22,11 +22,8 @@ import com.opencsv.CSVWriterBuilder
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
-import ksl.utilities.io.ExcelUtil
-import ksl.utilities.io.KSL
-import ksl.utilities.io.KSLFileUtil
-import ksl.utilities.io.MarkDown
-import mu.KLoggable
+import ksl.utilities.io.*
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -43,16 +40,18 @@ import java.util.regex.Pattern
 import javax.sql.DataSource
 import javax.sql.rowset.CachedRowSet
 import javax.sql.rowset.RowSetProvider
-import kotlin.reflect.typeOf
+import kotlin.reflect.*
 
 
 interface DatabaseIOIfc {
+
+    var outputDirectory: OutputDirectory
 
     /**
      * identifying string representing the database. This has no relation to
      * the name of the database on disk or in the dbms. The sole purpose is for labeling of output
      */
-    val label: String
+    var label: String
 
     /**
      * Sets the name of the default schema
@@ -70,7 +69,7 @@ interface DatabaseIOIfc {
      */
     fun exportTableAsCSV(
         tableName: String,
-        out: PrintWriter,
+        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.csv"),
         schemaName: String? = defaultSchemaName,
         header: Boolean = true
     )
@@ -88,7 +87,11 @@ interface DatabaseIOIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsText(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun writeTableAsText(
+        tableName: String,
+        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.txt"),
+        schemaName: String? = defaultSchemaName
+    )
 
     /**
      * Prints the table as prettified text to the console
@@ -110,7 +113,10 @@ interface DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsText(out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun writeAllTablesAsText(
+        out: PrintWriter = outputDirectory.createPrintWriter("${label}.txt"),
+        schemaName: String? = defaultSchemaName
+    )
 
     /**
      * Writes the table as prettified text.
@@ -118,7 +124,11 @@ interface DatabaseIOIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    fun writeTableAsMarkdown(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun writeTableAsMarkdown(
+        tableName: String,
+        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.md"),
+        schemaName: String? = defaultSchemaName
+    )
 
     /**
      * Prints the table as prettified text to the console
@@ -140,7 +150,18 @@ interface DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    fun writeAllTablesAsMarkdown(out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun writeAllTablesAsMarkdown(
+        out: PrintWriter = outputDirectory.createPrintWriter("${label}.md"),
+        schemaName: String? = defaultSchemaName
+    )
+
+    /**
+     * Writes all tables as text
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param out        the PrintWriter to write to
+     */
+    fun writeAllViewsAsMarkdown(out: PrintWriter, schemaName: String?)
 
     /**
      * Writes all tables as separate comma separated value files into the supplied
@@ -152,9 +173,24 @@ interface DatabaseIOIfc {
      * @param header  true means all files will have the column headers
      */
     fun exportAllTablesAsCSV(
-        pathToOutPutDirectory: Path,
+        pathToOutPutDirectory: Path = outputDirectory.csvDir,
         schemaName: String? = defaultSchemaName,
         header: Boolean = true
+    )
+
+    /**
+     * Writes all tables as separate comma separated value files into the supplied
+     * directory. The files are written to text files using the same name as
+     * the tables in the database
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param pathToOutPutDirectory the path to the output directory to hold the csv files
+     * @param header  true means all files will have the column headers
+     */
+    fun exportAllViewsAsCSV(
+        pathToOutPutDirectory: Path,
+        schemaName: String?,
+        header: Boolean
     )
 
     /**
@@ -170,7 +206,11 @@ interface DatabaseIOIfc {
      * @param tableName the unqualified name of the table
      * @param out       the PrintWriter to write to
      */
-    fun exportInsertQueries(tableName: String, out: PrintWriter, schemaName: String? = defaultSchemaName)
+    fun exportInsertQueries(
+        tableName: String,
+        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.sql"),
+        schemaName: String? = defaultSchemaName
+    )
 
     /**
      * Prints all table data as insert queries to the console
@@ -198,7 +238,7 @@ interface DatabaseIOIfc {
     fun exportToExcel(
         schemaName: String? = defaultSchemaName,
         wbName: String = label,
-        wbDirectory: Path = KSL.excelDir
+        wbDirectory: Path = outputDirectory.excelDir
     )
 
     /** Writes each table in the list to an Excel workbook with each table being placed
@@ -214,7 +254,7 @@ interface DatabaseIOIfc {
         tableNames: List<String>,
         schemaName: String? = defaultSchemaName,
         wbName: String = label.substringBeforeLast("."),
-        wbDirectory: Path = KSL.excelDir
+        wbDirectory: Path = outputDirectory.excelDir
     )
 
     /**
@@ -262,7 +302,7 @@ interface DatabaseIOIfc {
         schemaName: String? = defaultSchemaName,
         numRowsToSkip: Int = 1,
         rowBatchSize: Int = 100,
-        unCompatibleRows: PrintWriter = KSLFileUtil.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
+        unCompatibleRows: PrintWriter = outputDirectory.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
     ): Boolean
 }
 
@@ -289,6 +329,12 @@ interface DatabaseIfc : DatabaseIOIfc {
      * This method calls the DataSource for a connection from the underlying DataSource.
      * You are responsible for closing the connection.
      *
+     * ```
+     * getConnection().use { con ->
+     *
+     * }
+     * ```
+     *
      * @return a connection to the database
      * @throws SQLException if there is a problem with the connection
      */
@@ -298,7 +344,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             logger.trace { "Established a connection to Database $label " }
             return c
         } catch (ex: SQLException) {
-            KSL.logger.error("Unable to establish connection to $label")
+            KSL.logger.error { "Unable to establish connection to $label" }
             throw ex
         }
     }
@@ -323,10 +369,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn(
-                    "Unable to get table names for schema $schemaName. The meta data was not available for database $label",
-                    e
-                )
+                logger.warn(e) { "Unable to get table names for schema $schemaName. The meta data was not available for database $label" }
             }
         }
         return list
@@ -350,10 +393,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn(
-                    "Unable to get view names for schema $schemaName. The meta data was not available for database $label",
-                    e
-                )
+                logger.warn(e) { "Unable to get view names for schema $schemaName. The meta data was not available for database $label" }
             }
         }
         return list
@@ -376,10 +416,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn(
-                    "Unable to get database user defined tables. The meta data was not available for database $label",
-                    e
-                )
+                logger.warn { "Unable to get database user defined tables. The meta data was not available for database $label" }
+                logger.warn { "$e" }
             }
             return list
         }
@@ -401,7 +439,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn("Unable to get database schemas. The meta data was not available for database $label", e)
+                logger.warn { "Unable to get database schemas. The meta data was not available for database $label" }
+                logger.warn { "$e" }
             }
             return list
         }
@@ -423,7 +462,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                     rs.close()
                 }
             } catch (e: SQLException) {
-                logger.warn("Unable to get database views. The meta data was not available for database $label", e)
+                logger.warn { "Unable to get database views. The meta data was not available for database $label" }
+                logger.warn { "$e" }
             }
             return list
         }
@@ -615,12 +655,12 @@ interface DatabaseIfc : DatabaseIOIfc {
     override fun writeTableAsMarkdown(tableName: String, out: PrintWriter, schemaName: String?) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
-                logger.info("Schema: {} does not exist in database {}", schemaName, label)
+                logger.info { "Schema: $schemaName does not exist in database $label" }
                 return
             }
         }
         if (!containsTable(tableName) && !containsView(tableName)) {
-            logger.info("Table or View: {} does not exist in database {}", tableName, label)
+            logger.info { "Table or View: $tableName does not exist in database $label" }
             return
         }
         val rowSet = selectAll(tableName, schemaName)
@@ -648,6 +688,23 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     override fun printAllTablesAsMarkdown(schemaName: String?) {
         writeAllTablesAsMarkdown(PrintWriter(System.out), schemaName)
+    }
+
+    /**
+     * Writes all tables as text
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param out        the PrintWriter to write to
+     */
+    override fun writeAllViewsAsMarkdown(out: PrintWriter, schemaName: String?) {
+        val viewList = if (schemaName != null) {
+            viewNames(schemaName)
+        } else {
+            views
+        }
+        for (view in viewList) {
+            writeTableAsMarkdown(view, out, schemaName)
+        }
     }
 
     /**
@@ -696,6 +753,34 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     * Writes all tables as separate comma separated value files into the supplied
+     * directory. The files are written to text files using the same name as
+     * the tables in the database
+     *
+     * @param schemaName the name of the schema that should contain the tables
+     * @param pathToOutPutDirectory the path to the output directory to hold the csv files
+     * @param header  true means all files will have the column headers
+     */
+    override fun exportAllViewsAsCSV(
+        pathToOutPutDirectory: Path,
+        schemaName: String?,
+        header: Boolean
+    ) {
+        Files.createDirectories(pathToOutPutDirectory)
+        val viewList = if (schemaName != null) {
+            viewNames(schemaName)
+        } else {
+            views
+        }
+        for (view in viewList) {
+            val path: Path = pathToOutPutDirectory.resolve("$view.csv")
+            val writer = KSLFileUtil.createPrintWriter(path)
+            exportTableAsCSV(view, writer, schemaName, header)
+            writer.close()
+        }
+    }
+
+    /**
      * @param schemaName the schema containing the table
      * @param tableName the name of the table within the schema to get all records from
      * @return a result holding all the records from the table
@@ -714,6 +799,25 @@ interface DatabaseIfc : DatabaseIOIfc {
         } else {
             selectAllFromTable(tableName)
         }
+    }
+
+    /**
+     *  Deletes all data from the named table
+     *  @param tableName the table to delete from
+     *  @param schemaName the name of the schema containing the table
+     *  @return true if the command executed successfully.
+     */
+    fun deleteAllFrom(tableName: String, schemaName: String? = defaultSchemaName): Boolean {
+        if (schemaName != null) {
+            if (!containsSchema(schemaName)) {
+                return false
+            }
+        }
+        if (!containsTable(tableName)) {
+            return false
+        }
+        val sql = deleteAllFromTableSQL(tableName, schemaName)
+        return executeCommand(sql)
     }
 
     /**
@@ -866,7 +970,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                 }
                 return
             }
-            val tables = tableNames(schemaName)
+            val tables = tableNames(schemaName).toMutableList()
+            tables.addAll(viewNames(schemaName))
             logger.info { "Exporting $schemaName to $wbName at $wbDirectory" }
             exportToExcel(tables, schemaName, wbName, wbDirectory)
         } else {
@@ -890,7 +995,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         wbDirectory: Path
     ) {
         if (tableNames.isEmpty()) {
-            logger.warn("The supplied list of table names was empty when writing to Excel in database {}", label)
+            logger.warn { "The supplied list of table names was empty when writing to Excel in database $label" }
             return
         }
         val wbn = if (!wbName.endsWith(".xlsx")) {
@@ -900,6 +1005,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         }
         val path = wbDirectory.resolve(wbn)
         FileOutputStream(path.toFile()).use {
+            ExcelUtil.logger.info { "Opened workbook $path for writing database $label output" }
             logger.info { "Writing database $label to workbook at $path" }
             val workbook = SXSSFWorkbook(100)
             for (tableName in tableNames) {
@@ -918,6 +1024,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             workbook.write(it)
             workbook.close()
             workbook.dispose()
+            ExcelUtil.logger.info { "Closed workbook $path after writing database $label output" }
             logger.info { "Completed database $label export to workbook at $path" }
         }
     }
@@ -944,11 +1051,11 @@ interface DatabaseIfc : DatabaseIOIfc {
         val workbook: XSSFWorkbook = ExcelUtil.openExistingXSSFWorkbookReadOnly(pathToWorkbook)
             ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
 
-        logger.info("Writing workbook {} to database {}", pathToWorkbook, label)
+        logger.info { "Writing workbook $pathToWorkbook to database $label" }
         for (tableName in tableNames) {
             val sheet = workbook.getSheet(tableName)
             if (sheet == null) {
-                logger.info("Skipping table {} no corresponding sheet in workbook", tableName)
+                logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
                 continue
             }
             logger.trace { "Processing the sheet for table $tableName." }
@@ -975,8 +1082,8 @@ interface DatabaseIfc : DatabaseIOIfc {
             }
         }
         workbook.close()
-        logger.info("Closed workbook {} ", pathToWorkbook)
-        logger.info("Completed writing workbook {} to database {}", pathToWorkbook, label)
+        logger.info { "Closed workbook $pathToWorkbook " }
+        logger.info { "Completed writing workbook $pathToWorkbook to database $label" }
     }
 
     /** Copies the rows from the sheet to the table.  The copy is assumed to start
@@ -1057,9 +1164,8 @@ interface DatabaseIfc : DatabaseIOIfc {
             true
         } catch (ex: SQLException) {
             logger.error(
-                "SQLException when importing ${sheet.sheetName} into table $tableName of schema $schemaName of database $label",
                 ex
-            )
+            ) { "SQLException when importing ${sheet.sheetName} into table $tableName of schema $schemaName of database $label" }
             false
         }
     }
@@ -1071,38 +1177,33 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the schema containing the table
      * @return a prepared statement that can perform the insert if given the appropriate column values
      */
-    private fun makeInsertPreparedStatement(
+    fun makeInsertPreparedStatement(
         con: Connection,
         tableName: String,
         numColumns: Int,
         schemaName: String?
     ): PreparedStatement {
-        val sql = createTableInsertStatement(tableName, numColumns, schemaName)
+        require(containsTable(tableName)) { "The database $label does not contain table $tableName" }
+        val sql = insertIntoTableStatementSQL(tableName, numColumns, schemaName)
         return con.prepareStatement(sql)
     }
 
     /**
+     * @param con an active connection to the database
      * @param tableName the name of the table to be inserted into
-     * @param numColumns the number of columns starting from the left to insert into
+     * @param fieldName the field name controlling the where clause
      * @param schemaName the schema containing the table
-     * @return a generic SQL insert statement with appropriate number of parameters for the table
+     * @return a prepared statement that can perform the deletion if given the appropriate condition value
      */
-    fun createTableInsertStatement(
+    fun makeDeleteFromPreparedStatement(
+        con: Connection,
         tableName: String,
-        numColumns: Int,
-        schemaName: String? = defaultSchemaName
-    ): String {
-        // assume all columns have the same table name and schema name
-        require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
-        val qm = CharArray(numColumns)
-        qm.fill('?', toIndex = numColumns)
-        val inputs = qm.joinToString(", ", prefix = "(", postfix = ")")
-        val sql = if (schemaName == null) {
-            "insert into $tableName values $inputs"
-        } else {
-            "insert into ${schemaName}.${tableName} values $inputs"
-        }
-        return sql
+        fieldName: String,
+        schemaName: String?
+    ): PreparedStatement {
+        require(containsTable(tableName)) { "The database $label does not contain table $tableName" }
+        val sql = deleteFromTableWhereSQL(tableName, fieldName, schemaName)
+        return con.prepareStatement(sql)
     }
 
     /** This method inserts the data into the prepared statement as a batch insert.
@@ -1173,10 +1274,10 @@ interface DatabaseIfc : DatabaseIOIfc {
     fun executeCommand(command: String): Boolean {
         var flag = false
         try {
-            logger.trace { "Getting connection to execute command $command on database $label" }
+            logger.info { "Getting connection to execute command $command on database $label" }
             getConnection().use { con -> flag = executeCommand(con, command) }
         } catch (ex: SQLException) {
-            logger.error("SQLException when executing {}", command, ex)
+            logger.error(ex) { "SQLException when executing $command" }
         }
         return flag
     }
@@ -1210,7 +1311,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         } catch (ex: SQLException) {
             executed = false
             logger.trace { "The commands were not executed for database $label" }
-            logger.error("SQLException: ", ex)
+            logger.error(ex) { "SQLException: " }
         }
         return executed
     }
@@ -1224,7 +1325,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     fun executeScript(path: Path): Boolean {
         require(!Files.notExists(path)) { "The script file does not exist" }
-        logger.trace("Executing SQL in file: {}", path)
+        logger.trace { "Executing SQL in file: $path" }
         return executeCommands(parseQueriesInSQLScript(path))
     }
 
@@ -1246,7 +1347,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return crs
             }
         } catch (e: SQLException) {
-            logger.warn("The query $sql was not executed for database $label", e)
+            logger.warn(e) { "The query $sql was not executed for database $label" }
         }
         return null
     }
@@ -1267,7 +1368,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             query = getConnection().prepareStatement(sql)
             return query.executeQuery()
         } catch (e: SQLException) {
-            logger.warn("The query $sql was not executed for database $label", e)
+            logger.warn(e) { "The query $sql was not executed for database $label" }
             query?.close()
         }
         return null
@@ -1295,7 +1396,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 return count
             }
         } catch (e: SQLException) {
-            logger.warn("Could not count the number of rows in $tableName")
+            logger.warn { "Could not count the number of rows in $tableName" }
         }
         return 0
     }
@@ -1310,41 +1411,41 @@ interface DatabaseIfc : DatabaseIOIfc {
     fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
         if (containsSchema(schemaName)) {
             // need to delete the schema and any tables/data
-            logger.debug("The database {} contains the schema {}", label, schemaName)
-            logger.debug("Attempting to drop the schema {}....", schemaName)
+            logger.debug { "The database $label contains the schema $schemaName" }
+            logger.debug { "Attempting to drop the schema $schemaName...." }
 
             //first drop any views, then the tables
             val tables = tableNames(schemaName)
-            logger.debug("Schema {} has tables ... ", schemaName)
+            logger.debug { "Schema $schemaName has tables ... " }
             for (t in tables) {
-                logger.debug("table {}", t)
+                logger.debug { "table $t" }
             }
             val views = viewNames(schemaName)
-            logger.debug("Schema {} has views ... ", schemaName)
+            logger.debug { "Schema $schemaName has views ... " }
             for (v in views) {
-                logger.debug("table {}", v)
+                logger.debug { "table $v" }
             }
             for (name in viewNames) {
-                logger.debug("Checking for view {} ", name)
+                logger.debug { "Checking for view $name " }
                 if (views.contains(name)) {
                     val sql = "drop view $name"
                     val b = executeCommand(sql)
                     if (b) {
-                        logger.debug("Dropped view {} ", name)
+                        logger.debug { "Dropped view $name " }
                     } else {
-                        logger.debug("Unable to drop view {} ", name)
+                        logger.debug { "Unable to drop view $name " }
                     }
                 }
             }
             for (name in tableNames) {
-                logger.debug("Checking for table {} ", name)
+                logger.debug { "Checking for table $name " }
                 if (tables.contains(name)) {
                     val sql = "drop table $name"
                     val b = executeCommand(sql)
                     if (b) {
-                        logger.debug("Dropped table {} ", name)
+                        logger.debug { "Dropped table $name " }
                     } else {
-                        logger.debug("Unable to drop table {} ", name)
+                        logger.debug { "Unable to drop table $name " }
                     }
                 }
 
@@ -1352,16 +1453,16 @@ interface DatabaseIfc : DatabaseIOIfc {
             val sql = "drop schema $schemaName cascade"
             val b = executeCommand(sql)
             if (b) {
-                logger.debug("Dropped schema {} ", schemaName)
+                logger.debug { "Dropped schema $schemaName " }
             } else {
-                logger.debug("Unable to drop schema {} ", schemaName)
+                logger.debug { "Unable to drop schema $schemaName " }
             }
-            logger.debug("Completed the dropping of the schema {}", schemaName)
+            logger.debug { "Completed the dropping of the schema $schemaName" }
         } else {
-            logger.debug("The database {} does not contain the schema {}", label, schemaName)
-            logger.debug("The database {} has the following schemas", label)
+            logger.debug { "The database $label does not contain the schema $schemaName" }
+            logger.debug { "The database $label has the following schemas" }
             for (s in schemas) {
-                logger.debug("schema: {}", s)
+                logger.debug { "schema: $s" }
             }
         }
     }
@@ -1385,21 +1486,204 @@ interface DatabaseIfc : DatabaseIOIfc {
         } else {
             "select * from $tableName"
         }
-        val rs = fetchOpenResultSet(sql)
-        val list = if (rs != null) {
-            columnMetaData(rs)
-        } else {
-            emptyList()
+        var list: List<ColumnMetaData>
+        fetchOpenResultSet(sql).use {
+            list = if (it != null) {
+                columnMetaData(it)
+            } else {
+                emptyList()
+            }
         }
-        rs?.close()
         return list
     }
 
-    companion object : KLoggable {
+    /**
+     *  Selects data from the database and fills a list with instances
+     *  of the data class. The [factory] must produce an instance of a
+     *  subclass, [T] of DbData.  Subclasses of type DbData are
+     *  data classes that have been configured to hold data from a
+     *  named table from the database.  See the documentation on DbData
+     *  for further information. The resulting list of data
+     *  is not connected to the database in any way.
+     */
+    fun <T : TabularData> selectTableDataIntoDbData(factory: () -> T): List<T> {
+        val template = factory()
+        val rowSet: CachedRowSet? = selectAll(template.tableName)
+        val list = mutableListOf<T>()
+        if (rowSet != null) {
+            val iterator = ResultSetRowIterator(rowSet)
+            while (iterator.hasNext()) {
+                val row: List<Any?> = iterator.next()
+                val data = factory()
+                data.setPropertyValues(row)
+                list.add(data)
+            }
+        }
+        logger.trace { "Database $label: selected DbData data class ${template::class.simpleName} data from table ${template.tableName} " }
+        return list
+    }
 
-        //TODO create Dataframe from ResultSet
+    /**
+     *  Inserts the data from the DbData instance into the  supplied table [tableName] and schema [schemaName].
+     *  The DbData instance must be designed for the table.
+     *
+     *  @return the number of rows inserted
+     */
+    fun <T : DbTableData> insertDbDataIntoTable(
+        data: T,
+        tableName: String = data.tableName,
+        schemaName: String? = defaultSchemaName
+    ): Int {
+        require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
+        require(data.tableName == tableName) { "The supplied data was not from table $tableName" }
+        data.schemaName = schemaName
+        val sql = data.insertDataSQLStatement()
+        try {
+            getConnection().use { con ->
+                con.autoCommit = false
+                val stmt = if (data.autoIncField) {
+                    con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
+                } else {
+                    con.prepareStatement(sql)
+                }
+                val dataMap = data.extractNonAutoIncPropertyValuesByName()
+                val insertFields = data.extractUpdatableFieldNames()
+                for ((i, field) in insertFields.withIndex()) {
+                    stmt.setObject(i + 1, dataMap[field])
+                }
+                stmt.executeUpdate()
+                con.commit()
+                if (data.autoIncField) {
+                    val rs = stmt.generatedKeys
+                    rs.next()
+                    //val autoId = rs.getObject(1)
+                    val autoId = rs.getInt(1)
+                    //println("autoId = $autoId  class = ${autoId::class}")
+                    data.setAutoIncField(autoId)
+                }
+                return 1
+            }
+        } catch (e: SQLException) {
+            logger.warn { "There was an SQLException when trying insert DbData data into : $tableName" }
+            logger.warn { "SQLException: $e" }
+            return 0
+        }
+    }
 
-        override val logger = logger()
+    /**
+     *  Inserts the [data] from the list into the supplied table [tableName] and schema [schemaName].
+     *  The DbData instance must be designed for the table.
+     *
+     *  @return the number of rows inserted
+     */
+    fun <T : DbTableData> insertDbDataIntoTable(
+        data: List<T>,
+        tableName: String,
+        schemaName: String? = defaultSchemaName
+    ): Int {
+        if (data.isEmpty()) {
+            return 0
+        }
+        require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
+        // data should come from the table
+        val first = data.first()
+        require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
+        // use first to set up the prepared statement
+        first.schemaName = schemaName
+        val sql = first.insertDataSQLStatement()
+        try {
+            getConnection().use { con ->
+                con.autoCommit = false
+                val stmt = con.prepareStatement(sql)
+                for (d in data) {
+                    val dataMap = d.extractNonAutoIncPropertyValuesByName()
+                    val insertFields = d.extractUpdatableFieldNames()
+                    for ((i, field) in insertFields.withIndex()) {
+                        stmt.setObject(i + 1, dataMap[field])
+                    }
+                    stmt.addBatch()
+                }
+                val ni = stmt.executeBatch()
+                con.commit()
+                logger.trace { "Inserted ${ni.size} data objects out of ${data.size} to table $tableName" }
+                return ni.size
+            }
+        } catch (e: SQLException) {
+            logger.warn { "There was an SQLException when trying insert DbData data into : $tableName" }
+            logger.warn { "SQLException: $e" }
+            return 0
+        }
+    }
+
+    /**
+     *  Updates the table based on the supplied [data].
+     *  The DbData instance must be designed for the table.
+     *
+     *  @return the number of rows updated
+     */
+    fun <T : DbTableData> updateDbDataInTable(
+        data: T,
+        tableName: String = data.tableName,
+        schemaName: String? = defaultSchemaName
+    ): Int {
+        return updateDbDataInTable(listOf(data), tableName, schemaName)
+    }
+
+    /**
+     *  Updates the table based on the [data] from the list.
+     *  The DbData instance must be designed for the table.
+     *
+     *  @return the number of rows updated
+     */
+    fun <T : DbTableData> updateDbDataInTable(
+        data: List<T>,
+        tableName: String,
+        schemaName: String? = defaultSchemaName
+    ): Int {
+        if (data.isEmpty()) {
+            return 0
+        }
+        require(containsTable(tableName)) { "Database $label does not contain table $tableName for updating data!" }
+        // data should come from the table
+        val first = data.first()
+        require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
+        // use first to set up the prepared statement
+        first.schemaName = schemaName
+        val sql = first.updateDataSQLStatement()
+        val nc = first.numUpdateFields
+        try {
+            getConnection().use { con ->
+                con.autoCommit = false
+                val ps = con.prepareStatement(sql)
+                for (d in data) {
+                    val values: List<Any?> = d.extractUpdateValues()
+                    for (colIndex in 1..nc) {
+                        ps.setObject(colIndex, values[colIndex - 1])
+                    }
+                    // need to set key fields for where clause
+                    val wv = d.extractKeyValues()
+                    for ((i, v) in wv.withIndex()) {
+                        ps.setObject(nc + i + 1, v)
+                    }
+                    ps.addBatch()
+                }
+                val ni = ps.executeBatch()
+                con.commit()
+                logger.trace { "Updated ${ni.size} data objects out of ${data.size} in table $tableName" }
+                return ni.size
+            }
+        } catch (e: SQLException) {
+            logger.warn { "There was an SQLException when trying update DbData data in : $tableName" }
+            logger.warn { "SQLException: $e" }
+            return 0
+        }
+    }
+
+    //TODO select * from table where field = ?, updatable RowSet
+
+    companion object {
+
+        val logger = KotlinLogging.logger {}
 
         const val DEFAULT_DELIMITER = ";"
 
@@ -1456,12 +1740,12 @@ interface DatabaseIfc : DatabaseIOIfc {
             try {
                 connection.createStatement().use { statement ->
                     statement.execute(command)
-                    logger.trace("Executed SQL: {}", command)
+                    logger.info{"Executed SQL: $command"}
                     statement.close()
                     flag = true
                 }
             } catch (ex: SQLException) {
-                logger.error("SQLException when executing {}", command, ex)
+                logger.error(ex) { "SQLException when executing command $command" }
             }
             return flag
         }
@@ -1565,8 +1849,8 @@ interface DatabaseIfc : DatabaseIOIfc {
             var warning: SQLWarning? = conn.warnings
             if (warning != null) {
                 while (warning != null) {
-                    logger.warn("Message: {}", warning.message)
-                    warning = warning.getNextWarning()
+                    logger.warn{"Message: ${warning!!.message}"}
+                    warning = warning.nextWarning
                 }
             }
         }
@@ -1630,7 +1914,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 // End of statement
                 if (trimmedLine.endsWith(delimiter)) {
                     command.delete(command.length - delimiter.length - 1, command.length)
-                    logger.trace("Parsed SQL: {}", command)
+                    logger.trace{"Parsed SQL: $command"}
                     return true
                 }
             }
@@ -1648,7 +1932,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             //okay because resultSet is only read from
             val builder = CSVWriterBuilder(writer)
             val csvWriter = builder.build()
-            csvWriter.writeAll(resultSet,header,false,true)
+            csvWriter.writeAll(resultSet, header, false, true)
             csvWriter.flushQuietly()
         }
 
@@ -1713,7 +1997,6 @@ interface DatabaseIfc : DatabaseIOIfc {
          * the result set from left to right (0 is column 1, etc.)
          */
         fun columnMetaData(resultSet: ResultSet): List<ColumnMetaData> {
-//TODO            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }  maybe Derby does not support this!
             val list = mutableListOf<ColumnMetaData>()
             val md = resultSet.metaData
             if (md != null) {
@@ -1792,31 +2075,40 @@ interface DatabaseIfc : DatabaseIOIfc {
                 Types.BIT, Types.BOOLEAN -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Boolean>())
                 }
+
                 Types.DECIMAL, Types.DOUBLE, Types.FLOAT, Types.NUMERIC, Types.REAL -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Double>())
                 }
+
                 Types.TIMESTAMP -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Instant>())
                 }
+
                 Types.INTEGER -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Int>())
                 }
+
                 Types.DATE -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<LocalDate>())
                 }
+
                 Types.TIME -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<LocalTime>())
                 }
+
                 Types.BIGINT -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Long>())
                 }
+
                 Types.SMALLINT, Types.TINYINT -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Short>())
                 }
+
                 Types.BINARY, Types.CHAR, Types.NCHAR, Types.NVARCHAR,
                 Types.VARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> {
                     DataColumn.createValueColumn(columnMetaData.label, data, typeOf<String>())
                 }
+
                 else -> {
                     DataColumn.createValueColumn(columnMetaData.label, mutableListOf<Any>())
                 }
@@ -1826,10 +2118,127 @@ interface DatabaseIfc : DatabaseIOIfc {
         /**
          *  Fills a list with the indicated column of the CachedRowSet
          */
-        private fun fillFromColumn(column: Int, cachedRowSet: CachedRowSet): List<Any?> {
+        fun fillFromColumn(column: Int, cachedRowSet: CachedRowSet): List<Any?> {
             val toCollection: MutableCollection<*> = cachedRowSet.toCollection(column)
             return toCollection.toList()
         }
+
+        /**
+         *  Returns a string SQL to be used to delete all records from a table
+         *
+         *   delete from schemaName.tableName
+         */
+        fun deleteAllFromTableSQL(tableName: String, schemaName: String?): String {
+            require(tableName.isNotEmpty()) { "The table name was empty when making the delete statement" }
+            return if (!schemaName.isNullOrEmpty()) {
+                "delete from ${schemaName}.$tableName"
+            } else {
+                "delete from $tableName"
+            }
+        }
+
+        /**
+         *  Returns a string to be used in a prepared statement
+         *   delete from schemaName.tableName where fieldName = ?
+         */
+        fun deleteFromTableWhereSQL(tableName: String, fieldName: String, schemaName: String?): String {
+            require(tableName.isNotEmpty()) { "The table name was empty when making the delete statement" }
+            require(fieldName.isNotEmpty()) { "The field name was empty when making the delete statement" }
+            return deleteAllFromTableSQL(tableName, schemaName) + " where $fieldName = ?"
+        }
+
+        /** Creates an SQL string that can be used to insert data into the table
+         *
+         *  insert into schemaName.tableName values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         *
+         *  The number of parameter values is controlled by the number of columns parameter.
+         *
+         * @param tableName the name of the table to be inserted into
+         * @param numColumns the number of columns starting from the left to insert into
+         * @param schemaName the schema containing the table
+         * @return a generic SQL insert statement with appropriate number of parameters for the table
+         */
+        fun insertIntoTableStatementSQL(
+            tableName: String,
+            numColumns: Int,
+            schemaName: String? = null
+        ): String {
+            // assume all columns have the same table name and schema name
+            require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
+            val qm = CharArray(numColumns)
+            qm.fill('?', toIndex = numColumns)
+            val inputs = qm.joinToString(", ", prefix = "(", postfix = ")")
+            return if ((schemaName != null) && (schemaName.isNotEmpty())) {
+                "insert into ${schemaName}.${tableName} values $inputs"
+            } else {
+                "insert into $tableName values $inputs"
+            }
+        }
+
+        /** Creates an SQL string that can be used to insert data into the table
+         *
+         *  insert into schemaName.tableName (fieldName1, fieldName2, fieldName3) values (?, ?, ?)
+         *
+         *  The number of parameter values is controlled by the size of the field array.
+         *  This assumes that the supplied field names are valid for the supplied table name.
+         *
+         * @param tableName the name of the table to be inserted into
+         * @param fields the names of the fields that will receive data within the table
+         * @param schemaName the schema containing the table
+         * @return a generic SQL insert statement with appropriate number of parameters for the table
+         */
+        fun insertIntoTableStatementSQL(
+            tableName: String,
+            fields: List<String>,
+            schemaName: String? = null
+        ): String {
+            // assume all columns have the same table name and schema name
+            require(tableName.isNotEmpty()) { "The table name was empty when making the insert statement" }
+            require(fields.isNotEmpty()) { "The insert fields was empty when making the insert statement" }
+            val qm = CharArray(fields.size)
+            qm.fill('?', toIndex = fields.size)
+            val inputStr = qm.joinToString(", ", prefix = "(", postfix = ")")
+            val fieldStr = fields.joinToString(", ", prefix = "(", postfix = ")")
+            return if (!schemaName.isNullOrEmpty()) {
+                "insert into ${schemaName}.${tableName} $fieldStr values $inputStr"
+            } else {
+                "insert into $tableName $fieldStr values $inputStr"
+            }
+        }
+
+        /**
+         * Creates an SQL string for a prepared statement to update records in a table.
+         * The update and where field lists should have unique elements and at least 1 element.
+         * ```
+         *     val fields = listOf("A", "B", "C")
+         *     val where = listOf("D", "E")
+         *     val sql = DatabaseIfc.updateTableStatementSQL("baseball", fields, where, "league")
+         *
+         *     Produces:
+         *     update league.baseball set A = ?, B = ?, C = ? where D = ? and E = ?
+         * ```
+         */
+        fun updateTableStatementSQL(
+            tableName: String,
+            updateFields: List<String>,
+            whereFields: List<String>,
+            schemaName: String?
+        ): String {
+            require(tableName.isNotEmpty()) { "The table name was empty when making the delete statement" }
+            require(updateFields.isNotEmpty()) { "The fields to update was empty" }
+            require(whereFields.isNotEmpty()) { "The where clause fields were empty" }
+            val start = if (!schemaName.isNullOrEmpty()) {
+                "update ${schemaName}.$tableName set "
+            } else {
+                "update $tableName set "
+            }
+            val sql = StringBuilder(start)
+            sql.append(updateFields.joinToString(separator = " = ?, ", postfix = " = ? "))
+            sql.append("where ")
+            sql.append(whereFields.joinToString(separator = " = ? and ", postfix = " = ? "))
+            return sql.toString()
+        }
+
     }
 
 }
@@ -1862,7 +2271,7 @@ data class ColumnMetaData(
  */
 class ResultSetRowIterator(private val resultSet: ResultSet) : Iterator<List<Any?>> {
     init {
-        require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
+//TODO cause SQL not supported error        require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
     }
 
     var currentRow: Int = 0
@@ -1900,6 +2309,67 @@ class ResultSetRowIterator(private val resultSet: ResultSet) : Iterator<List<Any
             }
         }
         return list
+    }
+
+}
+
+
+/**
+ * The user can convert the returned rows based on ColumnMetaData.
+ * The rows contain a map that is indexed by the column name and the value of the column
+ *
+ * @param resultSet the result set to iterate. It must be open and will be closed after iteration.
+ */
+class ResultSetRowMapIterator(private val resultSet: ResultSet) : Iterator<Map<String, Any?>> {
+    init {
+//TODO cause SQL not supported error       require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
+    }
+
+    var currentRow: Int = 0
+        private set
+    private var didNext: Boolean = false
+    private var hasNext: Boolean = false
+    val columnCount: Int
+    val columnNames: List<String>
+
+    init {
+        val metaData: ResultSetMetaData = resultSet.metaData
+        columnCount = metaData.columnCount
+        val list = mutableListOf<String>()
+        for (i in 1..columnCount) {
+            list.add(metaData.getColumnName(i))
+        }
+        columnNames = list.toList()
+    }
+
+    override fun hasNext(): Boolean {
+        if (!didNext) {
+            hasNext = resultSet.next()
+            if (!hasNext) resultSet.close()
+            didNext = true
+        }
+        return hasNext
+    }
+
+    override fun next(): Map<String, Any?> {
+        if (!didNext) {
+            resultSet.next()
+        }
+        didNext = false
+        currentRow++
+        return makeRow(resultSet)
+    }
+
+    private fun makeRow(resultSet: ResultSet): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        for (i in 1..columnCount) {
+            try {
+                map[columnNames[i - 1]] = resultSet.getObject(i)
+            } catch (e: RuntimeException) {
+                DatabaseIfc.logger.warn { "There was a problem accessing column $i of the result set. Set value to null" }
+            }
+        }
+        return map
     }
 
 }

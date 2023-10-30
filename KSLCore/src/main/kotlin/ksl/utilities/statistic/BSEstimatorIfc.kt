@@ -21,14 +21,14 @@ import ksl.utilities.max
 import ksl.utilities.min
 
 interface BSEstimatorIfc {
-    fun getEstimate(data: DoubleArray): Double
+    fun estimate(data: DoubleArray): Double
 
     /**
      * A predefined EstimatorIfc that estimates the mean of the data
      */
     class Average : BSEstimatorIfc {
         private val s: Statistic = Statistic()
-        override fun getEstimate(data: DoubleArray): Double {
+        override fun estimate(data: DoubleArray): Double {
             s.reset()
             s.collect(data)
             return s.average
@@ -40,7 +40,7 @@ interface BSEstimatorIfc {
      */
     class Variance : BSEstimatorIfc {
         private val s: Statistic = Statistic()
-        override fun getEstimate(data: DoubleArray): Double {
+        override fun estimate(data: DoubleArray): Double {
             s.reset()
             s.collect(data)
             return s.variance
@@ -51,7 +51,7 @@ interface BSEstimatorIfc {
      * A predefined EstimatorIfc that estimates the median of the data
      */
     class Median : BSEstimatorIfc {
-        override fun getEstimate(data: DoubleArray): Double {
+        override fun estimate(data: DoubleArray): Double {
             return Statistic.median(data)
         }
     }
@@ -60,7 +60,7 @@ interface BSEstimatorIfc {
      * A predefined EstimatorIfc that estimates the minimum of the data
      */
     class Minimum : BSEstimatorIfc {
-        override fun getEstimate(data: DoubleArray): Double {
+        override fun estimate(data: DoubleArray): Double {
             return data.min()
         }
     }
@@ -69,7 +69,7 @@ interface BSEstimatorIfc {
      * A predefined EstimatorIfc that estimates the maximum of the data
      */
     class Maximum : BSEstimatorIfc {
-        override fun getEstimate(data: DoubleArray): Double {
+        override fun estimate(data: DoubleArray): Double {
             return data.max()
         }
     }

@@ -18,6 +18,8 @@
 
 package ksl.utilities.statistic
 
+import ksl.utilities.Interval
+
 /**
  * @param theBinNumber the bin number
  * @param theLowerLimit the lower limit of the bin
@@ -32,15 +34,32 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
 
     val lowerLimit: Double = theLowerLimit
     val upperLimit: Double = theUpperLimit
+
+    val interval: Interval = Interval(lowerLimit, upperLimit)
+
+    val closedRange: ClosedFloatingPointRange<Double>
+        get() = lowerLimit.rangeTo(upperLimit)
+
+    val openRange: OpenEndRange<Double>
+        get() = lowerLimit.rangeUntil(upperLimit)
+
+    val openIntRange: IntRange
+        get() = lowerLimit.toInt().rangeUntil(upperLimit.toInt())
+
+    val closedIntRange: IntRange
+        get() = lowerLimit.toInt().rangeTo(upperLimit.toInt())
+
+    val width
+        get() = upperLimit - lowerLimit
+
     val midPoint
         get() = (upperLimit - lowerLimit)/2.0
 
-    private var count = 0
+    var count = 0
+        private set
+
     /**
-     * @return the label for the bin
-     */
-    /**
-     * @param label The label for the bin
+     * The label for the bin
      */
     var binLabel: String = String.format("%3d [%5.2f,%5.2f) ", theBinNumber, theLowerLimit, theUpperLimit)
 

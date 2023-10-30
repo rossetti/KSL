@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.PearsonType6RVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Pearson Type 6(alpha1, alpha2, beta) random variable
@@ -56,7 +58,7 @@ class PearsonType6RV (
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.PearsonType6RVParameters()
+            val parameters: RVParameters = PearsonType6RVParameters()
             parameters.changeDoubleParameter("alpha1", alpha1)
             parameters.changeDoubleParameter("alpha2", alpha2)
             parameters.changeDoubleParameter("beta", beta)

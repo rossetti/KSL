@@ -129,7 +129,7 @@ class ResponseSchedule(
 
     fun cancelScheduleStart() {
         if (isScheduled) {
-            myStartEvent!!.cancelled = true
+            myStartEvent!!.cancel = true
         }
     }
 

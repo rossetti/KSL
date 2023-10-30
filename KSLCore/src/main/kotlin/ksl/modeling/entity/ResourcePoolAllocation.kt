@@ -20,6 +20,8 @@ package ksl.modeling.entity
 
 import ksl.simulation.KSLEvent
 
+private var allocationCounter = 0
+
 /**
  *  An allocation represents a distinct usage of a resource by an entity with an amount allocated.
  *  Entities can have multiple allocations for the same resource. An allocation is in response
@@ -37,6 +39,8 @@ class ResourcePoolAllocation(
     init {
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
     }
+
+    val id = allocationCounter++
 
     var allocationPriority: Int = KSLEvent.DEFAULT_PRIORITY - 8
 

@@ -25,7 +25,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.*
 
 class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) : Distribution<Binomial>(name),
-    DiscreteDistributionIfc, LossFunctionDistributionIfc {
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc {
 
     init {
         require(!(pSuccess < 0.0 || pSuccess > 1.0)) { "Success Probability must be [0,1]" }
@@ -70,24 +70,48 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
     }
 
     fun cdf(x: Int): Double {
-        return binomialCDF(x, numTrials, probOfSuccess, useRecursiveAlgorithm)
-    }
-
-    override fun pmf(x: Double): Double {
-        return if (floor(x) == x) {
-            pmf(x.toInt())
-        } else {
-            0.0
+        if (x < 0){
+            return 0.0
         }
+        if (x >= numTrials){
+            return 1.0
+        }
+        return binomialCDF(x, numTrials, probOfSuccess, useRecursiveAlgorithm)
     }
 
     /**
      *
-     * @param x value to evaluate
+     * @param i value to evaluate
      * @return the associated probability
      */
-    fun pmf(x: Int): Double {
-        return binomialPMF(x, numTrials, probOfSuccess, useRecursiveAlgorithm)
+    override fun pmf(i: Int): Double {
+        if (i < 0){
+            return 0.0
+        }
+        if (i > numTrials){
+            return 0.0
+        }
+        return binomialPMF(i, numTrials, probOfSuccess, useRecursiveAlgorithm)
+    }
+
+    /**
+     *  Computes the sum of the probabilities over the provided range.
+     *  If the range is closed a..b then the end point b is included in the
+     *  sum. If the range is open a..&ltb then the point b is not included
+     *  in the sum.
+     */
+    override fun probIn(range: IntRange): Double {
+        if (range.last < 0){
+            return 0.0
+        }
+        if ((range.first == 0) && range.last >= numTrials){
+            return 1.0
+        }
+        var sum = 0.0
+        for (i in range){
+            sum = sum + pmf(i)
+        }
+        return sum
     }
 
     override fun mean(): Double {
@@ -142,7 +166,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
         if (x <= 0.0) {
             return 0.0
         }
-        val n : Int = if (x > numTrials) {
+        val n: Int = if (x > numTrials) {
             numTrials
         } else {
             x.toInt()
@@ -174,13 +198,17 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
 
 
     override fun parameters(params: DoubleArray) {
-        require(params.size == 2){"There must be two parameters (probOfSuccess, numTrials) for the Binomial distribution!"}
+        require(params.size == 2) { "There must be two parameters (probOfSuccess, numTrials) for the Binomial distribution!" }
         probOfSuccess = params[0]
         numTrials = params[1].toInt()
     }
 
     override fun parameters(): DoubleArray {
         return doubleArrayOf(probOfSuccess, numTrials.toDouble())
+    }
+
+    override fun toString(): String {
+        return "Binomial(probOfSuccess=$probOfSuccess, numTrials=$numTrials)"
     }
 
     companion object {
@@ -493,7 +521,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
             if (x <= 0.0) {
                 return 0.0
             }
-            val n : Int = if (x > nTrials) {
+            val n: Int = if (x > nTrials) {
                 nTrials
             } else { // 0 < x <= nTrials
                 x.toInt()

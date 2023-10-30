@@ -84,6 +84,21 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
         return z * standardDeviation() + mean
     }
 
+
+
+    override fun sumLogLikelihood(data: DoubleArray): Double {
+        if (data.isEmpty()) {
+            return 0.0
+        }
+        val n = data.size.toDouble()
+        val no2 = n / 2.0
+        var sumSQDev = 0.0
+        for (x in data) {
+            sumSQDev = sumSQDev + (x - mean) * (x - mean)
+        }
+        return -no2 * (ln2pi + ln(variance)) - sumSQDev / (2.0 * variance)
+    }
+
     /** Gets the kurtosis of the distribution
      * @return the kurtosis
      */
@@ -129,8 +144,14 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
         return NormalRV(mean, variance, stream)
     }
 
+    override fun toString(): String {
+        return "Normal(mean=$mean, variance=$variance)"
+    }
+
     companion object {
         private val baseNorm = sqrt(2.0 * PI)
+
+        private val ln2pi = ln(2.0 * PI)
 
         private const val errorFunctionConstant = 0.2316419
 

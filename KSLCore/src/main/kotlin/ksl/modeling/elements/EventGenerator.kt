@@ -17,6 +17,8 @@
  */
 package ksl.modeling.elements
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.simulation.KSLEvent
@@ -121,7 +123,7 @@ open class EventGenerator(
      */
     private val myTimeUntilFirstEventRV: RandomVariable = RandomVariable(
         this, myInitialTimeUntilFirstEvent,
-        "$name:TimeUntilFirstRV"
+        "$name:TimeUntilFirstEventRV"
     )
     override val initialTimeUntilFirstEvent: RandomSourceCIfc
         get() = myTimeUntilFirstEventRV
@@ -149,7 +151,7 @@ open class EventGenerator(
      */
     override var endingTime: Double = theTimeOfTheLastEvent
         set(value) {
-            require(value >= 0) { "The ending time was < 0.0!" }
+            require(value >= 0.0) { "The ending time was < 0.0!" }
             if (value < time) {
                 turnOffGenerator()
             } else {// now set the time to turn off
@@ -161,9 +163,14 @@ open class EventGenerator(
      * Used to set the ending time when the generator is initialized
      * at the start of each replication.
      */
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        name = "initialEndingTime",
+        lowerBound = 0.0
+    )
     override var initialEndingTime: Double = theTimeOfTheLastEvent
         set(value) {
-            require(value >= 0) { "The time until last was < 0.0!" }
+            require(value >= 0.0) { "The time until last was < 0.0!" }
             field = value
         }
 
@@ -178,6 +185,10 @@ open class EventGenerator(
      * true. If it is changed then it remains at the set value until changed
      * again.
      */
+    @set:KSLControl(
+        controlType = ControlType.BOOLEAN,
+        name = "startOnInitializeOption",
+    )
     override var startOnInitializeOption = true
 
     private val myEventHandler: EventHandler = EventHandler()
@@ -304,8 +315,8 @@ open class EventGenerator(
         isDone = true
         isStarted = false
         if (myNextEvent != null) {
-            if (myNextEvent!!.scheduled) {
-                myNextEvent!!.cancelled = true
+            if (myNextEvent!!.isScheduled) {
+                myNextEvent!!.cancel = true
             }
         }
     }
@@ -316,14 +327,14 @@ open class EventGenerator(
             false
         } else {
             // must be scheduled and not canceled to be pending
-            myNextEvent!!.scheduled && !myNextEvent!!.cancelled
+            myNextEvent!!.isScheduled && !myNextEvent!!.cancel
         }
 
     override fun suspend() {
         isSuspended = true
         if (myNextEvent != null) {
-            if (myNextEvent!!.scheduled) {
-                myNextEvent!!.cancelled = true
+            if (myNextEvent!!.isScheduled) {
+                myNextEvent!!.cancel = true
             }
         }
     }
@@ -428,6 +439,7 @@ open class EventGenerator(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun endGeneratorAction(event: KSLEvent<Nothing>) {
         turnOffGenerator()
         endGeneration()

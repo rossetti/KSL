@@ -32,13 +32,13 @@ private var myIdCounter_: Int = 0
 class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc by Identity(name) {
 
     // variables for collecting statistics
-    protected var avgx = 0.0
-    protected var avgy = 0.0
-    protected var varx = 0.0
-    protected var vary = 0.0
-    protected var sumxy = 0.0
-    protected var covxy = 0.0
-    protected var nxy = 0.0
+    private var avgx = 0.0
+    private var avgy = 0.0
+    private var varx = 0.0
+    private var vary = 0.0
+    private var sumxy = 0.0
+    private var covxy = 0.0
+    private var nxy = 0.0
 
     fun instance(): StatisticXY {
         val s = StatisticXY()

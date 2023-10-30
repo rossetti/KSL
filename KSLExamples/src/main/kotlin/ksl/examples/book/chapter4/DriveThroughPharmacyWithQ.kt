@@ -66,7 +66,7 @@ class DriveThroughPharmacyWithQ(
     val numBusyPharmacists: TWResponseCIfc
         get() = myNumBusy
 
-    private val myNS: TWResponse = TWResponse(this, "# in System")
+    private val myNS: TWResponse = TWResponse(this, "Num in System")
     val numInSystem: TWResponseCIfc
         get() = myNS
     private val mySysTime: Response = Response(this, "System Time")

@@ -31,7 +31,7 @@ import kotlin.math.*
  * @param name an optional label/name
  */
 class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisson>(name),
-    DiscreteDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
 
     init {
         require(theMean > 0.0) { "Mean must be > 0)" }
@@ -87,6 +87,12 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisso
     }
 
     override fun cdf(x: Double): Double {
+        if ((x == Double.POSITIVE_INFINITY) || (x >= Integer.MAX_VALUE)){
+            return 1.0
+        }
+        if (x < 0.0){
+            return 0.0
+        }
         return cdf(x.toInt())
     }
 
@@ -145,23 +151,32 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisso
         } else poissonInvCDF(p, mean, useRecursiveAlgorithm).toDouble()
     }
 
-    fun pmf(x: Int): Double {
-        return poissonPMF(x, mean, useRecursiveAlgorithm)
+    override fun pmf(i: Int): Double {
+        return poissonPMF(i, mean, useRecursiveAlgorithm)
     }
 
     /**
-     * If x is not and integer value, then the probability must be zero
-     * otherwise pmf(int x) is used to determine the probability
-     *
-     * @param x the value to evaluate
-     * @return the probability at the point
+     *  Computes the sum of the probabilities over the provided range.
+     *  If the range is closed a..b then the end point b is included in the
+     *  sum. If the range is open a..&ltb then the point b is not included
+     *  in the sum.
      */
-    override fun pmf(x: Double): Double {
-        return if (floor(x) == x) {
-            pmf(x.toInt())
-        } else {
-            0.0
+    override fun probIn(range: IntRange) : Double {
+        if (range.last < 0){
+            return 0.0
         }
+        if (range.last == Int.MAX_VALUE){
+            return 1.0 - strictlyLessCDF(range.first.toDouble())
+        }
+        var sum = 0.0
+        for (i in range){
+            val p = pmf(i)
+            if ((i > KSLMath.maxNumIterations) && KSLMath.equal(p, 0.0)){
+                break
+            }
+            sum = sum + p
+        }
+        return sum
     }
 
     /**
@@ -186,6 +201,10 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisso
 
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
         return PoissonRV(mean, stream)
+    }
+
+    override fun toString(): String {
+        return "Poisson(mean=$mean)"
     }
 
     companion object {

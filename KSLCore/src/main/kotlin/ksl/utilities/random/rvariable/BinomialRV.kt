@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.BinomialRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * BinomialRV(probability of success, number of trials)
@@ -63,7 +65,7 @@ class BinomialRV constructor(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.BinomialRVParameters()
+            val parameters: RVParameters = BinomialRVParameters()
             parameters.changeDoubleParameter("probOfSuccess", pSuccess)
             parameters.changeIntegerParameter("numTrials", numTrials)
             return parameters

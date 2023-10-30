@@ -167,9 +167,9 @@ open class ResourceWithQ(
             // in the case of the IGNORE rule a waiting change will have already scheduled
             // its end of change event.
             if (isPendingCapacityChange){
-                myCurrentChangeNotice?.changeEvent?.cancelled = true
+                myCurrentChangeNotice?.changeEvent?.cancel = true
                 for(notice in myWaitingChangeNotices){
-                    notice.changeEvent?.cancelled = true
+                    notice.changeEvent?.cancel = true
                 }
                 myWaitingChangeNotices.clear()
                 myCurrentChangeNotice = null
@@ -283,7 +283,7 @@ open class ResourceWithQ(
             if (notice.capacity >= capacity){
                 // notice the above >= with = meaning keep the current capacity
                 // positive change with a negative change pending, cancel the pending negative change
-                myCurrentChangeNotice?.changeEvent?.cancelled = true
+                myCurrentChangeNotice?.changeEvent?.cancel = true
                 // make there be no pending change after the positive change
                 myCurrentChangeNotice = null
                 // assume that the positive change cancels all waiting negative changes

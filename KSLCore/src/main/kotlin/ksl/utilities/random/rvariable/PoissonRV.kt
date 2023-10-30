@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.PoissonRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Poisson(mean) random variable
@@ -45,7 +47,7 @@ class PoissonRV (val mean: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.PoissonRVParameters()
+            val parameters: RVParameters = PoissonRVParameters()
             parameters.changeDoubleParameter("mean", mean)
             return parameters
         }

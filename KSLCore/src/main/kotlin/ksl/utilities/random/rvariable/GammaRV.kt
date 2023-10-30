@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.GammaRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * GammaRV(shape, scale) random variable
@@ -49,7 +51,7 @@ class GammaRV (val shape: Double, val scale: Double, stream: RNStreamIfc = KSLRa
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.GammaRVParameters()
+            val parameters: RVParameters = GammaRVParameters()
             parameters.changeDoubleParameter("shape", shape)
             parameters.changeDoubleParameter("scale", scale)
             return parameters

@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.LaplaceRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * LaplaceRV(mean, scale)
@@ -48,7 +50,7 @@ class LaplaceRV(
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.LaplaceRVParameters()
+            val parameters: RVParameters = LaplaceRVParameters()
             parameters.changeDoubleParameter("mean", mean)
             parameters.changeDoubleParameter("scale", scale)
             return parameters

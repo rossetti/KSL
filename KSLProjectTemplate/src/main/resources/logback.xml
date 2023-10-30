@@ -130,6 +130,23 @@
         </encoder>
     </appender>
 
+    <appender name="KSL_CONTROLS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/controlsFile.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>logs/controlsFile.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- keep 2 days' worth of history capped at 30MB total size -->
+            <maxHistory>2</maxHistory>
+            <totalSizeCap>30MB</totalSizeCap>
+
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/logFile.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -249,6 +266,10 @@
 
     <logger name="ksl.utilities.random.rng.RNStreamProvider" level="INFO" additivity="false">
         <appender-ref ref="KSL_STREAMS" />
+    </logger>
+
+    <logger name="ksl.controls.Controls" level="INFO" additivity="false">
+        <appender-ref ref="KSL_CONTROLS" />
     </logger>
 
 <!--    <logger name="org.jooq" level="WARN" additivity="false">

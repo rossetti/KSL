@@ -18,48 +18,61 @@
 
 package ksl.utilities.io
 
-import mu.KLoggable
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
+import java.util.*
 
-object KSL : KLoggable {
+object KSL {
+
+    fun randomUUIDString() = UUID.randomUUID().toString()
 
     /**
      * A global logger for logging
      */
-    override val logger = logger()
+    val logger = KotlinLogging.logger {}
 
     /**
      * Used to assign unique enum constants
      */
     private var myEnumCounter = 0
 
-    private val myOutputDir = OutputDirectory("kslOutput", "kslOutput.txt")
+    internal val myOutputDir = OutputDirectory("kslOutput", "kslOutput.txt")
 
     /**
-     *  Use like System.out, but it goes to a file called jslOutput.txt
+     *  Use with println(), but it goes to a file called kslOutput.txt
      */
     val out = myOutputDir.out
 
     /**
      *
-     * @return the path to the base directory
+     * the path to the base directory
      */
     val outDir = myOutputDir.outDir
 
     /**
      *
-     * @return the path to the default excel directory
+     * the path to the default excel directory
      */
     val excelDir = myOutputDir.excelDir
 
     /**
      *
-     * @return the path to the default database directory
+     * the path to the default database directory
      */
     val dbDir = myOutputDir.dbDir
+
+    /**
+     *  the path to the default comma separated value file directory
+     */
+    val csvDir = myOutputDir.csvDir
+
+    /**
+     *  the path to the default file directory for plotting output
+     */
+    val plotDir = myOutputDir.plotDir
 
     /**
      * Should be used by classes to get the next constant
@@ -86,6 +99,10 @@ object KSL : KLoggable {
      */
     fun createFile(fileName: String): File {
         return myOutputDir.createFile(fileName)
+    }
+
+    override fun toString(): String {
+        return myOutputDir.toString()
     }
 
     /** Makes a Path to the named subdirectory within the base directory

@@ -119,7 +119,7 @@ class CapacitySchedule(
      */
     fun cancelScheduleStart() {
         if (myStartScheduleEvent != null) {
-            myStartScheduleEvent?.cancelled = true
+            myStartScheduleEvent?.cancel = true
         }
     }
 
@@ -261,6 +261,7 @@ class CapacitySchedule(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun startSchedule(event: KSLEvent<Nothing>) {
         cycleStartTime = time
         // logic for what to do when schedule is started
@@ -317,7 +318,7 @@ class CapacitySchedule(
             internal set
 
         fun cancelStart(){
-            startEvent?.cancelled = true
+            startEvent?.cancel = true
         }
 
         override fun toString(): String {

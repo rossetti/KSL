@@ -77,10 +77,10 @@ class Bernoulli(successProb: Double= 0.5, name: String? = null) : Distribution<B
         }
     }
 
-    fun pmf(x: Int): Double {
-        return if (x == 0) {
+    override fun pmf(i: Int): Double {
+        return if (i == 0) {
             (1.0 - probOfSuccess)
-        } else if (x == 1) {
+        } else if (i == 1) {
             probOfSuccess
         } else {
             0.0
@@ -110,6 +110,10 @@ class Bernoulli(successProb: Double= 0.5, name: String? = null) : Distribution<B
 
     override fun parameters(): DoubleArray {
         return doubleArrayOf(probOfSuccess)
+    }
+
+    override fun toString(): String {
+        return "Bernoulli(probOfSuccess=$probOfSuccess)"
     }
 
 }

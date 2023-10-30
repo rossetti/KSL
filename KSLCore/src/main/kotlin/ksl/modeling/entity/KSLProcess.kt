@@ -22,8 +22,11 @@ import ksl.modeling.spatial.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
+import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import kotlin.coroutines.*
+
+const val PRIORITY = KSLEvent.DEFAULT_PRIORITY
 
 val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
 
@@ -59,7 +62,10 @@ enum class SuspendType {
     WAIT_FOR_PROCESS,
     SEND,
     SEIZE,
-    DELAY
+    DELAY,
+    ACCESS,
+    RIDE,
+    EXIT
 }
 
 /**
@@ -91,6 +97,7 @@ interface SuspensionObserver {
  */
 @RestrictsSuspension
 interface KSLProcessBuilder {
+
     val entity: ProcessModel.Entity
 
     /**
@@ -116,7 +123,7 @@ interface KSLProcessBuilder {
     suspend fun waitFor(
         process: KSLProcess,
         timeUntilActivation: Double = 0.0,
-        priority: Int = KSLEvent.DEFAULT_PRIORITY,
+        priority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -135,7 +142,7 @@ interface KSLProcessBuilder {
      */
     suspend fun waitFor(
         signal: Signal,
-        waitPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        waitPriority: Int = PRIORITY,
         waitStats: Boolean = true,
         suspensionName: String? = null
     )
@@ -151,7 +158,7 @@ interface KSLProcessBuilder {
      *  @param suspensionName the name of the hold. can be used to identify which hold the entity is experiencing if there
      *   are more than one hold suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun hold(queue: HoldQueue, priority: Int = KSLEvent.DEFAULT_PRIORITY, suspensionName: String? = null)
+    suspend fun hold(queue: HoldQueue, priority: Int = PRIORITY, suspensionName: String? = null)
 
     /**
      * This method will block (suspend) until the required number of items that meet the criteria
@@ -169,7 +176,7 @@ interface KSLProcessBuilder {
         blockingQ: BlockingQueue<T>,
         amount: Int = 1,
         predicate: (T) -> Boolean = alwaysTrue,
-        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingPriority: Int = PRIORITY,
         suspensionName: String? = null
     ): List<T>
 
@@ -189,7 +196,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitFor(
         amount: Int = 1,
         predicate: (T) -> Boolean = alwaysTrue,
-        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingPriority: Int = PRIORITY,
         suspensionName: String? = null
     ): List<T> {
         return waitForItems(this, amount, predicate, blockingPriority, suspensionName)
@@ -210,7 +217,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> waitForAnyItems(
         blockingQ: BlockingQueue<T>,
         predicate: (T) -> Boolean,
-        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingPriority: Int = PRIORITY,
         suspensionName: String? = null
     ): List<T>
 
@@ -228,7 +235,7 @@ interface KSLProcessBuilder {
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitForAny(
         predicate: (T) -> Boolean,
-        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingPriority: Int = PRIORITY,
         suspensionName: String? = null
     ): List<T> {
         return waitForAnyItems(this, predicate, blockingPriority, suspensionName)
@@ -248,7 +255,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> send(
         item: T,
         blockingQ: BlockingQueue<T>,
-        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingPriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -266,7 +273,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> sendItems(
         collection: Collection<T>,
         blockingQ: BlockingQueue<T>,
-        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingPriority: Int = PRIORITY,
         suspensionName: String? = null
     ) {
         for (item in collection) {
@@ -288,7 +295,7 @@ interface KSLProcessBuilder {
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.send(
         item: T,
-        blockingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        blockingPriority: Int = PRIORITY,
         suspensionName: String? = null
     ) {
         send(item, this, blockingPriority, suspensionName)
@@ -314,7 +321,7 @@ interface KSLProcessBuilder {
     suspend fun seize(
         resource: Resource,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         queue: RequestQ,
         suspensionName: String? = null
     ): Allocation
@@ -338,7 +345,7 @@ interface KSLProcessBuilder {
     suspend fun seize(
         resource: ResourceWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         suspensionName: String? = null
     ): Allocation {
         return seize(resource, amountNeeded, seizePriority, resource.myWaitingQ, suspensionName)
@@ -361,10 +368,10 @@ interface KSLProcessBuilder {
      */
     suspend fun seize(
         resource: MovableResource,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         queue: RequestQ,
         suspensionName: String? = null
-    ): Allocation{
+    ): Allocation {
         return seize(resource, amountNeeded = 1, seizePriority, queue, suspensionName)
     }
 
@@ -385,9 +392,9 @@ interface KSLProcessBuilder {
      */
     suspend fun seize(
         resource: MovableResourceWithQ,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         suspensionName: String? = null
-    ): Allocation{
+    ): Allocation {
         return seize(resource, amountNeeded = 1, seizePriority, resource.myWaitingQ, suspensionName)
     }
 
@@ -411,7 +418,7 @@ interface KSLProcessBuilder {
     suspend fun seize(
         resourcePool: ResourcePool,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         queue: RequestQ,
         suspensionName: String? = null
     ): ResourcePoolAllocation
@@ -435,7 +442,7 @@ interface KSLProcessBuilder {
     suspend fun seize(
         resourcePool: ResourcePoolWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         suspensionName: String? = null
     ): ResourcePoolAllocation {
         return seize(resourcePool, amountNeeded, seizePriority, resourcePool.myWaitingQ, suspensionName)
@@ -461,9 +468,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resource: Resource,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         delayDuration: Double,
-        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayPriority: Int = PRIORITY,
         queue: RequestQ
     ) {
         val a = seize(resource, amountNeeded, seizePriority, queue)
@@ -490,9 +497,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resource: ResourceWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         delayDuration: Double,
-        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayPriority: Int = PRIORITY,
     ) {
         val a = seize(resource, amountNeeded, seizePriority, resource.myWaitingQ)
         delay(delayDuration, delayPriority)
@@ -518,9 +525,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resource: ResourceWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         delayDuration: GetValueIfc,
-        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayPriority: Int = PRIORITY,
     ) {
         val a = seize(resource, amountNeeded, seizePriority)
         delay(delayDuration, delayPriority)
@@ -547,9 +554,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resourcePool: ResourcePool,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         delayDuration: Double,
-        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayPriority: Int = PRIORITY,
         queue: RequestQ
     ) {
         val a = seize(resourcePool, amountNeeded, seizePriority, queue)
@@ -576,9 +583,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resourcePool: ResourcePoolWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         delayDuration: Double,
-        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayPriority: Int = PRIORITY,
     ) {
         val a = seize(resourcePool, amountNeeded, seizePriority)
         delay(delayDuration, delayPriority)
@@ -604,9 +611,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resourcePool: ResourcePoolWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         delayDuration: GetValueIfc,
-        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayPriority: Int = PRIORITY,
     ) {
         val a = seize(resourcePool, amountNeeded, seizePriority)
         delay(delayDuration, delayPriority)
@@ -633,9 +640,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resource: Resource,
         amountNeeded: Int = 1,
-        seizePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        seizePriority: Int = PRIORITY,
         delayDuration: GetValueIfc,
-        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayPriority: Int = PRIORITY,
         queue: RequestQ
     ) {
         val a = seize(resource, amountNeeded, seizePriority, queue)
@@ -655,7 +662,7 @@ interface KSLProcessBuilder {
      */
     suspend fun delay(
         delayDuration: Double,
-        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayPriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -669,7 +676,7 @@ interface KSLProcessBuilder {
      */
     suspend fun delay(
         delayDuration: GetValueIfc,
-        delayPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        delayPriority: Int = PRIORITY,
         suspensionName: String? = null
     ) {
         delay(delayDuration.value, delayPriority, suspensionName)
@@ -692,7 +699,7 @@ interface KSLProcessBuilder {
         fromLoc: LocationIfc,
         toLoc: LocationIfc,
         velocity: Double = entity.velocity.value,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -713,7 +720,7 @@ interface KSLProcessBuilder {
         fromLoc: LocationIfc,
         toLoc: LocationIfc,
         velocity: GetValueIfc = entity.velocity,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
     ) {
         move(fromLoc, toLoc, velocity.value, movePriority, suspensionName)
@@ -734,7 +741,7 @@ interface KSLProcessBuilder {
         spatialElement: SpatialElementIfc,
         toLoc: LocationIfc,
         velocity: Double,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -753,7 +760,7 @@ interface KSLProcessBuilder {
         movableResource: MovableResource,
         toLoc: LocationIfc,
         velocity: Double = movableResource.velocity.value,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
     ) {
         movableResource.isMovingEmpty = true
@@ -776,7 +783,7 @@ interface KSLProcessBuilder {
         movableResourceWithQ: MovableResourceWithQ,
         toLoc: LocationIfc,
         velocity: Double = movableResourceWithQ.velocity.value,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
     ) {
         movableResourceWithQ.isMovingEmpty = true
@@ -800,7 +807,7 @@ interface KSLProcessBuilder {
         spatialElement: SpatialElementIfc,
         toLoc: LocationIfc,
         velocity: Double,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -820,7 +827,7 @@ interface KSLProcessBuilder {
         movableResource: MovableResource,
         toLoc: LocationIfc,
         velocity: Double = movableResource.velocity.value,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -840,7 +847,7 @@ interface KSLProcessBuilder {
         movableResourceWithQ: MovableResourceWithQ,
         toLoc: LocationIfc,
         velocity: Double = movableResourceWithQ.velocity.value,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 
@@ -868,19 +875,19 @@ interface KSLProcessBuilder {
         transportQ: RequestQ,
         loadingDelay: GetValueIfc = ConstantRV.ZERO,
         unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
-        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
+        requestPriority: Int = PRIORITY,
+        emptyMovePriority: Int = PRIORITY,
+        loadingPriority: Int = PRIORITY,
+        transportPriority: Int = PRIORITY,
+        unLoadingPriority: Int = PRIORITY
     ) {
         val a = seize(movableResource, seizePriority = requestPriority, queue = transportQ)
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
-        if (loadingDelay != ConstantRV.ZERO){
+        if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
         }
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
-        if (unLoadingDelay != ConstantRV.ZERO){
+        if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
         release(a)
@@ -908,19 +915,19 @@ interface KSLProcessBuilder {
         transportVelocity: Double = movableResourceWithQ.velocity.value,
         loadingDelay: GetValueIfc = ConstantRV.ZERO,
         unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
-        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
+        requestPriority: Int = PRIORITY,
+        emptyMovePriority: Int = PRIORITY,
+        loadingPriority: Int = PRIORITY,
+        transportPriority: Int = PRIORITY,
+        unLoadingPriority: Int = PRIORITY
     ) {
         val a = seize(movableResourceWithQ, seizePriority = requestPriority)
         move(movableResourceWithQ, entity.currentLocation, emptyVelocity, emptyMovePriority)
-        if (loadingDelay != ConstantRV.ZERO){
+        if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
         }
         moveWith(movableResourceWithQ, toLoc, transportVelocity, transportPriority)
-        if (unLoadingDelay != ConstantRV.ZERO){
+        if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
         release(a)
@@ -949,21 +956,21 @@ interface KSLProcessBuilder {
         transportQ: RequestQ,
         loadingDelay: GetValueIfc = ConstantRV.ZERO,
         unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
-        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
-    ){
+        requestPriority: Int = PRIORITY,
+        emptyMovePriority: Int = PRIORITY,
+        loadingPriority: Int = PRIORITY,
+        transportPriority: Int = PRIORITY,
+        unLoadingPriority: Int = PRIORITY
+    ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
         // must be 1 allocation for 1 unit seized
         val movableResource = a.allocations[0].resource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
-        if (loadingDelay != ConstantRV.ZERO){
+        if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
         }
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
-        if (unLoadingDelay != ConstantRV.ZERO){
+        if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
         release(a)
@@ -991,21 +998,21 @@ interface KSLProcessBuilder {
         transportVelocity: Double = fleet.velocity.value,
         loadingDelay: GetValueIfc = ConstantRV.ZERO,
         unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
-        requestPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        emptyMovePriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        loadingPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        transportPriority: Int = KSLEvent.DEFAULT_PRIORITY,
-        unLoadingPriority: Int = KSLEvent.DEFAULT_PRIORITY
-    ){
+        requestPriority: Int = PRIORITY,
+        emptyMovePriority: Int = PRIORITY,
+        loadingPriority: Int = PRIORITY,
+        transportPriority: Int = PRIORITY,
+        unLoadingPriority: Int = PRIORITY
+    ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ)
         // must be 1 allocation for 1 unit seized because there is only 1 unit in each
         val movableResource = a.allocations[0].resource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
-        if (loadingDelay != ConstantRV.ZERO){
+        if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
         }
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
-        if (unLoadingDelay != ConstantRV.ZERO){
+        if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
         release(a)
@@ -1023,10 +1030,10 @@ interface KSLProcessBuilder {
      */
     suspend fun moveTo(
         toLoc: LocationIfc,
-        velocity: Double = entity.velocity.value,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        velocity: Double,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
-    ){
+    ) {
         move(entity.currentLocation, toLoc, velocity, movePriority, suspensionName)
     }
 
@@ -1043,10 +1050,28 @@ interface KSLProcessBuilder {
     suspend fun moveTo(
         toLoc: LocationIfc,
         velocity: GetValueIfc = entity.velocity,
-        movePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        movePriority: Int = PRIORITY,
         suspensionName: String? = null
     ) {
         moveTo(toLoc, velocity.value, movePriority, suspensionName)
+    }
+
+    /**
+     *  Causes movement of the entity from its current location to the specified location
+     *  using the entity's default velocity.
+     *
+     *  @param toLoc the location to which the entity is supposed to move
+     *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+     *  moves that might be scheduled to complete at the same time.
+     *  @param suspensionName the name of the delay. can be used to identify which delay the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun moveTo(
+        toLoc: LocationIfc,
+        movePriority: Int = PRIORITY,
+        suspensionName: String? = null
+    ) {
+        move(entity.currentLocation, toLoc, entity.velocity, movePriority, suspensionName)
     }
 
     /**
@@ -1057,7 +1082,7 @@ interface KSLProcessBuilder {
      *  to order the resumption events associated with the release. If multiple releases occur at the same
      *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun release(allocation: Allocation, releasePriority: Int = KSLEvent.DEFAULT_PRIORITY)
+    fun release(allocation: Allocation, releasePriority: Int = PRIORITY)
 
     /**
      *  Releases ANY(ALL) allocations related to the resource that are allocated
@@ -1068,7 +1093,7 @@ interface KSLProcessBuilder {
      *  to order the resumption events associated with the release. If multiple releases occur at the same
      *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun release(resource: Resource, releasePriority: Int = KSLEvent.DEFAULT_PRIORITY)
+    fun release(resource: Resource, releasePriority: Int = PRIORITY)
 
     /**
      *  Releases ALL the resources that the entity has currently allocated to it
@@ -1076,7 +1101,7 @@ interface KSLProcessBuilder {
      *  to order the resumption events associated with the release. If multiple releases occur at the same
      *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun releaseAllResources(releasePriority: Int = KSLEvent.DEFAULT_PRIORITY)
+    fun releaseAllResources(releasePriority: Int = PRIORITY)
 
     /**
      * Releases the allocations associated with using a ResourcePool
@@ -1084,7 +1109,7 @@ interface KSLProcessBuilder {
      *  to order the resumption events associated with the release. If multiple releases occur at the same
      *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int = KSLEvent.DEFAULT_PRIORITY)
+    fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int = PRIORITY)
 
     /**
      * This method allows a process to interrupt another process while that process is
@@ -1106,7 +1131,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptTime: Double,
-        interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        interruptPriority: Int = PRIORITY,
         postInterruptDelayTime: Double
     )
 
@@ -1130,7 +1155,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptTime: GetValueIfc,
-        interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        interruptPriority: Int = PRIORITY,
         postInterruptDelayTime: GetValueIfc
     ) {
         interruptDelay(process, delayName, interruptTime.value, interruptPriority, postInterruptDelayTime.value)
@@ -1248,7 +1273,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptingProcess: KSLProcess,
-        interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        interruptPriority: Int = PRIORITY,
         postInterruptDelayTime: Double
     )
 
@@ -1274,7 +1299,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptingProcess: KSLProcess,
-        interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        interruptPriority: Int = PRIORITY,
         postInterruptDelayTime: GetValueIfc
     ) {
         interruptDelayWithProcess(
@@ -1306,7 +1331,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptingProcess: KSLProcess,
-        interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        interruptPriority: Int = PRIORITY,
     )
 
     /**
@@ -1329,7 +1354,253 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptingProcess: KSLProcess,
-        interruptPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        interruptPriority: Int = PRIORITY,
     )
 
+    /**
+     * This suspending function requests the number of cells indicated at the entry location of the conveyor.
+     * If the number of cells are not immediately available the process is suspended until
+     * the number of cells can be allocated (in full).  The request for the cells will
+     * wait for the allocation in the queue associated with the start of the segment associated
+     * with the entry location of the conveyor. After this suspending function
+     * returns, the entity holds the cells in the returned cell allocation, but the entity is
+     * not on the conveyor. The entity can then decide to ride on the conveyor using the cell allocation or
+     * release the cell allocation by exiting the conveyor without riding. The behavior of the
+     * conveyor during access is governed by the type of conveyor.  A blockage occurs at the
+     * entry point of the segment while the entity has the allocated cells and before exiting or riding.
+     *
+     * @param conveyor the conveyor to access
+     * @param entryLocation the location on the conveyor at which the cells are requested
+     * @param numCellsNeeded the number of cells needed (requested)
+     * @param requestPriority the priority of the access. If there are multiple entities that
+     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * the seize resource priority.
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return a representation of the allocated cells on the conveyor. The user should use this as a ticket
+     * to ride on the conveyor and to eventually release the allocated cells by exiting the conveyor.
+     */
+    suspend fun requestConveyor(
+        conveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = PRIORITY,
+        requestResumePriority: Int = PRIORITY,
+        suspensionName: String? = null
+    ): ConveyorRequestIfc
+
+    /** This suspending function causes the entity to be associated with an item that occupies the allocated
+     * cells on the conveyor. The item will move on the conveyor until it reaches the supplied destination.
+     * After this suspending function returns, the item associated with the entity will be occupying the
+     * cells it requires at the exit location of the segment associated with the destination. The item
+     * will remain on the conveyor until the entity indicates that the cells are to be released by using
+     * the exit function. The behavior of the conveyor during the ride and when the item reaches its
+     * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+     * while the entity occupies the final cells before exiting or riding again.  If the destination implements
+     * the LocationIfc then the current location property of the entity will be updated to this value at the
+     * completion of the ride.
+     *
+     * @param conveyorRequest the permission to ride on the conveyor in the form of a valid cell allocation
+     * @param destination the location to which to ride
+     * @param ridePriority the priority associated with ride request
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the time that it took to reach the destination. This may include time spent on the conveyor waiting
+     * due to blockages and the time moving through cells on the conveyor during the ride
+     */
+    suspend fun rideConveyor(
+        conveyorRequest: ConveyorRequestIfc,
+        destination: IdentityIfc,
+        ridePriority: Int = PRIORITY,
+        suspensionName: String? = null
+    ) : Double
+
+    /** This suspending function causes the entity to be associated with an item that occupies the allocated
+     * cells on the conveyor. The item will move on the conveyor until it reaches the supplied destination.
+     * After this suspending function returns, the item associated with the entity will be occupying the
+     * cells it requires at the exit location of the segment associated with the destination. The item
+     * will remain on the conveyor until the entity indicates that the cells are to be released by using
+     * the exit function. The behavior of the conveyor during the ride and when the item reaches its
+     * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
+     * while the entity occupies the final cells before exiting or riding again. If the destination implements
+     * the LocationIfc then the current location property of the entity will be updated to this value at the
+     * completion of the ride.
+     *
+     * @param destination the location to which to ride
+     * @param ridePriority the priority associated with ride request
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the time that it took to reach the destination. This may include time spent on the conveyor waiting
+     * due to blockages and the time moving through cells on the conveyor during the ride
+     */
+    suspend fun rideConveyor(
+        destination: IdentityIfc,
+        ridePriority: Int = PRIORITY,
+        suspensionName: String? = null
+    ) : Double {
+        require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
+        return rideConveyor(entity.conveyorRequest!!, destination, ridePriority, suspensionName)
+    }
+
+    /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
+     * If there is no item associated with the allocated cells, the cells are immediately released without
+     * a time delay.  If there is an item occupying the associated cells there will be a delay while
+     * the item moves through the deallocated cells and then the cells are deallocated.  After
+     * exiting the conveyor, the cell allocation is deallocated and cannot be used for further interaction
+     * with the conveyor.
+     *
+     * @param conveyorRequest the cell allocation that will be released during the exiting process
+     * @param exitPriority the priority associated with the exit
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun exitConveyor(
+        conveyorRequest: ConveyorRequestIfc,
+        exitPriority: Int = PRIORITY,
+        suspensionName: String? = null
+    )
+
+    /** This suspending function causes the item associated with the allocated cells to exit the conveyor.
+     * If there is no item associated with the allocated cells, the cells are immediately released without
+     * a time delay.  If there is an item occupying the associated cells there will be a delay while
+     * the item moves through the deallocated cells and then the cells are deallocated.  After
+     * exiting the conveyor, the cell allocation is deallocated and cannot be used for further interaction
+     * with the conveyor.
+     *
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @param exitPriority the priority associated with the exit
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun exitConveyor(
+        exitPriority: Int = PRIORITY,
+        suspensionName: String? = null
+    ) {
+        require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
+        exitConveyor(entity.conveyorRequest!!, exitPriority, suspensionName)
+    }
+
+    /**
+     * This suspending function combines requestConveyor(), rideConveyor(), and exit() into one suspending function.
+     *
+     * @param conveyor the conveyor to access
+     * @param entryLocation the location on the conveyor at which the cells are requested
+     * @param destination the location to which to ride
+     * @param numCellsNeeded the number of cells needed (requested)
+     * @param requestPriority the priority of the access. If there are multiple entities that
+     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * the seize resource priority.
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun convey(
+        conveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        destination: IdentityIfc,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = PRIORITY,
+        requestResumePriority: Int = PRIORITY,
+        suspensionName: String? = null
+    ): ConveyorRequestIfc {
+        val ca = requestConveyor(
+            conveyor,
+            entryLocation,
+            numCellsNeeded,
+            requestPriority,
+            requestResumePriority,
+            suspensionName
+        )
+        rideConveyor(ca, destination)
+        exitConveyor(ca)
+        return ca
+    }
+
+    /**
+     * This suspending function combines requestConveyor(), rideConveyor(), and exit() into one suspending function.
+     *
+     * @param conveyor the conveyor to access
+     * @param entryLocation the location on the conveyor at which the cells are requested
+     * @param loadingTime the time that it takes to load onto the conveyor
+     * @param destination the location to which to ride
+     * @param unloadingTime the time that it takes to unload from the conveyor
+     * @param numCellsNeeded the number of cells needed (requested)
+     * @param requestPriority the priority of the access. If there are multiple entities that
+     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * the seize resource priority.
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun convey(
+        conveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        loadingTime: Double = 0.0,
+        destination: IdentityIfc,
+        unloadingTime: Double = 0.0,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = PRIORITY,
+        requestResumePriority: Int = PRIORITY,
+        suspensionName: String? = null
+    ): ConveyorRequestIfc {
+        val ca = requestConveyor(
+            conveyor,
+            entryLocation,
+            numCellsNeeded,
+            requestPriority,
+            requestResumePriority,
+            suspensionName
+        )
+        delay(loadingTime)
+        rideConveyor(ca, destination)
+        delay(unloadingTime)
+        exitConveyor(ca)
+        return ca
+    }
+
+    /**
+     * This suspending function combines access(), ride(), and exit() into one suspending function.
+     *
+     * @param conveyor the conveyor to access
+     * @param entryLocation the location on the conveyor at which the cells are requested
+     * @param loadingTime the time that it takes to load onto the conveyor
+     * @param destination the location to which to ride
+     * @param unloadingTime the time that it takes to unload from the conveyor
+     * @param numCellsNeeded the number of cells needed (requested)
+     * @param requestPriority the priority of the access. If there are multiple entities that
+     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * the seize resource priority.
+     * @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the ride and contains information about
+     * the origin point, the destination, etc.
+     */
+    suspend fun convey(
+        conveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        loadingTime: GetValueIfc = ConstantRV.ZERO,
+        destination: IdentityIfc,
+        unloadingTime: GetValueIfc = ConstantRV.ZERO,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = PRIORITY,
+        requestResumePriority: Int = PRIORITY,
+        suspensionName: String? = null
+    ): ConveyorRequestIfc {
+        return convey(
+            conveyor,
+            entryLocation,
+            loadingTime.value,
+            destination,
+            unloadingTime.value,
+            numCellsNeeded,
+            requestPriority,
+            requestResumePriority,
+            suspensionName
+        )
+    }
 }

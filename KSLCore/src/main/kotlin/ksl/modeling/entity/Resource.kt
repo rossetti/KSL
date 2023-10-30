@@ -18,6 +18,8 @@
 
 package ksl.modeling.entity
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -95,6 +97,11 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
      * capacity.
      */
     val scheduledUtil: ResponseCIfc
+
+    /**
+     *  The number of times the resource was seized
+     */
+    val seizeCounter: CounterCIfc
 
     /**
      *  If c(t) is the current capacity and b(t) is the current number busy,
@@ -176,6 +183,91 @@ interface ResourceFailureActionsIfc {
 }
 
 /**
+ *  The ordering is determined such that more available units "rise to the top",
+ *  then by least number times seized, then by oldest time last busy
+ */
+class MostAvailableComparator : Comparator<Resource> {
+    override fun compare(r1: Resource, r2: Resource): Int {
+        if (r1.numAvailableUnits > r2.numAvailableUnits){
+            return -1
+        }
+        if (r1.numAvailableUnits < r2.numAvailableUnits){
+            return 1
+        }
+
+        if (r1.numTimesSeized < r2.numTimesSeized){
+            return -1
+        }
+        if (r1.numTimesSeized > r2.numTimesSeized){
+            return 1
+        }
+        // number of seizes was the same. if exited earlier, then prefer it
+        return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
+    }
+
+}
+
+/**
+ *  The number of times the resource was seized is used to determine the ordering.
+ *  The less the number the smaller. If the number of times seized is equal, then
+ *  the resource with the earliest time exiting the busy state is considered smaller.
+ *  That is the one furthest back in time that the busy state was exited.
+ */
+class LeastSeizedComparator : Comparator<Resource> {
+    override fun compare(r1: Resource, r2: Resource): Int {
+        if (r1.numTimesSeized < r2.numTimesSeized){
+            return -1
+        }
+        if (r1.numTimesSeized > r2.numTimesSeized){
+            return 1
+        }
+        // number of seizes was the same. if exited earlier, then prefer it
+        return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
+    }
+
+}
+
+/*
+  The resource with smaller estimated instantaneous utilization is considered smaller. If there is a tie
+  then the resource that has been seized fewer times is smaller. If there still is a tie
+ *  then the resource with the earliest time exiting the busy state is considered smaller.
+ *  That is the one furthest back in time that the busy state was exited.
+ */
+class LeastUtilizedComparator : Comparator<Resource> {
+    override fun compare(r1: Resource, r2: Resource): Int {
+        val u1 = r1.timeAvgInstantaneousUtil.withinReplicationStatistic.weightedAverage
+        val u2 = r2.timeAvgInstantaneousUtil.withinReplicationStatistic.weightedAverage
+
+        if (u1 < u2){
+            return -1
+        }
+        if (u1 > u2) {
+            return 1
+        }
+
+        if (r1.numTimesSeized < r2.numTimesSeized){
+            return -1
+        }
+        if (r1.numTimesSeized > r2.numTimesSeized){
+            return 1
+        }
+        // number of seizes was the same. if exited earlier, then prefer it
+        return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
+    }
+
+}
+
+/**
+ *  Compares the resources based on the number available
+ */
+class NumAvailableComparator : Comparator<Resource> {
+    override fun compare(r1: Resource, r2: Resource): Int {
+        // number of seizes was the same. if exited earlier, then prefer it
+        return (r1.numAvailableUnits.compareTo(r2.numAvailableUnits))
+    }
+}
+
+/**
  *  A Resource represents a number of common units that can be allocated to entities.  A resource
  *  has an initial capacity that cannot be changed during a replication. This base resource class
  *  can only be busy or idle.
@@ -188,7 +280,7 @@ interface ResourceFailureActionsIfc {
  *  If b(t) is the number of units allocated at time t, and c(t) is the current capacity of the resource, then the number of available units,
  *  a(t), is defined as a(t) = c(t) - b(t).  Thus, a resource is idle if
  *  a(t) = c(t).  Since a resource is busy if b(t) > 0, busy and idle are complements of each other. A resource is
- *  either busy b(t) > 0 or idle b(t) = 0.  If a(t) > 0, then the resource has units that it can be allocated.
+ *  either busy b(t) > 0 or idle b(t) = 0.  If a(t) > 0, then the resource has units that can be allocated.
  *
  *  The utilization of a resource is defined as the ratio of the average number of busy units to the average
  *  number of active units.  Units are active if they are part of the current capacity of the resource.
@@ -277,6 +369,10 @@ open class Resource(
             field = value
         }
 
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 1.0
+    )
     override var initialCapacity = capacity
         set(value) {
             require(value >= 0) { "The initial capacity of the resource must be >= 0" }
@@ -335,6 +431,14 @@ open class Resource(
     override val scheduledUtil: ResponseCIfc
         get() = myFractionBusy
 
+    protected val mySeizeCounter = Counter(this, name = "${this.name}:SeizeCount")
+    override val seizeCounter: CounterCIfc
+        get() = mySeizeCounter
+
+//    protected val myReleaseCounter = Counter(this, name = "${this.name}:ReleaseCount")
+//    val releaseCounter: CounterCIfc
+//        get() = myReleaseCounter
+
     override var numBusy: Int = 0
         protected set(newValue) {
             require(newValue >= 0) { "The number busy must be >= 0" }
@@ -345,11 +449,13 @@ open class Resource(
                 val increase = newValue - previousValue
                 myNumBusy.increment(increase.toDouble())
                 numTimesSeized++
+                mySeizeCounter.increment()
             } else if (newValue < previousValue) {
                 // decreasing the number busy
                 val decrease = previousValue - newValue
                 myNumBusy.decrement(decrease.toDouble())
                 numTimesReleased++
+//                myReleaseCounter.increment()
             }
             // handle the state change
             if ((field == 0) && (capacity == 0)) {
@@ -439,11 +545,10 @@ open class Resource(
     protected var myState: ResourceState = myIdleState
         set(nextState) {
             field.exit(time)  // exit the current state
-            ProcessModel.logger.trace { "$time > Resource: $name exited state ${field.name}" }
             myPreviousState = field // remember what the current state was
             field = nextState // transition to next state
             field.enter(time) // enter the current state
-            ProcessModel.logger.trace { "$time > Resource: $name entered state ${field.name}" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > Resource: $name : exited state ${myPreviousState.name} : entered state ${field.name}: c(t) = $capacity b(t) = $numBusy a(t) = $numAvailableUnits" }
         }
 
     override val state: StateAccessorIfc

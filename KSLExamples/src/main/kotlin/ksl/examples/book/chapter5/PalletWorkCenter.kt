@@ -1,5 +1,7 @@
 package ksl.examples.book.chapter5
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
@@ -23,6 +25,11 @@ class PalletWorkCenter(
         require(numWorkers >= 1) { "The number of workers must be >= 1" }
     }
 
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        name = "numWorkers",
+        lowerBound = 1.0
+    )
     var numWorkers = numWorkers
         set(value) {
             require(value >= 1) { "The number of workers must be >= 1" }

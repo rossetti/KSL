@@ -18,6 +18,8 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.KSLArrays
+import ksl.utilities.insertAt
+import ksl.utilities.io.plotting.HistogramPlot
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlin.math.ceil
@@ -101,12 +103,17 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
 
     override val count: Double
         get() = myStatistic.count
+
     override val sum: Double
         get() = myStatistic.sum
     override val average: Double
         get() = myStatistic.average
     override val deviationSumOfSquares: Double
         get() = myStatistic.deviationSumOfSquares
+    override val negativeCount: Double
+        get() = myStatistic.negativeCount
+    override val zeroCount: Double
+        get() = myStatistic.zeroCount
     override val variance: Double
         get() = myStatistic.variance
     override val min: Double
@@ -351,7 +358,6 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
         return sb.toString()
     }
 
-
     companion object {
         /**
          * Create a histogram with lower limit set to zero
@@ -442,8 +448,36 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
             val b = DoubleArray(breakPoints.size + 1)
             System.arraycopy(breakPoints, 0, b, 1, breakPoints.size)
-            b[0] = kotlin.Double.NEGATIVE_INFINITY
+            b[0] = Double.NEGATIVE_INFINITY
             return b
+        }
+
+        /**
+         * @param lowerLimit the lower limit to add to the break points
+         * @param breakPoints the break points w/o a lower limit
+         * @return the break points with lower limit as the first break point
+         */
+        fun addLowerLimit(lowerLimit: Double, breakPoints: DoubleArray): DoubleArray {
+            require(breakPoints.isNotEmpty()) { "The break points array was empty" }
+            if (lowerLimit >= breakPoints[0]){
+                return breakPoints.copyOf()
+            }
+            require(lowerLimit < breakPoints[0]) {"The new lower limit must be less than the starting break point"}
+            return breakPoints.insertAt(lowerLimit, 0)
+        }
+
+        /**
+         * @param upperLimit the upper limit to add to the break points
+         * @param breakPoints the current break points
+         * @return the break points with [upperLimit] as the last break point
+         */
+        fun addUpperLimit(upperLimit: Double, breakPoints: DoubleArray): DoubleArray {
+            require(breakPoints.isNotEmpty()) { "The break points array was empty" }
+            if (upperLimit <= breakPoints.last()){
+                return breakPoints.copyOf()
+            }
+            require(upperLimit > breakPoints.last()) {"The new upper limit must be greater than the current last break point"}
+            return breakPoints.insertAt(upperLimit, breakPoints.size)
         }
 
         /**
@@ -476,6 +510,11 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             return recommendBreakPoints(statistic)
         }
 
+        /**
+         * http://www.fmrib.ox.ac.uk/analysis/techrep/tr00mj2/tr00mj2/node24.html
+         * @param statistic the statistics associated with the data are used to form the breakpoints
+         * @return the set of break points
+         */
         fun recommendBreakPoints(statistic: StatisticIfc) : DoubleArray {
             if (statistic.count == 1.0){
                 val b = DoubleArray(1)
@@ -530,6 +569,15 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             }
             return binList
         }
+
+        /**
+         *  Creates a default histogram based on default break points for the supplied data
+         */
+        fun create(array: DoubleArray, breakPoints: DoubleArray = recommendBreakPoints(array)) : Histogram {
+            val h = Histogram(breakPoints)
+            h.collect(array)
+            return h
+        }
     }
 
 }
@@ -544,6 +592,6 @@ fun main() {
         h1.collect(x)
         h2.collect(x)
     }
-    println(h1)
+//    println(h1)
     println(h2)
 }

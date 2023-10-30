@@ -37,6 +37,7 @@ import java.sql.SQLException
 import java.util.*
 import javax.sql.DataSource
 
+/*
 object DatabaseFactory {
 
     /**
@@ -532,7 +533,7 @@ object DatabaseFactory {
      * @return the created database
      */
     fun createSQLiteDatabase(dbLabel: String, dataSource: SQLiteDataSource): Database {
-        return Database(dataSource, dbLabel)
+        return Database(dataSource, dbLabel )
     }
 
     /**
@@ -568,7 +569,7 @@ object DatabaseFactory {
     }
 
     /**
-     * The database file must already exist within the JSLDatabase.dbDir directory
+     * The database file must already exist within the KSLDatabase.dbDir directory
      * It is opened for reading and writing.
      *
      * @param fileName the name of database file, must not be null
@@ -578,4 +579,91 @@ object DatabaseFactory {
         return getSQLiteDatabase(KSL.dbDir.resolve(fileName))
     }
 
+//    /**
+//     * @param pathToDb the path to the database file, must not be null
+//     * @return the data source
+//     */
+//    fun createDuckDbDataSource(pathToDb: Path): DuckDbDataSource {
+//        val ds = DuckDbDataSource(pathToDb.toString())
+//        DatabaseIfc.logger.info("Created DuckDb data source {}", pathToDb)
+//        return ds
+//    }
+//
+//    /**
+//     * @param dbLabel    a label for the database
+//     * @param dataSource the data source for connections
+//     * @return the created database
+//     */
+//    fun createDuckDbDatabase(dbLabel: String, dataSource: DuckDbDataSource): Database {
+//        return Database(dataSource, dbLabel)
+//    }
+//
+//    /**
+//     * Deletes a DuckDb database
+//     * Strategy:
+//     * - simply deletes the file at the end of the path
+//     * - it may or not be a valid DuckDb database
+//     *
+//     * @param pathToDb the path to the database file, must not be null
+//     */
+//    fun deleteDuckDbDatabase(pathToDb: Path) {
+//        try {
+//            Files.deleteIfExists(pathToDb)
+//            DatabaseIfc.logger.info("Deleting DuckDb database {}", pathToDb)
+//        } catch (e: IOException) {
+//            DatabaseIfc.logger.error("Unable to delete DuckDb database {}", pathToDb)
+//            throw DataAccessException("Unable to delete DuckDb database$pathToDb")
+//        }
+//    }
+//
+//    /**
+//     * If the database already exists it is deleted
+//     *
+//     * @param dbName the name of the DuckDb database. Must not be null
+//     * @param dbDir  a path to the directory to hold the database. Must not be null
+//     * @return the created database
+//     */
+//    fun createDuckDbDatabase(dbName: String, dbDir: Path = KSL.dbDir): Database {
+//        val pathToDb = dbDir.resolve(dbName)
+//        // if it exists, delete it
+//        if (Files.exists(pathToDb)) {
+//            deleteDuckDbDatabase(pathToDb)
+//        }
+//        val ds: DuckDbDataSource = createDuckDbDataSource(pathToDb)
+//        return createDuckDbDatabase(dbName, ds)
+//    }
+//
+//    /**
+//     * Checks if a file is a valid DuckDb database
+//     * Strategy:
+//     * - path must reference a regular file
+//     * - then check if a DuckDb database operation works
+//     *
+//     * @param pathToFile the path to the database file, must not be null
+//     * @return true if the path points to a valid DuckDb database file
+//     */
+//    fun isDuckDbDatabase(pathToFile: Path): Boolean {
+//        // the path itself must be a directory or a file, i.e. it must exist
+//        if (!Files.exists(pathToFile)) {
+//            return false
+//        }
+//        // now the thing exists, check if it is a regular file
+//        if (!Files.isRegularFile(pathToFile, LinkOption.NOFOLLOW_LINKS)) {
+//            // if it is not a regular file, then it cannot be an SQLite database
+//            return false
+//        }
+//        // now try a database operation specific to DuckDb
+//        val ds = DuckDbDataSource(pathToFile.toString())
+//        try {
+//            val connection = ds.getReadOnlyConnection() as DuckDBConnection
+//            val c2 = connection.duplicate()
+//            c2.close()
+//            connection.close()
+//        } catch (exception: SQLException) {
+//            return false
+//        }
+//        return true
+//    }
 }
+
+ */

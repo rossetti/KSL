@@ -18,6 +18,8 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Exponential(mean) random variable
@@ -50,7 +52,7 @@ class ExponentialRV(val mean: Double = 1.0, stream: RNStreamIfc = KSLRandom.next
 
     override val parameters: RVParameters
         get() {
-            val parameters: RVParameters = RVParameters.ExponentialRVParameters()
+            val parameters: RVParameters = ExponentialRVParameters()
             parameters.changeDoubleParameter("mean", mean)
             return parameters
         }

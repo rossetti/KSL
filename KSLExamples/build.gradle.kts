@@ -22,7 +22,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `java-library`
-    kotlin("jvm") version "1.8.0"
+    kotlin("jvm") version "1.9.0"
 }
 group = "io.github.rossetti"
 version = "1.0-SNAPSHOT"
@@ -45,8 +45,8 @@ dependencies {
 //    api(group = "ch.qos.logback", name = "logback-core", version = "1.2.10")
 
 //TODO probably not needed because only used in KSLCore
-    api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+    api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 //    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 //    implementation("org.junit.jupiter:junit-jupiter:5.7.0")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.10")
@@ -60,7 +60,7 @@ tasks.test {
 }
 
 tasks.withType<KotlinCompile>() {
-    kotlinOptions.jvmTarget = "11"
+    kotlinOptions.jvmTarget = "17"
 }
 
 // this is supposed to exclude the logback.xml resource file from the generated jar
@@ -77,9 +77,9 @@ tasks.jar {
 }
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "17"
 }
 val compileTestKotlin: KotlinCompile by tasks
 compileTestKotlin.kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "17"
 }

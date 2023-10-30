@@ -19,9 +19,9 @@
 package ksl.utilities.io.tabularfiles
 
 import ksl.utilities.io.dbutil.ColumnMetaData
-import ksl.utilities.io.dbutil.DatabaseFactory
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.ResultSetRowIterator
+import ksl.utilities.io.dbutil.SQLiteDb
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import java.io.IOException
@@ -44,14 +44,14 @@ import kotlin.math.min
  * Use the methods of this class to read rows.
  *
  * @see ksl.utilities.io.tabularfiles.TabularFile
- * @see ksl.utilities.io.tabularfiles.TestTabularWork  For example code
+ * @see ksl.examples.utilities.TestTabularWork  For example code
  */
-class TabularInputFile private constructor(columnTypes: Map<String, DataType>, path: Path) :
+class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, path: Path) :
     TabularFile(columnTypes, path) {
 
     constructor(path: Path) : this(columnTypes(path), path)
 
-    private val myDb: DatabaseIfc
+    internal val myDb: DatabaseIfc
     private val dataTableName: String
 
     var rowBufferSize = DEFAULT_ROW_BUFFER_SIZE // maximum number of records held inside iterators
@@ -73,7 +73,7 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
         val fixedFileName = fileName.replace("[^a-zA-Z]".toRegex(), "")
         dataTableName = fixedFileName + "_Data"
         // open up the database file
-        myDb = DatabaseFactory.getSQLiteDatabase(path, true)
+        myDb = SQLiteDb.openDatabaseReadOnly(path)
         totalNumberRows = myDb.numRows(dataTableName)
         myConnection = myDb.getConnection()
         val rowsSQL = "select * from $dataTableName where rowid between ? and ?"
@@ -356,13 +356,15 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
      *  Converts the columns and rows to a Dataframe.
      *  @return the data frame or an empty data frame if conversion does not work
      */
-    fun asDataFrame(): AnyFrame {
+    override fun asDataFrame(): AnyFrame {
         val resultSet = myDb.selectAllIntoOpenResultSet(dataTableName)
-        return if (resultSet!= null){
+        val df  = if (resultSet!= null){
             DatabaseIfc.toDataFrame(resultSet)
         }else{
             emptyDataFrame<Nothing>()
         }
+        resultSet?.close()
+        return df
     }
 
     /**
@@ -421,13 +423,13 @@ class TabularInputFile private constructor(columnTypes: Map<String, DataType>, p
          * @return the metadata for the file column names and data type
          */
         fun columnTypes(pathToFile: Path): Map<String, DataType> {
-            check(DatabaseFactory.isSQLiteDatabase(pathToFile)) { "The path does represent a valid TabularInputFile $pathToFile" }
+            check(SQLiteDb.isDatabase(pathToFile)) { "The path does represent a valid TabularInputFile $pathToFile" }
             // determine the name of the data table
             val fileName = pathToFile.fileName.toString()
             val fixedFileName = fileName.replace("[^a-zA-Z]".toRegex(), "")
             val dataTableName = fixedFileName + "_Data"
             // open up the database file
-            val database: DatabaseIfc = DatabaseFactory.getSQLiteDatabase(pathToFile, true)
+            val database: DatabaseIfc = SQLiteDb.openDatabaseReadOnly(pathToFile)
             // get the table metadata from the database
             val tableMetaData = database.tableMetaData(dataTableName)
             if (tableMetaData.isEmpty()) {

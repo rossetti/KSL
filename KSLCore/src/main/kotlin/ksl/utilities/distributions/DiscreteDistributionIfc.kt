@@ -18,5 +18,20 @@
 
 package ksl.utilities.distributions
 
-interface DiscreteDistributionIfc : CDFIfc, PMFIfc {
+import ksl.utilities.Interval
+import ksl.utilities.math.KSLMath
+import ksl.utilities.random.ParametersIfc
+import ksl.utilities.random.rvariable.GetRVariableIfc
+
+interface DiscreteDistributionIfc : CDFIfc, PMFIfc, InverseCDFIfc, GetRVariableIfc, ParametersIfc {
+
+    /**
+     *  Computes Pr{x &lt X } for the distribution.
+     */
+    fun strictlyLessCDF(x: Double) : Double {
+        return cdf(x) - pmf(x)
+    }
+
 }
+
+interface DiscretePMFInRangeDistributionIfc : DiscreteDistributionIfc, ProbInRangeIfc

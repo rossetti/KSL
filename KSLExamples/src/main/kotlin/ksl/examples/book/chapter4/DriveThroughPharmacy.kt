@@ -55,7 +55,7 @@ class DriveThroughPharmacy(
     val arrivalRV: RandomSourceCIfc
         get() = myArrivalRV
 
-    private val myNumInQ: TWResponse = TWResponse(this, "PharmacyQ")
+    private val myNumInQ: TWResponse = TWResponse(this, "NumInQ")
     val numInQ: TWResponseCIfc
         get() = myNumInQ
 

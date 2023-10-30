@@ -183,7 +183,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
                 sb.appendLine()
                 sb.append("The user is responsible for ensuring that the Executive is stopped.")
                 sb.appendLine()
-                Model.logger.warn(sb.toString())
+                Model.logger.warn { sb.toString() }
                 System.out.flush()
             }
         }
@@ -230,12 +230,12 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.appendLine()
             sb.append("Hint: Do not schedule initial events prior to executing (running) the simulation.  Use the initialize() method instead.")
             sb.appendLine()
-            Model.logger.warn(sb.toString())
+            Model.logger.warn { sb.toString() }
             System.out.flush()
             throw KSLEventException(sb.toString())
         }
         if (interEventTime < 0.0) {
-            Model.logger.warn("Attempted to schedule an event before the Current Time!")
+            Model.logger.warn { "Attempted to schedule an event before the Current Time!" }
             System.out.flush()
             throw KSLEventException("Attempted to schedule an event before the Current Time!")
         }
@@ -245,14 +245,15 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             // create the event
             val event =
                 KSLEvent(numEventsScheduled, eventAction, eventTime, priority, message, name, theElementScheduling)
+            event.name = name
             myEventCalendar.add(event)
-            event.scheduled = true
+            event.isScheduled = true
             return event
         } else {
             val event = KSLEvent(-99, eventAction, eventTime, priority, message, name, theElementScheduling)
             val sb = StringBuilder()
             sb.append("Attempted to schedule an event, $event, after the scheduled simulation end time: ${scheduledEndTime()} the event was not scheduled and will not execute")
-            Model.logger.trace(sb.toString())
+            Model.logger.trace { "${sb.toString()}" }
             return event
         }
     }
@@ -265,8 +266,8 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
     private fun execute(event: KSLEvent<*>) {
         try {
             // the event is no longer scheduled
-            event.scheduled = false
-            if (!event.cancelled) {
+            event.isScheduled = false
+            if (!event.cancel) {
                 // event was not cancelled
                 // update the current simulation time to the event time
                 currentTime = event.time
@@ -280,6 +281,8 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
                 performCPhase()
             }
         } catch (e: RuntimeException) {
+            Model.logger.error { e.message }
+            System.err.println(e.message)
             val sb = StringBuilder()
             sb.append("######################################")
             sb.appendLine()
@@ -298,8 +301,9 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             sb.append("######################################")
             sb.appendLine()
             sb.appendLine()
-
-            Model.logger.error(sb.toString())
+            Model.logger.error { sb.toString() }
+            System.err.println(sb.toString())
+            System.err.flush()
             System.out.flush()
             throw e
         }

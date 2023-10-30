@@ -18,7 +18,17 @@
 
 package ksl.utilities.maps
 
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import ksl.utilities.Interval
+import ksl.utilities.statistic.BoxPlotSummary
+import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import java.util.*
+import kotlin.reflect.KClass
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.primaryConstructor
 
 object KSLMaps {
 
@@ -36,7 +46,7 @@ object KSLMaps {
         }
         val map = LinkedHashMap<String, Double>()
         for (i in keys.indices) {
-            if (!values[i].isNaN()){
+            if (!values[i].isNaN()) {
                 map[keys[i]] = values[i]
             }
         }
@@ -109,4 +119,111 @@ object KSLMaps {
         return outMap
     }
 
+    /**
+     * Converts a JSON [string] representation to a Map
+     * with keys that are strings and values that are doubles.
+     * @return the map from the string
+     */
+    fun stringDoubleMapFromJson(string: String): Map<String, Double> {
+        return Json.decodeFromString(string)
+    }
+
+    /**
+     *  Converts a [map] that has (String, Double) pairs to
+     *  a JSON string
+     *  @return the JSON string
+     */
+    fun stringDoubleMapToJson(map: Map<String, Double>): String {
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(map)
+    }
+
+    /**
+     *  Converts a [map] that has (String, Double) pairs to
+     *  a JSON string
+     *  @return the JSON string
+     */
+    fun stringDoubleArrayMapToJson(map: Map<String, DoubleArray>): String {
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(map)
+    }
+
 }
+
+fun Map<String, Double>.toJson(): String {
+    return KSLMaps.stringDoubleMapToJson(this)
+}
+
+/**
+ *  Converts the inner DoubleArray to List<Double>
+ */
+fun Map<String, DoubleArray>.toMapOfLists(): Map<String, List<Double>> {
+    val map = mutableMapOf<String, List<Double>>()
+    for ((name, array) in this) {
+        map[name] = array.toList()
+    }
+    return map
+}
+
+/**
+ *  Computes the box plot summaries for the data within the map
+ */
+fun Map<String, DoubleArray>.boxPlotSummaries(): Map<String, BoxPlotSummary> {
+    return Statistic.boxPlotSummaries(this)
+}
+
+/**
+ *  Computes the statistical summaries for the data within the map
+ */
+fun Map<String, DoubleArray>.statisticalSummaries(): Map<String, StatisticIfc> {
+    return Statistic.statisticalSummaries(this)
+}
+
+/**
+ *  Computes the confidence intervals for the data in the map
+ */
+fun Map<String, DoubleArray>.confidenceIntervals(level: Double = 0.95): Map<String, Interval> {
+    return Statistic.confidenceIntervals(this)
+}
+
+/**
+ *  Can be used to convert an object of a data class to a map.
+ *  https://www.baeldung.com/kotlin/data-class-to-map
+ */
+@Suppress("UNCHECKED_CAST")
+fun <T : Any> toMap(obj: T): Map<String, Any?> {
+    return (obj::class as KClass<T>).memberProperties.associate { prop ->
+        prop.name to prop.get(obj)?.let { value ->
+            if (value::class.isData) {
+                toMap(value)
+            } else {
+                value
+            }
+        }
+    }
+}
+
+/**
+ *  Can be used to convert an object of a data class to a map.
+ *  https://www.baeldung.com/kotlin/data-class-to-map
+ */
+@Suppress("UNCHECKED_CAST")
+fun <T : Any> toMapWithOnlyPrimaryConstructorProperties(obj: T): Map<String, Any?> {
+    val kClass = obj::class as KClass<T>
+    val primaryConstructorPropertyNames = kClass.primaryConstructor?.parameters?.map { it.name } ?: run {
+        return toMap(obj)
+    }
+    return kClass.memberProperties.mapNotNull { prop ->
+        prop.name.takeIf { it in primaryConstructorPropertyNames }?.let {
+            it to prop.get(obj)?.let { value ->
+                if (value::class.isData) {
+                    toMap(value)
+                } else {
+                    value
+                }
+            }
+        }
+    }.toMap()
+}
+
+

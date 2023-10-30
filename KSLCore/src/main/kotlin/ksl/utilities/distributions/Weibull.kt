@@ -18,6 +18,8 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.countLessEqualTo
+import ksl.utilities.countLessThan
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -107,8 +109,11 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
     }
 
     override fun cdf(x: Double): Double {
+        if ((x == Double.POSITIVE_INFINITY) || (x == Double.MAX_VALUE)) {
+            return 1.0
+        }
         return if (x > 0.0) {
-            1 - exp(-(x / scale).pow(shape))
+            1.0 - exp(-(x / scale).pow(shape))
         } else {
             0.0
         }
@@ -119,7 +124,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
             return 0.0
         }
         val e1 = -(x / scale).pow(shape)
-        var f = scale * scale.pow(-shape)
+        var f = shape * scale.pow(-shape)
         f = f * x.pow(shape - 1.0)
         f = f * exp(e1)
         return f
@@ -187,4 +192,79 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         return WeibullRV(shape, scale, stream)
     }
 
+    override fun toString(): String {
+        return "Weibull(shape=$shape, scale=$scale)"
+    }
+
+    companion object {
+
+        /**
+         *  Estimates the shape and scale parameters based on supplied values of the percentiles
+         *  [xp1] represents the estimated (from a sample) quantile for [p1]
+         *  [xp2] represents the estimated (from a sample) quantile for [p2]
+         *  The quantiles must be non-negative and not equal. The probabilities must be within (0,1) and not equal.
+         *  The returned pair has:
+         *  component1 = shape
+         *  component2 = scale
+         *  See: Marks, Neil B. “Estimation of Weibull Parameters from Common Percentiles.”
+         *  Journal of Applied Statistics 32, no. 1 (January 2005): 17–24.
+         *  https://doi.org/10.1080/0266476042000305122.
+         *
+         */
+        fun parametersFromPercentiles(xp1: Double, xp2: Double, p1: Double, p2: Double): Pair<Double, Double> {
+            require(xp1 > 0.0) { "The first quantile estimate was <= 0.0" }
+            require(xp2 > 0.0) { "The second quantile estimate was <= 0.0" }
+            require(xp1 != xp2) { "The quantile estimates must not be equal" }
+            require((0.0 < p1) && (p1 < 1.0)) { "The value of p1 must be within (0,1)" }
+            require((0.0 < p2) && (p2 < 1.0)) { "The value of p2 must be within (0,1)" }
+            require(p1 != p2) { "The probabilities must not be equal" }
+            val c1 = -ln(1.0 - p1)
+            val c2 = -ln(1.0 - p2)
+            val shape = (ln(c1) - ln(c2)) / (ln(xp1) - ln(xp2))
+            val scale = xp1.pow(shape) / c1
+            return Pair(shape, scale)
+        }
+
+        /**
+         *  Based on the recommendation on page 188 of Law(2007)
+         *  There must be at least two observations. Returns
+         *  an estimated initial shape parameter. There should not be any negative
+         *  or zero values in the data.
+         */
+        fun initialShapeEstimate(data: DoubleArray): Double {
+            require(data.size >= 2) { "There must be at least two observations" }
+            require(data.countLessEqualTo(0.0) == 0) {"There were negative or zero values in the data."}
+            val n = data.size.toDouble()
+            var sumlnx = 0.0
+            var sumlnxsq = 0.0
+            for (x in data) {
+                val lnx = ln(x)
+                sumlnx = sumlnx + lnx
+                sumlnxsq = sumlnxsq + lnx * lnx
+            }
+            val coefficient = 6.0 / (Math.PI * Math.PI)
+            val diff = sumlnxsq - (sumlnx * sumlnx / n)
+            val f = sqrt(coefficient * diff / (n - 1.0))
+            return (1.0 / f)
+        }
+
+        /**
+         *  Given a [shape] parameter estimate the corresponding
+         *  scale parameter based on the data. The shape parameter must be greater
+         *  than 0.0. The data must not be empty and there should not be any negative
+         *  or zero values in the data.
+         */
+        fun estimateScale(shape: Double, data: DoubleArray) : Double {
+            require(shape > 0.0) {"The shape parameter must be > 0.0"}
+            require(data.isNotEmpty()) { "There must be at least one observation." }
+            require(data.countLessEqualTo(0.0) == 0) {"There were negative or zero values in the data."}
+            var sumB = 0.0
+            for (x in data) {
+                sumB = sumB + x.pow(shape)
+            }
+            val n = data.size.toDouble()
+            return (sumB/n).pow(shape)
+        }
+
+    }
 }

@@ -24,6 +24,7 @@ package ksl.utilities.statistic
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.DEmpiricalCDF
+import ksl.utilities.io.plotting.IntegerFrequencyPlot
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.toDoubles
@@ -45,25 +46,53 @@ import ksl.utilities.toDoubles
  * @param lowerLimit the defined lower limit of the integers, values less than this are not tabulated
  * @param upperLimit the defined upper limit of the integers, values less than this are not tabulated
  * @param name a name for the instance
+ * @param data an array of data to tabulate
  */
 class IntegerFrequency(
+    data: IntArray? = null,
+    name: String? = null,
     val lowerLimit: Int = Int.MIN_VALUE,
-    val upperLimit: Int = Int.MAX_VALUE,
-    name: String? = null
+    val upperLimit: Int = Int.MAX_VALUE
 ) : IdentityIfc by Identity(name) {
-    init {
-        require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
-    }
+
+    /**
+     * Collects statistical information
+     */
+    private var myStatistic: Statistic = Statistic(this.name)
 
     /**
      * A Cell represents a value, count pairing
      */
     private val myCells: MutableMap<Int, Cell> = HashMap()
 
-    /**
-     * Collects statistical information
-     */
-    private var myStatistic: Statistic = Statistic(this.name)
+    init {
+        require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
+        if (data != null){
+            collect(data)
+        }
+    }
+
+    companion object {
+
+        fun create(
+            data: Array<Int>? = null,
+            name: String? = null,
+            lowerLimit: Int = Int.MIN_VALUE,
+            upperLimit: Int = Int.MAX_VALUE
+        ): IntegerFrequency{
+            return IntegerFrequency(data?.toIntArray(), name, lowerLimit, upperLimit)
+        }
+
+        fun create(
+            data: Collection<Int>? = null,
+            name: String? = null,
+            lowerLimit: Int = Int.MIN_VALUE,
+            upperLimit: Int = Int.MAX_VALUE
+        ): IntegerFrequency{
+            return IntegerFrequency(data?.toIntArray(), name, lowerLimit, upperLimit)
+        }
+
+    }
 
     /**
      * The number of observations that fell below the first bin's lower limit
@@ -77,12 +106,6 @@ class IntegerFrequency(
      */
     var overFlowCount = 0
         private set
-
-    /** Can tabulate any integer value
-     *
-     * @param name a name for the instance
-     */
-    constructor(name: String?) : this(Int.MIN_VALUE, Int.MAX_VALUE, name)
 
     /**
      * @param intArray collects on the values in the array
@@ -452,6 +475,15 @@ class IntegerFrequency(
      */
     fun statistic(): Statistic {
         return myStatistic.instance()
+    }
+
+    /**
+     *  Creates a plot for the integer frequencies. The parameter, [proportions]
+     *  indicates whether proportions (true) or frequencies (false)
+     *  will be shown on the plot. The default is false.
+     */
+    fun frequencyPlot(proportions: Boolean = false) : IntegerFrequencyPlot {
+        return IntegerFrequencyPlot(this, proportions)
     }
 
     /**

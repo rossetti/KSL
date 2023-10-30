@@ -109,20 +109,6 @@ class DUniform(min: Int = 0, max: Int = 1, name: String? = null) :
         return minimum + floor(range * p)
     }
 
-    /** If x is not and integer value, then the probability must be zero
-     * otherwise pmf(int x) is used to determine the probability
-     *
-     * @param x the value to evaluate
-     * @return the associated probability
-     */
-    override fun pmf(x: Double): Double {
-        return if (floor(x) == x) {
-            pmf(x.toInt())
-        } else {
-            0.0
-        }
-    }
-
     override fun mean(): Double {
         return (minimum + maximum) / 2.0
     }
@@ -133,11 +119,11 @@ class DUniform(min: Int = 0, max: Int = 1, name: String? = null) :
 
     /** Returns the probability associated with x
      *
-     * @param x the value to evaluate
+     * @param i the value to evaluate
      * @return the associated probability
      */
-    fun pmf(x: Int): Double {
-        return if (x < minimum || x > maximum) {
+    override fun pmf(i: Int): Double {
+        return if (i < minimum || i > maximum) {
             0.0
         } else 1.0 / range
     }
@@ -167,5 +153,9 @@ class DUniform(min: Int = 0, max: Int = 1, name: String? = null) :
 
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
         return DUniformRV(minimum, maximum, stream)
+    }
+
+    override fun toString(): String {
+        return "DUniform(minimum=$minimum, maximum=$maximum)"
     }
 }

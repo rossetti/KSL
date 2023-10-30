@@ -98,7 +98,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
             myWDFDataFile = RandomAccessFile(wdfDataFile, "r")
         } catch (ex: IOException) {
             val str = "Problem creating RandomAccessFile for " + wdfDataFile.absolutePath
-            KSL.logger.error(str, ex)
+            KSL.logger.error(ex) { "$str" }
         }
     }
 
@@ -163,7 +163,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
             val out = DataOutputStream(fout)
             writeWelchPlotData(out, numObs)
         } catch (ex: IOException) {
-            KSL.logger.error("Unable to make welch data plot file ", ex)
+            KSL.logger.error(ex) { "Unable to make welch data plot file." }
         }
         return wpdf
     }
@@ -206,7 +206,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
         try {
             writeCSVWelchPlotData(pw, numObs)
         } catch (ex: IOException) {
-            KSL.logger.error("Unable to make CSV welch data plot file ", ex)
+            KSL.logger.error(ex) { "Unable to make CSV welch data plot file" }
         }
         return file
     }
@@ -627,13 +627,4 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
         }
 
     }
-}
-
-fun main() {
-    val y = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
-    val stat = Statistic(y)
-    val avg: Double = stat.average
-    val partialSums: DoubleArray = WelchDataCollectorIfc.partialSums(avg, y)
-    println("avg = $avg")
-    println(Arrays.toString(partialSums))
 }
