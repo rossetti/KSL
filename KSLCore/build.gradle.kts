@@ -27,7 +27,7 @@ plugins {
     kotlin("jvm") version "1.9.0"
     kotlin("plugin.serialization") version "1.9.0"
  //   id("org.jetbrains.kotlinx.dataframe") version "0.11.0"
-    id("org.jetbrains.dokka") version "1.7.20"
+    id("org.jetbrains.dokka") version "1.9.10"
 }
 group = "io.github.rossetti"
 version = "R1.0.2"
