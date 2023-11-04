@@ -29,9 +29,9 @@ open class DiscretePMFGoodnessOfFit(
 fun main() {
  //    testPoisson()
 
-//     tesNegBinomial()
+     tesNegBinomial()
 
-    testBinomial()
+ //   testBinomial()
 }
 
 fun testPoisson() {
@@ -50,9 +50,8 @@ fun tesNegBinomial() {
     val rv = dist.randomVariable
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
-    var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
-    val pf = DiscretePMFGoodnessOfFit(data, dist, breakPoints = breakPoints)
-    println()
+    val breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
+    val pf = DiscretePMFGoodnessOfFit(data, dist, numEstimatedParameters = 2, breakPoints = breakPoints)
     println(pf.chiSquaredTestResults())
 }
 
