@@ -357,6 +357,15 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     /**
      *  Returns the expected count for each bin of the histogram based on a continuous interval
      *  interpretation of the bin .
+     *  The discrete distribution, [discreteCDF] must implement the ProbInRangeIfc interface
+     */
+    fun expectedCounts(discreteCDF : ProbInRangeIfc): DoubleArray{
+        return binProbabilities(discreteCDF).multiplyConstant(count)
+    }
+
+    /**
+     *  Returns the expected count for each bin of the histogram based on a continuous interval
+     *  interpretation of the bin .
      *  The distribution, [cdf] must implement the ContinuousDistributionIfc interface
      */
     fun expectedCounts(cdf : ContinuousDistributionIfc): DoubleArray{

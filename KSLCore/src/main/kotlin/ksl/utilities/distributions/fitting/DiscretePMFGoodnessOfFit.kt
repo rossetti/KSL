@@ -16,7 +16,7 @@ open class DiscretePMFGoodnessOfFit(
 
     final override val binProbabilities = histogram.binProbabilities(distribution)
 
-    final override val expectedCounts = binProbabilities.multiplyConstant(histogram.count)
+    final override val expectedCounts = histogram.expectedCounts(distribution)
 
     override fun toString(): String {
         val sb = StringBuilder().apply {
@@ -27,9 +27,9 @@ open class DiscretePMFGoodnessOfFit(
 }
 
 fun main() {
-     testPoisson()
+ //    testPoisson()
 
- //    tesNegBinomial()
+     tesNegBinomial()
 
  //   testBinomial()
 }
@@ -40,8 +40,6 @@ fun testPoisson() {
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
     var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
-//    breakPoints = breakPoints.removeAt(1)
-//    breakPoints = breakPoints.removeAt(1)
     val pf = DiscretePMFGoodnessOfFit(data, dist, breakPoints = breakPoints)
     println()
     println(pf.chiSquaredTestResults())
@@ -52,11 +50,8 @@ fun tesNegBinomial() {
     val rv = dist.randomVariable
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
-    var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
-//    breakPoints = breakPoints.removeAt(1)
-//    breakPoints = breakPoints.removeAt(1)
-    val pf = DiscretePMFGoodnessOfFit(data, dist, breakPoints = breakPoints)
-    println()
+    val breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
+    val pf = DiscretePMFGoodnessOfFit(data, dist, numEstimatedParameters = 2, breakPoints = breakPoints)
     println(pf.chiSquaredTestResults())
 }
 
@@ -68,8 +63,6 @@ fun testBinomial() {
     var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
     println("break points: ")
     println(breakPoints.joinToString())
-//    breakPoints = breakPoints.removeAt(1)
-//    breakPoints = breakPoints.removeAt(1)
     val pf = DiscretePMFGoodnessOfFit(data, dist, breakPoints = breakPoints)
     println("constructed goodness of fit")
     println(pf.chiSquaredTestResults())

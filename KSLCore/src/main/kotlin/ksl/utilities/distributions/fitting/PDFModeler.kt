@@ -376,8 +376,8 @@ class PDFModeler(private val data: DoubleArray) {
      *  html file is stored in the KSL.plotDir directory using the supplied
      *  name as the pre-fix for a temporary file.
      */
-    fun showAllResultsInBrowser(fileName: String = "pdfModelingResults"){
-        KSLFileUtil.openInBrowser(fileName = fileName, allResultsToHTML())
+    fun showAllResultsInBrowser(fileName: String = "pdfModelingResults") {
+        KSLFileUtil.openInBrowser(fileName = fileName, allResultsToHTML(fileName))
     }
 
     /**
@@ -385,23 +385,30 @@ class PDFModeler(private val data: DoubleArray) {
      *  performs the fitting and scoring process, and performs goodness
      *  of fit tests on the top scoring distribution and captures
      *  the results as a string containing the html for display.
+     *  The optional argument [plotFileName] can be used to cause
+     *  a PNG file to be saved to the plot directory.
      */
-    fun allResultsToHTML() : String {
-        val sb = StringBuilder().apply{
-            appendLine(histogramResultsAsHTML())
-            appendLine(observationsPlotAsHTML())
-            appendLine(acfPlotAsHTML())
-            appendLine(scoringResultsAsHTML())
+    fun allResultsToHTML(plotFileName: String? = null): String {
+        val sb = StringBuilder().apply {
+            appendLine(histogramResultsAsHTML(plotFileName))
+            appendLine(observationsPlotAsHTML(plotFileName))
+            appendLine(acfPlotAsHTML(plotFileName))
+            appendLine(scoringResultsAsHTML(plotFileName))
         }
         return sb.toString()
     }
 
     /**
-     *  The histogram portion of the results as html
+     *  The histogram portion of the results as html.
+     *  The optional argument [plotFileName] can be used to cause
+     *  a PNG file to be saved to the plot directory.
      */
-    fun histogramResultsAsHTML() : String {
+    fun histogramResultsAsHTML(plotFileName: String? = null): String {
         val hPlot = histogram.histogramPlot()
-        val sb = StringBuilder().apply{
+        if (plotFileName != null) {
+            hPlot.saveToFile("${plotFileName}_Hist_Plot")
+        }
+        val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("Histogram Results")
             appendLine("</h1>")
@@ -418,11 +425,16 @@ class PDFModeler(private val data: DoubleArray) {
     }
 
     /**
-     *  The observations plot portion of the results as html
+     *  The observations plot portion of the results as html.
+     *  The optional argument [plotFileName] can be used to cause
+     *  a PNG file to be saved to the plot directory.
      */
-    fun observationsPlotAsHTML() : String {
+    fun observationsPlotAsHTML(plotFileName: String? = null): String {
         val op = ObservationsPlot(data)
-        val sb = StringBuilder().apply{
+        if (plotFileName != null) {
+            op.saveToFile("${plotFileName}_Obs_Plot")
+        }
+        val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("Observation Plot Results")
             appendLine("</h1>")
@@ -434,11 +446,16 @@ class PDFModeler(private val data: DoubleArray) {
     }
 
     /**
-     *  The ACF plot portion of the results as html
+     *  The ACF plot portion of the results as html.
+     *  The optional argument [plotFileName] can be used to cause
+     *  a PNG file to be saved to the plot directory.
      */
-    fun acfPlotAsHTML() : String {
+    fun acfPlotAsHTML(plotFileName: String? = null): String {
         val acf = ACFPlot(data)
-        val sb = StringBuilder().apply{
+        if (plotFileName != null) {
+            acf.saveToFile("${plotFileName}_ACF_Plot")
+        }
+        val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("Autocorrelation Plot Results")
             appendLine("</h1>")
@@ -450,19 +467,25 @@ class PDFModeler(private val data: DoubleArray) {
     }
 
     /**
-     *  Just the scoring results as html
+     *  Just the scoring results as html.
+     *  The optional argument [plotFileName] can be used to cause
+     *  a PNG file to be saved to the plot directory.
      */
-    fun scoringResultsAsHTML() : String {
-        val results  = estimateAndEvaluateScores()
+    fun scoringResultsAsHTML(plotFileName: String? = null): String {
+        val results = estimateAndEvaluateScores()
         val scores = results.evaluationModel.alternativeScoresAsDataFrame("Distributions")
         val values = results.evaluationModel.alternativeValuesAsDataFrame("Distributions")
         val topResult = results.sortedScoringResults.first()
         val distPlot = topResult.distributionFitPlot()
-        val gof = ContinuousCDFGoodnessOfFit(topResult.estimationResult.testData,
+        if (plotFileName != null) {
+            distPlot.saveToFile("${plotFileName}_PDF_Plot")
+        }
+        val gof = ContinuousCDFGoodnessOfFit(
+            topResult.estimationResult.testData,
             topResult.distribution,
             numEstimatedParameters = topResult.numberOfParameters
         )
-        val sb = StringBuilder().apply{
+        val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("PDF Modeling Results")
             appendLine("</h1>")
