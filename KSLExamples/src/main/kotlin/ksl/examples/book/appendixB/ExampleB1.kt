@@ -27,22 +27,36 @@ import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.toDoubles
 import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.DataFrame
-import org.jetbrains.kotlinx.dataframe.annotations.DataSchema
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.io.ColType
 import org.jetbrains.kotlinx.dataframe.io.readCSV
-import java.nio.file.Path
-import java.nio.file.Paths
-
-@DataSchema
-interface Observation {
-    val week: Int
-    val period: Int
-    val day: String
-    val count: Int
-}
 
 fun main() {
+    val data = readCountData()
+    val f = IntegerFrequency(data)
+    val fp = f.frequencyPlot()
+    fp.showInBrowser()
+    fp.saveToFile("Lab_Count_Freq_Plot")
+    val op = ObservationsPlot(data)
+    op.saveToFile("Lab_Count_Obs_Plot")
+    op.showInBrowser()
+    val acf = ACFPlot(data.toDoubles())
+    acf.saveToFile("Lab_Count_ACF_Plot")
+    acf.showInBrowser()
+    println(f)
+    val pmfModeler = PMFModeler(data)
+    val results = pmfModeler.estimateParameters(setOf(PoissonMLEParameterEstimator))
+    val e = results.first()
+    println(e)
+    val mean = e.parameters!!.doubleParameter("mean")
+    val pf = PoissonGoodnessOfFit(data.toDoubles(), mean = mean)
+    println(pf)
+    val plot = PMFComparisonPlot(data, pf.distribution)
+    plot.saveToFile("Lab_Count_PMF_Plot")
+    plot.showInBrowser()
+}
+
+fun readCountData(): IntArray {
     // choose file: KSL/KSLExamples/chapterFiles/Appendix-Distribution Fitting/PoissonCountData.csv
     val file = KSLFileUtil.chooseFile()
     if (file != null) {
@@ -54,53 +68,10 @@ fun main() {
                 "day" to ColType.String,
                 "count" to ColType.Int
             )
-        ).cast<Observation>()
-
+        )
         val count by column<Int>()
-        val week by column<Int>()
-        val period by column<Int>()
-        val day by column<String>()
-
         val countData: DataColumn<Int> = df[count]
-
-        println(df.schema())
-        println()
-
-        println(df)
-
-        println()
-        println(countData)
-
-        val data = countData.toIntArray()
-
-        val f = IntegerFrequency(data)
-        val fp = f.frequencyPlot()
-        fp.showInBrowser()
-
-        val op = ObservationsPlot(data)
-        op.showInBrowser()
-
-        val acf = ACFPlot(data.toDoubles())
-        acf.showInBrowser()
-
-        println()
-        println(f)
-
-        val pmfModeler = PMFModeler(data)
-
-        val results = pmfModeler.estimateParameters(setOf(PoissonMLEParameterEstimator))
-        println()
-
-        val e = results.first()
-        println(e)
-        val mean = e.parameters!!.doubleParameter("mean")
-
-        val pf = PoissonGoodnessOfFit(data.toDoubles(), mean = mean)
-        println()
-        println(pf)
-
-        val plot = PMFComparisonPlot(data, pf.distribution)
-        plot.showInBrowser()
+        return countData.toIntArray()
     }
-
+    return IntArray(0)
 }
