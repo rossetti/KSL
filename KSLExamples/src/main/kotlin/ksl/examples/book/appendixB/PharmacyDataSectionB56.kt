@@ -23,12 +23,15 @@ import ksl.utilities.distributions.fitting.ExponentialMLEParameterEstimator
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.asMarkDownTable
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.ObservationsPlot
 
 fun main(){
 
-    asBrowserResults()
+//    asBrowserResults()
+
+    scriptedResults()
 
 }
 
@@ -67,6 +70,13 @@ fun scriptedResults(){
         results.sortedScoringResults.forEach(::println)
 
         val topResult = results.sortedScoringResults.first()
+        val scores = results.evaluationModel.alternativeScoresAsDataFrame("Distributions")
+        println()
+        println(scores)
+        val values = results.evaluationModel.alternativeValuesAsDataFrame("Distributions")
+        println()
+        println(values)
+
         val distPlot = topResult.distributionFitPlot()
 
         distPlot.showInBrowser("Recommended Distribution ${topResult.name}")
