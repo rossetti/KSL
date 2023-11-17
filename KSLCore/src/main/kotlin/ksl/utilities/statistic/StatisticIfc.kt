@@ -58,12 +58,12 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
     /**
      *  Counts the number of observations that were exactly zero.
      */
-    val zeroCount : Double
+    val zeroCount: Double
 
     /**
      *  Counts the number of observations that were positive, strictly greater than zero.
      */
-    val positiveCount : Double
+    val positiveCount: Double
         get() = count - (negativeCount + zeroCount)
 
     /**
@@ -480,4 +480,20 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
             stats["Number of missing observations"] = numberMissing
             return stats
         }
+}
+
+fun List<StatisticIfc>.averages(): DoubleArray {
+    return DoubleArray(this.size) { this[it].average }
+}
+
+fun List<StatisticIfc>.variances(): DoubleArray {
+    return DoubleArray(this.size) { this[it].variance}
+}
+
+fun List<StatisticIfc>.counts(): DoubleArray {
+    return DoubleArray(this.size) { this[it].count}
+}
+
+fun List<StatisticIfc>.confidenceIntervals(level: Double = 0.95): List<Interval> {
+    return List(this.size) { this[it].confidenceInterval(level)}
 }
