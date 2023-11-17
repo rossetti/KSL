@@ -23,6 +23,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import java.text.DecimalFormat
 import java.util.*
 import kotlin.math.*
@@ -1296,6 +1297,19 @@ object KSLArrays {
      */
     fun to2DDoubleArray(list: List<DoubleArray>) : Array<DoubleArray>{
         return list.toTypedArray()
+    }
+
+    /**
+     *  Converts the two-dimensional array into a list containing
+     *  the arrays.  The rows of the array become the elements of
+     *  the list.
+     */
+    fun toDoubleList(twoDArray: Array<DoubleArray>): List<DoubleArray>{
+        val list = mutableListOf<DoubleArray>()
+        for(array in twoDArray){
+            list.add(array)
+        }
+        return list
     }
 
     /**
@@ -3208,6 +3222,24 @@ fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<St
         map[rowNames.getOrElse(i) { name }] = this[i].copyOf()
     }
     return map
+}
+
+/**
+ *  Computes the statistics for the 2D array of doubles by rows.
+ *  If the row name is not supplied then the row is called rowj where j is the
+ *  number of the missing row. The
+ *  @param rowNames the names of the columns (optional)
+ */
+fun Array<DoubleArray>.statisticsByRow(rowNames: List<String> = emptyList()):List<StatisticIfc>{
+    val nRows = this.size
+    val names = (1..nRows).map { "row$it" }.toList()
+    val list = mutableListOf<StatisticIfc>()
+    for ((i, name) in names.withIndex()) {
+        // use the supplied names but if it doesn't exist, use the made up name
+        val statName = rowNames.getOrElse(i) { name }
+        list.add(Statistic(statName, this[i]))
+    }
+    return list
 }
 
 /**
