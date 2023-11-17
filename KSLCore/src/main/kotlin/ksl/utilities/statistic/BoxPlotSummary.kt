@@ -90,6 +90,28 @@ class BoxPlotSummary(data: DoubleArray, name: String? = null): IdentityIfc by Id
         statistic.collect(data)
     }
 
+    val average: Double
+        get() = statistic.average
+
+    val count: Double
+        get() = statistic.count
+
+    val variance: Double
+        get() = statistic.variance
+
+    val standardDeviation: Double
+        get() = statistic.standardDeviation
+
+    /**
+     * A confidence interval for the mean based on the confidence level
+     *
+     * @param level the confidence level
+     * @return the interval
+     */
+    fun confidenceInterval(level: Double): Interval {
+        return statistic.confidenceInterval(level)
+    }
+
     /**
      *  The statistical summary of the data
      */
