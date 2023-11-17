@@ -3211,7 +3211,7 @@ fun Array<DoubleArray>.toMapOfLists(colNames: List<String> = emptyList()): Map<S
  *  Converts the 2D array of doubles to a map that holds the arrays
  *  by rows. If the row name is not supplied then the row is called row1, row2, etc. The
  *  2D array must be rectangular.
- *  @param rowNames the names of the columns (optional)
+ *  @param rowNames the names of the rows (optional)
  */
 fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<String, DoubleArray> {
     val nRows = this.size
@@ -3227,8 +3227,8 @@ fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<St
 /**
  *  Computes the statistics for the 2D array of doubles by rows.
  *  If the row name is not supplied then the row is called rowj where j is the
- *  number of the missing row. The
- *  @param rowNames the names of the columns (optional)
+ *  number of the missing row name.
+ *  @param rowNames the names of the rows (optional)
  */
 fun Array<DoubleArray>.statisticsByRow(rowNames: List<String> = emptyList()): List<StatisticIfc> {
     val nRows = this.size
@@ -3240,14 +3240,6 @@ fun Array<DoubleArray>.statisticsByRow(rowNames: List<String> = emptyList()): Li
         list.add(Statistic(statName, this[i]))
     }
     return list
-}
-
-/**
- *  Computes the sample average for each row. The returned
- *  array holds the averages as elements.
- */
-fun Array<DoubleArray>.averagesByRow(): DoubleArray{
-    return DoubleArray(this.size){i -> this[i].average() }
 }
 
 /**
