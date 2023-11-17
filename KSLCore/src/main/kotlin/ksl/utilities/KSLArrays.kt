@@ -3243,6 +3243,14 @@ fun Array<DoubleArray>.statisticsByRow(rowNames: List<String> = emptyList()): Li
 }
 
 /**
+ *  Computes the sample average for each row. The returned
+ *  array holds the averages as elements.
+ */
+fun Array<DoubleArray>.averagesByRow(): DoubleArray{
+    return DoubleArray(this.size){i -> this[i].average() }
+}
+
+/**
  * Convert the 2D array of Int to a 2D array of Int with each element the
  * corresponding value
  *
