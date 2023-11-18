@@ -23,6 +23,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import java.text.DecimalFormat
 import java.util.*
 import kotlin.math.*
@@ -1294,8 +1295,21 @@ object KSLArrays {
     /**
      *  Converts the list of arrays to an array of arrays.
      */
-    fun to2DDoubleArray(list: List<DoubleArray>) : Array<DoubleArray>{
+    fun to2DDoubleArray(list: List<DoubleArray>): Array<DoubleArray> {
         return list.toTypedArray()
+    }
+
+    /**
+     *  Converts the two-dimensional array into a list containing
+     *  the arrays.  The rows of the array become the elements of
+     *  the list.
+     */
+    fun toDoubleList(twoDArray: Array<DoubleArray>): List<DoubleArray> {
+        val list = mutableListOf<DoubleArray>()
+        for (array in twoDArray) {
+            list.add(array)
+        }
+        return list
     }
 
     /**
@@ -2141,7 +2155,7 @@ object KSLArrays {
      *  Returns a new array with duplicate data values removed from the original array,
      *  preserving the order of the observations.
      */
-    fun removeDuplicates(data:DoubleArray) : DoubleArray {
+    fun removeDuplicates(data: DoubleArray): DoubleArray {
         val doubles = data.copyOf()
         val set = doubles.toSet()
         return set.toTypedArray().toDoubleArray()
@@ -2154,8 +2168,8 @@ object KSLArrays {
      */
     fun removeValue(data: DoubleArray, value: Double): DoubleArray {
         val values = mutableListOf<Double>()
-        for(x in data){
-            if (x != value){
+        for (x in data) {
+            if (x != value) {
                 values.add(x)
             }
         }
@@ -2270,10 +2284,10 @@ object KSLArrays {
      *  array has m elements then the number of pairs produced is n x m.
      *
      */
-    fun cartesian(first: DoubleArray, second: DoubleArray) : List<Pair<Double, Double>>{
+    fun cartesian(first: DoubleArray, second: DoubleArray): List<Pair<Double, Double>> {
         val list = mutableListOf<Pair<Double, Double>>()
-        for(x in first){
-            for(y in second){
+        for (x in first) {
+            for (y in second) {
                 list.add(Pair(x, y))
             }
         }
@@ -2289,10 +2303,10 @@ object KSLArrays {
      *  collection has m elements then the number of pairs produced is n x m.
      *
      */
-    fun <F, S> cartesian(first: Collection<F>, second: Collection<S>) : List<Pair<F, S>> {
+    fun <F, S> cartesian(first: Collection<F>, second: Collection<S>): List<Pair<F, S>> {
         val list = mutableListOf<Pair<F, S>>()
-        for(x in first){
-            for(y in second){
+        for (x in first) {
+            for (y in second) {
                 list.add(Pair(x, y))
             }
         }
@@ -2304,13 +2318,13 @@ object KSLArrays {
      */
     fun insertAt(arr: IntArray, value: Int, index: Int): IntArray {
         val result = IntArray(arr.size + 1)
-        if (index >= arr.size){
+        if (index >= arr.size) {
             // past the end of the original array, copy it all
             arr.copyInto(result)
             result[result.lastIndex] = value
             return result
         }
-        arr.copyInto(result,0, 0, index)
+        arr.copyInto(result, 0, 0, index)
         result[index] = value
         arr.copyInto(result, index + 1, index, arr.size - index)
         return result
@@ -2321,13 +2335,13 @@ object KSLArrays {
      */
     fun insertAt(arr: DoubleArray, value: Double, index: Int): DoubleArray {
         val result = DoubleArray(arr.size + 1)
-        if (index >= arr.size){
+        if (index >= arr.size) {
             // past the end of the original array, copy it all
             arr.copyInto(result)
             result[result.lastIndex] = value
             return result
         }
-        arr.copyInto(result,0, 0, index)
+        arr.copyInto(result, 0, 0, index)
         result[index] = value
         arr.copyInto(result, index + 1, index, arr.size - index)
         return result
@@ -2409,28 +2423,28 @@ fun DoubleArray.boxPlotSummary(): BoxPlotSummary {
 /**
  *  Inserts the value at the index, returning a new array
  */
-fun DoubleArray.insertAt(value: Double, index: Int) : DoubleArray {
+fun DoubleArray.insertAt(value: Double, index: Int): DoubleArray {
     return KSLArrays.insertAt(this, value, index)
 }
 
 /**
  *  Inserts the value at the index, returning a new array
  */
-fun IntArray.insertAt(value: Int, index: Int) : IntArray {
+fun IntArray.insertAt(value: Int, index: Int): IntArray {
     return KSLArrays.insertAt(this, value, index)
 }
 
 /**
  *  Remove the element at the index, returning a new array
  */
-fun DoubleArray.removeAt(index: Int) : DoubleArray {
+fun DoubleArray.removeAt(index: Int): DoubleArray {
     return KSLArrays.removeAt(this, index)
 }
 
 /**
  *  Remove the element at the index, returning a new array
  */
-fun IntArray.removeAt(index: Int) : IntArray {
+fun IntArray.removeAt(index: Int): IntArray {
     return KSLArrays.removeAt(this, index)
 }
 
@@ -2465,8 +2479,8 @@ fun DoubleArray.removeDuplicates(): DoubleArray {
  */
 fun DoubleArray.removeValue(value: Double): DoubleArray {
     val values = mutableListOf<Double>()
-    for(x in this){
-        if (x != value){
+    for (x in this) {
+        if (x != value) {
             values.add(x)
         }
     }
@@ -3197,7 +3211,7 @@ fun Array<DoubleArray>.toMapOfLists(colNames: List<String> = emptyList()): Map<S
  *  Converts the 2D array of doubles to a map that holds the arrays
  *  by rows. If the row name is not supplied then the row is called row1, row2, etc. The
  *  2D array must be rectangular.
- *  @param rowNames the names of the columns (optional)
+ *  @param rowNames the names of the rows (optional)
  */
 fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<String, DoubleArray> {
     val nRows = this.size
@@ -3208,6 +3222,24 @@ fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<St
         map[rowNames.getOrElse(i) { name }] = this[i].copyOf()
     }
     return map
+}
+
+/**
+ *  Computes the statistics for the 2D array of doubles by rows.
+ *  If the row name is not supplied then the row is called rowj where j is the
+ *  number of the missing row name.
+ *  @param rowNames the names of the rows (optional)
+ */
+fun Array<DoubleArray>.statisticsByRow(rowNames: List<String> = emptyList()): List<StatisticIfc> {
+    val nRows = this.size
+    val names = (1..nRows).map { "row$it" }.toList()
+    val list = mutableListOf<StatisticIfc>()
+    for ((i, name) in names.withIndex()) {
+        // use the supplied names but if it doesn't exist, use the made up name
+        val statName = rowNames.getOrElse(i) { name }
+        list.add(Statistic(statName, this[i]))
+    }
+    return list
 }
 
 /**
