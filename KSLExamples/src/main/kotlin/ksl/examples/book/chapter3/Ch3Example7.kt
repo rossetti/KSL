@@ -23,7 +23,7 @@ import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.Statistic
 
 fun main() {
-    val rv = NormalRV(10.0, 4.0)
+    val rv = NormalRV(10.0, 16.0)
     val estimateX = Statistic("Estimated X")
     val estOfProb = Statistic("Pr(X>8)")
     val r = StatisticReporter(mutableListOf(estOfProb, estimateX))
