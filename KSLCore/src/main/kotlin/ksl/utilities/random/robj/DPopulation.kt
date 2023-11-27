@@ -81,7 +81,7 @@ class DPopulation(
     fun sampleWithoutReplacement(sampleSize: Int): DoubleArray {
         val anArray = myElements.copyOf()
         KSLRandom.sampleWithoutReplacement(anArray, sampleSize, rnStream)
-        return anArray
+        return anArray.take(sampleSize).toDoubleArray()
     }
 
     /** Creates a new array that contains a random permutation of the population

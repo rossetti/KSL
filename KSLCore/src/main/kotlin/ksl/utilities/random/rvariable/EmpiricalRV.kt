@@ -29,7 +29,7 @@ import ksl.utilities.statistic.Histogram
  * @param data the data to sample from
  * @param stream the random number stream to use
  */
-class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
+class EmpiricalRV (private val data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
     ParameterizedRV(stream, name){
     init {
         require(data.isNotEmpty()) { "The supplied data array had no elements." }
@@ -38,8 +38,8 @@ class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStre
     /**
      * A copy of the data array is returned
      */
-    val values = data.copyOf()
-        get() = field.copyOf()
+    val values
+        get() = data.copyOf()
 
     /**
      * A random variable that samples from the provided data. Each value is
@@ -69,17 +69,17 @@ class EmpiricalRV (data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStre
     }
 
     override fun generate(): Double {
-        return KSLRandom.randomlySelect(values, rnStream)
+        return KSLRandom.randomlySelect(data, rnStream)
     }
 
     override fun toString(): String {
-        return "EmpiricalRV(data=${values.contentToString()})"
+        return "EmpiricalRV(data=${data.contentToString()})"
     }
 
     override val parameters: RVParameters
         get() {
             val parameters: RVParameters = EmpiricalRVParameters()
-            parameters.changeDoubleArrayParameter("population", values)
+            parameters.changeDoubleArrayParameter("population", data)
             return parameters
 
         }
