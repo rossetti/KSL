@@ -4,69 +4,62 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.Exponential
 import ksl.utilities.distributions.Geometric
 import ksl.utilities.random.robj.DPopulation
-import ksl.utilities.statistic.Statistic
-import ksl.utilities.statistic.StatisticIfc
-import ksl.utilities.statistic.averages
+import ksl.utilities.random.rvariable.EmpiricalRV
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.statistic.*
+import ksl.utilities.statistics
 
 fun main(){
-    bsExample1(5)
+ //   bsExample1()
 
-    bsExample1(50)
+    bsExample2()
 }
 
-fun bsExample1(sampleSize : Int = 5) {
-    require(sampleSize >= 1){"The sample size must be >= 1"}
+fun bsExample1() {
     // make a population for illustrating bootstrapping
-    //val g = Geometric(0.2)
-    val g = Exponential(10.0)
-    println("mean = ${g.mean()}")
-    val rv = g.randomVariable
-    val population = DPopulation(rv.sample(10000))
-    // view the first 10 elements of the population
-    println("First 10 elements of original population.")
-    println(population.elements.take(10).joinToString())
-    println()
-    val ps = Statistic("PopulationStats", population.elements)
-    println(ps)
-    println()
-    // take a sample of size 5 from the population
-    val mainSample = population.sample(sampleSize)
-    println("Sample of size $sampleSize from original population")
+    val g = Geometric(0.2)
+    println("Geometric population with mean = ${g.mean()}")
+    val rv = g.randomVariable(2)
+    // take a sample of size 10 from the population
+    val mainSample = rv.sample(10)
+    println("Sample of size 10 from original population")
     println(mainSample.joinToString())
     println()
     // compute statistics on main sample
     val mainSampleStats = Statistic(mainSample)
-    println(mainSampleStats)
+    println("Main Sample")
+    println("average = ${mainSampleStats.average}")
+    println("90% CI = ${mainSampleStats.confidenceInterval(.90)}")
     println()
     // make the sample our pseudo-population
     val samplePopulation = DPopulation(mainSample)
-    // illustrate 3 bootstrap samples
-    for (i in 1..3){
-        val bootStrapSample = samplePopulation.sample(sampleSize)
-        println("bootstrap sample_$i  = ${bootStrapSample.joinToString()} with average = ${bootStrapSample.average()}")
+    val bootStrapAverages = mutableListOf<Double>()
+    // illustrate 10 bootstrap samples
+    println("BootStrap Samples:")
+    for (i in 1..10){
+        val bootStrapSample = samplePopulation.sample(10)
+        val avg = bootStrapSample.average()
+        println("sample_$i  = (${bootStrapSample.joinToString()}) with average = $avg")
+        bootStrapAverages.add(avg)
     }
     println()
-    // now make a large number of bootstrap samples and compute their statistics
-    val nb = 1000
-    val bootStrapStatistics = mutableListOf<StatisticIfc>()
-    samplePopulation.resetStartStream()
-    for (i in 1..nb){
-        val bootStrapSample = samplePopulation.sample(sampleSize)
-        bootStrapStatistics.add(Statistic("bs_$i", bootStrapSample))
-    }
-    // Get all the averages from all the bootstrap sample
-    val averages = bootStrapStatistics.averages()
-    println("First 10 elements of bootstrap sample averages.")
-    println(averages.take(10).joinToString())
-    println()
-
-    val lcl = Statistic.percentile(averages, 0.025)
-    val ucl = Statistic.percentile(averages, 0.975)
+    val lcl = Statistic.percentile(bootStrapAverages.toDoubleArray(), 0.05)
+    val ucl = Statistic.percentile(bootStrapAverages.toDoubleArray(), 0.95)
     val ci = Interval(lcl, ucl)
-    println("percentile ci = $ci")
+    println("Percentile based 90% ci = $ci")
+}
 
-    println()
 
-    println(Statistic("BootStrap Averages", averages))
+fun bsExample2() {
+    // make a population for illustrating bootstrapping
+    val g = Geometric(0.2)
+    println("Geometric population with mean = ${g.mean()}")
+    val rv = g.randomVariable(2)
+    // take a sample of size 10 from the population
+    val mainSample = rv.sample(10)
+    println(mainSample.statistics())
+    val bs = Bootstrap(mainSample, KSLRandom.rnStream(3))
+    bs.generateSamples(400, estimator = BSEstimatorIfc.Average())
+    println(bs)
 
 }
