@@ -47,6 +47,11 @@ interface BootstrapEstimateIfc {
     val originalDataSampleSize: Int
 
     /**
+     * @return summary statistics for the original data
+     */
+    val originalDataStatistics: Statistic
+
+    /**
      * @return the estimate from the supplied EstimatorIfc based on the original data
      */
     val originalDataEstimate: Double
@@ -125,6 +130,21 @@ interface BootstrapEstimateIfc {
         return Interval(ll, ul)
     }
 
+    fun studentizedBootStrapCI(level: Double= defaultCILevel): Interval {
+        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+        val a = 1.0 - level
+        val ad2 = a / 2.0
+        val tValues = standardizedBootstrapDifferences
+        val llq: Double = Statistic.percentile(tValues, ad2)
+        val ulq: Double = Statistic.percentile(tValues, 1.0 - ad2)
+        TODO("not ready yet")
+        val estimate = originalDataEstimate
+        val se = bootstrapStdErrEstimate
+        val ll = estimate - ulq*se
+        val ul = estimate - llq*se
+        return Interval(ll, ul)
+    }
+
     /**
      * The "basic" method, but with no bias correction. This
      * is the so-called centered percentile method (2θ − Bu , 2θ − Bl )
@@ -194,7 +214,7 @@ interface BootstrapEstimateIfc {
 
 open class BootstrapEstimate(
     final override val name: String,
-    final override val originalDataSampleSize: Int,
+    final override val originalDataStatistics: Statistic,
     final override val originalDataEstimate: Double,
     final override val bootstrapEstimates: DoubleArray
 ) : BootstrapEstimateIfc {
@@ -214,6 +234,8 @@ open class BootstrapEstimate(
             require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
             field = level
         }
+    override val originalDataSampleSize: Int
+        get() = originalDataStatistics.count.toInt()
 
     override fun toString(): String {
         return super.asString()
@@ -496,7 +518,7 @@ class Bootstrap(
     /**
      * @return summary statistics for the original data
      */
-    val originalDataStatistics: Statistic
+    override val originalDataStatistics: Statistic
         get() = myOriginalPopStat.instance()
 
     override fun toString(): String {

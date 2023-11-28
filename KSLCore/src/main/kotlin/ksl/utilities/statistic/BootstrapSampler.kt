@@ -98,6 +98,8 @@ class BootstrapSampler(
     val originalData: DoubleArray
         get() = myOriginalPop.elements
 
+    val originalDataStatistics: Statistic = Statistic(originalData)
+
     /**
      * @return the estimate from the supplied MVBSEstimatorIfc based on the original data
      */
@@ -237,7 +239,7 @@ class BootstrapSampler(
         for ((i, estimatesArray) in estimates.withIndex()){
             // make the bootstrap estimates
             val originalEstimate = originalDataEstimate[i]
-            val be = BootstrapEstimate(estimator.names[i], myOriginalPop.size(), originalEstimate, estimatesArray)
+            val be = BootstrapEstimate(estimator.names[i], originalDataStatistics, originalEstimate, estimatesArray)
             list.add(be)
         }
         return list
