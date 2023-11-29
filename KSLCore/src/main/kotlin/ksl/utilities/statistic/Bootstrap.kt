@@ -25,6 +25,7 @@ import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.EmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariableIfc
+import kotlin.math.pow
 
 
 interface BootstrapEstimateIfc {
@@ -42,19 +43,25 @@ interface BootstrapEstimateIfc {
     val defaultCILevel: Double
 
     /**
+     *
+     * @return a copy of the original data
+     */
+//    val originalData: DoubleArray
+
+    /**
      *  The sample size of the original data set
      */
     val originalDataSampleSize: Int
 
     /**
-     * @return summary statistics for the original data
-     */
-    val originalDataStatistics: Statistic
-
-    /**
      * @return the estimate from the supplied EstimatorIfc based on the original data
      */
     val originalDataEstimate: Double
+
+    /**
+     *  The estimator involved in the bootstrapping
+     */
+//    val estimator: BSEstimatorIfc
 
     /**
      * @return the observations of the estimator for each bootstrap generated, may be zero length if
@@ -130,14 +137,27 @@ interface BootstrapEstimateIfc {
         return Interval(ll, ul)
     }
 
-    fun studentizedBootStrapCI(level: Double= defaultCILevel): Interval {
+    /**
+     *  Warning: There is confusing terminology with respect to bootstrap
+     *  confidence intervals that are based on some notion of the student-t
+     *  distribution. This function computes the percentile-t bootstrap
+     *  confidence interval, which uses the standardized bootstrap
+     *  differences as the reference distribution. This function computes
+     *  what some references call the percentile-t bootstrap confidence interval.
+     *  The empirical distribution of the standardized bootstrap differences
+     *  is used to determine the percentile limits for the confidence interval.
+     *  This function is not what Efron and others call the bootstrap-t (studentized)
+     *  bootstrap interval, which requires an additional inner loop to estimate
+     *  the standard error of the bootstrap estimate by bootstrapping on the
+     *  current bootstrap sample.
+     */
+    fun percentileTBootStrapCI(level: Double= defaultCILevel): Interval {
         require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
         val a = 1.0 - level
         val ad2 = a / 2.0
         val tValues = standardizedBootstrapDifferences
         val llq: Double = Statistic.percentile(tValues, ad2)
         val ulq: Double = Statistic.percentile(tValues, 1.0 - ad2)
-        TODO("not ready yet")
         val estimate = originalDataEstimate
         val se = bootstrapStdErrEstimate
         val ll = estimate - ulq*se
@@ -214,7 +234,7 @@ interface BootstrapEstimateIfc {
 
 open class BootstrapEstimate(
     final override val name: String,
-    final override val originalDataStatistics: Statistic,
+    final override val originalDataSampleSize: Int,
     final override val originalDataEstimate: Double,
     final override val bootstrapEstimates: DoubleArray
 ) : BootstrapEstimateIfc {
@@ -234,8 +254,6 @@ open class BootstrapEstimate(
             require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
             field = level
         }
-    override val originalDataSampleSize: Int
-        get() = originalDataStatistics.count.toInt()
 
     override fun toString(): String {
         return super.asString()
@@ -254,11 +272,13 @@ open class BootstrapEstimate(
  * American Statistician 50, 361–365 as the default.  This can be changed by the user.
  *
  * @param originalData the data to sample from to form the bootstraps
+ * @param estimator    a function to be applied to the data
  * @param stream the random number stream for forming the bootstraps
  * @param name a name for the bootstrap statistics
  */
-class Bootstrap(
+open class Bootstrap(
     originalData: DoubleArray,
+    val estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
     stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
 ) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc, BootstrapEstimateIfc {
@@ -267,12 +287,12 @@ class Bootstrap(
         require(originalData.size > 1) { "The supplied bootstrap generate had only 1 data point" }
     }
 
-    private val myOriginalData: DoubleArray = originalData.copyOf()
-    private val myOriginalPop: DPopulation = DPopulation(originalData, stream)
-    private val myAcrossBSStat: Statistic = Statistic("Across Bootstrap Statistics")
-    private val myBSArrayList = mutableListOf<DoubleArraySaver>()
-    private val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", originalData)
-    private val myBSEstimates = DoubleArraySaver()
+    protected val myOriginalData: DoubleArray = originalData.copyOf()
+    protected val myOriginalPop: DPopulation = DPopulation(originalData, stream)
+    protected val myAcrossBSStat: Statistic = Statistic("Across Bootstrap Statistics")
+    protected val myBSArrayList = mutableListOf<DoubleArraySaver>()
+    protected val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", originalData)
+    protected val myBSEstimates = DoubleArraySaver()
 
     override var rnStream: RNStreamIfc
         get() = myOriginalPop.rnStream
@@ -300,7 +320,7 @@ class Bootstrap(
      * @return the estimate from the supplied EstimatorIfc based on the original data
      */
     override var originalDataEstimate = 0.0
-        private set
+        protected set
 
     override val originalDataSampleSize = originalData.size
 
@@ -317,12 +337,10 @@ class Bootstrap(
      * the bootstrap sampling.
      *
      * @param numBootstrapSamples the number of bootstrap samples to generate
-     * @param estimator           a function of the data
      * @param saveBootstrapSamples   indicates that the statistics and data of each bootstrap generate should be saved
      */
     fun generateSamples(
         numBootstrapSamples: Int,
-        estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
         saveBootstrapSamples: Boolean = false
     ) {
         require(numBootstrapSamples > 1) { "The number of bootstrap samples must be greater than 1" }
@@ -344,7 +362,19 @@ class Bootstrap(
                 das.save(sample)
                 myBSArrayList.add(das)
             }
+            innerBoot(x, sample)
         }
+    }
+
+    /**
+     *  Can be used by subclasses to implement logic that occurs within
+     *  the boot sampling loop. The function is executed at the end of the
+     *  main boot sampling loop. The parameter, [estimate] is the estimated
+     *  quantity from the current bootstrap sample, [bSample]. For example,
+     *  this function could be used to bootstrap on the bootstrap sample.
+     */
+    protected fun innerBoot(estimate: Double, bSample: DoubleArray){
+
     }
 
     override var advanceToNextSubStreamOption: Boolean
@@ -515,21 +545,77 @@ class Bootstrap(
     val originalDataAverage: Double
         get() = myOriginalPopStat.average
 
-    /**
-     * @return summary statistics for the original data
-     */
-    override val originalDataStatistics: Statistic
-        get() = myOriginalPopStat.instance()
-
     override fun toString(): String {
         return asString()
     }
 
+    /**
+     *  For the so called, BCa, interval, the approach requires a bias
+     *  correction factor which in essence measures the median bias of the
+     *  bootstrap replicates for the estimated quantity. This function
+     *  computes the bias correction factor based on the bootstrap estimates
+     *  and the original estimated quantity.
+     */
+    fun biasCorrectionFactor() : Double {
+        val s = Statistic()
+        for (estimate in bootstrapEstimates){
+            s.collect(estimate < originalDataEstimate)
+        }
+        val p = s.average
+        return Normal.stdNormalInvCDF(p)
+    }
+
+    /**
+     *  For the so called, BCa, interval, the approach requires an acceleration factor.
+     *  The acceleration factor measures the rate of change of the standard error
+     *  of the estimator with respect to the target parameter on a normalized scale.
+     *  This function computes the acceleration factor based on the bootstrap estimates
+     *  and the original estimated quantity using jackknifing.
+     */
+    fun accelerationFactor() : Double {
+        val jackKnifeEstimator = JackKnifeEstimator(originalData, estimator)
+        val je = jackKnifeEstimator.jackKnifeEstimate
+        val jr = jackKnifeEstimator.jackKnifeReplicates
+        var nom = 0.0
+        var dnom = 0.0
+        for(x in jr){
+            val s2 = (je - x)*(je - x)
+            nom = nom + s2*(je - x)
+            dnom = dnom + s2.pow(1.5)
+        }
+        return nom/(6.0*dnom)
+    }
+
+
+    /**
+     * The BCa bootstrap confidence interval which accounts for bias correction
+     * and adjusted for acceleration.
+     *
+     * @param level the confidence level, must be between 0 and 1
+     * @return the confidence interval
+     */
+    fun bcaBootstrapCI(level: Double = defaultCILevel): Interval {
+        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+        val a = 1.0 - level
+        val ad2 = a / 2.0
+        val z0 = biasCorrectionFactor()
+        val ac = accelerationFactor()
+        val z1ad2: Double = Normal.stdNormalInvCDF(1.0 - ad2)
+        val zad2 = Normal.stdNormalInvCDF(ad2)
+        val alpha1 = Normal.stdNormalCDF(z0 + (z0 + zad2)/(1.0 - ac*(z0 + zad2)))
+        val alpha2 = Normal.stdNormalCDF(z0 + (z0 + z1ad2)/(1.0 - ac*(z0 + z1ad2)))
+        val bse = bootstrapEstimates
+        val llq: Double = Statistic.percentile(bse, alpha1)
+        val ulq: Double = Statistic.percentile(bse, 1.0 - alpha2)
+        return Interval(llq, ulq)
+    }
+    
     companion object {
 
         /**
          * @param name         the name of bootstrap instance
          * @param sampleSize the size of the original sample, must be greater than 1
+         * @param estimator    a function to be applied to the data
          * @param sampler something to generate the original sample of the provided size
          * @param stream the random number stream for forming the bootstraps
          * @return an instance of Bootstrap based on the sample
@@ -537,11 +623,12 @@ class Bootstrap(
         fun create(
             sampleSize: Int,
             sampler: SampleIfc,
+            estimator: BSEstimatorIfc,
             stream: RNStreamIfc = KSLRandom.nextRNStream(),
             name: String? = null
         ): Bootstrap {
             require(sampleSize > 1) { "The sample size must be greater than 1" }
-            return Bootstrap(sampler.sample(sampleSize), stream, name)
+            return Bootstrap(sampler.sample(sampleSize), estimator, stream, name)
         }
     }
 }

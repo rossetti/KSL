@@ -80,7 +80,7 @@ class BasicStatistics : MVBSEstimatorIfc{
  *  are computed on the observed estimates from each bootstrap sample.
  *  The specified stream controls the bootstrap sampling process.
  */
-class BootstrapSampler(
+open class BootstrapSampler(
     originalData: DoubleArray,
     val estimator: MVBSEstimatorIfc,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
@@ -98,28 +98,26 @@ class BootstrapSampler(
     val originalData: DoubleArray
         get() = myOriginalPop.elements
 
-    val originalDataStatistics: Statistic = Statistic(originalData)
-
     /**
      * @return the estimate from the supplied MVBSEstimatorIfc based on the original data
      */
     val originalDataEstimate = estimator.estimate(originalData)
 
     // use to perform the sampling from the original data
-    private val myOriginalPop: DPopulation = DPopulation(originalData, stream)
+    protected val myOriginalPop: DPopulation = DPopulation(originalData, stream)
 
     // collects statistics along each dimension of the multi-variate estimates from the bootstrap samples
-    private val myAcrossBSStat = MVStatistic(estimator.names)
+    protected val myAcrossBSStat = MVStatistic(estimator.names)
 
     // if requested holds the bootstrap samples
-    private val myBSArrayList = mutableListOf<DoubleArraySaver>()
+    protected val myBSArrayList = mutableListOf<DoubleArraySaver>()
 
     /** Holds the estimated values (for each dimension) from the bootstrap samples.
      * When the MVEstimator is applied to each bootstrap sample, it results in an array of estimates
      * from the sample. This list holds those arrays. It is cleared whenever new
      * samples are generated and then filled during the bootstrapping process.
      */
-    private val myBSEstimates = mutableListOf<DoubleArray>()
+    protected val myBSEstimates = mutableListOf<DoubleArray>()
 
     /**
      *  Returns an 2-D array representation of the estimates from
@@ -219,9 +217,21 @@ class BootstrapSampler(
                     das.save(sample)
                     myBSArrayList.add(das)
                 }
+                innerBoot(x, sample)
             }
         }
         return makeBootStrapEstimates()
+    }
+
+    /**
+     *  Can be used by subclasses to implement logic that occurs within
+     *  the boot sampling loop. The function is executed at the end of the
+     *  main boot sampling loop. The parameter, [estimate] is the estimated
+     *  quantities from the current bootstrap sample, [bSample]. For example,
+     *  this function could be used to bootstrap on the bootstrap sample.
+     */
+    protected fun innerBoot(estimate: DoubleArray, bSample: DoubleArray){
+
     }
 
     /**
@@ -230,7 +240,7 @@ class BootstrapSampler(
      *  bootstrap confidence intervals and other statistical analysis
      *  can be performed.
      */
-    private fun makeBootStrapEstimates() : List<BootstrapEstimate>{
+    protected fun makeBootStrapEstimates() : List<BootstrapEstimate>{
         val list = mutableListOf<BootstrapEstimate>()
         // transpose the collected data, each row represents a dimension and the
         // row contents are the bootstrap estimates for the dimension
@@ -239,7 +249,7 @@ class BootstrapSampler(
         for ((i, estimatesArray) in estimates.withIndex()){
             // make the bootstrap estimates
             val originalEstimate = originalDataEstimate[i]
-            val be = BootstrapEstimate(estimator.names[i], originalDataStatistics, originalEstimate, estimatesArray)
+            val be = BootstrapEstimate(estimator.names[i], myOriginalPop.size(), originalEstimate, estimatesArray)
             list.add(be)
         }
         return list

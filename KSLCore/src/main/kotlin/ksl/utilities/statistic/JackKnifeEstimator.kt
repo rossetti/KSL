@@ -104,6 +104,17 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = 
         }
 
     /**
+     *  Returns a copy of the jack knife replicates. The
+     *  elements of the array represent the application of the estimator
+     *  to the original data that has been jack knifed. That is, with
+     *  the ith observation left out.  Thus, replicate[0] is the
+     *  estimated quantity computed from the original data with the 0th element
+     *  left-out, replicate[1] is the estimated quantity with element 1 left-out, etc.
+     */
+    val jackKnifeReplicates: DoubleArray
+        get() = myJackKnifeData.savedData()
+
+    /**
      *
      * @return a copy of the original data
      */
