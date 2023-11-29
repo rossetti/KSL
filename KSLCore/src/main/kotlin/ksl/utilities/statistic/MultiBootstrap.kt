@@ -33,7 +33,12 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param name    the name of the instance
  * @param dataMap a map holding the name for each data set, names cannot be null and the arrays cannot be null
  */
-class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : RNStreamControlIfc {
+class MultiBootstrap(
+    val estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
+    dataMap: Map<String, DoubleArray>,
+    name: String? = null,
+) : RNStreamControlIfc {
+
     /**
      * The id of this object
      */
@@ -56,7 +61,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         }
         myBootstraps = LinkedHashMap()
         for ((key, value) in dataMap) {
-            val bs = Bootstrap(value, name = key)
+            val bs = Bootstrap(value, estimator, name = key)
             myBootstraps[key] = bs
         }
     }
@@ -90,18 +95,16 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
      * @param numBootstrapSamples  the number of bootstrap samples to generate for each of the bootstraps, the
      * keys must match the keys in the original data map.  If the names do not match
      * then the bootstraps are not generated.
-     * @param estimator            a function of the data
      * @param saveBootstrapSamples indicates that the statistics and data of each bootstrap generate should be saved
      */
     fun generateSamples(
         numBootstrapSamples: Map<String, Int>,
-        estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
         saveBootstrapSamples: Boolean = false
     ) {
         for ((name1, n) in numBootstrapSamples) {
             if (n > 1) {
                 val bootstrap = myBootstraps[name1]
-                bootstrap!!.generateSamples(n, estimator, saveBootstrapSamples)
+                bootstrap!!.generateSamples(n, saveBootstrapSamples)
             }
         }
     }
@@ -116,14 +119,13 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
      */
     fun generateSamples(
         numBootstrapSamples: Int,
-        estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
         saveBootstrapSamples: Boolean = false
     ) {
         val map = mutableMapOf<String, Int>()
         for (name in myBootstraps.keys) {
             map[name] = numBootstrapSamples
         }
-        generateSamples(map, estimator, saveBootstrapSamples)
+        generateSamples(map, saveBootstrapSamples)
     }
 
     /** Gets a map with key = name, where name is the associated bootstrap name
@@ -355,28 +357,24 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
         private var myIdCounter_: Long = 0
 
         /**
-         * @param sampleSize the size of the original generate
-         * @param samplerMap something to generate the original generate of the provided size
-         * @return an instance of MultiBootstrap based on data generated from each generate
-         */
-        fun create(sampleSize: Int, samplerMap: Map<String, SampleIfc>): MultiBootstrap {
-            return create(null, sampleSize, samplerMap)
-        }
-
-        /**
          * @param name       the name of the instance
          * @param sampleSize the sample size, all samplers have the same amount sampled
          * @param samplerMap something to generate the original generate of the provided size
          * @return an instance of MultiBootstrap based on data generated from each generate
          */
-        fun create(name: String?, sampleSize: Int, samplerMap: Map<String, SampleIfc>): MultiBootstrap {
+        fun create(
+            sampleSize: Int,
+            samplerMap: Map<String, SampleIfc>,
+            estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
+            name: String? = null
+        ): MultiBootstrap {
             require(sampleSize > 1) { "The generate size must be greater than 1" }
             val dataMap: MutableMap<String, DoubleArray> = LinkedHashMap()
             for ((dname, value) in samplerMap) {
                 val data: DoubleArray = value.sample(sampleSize)
                 dataMap[dname] = data
             }
-            return MultiBootstrap(name, dataMap)
+            return MultiBootstrap(estimator, dataMap, name)
         }
 
         /**
@@ -385,7 +383,11 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
          * is a pair (Integer, SamplerIfc) which represents the number to generate and the sampler
          * @return an instance of MultiBootstrap based on data generated from each generate
          */
-        fun create(name: String? = null, samplerMap: Map<String, Map.Entry<Int, SampleIfc>>): MultiBootstrap {
+        fun create(
+            samplerMap: Map<String, Map.Entry<Int, SampleIfc>>,
+            estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
+            name: String? = null
+        ): MultiBootstrap {
             val dataMap: MutableMap<String, DoubleArray> = LinkedHashMap()
             for ((key, value1) in samplerMap) {
                 val (sampleSize, sampler) = value1
@@ -393,7 +395,7 @@ class MultiBootstrap(name: String? = null, dataMap: Map<String, DoubleArray>) : 
                 val data: DoubleArray = sampler.sample(sampleSize)
                 dataMap[key] = data
             }
-            return MultiBootstrap(name, dataMap)
+            return MultiBootstrap(estimator, dataMap, name)
         }
     }
 }

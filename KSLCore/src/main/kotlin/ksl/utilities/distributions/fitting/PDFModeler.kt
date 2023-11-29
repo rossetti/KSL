@@ -531,8 +531,8 @@ class PDFModeler(private val data: DoubleArray) {
             numBootstrapSamples: Int = 399,
             level: Double = 0.95
         ): Interval {
-            val bootStrap: Bootstrap = Bootstrap(data)
-            bootStrap.generateSamples(numBootstrapSamples, BSEstimatorIfc.Minimum())
+            val bootStrap: Bootstrap = Bootstrap(data, BSEstimatorIfc.Minimum())
+            bootStrap.generateSamples(numBootstrapSamples)
             return bootStrap.percentileBootstrapCI(level)
         }
 
@@ -544,8 +544,8 @@ class PDFModeler(private val data: DoubleArray) {
             numBootstrapSamples: Int = 399,
             level: Double = 0.95
         ): Interval {
-            val bootStrap: Bootstrap = Bootstrap(data)
-            bootStrap.generateSamples(numBootstrapSamples, BSEstimatorIfc.Maximum())
+            val bootStrap: Bootstrap = Bootstrap(data, BSEstimatorIfc.Maximum())
+            bootStrap.generateSamples(numBootstrapSamples)
             return bootStrap.percentileBootstrapCI(level)
         }
 

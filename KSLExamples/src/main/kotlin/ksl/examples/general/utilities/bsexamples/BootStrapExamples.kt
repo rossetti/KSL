@@ -58,8 +58,8 @@ fun bsExample2() {
     // take a sample of size 10 from the population
     val mainSample = rv.sample(10)
     println(mainSample.statistics())
-    val bs = Bootstrap(mainSample, KSLRandom.rnStream(3))
-    bs.generateSamples(400, estimator = BSEstimatorIfc.Average())
+    val bs = Bootstrap(mainSample, estimator = BSEstimatorIfc.Average(), KSLRandom.rnStream(3))
+    bs.generateSamples(400)
     println(bs)
 
 }

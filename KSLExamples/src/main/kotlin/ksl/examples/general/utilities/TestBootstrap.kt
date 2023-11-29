@@ -46,7 +46,7 @@ fun testBootStrapSampler(){
     for(e in estimates){
         println(e.asString())
     }
-    val bs = Bootstrap(data, rns, name = "average")
+    val bs = Bootstrap(data, stream = rns, name = "average")
     bs.resetStartStream()
     bs.generateSamples(300)
     println(bs)
@@ -75,8 +75,8 @@ fun example1() {
 fun example2() {
     val n = Lognormal(10.0, 3.0)
     val rv: RVariableIfc = n.randomVariable
-    val bs = Bootstrap(rv.sample(50))
-    bs.generateSamples(1000, estimator = BSEstimatorIfc.Minimum())
+    val bs = Bootstrap(rv.sample(50), estimator = BSEstimatorIfc.Minimum())
+    bs.generateSamples(1000)
     println(bs)
 }
 

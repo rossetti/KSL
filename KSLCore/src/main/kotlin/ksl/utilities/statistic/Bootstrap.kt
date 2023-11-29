@@ -227,7 +227,6 @@ interface BootstrapEstimateIfc {
         sb.appendLine("norm c.i. = ${stdNormalBootstrapCI()}")
         sb.appendLine("basic c.i. = ${basicBootstrapCI()}")
         sb.appendLine("percentile c.i. = ${percentileBootstrapCI()}")
-        sb.appendLine("------------------------------------------------------")
         return sb.toString()
     }
 }
@@ -545,10 +544,6 @@ open class Bootstrap(
     val originalDataAverage: Double
         get() = myOriginalPopStat.average
 
-    override fun toString(): String {
-        return asString()
-    }
-
     /**
      *  For the so called, BCa, interval, the approach requires a bias
      *  correction factor which in essence measures the median bias of the
@@ -606,10 +601,17 @@ open class Bootstrap(
         val alpha2 = Normal.stdNormalCDF(z0 + (z0 + z1ad2)/(1.0 - ac*(z0 + z1ad2)))
         val bse = bootstrapEstimates
         val llq: Double = Statistic.percentile(bse, alpha1)
-        val ulq: Double = Statistic.percentile(bse, 1.0 - alpha2)
+        val ulq: Double = Statistic.percentile(bse, alpha2)
         return Interval(llq, ulq)
     }
-    
+
+    override fun toString(): String {
+        val sb = StringBuilder(asString())
+        sb.appendLine("BCa c.i. = ${bcaBootstrapCI()}")
+        sb.appendLine("------------------------------------------------------")
+        return sb.toString()
+    }
+
     companion object {
 
         /**
