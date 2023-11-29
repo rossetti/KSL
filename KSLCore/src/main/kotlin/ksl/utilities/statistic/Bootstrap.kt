@@ -146,10 +146,9 @@ interface BootstrapEstimateIfc {
      *  what some references call the percentile-t bootstrap confidence interval.
      *  The empirical distribution of the standardized bootstrap differences
      *  is used to determine the percentile limits for the confidence interval.
-     *  This function is not what Efron and others call the bootstrap-t (studentized)
-     *  bootstrap interval, which requires an additional inner loop to estimate
-     *  the standard error of the bootstrap estimate by bootstrapping on the
-     *  current bootstrap sample.
+     *  This particular function is appropriate when the estimator is the
+     *  mean. See page 117 of Chapter 4 of Wilcox (2012)
+     *  Introduction to Robust Estimation and Hypothesis Testing, Elsevier.
      */
     fun percentileTBootStrapCI(level: Double= defaultCILevel): Interval {
         require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
