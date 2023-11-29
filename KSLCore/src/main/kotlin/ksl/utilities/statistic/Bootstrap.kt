@@ -138,33 +138,6 @@ interface BootstrapEstimateIfc {
     }
 
     /**
-     *  Warning: There is confusing terminology with respect to bootstrap
-     *  confidence intervals that are based on some notion of the student-t
-     *  distribution. This function computes the percentile-t bootstrap
-     *  confidence interval, which uses the standardized bootstrap
-     *  differences as the reference distribution. This function computes
-     *  what some references call the percentile-t bootstrap confidence interval.
-     *  The empirical distribution of the standardized bootstrap differences
-     *  is used to determine the percentile limits for the confidence interval.
-     *  This particular function is appropriate when the estimator is the
-     *  mean. See page 117 of Chapter 4 of Wilcox (2012)
-     *  Introduction to Robust Estimation and Hypothesis Testing, Elsevier.
-     */
-    fun percentileTBootStrapCI(level: Double= defaultCILevel): Interval {
-        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
-        val a = 1.0 - level
-        val ad2 = a / 2.0
-        val tValues = standardizedBootstrapDifferences
-        val llq: Double = Statistic.percentile(tValues, ad2)
-        val ulq: Double = Statistic.percentile(tValues, 1.0 - ad2)
-        val estimate = originalDataEstimate
-        val se = bootstrapStdErrEstimate
-        val ll = estimate - ulq*se
-        val ul = estimate - llq*se
-        return Interval(ll, ul)
-    }
-
-    /**
      * The "basic" method, but with no bias correction. This
      * is the so-called centered percentile method (2θ − Bu , 2θ − Bl )
      * where θ is the bootstrap estimator and Bu is the 1 - alpha/2 percentile
