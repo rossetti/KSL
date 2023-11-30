@@ -20,7 +20,7 @@ package ksl.utilities.statistic
 import ksl.utilities.max
 import ksl.utilities.min
 
-interface BSEstimatorIfc {
+fun interface BSEstimatorIfc {
     fun estimate(data: DoubleArray): Double
 
     /**
