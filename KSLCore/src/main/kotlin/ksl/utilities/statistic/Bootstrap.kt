@@ -313,12 +313,18 @@ open class Bootstrap(
      *
      * @param numBootstrapSamples the number of bootstrap samples to generate
      * @param saveBootstrapSamples   indicates that the statistics and data of each bootstrap generate should be saved
+     * @param numBootstrapTSamples    The number of bootstrap samples to use if using the studentized bootstrap-t
+     *   confidence interval method
      */
     fun generateSamples(
         numBootstrapSamples: Int,
-        saveBootstrapSamples: Boolean = false
+        saveBootstrapSamples: Boolean = false,
+        numBootstrapTSamples: Int = 0
     ) {
         require(numBootstrapSamples > 1) { "The number of bootstrap samples must be greater than 1" }
+        if (numBootstrapTSamples > 0){
+            require(numBootstrapTSamples > 1) { "The number of bootstrap-t samples must be greater than 1" }
+        }
         this.numBootstrapSamples = numBootstrapSamples
         myAcrossBSStat.reset()
         myBSEstimates.clearData()
@@ -337,22 +343,27 @@ open class Bootstrap(
                 das.save(sample)
                 myBSArrayList.add(das)
             }
+            if (numBootstrapTSamples > 1){
+                bootstrapTSampling(numBootstrapTSamples, x, sample)
+            }
             innerBoot(x, sample)
         }
     }
 
-    private fun bootstrapTCI(estimate: Double, bSample: DoubleArray){
+    private fun bootstrapTSampling(numBootstrapTSamples: Int, estimate: Double, bSample: DoubleArray) {
         // need to estimate the standard error of the bootstrap sample
         // if the estimator is the average this can be computed directly
-        val se = if (estimator is BSEstimatorIfc.Average){
+        val se = if (estimator is BSEstimatorIfc.Average) {
             // compute directly from bootstrap sample
             bSample.statistics().standardError
         } else {
-            // compute from additional bootstrapping process
-            1.0
+            // compute se from additional bootstrapping process
+            val bs = Bootstrap(bSample, estimator)
+            bs.generateSamples(numBootstrapTSamples)
+            bs.bootstrapStdErrEstimate
         }
         // compute the studentized T-Value
-        val tValue = (estimate - originalDataEstimate)/se
+        val tValue = (estimate - originalDataEstimate) / se
         myStudentizedTValues.save(tValue)
     }
 
@@ -363,7 +374,7 @@ open class Bootstrap(
      *  quantity from the current bootstrap sample, [bSample]. For example,
      *  this function could be used to bootstrap on the bootstrap sample.
      */
-    protected fun innerBoot(estimate: Double, bSample: DoubleArray){
+    protected fun innerBoot(estimate: Double, bSample: DoubleArray) {
 
     }
 
@@ -544,9 +555,9 @@ open class Bootstrap(
      *  computes the bias correction factor based on the bootstrap estimates
      *  and the original estimated quantity.
      */
-    fun biasCorrectionFactor() : Double {
+    fun biasCorrectionFactor(): Double {
         val s = Statistic()
-        for (estimate in bootstrapEstimates){
+        for (estimate in bootstrapEstimates) {
             s.collect(estimate < originalDataEstimate)
         }
         val p = s.average
@@ -560,18 +571,18 @@ open class Bootstrap(
      *  This function computes the acceleration factor based on the bootstrap estimates
      *  and the original estimated quantity using jackknifing.
      */
-    fun accelerationFactor() : Double {
+    fun accelerationFactor(): Double {
         val jackKnifeEstimator = JackKnifeEstimator(originalData, estimator)
         val je = jackKnifeEstimator.jackKnifeEstimate
         val jr = jackKnifeEstimator.jackKnifeReplicates
         var nom = 0.0
         var dnom = 0.0
-        for(x in jr){
-            val s2 = (je - x)*(je - x)
-            nom = nom + s2*(je - x)
+        for (x in jr) {
+            val s2 = (je - x) * (je - x)
+            nom = nom + s2 * (je - x)
             dnom = dnom + s2.pow(1.5)
         }
-        return nom/(6.0*dnom)
+        return nom / (6.0 * dnom)
     }
 
 
@@ -590,8 +601,8 @@ open class Bootstrap(
         val ac = accelerationFactor()
         val z1ad2: Double = Normal.stdNormalInvCDF(1.0 - ad2)
         val zad2 = Normal.stdNormalInvCDF(ad2)
-        val alpha1 = Normal.stdNormalCDF(z0 + (z0 + zad2)/(1.0 - ac*(z0 + zad2)))
-        val alpha2 = Normal.stdNormalCDF(z0 + (z0 + z1ad2)/(1.0 - ac*(z0 + z1ad2)))
+        val alpha1 = Normal.stdNormalCDF(z0 + (z0 + zad2) / (1.0 - ac * (z0 + zad2)))
+        val alpha2 = Normal.stdNormalCDF(z0 + (z0 + z1ad2) / (1.0 - ac * (z0 + z1ad2)))
         val bse = bootstrapEstimates
         val llq: Double = Statistic.percentile(bse, alpha1)
         val ulq: Double = Statistic.percentile(bse, alpha2)
