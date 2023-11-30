@@ -237,8 +237,8 @@ open class BootstrapEstimate(
  *
  * It is possible to save the individual
  * bootstrap samples from which the bootstrap samples can be retrieved. Recognize that
- * this could be a lot of data.  The class implements three classic bootstrap confidence
- * intervals normal, basic, and percentile.  To estimate the quantiles it uses algorithm 8 from
+ * this could be a lot of data.  The class implements four classic bootstrap confidence
+ * intervals normal, basic, percentile, and BCa.  To estimate the quantiles it uses algorithm 8 from
  * Hyndman, R. J. and Fan, Y. (1996) Sample quantiles in statistical packages,
  * American Statistician 50, 361–365 as the default.  This can be changed by the user.
  *
@@ -264,6 +264,7 @@ open class Bootstrap(
     protected val myBSArrayList = mutableListOf<DoubleArraySaver>()
     protected val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", originalData)
     protected val myBSEstimates = DoubleArraySaver()
+    protected val myStudentizedTValues = DoubleArraySaver()
 
     override var rnStream: RNStreamIfc
         get() = myOriginalPop.rnStream
@@ -293,6 +294,9 @@ open class Bootstrap(
     override var originalDataEstimate = 0.0
         protected set
 
+    /**
+     *  The size of the original population of data from which to sample
+     */
     override val originalDataSampleSize = originalData.size
 
     /**
@@ -335,6 +339,21 @@ open class Bootstrap(
             }
             innerBoot(x, sample)
         }
+    }
+
+    private fun bootstrapTCI(estimate: Double, bSample: DoubleArray){
+        // need to estimate the standard error of the bootstrap sample
+        // if the estimator is the average this can be computed directly
+        val se = if (estimator is BSEstimatorIfc.Average){
+            // compute directly from bootstrap sample
+            bSample.statistics().standardError
+        } else {
+            // compute from additional bootstrapping process
+            1.0
+        }
+        // compute the studentized T-Value
+        val tValue = (estimate - originalDataEstimate)/se
+        myStudentizedTValues.save(tValue)
     }
 
     /**
@@ -455,7 +474,7 @@ open class Bootstrap(
 
     /**
      *
-     * @param b the bootstrap generate number, b = 1, 2, ... to getNumBootstrapSamples()
+     * @param b the bootstrap sample number, b = 1, 2, ... to getNumBootstrapSamples()
      * @return the generated values for the bth bootstrap, if no samples are saved then
      * the array returned is of zero length
      */
@@ -497,13 +516,15 @@ open class Bootstrap(
             return v
         }
 
-    /**
+    /** This is the statistics of the bootstrap replicates.
+     *
      * @return a Statistic observed across the estimates from the bootstrap samples
      */
     override val acrossBootstrapStatistics: StatisticIfc
         get() = myAcrossBSStat
 
-    /**
+    /**  These are the bootstrap replicates.
+     *
      * @return the observations of the estimator for each bootstrap generated, may be zero length if
      * no samples have been generated
      */
