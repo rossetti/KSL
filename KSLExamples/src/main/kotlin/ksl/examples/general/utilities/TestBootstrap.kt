@@ -40,17 +40,11 @@ fun testBootStrapSampler(){
     val stat = Statistic(data)
     println(stat)
     println()
-    val rns = KSLRandom.nextRNStream()
-    val bss = BootstrapSampler(data, BasicStatistics(), rns)
+    val bss = BootstrapSampler(data, BasicStatistics())
     val estimates = bss.bootStrapEstimates(300)
     for(e in estimates){
         println(e.asString())
     }
-    val bs = Bootstrap(data, stream = rns, name = "average")
-    bs.resetStartStream()
-    bs.generateSamples(300)
-    println(bs)
-
 }
 
 fun example1() {
