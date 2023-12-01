@@ -17,11 +17,7 @@ fun main(){
 
 fun bsExample1() {
     // make a population for illustrating bootstrapping
-    val g = Geometric(0.2)
-    println("Geometric population with mean = ${g.mean()}")
-    val rv = g.randomVariable(2)
-    // take a sample of size 10 from the population
-    val mainSample = rv.sample(10)
+    val mainSample = doubleArrayOf(6.0, 7.0, 5.0, 1.0, 0.0, 4.0, 6.0, 0.0, 6.0, 1.0)
     println("Sample of size 10 from original population")
     println(mainSample.joinToString())
     println()
@@ -43,6 +39,9 @@ fun bsExample1() {
         bootStrapAverages.add(avg)
     }
     println()
+    println("Bootstrap sample averages")
+    println(bootStrapAverages.joinToString())
+    println()
     val lcl = Statistic.percentile(bootStrapAverages.toDoubleArray(), 0.05)
     val ucl = Statistic.percentile(bootStrapAverages.toDoubleArray(), 0.95)
     val ci = Interval(lcl, ucl)
@@ -52,14 +51,18 @@ fun bsExample1() {
 
 fun bsExample2() {
     // make a population for illustrating bootstrapping
-    val g = Geometric(0.2)
-    println("Geometric population with mean = ${g.mean()}")
-    val rv = g.randomVariable(2)
-    // take a sample of size 10 from the population
-    val mainSample = rv.sample(10)
-    println(mainSample.statistics())
+    val mainSample = doubleArrayOf(6.0, 7.0, 5.0, 1.0, 0.0, 4.0, 6.0, 0.0, 6.0, 1.0)
+    println("Sample of size 10 from original population")
+    println(mainSample.joinToString())
+    println()
+    // compute statistics on main sample
+    val mainSampleStats = Statistic(mainSample)
+    println("Main Sample")
+    println("average = ${mainSampleStats.average}")
+    println("90% CI = ${mainSampleStats.confidenceInterval(.90)}")
+    println()
+    // now to the bootstrapping
     val bs = Bootstrap(mainSample, estimator = BSEstimatorIfc.Average(), KSLRandom.rnStream(3))
     bs.generateSamples(400, numBootstrapTSamples = 399)
     println(bs)
-
 }
