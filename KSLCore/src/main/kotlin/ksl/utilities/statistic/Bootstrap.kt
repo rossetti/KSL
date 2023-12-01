@@ -129,7 +129,7 @@ interface BootstrapEstimateIfc {
     fun stdNormalBootstrapCI(level: Double = defaultCILevel): Interval {
         require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
         val alpha = 1.0 - level
-        val z: Double = Normal.stdNormalInvCDF(1.0 - alpha / 2.0)
+        val z: Double = Normal.stdNormalInvCDF(1.0 - (alpha / 2.0))
         val estimate = originalDataEstimate
         val se = bootstrapStdErrEstimate
         val ll = estimate - z * se
