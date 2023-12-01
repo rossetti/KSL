@@ -322,12 +322,13 @@ open class Bootstrap(
         numBootstrapTSamples: Int = 0
     ) {
         require(numBootstrapSamples > 1) { "The number of bootstrap samples must be greater than 1" }
-        if (numBootstrapTSamples > 0){
+        if (numBootstrapTSamples > 0) {
             require(numBootstrapTSamples > 1) { "The number of bootstrap-t samples must be greater than 1" }
         }
         this.numBootstrapSamples = numBootstrapSamples
         myAcrossBSStat.reset()
         myBSEstimates.clearData()
+        myStudentizedTValues.clearData()
         for (s in myBSArrayList) {
             s.clearData()
         }
@@ -343,7 +344,7 @@ open class Bootstrap(
                 das.save(sample)
                 myBSArrayList.add(das)
             }
-            if (numBootstrapTSamples > 1){
+            if (numBootstrapTSamples > 1) {
                 bootstrapTSampling(numBootstrapTSamples, x, sample)
             }
             innerBoot(x, sample)
@@ -607,6 +608,32 @@ open class Bootstrap(
         val llq: Double = Statistic.percentile(bse, alpha1)
         val ulq: Double = Statistic.percentile(bse, alpha2)
         return Interval(llq, ulq)
+    }
+
+    /**
+     *  This is the bootstrap-t or sometimes called percentile-t
+     *  confidence interval.  It is formed by capturing a t-type statistic
+     *  which standardizes the individual bootstrap estimates.
+     *  This confidence interval is only available if the parameter (numBootstrapTSamples)
+     *  in the generateSamples() function is greater than 1; otherwise,
+     *  the returned interval is (-infinity, +infinity).
+     *
+     * @param level the confidence level, must be between 0 and 1
+     * @return the confidence interval
+     */
+    fun bootstrapTCI(level: Double = defaultCILevel): Interval {
+        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+        val a = 1.0 - level
+        val ad2 = a / 2.0
+        val tValues = myStudentizedTValues.savedData()
+        if (tValues.isEmpty()) {
+            return Interval()
+        }
+        val t1ma2: Double = Statistic.percentile(tValues, 1.0 - ad2)
+        val ta2: Double = Statistic.percentile(tValues, ad2)
+        val ll = originalDataEstimate - t1ma2 * bootstrapStdErrEstimate
+        val ul = originalDataEstimate - ta2 * bootstrapStdErrEstimate
+        return Interval(ll, ul)
     }
 
     override fun toString(): String {
