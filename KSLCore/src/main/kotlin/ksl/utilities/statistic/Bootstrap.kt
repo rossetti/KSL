@@ -623,12 +623,12 @@ open class Bootstrap(
      */
     fun bootstrapTCI(level: Double = defaultCILevel): Interval {
         require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
-        val a = 1.0 - level
-        val ad2 = a / 2.0
         val tValues = myStudentizedTValues.savedData()
         if (tValues.isEmpty()) {
             return Interval()
         }
+        val a = 1.0 - level
+        val ad2 = a / 2.0
         val t1ma2: Double = Statistic.percentile(tValues, 1.0 - ad2)
         val ta2: Double = Statistic.percentile(tValues, ad2)
         val ll = originalDataEstimate - t1ma2 * bootstrapStdErrEstimate
@@ -639,6 +639,10 @@ open class Bootstrap(
     override fun toString(): String {
         val sb = StringBuilder(asString())
         sb.appendLine("BCa c.i. = ${bcaBootstrapCI()}")
+        val btci = bcaBootstrapCI()
+        if (btci.lowerLimit.isFinite() && btci.upperLimit.isFinite()){
+            sb.appendLine("bootstrap-t c.i. = $btci")
+        }
         sb.appendLine("------------------------------------------------------")
         return sb.toString()
     }
