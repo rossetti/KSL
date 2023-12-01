@@ -194,7 +194,7 @@ interface BootstrapEstimateIfc {
         sb.appendLine("original estimate = $originalDataEstimate")
         sb.appendLine("bias estimate = $bootstrapBiasEstimate")
         sb.appendLine("across bootstrap average = $acrossBootstrapAverage")
-        sb.appendLine("std. err. estimate = $bootstrapStdErrEstimate")
+        sb.appendLine("bootstrap std. err. estimate = $bootstrapStdErrEstimate")
         sb.appendLine("default c.i. level = $defaultCILevel")
         sb.appendLine("norm c.i. = ${stdNormalBootstrapCI()}")
         sb.appendLine("basic c.i. = ${basicBootstrapCI()}")

@@ -59,7 +59,7 @@ fun bsExample2() {
     val mainSample = rv.sample(10)
     println(mainSample.statistics())
     val bs = Bootstrap(mainSample, estimator = BSEstimatorIfc.Average(), KSLRandom.rnStream(3))
-    bs.generateSamples(400)
+    bs.generateSamples(400, numBootstrapTSamples = 399)
     println(bs)
 
 }
