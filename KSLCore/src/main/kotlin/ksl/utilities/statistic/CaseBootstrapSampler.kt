@@ -4,7 +4,6 @@ import ksl.utilities.DoubleArraySaver
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.EmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -72,13 +71,20 @@ open class CaseBootstrapSampler(
 
     init {
         require(estimator.names.isNotEmpty()) { "The estimator has no defined names!" }
-        require(estimator.originalEstimates.isNotEmpty()){"The estimator provided no original estimates"}
+        require(estimator.originalEstimates.isNotEmpty()) { "The estimator provided no original estimates" }
     }
 
     /**
-     * @return the estimate from the supplied MVBSEstimatorIfc based on the original data
+     * @return the estimate from the supplied CaseBootEstimatorIfc based on the original data
      */
-    val originalDataEstimate = estimator.originalEstimates.copyOf()
+    val originalDataEstimates = estimator.originalEstimates.copyOf()
+
+    /**
+     *  This represents the population to repeatedly sample from to form
+     *  the bootstrap samples for the estimation process.
+     */
+    protected val myOriginalPopulation = estimator.caseIdentifiers.toIntArray()
+    protected val myIndices = IntArray(myOriginalPopulation.size)
 
     // collects statistics along each dimension of the multi-variate estimates from the bootstrap samples
     protected val myAcrossBSStat = MVStatistic(estimator.names)
@@ -168,7 +174,7 @@ open class CaseBootstrapSampler(
     fun bootStrapEstimates(
         numBootstrapSamples: Int,
         saveBootstrapSamples: Boolean = false
-    ) : List<BootstrapEstimate> {
+    ): List<BootstrapEstimate> {
         require(numBootstrapSamples > 1) { "The number of bootstrap samples must be greater than 1" }
         myAcrossBSStat.reset()
         myBSEstimates.clear()
@@ -177,20 +183,28 @@ open class CaseBootstrapSampler(
         }
         myBSArrayList.clear()
         for (i in 0 until numBootstrapSamples) {
-            val sample: DoubleArray = myOriginalPop.sample(myOriginalPop.size())
-            val x = estimator.estimate(sample)
-            if (x.size == estimator.names.size){
+            val caseIndices = sampleCases()
+            val x = estimator.estimate(caseIndices)
+            if (x.size == estimator.names.size) {
                 myAcrossBSStat.collect(x)
                 myBSEstimates.add(x)
                 if (saveBootstrapSamples) {
                     val das = DoubleArraySaver()
-                    das.save(sample)
+                    das.save(caseIndices)
                     myBSArrayList.add(das)
                 }
-                innerBoot(x, sample)
+                innerBoot(x, caseIndices)
             }
         }
         return makeBootStrapEstimates()
+    }
+
+    private fun sampleCases(): IntArray {
+        for (i in myOriginalPopulation.indices) {
+            val index = rnStream.randInt(0, myOriginalPopulation.size - 1)
+            myIndices[i] = myOriginalPopulation[index]
+        }
+        return myIndices
     }
 
     /**
@@ -200,7 +214,7 @@ open class CaseBootstrapSampler(
      *  quantities from the current bootstrap sample, [bSample]. For example,
      *  this function could be used to bootstrap on the bootstrap sample.
      */
-    protected fun innerBoot(estimate: DoubleArray, bSample: DoubleArray){
+    protected fun innerBoot(estimate: DoubleArray, bSample: IntArray) {
 
     }
 
@@ -210,16 +224,17 @@ open class CaseBootstrapSampler(
      *  bootstrap confidence intervals and other statistical analysis
      *  can be performed.
      */
-    protected fun makeBootStrapEstimates() : List<BootstrapEstimate>{
+    protected fun makeBootStrapEstimates(): List<BootstrapEstimate> {
         val list = mutableListOf<BootstrapEstimate>()
         // transpose the collected data, each row represents a dimension and the
         // row contents are the bootstrap estimates for the dimension
         val estimates = bootStrapData.transpose()
         // now process the rows
-        for ((i, estimatesArray) in estimates.withIndex()){
+        for ((i, estimatesArray) in estimates.withIndex()) {
             // make the bootstrap estimates
-            val originalEstimate = originalDataEstimate[i]
-            val be = BootstrapEstimate(estimator.names[i], estimator.caseIdentifiers.size, originalEstimate, estimatesArray)
+            val originalEstimate = originalDataEstimates[i]
+            val be =
+                BootstrapEstimate(estimator.names[i], estimator.caseIdentifiers.size, originalEstimate, estimatesArray)
             list.add(be)
         }
         return list
