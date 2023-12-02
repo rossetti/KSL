@@ -1,16 +1,11 @@
 package ksl.utilities.statistic
 
-import ksl.utilities.DoubleArraySaver
 import ksl.utilities.isRectangular
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.EmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.RVariableIfc
-import ksl.utilities.statistics
 import ksl.utilities.transpose
-import org.jetbrains.kotlinx.dataframe.impl.asList
 
 /**
  *  Given some data, produce multiple estimated statistics
@@ -116,7 +111,7 @@ open class CaseBootstrapSampler(
     /**
      * @return the estimate from the supplied CaseBootEstimatorIfc based on the original data
      */
-    val originalDataEstimates = estimator.originalEstimates.copyOf()
+    val originalDataEstimate = estimator.originalEstimates.copyOf()
 
     /**
      *  This represents the population to repeatedly sample from to form
@@ -286,7 +281,7 @@ open class CaseBootstrapSampler(
         // now process the rows
         for ((i, estimatesArray) in estimates.withIndex()) {
             // make the bootstrap estimates
-            val originalEstimate = originalDataEstimates[i]
+            val originalEstimate = originalDataEstimate[i]
             val be =
                 BootstrapEstimate(estimator.names[i], estimator.caseIdentifiers.size, originalEstimate, estimatesArray)
             list.add(be)
