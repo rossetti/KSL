@@ -1,6 +1,7 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.DoubleArraySaver
+import ksl.utilities.isRectangular
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
@@ -9,6 +10,7 @@ import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistics
 import ksl.utilities.transpose
+import org.jetbrains.kotlinx.dataframe.impl.asList
 
 /**
  *  Given some data, produce multiple estimated statistics
@@ -32,8 +34,7 @@ interface CaseBootEstimatorIfc {
     val names: List<String>
 
     /**
-     *  The estimates from the estimator based on the original (not resampled)
-     *  data.
+     *  The estimates from the estimator based on the original (not resampled) data.
      */
     val originalEstimates: DoubleArray
 
@@ -43,7 +44,7 @@ interface CaseBootEstimatorIfc {
      *  are sampled with replacement from this set to specify
      *  the data that will be used in the estimation process.
      */
-    val caseIdentifiers: LinkedHashSet<Int>
+    val caseIdentifiers: List<Int>
 
     /**
      *  The [caseIndices] array contains the case identifiers that
@@ -55,6 +56,44 @@ interface CaseBootEstimatorIfc {
      *  due to sampling with replacement.
      */
     fun estimate(caseIndices: IntArray): DoubleArray
+}
+
+fun interface MatrixEstimatorIfc {
+    /**
+     *  This function should compute the estimators from the supplied matrix
+     *  and return the estimates in the array
+     */
+    fun estimate(matrix: Array<DoubleArray>): DoubleArray
+}
+
+class MatrixBootEstimator(
+    private val matrix: Array<DoubleArray>,
+    private val matrixEstimator: MatrixEstimatorIfc,
+    estimatorNames: List<String> = emptyList()
+) : CaseBootEstimatorIfc {
+
+    override val originalEstimates: DoubleArray = matrixEstimator.estimate(matrix)
+    override val names: List<String>
+
+    init {
+        require(matrix.size > 1) { "There must be at least 2 rows in the matrix" }
+        require(matrix.isRectangular()) { "The matrix must be rectangular" }
+        names = if (estimatorNames.isEmpty()) {
+            List(originalEstimates.size) { "b${it}" }
+        } else {
+            require(estimatorNames.size == originalEstimates.size) { "There must be a name for each estimator" }
+            require(estimatorNames.size == estimatorNames.toSet().size) { "The supplied names were not unique!" }
+            estimatorNames.toMutableList()
+        }
+    }
+
+    override val caseIdentifiers = List(matrix.size) { it }
+
+    override fun estimate(caseIndices: IntArray): DoubleArray {
+        // select the rows of the matrix from the supplied indices
+        val m = Array(matrix.size) { matrix[caseIndices[it]] }
+        return matrixEstimator.estimate(m)
+    }
 }
 
 /**
@@ -84,13 +123,18 @@ open class CaseBootstrapSampler(
      *  the bootstrap samples for the estimation process.
      */
     protected val myOriginalPopulation = estimator.caseIdentifiers.toIntArray()
-    protected val myIndices = IntArray(myOriginalPopulation.size)
+
+    /**
+     *  An intermediate array to hold the sampled case indices from the original
+     *  population of cases.
+     */
+    protected val mySample = IntArray(myOriginalPopulation.size)
 
     // collects statistics along each dimension of the multi-variate estimates from the bootstrap samples
     protected val myAcrossBSStat = MVStatistic(estimator.names)
 
     // if requested holds the bootstrap samples
-    protected val myBSArrayList = mutableListOf<DoubleArraySaver>()
+    protected val myBSArrayList = mutableListOf<IntArray>()
 
     /** Holds the estimated values (for each dimension) from the bootstrap samples.
      * When the MVEstimator is applied to each bootstrap sample, it results in an array of estimates
@@ -98,6 +142,19 @@ open class CaseBootstrapSampler(
      * samples are generated and then filled during the bootstrapping process.
      */
     protected val myBSEstimates = mutableListOf<DoubleArray>()
+
+    /**
+     *  Tabulates for each bootstrap sample, the frequency of the cases
+     *  selected within the sample.
+     */
+    protected val myCaseFrequencies = mutableListOf<IntegerFrequency>()
+
+    /**
+     *  A list holding the observed frequencies of the cases within each
+     *  bootstrap sample.
+     */
+    val caseFrequencies
+        get() = myCaseFrequencies
 
     /**
      *  Returns an 2-D array representation of the estimates from
@@ -178,20 +235,17 @@ open class CaseBootstrapSampler(
         require(numBootstrapSamples > 1) { "The number of bootstrap samples must be greater than 1" }
         myAcrossBSStat.reset()
         myBSEstimates.clear()
-        for (s in myBSArrayList) {
-            s.clearData()
-        }
         myBSArrayList.clear()
+        myCaseFrequencies.clear()
         for (i in 0 until numBootstrapSamples) {
             val caseIndices = sampleCases()
             val x = estimator.estimate(caseIndices)
             if (x.size == estimator.names.size) {
                 myAcrossBSStat.collect(x)
                 myBSEstimates.add(x)
+                myCaseFrequencies.add(IntegerFrequency(caseIndices))
                 if (saveBootstrapSamples) {
-                    val das = DoubleArraySaver()
-                    das.save(caseIndices)
-                    myBSArrayList.add(das)
+                    myBSArrayList.add(caseIndices.copyOf())
                 }
                 innerBoot(x, caseIndices)
             }
@@ -199,12 +253,12 @@ open class CaseBootstrapSampler(
         return makeBootStrapEstimates()
     }
 
-    private fun sampleCases(): IntArray {
+    protected fun sampleCases(): IntArray {
         for (i in myOriginalPopulation.indices) {
             val index = rnStream.randInt(0, myOriginalPopulation.size - 1)
-            myIndices[i] = myOriginalPopulation[index]
+            mySample[i] = myOriginalPopulation[index]
         }
-        return myIndices
+        return mySample
     }
 
     /**
@@ -244,86 +298,23 @@ open class CaseBootstrapSampler(
      *
      * If the save bootstrap data option was not turned on during the sampling then the list returned is empty.
      *
-     * @return a list of size getNumBootstrapSamples() holding a copy of the data from
-     * every bootstrap generate
+     * @return a list of size getNumBootstrapSamples() holding a copy of the case indices from
+     * every bootstrap sample
      */
-    val dataForEachBootstrapSample: List<DoubleArray>
-        get() {
-            val list: MutableList<DoubleArray> = ArrayList()
-            for (s in myBSArrayList) {
-                list.add(s.savedData())
-            }
-            return list
-        }
-
-    /** Creates a random variable to represent the data in each bootstrap sample for which
-     * the data was saved.
-     *
-     * @param useCRN if true the stream for every random variable is the same across the
-     * bootstraps to facilitate common random number generation (CRN). If false
-     * different streams are used for each created random variable
-     * @return a list of the random variables
-     */
-    fun empiricalRVForEachBootstrapSample(useCRN: Boolean = true): List<RVariableIfc> {
-        val list: MutableList<RVariableIfc> = ArrayList()
-        var rnStream: RNStreamIfc? = null
-        if (useCRN) {
-            rnStream = KSLRandom.nextRNStream()
-        }
-        for (s in myBSArrayList) {
-            val data: DoubleArray = s.savedData()
-            if (data.isNotEmpty()) {
-                if (useCRN) {
-                    list.add(EmpiricalRV(data, rnStream!!))
-                } else {
-                    list.add(EmpiricalRV(data))
-                }
-            }
-        }
-        return list
-    }
+    val caseIndicesForEachBootstrapSample: List<IntArray>
+        get() = myBSArrayList
 
     /**
      *
      * @param b the bootstrap generate number, b = 1, 2, ... to getNumBootstrapSamples()
-     * @return the generated values for the bth bootstrap, if no samples are saved then
+     * @return the generated case indices for the bth bootstrap, if no samples are saved then
      * the array returned is of zero length
      */
-    fun dataForBootstrapSample(b: Int): DoubleArray {
+    fun caseIndicesForBootstrapSample(b: Int): IntArray {
         if (myBSArrayList.isEmpty()) {
-            return DoubleArray(0)
+            return IntArray(0)
         }
         require((b < 0) || (b < myBSArrayList.size)) { "The supplied index was out of range" }
-        return myBSArrayList[b].savedData()
+        return myBSArrayList[b]
     }
-
-    /** If the bootstrap samples were saved, this returns the
-     * generated averages for each of the samples
-     *
-     * @return an array of the bootstrap generate averages, will be zero length if
-     * no bootstrap samples were saved
-     */
-    val bootstrapSampleAverages: DoubleArray
-        get() {
-            val avg = DoubleArray(myBSArrayList.size)
-            for ((i, sda) in myBSArrayList.withIndex()) {
-                avg[i] = sda.savedData().statistics().average
-            }
-            return avg
-        }
-
-    /** If the bootstrap samples were saved, this returns the
-     * generated variance for each of the samples
-     *
-     * @return an array of the bootstrap generated variances, will be zero length if
-     * no bootstrap samples were saved
-     */
-    val bootstrapSampleVariances: DoubleArray
-        get() {
-            val v = DoubleArray(myBSArrayList.size)
-            for ((i, sda) in myBSArrayList.withIndex()) {
-                v[i] = sda.savedData().statistics().variance
-            }
-            return v
-        }
 }

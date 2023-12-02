@@ -101,7 +101,7 @@ open class BootstrapSampler(
     /**
      * @return the estimate from the supplied MVBSEstimatorIfc based on the original data
      */
-    val originalDataEstimate = estimator.estimate(originalData)
+    val originalDataEstimates = estimator.estimate(originalData)
 
     // use to perform the sampling from the original data
     protected val myOriginalPop: DPopulation = DPopulation(originalData, stream)
@@ -248,7 +248,7 @@ open class BootstrapSampler(
         // now process the rows
         for ((i, estimatesArray) in estimates.withIndex()){
             // make the bootstrap estimates
-            val originalEstimate = originalDataEstimate[i]
+            val originalEstimate = originalDataEstimates[i]
             val be = BootstrapEstimate(estimator.names[i], myOriginalPop.size(), originalEstimate, estimatesArray)
             list.add(be)
         }
