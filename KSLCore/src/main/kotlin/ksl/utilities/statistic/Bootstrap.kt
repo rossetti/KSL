@@ -677,7 +677,7 @@ open class Bootstrap(
          *  This function computes the acceleration factor based on the bootstrap estimates
          *  and the original estimated quantity using jackknifing.
          *  @param originalData the original data used in the bootstrapping process
-         *  @param estimator the estimator used in the bootrapping process
+         *  @param estimator the estimator used in the bootstrapping process
          */
         fun accelerationFactor(originalData: DoubleArray, estimator: BSEstimatorIfc): Double {
             val jackKnifeEstimator = JackKnifeEstimator(originalData, estimator)
