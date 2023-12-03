@@ -267,7 +267,7 @@ open class CaseBootstrapSampler(
         return makeBootStrapEstimates()
     }
 
-    protected fun sampleCases(): IntArray {
+    fun sampleCases(): IntArray {
         for (i in myOriginalPopulation.indices) {
             val index = rnStream.randInt(0, myOriginalPopulation.size - 1)
             mySample[i] = myOriginalPopulation[index]
