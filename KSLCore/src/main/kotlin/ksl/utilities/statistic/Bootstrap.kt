@@ -557,12 +557,7 @@ open class Bootstrap(
      *  and the original estimated quantity.
      */
     fun biasCorrectionFactor(): Double {
-        val s = Statistic()
-        for (estimate in bootstrapEstimates) {
-            s.collect(estimate < originalDataEstimate)
-        }
-        val p = s.average
-        return Normal.stdNormalInvCDF(p)
+        return Companion.biasCorrectionFactor(bootstrapEstimates, originalDataEstimate)
     }
 
     /**
@@ -573,19 +568,8 @@ open class Bootstrap(
      *  and the original estimated quantity using jackknifing.
      */
     fun accelerationFactor(): Double {
-        val jackKnifeEstimator = JackKnifeEstimator(originalData, estimator)
-        val je = jackKnifeEstimator.jackKnifeEstimate
-        val jr = jackKnifeEstimator.jackKnifeReplicates
-        var nom = 0.0
-        var dnom = 0.0
-        for (x in jr) {
-            val s2 = (je - x) * (je - x)
-            nom = nom + s2 * (je - x)
-            dnom = dnom + s2.pow(1.5)
-        }
-        return nom / (6.0 * dnom)
+        return Companion.accelerationFactor(originalData, estimator)
     }
-
 
     /**
      * The BCa bootstrap confidence interval which accounts for bias correction
@@ -667,5 +651,48 @@ open class Bootstrap(
             require(sampleSize > 1) { "The sample size must be greater than 1" }
             return Bootstrap(sampler.sample(sampleSize), estimator, stream, name)
         }
+
+        /**
+         *  For the so called, BCa, interval, the approach requires a bias
+         *  correction factor which in essence measures the median bias of the
+         *  bootstrap replicates for the estimated quantity. This function
+         *  computes the bias correction factor based on the bootstrap estimates
+         *  and the original estimated quantity.
+         *  @param bootstrapEstimates the bootstrap replicates from the bootstrapping process
+         *  @param originalDataEstimate the original estimate from the original data using the estimator
+         */
+        fun biasCorrectionFactor(bootstrapEstimates: DoubleArray, originalDataEstimate: Double): Double {
+            val s = Statistic()
+            for (estimate in bootstrapEstimates) {
+                s.collect(estimate < originalDataEstimate)
+            }
+            val p = s.average
+            return Normal.stdNormalInvCDF(p)
+        }
+
+        /**
+         *  For the so called, BCa, interval, the approach requires an acceleration factor.
+         *  The acceleration factor measures the rate of change of the standard error
+         *  of the estimator with respect to the target parameter on a normalized scale.
+         *  This function computes the acceleration factor based on the bootstrap estimates
+         *  and the original estimated quantity using jackknifing.
+         *  @param originalData the original data used in the bootstrapping process
+         *  @param estimator the estimator used in the bootrapping process
+         */
+        fun accelerationFactor(originalData: DoubleArray, estimator: BSEstimatorIfc): Double {
+            val jackKnifeEstimator = JackKnifeEstimator(originalData, estimator)
+            val je = jackKnifeEstimator.jackKnifeEstimate
+            val jr = jackKnifeEstimator.jackKnifeReplicates
+            var nom = 0.0
+            var dnom = 0.0
+            for (x in jr) {
+                val s2 = (je - x) * (je - x)
+                nom = nom + s2 * (je - x)
+                dnom = dnom + s2.pow(1.5)
+            }
+            return nom / (6.0 * dnom)
+        }
+
+
     }
 }
