@@ -1,15 +1,18 @@
 package ksl.utilities.statistic
 
+import ksl.utilities.KSLArrays
+import ksl.utilities.concatenateTo1DArray
 import ksl.utilities.isRectangular
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.transpose
+import org.hipparchus.stat.regression.OLSMultipleLinearRegression
 
 /**
  *  Given some data, produce multiple estimated statistics
- *  from the data and store the estimated quantities in
+ *  from the data and stores the estimated quantities in
  *  the returned array. It is up to the user to interpret
  *  the array values appropriately.
  *
@@ -89,6 +92,22 @@ class MatrixBootEstimator(
         val m = Array(matrix.size) { matrix[caseIndices[it]] }
         return matrixEstimator.estimate(m)
     }
+}
+
+object OLSBootEstimator : MatrixEstimatorIfc {
+
+    val regression = OLSMultipleLinearRegression()
+
+    override fun estimate(matrix: Array<DoubleArray>): DoubleArray {
+        require(matrix.size > 1) { "There must be at least 2 rows in the matrix" }
+        val nObs = matrix.size
+        val nVars = KSLArrays.numColumns(matrix) - 1
+        require(nObs > nVars){"The number of observations must be greater than the number of estimated parameters"}
+        val data = matrix.concatenateTo1DArray()
+        regression.newSampleData(data, nObs, nVars)
+        return regression.estimateRegressionParameters()
+    }
+
 }
 
 /**

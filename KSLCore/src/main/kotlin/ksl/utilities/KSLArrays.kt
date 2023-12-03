@@ -884,6 +884,31 @@ object KSLArrays {
         return Array(matrix.size) { i -> matrix[i][index] }
     }
 
+    /**  Converts the 2-D array to a 1-D array by processing
+     *   the source [src] array row-wise and concatenating the rows.
+     *   For example if the data is organized as follows:
+     *
+     *   1  2   3
+     *   4  5   6
+     *   7  8   9
+     *
+     *   Then the resulting array will be (1,2,3,4,5,6,7,8,9).
+     *   In general the source array may be ragged.
+     *
+     */
+    fun concatenateTo1DArray(src: Array<DoubleArray>): DoubleArray {
+        if (src.isEmpty()) {
+            return doubleArrayOf()
+        }
+        val list = mutableListOf<Double>()
+        for (array in src) {
+            for (x in array) {
+                list.add(x)
+            }
+        }
+        return list.toDoubleArray()
+    }
+
     /**
      * @param src the source array to copy
      * @return a copy of the array
@@ -2856,6 +2881,22 @@ fun Array<DoubleArray>.minNumColumns(): Int {
  */
 fun Array<DoubleArray>.trimToRectangular(): Array<DoubleArray> {
     return KSLArrays.trimToRectangular(this)
+}
+
+/**  Converts the 2-D array to a 1-D array by processing
+ *   the source [src] array row-wise and concatenating the rows.
+ *   For example if the data is organized as follows:
+ *
+ *   1  2   3
+ *   4  5   6
+ *   7  8   9
+ *
+ *   Then the resulting array will be (1,2,3,4,5,6,7,8,9).
+ *   In general the source array may be ragged.
+ *
+ */
+fun Array<DoubleArray>.concatenateTo1DArray(): DoubleArray {
+    return KSLArrays.concatenateTo1DArray(this)
 }
 
 /**
