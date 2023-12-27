@@ -24,6 +24,7 @@ package ksl.utilities.statistic
 import ksl.utilities.*
 import ksl.utilities.distributions.StudentT
 import ksl.utilities.distributions.Tukey
+import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
 import java.io.PrintWriter
 import kotlin.math.ceil
@@ -3413,9 +3414,7 @@ fun main() {
     data["Three"] = d3
     data["Four"] = d4
     val mca = MultipleComparisonAnalyzer(data)
-    val out = PrintWriter(System.out, true)
-    mca.writeDataAsCSVFile(out)
-    out.println()
+    mca.writeDataAsCSVFile(KSL.createPrintWriter("MCA_Results.csv"))
     println(mca)
     println("num data sets: " + mca.numberDatasets)
     println(mca.dataNames.contentToString())
