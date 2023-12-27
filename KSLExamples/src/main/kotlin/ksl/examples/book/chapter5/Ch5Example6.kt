@@ -1,6 +1,7 @@
 package ksl.examples.book.chapter5
 
 import ksl.simulation.Model
+import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 fun main() {
@@ -31,6 +32,7 @@ fun withoutCommonRandomNumbers(){
     val expNames = listOf("Two Workers", "Three Workers")
     val comparisonAnalyzer = db.multipleComparisonAnalyzerFor(expNames, responseName)
     println(comparisonAnalyzer)
+    comparisonAnalyzer.writeDataAsCSVFile(KSL.createPrintWriter("INDResults.csv"))
 }
 
 fun withCommonRandomNumbers(){
@@ -56,4 +58,5 @@ fun withCommonRandomNumbers(){
     val expNames = listOf("Two Workers", "Three Workers")
     val comparisonAnalyzer = db.multipleComparisonAnalyzerFor(expNames, responseName)
     println(comparisonAnalyzer)
+    comparisonAnalyzer.writeDataAsCSVFile(KSL.createPrintWriter("CRNResults.csv"))
 }
