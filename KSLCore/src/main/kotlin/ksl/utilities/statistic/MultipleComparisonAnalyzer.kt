@@ -383,6 +383,18 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     }
 
     /**
+     * The standard error for the pair of data names given by the strings. If the data
+     * names don't exist a null pointer exception will occur
+     *
+     * @param s1 the name of data set number 1
+     * @param s2 the name of data set number 2
+     * @return standard error for the pair of data names given by the strings
+     */
+    fun stdErrorOfDifference(s1: String, s2: String): Double {
+        return myPairDiffStats[s1]!![s2]!!.standardError
+    }
+
+    /**
      * Checks if each double[] in the map has the same length
      *
      * @param dataMap the data map to check
