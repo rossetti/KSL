@@ -908,7 +908,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param level the supplied confidence level
      * @return A list of confidence intervals
      */
-    fun confidenceIntervalsOfData(level: Double): List<Interval> {
+    fun confidenceIntervalsOfData(level: Double = defaultLevel): List<Interval> {
         val list = statistics
         val ilist: MutableList<Interval> = ArrayList()
         for (s in list) {
@@ -955,7 +955,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *  @param probCS probability of correct selection
      *  @return the recommended 2nd stage sample size
      */
-    fun secondStageSampleSizeNM(indifference: Double, probCS: Double = 0.95): Int {
+    fun secondStageSampleSizeNM(indifference: Double, probCS: Double = defaultLevel): Int {
         require(indifference > 0.0) { "The indifference parameter must be > 0" }
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val dof = myDataSize - 1.0
@@ -1006,7 +1006,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param level the confidence level
      * @return A half-width summary report on the statistics for each data set
      */
-    fun halfWidthSummaryStatistics(title: String? = null, level: Double = 0.95): StringBuilder {
+    fun halfWidthSummaryStatistics(title: String? = null, level: Double = defaultLevel): StringBuilder {
         val r = StatisticReporter(statistics)
         return r.halfWidthSummaryReport(title, level)
     }
@@ -1031,7 +1031,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param level the confidence level
      * @return StringBuilder representation for a half-width report on the pairwise differences
      */
-    fun halfWidthDifferenceSummaryStatistics(title: String? = null, level: Double = 0.95): StringBuilder {
+    fun halfWidthDifferenceSummaryStatistics(title: String? = null, level: Double = defaultLevel): StringBuilder {
         val r = StatisticReporter(pairedDifferenceStatistics.toMutableList())
         return r.halfWidthSummaryReport(title, level)
     }
@@ -1041,9 +1041,9 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * datasets at the provided level
      *
      * @param level the level
-     * @return tringBuilder representation for the confidence intervals
+     * @return stringBuilder representation for the confidence intervals
      */
-    fun confidenceIntervalsOnData(level: Double = 0.95): StringBuilder {
+    fun confidenceIntervalsOnData(level: Double = defaultLevel): StringBuilder {
         val sb = StringBuilder()
         val intervals = confidenceIntervalsOfData(level)
         val names = dataNames
@@ -1064,7 +1064,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param level the level
      * @return StringBuilder representation for the confidence intervals
      */
-    fun confidenceIntervalsOnDifferenceData(level: Double = 0.95): StringBuilder {
+    fun confidenceIntervalsOnDifferenceData(level: Double = defaultLevel): StringBuilder {
         val sb = StringBuilder()
         val intervals = confidenceIntervalsOfDifferenceData(level)
         val names = namesOfPairedDifferences
@@ -1087,7 +1087,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @param probCS is the probability of correct selection for the screening
      */
-    fun maxScreeningIntervals(probCS: Double = 0.95): Map<String, Map<String, Interval>> {
+    fun maxScreeningIntervals(probCS: Double = defaultLevel): Map<String, Map<String, Interval>> {
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val dof = myDataSize - 1.0
         val k = numberDatasets
@@ -1119,7 +1119,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @param probCS is the probability of correct selection for the screening
      */
-    fun minScreeningIntervals(probCS: Double = 0.95): Map<String, Map<String, Interval>> {
+    fun minScreeningIntervals(probCS: Double = defaultLevel): Map<String, Map<String, Interval>> {
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val dof = myDataSize - 1.0
         val k = numberDatasets
@@ -1142,7 +1142,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         return intervalMap
     }
 
-    fun screenForMinimum(probCS: Double = 0.95) : Set<String>{
+    fun screenForMinimum(probCS: Double = defaultLevel) : Set<String>{
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val set = mutableSetOf<String>()
         val minMap = minScreeningIntervals(probCS)
@@ -1160,7 +1160,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         return set
     }
 
-    fun screenForMaximum(probCS: Double = 0.95) : Set<String>{
+    fun screenForMaximum(probCS: Double = defaultLevel) : Set<String>{
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val set = mutableSetOf<String>()
         val minMap = maxScreeningIntervals(probCS)
@@ -1182,9 +1182,9 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         val sb = StringBuilder()
         sb.appendLine("Multiple Comparison Report: ")
         sb.appendLine(this.summaryStatistics("Raw Data"))
-        sb.appendLine(confidenceIntervalsOnData())
+        sb.appendLine(confidenceIntervalsOnData(defaultLevel))
         sb.appendLine(differenceSummaryStatistics("Difference Data"))
-        sb.appendLine(confidenceIntervalsOnDifferenceData())
+        sb.appendLine(confidenceIntervalsOnDifferenceData(defaultLevel))
         sb.appendLine("Max variance = $maxVarianceOfDifferences")
         sb.appendLine("Min performer = $nameOfMinimumAverageOfData")
         sb.appendLine("Min performance = $minimumAverageOfData")
@@ -1199,7 +1199,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         sb.append(mcbMinIntervalsAsSB.toString())
         sb.appendLine()
         sb.appendLine("Max Screening Intervals")
-        val maxMap = maxScreeningIntervals()
+        val maxMap = maxScreeningIntervals(defaultLevel)
         for((name, map) in maxMap){
             for((s, interval) in map){
                 sb.append(name)
@@ -1215,10 +1215,10 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         }
         sb.appendLine()
         sb.appendLine("Alternatives remaining after screening for maximum:")
-        sb.appendLine(screenForMaximum())
+        sb.appendLine(screenForMaximum(defaultLevel))
         sb.appendLine()
         sb.appendLine("Min Screening Intervals")
-        val minMap = minScreeningIntervals()
+        val minMap = minScreeningIntervals(defaultLevel)
         for((name, map) in minMap){
             for((s, interval) in map){
                 sb.append(name)
@@ -1234,7 +1234,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         }
         sb.appendLine()
         sb.appendLine("Alternatives remaining after screening for minimum:")
-        sb.appendLine(screenForMinimum())
+        sb.appendLine(screenForMinimum(defaultLevel))
         return sb.toString()
     }
 
@@ -1285,6 +1285,12 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     }
 
     companion object {
+        var defaultLevel = 0.95
+            set(value) {
+                require((0.0 < value) && (value < 1.0)) { "The default level must be in (0,1)" }
+                field = value
+            }
+
         /**
          * A helper method to compute the difference between the two arrays
          *
