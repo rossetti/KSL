@@ -49,6 +49,16 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 
     var name: String? = null
 
+    /**
+     *  The default level to use for confidence intervals and for probability of
+     *  correct selection.
+     */
+    var defaultLevel = 0.95
+        set(value) {
+            require((0.0 < value) && (value < 1.0)) { "The default level must be in (0,1)" }
+            field = value
+        }
+
     private lateinit var myDataMap: LinkedHashMap<String, DoubleArray>
     private var myDataSize = 0
     private lateinit var myPairDiffs: LinkedHashMap<String, DoubleArray>
@@ -678,24 +688,13 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 
     /**
      * Form the maximum comparison with the best (MCB) interval for the dataset
-     * at the supplied index using an the default indifference zone
-     *
-     * @param index the index
-     * @return the interval for maximum case
-     */
-    fun mcbMaxInterval(index: Int): Interval {
-        return mcbMaxInterval(index, defaultIndifferenceZone)
-    }
-
-    /**
-     * Form the maximum comparison with the best (MCB) interval for the dataset
      * at the supplied index using the supplied indifference delta.
      *
      * @param index the index
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return the interval for the maximum comparison
      */
-    fun mcbMaxInterval(index: Int, delta: Double): Interval {
+    fun mcbMaxInterval(index: Int, delta: Double = defaultIndifferenceZone): Interval {
         require(delta >= 0) { "The indifference delta must be >= 0" }
         val diff = diffBtwItemAndMaxOfRest(index)
         val ll = min(0.0, diff - delta)
@@ -717,7 +716,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return all the intervals
      */
-    fun mcbMaxIntervals(delta: Double): List<Interval> {
+    fun mcbMaxIntervals(delta: Double = defaultIndifferenceZone): List<Interval> {
         val n = numberDatasets
         val list: MutableList<Interval> = ArrayList()
         for (i in 0 until n) {
@@ -742,7 +741,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return the map holding the intervals
      */
-    fun mcbMaxIntervalsAsMap(delta: Double): Map<String?, Interval> {
+    fun mcbMaxIntervalsAsMap(delta: Double = defaultIndifferenceZone): Map<String?, Interval> {
         val map: MutableMap<String?, Interval> = LinkedHashMap()
         val n = numberDatasets
         val names = dataNames
@@ -768,7 +767,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return a StringBuilder representation of the MCB maximum intervals
      */
-    fun mcbMaxIntervalsAsSB(delta: Double): StringBuilder {
+    fun mcbMaxIntervalsAsSB(delta: Double = defaultIndifferenceZone): StringBuilder {
         val sb = StringBuilder()
         val n = numberDatasets
         val names = dataNames
@@ -794,24 +793,13 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 
     /**
      * Form the maximum comparison with the best (MCB) interval for the dataset
-     * at the supplied index using the default indifference zone
-     *
-     * @param index the index of the interval
-     * @return the interval
-     */
-    fun mcbMinInterval(index: Int): Interval {
-        return mcbMinInterval(index, defaultIndifferenceZone)
-    }
-
-    /**
-     * Form the maximum comparison with the best (MCB) interval for the dataset
      * at the supplied index using the supplied indifference delta.
      *
      * @param index the index of the interval
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return the interval
      */
-    fun mcbMinInterval(index: Int, delta: Double): Interval {
+    fun mcbMinInterval(index: Int, delta: Double = defaultIndifferenceZone): Interval {
         require(delta >= 0) { "The indifference delta must be >= 0" }
         val diff = diffBtwItemAndMinOfRest(index)
         val ll = min(0.0, diff - delta)
@@ -833,7 +821,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return MCB intervals for the minimum given the default indifference zone
      */
-    fun mcbMinIntervals(delta: Double): List<Interval> {
+    fun mcbMinIntervals(delta: Double = defaultIndifferenceZone): List<Interval> {
         val n = numberDatasets
         val list: MutableList<Interval> = ArrayList()
         for (i in 0 until n) {
@@ -858,7 +846,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return MCB minimum intervals in the form of a map
      */
-    fun mcbMinIntervalsAsMap(delta: Double): Map<String, Interval> {
+    fun mcbMinIntervalsAsMap(delta: Double = defaultIndifferenceZone): Map<String, Interval> {
         val map: MutableMap<String, Interval> = LinkedHashMap()
         val n = numberDatasets
         val names = dataNames
@@ -883,7 +871,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return a StringBuilder representation of the MCB minimum intervals
      */
-    fun mcbMinIntervalsAsSB(delta: Double): StringBuilder {
+    fun mcbMinIntervalsAsSB(delta: Double = defaultIndifferenceZone): StringBuilder {
         val sb = StringBuilder()
         val n = numberDatasets
         val names = dataNames
@@ -1285,11 +1273,6 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     }
 
     companion object {
-        var defaultLevel = 0.95
-            set(value) {
-                require((0.0 < value) && (value < 1.0)) { "The default level must be in (0,1)" }
-                field = value
-            }
 
         /**
          * A helper method to compute the difference between the two arrays
