@@ -104,8 +104,8 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @return names of items being compared as an array of strings
      */
-    val dataNames: Array<String>
-        get() = myDataMap.keys.toTypedArray()
+    val dataNames: List<String>
+        get() = myDataMap.keys.toMutableList()
 
     /**
      * The number of data sets stored in the analyzer. There is a data set
@@ -242,14 +242,14 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @return the names as an array of strings
      */
-    val namesOfPairedDifferences: Array<String>
+    val namesOfPairedDifferences: List<String>
         get() {
             val list = pairedDifferenceStatistics
             val names = mutableListOf<String>()
             for (s in list) {
                 names.add(s.name)
             }
-            return names.toTypedArray()
+            return names
         }
 
     /**
@@ -3599,7 +3599,7 @@ fun main() {
     mca.writeDataAsCSVFile(KSL.createPrintWriter("MCA_Results.csv"))
     println(mca)
     println("num data sets: " + mca.numberDatasets)
-    println(mca.dataNames.contentToString())
+    println(mca.dataNames.joinToString())
 
     val r = mca.secondStageSampleSizeNM(2.0, 0.95)
     println("Second stage sampling recommendation R = $r")
