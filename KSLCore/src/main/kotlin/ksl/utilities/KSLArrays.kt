@@ -2954,7 +2954,7 @@ fun Array<LongArray>.isRectangular(): Boolean {
  * Assumes that the array can be ragged. Returns the number of elements in
  * the row array that has the most elements.
  *
- * @return the minimum number of columns in the array
+ * @return the maximum number of columns in the array
  */
 fun Array<DoubleArray>.maxNumColumns(): Int {
     return KSLArrays.minNumColumns(this)
@@ -3049,7 +3049,7 @@ fun DoubleArray.sumOfSquares(): Double {
 /**
  * The array must not be null
  *
- * @return the sum of the squares of the elements of the array
+ * @return the sum of the square roots of the elements of the array
  */
 fun DoubleArray.sumOfSquareRoots(): Double {
     return KSLArrays.sumOfSquareRoots(this)
