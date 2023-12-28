@@ -1073,6 +1073,10 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * The intervals are one-sided [lower bound, positive infinity] and can
      * be checked to determine if the alternative should be retained after screening.
      *
+     *  Based on:
+     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
+     *  Operations Research, vol. 49, pp.950-963.
+     *
      * @param probCS is the probability of correct selection for the screening
      */
     fun maxScreeningIntervals(probCS: Double = defaultLevel): Map<String, Map<String, Interval>> {
@@ -1105,6 +1109,10 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * The intervals are one-sided [negative infinity, upper limit] and can
      * be checked to determine if the alternative should be retained after screening.
      *
+     *  Based on:
+     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
+     *  Operations Research, vol. 49, pp.950-963.
+     *
      * @param probCS is the probability of correct selection for the screening
      */
     fun minScreeningIntervals(probCS: Double = defaultLevel): Map<String, Map<String, Interval>> {
@@ -1130,6 +1138,14 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         return intervalMap
     }
 
+    /** Screens for the minimum from the set of alternatives using the specified probability
+     * of correct selection [probCS]. Returns the set of alternatives that could be the minimum
+     * with the specified probability of correct selection.
+     *
+     *  Based on:
+     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
+     *  Operations Research, vol. 49, pp.950-963.
+     */
     fun screenForMinimum(probCS: Double = defaultLevel) : Set<String>{
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val set = mutableSetOf<String>()
@@ -1148,6 +1164,14 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         return set
     }
 
+    /** Screens for the maximum from the set of alternatives using the specified probability
+     * of correct selection [probCS]. Returns the set of alternatives that could be the maximum
+     * with the specified probability of correct selection.
+     *
+     *  Based on:
+     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
+     *  Operations Research, vol. 49, pp.950-963.
+     */
     fun screenForMaximum(probCS: Double = defaultLevel) : Set<String>{
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val set = mutableSetOf<String>()
