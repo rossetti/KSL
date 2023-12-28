@@ -200,7 +200,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     val pairedDifferenceStatistics: List<StatisticIfc>
         get() {
             val list = mutableListOf<StatisticIfc>()
-            for((name, stat) in myPairDiffStats){
+            for ((name, stat) in myPairDiffStats) {
                 list.add(stat)
             }
             return list
@@ -303,7 +303,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     val averagesOfDifferences: DoubleArray
         get() {
             val list = mutableListOf<Double>()
-            for((name, stat) in myPairDiffStats){
+            for ((name, stat) in myPairDiffStats) {
                 list.add(stat.average)
             }
             return list.toDoubleArray()
@@ -320,7 +320,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     val variancesOfDifferences: DoubleArray
         get() {
             val list = mutableListOf<Double>()
-            for((name, stat) in myPairDiffStats){
+            for ((name, stat) in myPairDiffStats) {
                 list.add(stat.variance)
             }
             return list.toDoubleArray()
@@ -1078,6 +1078,106 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         return sb
     }
 
+    /** Returns the screening intervals for each alternative assuming
+     * bigger is better. Returns a map of maps. The keys for the maps
+     * are the names of the alternatives (in combination). The interval
+     * represents the screening interval for the case of bigger being better.
+     * The intervals are one-sided [lower bound, positive infinity] and can
+     * be checked to determine if the alternative should be retained after screening.
+     *
+     * @param probCS is the probability of correct selection for the screening
+     */
+    fun maxScreeningIntervals(probCS: Double = 0.95): Map<String, Map<String, Interval>> {
+        require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
+        val dof = myDataSize - 1.0
+        val k = numberDatasets
+        val alpha = 1.0 - probCS
+        val upper = alpha / (k - 1.0)
+        val p = 1.0 - upper
+        val t = StudentT.invCDF(dof, p)
+        val intervalMap = mutableMapOf<String, MutableMap<String, Interval>>()
+        for (n1 in myDataMap.keys) {
+            val n2Map = mutableMapOf<String, Interval>()
+            for (n2 in myDataMap.keys) {
+                if (n1 != n2) {
+                    val ll = average(n2) - t * stdErrorOfDifference(n1, n2)
+                    val interval = Interval(ll, Double.POSITIVE_INFINITY)
+                    n2Map[n2] = interval
+                }
+            }
+            intervalMap[n1] = n2Map
+        }
+        return intervalMap
+    }
+
+    /** Returns the screening intervals for each alternative assuming
+     * smaller is better. Returns a map of maps. The keys for the maps
+     * are the names of the alternatives (in combination). The interval
+     * represents the screening interval for the case of smaller being better.
+     * The intervals are one-sided [negative infinity, upper limit] and can
+     * be checked to determine if the alternative should be retained after screening.
+     *
+     * @param probCS is the probability of correct selection for the screening
+     */
+    fun minScreeningIntervals(probCS: Double = 0.95): Map<String, Map<String, Interval>> {
+        require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
+        val dof = myDataSize - 1.0
+        val k = numberDatasets
+        val alpha = 1.0 - probCS
+        val upper = alpha / (k - 1.0)
+        val p = 1.0 - upper
+        val t = StudentT.invCDF(dof, p)
+        val intervalMap = mutableMapOf<String, MutableMap<String, Interval>>()
+        for (n1 in myDataMap.keys) {
+            val n2Map = mutableMapOf<String, Interval>()
+            for (n2 in myDataMap.keys) {
+                if (n1 != n2) {
+                    val ul = average(n2) + t * stdErrorOfDifference(n1, n2)
+                    val interval = Interval(Double.NEGATIVE_INFINITY, ul)
+                    n2Map[n2] = interval
+                }
+            }
+            intervalMap[n1] = n2Map
+        }
+        return intervalMap
+    }
+
+    fun screenForMinimum(probCS: Double = 0.95) : Set<String>{
+        require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
+        val set = mutableSetOf<String>()
+        val minMap = minScreeningIntervals(probCS)
+        for((name, map) in minMap){
+            val avg = average(name) // the one to test
+            var test = true
+            for((s, interval) in map){
+                if(!interval.contains(avg)){
+                    test = false
+                    break
+                }
+            }
+            if (test) {set.add(name)}
+        }
+        return set
+    }
+
+    fun screenForMaximum(probCS: Double = 0.95) : Set<String>{
+        require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
+        val set = mutableSetOf<String>()
+        val minMap = maxScreeningIntervals(probCS)
+        for((name, map) in minMap){
+            val avg = average(name) // the one to test
+            var test = true
+            for((s, interval) in map){
+                if(!interval.contains(avg)){
+                    test = false
+                    break
+                }
+            }
+            if (test) {set.add(name)}
+        }
+        return set
+    }
+
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Multiple Comparison Report: ")
@@ -1097,6 +1197,44 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         sb.appendLine()
         sb.append(mcbMaxIntervalsAsSB.toString())
         sb.append(mcbMinIntervalsAsSB.toString())
+        sb.appendLine()
+        sb.appendLine("Max Screening Intervals")
+        val maxMap = maxScreeningIntervals()
+        for((name, map) in maxMap){
+            for((s, interval) in map){
+                sb.append(name)
+                sb.append("\t")
+                sb.append("average = ")
+                sb.append(average(name))
+                sb.append("\t")
+                sb.append("\t")
+                sb.append(s)
+                sb.append("\t")
+                sb.appendLine(interval)
+            }
+        }
+        sb.appendLine()
+        sb.appendLine("Alternatives remaining after screening for maximum:")
+        sb.appendLine(screenForMaximum())
+        sb.appendLine()
+        sb.appendLine("Min Screening Intervals")
+        val minMap = minScreeningIntervals()
+        for((name, map) in minMap){
+            for((s, interval) in map){
+                sb.append(name)
+                sb.append("\t")
+                sb.append("average = ")
+                sb.append(average(name))
+                sb.append("\t")
+                sb.append("\t")
+                sb.append(s)
+                sb.append("\t")
+                sb.appendLine(interval)
+            }
+        }
+        sb.appendLine()
+        sb.appendLine("Alternatives remaining after screening for minimum:")
+        sb.appendLine(screenForMinimum())
         return sb.toString()
     }
 
