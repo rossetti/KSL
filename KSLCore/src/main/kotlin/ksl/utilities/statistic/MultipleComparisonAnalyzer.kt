@@ -51,8 +51,8 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 
     private lateinit var myDataMap: LinkedHashMap<String, DoubleArray>
     private var myDataSize = 0
-    private lateinit var myPairDiffs: LinkedHashMap<String, LinkedHashMap<String, DoubleArray>>
-    private lateinit var myPairDiffStats: LinkedHashMap<String, LinkedHashMap<String, Statistic>>
+    private lateinit var myPairDiffs: LinkedHashMap<String, DoubleArray>
+    private lateinit var myPairDiffStats: LinkedHashMap<String, Statistic>
 
     init {
         assignData(dataMap)
@@ -123,20 +123,18 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @return a map of the paired difference statistics
      */
-    private fun computePairedDifferenceStatistics(): LinkedHashMap<String, LinkedHashMap<String, Statistic>> {
-        val pd = LinkedHashMap<String, LinkedHashMap<String, Statistic>>()
+    private fun computePairedDifferenceStatistics(): LinkedHashMap<String, Statistic> {
+        val pd = LinkedHashMap<String, Statistic>()
         var i = 1
         for (fn in myDataMap.keys) {
             var j = 1
             if (i < myDataMap.keys.size) {
-                val m = LinkedHashMap<String, Statistic>()
-                pd[fn] = m
                 for (sn in myDataMap.keys) {
                     if (i < j) {
                         val fd = myDataMap[fn]!!
                         val sd = myDataMap[sn]!!
                         val d = computeDifference(fd, sd)
-                        m[sn] = Statistic("$fn - $sn", d)
+                        pd["$fn - $sn"] = Statistic("$fn - $sn", d)
                     }
                     j++
                 }
@@ -152,20 +150,18 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @return a map holding the paired differences as an array for each data name
      */
-    private fun computePairedDifferences(): LinkedHashMap<String, LinkedHashMap<String, DoubleArray>> {
-        val pd = LinkedHashMap<String, LinkedHashMap<String, DoubleArray>>()
+    private fun computePairedDifferences(): LinkedHashMap<String, DoubleArray> {
+        val pd = LinkedHashMap<String, DoubleArray>()
         var i = 1
         for (fn in myDataMap.keys) {
             var j = 1
             if (i < myDataMap.keys.size) {
-                val m = LinkedHashMap<String, DoubleArray>()
-                pd[fn] = m
                 for (sn in myDataMap.keys) {
                     if (i < j) {
                         val fd = myDataMap[fn]!!
                         val sd = myDataMap[sn]!!
                         val d = computeDifference(fd, sd)
-                        m[sn] = d
+                        pd["$fn - $sn"] = d
                     }
                     j++
                 }
@@ -177,15 +173,22 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 
     /**
      * The paired differences as an array for the pair of data names given by the
-     * strings. If the data names don't exist a null pointer exception will
-     * occur
+     * strings. If the data names don't exist then an error occurs. The paired
+     * difference is assumed to be named "$s1 - $s2$". If the named difference
+     * is not found an empty array is returned.
      *
      * @param s1 the name of data set number 1
      * @param s2 the name of data set number 2
-     * @return an array of paired differences
+     * @return an array of the paired differences
      */
     fun pairedDifference(s1: String, s2: String): DoubleArray {
-        return myPairDiffs[s1]!![s2]!!.copyOf()
+        require(myDataMap.keys.contains(s1)) { "The name $s1 is not a valid data name" }
+        require(myDataMap.keys.contains(s2)) { "The name $s2 is not a valid data name" }
+        val key = "$s1 - $s2"
+        if (!myPairDiffs.contains(key)) {
+            return doubleArrayOf()
+        }
+        return myPairDiffs[key]!!.copyOf()
     }
 
     /**
@@ -194,28 +197,33 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @return A list holding the statistics for all the pairwise differences
      */
-    val pairedDifferenceStatistics: MutableList<StatisticIfc>
+    val pairedDifferenceStatistics: List<StatisticIfc>
         get() {
-            val list: MutableList<StatisticIfc> = ArrayList()
-            for (f in myPairDiffStats.keys) {
-                val g = myPairDiffStats[f]!!
-                for (s in g.keys) {
-                    list.add(pairedDifferenceStatistic(f, s))
-                }
+            val list = mutableListOf<StatisticIfc>()
+            for((name, stat) in myPairDiffStats){
+                list.add(stat)
             }
             return list
         }
 
     /**
      * The statistics for the pair of data names given by the strings. If the
-     * data names don't exist a null pointer exception will occur
+     * data names don't exist then an exception will occur. The name of
+     * the statistic is formed as "$s1 - $s2". If that difference does not
+     * exist, then null is returned.
      *
      * @param s1 the name of data set number 1
      * @param s2 the name of data set number 2
-     * @return a Statistic collected over the paired differences
+     * @return a Statistic collected over the paired difference of "$s1 - $s2"
      */
-    fun pairedDifferenceStatistic(s1: String, s2: String): Statistic {
-        return myPairDiffStats[s1]!![s2]!!.instance()
+    fun pairedDifferenceStatistic(s1: String, s2: String): Statistic? {
+        require(myDataMap.keys.contains(s1)) { "The name $s1 is not a valid data name" }
+        require(myDataMap.keys.contains(s2)) { "The name $s2 is not a valid data name" }
+        val key = "$s1 - $s2"
+        if (!myPairDiffStats.contains(key)) {
+            return null
+        }
+        return myPairDiffStats[key]!!.instance()
     }
 
     /**
@@ -294,18 +302,11 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      */
     val averagesOfDifferences: DoubleArray
         get() {
-            val list: MutableList<Double> = ArrayList()
-            for (f in myPairDiffStats.keys) {
-                val g = myPairDiffStats[f]!!
-                for (s in g.keys) {
-                    list.add(averageDifference(f, s))
-                }
+            val list = mutableListOf<Double>()
+            for((name, stat) in myPairDiffStats){
+                list.add(stat.average)
             }
-            val x = DoubleArray(list.size)
-            for ((i, d) in list.withIndex()) {
-                x[i] = d
-            }
-            return x
+            return list.toDoubleArray()
         }
 
     /**
@@ -318,18 +319,11 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      */
     val variancesOfDifferences: DoubleArray
         get() {
-            val list: MutableList<Double> = ArrayList()
-            for (f in myPairDiffStats.keys) {
-                val g = myPairDiffStats[f]!!
-                for (s in g.keys) {
-                    list.add(varianceOfDifference(f, s))
-                }
+            val list = mutableListOf<Double>()
+            for((name, stat) in myPairDiffStats){
+                list.add(stat.variance)
             }
-            val x = DoubleArray(list.size)
-            for ((i, d) in list.withIndex()) {
-                x[i] = d
-            }
-            return x
+            return list.toDoubleArray()
         }
 
     /**
@@ -360,38 +354,63 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 
     /**
      * The average for the pair of data names given by the strings. If the data
-     * names don't exist a null pointer exception will occur
+     * names don't exist or the difference "$s1 - $s2" does not exist, an exception
+     * will be thrown.
      *
      * @param s1 the name of data set number 1
      * @param s2 the name of data set number 2
-     * @return average for the pair of data names given by the strings
+     * @return average for the pair of data names given by the "$s1 - $s2"
      */
     fun averageDifference(s1: String, s2: String): Double {
-        return myPairDiffStats[s1]!![s2]!!.average
+        require(myDataMap.keys.contains(s1)) { "The name $s1 is not a valid data name" }
+        require(myDataMap.keys.contains(s2)) { "The name $s2 is not a valid data name" }
+        val key = "$s1 - $s2"
+        require(myPairDiffStats.contains(key)) { "The difference $key does not exist" }
+        return myPairDiffStats[key]!!.average
     }
 
     /**
      * The variance for the pair of data names given by the strings. If the data
-     * names don't exist a null pointer exception will occur
+     * names don't exist or the difference "$s1 - $s2" or "$s2 - $s1" does
+     * not exist then an exception will occur. The variance of the differences are
+     * symmetric. That is variance of "$s1 - $s2" is equal to the variance of "$s2 - $s1".
      *
      * @param s1 the name of data set number 1
      * @param s2 the name of data set number 2
-     * @return variance for the pair of data names given by the strings
+     * @return variance for the pair of data names given by the strings "$s1 - $s2" or "$s2 - $s1"
      */
     fun varianceOfDifference(s1: String, s2: String): Double {
-        return myPairDiffStats[s1]!![s2]!!.variance
+        require(myDataMap.keys.contains(s1)) { "The name $s1 is not a valid data name" }
+        require(myDataMap.keys.contains(s2)) { "The name $s2 is not a valid data name" }
+        val key1 = "$s1 - $s2"
+        val key2 = "$s2 - $s1"
+        require(myPairDiffStats.contains(key1) || myPairDiffStats.contains(key2)) { "The difference $key1 or $key2 was not found" }
+        if (myPairDiffStats.contains(key1)) {
+            return myPairDiffStats[key1]!!.variance
+        }
+        return myPairDiffStats[key2]!!.variance
     }
 
     /**
      * The standard error for the pair of data names given by the strings. If the data
-     * names don't exist a null pointer exception will occur
+     * names don't exist or the difference "$s1 - $s2" or "$s2 - $s1" does
+     * not exist then an exception will occur. The standard error of the differences are
+     * symmetric. That is standard error of "$s1 - $s2" is equal to the standard error of "$s2 - $s1".
      *
      * @param s1 the name of data set number 1
      * @param s2 the name of data set number 2
-     * @return standard error for the pair of data names given by the strings
+     * @return standard error for the pair of data names given by the strings "$s1 - $s2" or "$s2 - $s1"
      */
     fun stdErrorOfDifference(s1: String, s2: String): Double {
-        return myPairDiffStats[s1]!![s2]!!.standardError
+        require(myDataMap.keys.contains(s1)) { "The name $s1 is not a valid data name" }
+        require(myDataMap.keys.contains(s2)) { "The name $s2 is not a valid data name" }
+        val key1 = "$s1 - $s2"
+        val key2 = "$s2 - $s1"
+        require(myPairDiffStats.contains(key1) || myPairDiffStats.contains(key2)) { "The difference $key1 or $key2 was not found" }
+        if (myPairDiffStats.contains(key1)) {
+            return myPairDiffStats[key1]!!.standardError
+        }
+        return myPairDiffStats[key2]!!.standardError
     }
 
     /**
@@ -938,7 +957,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      */
     fun secondStageSampleSizeNM(indifference: Double, probCS: Double = 0.95): Int {
         require(indifference > 0.0) { "The indifference parameter must be > 0" }
-        require((0.0 < probCS) && (probCS < 1.0)){"The probability of correct selection must be in (0,1)"}
+        require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val dof = myDataSize - 1.0
 //        println("dof = $dof")
         val k = numberDatasets
@@ -950,7 +969,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 //        println("p = $p")
         val t = StudentT.invCDF(dof, p)
 //        println("t = $t")
-        val m = t*t*maxVarianceOfDifferences/(indifference*indifference)
+        val m = t * t * maxVarianceOfDifferences / (indifference * indifference)
 //        println("m = $m")
         return maxOf(myDataSize.toDouble(), ceil(m)).toInt()
     }
@@ -1000,7 +1019,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @return StringBuilder representation for a summary report on the pairwise differences
      */
     fun differenceSummaryStatistics(title: String? = null): StringBuilder {
-        val r = StatisticReporter(pairedDifferenceStatistics)
+        val r = StatisticReporter(pairedDifferenceStatistics.toMutableList())
         return r.summaryReport(title)
     }
 
@@ -1013,7 +1032,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @return StringBuilder representation for a half-width report on the pairwise differences
      */
     fun halfWidthDifferenceSummaryStatistics(title: String? = null, level: Double = 0.95): StringBuilder {
-        val r = StatisticReporter(pairedDifferenceStatistics)
+        val r = StatisticReporter(pairedDifferenceStatistics.toMutableList())
         return r.halfWidthSummaryReport(title, level)
     }
 
