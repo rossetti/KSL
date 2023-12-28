@@ -482,7 +482,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *
      * @return list of statistics for all the data
      */
-    val statistics: MutableList<StatisticIfc>
+    val statistics: List<StatisticIfc>
         get() {
             val list: MutableList<StatisticIfc> = ArrayList()
             for (s in myDataMap.keys) {
@@ -983,7 +983,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * each data set
      */
     fun summaryStatistics(title: String? = null): StringBuilder {
-        val r = StatisticReporter(statistics)
+        val r = StatisticReporter(statistics.toMutableList())
         return r.summaryReport(title)
     }
 
@@ -995,7 +995,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      * @return A half-width summary report on the statistics for each data set
      */
     fun halfWidthSummaryStatistics(title: String? = null, level: Double = defaultLevel): StringBuilder {
-        val r = StatisticReporter(statistics)
+        val r = StatisticReporter(statistics.toMutableList())
         return r.halfWidthSummaryReport(title, level)
     }
 
