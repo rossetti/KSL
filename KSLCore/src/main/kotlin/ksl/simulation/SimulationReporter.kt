@@ -218,14 +218,14 @@ class SimulationReporter(theModel: Model, autoCSVReports: Boolean = true) {
         out.println()
         out.println("-------------------------------------------------------")
         for (r in responses) {
-            val stat = r.acrossReplicationStatistic
             if (r.defaultReportingOption) {
+                val stat = r.acrossReplicationStatistic
                 out.println(stat)
             }
         }
         for (c in counters) {
-            val stat = c.acrossReplicationStatistic
             if (c.defaultReportingOption) {
+                val stat = c.acrossReplicationStatistic
                 out.println(stat)
             }
         }
