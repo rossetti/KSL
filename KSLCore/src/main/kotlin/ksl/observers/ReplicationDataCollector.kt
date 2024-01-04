@@ -24,9 +24,10 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.io.toDataFrame
 import ksl.utilities.maps.KSLMaps
+import ksl.utilities.maps.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 //import java.util.*
 
@@ -284,8 +285,13 @@ class ReplicationDataCollector(model: Model, addAll: Boolean = false) {
             return dataMap
         }
 
+    /**
+     *  Converts the data collected by the ReplicationDataCollector to
+     *  a DataFrame, with the column names as the response names and
+     *  the columns holding the data across replications
+     */
     fun toDataFrame() : AnyFrame {
-        return allReplicationDataAsMap.toDataFrame()
+        return allReplicationDataAsMap.toMapOfLists().toDataFrame()
     }
 
     /**

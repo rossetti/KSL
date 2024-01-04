@@ -20,6 +20,7 @@
 
 package ksl.utilities.io
 
+import ksl.observers.ControlVariateDataCollector
 import ksl.observers.ReplicationDataCollector
 import ksl.utilities.KSLArrays
 import ksl.utilities.isRectangular
@@ -407,17 +408,8 @@ fun Array<DoubleArray>.toDataFrame(): DataFrame<*> {
 fun Map<String, DoubleArray>.toDataFrame() : AnyFrame {
     val arrays = this.values.toList()
     val da = Array(this.size){arrays[it]}
-    require(KSLArrays.isRectangular(da)){"The arrays must all have the sam size"}
+    require(KSLArrays.isRectangular(da)){"The arrays must all have the same size"}
     return toMapOfLists().toDataFrame()
-}
-
-/**
- *  Converts the data collected by the ReplicationDataCollector to
- *  a DataFrame, with the column names as the response names and
- *  the columns holding the data across replications
- */
-fun ReplicationDataCollector.toDataFrame(): AnyFrame {
-    return allReplicationDataAsMap.toMapOfLists().toDataFrame()
 }
 
 fun <T> DataFrame<T>.writeMarkDownTable(writer: PrintWriter = KSL.createPrintWriter("dataFrame.md")) {
