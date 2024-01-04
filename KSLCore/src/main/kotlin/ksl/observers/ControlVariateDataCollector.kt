@@ -18,12 +18,16 @@
 
 package ksl.observers
 
+import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.KSLArrays
+import ksl.utilities.io.toDataFrame
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+
 //import java.util.*
 
 /**
@@ -33,10 +37,35 @@ import ksl.utilities.KSLArrays
  * collect any data. Uses a ReplicationDataCollector
  */
 class ControlVariateDataCollector(model: Model, name: String? = null) : ModelElement(model, name) {
+    /**
+     *  Collects the responses, including the responses created for each control
+     */
     private val myResponseCollector: ReplicationDataCollector = ReplicationDataCollector(model)
-    private val myResponses: MutableList<Response> = mutableListOf()
-    private val myControls: MutableMap<String, Double> = mutableMapOf()
+
+    /**
+     *  There can be more than one response associated with the controls.
+     *  Holds the alias for the response as the key and the response.
+     */
+    private val myResponses: MutableMap<String, Response> = mutableMapOf()
+
+    /**
+     *  Holds the alias for the control as the key and the random variable representing the control
+     */
+    private val myControls: MutableMap<String, RandomVariable> = mutableMapOf()
+
+    /**
+     *  Holds the name and the mean of the control
+     */
+    private val myControlMeans = mutableMapOf<String, Double>()
+
+    /**
+     *  the control as a random variable and the associated response
+     */
     private val myControlResponses: MutableMap<RandomVariable, Response> = mutableMapOf()
+
+    /**
+     *  Used to observe the random variables (as controls) to collect their responses
+     */
     private val myRVObserver = RVObserver()
 
     private inner class RVObserver : ModelElementObserver() {
@@ -45,63 +74,107 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
         }
     }
 
-    private fun observeRandomVariable(rv: RandomVariable){
+    private fun observeRandomVariable(rv: RandomVariable) {
         val response = myControlResponses[rv]
         response?.value = rv.previousValue
     }
 
-    /**
+    /** The supplied name must be the name of the model element representing
+     * the desired response. If the name does not exist in the model, then
+     * nothing is added and no errors occur. Thus, this method fails silently.
      *
      * @param responseName the name of the response to add for collection
      */
     fun addResponse(responseName: String) {
         val responseVariable: Response? = myModel.response(responseName)
-        if (responseVariable != null){
+        if (responseVariable != null) {
             addResponse(responseVariable)
         }
     }
 
     /**
-     *
-     * @param response the response to add for collection
+     *  The [response] is added to the control variate data collector with the supplied
+     *  [responseAlias] response alias. The default response alias is the name of
+     *  the response within the model. If the response alias has already been added, then
+     *  an exception occurs. That is, the response alias must be unique to the collector.
      */
-    fun addResponse(response: Response) {
-        myResponses.add(response)
-        myResponseCollector.addResponse(response)
+    fun addResponse(response: ResponseCIfc, responseAlias: String = response.name) {
+        // only allow unique aliases
+        require(!myResponses.contains(responseAlias)){ "The supplied response has already been added!"}
+        val r = response as Response
+        require(myModel.containsModelElement(r.name)) { "The supplied response was not part of the associated model!"}
+        myResponses[responseAlias] = r
+        myResponseCollector.addResponse(r)
     }
 
-    /**  If the RandomVariable doesn't exist in the model then no control is set up
+    /** If the random source doesn't exist in the model then an error occurs
+     *
+     * @param rvSource the RandomSourceCIfc to add as a control. It must be a RandomVariable in the model
+     * @param meanValue the mean of the control.
+     * @param controlAlias the alias to use for the control. By default, it is the name of the RandomSourceCIfc.
+     * @return the control as a response
+     */
+    fun addControlVariate(rvSource: RandomSourceCIfc, meanValue: Double, controlAlias: String = rvSource.name): ResponseCIfc{
+        // only allow unique aliases
+        require(!myControls.contains(controlAlias)){ "The supplied control has already been added!"}
+        require(myModel.containsModelElement(rvSource.name)) { "The supplied random source was not part of the associated model!"}
+        require(rvSource is RandomVariable) { "The random source does not refer to a random variable in the model" }
+        // remember the mean
+        myControlMeans[controlAlias] = meanValue
+        // remember the control
+        myControls[controlAlias] = rvSource
+        // attach the observer of rv value
+        rvSource.attachModelElementObserver(myRVObserver)
+        // create the response for the control
+        val response = Response(this, "${rvSource.name}:CVResponse")
+        myResponseCollector.addResponse(response)
+        // remember the response for the rv
+        myControlResponses[rvSource] = response
+        return response
+    }
+
+    /**  If the RandomVariable doesn't exist in the model then an error occurs
      *
      * @param randomVariableName the name of the RandomVariable to add as a control
      * @param meanValue the mean of the RandomVariable
      * @return the name of the control response or null
      */
     fun addControlVariate(randomVariableName: String, meanValue: Double): ResponseCIfc {
-        require(myModel.containsModelElement(randomVariableName)){"The supplied random variable name is not part of the model"}
+        require(myModel.containsModelElement(randomVariableName)) { "The supplied random variable name is not part of the model" }
         val me = myModel.getModelElement(randomVariableName)!!
-        require(me is RandomVariable){"The name does not refer to a random variable in the model"}
+        require(me is RandomVariable) { "The name does not refer to a random variable in the model" }
         return addControlVariate(me, meanValue)
     }
 
-    /** If the RandomVariable doesn't exist in the model then no control is set up
-     *
-     * @param rv the RandomVariable to add as a control
-     * @param meanValue the mean of the RandomVariable
-     * @return the name of the control response or null
-     */
-    fun addControlVariate(rv: RandomVariable, meanValue: Double): ResponseCIfc {
-        require(myModel.containsModelElement(rv.name)){"The supplied random variable is not part of the model"}
-        // add to controls and remember the mean value
-        myControls[rv.name] = meanValue
-        // attach the observer of rv value
-        rv.attachModelElementObserver(myRVObserver)
-        // create the response
-        val response = Response(this, "${rv.name}:CVResponse")
-        myResponseCollector.addResponse(response)
-        // remember the response for the rv
-        myControlResponses[rv] = response
-        return response
-    }
+//    /** If the RandomVariable doesn't exist in the model then an error occurs
+//     *
+//     * @param rv the RandomVariable to add as a control
+//     * @param meanValue the mean of the RandomVariable
+//     * @return the control as a response
+//     */
+//    fun addControlVariate(rv: RandomVariable, meanValue: Double): ResponseCIfc {
+//        require(myModel.containsModelElement(rv.name)) { "The supplied random variable is not part of the model" }
+//        // add to controls and remember the mean value
+//        myControls[rv.name] = meanValue
+//        // attach the observer of rv value
+//        rv.attachModelElementObserver(myRVObserver)
+//        // create the response
+//        val response = Response(this, "${rv.name}:CVResponse")
+//        myResponseCollector.addResponse(response)
+//        // remember the response for the rv
+//        myControlResponses[rv] = response
+//        return response
+//    }
+//
+//    /** If the random source doesn't exist in the model as a RandomVariable then an error occurs
+//     *
+//     * @param rvSource the RandomVariable to add as a control
+//     * @param meanValue the mean of the RandomSourceCIfc
+//     * @return the control as a response
+//     */
+//    fun addControlVariate(rvSource: RandomSourceCIfc, meanValue: Double): ResponseCIfc {
+//        return addControlVariate(rvSource as RandomVariable, meanValue)
+//    }
 
     /**
      * @return the number of responses
@@ -120,10 +193,10 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      *
      * @return a list holding the names of the responses
      */
-    fun responseNames(): MutableList<String> {
-        val list: MutableList<String> = ArrayList()
+    fun responseNames(): List<String> {
+        val list = mutableListOf<String>()
         for (r in myResponses) {
-            list.add(r.name)
+            list.add(r.key)
         }
         return list
     }
@@ -134,7 +207,7 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      * @return a copy of the names of the controls
      */
     fun controlNames(): List<String> {
-        val list: MutableList<String> = ArrayList()
+        val list= mutableListOf<String>()
         for (name in myControls.keys) {
             list.add(name)
         }
@@ -146,7 +219,7 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      * @return gets all the names, first responses, then controls in that order
      */
     fun allNames(): List<String> {
-        val names = responseNames()
+        val names = responseNames().toMutableList()
         names.addAll(controlNames())
         return names
     }
@@ -156,7 +229,10 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      * @return the collected replication averages, each row is a replication
      */
     fun responseReplicationData(responseName: String): DoubleArray {
-        return myResponseCollector.replicationData(responseName)
+        require(myResponses.containsKey(responseName)){ "The response name was not found for the collector!"}
+        // assume that the response name is the alias, get the response from it
+        val r = myResponses[responseName]!!
+        return myResponseCollector.replicationAverages(r)
     }
 
     /**
@@ -164,10 +240,11 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      * @return the collected replication averages minus the control mean, each row is a replication
      */
     fun controlReplicationData(controlName: String): DoubleArray {
-        require(myModel.containsModelElement(controlName)){"The supplied name is not part of the model"}
-        require(myControls.containsKey(controlName)) {"The supplied name was not a valid control name"}
-        val data: DoubleArray = myResponseCollector.replicationData(controlName)
-        val mean = myControls[controlName]!!
+        require(myControls.containsKey(controlName)) { "The supplied name was not a valid control name" }
+        val rv = myControls[controlName]
+        val response = myControlResponses[rv]!!
+        val data: DoubleArray = myResponseCollector.replicationAverages(response)
+        val mean = myControlMeans[controlName]!!
         return KSLArrays.subtractConstant(data, mean)
     }
 
@@ -177,13 +254,13 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      *
      * @return the response and control data from each replication
      */
-    fun getData(): Array<DoubleArray> {
+    fun collectedData(): Array<DoubleArray> {
         val numRows: Int = myResponseCollector.numReplications
         val numCols = numberOfResponses + numberOfControlVariates()
         val data = Array(numRows) { DoubleArray(numCols) }
         var j = 0
         for (r in myResponses) {
-            val src = responseReplicationData(r.name)
+            val src = responseReplicationData(r.key)
             KSLArrays.fillColumn(j, src, data)
             j++
         }
@@ -200,11 +277,11 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      *
      * @return a map holding the response and control names as keys and replication averages as an array
      */
-    fun getDataAsMap(): Map<String, DoubleArray> {
+    fun collectedDataAsMap(): Map<String, DoubleArray> {
         val dataMap: MutableMap<String, DoubleArray> = LinkedHashMap()
         for (r in myResponses) {
-            val x = responseReplicationData(r.name)
-            dataMap[r.name] = x
+            val x = responseReplicationData(r.key)
+            dataMap[r.key] = x
         }
         val controlNames = controlNames()
         for (name in controlNames) {
@@ -214,23 +291,44 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
         return dataMap
     }
 
+    /**
+     *
+     * @return a dataframe holding the response and control names as column names and replication averages within the columns.
+     */
+    fun toDataFrame(): AnyFrame {
+        return collectedDataAsMap().toDataFrame()
+    }
+
     override fun toString(): String {
         val sb = StringBuilder()
-//        val fmt = Formatter(sb)
-        val headerFmt = "%-20s %-5s"
-        val rowFmt = "%10.3f %-3s"
-        val dataAsMap = getDataAsMap()
-        for (name in dataAsMap.keys) {
-            val x = dataAsMap[name]
-            sb.append(headerFmt.format(name, "|"))
-//            fmt.format("%-20s %-5s", name, "|")
-            for (v in x!!) {
-                sb.append(rowFmt.format(v, "|"))
-//                fmt.format("%10.3f %-3s", v, "|")
-            }
-            sb.appendLine()
-//            fmt.format("%n")
+        sb.appendLine("Control Variate Collector")
+        sb.appendLine("Responses:")
+        for(r in myResponses){
+            sb.appendLine("response: ${r.key}")
         }
+        sb.appendLine()
+        sb.appendLine("Controls:")
+        for((c, mean) in myControlMeans){
+            sb.appendLine("control: $c \t mean = $mean")
+        }
+        sb.appendLine()
+        sb.appendLine("Replication Data Collector")
+        sb.appendLine(myResponseCollector)
+        sb.appendLine()
+        val df = toDataFrame()
+        sb.appendLine("Control Variate Data")
+        sb.append(df.toString())
+//        val headerFmt = "%-20s %-5s"
+//        val rowFmt = "%10.3f %-3s"
+//        val dataAsMap = collectedDataAsMap()
+//        for (name in dataAsMap.keys) {
+//            val x = dataAsMap[name]
+//            sb.append(headerFmt.format(name, "|"))
+//            for (v in x!!) {
+//                sb.append(rowFmt.format(v, "|"))
+//            }
+//            sb.appendLine()
+//        }
         return sb.toString()
     }
 }

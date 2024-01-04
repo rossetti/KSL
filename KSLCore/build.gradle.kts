@@ -46,9 +46,9 @@ dependencies {
     api(group = "org.slf4j", name = "slf4j-api", version = "2.0.7")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.4.9")
+    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.4.12")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.4.9")
+    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.4.12")
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
@@ -79,11 +79,10 @@ dependencies {
 
  //   implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
     // replacement for apache math commons
-    //TODO I'm not using it anywhere, consider removing it altogether
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
-    implementation("org.hipparchus:hipparchus-core:3.0")
+    api("org.hipparchus:hipparchus-core:3.0")
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
-    implementation("org.hipparchus:hipparchus-stat:3.0")
+    api("org.hipparchus:hipparchus-stat:3.0")
 
     implementation("com.google.guava:guava:32.1.1-jre")
 
