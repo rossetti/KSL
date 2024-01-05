@@ -25,10 +25,43 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.KSLArrays
+import ksl.utilities.batchMeans
 import ksl.utilities.io.toDataFrame
+import ksl.utilities.statistic.BatchStatistic
+import ksl.utilities.statistic.RegressionResults
+import ksl.utilities.transpose
+import org.hipparchus.stat.regression.OLSMultipleLinearRegression
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 
-//import java.util.*
+/**
+ *  The [response] is an n by 1 array of the data, where n is the number of observations for a
+ *  particular response variable.
+ *  The [controls] is an n by k matrix of the control variate data ready for regression, where
+ *  k is the number of controls and n is the number of observations. The control variate's
+ *  mean has already been subtracted from the control's response.
+ */
+data class CVData(
+    val response: DoubleArray,
+    val controls: Array<DoubleArray>
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as CVData
+
+        if (!response.contentEquals(other.response)) return false
+        if (!controls.contentDeepEquals(other.controls)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = response.contentHashCode()
+        result = 31 * result + controls.contentDeepHashCode()
+        return result
+    }
+}
 
 /**
  * Defines responses and controls for a control variate experiment. Collects the
@@ -100,9 +133,9 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      */
     fun addResponse(response: ResponseCIfc, responseAlias: String = response.name) {
         // only allow unique aliases
-        require(!myResponses.contains(responseAlias)){ "The supplied response has already been added!"}
+        require(!myResponses.contains(responseAlias)) { "The supplied response has already been added!" }
         val r = response as Response
-        require(myModel.containsModelElement(r.name)) { "The supplied response was not part of the associated model!"}
+        require(myModel.containsModelElement(r.name)) { "The supplied response was not part of the associated model!" }
         myResponses[responseAlias] = r
         myResponseCollector.addResponse(r)
     }
@@ -114,10 +147,14 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      * @param controlAlias the alias to use for the control. By default, it is the name of the RandomSourceCIfc.
      * @return the control as a response
      */
-    fun addControlVariate(rvSource: RandomSourceCIfc, meanValue: Double, controlAlias: String = rvSource.name): ResponseCIfc{
+    fun addControlVariate(
+        rvSource: RandomSourceCIfc,
+        meanValue: Double,
+        controlAlias: String = rvSource.name
+    ): ResponseCIfc {
         // only allow unique aliases
-        require(!myControls.contains(controlAlias)){ "The supplied control has already been added!"}
-        require(myModel.containsModelElement(rvSource.name)) { "The supplied random source was not part of the associated model!"}
+        require(!myControls.contains(controlAlias)) { "The supplied control has already been added!" }
+        require(myModel.containsModelElement(rvSource.name)) { "The supplied random source was not part of the associated model!" }
         require(rvSource is RandomVariable) { "The random source does not refer to a random variable in the model" }
         // remember the mean
         myControlMeans[controlAlias] = meanValue
@@ -146,35 +183,11 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
         return addControlVariate(me, meanValue)
     }
 
-//    /** If the RandomVariable doesn't exist in the model then an error occurs
-//     *
-//     * @param rv the RandomVariable to add as a control
-//     * @param meanValue the mean of the RandomVariable
-//     * @return the control as a response
-//     */
-//    fun addControlVariate(rv: RandomVariable, meanValue: Double): ResponseCIfc {
-//        require(myModel.containsModelElement(rv.name)) { "The supplied random variable is not part of the model" }
-//        // add to controls and remember the mean value
-//        myControls[rv.name] = meanValue
-//        // attach the observer of rv value
-//        rv.attachModelElementObserver(myRVObserver)
-//        // create the response
-//        val response = Response(this, "${rv.name}:CVResponse")
-//        myResponseCollector.addResponse(response)
-//        // remember the response for the rv
-//        myControlResponses[rv] = response
-//        return response
-//    }
-//
-//    /** If the random source doesn't exist in the model as a RandomVariable then an error occurs
-//     *
-//     * @param rvSource the RandomVariable to add as a control
-//     * @param meanValue the mean of the RandomSourceCIfc
-//     * @return the control as a response
-//     */
-//    fun addControlVariate(rvSource: RandomSourceCIfc, meanValue: Double): ResponseCIfc {
-//        return addControlVariate(rvSource as RandomVariable, meanValue)
-//    }
+    /**
+     *  The number of replications observed
+     */
+    val numReplications: Int
+        get() = myResponseCollector.numReplications
 
     /**
      * @return the number of responses
@@ -207,7 +220,7 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      * @return a copy of the names of the controls
      */
     fun controlNames(): List<String> {
-        val list= mutableListOf<String>()
+        val list = mutableListOf<String>()
         for (name in myControls.keys) {
             list.add(name)
         }
@@ -229,7 +242,7 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      * @return the collected replication averages, each row is a replication
      */
     fun responseReplicationData(responseName: String): DoubleArray {
-        require(myResponses.containsKey(responseName)){ "The response name was not found for the collector!"}
+        require(myResponses.containsKey(responseName)) { "The response name was not found for the collector!" }
         // assume that the response name is the alias, get the response from it
         val r = myResponses[responseName]!!
         return myResponseCollector.replicationAverages(r)
@@ -248,34 +261,75 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
         return KSLArrays.subtractConstant(data, mean)
     }
 
-    /** The replications are the rows. The columns are ordered first with response names
-     * and then with control names based on the order from getResponseNames() and
-     * getControlNames()
-     *
-     * @return the response and control data from each replication
+    /**
+     *  Returns a k by n matrix of data that represents the control data
+     *  where n is the number of observations, and k is the number of controls.
+     *  Each row of the returned matrix represents the observations for a different control.
+     *  The row are ordered by the names of the controls.
      */
-    fun collectedData(): Array<DoubleArray> {
+    private fun controlsData(controls: List<String>): Array<DoubleArray> {
         val numRows: Int = myResponseCollector.numReplications
-        val numCols = numberOfResponses + numberOfControlVariates()
-        val data = Array(numRows) { DoubleArray(numCols) }
-        var j = 0
-        for (r in myResponses) {
-            val src = responseReplicationData(r.key)
-            KSLArrays.fillColumn(j, src, data)
-            j++
-        }
-        val controlNames = controlNames()
-        for (name in controlNames) {
-            val src = controlReplicationData(name)
-            KSLArrays.fillColumn(j, src, data)
-            j++
+        val numCols = numberOfControlVariates()
+        val data = Array(numCols) { DoubleArray(numRows) }
+        for ((j, name) in controls.withIndex()) {
+            if (myControls.containsKey(name)) {
+                data[j] = controlReplicationData(name)
+            }
         }
         return data
     }
 
     /**
+     *  Returns the collected data ready for regression in the form of CVData.
+     */
+    fun collectedData(
+        responseName: String,
+        numBatches: Int = numReplications,
+        controlNames: List<String> = controlNames()
+    ): CVData {
+        require(numBatches <= numReplications) { "The number of batches must be <= the number of replications." }
+        // if numBatches is numReplications, then no batching should occur
+        // that is each replication is an observation
+        val response = responseReplicationData(responseName)
+        val controls = controlsData(controlNames)
+        if (numBatches == numReplications) {
+            return CVData(response, controls.transpose())
+        } else {
+            // do the batching
+            val rbm = BatchStatistic.batchMeans(response, numBatches)
+            val cbm = BatchStatistic.batchMeans(controls, numBatches)
+            return CVData(rbm, cbm.transpose())
+        }
+    }
+
+//    /** The replications are the rows. The columns are ordered first with response names
+//     * and then with control names based on the order from getResponseNames() and
+//     * getControlNames()
+//     *
+//     * @return the response and control data from each replication
+//     */
+//    fun collectedData(): Array<DoubleArray> {
+//        val numRows: Int = myResponseCollector.numReplications
+//        val numCols = numberOfResponses + numberOfControlVariates()
+//        val data = Array(numRows) { DoubleArray(numCols) }
+//        var j = 0
+//        for (r in myResponses) {
+//            val src = responseReplicationData(r.key)
+//            KSLArrays.fillColumn(j, src, data)
+//            j++
+//        }
+//        val controlNames = controlNames()
+//        for (name in controlNames) {
+//            val src = controlReplicationData(name)
+//            KSLArrays.fillColumn(j, src, data)
+//            j++
+//        }
+//        return data
+//    }
+
+    /** The response data and then the control data is returned in the map.
      *
-     * @return a map holding the response and control names as keys and replication averages as an array
+     * @return a map holding the response and control names as keys and replication averages as the arrays
      */
     fun collectedDataAsMap(): Map<String, DoubleArray> {
         val dataMap: MutableMap<String, DoubleArray> = LinkedHashMap()
@@ -299,16 +353,50 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
         return collectedDataAsMap().toDataFrame()
     }
 
+    private val myRegression by lazy { OLSMultipleLinearRegression() }
+
+    fun regressionResults(
+        responseName: String,
+        numBatches: Int = numReplications,
+        controlNames: List<String> = controlNames()
+    ) {
+        val cd = collectedData(responseName, numBatches, controlNames)
+        // the data could have been batched
+        val numRows = cd.response.size
+        val numColumns = KSLArrays.numColumns(cd.controls)
+        require(numRows > numColumns) { "There is not enough observations ($numRows) to regress with ($numColumns) controls" }
+        myRegression.newSampleData(cd.response, cd.controls)
+        val result = RegressionResults(
+            parameters = myRegression.estimateRegressionParameters(),
+            parametersStdError = myRegression.estimateRegressionParametersStandardErrors(),
+            parametersVariance = myRegression.estimateRegressionParametersVariance(),
+            residuals = myRegression.estimateResiduals(),
+            regressandVariance = myRegression.estimateRegressandVariance(),
+            rSquared = myRegression.calculateRSquared(),
+            adjustedRSquared = myRegression.calculateAdjustedRSquared(),
+            regressionStandardError = myRegression.estimateRegressionStandardError(),
+            residualSumOfSquares = myRegression.calculateResidualSumOfSquares(),
+            totalSumOfSquares = myRegression.calculateTotalSumOfSquares(),
+//            errorSumSquares =,
+//            meanSquareError =,
+            errorVariance = myRegression.estimateErrorVariance(),
+            hatMatrix = myRegression.calculateHat().data,
+            hasIntercept = !myRegression.isNoIntercept,
+            numParameters = numColumns,
+            numObservations = numRows.toLong()
+        )
+    }
+
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Control Variate Collector")
         sb.appendLine("Responses:")
-        for(r in myResponses){
+        for (r in myResponses) {
             sb.appendLine("response: ${r.key}")
         }
         sb.appendLine()
         sb.appendLine("Controls:")
-        for((c, mean) in myControlMeans){
+        for ((c, mean) in myControlMeans) {
             sb.appendLine("control: $c \t mean = $mean")
         }
         sb.appendLine()

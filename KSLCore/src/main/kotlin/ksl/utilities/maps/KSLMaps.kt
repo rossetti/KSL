@@ -22,6 +22,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.utilities.Interval
+import ksl.utilities.KSLArrays
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -163,6 +164,23 @@ fun Map<String, DoubleArray>.toMapOfLists(): Map<String, List<Double>> {
         map[name] = array.toList()
     }
     return map
+}
+
+/**
+ *  Converts the data map to a 2-D array. The values of the map
+ *  are extracted
+ */
+fun Map<String, DoubleArray>.to2DArray() : Array<DoubleArray> {
+    return this.values.toTypedArray()
+}
+
+/**
+ * The map of arrays is considered rectangular if all arrays in the map
+ * have the same number of elements.
+ * @return true if the data map is rectangular
+ */
+fun Map<String, DoubleArray>.isRectangular() : Boolean {
+    return KSLArrays.isRectangular(this.values)
 }
 
 /**

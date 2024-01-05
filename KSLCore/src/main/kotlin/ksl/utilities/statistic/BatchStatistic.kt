@@ -17,6 +17,8 @@
  */
 package ksl.utilities.statistic
 
+import ksl.utilities.isRectangular
+import ksl.utilities.maps.isRectangular
 import ksl.utilities.random.rvariable.ExponentialRV
 
 interface BatchStatisticIfc : StatisticIfc {
@@ -533,6 +535,41 @@ class BatchStatistic constructor(
             }
             return bm
         }
+
+        /**
+         *  Each array in the matrix is batched into the supplied number of batches
+         *
+         *  @param matrix the matrix of data, each row is an array, all arrays must be the same size
+         *   i.e. a rectangular matrix
+         *  @param numBatches the number of batches (k), must be less than or equal to n and greater than 0
+         *  @return the returned array has the row order as the original array, but the original array has been batched
+         *  to contain the (k) batch means of the data.
+         */
+        fun batchMeans(matrix: Array<DoubleArray>, numBatches: Int) : Array<DoubleArray> {
+            require(matrix.isRectangular()) { "The supplied array was not rectangular"}
+            val list = mutableListOf<DoubleArray>()
+            for(array in matrix){
+                list.add(batchMeans(array, numBatches))
+            }
+            return list.toTypedArray()
+        }
+
+        /**
+         *  Each array in the data map is batched into the supplied number of batches. The map must
+         *  be rectangular. That is all arrays are of the same size
+         *
+         *  @param numBatches the number of batches (k), must be less than or equal to n and greater than 0
+         *  @return the returned array has the same key as the original array, but the original array has been batched
+         *  to contain the (k) batch means of the data.
+         */
+        fun batchMeans(data: Map<String, DoubleArray>, numBatches: Int): Map<String, DoubleArray> {
+            require(data.isRectangular()) { "The supplied map was not rectangular"}
+            val map = mutableMapOf<String, DoubleArray>()
+            for((name, array) in data){
+                map[name] = batchMeans(array, numBatches)
+            }
+            return map
+        }
     }
 }
 
@@ -549,7 +586,7 @@ fun main(){
     // the batch size can be no smaller than this amount
     val minBatchSize = 25
 
-    // maximum number of batch multiple
+    // maximum number of batch multiples
     //  The multiple of the minimum number of batches
     //  that determines the maximum number of batches
     //  e.g. if the min. number of batches is 20
