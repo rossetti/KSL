@@ -20,10 +20,7 @@ package ksl.utilities
 
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.random.rvariable.ConstantRV
-import ksl.utilities.statistic.BoxPlotSummary
-import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.Statistic
-import ksl.utilities.statistic.StatisticIfc
+import ksl.utilities.statistic.*
 import java.text.DecimalFormat
 import java.util.*
 import kotlin.math.*
@@ -706,6 +703,26 @@ object KSLArrays {
         val nc: Int = array2D[0].size // number of columns in first row, all rows must have this
         for (i in array2D.indices) {
             if (array2D[i].size != nc) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * The collection of arrays is considered rectangular if all arrays in the collection
+     * have the same number of elements.
+     *
+     * @param collection the array to check
+     * @return true if the array is rectangular
+     */
+    fun isRectangular(collection: Collection<DoubleArray>) : Boolean {
+        if (collection.isEmpty()) {
+            return false // no rows can't be rectangular
+        }
+        val nc: Int = collection.first().size // number of elements in first array, all rows must have this
+        for(array in collection){
+            if (array.size != nc){
                 return false
             }
         }
@@ -2434,6 +2451,20 @@ fun DoubleArray.lag(k: Int = 1): DoubleArray {
  */
 fun DoubleArray.statistics(): Statistic {
     return KSLArrays.statistics(this)
+}
+
+/** Takes an array of length, n, and computes k batch means where each batch mean
+ * is the average of batchSize (b) elements such that b = Math.FloorDiv(n, k).
+ * If the number of batches, k, does not divide evenly into n, then n - (k*b) observations are not processed
+ * at the end of the array.
+ *
+ * The batch means are contained in the returned array.
+ *
+ * @param numBatches the number of batches (k), must be less than or equal to n and greater than 0
+ * @return an array of the batch means
+ */
+fun DoubleArray.batchMeans(numBatches: Int): DoubleArray {
+    return BatchStatistic.batchMeans(this, numBatches)
 }
 
 /**
