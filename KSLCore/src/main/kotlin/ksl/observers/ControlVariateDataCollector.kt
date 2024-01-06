@@ -25,43 +25,11 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.KSLArrays
-import ksl.utilities.batchMeans
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.statistic.BatchStatistic
-import ksl.utilities.statistic.RegressionResults
+import ksl.utilities.statistic.RegressionData
 import ksl.utilities.transpose
-import org.hipparchus.stat.regression.OLSMultipleLinearRegression
 import org.jetbrains.kotlinx.dataframe.AnyFrame
-
-/**
- *  The [response] is an n by 1 array of the data, where n is the number of observations for a
- *  particular response variable.
- *  The [controls] is an n by k matrix of the control variate data ready for regression, where
- *  k is the number of controls and n is the number of observations. The control variate's
- *  mean has already been subtracted from the control's response.
- */
-data class CVData(
-    val response: DoubleArray,
-    val controls: Array<DoubleArray>
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as CVData
-
-        if (!response.contentEquals(other.response)) return false
-        if (!controls.contentDeepEquals(other.controls)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = response.contentHashCode()
-        result = 31 * result + controls.contentDeepHashCode()
-        return result
-    }
-}
 
 /**
  * Defines responses and controls for a control variate experiment. Collects the
@@ -286,46 +254,21 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
         responseName: String,
         numBatches: Int = numReplications,
         controlNames: List<String> = controlNames()
-    ): CVData {
+    ): RegressionData {
         require(numBatches <= numReplications) { "The number of batches must be <= the number of replications." }
         // if numBatches is numReplications, then no batching should occur
         // that is each replication is an observation
         val response = responseReplicationData(responseName)
         val controls = controlsData(controlNames)
         if (numBatches == numReplications) {
-            return CVData(response, controls.transpose())
+            return RegressionData(response, controls.transpose())
         } else {
             // do the batching
             val rbm = BatchStatistic.batchMeans(response, numBatches)
             val cbm = BatchStatistic.batchMeans(controls, numBatches)
-            return CVData(rbm, cbm.transpose())
+            return RegressionData(rbm, cbm.transpose())
         }
     }
-
-//    /** The replications are the rows. The columns are ordered first with response names
-//     * and then with control names based on the order from getResponseNames() and
-//     * getControlNames()
-//     *
-//     * @return the response and control data from each replication
-//     */
-//    fun collectedData(): Array<DoubleArray> {
-//        val numRows: Int = myResponseCollector.numReplications
-//        val numCols = numberOfResponses + numberOfControlVariates()
-//        val data = Array(numRows) { DoubleArray(numCols) }
-//        var j = 0
-//        for (r in myResponses) {
-//            val src = responseReplicationData(r.key)
-//            KSLArrays.fillColumn(j, src, data)
-//            j++
-//        }
-//        val controlNames = controlNames()
-//        for (name in controlNames) {
-//            val src = controlReplicationData(name)
-//            KSLArrays.fillColumn(j, src, data)
-//            j++
-//        }
-//        return data
-//    }
 
     /** The response data and then the control data is returned in the map.
      *
@@ -351,40 +294,6 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      */
     fun toDataFrame(): AnyFrame {
         return collectedDataAsMap().toDataFrame()
-    }
-
-    private val myRegression by lazy { OLSMultipleLinearRegression() }
-
-    fun regressionResults(
-        responseName: String,
-        numBatches: Int = numReplications,
-        controlNames: List<String> = controlNames()
-    ) {
-        val cd = collectedData(responseName, numBatches, controlNames)
-        // the data could have been batched
-        val numRows = cd.response.size
-        val numColumns = KSLArrays.numColumns(cd.controls)
-        require(numRows > numColumns) { "There is not enough observations ($numRows) to regress with ($numColumns) controls" }
-        myRegression.newSampleData(cd.response, cd.controls)
-        val result = RegressionResults(
-            parameters = myRegression.estimateRegressionParameters(),
-            parametersStdError = myRegression.estimateRegressionParametersStandardErrors(),
-            parametersVariance = myRegression.estimateRegressionParametersVariance(),
-            residuals = myRegression.estimateResiduals(),
-            regressandVariance = myRegression.estimateRegressandVariance(),
-            rSquared = myRegression.calculateRSquared(),
-            adjustedRSquared = myRegression.calculateAdjustedRSquared(),
-            regressionStandardError = myRegression.estimateRegressionStandardError(),
-            residualSumOfSquares = myRegression.calculateResidualSumOfSquares(),
-            totalSumOfSquares = myRegression.calculateTotalSumOfSquares(),
-//            errorSumSquares =,
-//            meanSquareError =,
-            errorVariance = myRegression.estimateErrorVariance(),
-            hatMatrix = myRegression.calculateHat().data,
-            hasIntercept = !myRegression.isNoIntercept,
-            numParameters = numColumns,
-            numObservations = numRows.toLong()
-        )
     }
 
     override fun toString(): String {
