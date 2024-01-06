@@ -1041,11 +1041,11 @@ object KSLArrays {
     }
 
     /**
-     * Adds the arrays element by element. Arrays must have same length and must not be null.
+     * Subtracts the arrays element by element. Arrays must have same length and must not be null.
      *
      * @param a the first array
      * @param b the second array
-     * @return the array containing a[i]-b[i]
+     * @return the new array containing a[i]-b[i]
      */
     fun subtractElements(a: DoubleArray, b: DoubleArray): DoubleArray {
         require(a.size == b.size) { "The array lengths must match" }
