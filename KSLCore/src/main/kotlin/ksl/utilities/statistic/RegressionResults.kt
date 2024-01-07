@@ -290,17 +290,50 @@ interface RegressionResultsIfc {
  *  data should not include a column of 1's for estimating an intercept term. The rows
  *  of the array represent the predictor values associated with each observation. The
  *  array must be rectangular. That is, each row has the same number of columns.
+ *  @param responseName an optional name for the response variable. The default is Y
+ *  @param predictorNames a list of names to associate with the predictors. The
+ *  default is X_1, X_2,..., X_k
  */
-class RegressionData(
+data class RegressionData(
     val response: DoubleArray,
     val data: Array<DoubleArray>,
+    val hasIntercept: Boolean = true,
     var responseName: String = "Y",
     val predictorNames: List<String> = makePredictorNames(data)
 ) {
+
     init {
         require(response.size == data.size) { "The number of observations do not match the regression observations" }
         require(data.isRectangular()) { "The data matrix must be rectangular. Each array must be of the same size" }
-        data.minNumColumns()
+        val np = data.maxNumColumns()
+        require(np == predictorNames.size){"There need to be $np predictor names"}
+    }
+
+    val numPredictors : Int
+        get() = predictorNames.size
+    
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as RegressionData
+
+        if (!response.contentEquals(other.response)) return false
+        if (!data.contentDeepEquals(other.data)) return false
+        if (hasIntercept != other.hasIntercept) return false
+        if (responseName != other.responseName) return false
+        if (predictorNames != other.predictorNames) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = response.contentHashCode()
+        result = 31 * result + data.contentDeepHashCode()
+        result = 31 * result + hasIntercept.hashCode()
+        result = 31 * result + responseName.hashCode()
+        result = 31 * result + predictorNames.hashCode()
+        return result
     }
 
     companion object {
