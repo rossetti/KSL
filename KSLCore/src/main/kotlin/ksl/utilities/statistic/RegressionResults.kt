@@ -1,14 +1,13 @@
 package ksl.utilities.statistic
 
-import ksl.utilities.Interval
-import ksl.utilities.KSLArrays
-import ksl.utilities.copyOf
+import ksl.utilities.*
 import ksl.utilities.distributions.StudentT
-import ksl.utilities.isRectangular
+import ksl.utilities.io.write
 import org.hipparchus.stat.regression.OLSMultipleLinearRegression
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
 import org.jetbrains.kotlinx.dataframe.api.toColumn
+import java.util.*
 import kotlin.math.sqrt
 
 
@@ -101,7 +100,7 @@ interface RegressionResultsIfc {
      *   The degrees of freedom for the error
      */
     val errorDoF
-        get() = numObservations - numParameters
+        get() = (numObservations - numParameters).toDouble()
 
     /**
      *  An estimate of the variance of the (residual) errors. This is MSE = SSE/(n-p)
@@ -235,30 +234,48 @@ interface RegressionResultsIfc {
      */
     fun parameterResults(level: Double = 0.95): AnyFrame {
         require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+        //TODO put parameter names here
         val param = parameters.toList().toColumn("parameter")
         val paramSE = parametersStdError.toList().toColumn("parameterSE")
+        val paramTValues = parameterTStatistics.toList().toColumn("TValue")
+        //TODO put p-values here
         val intervals = parameterConfidenceIntervals(level)
         val lowerLimits = List<Double>(intervals.size) { intervals[it].lowerLimit }
         val upperLimits = List<Double>(intervals.size) { intervals[it].upperLimit }
         val llCol = lowerLimits.toColumn("LowerLimit")
         val ulCol = upperLimits.toColumn("UpperLimit")
-        val paramTValues = parameterTStatistics.toList().toColumn("TValue")
         val df = dataFrameOf(param, paramSE, paramTValues, llCol, ulCol)
         return df
     }
 
     // add toString() and other derivable facts
 
-    fun results(level: Double = 0.95) : String {
+    fun results(level: Double = 0.95): String {
         val sb = StringBuilder()
-
-        sb.appendLine("Regression Result")
-        sb.appendLine("Parameter Results")
+        sb.appendLine("Regression Results")
+        sb.appendLine("-------------------------------------------------------------------------------------")
+        sb.appendLine("Parameter Estimation Results")
         sb.appendLine(parameterResults(level))
-
+        sb.appendLine("-------------------------------------------------------------------------------------")
+        sb.appendLine("Error Variance (MSE) = $errorVariance")
+        sb.appendLine("Regression Standard Error = $regressionStandardError")
+        sb.appendLine("R-Squared = $rSquared")
+        sb.appendLine("Adjusted R-Squared = $adjustedRSquared")
+        sb.appendLine("-------------------------------------------------------------------------------------")
+        sb.appendLine("Analysis of Variance")
+        val formatter = Formatter(sb)
+        formatter.format("%-15s %10s %10s %15s %15s %n", "Source   ", "SumSq",
+            "DOF", "MS", "f_0" )
+        formatter.format("%-15s %10g %10.0f %15f %15f %n", "Regression", regressionSumOfSquares,
+            regressionDoF, meanSquaredOfRegression, fStatistic )
+        formatter.format("%-15s %10g %10.0f %15f %n", "Error", residualSumOfSquares, errorDoF, meanSquaredError)
+        val dof = regressionDoF + errorDoF
+        formatter.format("%-15s %10g %10.0f %n", "Total", totalSumOfSquares, dof)
         return sb.toString()
     }
 
+    //TODO some diagnostic plots
+    
 }
 
 /**
@@ -384,6 +401,22 @@ class OLSRegression(
 
 }
 
-fun main(){
-    val y = doubleArrayOf(9.95, 24.45, 31.75, )
+fun main() {
+    val y = doubleArrayOf(
+        9.95, 24.45, 31.75, 35.0, 25.02, 16.86, 14.38, 9.6, 24.35, 27.5, 17.08, 37.0,
+        41.95, 11.66, 21.65, 17.89, 69.0, 10.3, 34.93, 46.59, 44.88, 54.12, 56.63, 22.13, 21.15
+    )
+    val x1 = doubleArrayOf(
+        2.0, 8.0, 11.0, 10.0, 8.0, 4.0, 2.0, 2.0, 9.0, 8.0, 4.0, 11.0, 12.0, 2.0, 4.0,
+        4.0, 20.0, 1.0, 10.0, 15.0, 15.0, 16.0, 17.0, 6.0, 5.0
+    )
+    val x2 = doubleArrayOf(
+        50.0, 110.0, 120.0, 550.0, 295.0, 200.0, 375.0, 52.0, 100.0, 300.0, 412.0,
+        400.0, 500.0, 360.0, 205.0, 400.0, 600.0, 585.0, 540.0, 250.0, 290.0, 510.0, 590.0, 100.0, 400.0
+    )
+
+    val data = arrayOf(x1, x2).transpose()
+    val r = OLSRegression(y, data)
+    println(r.results())
+
 }

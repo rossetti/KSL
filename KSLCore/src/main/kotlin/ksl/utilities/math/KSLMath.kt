@@ -517,3 +517,5 @@ object KSLMath {
         return value.toFloat()
     }
 }
+
+fun Double.fmt(scale: Int) = "%.${scale}f".format(this)
