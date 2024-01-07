@@ -264,10 +264,14 @@ interface RegressionResultsIfc {
         sb.appendLine("-------------------------------------------------------------------------------------")
         sb.appendLine("Analysis of Variance")
         val formatter = Formatter(sb)
-        formatter.format("%-15s %10s %10s %15s %15s %n", "Source   ", "SumSq",
-            "DOF", "MS", "f_0" )
-        formatter.format("%-15s %10g %10.0f %15f %15f %n", "Regression", regressionSumOfSquares,
-            regressionDoF, meanSquaredOfRegression, fStatistic )
+        formatter.format(
+            "%-15s %10s %10s %15s %15s %n", "Source   ", "SumSq",
+            "DOF", "MS", "f_0"
+        )
+        formatter.format(
+            "%-15s %10g %10.0f %15f %15f %n", "Regression", regressionSumOfSquares,
+            regressionDoF, meanSquaredOfRegression, fStatistic
+        )
         formatter.format("%-15s %10g %10.0f %15f %n", "Error", residualSumOfSquares, errorDoF, meanSquaredError)
         val dof = regressionDoF + errorDoF
         formatter.format("%-15s %10g %10.0f %n", "Total", totalSumOfSquares, dof)
@@ -275,7 +279,7 @@ interface RegressionResultsIfc {
     }
 
     //TODO some diagnostic plots
-    
+
 }
 
 /**
@@ -283,35 +287,39 @@ interface RegressionResultsIfc {
  *   response variable.
  *  The [data] is an n by k matrix of the data for the regression, where
  *  k is the number of regression coefficients and n is the number of observations. This
- *  data should not include a column of 1's for estimating an intercept term.
+ *  data should not include a column of 1's for estimating an intercept term. The rows
+ *  of the array represent the predictor values associated with each observation. The
+ *  array must be rectangular. That is, each row has the same number of columns.
  */
-data class RegressionData(
+class RegressionData(
     val response: DoubleArray,
-    val data: Array<DoubleArray>
+    val data: Array<DoubleArray>,
+    var responseName: String = "Y",
+    val predictorNames: List<String> = makePredictorNames(data)
 ) {
     init {
         require(response.size == data.size) { "The number of observations do not match the regression observations" }
         require(data.isRectangular()) { "The data matrix must be rectangular. Each array must be of the same size" }
+        data.minNumColumns()
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+    companion object {
 
-        other as RegressionData
+        /**
+         *  @return a list of predictor names X_1, X_2, etc
+         */
+        fun makePredictorNames(data: Array<DoubleArray>): List<String> {
+            require(data.isRectangular()) { "The data matrix must be rectangular. Each array must be of the same size" }
+            return makePredictorNames(data.maxNumColumns())
+        }
 
-        if (!response.contentEquals(other.response)) return false
-        if (!data.contentDeepEquals(other.data)) return false
-
-        return true
+        /**
+         *  @return a list of predictor names X_1, X_2, etc
+         */
+        fun makePredictorNames(numPredictors: Int): List<String> {
+            return List(numPredictors) { "X_${it + 1}" }
+        }
     }
-
-    override fun hashCode(): Int {
-        var result = response.contentHashCode()
-        result = 31 * result + data.contentDeepHashCode()
-        return result
-    }
-
 }
 
 /**
@@ -399,6 +407,9 @@ class OLSRegression(
     override val hatMatrix: Array<DoubleArray>
         get() = myRegression.calculateHat().data
 
+    override fun toString(): String {
+        return results()
+    }
 }
 
 fun main() {

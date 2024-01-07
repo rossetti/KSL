@@ -23,6 +23,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.utilities.Interval
 import ksl.utilities.KSLArrays
+import ksl.utilities.maxNumColumns
+import ksl.utilities.minNumColumns
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -170,17 +172,39 @@ fun Map<String, DoubleArray>.toMapOfLists(): Map<String, List<Double>> {
  *  Converts the data map to a 2-D array. The values of the map
  *  are extracted
  */
-fun Map<String, DoubleArray>.to2DArray() : Array<DoubleArray> {
+fun Map<String, DoubleArray>.to2DArray(): Array<DoubleArray> {
     return this.values.toTypedArray()
 }
 
 /**
  * The map of arrays is considered rectangular if all arrays in the map
- * have the same number of elements.
+ * have the same number of elements (same size).
  * @return true if the data map is rectangular
  */
-fun Map<String, DoubleArray>.isRectangular() : Boolean {
+fun Map<String, DoubleArray>.isRectangular(): Boolean {
     return KSLArrays.isRectangular(this.values)
+}
+
+/**
+ *  The size of the array that has the minimum size. If empty
+ *  the array size is 0.
+ */
+fun MutableMap<String, DoubleArray>.minArraySize(): Int{
+    if (this.isEmpty()){
+        return 0
+    }
+    return this.values.toTypedArray().minNumColumns()
+}
+
+/**
+ *  The size of the array that has maximum size. If empty
+ *  the array size is 0.
+ */
+fun MutableMap<String, DoubleArray>.maxArraySize(): Int{
+    if (this.isEmpty()){
+        return 0
+    }
+    return this.values.toTypedArray().maxNumColumns()
 }
 
 /**
@@ -244,4 +268,28 @@ fun <T : Any> toMapWithOnlyPrimaryConstructorProperties(obj: T): Map<String, Any
     }.toMap()
 }
 
+/**
+ *  A DataMap represents named arrays that have the same size.
+ *  By construction, the map must have arrays of the same length.
+ *  @param arraySize the size of the arrays to be added to the map. The array must have
+ *  at least one element.
+ *  @param map an optional map. If empty, then added arrays must have
+ *  length [arraySize]. If not empty, then its arrays must have size [arraySize].
+ */
+class DataMap(
+    val arraySize: Int,
+    private val map: MutableMap<String, DoubleArray> = mutableMapOf()
+) : MutableMap<String, DoubleArray> by map {
+    init {
+        require(arraySize >= 1) { "There must be at lease one element in each array" }
+        if (map.isNotEmpty()){
+            require(map.isRectangular()) {" The supplied map does not have equal length arrays"}
+            require(map.values.first().size == arraySize) {"The map does not have arrays with size: $arraySize "}
+        }
+    }
 
+    override fun put(key: String, value: DoubleArray): DoubleArray? {
+        require(value.size == arraySize) { "The added array must have size $arraySize" }
+        return map.put(key, value)
+    }
+}
