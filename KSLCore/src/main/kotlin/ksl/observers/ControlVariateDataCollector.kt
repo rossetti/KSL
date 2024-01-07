@@ -27,7 +27,9 @@ import ksl.simulation.ModelElement
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.statistic.BatchStatistic
+import ksl.utilities.statistic.OLSRegression
 import ksl.utilities.statistic.RegressionData
+import ksl.utilities.statistic.RegressionResultsIfc
 import ksl.utilities.transpose
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 
@@ -261,13 +263,17 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
         val response = responseReplicationData(responseName)
         val controls = controlsData(controlNames)
         if (numBatches == numReplications) {
-            return RegressionData(response, controls.transpose())
+            return RegressionData(response, controls.transpose(), responseName = responseName, predictorNames = controlNames)
         } else {
             // do the batching
             val rbm = BatchStatistic.batchMeans(response, numBatches)
             val cbm = BatchStatistic.batchMeans(controls, numBatches)
-            return RegressionData(rbm, cbm.transpose())
+            return RegressionData(rbm, cbm.transpose(), responseName = responseName, predictorNames = controlNames)
         }
+    }
+
+    fun regressionResults(regressionData: RegressionData) : RegressionResultsIfc {
+        return OLSRegression(regressionData)
     }
 
     /** The response data and then the control data is returned in the map.
