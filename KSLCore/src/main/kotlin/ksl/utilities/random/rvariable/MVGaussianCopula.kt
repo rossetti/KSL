@@ -37,6 +37,9 @@ class MVGaussianCopula(
     private val mvNormalRV: MVNormalRV = MVNormalRV.createStandardMVN(correlation, stream)
     private val myCorrelation = correlation
 
+    val correlations
+        get() =  myCorrelation.copyOf()
+
     override val dimension: Int
         get() = mvNormalRV.dimension
 
