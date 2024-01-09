@@ -2,10 +2,12 @@ package ksl.utilities.random.rvariable
 
 
 import ksl.utilities.KSLArrays
+import ksl.utilities.addConstant
+import ksl.utilities.io.write
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import org.hipparchus.linear.CholeskyDecomposition
 import org.hipparchus.linear.MatrixUtils
-import java.util.*
 import kotlin.math.sqrt
 
 /**
@@ -19,21 +21,31 @@ class MVNormalRV constructor(
     covariances: Array<DoubleArray>,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : MVRVariableIfc {
-    protected val covariances: Array<DoubleArray>
-    protected val cfL: Array<DoubleArray> // Cholesky decomposition array
-
     override val dimension: Int
-    protected val means: DoubleArray
-    protected val normalRV: NormalRV
-
+    private val myCovariances: Array<DoubleArray>
+    private val cfL: Array<DoubleArray> // Cholesky decomposition array
+    private val myMeans: DoubleArray
+    private val normalRV: NormalRV
     init {
         require(isValidCovariance(covariances)) { "The covariance array was not valid" }
         dimension = covariances.size
         cfL = choleskyDecomposition(covariances)
-        this.covariances = KSLArrays.copy2DArray(covariances)
-        this.means = means.copyOf(means.size)
+        this.myCovariances = KSLArrays.copy2DArray(covariances)
+        this.myMeans = means.copyOf(means.size)
         normalRV = NormalRV(0.0, 1.0, stream)
     }
+
+    val means
+        get() = myMeans.copyOf()
+
+    val covariances
+        get() = KSLArrays.copy2DArray(myCovariances)
+
+    val correlations
+        get() = convertToCorrelation(myCovariances)
+
+    val choleskyDecomposition
+        get() = KSLArrays.copy2DArray(cfL)
 
     override var rnStream: RNStreamIfc
         get() = normalRV.rnStream
@@ -42,17 +54,17 @@ class MVNormalRV constructor(
         }
 
     override fun instance(stream: RNStreamIfc): MVRVariableIfc {
-        return MVNormalRV(means, covariances, stream)
+        return MVNormalRV(myMeans, myCovariances, stream)
     }
 
     override fun antitheticInstance(): MVRVariableIfc {
-        return MVNormalRV(means, covariances, normalRV.antitheticInstance().rnStream)
+        return MVNormalRV(myMeans, myCovariances, normalRV.antitheticInstance().rnStream)
     }
 
     override fun sample(array: DoubleArray) {
         require(array.size == dimension) { "The length of the array was not the proper dimension" }
         val c: DoubleArray = KSLArrays.postProduct(cfL, normalRV.sample(dimension))
-        val result: DoubleArray = KSLArrays.addElements(means, c)
+        val result: DoubleArray = KSLArrays.addElements(myMeans, c)
         System.arraycopy(result, 0, array, 0, result.size)
     }
 
@@ -88,45 +100,53 @@ class MVNormalRV constructor(
 
     override fun toString(): String {
         val sb = StringBuilder("MVNormalRV")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("nDim = ").append(dimension)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("means = ")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("[")
-        sb.append(KSLArrays.toCSVString(means))
+        sb.append(KSLArrays.toCSVString(myMeans))
         sb.append("]")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         sb.append("covariances = ")
-        sb.append(System.lineSeparator())
-        for (i in covariances.indices) {
+        sb.appendLine()
+        for (i in myCovariances.indices) {
             sb.append("[")
-            sb.append(KSLArrays.toCSVString(covariances[i]))
+            sb.append(KSLArrays.toCSVString(myCovariances[i]))
             sb.append("]")
-            sb.append(System.lineSeparator())
+            sb.appendLine()
         }
         sb.append("Cholesky decomposition = ")
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         for (i in cfL.indices) {
             sb.append("[")
             sb.append(KSLArrays.toCSVString(cfL[i]))
             sb.append("]")
-            sb.append(System.lineSeparator())
+            sb.appendLine()
         }
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         return sb.toString()
     }
 
     companion object {
-        /**
-         * @param means       the means for the distribution
-         * @param stdDevs     an array holding the standard deviations
+
+        /** Creates a standard MVN with means 0.0 and variances 1.0, with the
+         *  supplied correlation matrix.
+         *
          * @param correlation the correlation matrix as an array
+         * @param stream      the source for randomness
          * @return the created multi-variate normal
          */
-        fun createRV(means: DoubleArray, stdDevs: DoubleArray, correlation: Array<DoubleArray>): MVNormalRV {
-            val covariances = convertToCovariance(stdDevs, correlation)
-            return MVNormalRV(means, covariances)
+        fun createStandardMVN(
+            correlation: Array<DoubleArray>,
+            stream: RNStreamIfc = KSLRandom.nextRNStream()
+        ) : MVNormalRV {
+            val d = correlation.size
+            val means = DoubleArray(d)
+            val sigmas = DoubleArray(d)
+            sigmas.addConstant(1.0)
+            return createRV(means, sigmas, correlation, stream)
         }
 
         /**
@@ -140,7 +160,7 @@ class MVNormalRV constructor(
             means: DoubleArray,
             stdDevs: DoubleArray,
             correlation: Array<DoubleArray>,
-            stream: RNStreamIfc
+            stream: RNStreamIfc = KSLRandom.nextRNStream()
         ): MVNormalRV {
             val covariances = convertToCovariance(stdDevs, correlation)
             return MVNormalRV(means, covariances, stream)
@@ -176,6 +196,9 @@ class MVNormalRV constructor(
             for (i in correlation.indices) {
                 for (j in correlation.indices) {
                     if (correlation[i][j] < -1.0 || correlation[i][j] > 1.0) {
+                        if (KSLMath.equal(correlation[i][j], 1.0)){
+                            return true
+                        }
                         return false
                     }
                     if (correlation[i][j] != correlation[j][i]) {
@@ -258,4 +281,7 @@ fun main() {
         val sample: DoubleArray = rv.sample()
         println(KSLArrays.toCSVString(sample))
     }
+
+    println()
+    rv.correlations.write()
 }
