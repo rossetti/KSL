@@ -30,7 +30,6 @@ import ksl.utilities.random.rng.RNStreamIfc
  *  @param bvnCorrelation is the correlation of the bivariate Gaussian copula.
  *  The resulting correlation for (x_1, x_2) may not match this supplied correlation.
  */
-
 class BVGaussianCopulaRV(
     val marginal1: InverseCDFIfc,
     val marginal2: InverseCDFIfc,
