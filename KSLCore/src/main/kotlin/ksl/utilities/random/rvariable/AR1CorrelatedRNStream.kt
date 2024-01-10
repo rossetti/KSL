@@ -31,7 +31,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  */
 class AR1CorrelatedRNStream(
     lag1Corr: Double,
-    private val stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
 ) : RNStreamIfc by stream {
 
     private val myAR1NormalRV = AR1NormalRV(lag1Corr = lag1Corr, stream = stream)
