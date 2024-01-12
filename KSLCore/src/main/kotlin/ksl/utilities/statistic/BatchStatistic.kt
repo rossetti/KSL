@@ -403,6 +403,19 @@ class BatchStatistic constructor(
         return myBMStatistic.leadingDigitRule(multiplier)
     }
 
+    fun asString(): String {
+        val sb = StringBuilder("BatchStatistic{")
+        sb.append("name='").append(name).append('\'')
+        sb.append(", n=").append(count)
+        sb.append(", avg=").append(average)
+        sb.append(", sd=").append(standardDeviation)
+        sb.append(", ci=").append(confidenceInterval.toString())
+        sb.append(", lag-1 corr=").append(lag1Correlation)
+        sb.append(", Total number observed = ").append(myTotNumObs)
+        sb.append('}')
+        return sb.toString()
+    }
+
     override fun toString(): String {
         val sb = StringBuilder()
         sb.append(myBMStatistic.toString())

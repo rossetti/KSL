@@ -24,49 +24,38 @@ import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.MVSampleIfc
+import ksl.utilities.statistic.BatchStatistic
 import ksl.utilities.statistic.Statistic
 
 /**
  * An implementation for a multi-variable Metropolis Hasting process. The
  * process is observable at each step
- * @param theInitialX the initial value to start generation process
- * @param theTargetFun the target function
- * @param theProposalFun the proposal function
+ * @param initialX the initial value to start generation process
+ * @param targetFun the target function
+ * @param proposalFun the proposal function
  * @param stream the stream for accepting or rejecting proposed state
  */
 open class MetropolisHastingsMV(
-    theInitialX: DoubleArray,
-    theTargetFun: FunctionMVIfc,
-    theProposalFun: ProposalFunctionMVIfc,
+    initialX: DoubleArray,
+    val targetFun: FunctionMVIfc,
+    val proposalFun: ProposalFunctionMVIfc,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : MVSampleIfc, RNStreamChangeIfc, RNStreamControlIfc, Observable<MetropolisHastingsMV>() {
 
-    override var rnStream: RNStreamIfc = stream
+
     init {
-        require(theTargetFun.dimension == theProposalFun.dimension)
-        {"The multi-variate target function must have the same dimension as the multi-variate proposal function"}
-        require(theInitialX.size == theProposalFun.dimension)
+        require(initialX.size == targetFun.dimension)
         {"The initial array must have the same dimension as the multi-variate target and proposal functions"}
+        require(targetFun.dimension == proposalFun.dimension)
+        {"The multi-variate target function must have the same dimension as the multi-variate proposal function"}
     }
 
-    override var advanceToNextSubStreamOption: Boolean
-        get() = rnStream.advanceToNextSubStreamOption
-        set(value) {
-            rnStream.advanceToNextSubStreamOption = value
-        }
 
-    override var resetStartStreamOption: Boolean
-        get() = rnStream.resetStartStreamOption
-        set(value) {
-            rnStream.resetStartStreamOption = value
-        }
 
-    override val dimension: Int = theInitialX.size
-    private val targetFun = theTargetFun
-    private val proposalFun = theProposalFun
+    override val dimension: Int = initialX.size
 
-    var initialX = theInitialX.copyOf()
-        get() = field.copyOf()
+    var initialX = initialX.copyOf()
+ //       get() = field.copyOf()
         set(value) {
             require(value.size == field.size){"The supplied initial state array size must be = ${field.size}"}
             field = value.copyOf()
@@ -78,12 +67,14 @@ open class MetropolisHastingsMV(
     var isWarmedUp = false
         protected set
 
-    val acceptanceStatistics: Statistic = Statistic("Acceptance Statistics")
-        get() = field.instance()
+    private val myAcceptanceStatistics = Statistic("Acceptance Statistics")
 
-    private val myObservedStatistics: List<Statistic> = buildList {
+    val acceptanceStatistics: Statistic
+        get() = myAcceptanceStatistics.instance()
+
+    private val myObservedStatistics: List<BatchStatistic> = buildList {
         for (i in initialX.indices) {
-            this[i] = Statistic("X:" + (i + 1))
+            this.add(BatchStatistic(theName = "X_" + (i + 1)))
         }
     }
 
@@ -106,8 +97,8 @@ open class MetropolisHastingsMV(
     fun proposedY() : DoubleArray = proposedY.copyOf()
     fun previousX() : DoubleArray = previousX.copyOf()
 
-    fun observedStatistics(): List<Statistic> {
-        val mutableList = mutableListOf<Statistic>()
+    fun observedStatistics(): List<BatchStatistic> {
+        val mutableList = mutableListOf<BatchStatistic>()
         for (statistic in myObservedStatistics) {
             mutableList.add(statistic.instance())
         }
@@ -121,7 +112,7 @@ open class MetropolisHastingsMV(
         for (s in myObservedStatistics) {
             s.reset()
         }
-        acceptanceStatistics.reset()
+        myAcceptanceStatistics.reset()
     }
 
     /** Runs a warmup period and assigns the initial value of the process to the last
@@ -137,7 +128,7 @@ open class MetropolisHastingsMV(
         resetStatistics()
     }
 
-    /**  Resets statistics and sets the initial state the initial value or to the value
+    /**  Resets statistics and sets the initial state  to the initial value or to the value
      * found via the burn in period (if the burn in period was run).
      *
      */
@@ -178,12 +169,12 @@ open class MetropolisHastingsMV(
         lastAcceptanceProbability = acceptanceFunction(currentX, proposedY)
         if (rnStream.randU01() <= lastAcceptanceProbability) {
             currentX = proposedY
-            acceptanceStatistics.collect(1.0)
+            myAcceptanceStatistics.collect(1.0)
         } else {
-            acceptanceStatistics.collect(0.0)
+            myAcceptanceStatistics.collect(0.0)
         }
         for (i in currentX.indices) {
-            myObservedStatistics[0].collect(currentX[i])
+            myObservedStatistics[i].collect(currentX[i])
         }
         notifyObservers(this)
         return currentX
@@ -196,7 +187,7 @@ open class MetropolisHastingsMV(
      * @return the evaluated acceptance function
      */
     protected fun acceptanceFunction(currentX: DoubleArray, proposedY: DoubleArray): Double {
-        val fRatio = getFunctionRatio(currentX, proposedY)
+        val fRatio = functionRatio(currentX, proposedY)
         val pRatio = proposalFun.proposalRatio(currentX, proposedY)
         val ratio = fRatio * pRatio
         return minOf(ratio, 1.0)
@@ -208,23 +199,34 @@ open class MetropolisHastingsMV(
      * @param proposedY the proposed state
      * @return the ratio of f(y)/f(x) for the generation step
      */
-    protected fun getFunctionRatio(currentX: DoubleArray, proposedY: DoubleArray): Double {
+    protected fun functionRatio(currentX: DoubleArray, proposedY: DoubleArray): Double {
         val fx = targetFun.f(currentX)
         val fy = targetFun.f(proposedY)
         check(fx >= 0.0) { "The target function was < 0 at current state" }
         check(fy >= 0.0) { "The proposal function was < 0 at proposed state" }
-        val ratio: Double
-        if (fx != 0.0) {
-            ratio = fy / fx
-            targetFunctionAtCurrentX = fx
-            targetFunctionAtProposedY = fy
+        val ratio: Double = if (fx != 0.0) {
+            fy / fx
         } else {
-            ratio = Double.POSITIVE_INFINITY
-            targetFunctionAtCurrentX = fx
-            targetFunctionAtProposedY = fy
+            Double.POSITIVE_INFINITY
         }
+        targetFunctionAtCurrentX = fx
+        targetFunctionAtProposedY = fy
         return ratio
     }
+
+    override var rnStream: RNStreamIfc = stream
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
 
     override fun resetStartStream() {
         rnStream.resetStartStream()
@@ -245,7 +247,7 @@ open class MetropolisHastingsMV(
         }
 
     override fun sample(array: DoubleArray) {
-        require(array.size == dimension) {"The array size must be ${dimension}"}
+        require(array.size == dimension) {"The array size must be $dimension"}
         next().copyInto(array)
     }
 
@@ -276,7 +278,7 @@ open class MetropolisHastingsMV(
         sb.appendLine()
         sb.append("Acceptance Statistics")
         sb.appendLine()
-        sb.append(acceptanceStatistics.asString())
+        sb.append(myAcceptanceStatistics.asString())
         sb.appendLine()
         for (s in myObservedStatistics) {
             sb.append(s.asString())

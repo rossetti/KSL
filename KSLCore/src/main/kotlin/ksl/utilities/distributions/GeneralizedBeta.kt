@@ -28,27 +28,27 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *
  * @param alphaShape the first shape parameter
  * @param betaShape the second shape parameter
- * @param theMinimum the minimum of the range
- * @param theMaximum the maximum of the range
+ * @param minimum the minimum of the range
+ * @param maximum the maximum of the range
  */
 class GeneralizedBeta(
     alphaShape: Double,
     betaShape: Double,
-    theMinimum: Double = 0.0,
-    theMaximum: Double = 1.0,
+    minimum: Double = 0.0,
+    maximum: Double = 1.0,
     name: String? = null
 ) : Distribution<GeneralizedBeta>(name), ContinuousDistributionIfc, InverseCDFIfc {
 
     init {
-        require(theMinimum < theMaximum) { "Lower limit must be < upper limit. lower limit = $theMinimum upper limit = $theMaximum" }
+        require(minimum < maximum) { "Lower limit must be < upper limit. lower limit = $minimum upper limit = $maximum" }
     }
 
     private val myBeta = Beta(alphaShape, betaShape)
 
-    var min = theMinimum
+    var min = minimum
         private set
 
-    var max = theMaximum
+    var max = maximum
         private set
 
     val range : Double
