@@ -15,12 +15,11 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package ksl.examples.general.montecarlo
+package ksl.examples.book.chapter9
 
 import ksl.utilities.distributions.Normal
 import ksl.utilities.io.KSL
 import ksl.utilities.math.FunctionIfc
-import ksl.utilities.observers.ObservableIfc
 import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.mcmc.MetropolisHastings1D
 import ksl.utilities.random.mcmc.ProposalFunction1DIfc
@@ -28,26 +27,26 @@ import ksl.utilities.random.rvariable.NormalRV
 
 
 fun main() {
-
+    oneDimensionalMH()
 }
 
-fun oneDimensionalMH(){
-    val f = Function()
-    val q = PropFunction()
+private fun oneDimensionalMH(){
+    val f = Function1D()
+    val q = PropFunction1D()
     val m = MetropolisHastings1D(0.0, f, q)
-    m.attachObserver(WriteOut())
+    m.attachObserver(WriteOut1D())
     m.runAll(10000)
     println(m)
 }
 
-class Function : FunctionIfc {
+private class Function1D : FunctionIfc {
     var n = Normal(10.0, 1.0)
     override fun f(x: Double): Double {
         return n.pdf(x)
     }
 }
 
-class PropFunction : ProposalFunction1DIfc {
+private class PropFunction1D : ProposalFunction1DIfc {
     var n = NormalRV(0.0, 0.01)
     override fun proposalRatio(current: Double, proposed: Double): Double {
         return 1.0
@@ -58,7 +57,7 @@ class PropFunction : ProposalFunction1DIfc {
     }
 }
 
-class WriteOut : ObserverIfc<Double> {
+private class WriteOut1D : ObserverIfc<Double> {
     var printWriter = KSL.createPrintWriter("MHOut.txt")
     override fun onChange(newValue: Double) {
         printWriter.println(newValue)

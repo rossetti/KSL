@@ -30,21 +30,31 @@ interface ProposalFunctionMVIfc {
      */
     val dimension: Int
 
-    /** The ratio of g(y,x)/g(x,y).  The ratio of the proposal function
+    /** The ratio of g(y,x)/g(x,y).
+     *
+     *  proposal ratio = g(x|y)/g(y|x) = g(y,x)/g(x,y).
+     *
+     * The ratio of the proposal function
      * evaluated at x = current and y = proposed, where g() is some
      * proposal function of x and y. The implementor should ensure
      * that the returned ratio is a valid double
      *
-     * @param current the x to evaluate
-     * @param proposed the y to evaluate
+     * @param currentX the x to evaluate
+     * @param proposedY the y to evaluate
      * @return the ratio of the proposal function
      */
-    fun proposalRatio(current: DoubleArray, proposed: DoubleArray): Double
+    fun proposalRatio(currentX: DoubleArray, proposedY: DoubleArray): Double
 
     /**
      *
-     * @param current the current state value of the chain (i.e. x)
-     * @return the generated possible state (i.e. y) which may or may not be accepted
+     * @param currentX the current state value of the chain (i.e. x)
+     * @return the generated possible state (i.e. proposed y) which may or may not be accepted
      */
-    fun generateProposedGivenCurrent(current: DoubleArray): DoubleArray
+    fun generateProposedGivenCurrent(currentX: DoubleArray): DoubleArray
+}
+
+abstract class ProposalFunctionMV(val density: FunctionMVIfc) : ProposalFunctionMVIfc {
+    override val dimension: Int
+        get() = density.dimension
+
 }

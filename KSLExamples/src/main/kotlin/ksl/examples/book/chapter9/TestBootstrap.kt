@@ -16,14 +16,13 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.general.utilities
+package ksl.examples.book.chapter9
 
 import ksl.utilities.distributions.Lognormal
 import ksl.utilities.distributions.Normal
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.SampleIfc
 import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.statistic.*
 
 fun main() {

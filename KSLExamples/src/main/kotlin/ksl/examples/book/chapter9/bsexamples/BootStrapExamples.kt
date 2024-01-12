@@ -1,7 +1,6 @@
-package ksl.examples.general.utilities.bsexamples
+package ksl.examples.book.chapter9.bsexamples
 
 import ksl.utilities.Interval
-import ksl.utilities.io.write
 import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.KSLRandom

@@ -1,4 +1,4 @@
-package ksl.examples.general.models
+package ksl.examples.book.chapter9
 
 import ksl.examples.book.chapter5.PalletWorkCenter
 import ksl.observers.ControlVariateDataCollector
