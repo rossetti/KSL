@@ -209,8 +209,8 @@ open class MetropolisHastingsMV(
      * @return the ratio of f(y)/f(x) for the generation step
      */
     protected fun getFunctionRatio(currentX: DoubleArray, proposedY: DoubleArray): Double {
-        val fx = targetFun.fx(currentX)
-        val fy = targetFun.fx(proposedY)
+        val fx = targetFun.f(currentX)
+        val fy = targetFun.f(proposedY)
         check(fx >= 0.0) { "The target function was < 0 at current state" }
         check(fy >= 0.0) { "The proposal function was < 0 at proposed state" }
         val ratio: Double

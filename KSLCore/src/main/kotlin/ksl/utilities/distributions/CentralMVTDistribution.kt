@@ -72,7 +72,7 @@ class CentralMVTDistribution(
     }
 
     private inner class GenzTFunc(override val dimension: Int) : FunctionMVIfc {
-        override fun fx(x: DoubleArray): Double {
+        override fun f(x: DoubleArray): Double {
             return genzTFunction(x)
         }
     }

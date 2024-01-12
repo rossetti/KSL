@@ -88,11 +88,11 @@ class MCMultiVariateIntegration(
 
     override fun replication(j: Int): Double {
         return if (isAntitheticOptionOn) {
-            val y1: Double = myFunction.fx(mySampler.sample())
-            val y2: Double = myFunction.fx(myAntitheticSampler!!.sample())
+            val y1: Double = myFunction.f(mySampler.sample())
+            val y2: Double = myFunction.f(myAntitheticSampler!!.sample())
             (y1 + y2) / 2.0
         } else {
-            myFunction.fx(mySampler.sample())
+            myFunction.f(mySampler.sample())
         }
     }
 
@@ -109,7 +109,7 @@ fun main() {
     class TestFunc : FunctionMVIfc {
         override val dimension: Int = 2
 
-        override fun fx(x: DoubleArray): Double {
+        override fun f(x: DoubleArray): Double {
             require(x.size == dimension) { "The array size was not $dimension" }
             return 4.0 * x[0] * x[0] * x[1] + x[1] * x[1]
         }

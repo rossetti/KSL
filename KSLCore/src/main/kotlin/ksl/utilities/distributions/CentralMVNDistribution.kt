@@ -103,7 +103,7 @@ open class CentralMVNDistribution (
         get() = integrator.toString()
 
     private inner class GenzFunc(override val dimension: Int) : FunctionMVIfc {
-        override fun fx(x: DoubleArray): Double {
+        override fun f(x: DoubleArray): Double {
             return genzFunction(x)
         }
     }

@@ -104,7 +104,11 @@ class DMarkovChain(
 }
 
 fun main() {
-    val p = arrayOf(doubleArrayOf(0.3, 0.1, 0.6), doubleArrayOf(0.4, 0.4, 0.2), doubleArrayOf(0.1, 0.7, 0.2))
+    val p = arrayOf(
+        doubleArrayOf(0.3, 0.1, 0.6),
+        doubleArrayOf(0.4, 0.4, 0.2),
+        doubleArrayOf(0.1, 0.7, 0.2)
+    )
 
     val mc = DMarkovChain(1, p)
     val f = IntegerFrequency()
