@@ -28,6 +28,10 @@ import ksl.utilities.random.rvariable.NormalRV
 
 
 fun main() {
+
+}
+
+fun oneDimensionalMH(){
     val f = Function()
     val q = PropFunction()
     val m = MetropolisHastings1D(0.0, f, q)
