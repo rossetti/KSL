@@ -1,77 +1,174 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.TruncatedRV
 
 class TruncatedNormal(
-    private val normal: Normal,
+    normalMean: Double,
+    normalVariance: Double,
     interval: Interval,
     name: String? = null
 ) : Distribution<TruncatedNormal>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
 
+    constructor(
+        normal: Normal,
+        interval: Interval,
+        name: String? = null
+    ) : this(normal.mean, normal.variance, interval, name)
+
+    private lateinit var myInterval: Interval
+    private val myNormal: Normal = Normal(normalMean, normalVariance)
+
     init {
-        require(interval.contains(normal.mean)) {"The mean value was not within the truncation interval."}
+        setLimits(normalMean, normalVariance, interval)
     }
 
-    private val myInterval = interval.instance()
+    val lowerLimit
+        get() = myInterval.lowerLimit
+
+    val upperLimit
+        get() = myInterval.upperLimit
+
+    var cdfAtLowerLimit = 0.0
+        private set
+    var cdfAtUpperLimit = 0.0
+        private set
+
+    private val myDeltaFUFL
+        get() = cdfAtUpperLimit - cdfAtLowerLimit
+
+    fun setLimits(normalMean: Double, normalVariance: Double, lower: Double, upper: Double) {
+        setLimits(normalMean, normalVariance, Interval(lower, upper))
+    }
+
+    fun setLimits(normalMean: Double, normalVariance: Double, interval: Interval) {
+        require(interval.lowerLimit < interval.upperLimit) { "The lower limit must be strictly < upper limit" }
+        require(!(interval.lowerLimit == Double.NEGATIVE_INFINITY && interval.upperLimit == Double.POSITIVE_INFINITY))
+        { "There was no truncation over the interval of support" }
+        require(interval.contains(normalMean)) { "The mean value was not within the truncation interval." }
+        myNormal.mean = normalMean
+        myNormal.variance = normalVariance
+        val truncLL = interval.lowerLimit
+        val truncUL = interval.upperLimit
+        val cdfLL = Double.NEGATIVE_INFINITY
+        val cdfUL = Double.POSITIVE_INFINITY
+        if (truncLL > cdfLL && truncUL < cdfUL) {
+            // truncation on both ends
+            cdfAtUpperLimit = myNormal.cdf(truncUL)
+            cdfAtLowerLimit = myNormal.cdf(truncLL)
+        } else if (truncUL < cdfUL) { // truncation on upper tail
+            // must be that upperLimit < UL, and lowerLimit == LL
+            cdfAtUpperLimit = myNormal.cdf(truncUL)
+            cdfAtLowerLimit = 0.0
+        } else { //truncation on the lower tail
+            // must be that upperLimit == UL, and lowerLimit > LL
+            cdfAtUpperLimit = 1.0
+            cdfAtLowerLimit = myNormal.cdf(truncLL)
+        }
+        require(!KSLMath.equal((cdfAtUpperLimit - cdfAtLowerLimit), 0.0))
+        { "The supplied limits have no probability support (F(upper) - F(lower) = 0.0)" }
+        myInterval = interval.instance()
+    }
 
     val interval
         get() = myInterval.instance()
 
     var normalMean: Double
-        get() = normal.mean
+        get() = myNormal.mean
         set(value) {
-            require(myInterval.contains(value)) {"The mean value was not within the truncation interval."}
-            normal.mean = value
+            setLimits(value, myNormal.variance, myInterval)
         }
 
-    var normalVariance : Double
-        get() = normal.variance
+    var normalVariance: Double
+        get() = myNormal.variance
         set(value) {
-            require(value > 0) { "Variance must be positive" }
-            normal.variance = value
+            setLimits(myNormal.mean, value, myInterval)
         }
 
     override fun cdf(x: Double): Double {
-        TODO("Not yet implemented")
+        return if (x < lowerLimit) {
+            0.0
+        } else if (x in lowerLimit..upperLimit) {
+            val F = myNormal.cdf(x)
+            (F - cdfAtLowerLimit) / myDeltaFUFL
+        } else {
+            //if (x > myUpperLimit)
+            1.0
+        }
     }
 
     override fun pdf(x: Double): Double {
-        TODO("Not yet implemented")
+        return (myNormal.pdf(x) / myDeltaFUFL)
     }
 
     override fun mean(): Double {
-        TODO("Not yet implemented")
+        val mu = myNormal.mean()
+        return mu / myDeltaFUFL
     }
 
     override fun variance(): Double {
-        TODO("Not yet implemented")
+        // Var[X] = E[X^2] - E[X]*E[X]
+        // first get 2nd moment of truncated distribution
+        // E[X^2] = 2nd moment of original cdf/(F(b)-F(a)
+        var mu = myNormal.mean()
+        val s2 = myNormal.variance()
+        // 2nd moment of original cdf
+        var m2 = s2 + mu * mu
+        // 2nd moment of truncated
+        m2 = m2 / myDeltaFUFL
+        // mean of truncated
+        mu = mean()
+        return m2 - mu * mu
     }
 
     override fun domain(): Interval {
-        TODO("Not yet implemented")
+        return interval
     }
 
     override fun invCDF(p: Double): Double {
-        TODO("Not yet implemented")
+        val v = cdfAtLowerLimit + myDeltaFUFL * p
+        return myNormal.invCDF(v)
     }
 
+    /**
+     * Sets the parameters of the truncated distribution
+     * normal mean = parameter[0]
+     * normal variance = parameters[1]
+     * lower limit = parameters[2]
+     * upper limit = parameters[3]
+     *
+     * any other values in the array should be interpreted as the parameters
+     * for the underlying distribution
+     */
     override fun parameters(params: DoubleArray) {
-        TODO("Not yet implemented")
+        val interval = Interval(params[2], params[3])
+        setLimits(params[0], params[1], interval)
     }
 
+    /**
+     * Gets the parameters of the truncated distribution
+     * normal mean = parameter[0]
+     * normal variance = parameters[1]
+     * lower limit = parameters[2]
+     * upper limit = parameters[3]
+     *
+     * any other values in the array should be interpreted as the parameters
+     * for the underlying distribution
+     */
     override fun parameters(): DoubleArray {
-        TODO("Not yet implemented")
+        return doubleArrayOf(normalMean, normalVariance, lowerLimit, upperLimit)
     }
 
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        TODO("Not yet implemented")
+        return TruncatedRV(myNormal, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, lowerLimit, upperLimit)
     }
 
     override fun instance(): TruncatedNormal {
-        TODO("Not yet implemented")
+        return TruncatedNormal(normalMean, normalVariance, myInterval)
     }
 
 }

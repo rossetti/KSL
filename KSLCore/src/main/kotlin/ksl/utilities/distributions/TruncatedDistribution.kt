@@ -61,7 +61,8 @@ class TruncatedDistribution(
         private set
     var cdfAtUpperLimit = 0.0
         private set
-    private val myDeltaFUFL = cdfAtUpperLimit - cdfAtLowerLimit
+    private val myDeltaFUFL
+        get() = cdfAtUpperLimit - cdfAtLowerLimit
 
     init {
         setDistribution(theDistribution, theCDFLowerLimit, theCDFUpperLimit, theLowerLimit, theUpperLimit)
