@@ -72,9 +72,15 @@ open class MetropolisHastingsMV(
     val acceptanceStatistics: Statistic
         get() = myAcceptanceStatistics.instance()
 
-    private val myObservedStatistics: List<BatchStatistic> = buildList {
+    private val myBatchStatistics: List<BatchStatistic> = buildList {
         for (i in initialX.indices) {
             this.add(BatchStatistic(theName = "X_" + (i + 1)))
+        }
+    }
+
+    private val myObservationStatistics: List<Statistic> = buildList {
+        for (i in initialX.indices) {
+            this.add(Statistic(name = "X_" + (i + 1)))
         }
     }
 
@@ -97,9 +103,17 @@ open class MetropolisHastingsMV(
     fun proposedY() : DoubleArray = proposedY.copyOf()
     fun previousX() : DoubleArray = previousX.copyOf()
 
-    fun observedStatistics(): List<BatchStatistic> {
+    fun batchStatistics(): List<BatchStatistic> {
         val mutableList = mutableListOf<BatchStatistic>()
-        for (statistic in myObservedStatistics) {
+        for (statistic in myBatchStatistics) {
+            mutableList.add(statistic.instance())
+        }
+        return mutableList
+    }
+
+    fun observedStatistics(): List<Statistic> {
+        val mutableList = mutableListOf<Statistic>()
+        for (statistic in myObservationStatistics) {
             mutableList.add(statistic.instance())
         }
         return mutableList
@@ -109,7 +123,10 @@ open class MetropolisHastingsMV(
      * Resets the automatically collected statistics
      */
     fun resetStatistics() {
-        for (s in myObservedStatistics) {
+        for (s in myBatchStatistics) {
+            s.reset()
+        }
+        for (s in myObservationStatistics) {
             s.reset()
         }
         myAcceptanceStatistics.reset()
@@ -174,7 +191,8 @@ open class MetropolisHastingsMV(
             myAcceptanceStatistics.collect(0.0)
         }
         for (i in currentX.indices) {
-            myObservedStatistics[i].collect(currentX[i])
+            myBatchStatistics[i].collect(currentX[i])
+            myObservationStatistics[i].collect(currentX[i])
         }
         notifyObservers(this)
         return currentX
@@ -202,8 +220,8 @@ open class MetropolisHastingsMV(
     protected fun functionRatio(currentX: DoubleArray, proposedY: DoubleArray): Double {
         val fx = targetFun.f(currentX)
         val fy = targetFun.f(proposedY)
-        check(fx >= 0.0) { "The target function was < 0 at current state" }
-        check(fy >= 0.0) { "The proposal function was < 0 at proposed state" }
+        check(fx >= 0.0) { "The target function was $fx < 0 at current state ${currentX.joinToString(prefix = "[", postfix = "]")}" }
+        check(fy >= 0.0) { "The target function was $fy < 0 at proposed state ${proposedY.joinToString(prefix = "[", postfix = "]")}" }
         val ratio: Double = if (fx != 0.0) {
             fy / fx
         } else {
@@ -280,7 +298,7 @@ open class MetropolisHastingsMV(
         sb.appendLine()
         sb.append(myAcceptanceStatistics.asString())
         sb.appendLine()
-        for (s in myObservedStatistics) {
+        for (s in myBatchStatistics) {
             sb.append(s.asString())
             sb.appendLine()
         }
