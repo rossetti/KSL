@@ -26,6 +26,7 @@ import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.MVSampleIfc
 import ksl.utilities.statistic.BatchStatistic
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.averages
 
 /**
  * An implementation for a multi-variable Metropolis Hasting process. The
@@ -33,23 +34,27 @@ import ksl.utilities.statistic.Statistic
  * @param initialX the initial value to start generation process
  * @param targetFun the target function
  * @param proposalFun the proposal function
- * @param stream the stream for accepting or rejecting proposed state
+ * @param stream the stream for accepting or rejecting the proposed state
+ * @param batchStatistics a list of BatchStatistics one for each dimension that have
+ * been configured to collect batch statistics on the dimensions. Default batch statistics
+ * are provided.
  */
 open class MetropolisHastingsMV(
     initialX: DoubleArray,
     val targetFun: FunctionMVIfc,
     val proposalFun: ProposalFunctionMVIfc,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    batchStatistics: List<BatchStatistic> = createBatchStatistics(initialX.size)
 ) : MVSampleIfc, RNStreamChangeIfc, RNStreamControlIfc, Observable<MetropolisHastingsMV>() {
-
 
     init {
         require(initialX.size == targetFun.dimension)
         { "The initial array must have the same dimension as the multi-variate target and proposal functions" }
         require(targetFun.dimension == proposalFun.dimension)
         { "The multi-variate target function must have the same dimension as the multi-variate proposal function" }
+        require(batchStatistics.size == initialX.size)
+        { "The number of supplied batch statistics was not equal to the number of dimensions" }
     }
-
 
     override val dimension: Int = initialX.size
 
@@ -71,11 +76,7 @@ open class MetropolisHastingsMV(
     val acceptanceStatistics: Statistic
         get() = myAcceptanceStatistics.instance()
 
-    private val myBatchStatistics: List<BatchStatistic> = buildList {
-        for (i in initialX.indices) {
-            this.add(BatchStatistic(theName = "X_" + (i + 1)))
-        }
-    }
+    private val myBatchStatistics: List<BatchStatistic> = batchStatistics
 
     private val myObservationStatistics: List<Statistic> = buildList {
         for (i in initialX.indices) {
@@ -102,6 +103,11 @@ open class MetropolisHastingsMV(
     fun proposedY(): DoubleArray = proposedY.copyOf()
     fun previousX(): DoubleArray = previousX.copyOf()
 
+    /**
+     *  Returns a list of batching statistics for each dimension.
+     *  the observations for each dimension are batched using the default
+     *  batching algorithm in class BatchStatistic.
+     */
     fun batchStatistics(): List<BatchStatistic> {
         val mutableList = mutableListOf<BatchStatistic>()
         for (statistic in myBatchStatistics) {
@@ -110,12 +116,24 @@ open class MetropolisHastingsMV(
         return mutableList
     }
 
+    /**
+     * Returns a list of the statistics collected across every dimension
+     * from all the observations without batching.
+     */
     fun observedStatistics(): List<Statistic> {
         val mutableList = mutableListOf<Statistic>()
         for (statistic in myObservationStatistics) {
             mutableList.add(statistic.instance())
         }
         return mutableList
+    }
+
+    /**
+     *  Returns the average for each dimension based on all observed
+     *  values, without batching.
+     */
+    fun averages() : DoubleArray {
+        return myObservationStatistics.averages()
     }
 
     /**
@@ -352,6 +370,29 @@ open class MetropolisHastingsMV(
             val m = MetropolisHastingsMV(initialX, targetFun, proposalFun)
             m.runWarmUpPeriod(warmUpPeriod)
             return m
+        }
+
+        /**
+         *  Can be used to create a list of BatchStatistic instances that
+         *  are pre-configured based on the batch settings.
+         *  @param theMinNumBatches The minimum number of batches, must be &gt;= 2
+         *  @param theMinBatchSize The minimum number of observations per batch, must be &gt;= 2
+         *  @param theMinNumBatchesMultiple The maximum number of batches as a multiple of the
+         * minimum number of batches.
+         *  @param numToCreate the number of statistics to create.
+         */
+        fun createBatchStatistics(
+            numToCreate: Int,
+            theMinNumBatches: Int = BatchStatistic.MIN_NUM_BATCHES,
+            theMinBatchSize: Int = BatchStatistic.MIN_NUM_OBS_PER_BATCH,
+            theMinNumBatchesMultiple: Int = BatchStatistic.MAX_BATCH_MULTIPLE
+        ): List<BatchStatistic> {
+            require(numToCreate >= 1) { "The number of batch statistics to create must be >= 1" }
+            val list = mutableListOf<BatchStatistic>()
+            for (i in 1..numToCreate) {
+                list.add(BatchStatistic(theMinNumBatches, theMinBatchSize, theMinNumBatchesMultiple, theName = "X_$i"))
+            }
+            return list
         }
     }
 
