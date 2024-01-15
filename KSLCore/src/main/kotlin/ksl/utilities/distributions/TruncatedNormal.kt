@@ -7,6 +7,17 @@ import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TruncatedNormalRV
 
+/**
+ *  Creates a truncated normal distribution over the supplied [interval].
+ *  The supplied mean [normalMean] and variance [normalVariance] is the mean of the not truncated normal distribution.
+ *  The supplied mean must be contained within the supplied interval.
+ *
+ *  Uses the algorithm:
+ *   1. W ~ U(F(a), F(b))
+ *   2. X = F^{-1}(W)
+ *
+ *   where "a" is the lower limit and b is the upper limit, and F is the normal distribution CDF.
+ */
 class TruncatedNormal(
     normalMean: Double,
     normalVariance: Double,
@@ -21,6 +32,7 @@ class TruncatedNormal(
     ) : this(normal.mean, normal.variance, interval, name)
 
     private lateinit var myInterval: Interval
+
     private val myNormal: Normal = Normal(normalMean, normalVariance)
 
     init {
@@ -41,10 +53,16 @@ class TruncatedNormal(
     private val myDeltaFUFL
         get() = cdfAtUpperLimit - cdfAtLowerLimit
 
+    /**
+     *  A convenience function for setting the parameters of the distribution.
+     */
     fun setLimits(normalMean: Double, normalVariance: Double, lower: Double, upper: Double) {
         setLimits(normalMean, normalVariance, Interval(lower, upper))
     }
 
+    /**
+     *  Should be used to change the parameters of the distribution
+     */
     fun setLimits(normalMean: Double, normalVariance: Double, interval: Interval) {
         require(interval.lowerLimit < interval.upperLimit) { "The lower limit must be strictly < upper limit" }
         require(!(interval.lowerLimit == Double.NEGATIVE_INFINITY && interval.upperLimit == Double.POSITIVE_INFINITY))
@@ -105,11 +123,17 @@ class TruncatedNormal(
         return (myNormal.pdf(x) / myDeltaFUFL)
     }
 
+    /**
+     *  This is the mean of the truncated distribution.
+     */
     override fun mean(): Double {
         val mu = myNormal.mean()
         return mu / myDeltaFUFL
     }
 
+    /**
+     *  This is the variance of the truncated distribution.
+     */
     override fun variance(): Double {
         // Var[X] = E[X^2] - E[X]*E[X]
         // first get 2nd moment of truncated distribution

@@ -23,7 +23,7 @@ import ksl.utilities.random.rng.RNStreamIfc
 
 
 /**
- * An interface for defining random variables
+ * An interface for defining multi-variate random variables
  */
 interface MVRVariableIfc : RNStreamControlIfc, MVSampleIfc, RNStreamChangeIfc {
     /**
