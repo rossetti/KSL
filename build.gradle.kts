@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "io.github.rossetti"
-version = "R1.0.2"
+version = "R1.0.4"
 
 buildscript {
 
