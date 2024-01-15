@@ -191,7 +191,7 @@ interface RegressionResultsIfc {
             val h = hatDiagonal
             val st = standardizedResiduals
             val sr = DoubleArray(h.size)
-            for ((i, v) in h.withIndex()) {
+            for (i in h.indices) {
                 sr[i] = st[i] / sqrt(1.0 - h[i])
             }
             return sr
@@ -206,7 +206,7 @@ interface RegressionResultsIfc {
             val st = standardizedResiduals
             val d = DoubleArray(h.size)
             val np = numParameters.toDouble()
-            for ((i, v) in h.withIndex()) {
+            for (i in h.indices) {
                 val hd = (1.0 - h[i]) * (1.0 - h[i])
                 d[i] = st[i] * st[i] * h[i] / (hd * np)
             }
@@ -221,10 +221,10 @@ interface RegressionResultsIfc {
         get() = KSLArrays.divideElements(parameters, parametersStdError)
 
     val parameterPValues: DoubleArray
-        get(){
+        get() {
             val t0 = parameterTStatistics
             val dof = errorDoF
-            return DoubleArray(t0.size){ 2.0*(1.0 - StudentT.cdf(dof, t0[it]))}
+            return DoubleArray(t0.size) { 2.0 * (1.0 - StudentT.cdf(dof, t0[it])) }
         }
 
     /**
@@ -256,10 +256,10 @@ interface RegressionResultsIfc {
     fun parameterResults(level: Double = 0.95): AnyFrame {
         require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
         val pn = mutableListOf<String>()
-        if (hasIntercept){
+        if (hasIntercept) {
             pn.add("Intercept")
         }
-        for(name in predictorNames){
+        for (name in predictorNames) {
             pn.add(name)
         }
         val pNames = pn.toColumn("Predictor")
@@ -313,7 +313,7 @@ interface RegressionResultsIfc {
      *  (responseName, "Predicted", "Residuals", "StandardizedResiduals", "StudentizedResiduals",
      *  "h_ii", "CookDistances")
      */
-    fun residualsAsDataFrame(): AnyFrame{
+    fun residualsAsDataFrame(): AnyFrame {
         val r = response.toList().toColumn(responseName)
         val p = predicted.toList().toColumn("Predicted")
         val e = residuals.toList().toColumn("Residuals")
@@ -327,8 +327,8 @@ interface RegressionResultsIfc {
     /**
      *  A fit distribution plot of the standardized residuals for checking normality.
      */
-    fun standardizedResidualsNormalPlot() : FitDistPlot {
-        val n = Normal(0.0,1.0)
+    fun standardizedResidualsNormalPlot(): FitDistPlot {
+        val n = Normal(0.0, 1.0)
         return FitDistPlot(standardizedResiduals, n, n)
     }
 
@@ -347,7 +347,7 @@ interface RegressionResultsIfc {
      *  The data associated with the named predictor. The name must exist as
      *  a predictor name.
      */
-    fun predictorData(name: String) : DoubleArray
+    fun predictorData(name: String): DoubleArray
 }
 
 /**
@@ -391,8 +391,8 @@ data class RegressionData(
      *  The data associated with the named predictor. The name must exist as
      *  a predictor name.
      */
-    fun predictorData(name: String) : DoubleArray {
-        require(predictorNames.contains(name)){"The name of the predictor ($name) was not found"}
+    fun predictorData(name: String): DoubleArray {
+        require(predictorNames.contains(name)) { "The name of the predictor ($name) was not found" }
         val cn = predictorNames.indexOf(name)
         return KSLArrays.column(cn, data)
     }
@@ -401,7 +401,7 @@ data class RegressionData(
         val r = response.toList().toColumn(responseName)
         var df = emptyDataFrame<Any>()
         df = df.add(r)
-        for((i, name) in predictorNames.withIndex()){
+        for ((i, name) in predictorNames.withIndex()) {
             val col = KSLArrays.column(i, data).toList().toColumn(name)
             df = df.add(col)
         }
@@ -411,13 +411,13 @@ data class RegressionData(
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Regression Data")
-        sb.appendLine("number of predictors = $numPredictors" )
-        sb.appendLine("number of parameters = $numParameters" )
-        sb.appendLine("number of observations = $numObservations" )
-        sb.appendLine("has intercept = $hasIntercept" )
-        sb.appendLine("response name = $responseName" )
+        sb.appendLine("number of predictors = $numPredictors")
+        sb.appendLine("number of parameters = $numParameters")
+        sb.appendLine("number of observations = $numObservations")
+        sb.appendLine("has intercept = $hasIntercept")
+        sb.appendLine("response name = $responseName")
         sb.appendLine("Predictor Names")
-        for(name in predictorNames){
+        for (name in predictorNames) {
             sb.appendLine(name)
         }
         sb.appendLine()
@@ -461,20 +461,19 @@ data class RegressionData(
             responseName: String,
             predictorNames: List<String>,
             hasIntercept: Boolean = true
-        ) : RegressionData {
+        ): RegressionData {
             val cn = df.columnNames()
-            require(cn.contains(responseName)) {"There is no column with response name $responseName"}
-            for(name in predictorNames){
-                require(cn.contains(name)) {"There is no column with predictor name $name"}
+            require(cn.contains(responseName)) { "There is no column with response name $responseName" }
+            for (name in predictorNames) {
+                require(cn.contains(name)) { "There is no column with predictor name $name" }
             }
-            val ct = df.columnTypes()
-            require(df[responseName].type().classifier == Double::class ) {"The response was not a Double"}
-            for(name in predictorNames){
-                require(df[name].type().classifier == Double::class ) {"There predictor ($name) was not a Double"}
+            require(df[responseName].type().classifier == Double::class) { "The response was not a Double" }
+            for (name in predictorNames) {
+                require(df[name].type().classifier == Double::class) { "There predictor ($name) was not a Double" }
             }
             val y = (df[responseName].toList() as List<Double>).toDoubleArray()
             val x = mutableListOf<DoubleArray>()
-            for(name in predictorNames){
+            for (name in predictorNames) {
                 x.add((df[name].toList() as List<Double>).toDoubleArray())
             }
             return RegressionData(y, x.toTypedArray().transpose(), hasIntercept, responseName, predictorNames)
@@ -519,7 +518,7 @@ class OLSRegression(regressionData: RegressionData) : RegressionResultsIfc {
         responseName: String,
         predictorNames: List<String>,
         hasIntercept: Boolean = true
-    ): this(RegressionData.create(df, responseName, predictorNames, hasIntercept))
+    ) : this(RegressionData.create(df, responseName, predictorNames, hasIntercept))
 
     /**
      *  Loads a new dataset for performing the regression analysis.
@@ -538,9 +537,11 @@ class OLSRegression(regressionData: RegressionData) : RegressionResultsIfc {
         }
     override val predictorNames: List<String>
         get() = myRegressionData.predictorNames
+
     override fun predictorData(name: String): DoubleArray {
         return myRegressionData.predictorData(name)
     }
+
     override val hasIntercept: Boolean
         get() = myRegressionData.hasIntercept
     override val numParameters: Int

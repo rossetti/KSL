@@ -210,7 +210,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     val pairedDifferenceStatistics: List<StatisticIfc>
         get() {
             val list = mutableListOf<StatisticIfc>()
-            for ((name, stat) in myPairDiffStats) {
+            for ((_, stat) in myPairDiffStats) {
                 list.add(stat)
             }
             return list
@@ -313,7 +313,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     val averagesOfDifferences: DoubleArray
         get() {
             val list = mutableListOf<Double>()
-            for ((name, stat) in myPairDiffStats) {
+            for ((_, stat) in myPairDiffStats) {
                 list.add(stat.average)
             }
             return list.toDoubleArray()
@@ -330,7 +330,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     val variancesOfDifferences: DoubleArray
         get() {
             val list = mutableListOf<Double>()
-            for ((name, stat) in myPairDiffStats) {
+            for ((_, stat) in myPairDiffStats) {
                 list.add(stat.variance)
             }
             return list.toDoubleArray()
@@ -1153,7 +1153,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         for((name, map) in minMap){
             val avg = average(name) // the one to test
             var test = true
-            for((s, interval) in map){
+            for((_, interval) in map){
                 if(!interval.contains(avg)){
                     test = false
                     break
@@ -1179,7 +1179,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         for((name, map) in minMap){
             val avg = average(name) // the one to test
             var test = true
-            for((s, interval) in map){
+            for((_, interval) in map){
                 if(!interval.contains(avg)){
                     test = false
                     break

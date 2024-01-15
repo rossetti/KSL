@@ -1227,8 +1227,6 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             val pairs = Array<Pair<Double, Int>>(data.size) { Pair(data[it], it) }
             // sort according to the data (first element in the pair
             val comparator = compareBy<Pair<Double, Int>> { it.first }
-            pairs.sortWith(comparator)
-            var r = 1
             for ((k, pair) in pairs.withIndex()) {
                 ranks[pair.second] = k + 1.0
             }
