@@ -5,6 +5,7 @@ import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.TruncatedNormalRV
 import ksl.utilities.random.rvariable.TruncatedRV
 
 class TruncatedNormal(
@@ -134,6 +135,8 @@ class TruncatedNormal(
         return myNormal.invCDF(v)
     }
 
+
+
     /**
      * Sets the parameters of the truncated distribution
      * normal mean = parameter[0]
@@ -164,11 +167,20 @@ class TruncatedNormal(
     }
 
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return TruncatedRV(myNormal, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, lowerLimit, upperLimit)
+        return TruncatedNormalRV(normalMean, normalVariance, myInterval, stream)
     }
 
     override fun instance(): TruncatedNormal {
         return TruncatedNormal(normalMean, normalVariance, myInterval)
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("TruncatedNormal")
+        sb.appendLine("normalMean=$normalMean, normalVariance=$normalVariance")
+        sb.appendLine("lowerLimit=$lowerLimit, upperLimit=$upperLimit")
+        sb.appendLine("cdfAtLowerLimit=$cdfAtLowerLimit, cdfAtUpperLimit=$cdfAtUpperLimit")
+        return sb.toString()
     }
 
 }

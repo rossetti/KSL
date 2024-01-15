@@ -30,11 +30,14 @@ import ksl.utilities.statistic.Histogram
  */
 class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Double.POSITIVE_INFINITY) :
     NewInstanceIfc<Interval> {
+
+    constructor(xLower: Int, xUpper: Int) : this(xLower.toDouble(), xUpper.toDouble())
+
     init {
-        if (!xLower.isNaN() || !xUpper.isNaN()){
+        if (!xLower.isNaN() || !xUpper.isNaN()) {
             require(xLower <= xUpper) { "The lower limit $xLower must be <= the upper limit $xUpper" }
         }
-   }
+    }
 
     /**
      *
@@ -68,7 +71,7 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
      *  The mid-point between the upper and lower limits
      */
     val midPoint: Double
-        get() = (upperLimit + lowerLimit)/2.0
+        get() = (upperLimit + lowerLimit) / 2.0
 
     /** Sets the interval
      * Throws IllegalArgumentException if the lower limit is &gt;= upper limit
@@ -77,7 +80,7 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
      * @param xUpper the upper limit
      */
     internal fun setInterval(xLower: Double, xUpper: Double) {
-        if (!xLower.isNaN() || !xUpper.isNaN()){
+        if (!xLower.isNaN() || !xUpper.isNaN()) {
             require(xLower <= xUpper) { "The lower limit $xLower must be <= the upper limit $xUpper" }
         }
 //        require(xLower <= xUpper) { "The lower limit must be <= the upper limit" }
@@ -143,13 +146,13 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
      *  first point starting at the lower limit and stepping
      *  up towards the upper limit based on the number of steps.
      */
-    fun stepPoints(numSteps: Int) : DoubleArray{
+    fun stepPoints(numSteps: Int): DoubleArray {
         return Histogram.createBreakPoints(lowerLimit, upperLimit, numSteps)
     }
 
 }
 
-fun ClosedFloatingPointRange<Double>.asInterval() : Interval {
+fun ClosedFloatingPointRange<Double>.asInterval(): Interval {
     return Interval(start, endInclusive)
 }
 
