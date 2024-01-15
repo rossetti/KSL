@@ -66,7 +66,7 @@ dependencies {
 //    implementation("org.jetbrains.lets-plot:lets-plot-common:4.0.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-image-export
-    api("org.jetbrains.lets-plot:lets-plot-image-export:4.0.1")
+    api("org.jetbrains.lets-plot:lets-plot-image-export:4.2.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
     api("org.jetbrains.kotlinx:dataframe-core:0.12.0")
@@ -90,7 +90,7 @@ dependencies {
 //    implementation("org.knowm.xchart:xchart:3.8.2")
     
     // https://mvnrepository.com/artifact/com.opencsv/opencsv
-    implementation("com.opencsv:opencsv:5.8") //TODO vulnerability not showing on maven
+    implementation("com.opencsv:opencsv:5.9") //TODO vulnerability not showing on maven
 
     // https://db.apache.org/derby/releases
     // 10.16.1.1 is only compatible with Java 17
