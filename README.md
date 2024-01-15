@@ -69,8 +69,6 @@ delay(), and release(). In addition, it collects statistics on the processing of
 
 There is also a [video series](https://video.uark.edu/playlist/dedicated/1_0q40d3tg/) that provides an overview of getting started with the KSL and some of the associated material from the textbook.
 
-<iframe src="https://www.kaltura.com/p/1315742/sp/131574200/embedIframeJs/uiconf_id/40094442/partner_id/1315742/widget_id/1_af0xz8ji?iframeembed=true&playerId=kaltura_player_&flashvars[playlistAPI.kpl0Id]=1_0q40d3tg&flashvars[ks]=&&flashvars[imageDefaultDuration]=30&flashvars[localizationCode]=en&flashvars[forceMobileHTML5]=true&flashvars[scrubber.sliderPreview]=false&flashvars[nextPrevBtn.plugin]=true&flashvars[sideBarContainer.plugin]=true&flashvars[sideBarContainer.position]=left&flashvars[sideBarContainer.clickToClose]=true&flashvars[chapters.plugin]=true&flashvars[chapters.layout]=vertical&flashvars[chapters.thumbnailRotator]=false&flashvars[streamSelector.plugin]=true&flashvars[EmbedPlayer.SpinnerTarget]=videoHolder&flashvars[dualScreen.plugin]=true&flashvars[hotspots.plugin]=true&flashvars[playlistAPI.playlistUrl]=https://video.uark.edu/playlist/details/{playlistAPI.kpl0Id}" width="400" height="620" allowfullscreen webkitallowfullscreen mozAllowFullScreen allow="autoplay *; fullscreen *; encrypted-media *" sandbox="allow-forms allow-same-origin allow-scripts allow-top-navigation allow-pointer-lock allow-popups allow-modals allow-orientation-lock allow-popups-to-escape-sandbox allow-presentation allow-top-navigation-by-user-activation" frameborder="0" title="Kotlin Simulation Library"></iframe>
-
 ## KSL Documentation
 
 If you are looking for the KSL API documentation you can find it here:
