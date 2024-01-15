@@ -94,6 +94,10 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) {
         override val rvParameters: RVParameters
             get() = NormalRVParameters()
     },
+    TruncatedNormal(TruncatedNormalRV::class) {
+        override val rvParameters: RVParameters
+            get() = TruncatedNormalRVParameters()
+    },
     PearsonType5(PearsonType5RV::class) {
         override val rvParameters: RVParameters
             get() = PearsonType5RVParameters()
