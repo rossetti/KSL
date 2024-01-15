@@ -45,19 +45,18 @@ open class MetropolisHastingsMV(
 
     init {
         require(initialX.size == targetFun.dimension)
-        {"The initial array must have the same dimension as the multi-variate target and proposal functions"}
+        { "The initial array must have the same dimension as the multi-variate target and proposal functions" }
         require(targetFun.dimension == proposalFun.dimension)
-        {"The multi-variate target function must have the same dimension as the multi-variate proposal function"}
+        { "The multi-variate target function must have the same dimension as the multi-variate proposal function" }
     }
-
 
 
     override val dimension: Int = initialX.size
 
     var initialX = initialX.copyOf()
- //       get() = field.copyOf()
+        //       get() = field.copyOf()
         set(value) {
-            require(value.size == field.size){"The supplied initial state array size must be = ${field.size}"}
+            require(value.size == field.size) { "The supplied initial state array size must be = ${field.size}" }
             field = value.copyOf()
         }
 
@@ -99,9 +98,9 @@ open class MetropolisHastingsMV(
     var targetFunctionAtCurrentX = Double.NaN
         protected set
 
-    fun currentX() : DoubleArray = currentX.copyOf()
-    fun proposedY() : DoubleArray = proposedY.copyOf()
-    fun previousX() : DoubleArray = previousX.copyOf()
+    fun currentX(): DoubleArray = currentX.copyOf()
+    fun proposedY(): DoubleArray = proposedY.copyOf()
+    fun previousX(): DoubleArray = previousX.copyOf()
 
     fun batchStatistics(): List<BatchStatistic> {
         val mutableList = mutableListOf<BatchStatistic>()
@@ -158,9 +157,9 @@ open class MetropolisHastingsMV(
         resetStatistics()
     }
 
-    /**
+    /**  The state of the sampler is initialized before running all the steps.
      *
-     * @param n  runs the process for n steps
+     * @param n  runs the process for n steps after initializing the process
      * @return the value of the process after n steps
      */
     fun runAll(n: Int): DoubleArray {
@@ -173,7 +172,26 @@ open class MetropolisHastingsMV(
         return value.copyOf()
     }
 
-    /** Moves the process one step
+    /**
+     *  Causes the process to advance through the number of [steps]
+     *  and return the state associated with the last step taken. This
+     *  allows the sampling to skip the number of steps between returned
+     *  observations. If the sampler is not initialized, it will be initialized.
+     *  If it has already been initialized, it will not be re-initialized.
+     *  This is a convenience method which repeatedly calls the function
+     *  next() for the specified number of [steps].
+     */
+    fun next(steps: Int): DoubleArray {
+        require(steps >= 1) { "The number of steps to advance must be >= 1" }
+        var sample: DoubleArray? = null
+        for (i in 1..steps) {
+            sample = next()
+        }
+        return sample!!
+    }
+
+    /** Moves the process one step. If the sampler is not initialized, it will be initialized.
+     *  If it has already been initialized, it will not be re-initialized.
      *
      * @return the next value of the process after proposing the next state (y)
      */
@@ -220,8 +238,22 @@ open class MetropolisHastingsMV(
     protected fun functionRatio(currentX: DoubleArray, proposedY: DoubleArray): Double {
         val fx = targetFun.f(currentX)
         val fy = targetFun.f(proposedY)
-        check(fx >= 0.0) { "The target function was $fx < 0 at current state ${currentX.joinToString(prefix = "[", postfix = "]")}" }
-        check(fy >= 0.0) { "The target function was $fy < 0 at proposed state ${proposedY.joinToString(prefix = "[", postfix = "]")}" }
+        check(fx >= 0.0) {
+            "The target function was $fx < 0 at current state ${
+                currentX.joinToString(
+                    prefix = "[",
+                    postfix = "]"
+                )
+            }"
+        }
+        check(fy >= 0.0) {
+            "The target function was $fy < 0 at proposed state ${
+                proposedY.joinToString(
+                    prefix = "[",
+                    postfix = "]"
+                )
+            }"
+        }
         val ratio: Double = if (fx != 0.0) {
             fy / fx
         } else {
@@ -265,7 +297,7 @@ open class MetropolisHastingsMV(
         }
 
     override fun sample(array: DoubleArray) {
-        require(array.size == dimension) {"The array size must be $dimension"}
+        require(array.size == dimension) { "The array size must be $dimension" }
         next().copyInto(array)
     }
 
@@ -305,7 +337,7 @@ open class MetropolisHastingsMV(
         return sb.toString()
     }
 
-    companion object{
+    companion object {
         /**
          *
          * @param initialX the initial value to start the burn in period
