@@ -6,7 +6,6 @@ import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TruncatedNormalRV
-import ksl.utilities.random.rvariable.TruncatedRV
 
 class TruncatedNormal(
     normalMean: Double,
@@ -134,8 +133,6 @@ class TruncatedNormal(
         val v = cdfAtLowerLimit + myDeltaFUFL * p
         return myNormal.invCDF(v)
     }
-
-
 
     /**
      * Sets the parameters of the truncated distribution
