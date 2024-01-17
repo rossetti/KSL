@@ -101,6 +101,14 @@ version = "R1.0.3"
 
 ## Release Notes
 
+Latest Release: R1.0.4
+- Fixed axis label issue in ScatterPlot
+- Added examples for bootstrapping, VRT, and MCMC
+- New classes for multi-variate copulas, minor revisions in mcmc package
+- New regression functionality
+- New case based bootstrap sampling functionality
+- Improved control variate implementation
+
 Latest Release: R1.0.3
 
 - fixed issue with PMFModeler that caused bin probabilities to be incorrectly updated
