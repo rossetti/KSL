@@ -7,7 +7,7 @@ import ksl.simulation.ModelElement
 
 /**
  * "Van" class with various vehicle attributes to Test annotationControl
- * - extraction from code (via relfection),
+ * - extraction from code (via reflection),
  * - put and get of control values
  */
 class Van(parent: ModelElement) : ModelElement(parent) {
