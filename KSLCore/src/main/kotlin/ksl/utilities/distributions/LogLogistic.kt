@@ -34,7 +34,11 @@ import kotlin.math.sin
  * @param name an optional label/name
  * @author rossetti
  */
-class LogLogistic (theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) : Distribution<LogLogistic>(name),
+class LogLogistic (
+    theShape: Double = 1.0,
+    theScale: Double = 1.0,
+    name: String? = null
+) : Distribution<LogLogistic>(name),
     ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
 
     init {
