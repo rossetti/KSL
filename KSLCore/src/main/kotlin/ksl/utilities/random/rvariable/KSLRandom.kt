@@ -549,6 +549,33 @@ object KSLRandom {
     }
 
     /**
+     * @param location     the location a real number
+     * @param scale     the scale, must be greater than 0
+     * @param streamNum the stream number from the stream provider to use
+     * @return the generated value
+     */
+    fun rLogistic(location: Double, scale: Double, streamNum: Int): Double {
+        return rLogistic(location, scale, rnStream(streamNum))
+    }
+
+    /**
+     * @param location the location a real number
+     * @param scale the scale, must be greater than 0
+     * @param rng   the RNStreamIfc, must not be null
+     * @return the generated value
+     */
+    fun rLogistic(
+        location: Double,
+        scale: Double,
+        rng: RNStreamIfc = defaultRNStream()
+    ): Double {
+        require(scale > 0) { "Scale parameter must be > 0" }
+        val u = rng.randU01()
+        val c = u / (1.0 - u)
+        return location + scale*ln(c)
+    }
+
+    /**
      * @param shape     the shape, must be greater than 0
      * @param scale     the scale, must be greater than 0
      * @param streamNum the stream number from the stream provider to use
