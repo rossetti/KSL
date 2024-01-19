@@ -78,6 +78,10 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) {
         override val rvParameters: RVParameters
             get() = LaplaceRVParameters()
     },
+    Logistic(LogisticRV::class) {
+        override val rvParameters: RVParameters
+            get() = LogisticRVParameters()
+    },
     LogLogistic(LogLogisticRV::class) {
         override val rvParameters: RVParameters
             get() = LogLogisticRVParameters()
