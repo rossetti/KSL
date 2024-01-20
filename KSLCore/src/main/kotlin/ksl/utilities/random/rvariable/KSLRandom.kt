@@ -952,32 +952,32 @@ object KSLRandom {
     }
 
     /**
-     * Generates according to a Laplace(mean, scale)
+     * Generates according to a Laplace(location, scale)
      *
-     * @param mean      mean or location parameter
+     * @param location      mean or location parameter
      * @param scale     scale parameter, must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
-    fun rLaplace(mean: Double, scale: Double, streamNum: Int): Double {
-        return rLaplace(mean, scale, rnStream(streamNum))
+    fun rLaplace(location: Double, scale: Double, streamNum: Int): Double {
+        return rLaplace(location, scale, rnStream(streamNum))
     }
 
     /**
-     * Generates according to a Laplace(mean, scale)
+     * Generates according to a Laplace(location, scale)
      *
-     * @param mean  mean or location parameter
+     * @param location  mean or location parameter
      * @param scale scale parameter, must be greater than 0
      * @param rng   the RNStreamIfc, must not be null
      * @return the random value
      */
-    fun rLaplace(mean: Double, scale: Double, rng: RNStreamIfc = defaultRNStream()): Double {
+    fun rLaplace(location: Double, scale: Double, rng: RNStreamIfc = defaultRNStream()): Double {
         if (scale <= 0.0) {
             throw IllegalArgumentException("The scale parameter must be > 0.0")
         }
         val p = rng.randU01()
         val u = p - 0.5
-        return mean - scale * sign(u) * ln(1.0 - 2.0 * abs(u))
+        return location - scale * sign(u) * ln(1.0 - 2.0 * abs(u))
     }
 
     /**

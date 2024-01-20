@@ -1,13 +1,15 @@
 package ksl.utilities.random.rvariable.parameters
 
+import ksl.utilities.distributions.Distribution
+import ksl.utilities.distributions.Laplace
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.LaplaceRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class LaplaceRVParameters : RVParameters() {
+class LaplaceRVParameters : RVParameters(), CreateDistributionIfc<Laplace> {
     override fun fillParameters() {
-        addDoubleParameter("mean", 0.0)
+        addDoubleParameter("location", 0.0)
         addDoubleParameter("scale", 1.0)
         rvClassName = RVType.Laplace.parametrizedRVClass.simpleName!!
         rvType = (RVType.Laplace)
@@ -15,7 +17,13 @@ class LaplaceRVParameters : RVParameters() {
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
         val scale = doubleParameter("scale")
-        val mean = doubleParameter("mean")
-        return LaplaceRV(mean, scale, rnStream)
+        val location = doubleParameter("location")
+        return LaplaceRV(location, scale, rnStream)
+    }
+
+    override fun createDistribution(): Distribution<Laplace> {
+        val location = doubleParameter("location")
+        val scale = doubleParameter("scale")
+        return Laplace(location, scale)
     }
 }
