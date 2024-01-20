@@ -34,12 +34,11 @@ import kotlin.math.sin
  * @param name an optional label/name
  * @author rossetti
  */
-class LogLogistic (
+class LogLogistic(
     theShape: Double = 1.0,
     theScale: Double = 1.0,
     name: String? = null
-) : Distribution<LogLogistic>(name),
-    ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+) : Distribution<LogLogistic>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
 
     init {
         require(theShape > 0) { "Shape parameter must be positive" }

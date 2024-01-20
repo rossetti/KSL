@@ -920,13 +920,24 @@ class PDFModeler(private val data: DoubleArray) {
                     return LogLogistic(shape, scale)
                 }
 
+                RVType.Logistic -> {
+                    val scale = parameters.doubleParameter("scale")
+                    val location = parameters.doubleParameter("location")
+                    return Logistic(location, scale)
+                }
+
                 RVType.ChiSquared -> {
                     val dof = parameters.doubleParameter("dof")
                     return ChiSquaredDistribution(dof)
                 }
 
+                RVType.Laplace -> {
+                    val scale = parameters.doubleParameter("scale")
+                    val location = parameters.doubleParameter("location")
+                    return Laplace(location, scale)
+                }
+
 //                RVType.JohnsonB -> TODO("No distribution implemented yet")
-//                RVType.Laplace -> TODO("No distribution implemented yet")
 
                 else -> null
             }

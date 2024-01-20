@@ -23,35 +23,37 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * LaplaceRV(mean, scale)
- * @param mean the mean (location) of the random variable
+ * @param location the mean (location) of the random variable
  * @param scale must be greater than 0
  */
 class LaplaceRV(
-    val mean: Double, val scale: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    val location: Double,
+    val scale: Double,
+    stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
 ) : ParameterizedRV(stream, name) {
     init {
         require(scale > 0) { "Scale must be positive" }
     }
 
-    constructor(mean: Double, scale: Double, streamNum: Int) : this(mean, scale, KSLRandom.rnStream(streamNum))
+    constructor(location: Double, scale: Double, streamNum: Int) : this(location, scale, KSLRandom.rnStream(streamNum))
 
     override fun instance(stream: RNStreamIfc): LaplaceRV {
-        return LaplaceRV(mean, scale, stream)
+        return LaplaceRV(location, scale, stream)
     }
 
     override fun generate(): Double {
-        return KSLRandom.rLaplace(mean, scale, rnStream)
+        return KSLRandom.rLaplace(location, scale, rnStream)
     }
 
     override fun toString(): String {
-        return "LaplaceRV(mean=$mean, scale=$scale)"
+        return "LaplaceRV(location=$location, scale=$scale)"
     }
 
     override val parameters: RVParameters
         get() {
             val parameters: RVParameters = LaplaceRVParameters()
-            parameters.changeDoubleParameter("mean", mean)
+            parameters.changeDoubleParameter("location", location)
             parameters.changeDoubleParameter("scale", scale)
             return parameters
         }
