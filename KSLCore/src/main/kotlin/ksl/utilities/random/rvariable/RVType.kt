@@ -25,10 +25,19 @@ import ksl.utilities.random.rvariable.parameters.BetaRVParameters
 import ksl.utilities.random.rvariable.parameters.BinomialRVParameters
 import kotlin.reflect.KClass
 
+interface RVParametersTypeIfc {
+    /**
+     *  the parameters for this type of random variable
+     */
+    val rvParameters: RVParameters
+
+    val parametrizedRVClass: KClass<out ParameterizedRV>
+}
+
 /**
  * The set of pre-defined types of random variables
  */
-enum class RVType(rvClass: KClass<out ParameterizedRV>) {
+enum class RVType(rvClass: KClass<out ParameterizedRV>) : RVParametersTypeIfc {
 
     Bernoulli(BernoulliRV::class) {
         override val rvParameters: RVParameters
@@ -143,12 +152,7 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) {
             get() = AR1NormalRVParameters()
     };
 
-    val parametrizedRVClass: KClass<out ParameterizedRV> = rvClass
-
-    /**
-     *  the parameters for this type of random variable
-     */
-    abstract val rvParameters: RVParameters
+    override val parametrizedRVClass: KClass<out ParameterizedRV> = rvClass
 
     companion object {
 
@@ -174,6 +178,7 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) {
             GeometricRV::class to Geometric,
             JohnsonBRV::class to JohnsonB,
             LaplaceRV::class to Laplace,
+            LogisticRV::class to Logistic,
             LogLogisticRV::class to LogLogistic,
             LognormalRV::class to Lognormal,
             NegativeBinomialRV::class to NegativeBinomial,
