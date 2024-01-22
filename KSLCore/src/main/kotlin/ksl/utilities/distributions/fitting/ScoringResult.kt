@@ -6,6 +6,7 @@ import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
 
 /**
@@ -22,7 +23,7 @@ data class ScoringResult(
     val name: String,
     val distribution: ContinuousDistributionIfc,
     val estimationResult: EstimationResult,
-    val rvType: RVType,
+    val rvType: RVParametersTypeIfc,
     val scores: List<Score>
 ) : Comparable<ScoringResult> {
 
