@@ -83,7 +83,14 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVType) {
 
     /**
      *  This function must fill the appropriate data maps to hold the
-     *  default values for the parameters.
+     *  default values for the parameters.  For example, for normal random
+     *  variables we must do the following:
+     *
+     *         addDoubleParameter("mean", 0.0)
+     *         addDoubleParameter("variance", 1.0)
+     *
+     *  Use the appropriate protected addXXXParameter() functions
+     *  to provide the parameter names and default values.
      */
     protected abstract fun fillParameters()
 
