@@ -6,12 +6,13 @@ import ksl.utilities.random.rvariable.GammaRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class GammaRVParameters : RVParameters(), CreateDistributionIfc<Gamma> {
+class GammaRVParameters : RVParameters(
+    rvClassName = RVType.Gamma.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Gamma)
+), CreateDistributionIfc<Gamma> {
     override fun fillParameters() {
         addDoubleParameter("shape", 1.0)
         addDoubleParameter("scale", 1.0)
-        rvClassName = RVType.Gamma.parametrizedRVClass.simpleName!!
-        rvType = (RVType.Gamma)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

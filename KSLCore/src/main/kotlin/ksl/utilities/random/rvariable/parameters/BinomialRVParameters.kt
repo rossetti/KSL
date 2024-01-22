@@ -11,12 +11,13 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *  it will be truncated to the nearest integer value when creating
  *  the corresponding random variable or distribution.
  */
-class BinomialRVParameters : RVParameters(), CreateDistributionIfc<Binomial> {
+class BinomialRVParameters : RVParameters(
+    rvClassName = RVType.Binomial.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Binomial)
+), CreateDistributionIfc<Binomial> {
     override fun fillParameters() {
         addDoubleParameter("probOfSuccess", 0.5)
         addDoubleParameter("numTrials", 2.0)
-        rvClassName = RVType.Binomial.parametrizedRVClass.simpleName!!
-        rvType = (RVType.Binomial)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

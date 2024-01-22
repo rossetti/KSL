@@ -6,12 +6,13 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.WeibullRV
 
-class WeibullRVParameters : RVParameters(), CreateDistributionIfc<Weibull> {
+class WeibullRVParameters : RVParameters(
+    rvClassName = RVType.Weibull.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Weibull)
+), CreateDistributionIfc<Weibull> {
     override fun fillParameters() {
         addDoubleParameter("shape", 1.0)
         addDoubleParameter("scale", 1.0)
-        rvClassName = RVType.Weibull.parametrizedRVClass.simpleName!!
-        rvType = (RVType.Weibull)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

@@ -5,11 +5,12 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.ShiftedGeometricRV
 
-class ShiftedGeometricRVParameters : RVParameters() {
+class ShiftedGeometricRVParameters : RVParameters(
+    rvClassName = RVType.ShiftedGeometric.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.ShiftedGeometric)
+) {
     override fun fillParameters() {
         addDoubleParameter("probOfSuccess", 0.5)
-        rvClassName = RVType.ShiftedGeometric.parametrizedRVClass.simpleName!!
-        rvType = (RVType.ShiftedGeometric)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

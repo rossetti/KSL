@@ -6,12 +6,13 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.UniformRV
 
-class UniformRVParameters : RVParameters(), CreateDistributionIfc<Uniform> {
+class UniformRVParameters : RVParameters(
+    rvClassName = RVType.Uniform.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Uniform)
+), CreateDistributionIfc<Uniform> {
     override fun fillParameters() {
         addDoubleParameter("min", 0.0)
         addDoubleParameter("max", 1.0)
-        rvClassName = RVType.Uniform.parametrizedRVClass.simpleName!!
-        rvType = (RVType.Uniform)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

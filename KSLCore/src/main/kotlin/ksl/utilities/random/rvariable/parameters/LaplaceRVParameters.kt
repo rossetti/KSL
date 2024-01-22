@@ -7,12 +7,13 @@ import ksl.utilities.random.rvariable.LaplaceRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class LaplaceRVParameters : RVParameters(), CreateDistributionIfc<Laplace> {
+class LaplaceRVParameters : RVParameters(
+    rvClassName = RVType.Laplace.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Laplace)
+), CreateDistributionIfc<Laplace> {
     override fun fillParameters() {
         addDoubleParameter("location", 0.0)
         addDoubleParameter("scale", 1.0)
-        rvClassName = RVType.Laplace.parametrizedRVClass.simpleName!!
-        rvType = (RVType.Laplace)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

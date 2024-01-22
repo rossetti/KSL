@@ -6,13 +6,14 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TriangularRV
 
-class TriangularRVParameters : RVParameters(), CreateDistributionIfc<Triangular> {
+class TriangularRVParameters : RVParameters(
+    rvClassName = RVType.Triangular.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Triangular)
+), CreateDistributionIfc<Triangular> {
     override fun fillParameters() {
         addDoubleParameter("min", 0.0)
         addDoubleParameter("mode", 0.5)
         addDoubleParameter("max", 1.0)
-        rvType = (RVType.Triangular)
-        rvClassName = RVType.Triangular.parametrizedRVClass.simpleName!!
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

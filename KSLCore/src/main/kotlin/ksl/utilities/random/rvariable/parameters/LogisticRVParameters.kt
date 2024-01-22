@@ -7,12 +7,13 @@ import ksl.utilities.random.rvariable.LogisticRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class LogisticRVParameters : RVParameters(), CreateDistributionIfc<Logistic> {
+class LogisticRVParameters : RVParameters(
+    rvClassName = RVType.Logistic.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Logistic)
+), CreateDistributionIfc<Logistic> {
     override fun fillParameters() {
         addDoubleParameter("location", 0.0)
         addDoubleParameter("scale", 1.0)
-        rvClassName = RVType.Logistic.parametrizedRVClass.simpleName!!
-        rvType = (RVType.Logistic)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
