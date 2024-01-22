@@ -24,8 +24,12 @@ import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.reflect.KClass
 
-
-abstract class RVParameters {
+/**
+ * @param rvClassName the simple name of the KSL random variable
+ * @param rvType The type of random variable from the legal set of random variable types for the KSL
+ *   that are parameterized random variables
+ */
+abstract class RVParameters(val rvClassName: String, val rvType: RVType) {
     enum class DataType(private val clazz: KClass<*>) {
         DOUBLE(Double::class), INTEGER(Int::class), DOUBLE_ARRAY(DoubleArray::class);
 
@@ -36,19 +40,6 @@ abstract class RVParameters {
             return clazz
         }
     }
-
-    /**
-     *  The simple name of the KSL random variable
-     */
-    lateinit var rvClassName: String
-        protected set
-
-    /**
-     *  The type of random variable from the legal set of random variable types for the KSL
-     *  that are parameterized random variables
-     */
-    lateinit var rvType: RVType
-        protected set
 
     /**
      * The Map that hold the parameters as pairs
@@ -83,9 +74,17 @@ abstract class RVParameters {
         get() = dataTypes.size
 
     init {
+        setupParameters()
+    }
+
+    private fun setupParameters(){
         fillParameters()
     }
 
+    /**
+     *  This function must fill the appropriate data maps to hold the
+     *  default values for the parameters.
+     */
     protected abstract fun fillParameters()
 
     private fun addParameterName(name: String, type: DataType) {

@@ -12,12 +12,13 @@ import kotlin.math.floor
  *  it will be rounded up to the nearest integer which can be equal to or below
  *  the actual value when creating the corresponding random variable or distribution.
  */
-class NegativeBinomialRVParameters : RVParameters(), CreateDistributionIfc<NegativeBinomial> {
+class NegativeBinomialRVParameters : RVParameters(
+    rvClassName = RVType.NegativeBinomial.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.NegativeBinomial)
+), CreateDistributionIfc<NegativeBinomial> {
     override fun fillParameters() {
         addDoubleParameter("probOfSuccess", 0.5)
         addDoubleParameter("numSuccesses", 1.0)
-        rvClassName = RVType.NegativeBinomial.parametrizedRVClass.simpleName!!
-        rvType = (RVType.NegativeBinomial)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

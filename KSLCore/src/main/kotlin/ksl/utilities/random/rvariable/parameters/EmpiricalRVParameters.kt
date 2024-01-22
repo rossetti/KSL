@@ -5,11 +5,12 @@ import ksl.utilities.random.rvariable.EmpiricalRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class EmpiricalRVParameters : RVParameters() {
+class EmpiricalRVParameters : RVParameters(
+    rvClassName = RVType.Empirical.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Empirical)
+) {
     override fun fillParameters() {
         addDoubleArrayParameter("population", DoubleArray(1))
-        rvClassName = RVType.Empirical.parametrizedRVClass.simpleName!!
-        rvType = (RVType.Empirical)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

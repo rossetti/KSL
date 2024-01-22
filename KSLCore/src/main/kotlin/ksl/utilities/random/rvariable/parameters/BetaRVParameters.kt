@@ -6,12 +6,13 @@ import ksl.utilities.random.rvariable.BetaRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class BetaRVParameters : RVParameters(), CreateDistributionIfc<Beta>  {
+class BetaRVParameters : RVParameters(
+    rvClassName = RVType.Beta.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Beta)
+), CreateDistributionIfc<Beta> {
     override fun fillParameters() {
         addDoubleParameter("alpha", 1.0)
         addDoubleParameter("beta", 1.0)
-        rvClassName = RVType.Beta.parametrizedRVClass.simpleName!!
-        rvType = (RVType.Beta)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

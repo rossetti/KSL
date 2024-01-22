@@ -7,14 +7,15 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TruncatedNormalRV
 
-class TruncatedNormalRVParameters : RVParameters(), CreateDistributionIfc<TruncatedNormal> {
+class TruncatedNormalRVParameters : RVParameters(
+    rvClassName = RVType.TruncatedNormal.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.TruncatedNormal)
+), CreateDistributionIfc<TruncatedNormal> {
     override fun fillParameters() {
         addDoubleParameter("mean", 0.0)
         addDoubleParameter("variance", 1.0)
         addDoubleParameter("lowerLimit", Double.NEGATIVE_INFINITY)
         addDoubleParameter("upperLimit", Double.POSITIVE_INFINITY)
-        rvClassName = RVType.TruncatedNormal.parametrizedRVClass.simpleName!!
-        rvType = (RVType.TruncatedNormal)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

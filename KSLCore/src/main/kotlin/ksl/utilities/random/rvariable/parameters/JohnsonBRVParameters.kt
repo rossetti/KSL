@@ -5,14 +5,15 @@ import ksl.utilities.random.rvariable.JohnsonBRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class JohnsonBRVParameters : RVParameters() {
+class JohnsonBRVParameters : RVParameters(
+    rvClassName = RVType.JohnsonB.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.JohnsonB)
+) {
     override fun fillParameters() {
         addDoubleParameter("alpha1", 0.0)
         addDoubleParameter("alpha2", 1.0)
         addDoubleParameter("min", 0.0)
         addDoubleParameter("max", 1.0)
-        rvClassName = RVType.JohnsonB.parametrizedRVClass.simpleName!!
-        rvType = (RVType.JohnsonB)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

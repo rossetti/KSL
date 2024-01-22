@@ -5,12 +5,13 @@ import ksl.utilities.random.rvariable.LogLogisticRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class LogLogisticRVParameters : RVParameters() {
+class LogLogisticRVParameters : RVParameters(
+    rvClassName = RVType.LogLogistic.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.LogLogistic)
+) {
     override fun fillParameters() {
         addDoubleParameter("shape", 1.0)
         addDoubleParameter("scale", 1.0)
-        rvClassName = RVType.LogLogistic.parametrizedRVClass.simpleName!!
-        rvType = (RVType.LogLogistic)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

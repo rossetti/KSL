@@ -5,14 +5,15 @@ import ksl.utilities.random.rvariable.GeneralizedBetaRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class GeneralizedBetaRVParameters : RVParameters() {
+class GeneralizedBetaRVParameters : RVParameters(
+    rvClassName = RVType.GeneralizedBeta.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.GeneralizedBeta)
+) {
     override fun fillParameters() {
         addDoubleParameter("alpha", 1.0)
         addDoubleParameter("beta", 1.0)
         addDoubleParameter("min", 0.0)
         addDoubleParameter("max", 1.0)
-        rvClassName = RVType.GeneralizedBeta.parametrizedRVClass.simpleName!!
-        rvType = (RVType.GeneralizedBeta)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {

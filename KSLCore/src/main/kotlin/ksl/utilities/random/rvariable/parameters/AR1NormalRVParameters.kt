@@ -5,13 +5,14 @@ import ksl.utilities.random.rvariable.AR1NormalRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
-class AR1NormalRVParameters : RVParameters() {
+class AR1NormalRVParameters : RVParameters(
+    rvClassName = RVType.AR1Normal.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.AR1Normal)
+) {
     override fun fillParameters() {
         addDoubleParameter("mean", 0.0)
         addDoubleParameter("variance", 1.0)
         addDoubleParameter("correlation", 0.0)
-        rvClassName = RVType.AR1Normal.parametrizedRVClass.simpleName!!
-        rvType = (RVType.AR1Normal)
     }
 
     override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
