@@ -29,7 +29,7 @@ import kotlin.reflect.KClass
  * @param rvType The type of random variable from the legal set of random variable types for the KSL
  *   that are parameterized random variables
  */
-abstract class RVParameters(val rvClassName: String, val rvType: RVType) {
+abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTypeIfc) {
     enum class DataType(private val clazz: KClass<*>) {
         DOUBLE(Double::class), INTEGER(Int::class), DOUBLE_ARRAY(DoubleArray::class);
 
