@@ -29,16 +29,16 @@ import ksl.utilities.random.rng.RNStreamIfc
  *  The two distributions must be domain compatible.
  */
 class AcceptanceRejectionRV(
-    proposalDistribution: ContinuousDistributionIfc,
-    thePDF: PDFIfc,
+    val proposalDistribution: ContinuousDistributionIfc,
+    val majorizingConstant: Double,
+    val pdf: PDFIfc,
     rnStream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : RVariable(rnStream) {
     init {
-        require(proposalDistribution.domain() == thePDF.domain()) { "The domains of the two distributions are not equal" }
+        require(majorizingConstant > 0.0) { "The majorizing constant must be greater than 0.0" }
+        require(proposalDistribution.domain() == pdf.domain()) { "The domains of the two distributions are not equal" }
     }
 
-    private val distribution: ContinuousDistributionIfc = proposalDistribution
-    private val pdf: PDFIfc = thePDF
     private val rVariable: RVariableIfc = proposalDistribution.randomVariable(rnStream)
 
     override fun generate(): Double {
@@ -47,11 +47,11 @@ class AcceptanceRejectionRV(
         do {
             w = rVariable.value
             u = rVariable.rnStream.randU01()
-        } while (u * distribution.pdf(w) > pdf.pdf(w))
+        } while (u * majorizingConstant * proposalDistribution.pdf(w) > pdf.pdf(w))
         return w
     }
 
     override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return AcceptanceRejectionRV(distribution, pdf, stream)
+        return AcceptanceRejectionRV(proposalDistribution, majorizingConstant, pdf, stream)
     }
 }
