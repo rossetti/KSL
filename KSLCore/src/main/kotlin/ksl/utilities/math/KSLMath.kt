@@ -214,7 +214,7 @@ object KSLMath {
      * @param precision the precision to check
      * @return true if within the precision
      */
-    fun within(a: Double, b: Double, precision: Double): Boolean {
+    fun within(a: Double, b: Double, precision: Double = defaultNumericalPrecision): Boolean {
         return abs(a - b) < precision
     }
 

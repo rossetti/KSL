@@ -19,6 +19,7 @@
 package ksl.utilities
 
 import ksl.utilities.math.FunctionIfc
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.*
 import java.text.DecimalFormat
@@ -1635,10 +1636,11 @@ object KSLArrays {
      * the elements are equal a_0 = a_1 = a_2, etc.
      *
      * @param array the array to check, must not be null
+     * @param precision the precision to consider things equal, defaults to KSLMath.defaultNumericalPrecision
      * @return true if all elements are equal, if there
      * are 0 elements then it returns false, 1 element returns true
      */
-    fun isAllEqual(array: DoubleArray): Boolean {
+    fun isAllEqual(array: DoubleArray, precision: Double = KSLMath.defaultNumericalPrecision): Boolean {
         if (array.isEmpty()) {
             return false
         }
@@ -1646,9 +1648,12 @@ object KSLArrays {
             return true
         }
         for (i in 1 until array.size) {
-            if (array[i - 1] != array[i]) {
+            if (!KSLMath.equal(array[i-1], array[i], precision)){
                 return false
             }
+//            if (array[i - 1] != array[i]) {
+//                return false
+//            }
         }
         return true
     }
@@ -1658,10 +1663,11 @@ object KSLArrays {
      * the elements are equal a_0 != a_1 != a_2, etc.
      *
      * @param array the array to check, must not be null
+     * @param precision the precision to consider things equal, defaults to KSLMath.defaultNumericalPrecision
      * @return true if all elements are different, if there
      * are 0 elements then it returns false, 1 element returns true
      */
-    fun isAllDifferent(array: DoubleArray): Boolean {
+    fun isAllDifferent(array: DoubleArray, precision: Double = KSLMath.defaultNumericalPrecision): Boolean {
         if (array.isEmpty()) {
             return false
         }
@@ -1669,9 +1675,12 @@ object KSLArrays {
             return true
         }
         for (i in 1 until array.size) {
-            if (array[i - 1] == array[i]) {
+            if (KSLMath.equal(array[i-1], array[i], precision)){
                 return false
             }
+//            if (array[i - 1] == array[i]) {
+//                return false
+//            }
         }
         return true
     }
