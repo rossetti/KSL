@@ -50,7 +50,7 @@ class AR1NormalRV(
     }
 
     /**
-     * Constructs a bi-variate normal with the provided parameters
+     * Creates an autoregressive order 1 normal process
      *
      * @param mean  the mean of the process
      * @param variance the variance of the process
@@ -68,7 +68,8 @@ class AR1NormalRV(
      *
      * @return The variance of the underlying errors
      */
-    val errorVariance: Double = myErrors.variance
+    val errorVariance: Double
+        get() = myErrors.variance
 
     override fun generate(): Double {
         myX = mean + lag1Corr * (myX - mean) + myErrors.value
