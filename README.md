@@ -97,11 +97,18 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.0.3"
+version = "R1.0.5"
 
 ## Release Notes
 
-Latest Release: R1.0.4
+Latest Release: R1.0.5
+- Fixed AcceptanceRejectRV to correctly use majorizing function
+- added Logistic random variable and distribution
+- updated RVParameters and RVType for more flexibility
+- added Laplace distribution
+- improved KSLArrays.isAllEqual() and isAllDifferent() to account for double precision
+
+Release: R1.0.4
 - Fixed axis label issue in ScatterPlot
 - Added examples for bootstrapping, VRT, and MCMC
 - New classes for multi-variate copulas, minor revisions in mcmc package
@@ -109,7 +116,7 @@ Latest Release: R1.0.4
 - New case based bootstrap sampling functionality
 - Improved control variate implementation
 
-Latest Release: R1.0.3
+Release: R1.0.3
 
 - fixed issue with PMFModeler that caused bin probabilities to be incorrectly updated
 - added ability to save plots to PDFModeler
