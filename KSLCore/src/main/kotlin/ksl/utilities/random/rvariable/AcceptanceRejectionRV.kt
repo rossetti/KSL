@@ -36,7 +36,8 @@ class AcceptanceRejectionRV(
 ) : RVariable(rnStream) {
     init {
         require(majorizingConstant > 0.0) { "The majorizing constant must be greater than 0.0" }
-        require(proposalDistribution.domain() == pdf.domain()) { "The domains of the two distributions are not equal" }
+        require(proposalDistribution.domain().contains(pdf.domain())) {"The supplied PDF domain is not contained in the domain of the proposal distribution"}
+ //       require(proposalDistribution.domain() == pdf.domain()) { "The domains of the two distributions are not equal" }
     }
 
     private val rVariable: RVariableIfc = proposalDistribution.randomVariable(rnStream)
