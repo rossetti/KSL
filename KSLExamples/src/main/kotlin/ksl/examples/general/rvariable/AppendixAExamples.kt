@@ -19,17 +19,22 @@
 package ksl.examples.general.rvariable
 
 import ksl.utilities.Interval
+import ksl.utilities.distributions.Exponential
 import ksl.utilities.distributions.PDFIfc
 import ksl.utilities.distributions.Uniform
 import ksl.utilities.io.plotting.DensityPlot
 import ksl.utilities.random.rvariable.AcceptanceRejectionRV
 import ksl.utilities.statistic.Histogram
-
+import ksl.utilities.toCSVString
+import ksl.utilities.toStrings
+import kotlin.math.exp
 
 
 fun main() {
 
-    exampleA8()
+//    exampleA8()
+
+    partB()
 }
 
 /**
@@ -42,7 +47,7 @@ fun exampleA8(){
     val c = 3.0 / 2.0
     val rv = AcceptanceRejectionRV(wx, c, f)
     val h = Histogram.create(-1.0, 1.0, 100)
-    for (i in 1..100000) {
+    for (i in 1..10000) {
         h.collect(rv.value)
     }
     val hp = h.histogramPlot()
@@ -58,6 +63,42 @@ object f : PDFIfc {
 
     override fun domain(): Interval {
         return Interval(-1.0, 1.0)
+    }
+
+}
+
+fun partB(){
+    val a = 1.0
+    // specify the proposal distribution
+    val wx = Exponential(1.0)
+    // majorizing constant, if g(x) is majorizing function, then g(x) = w(x)*c
+    val c = 1.0/(1.0 - exp(-a))
+    val f = TExp(a)
+    val rv = AcceptanceRejectionRV(wx, c, f)
+    val h = Histogram.create(0.0, a, 100)
+    for (i in 1..10000) {
+        val x = rv.value
+        h.collect(x)
+    }
+    println(h)
+    val hp = h.histogramPlot()
+    hp.showInBrowser()
+
+    val dp = DensityPlot(h) { x -> f.pdf(x) }
+    dp.showInBrowser()
+}
+
+class TExp(val a: Double) : PDFIfc {
+    private val c = 1.0/(1.0 - exp(-a))
+    override fun pdf(x: Double): Double {
+        if ((x < 0.0) || (x > a)){
+            return 0.0
+        }
+        return exp(-x) * c
+    }
+
+    override fun domain() : Interval {
+        return Interval(0.0, a)
     }
 
 }
