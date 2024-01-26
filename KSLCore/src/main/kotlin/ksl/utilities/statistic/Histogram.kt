@@ -418,8 +418,15 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             require(!upperLimit.isInfinite()) { "The upper limit of the range cannot be infinite." }
             require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit of the range" }
             require(numBins > 0) { "The number of bins must be > 0" }
-            val binWidth = KSLMath.roundToScale((upperLimit - lowerLimit) / numBins, false)
-            return createBreakPoints(lowerLimit, numBins, binWidth)
+            val binWidth = (upperLimit - lowerLimit) / numBins
+            //    val binWidth = KSLMath.roundToScale((upperLimit - lowerLimit) / numBins, false)
+ //           println("binWidth = $binWidth")
+            val b = createBreakPoints(lowerLimit, numBins, binWidth)
+            // ensures last break point is not past the upper limit due to round-off accumulation
+            if (b.last() > upperLimit){
+                b[b.lastIndex] = upperLimit
+            }
+            return b
         }
 
         /**
@@ -432,6 +439,10 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             require(!lowerLimit.isInfinite()) { "The lower limit of the range cannot be infinite." }
             require(numBins > 0) { "The number of bins must be > 0" }
             require(width > 0) { "The width of the bins must be > 0" }
+            //TODO adding small widths can cause points to have issues with numerical precision
+            // causing not nice break points
+            // https://hipparchus.org/apidocs/org/hipparchus/util/Precision.html#round(double,int,java.math.RoundingMode)
+            // https://www.baeldung.com/java-round-decimal-number
             val points = DoubleArray(numBins + 1)
             points[0] = lowerLimit
             for (i in 1 until points.size) {
@@ -459,10 +470,10 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
          */
         fun addLowerLimit(lowerLimit: Double, breakPoints: DoubleArray): DoubleArray {
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
-            if (lowerLimit >= breakPoints[0]){
+            if (lowerLimit >= breakPoints[0]) {
                 return breakPoints.copyOf()
             }
-            require(lowerLimit < breakPoints[0]) {"The new lower limit must be less than the starting break point"}
+            require(lowerLimit < breakPoints[0]) { "The new lower limit must be less than the starting break point" }
             return breakPoints.insertAt(lowerLimit, 0)
         }
 
@@ -473,10 +484,10 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
          */
         fun addUpperLimit(upperLimit: Double, breakPoints: DoubleArray): DoubleArray {
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
-            if (upperLimit <= breakPoints.last()){
+            if (upperLimit <= breakPoints.last()) {
                 return breakPoints.copyOf()
             }
-            require(upperLimit > breakPoints.last()) {"The new upper limit must be greater than the current last break point"}
+            require(upperLimit > breakPoints.last()) { "The new upper limit must be greater than the current last break point" }
             return breakPoints.insertAt(upperLimit, breakPoints.size)
         }
 
@@ -515,8 +526,8 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
          * @param statistic the statistics associated with the data are used to form the breakpoints
          * @return the set of break points
          */
-        fun recommendBreakPoints(statistic: StatisticIfc) : DoubleArray {
-            if (statistic.count == 1.0){
+        fun recommendBreakPoints(statistic: StatisticIfc): DoubleArray {
+            if (statistic.count == 1.0) {
                 val b = DoubleArray(1)
                 b[0] = floor(statistic.average)
                 return b
@@ -573,7 +584,7 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
         /**
          *  Creates a default histogram based on default break points for the supplied data
          */
-        fun create(array: DoubleArray, breakPoints: DoubleArray = recommendBreakPoints(array)) : Histogram {
+        fun create(array: DoubleArray, breakPoints: DoubleArray = recommendBreakPoints(array)): Histogram {
             val h = Histogram(breakPoints)
             h.collect(array)
             return h

@@ -26,7 +26,14 @@ import ksl.utilities.random.rng.RNStreamIfc
  *  Implements the acceptance/rejection algorithm for uni-variate distributions.
  *  The user must supply a continuous distribution that acts as the proposal distribution
  *  and the PDF of the distribution from which random variates will be generated.
- *  The two distributions must be domain compatible.
+ *  The two distributions must be domain compatible. The proposal distribution's domain
+ *  must wholly contain the domain of the PDF from which random variates will be generated.
+ *  If the target PDF's domain is not within the proposal distribution's domain then
+ *  all proposed values would be rejected.
+ *
+ *  Since the proposal distribution may generate values outside the domain of the target PDF
+ *  it is essential that the PDF function return 0.0 for any value of x that is not
+ *  within its domain.
  */
 class AcceptanceRejectionRV(
     val proposalDistribution: ContinuousDistributionIfc,
@@ -37,10 +44,10 @@ class AcceptanceRejectionRV(
     init {
         require(majorizingConstant > 0.0) { "The majorizing constant must be greater than 0.0" }
         require(proposalDistribution.domain().contains(pdf.domain())) {"The supplied PDF domain is not contained in the domain of the proposal distribution"}
- //       require(proposalDistribution.domain() == pdf.domain()) { "The domains of the two distributions are not equal" }
-    }
+     }
 
     private val rVariable: RVariableIfc = proposalDistribution.randomVariable(rnStream)
+    private val domain = pdf.domain()
 
     override fun generate(): Double {
         var w: Double
@@ -48,7 +55,7 @@ class AcceptanceRejectionRV(
         do {
             w = rVariable.value
             u = rVariable.rnStream.randU01()
-        } while (u * majorizingConstant * proposalDistribution.pdf(w) > pdf.pdf(w))
+        } while (!domain.contains(w) || ( u * majorizingConstant * proposalDistribution.pdf(w) > pdf.pdf(w)))
         return w
     }
 

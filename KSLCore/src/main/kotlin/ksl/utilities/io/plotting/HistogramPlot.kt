@@ -21,6 +21,7 @@ class HistogramPlot(
     private val upperLimits: DoubleArray
 
     init {
+        title = "Histogram Plot"
         upperLimits = histogram.upperLimits
         if (upperLimits.last().isInfinite()) {
             upperLimits[upperLimits.lastIndex] = histogram.max + 1.0
