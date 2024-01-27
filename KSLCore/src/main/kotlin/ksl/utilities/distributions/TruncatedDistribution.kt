@@ -17,6 +17,7 @@
  */
 package ksl.utilities.distributions
 
+import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
@@ -35,9 +36,27 @@ import ksl.utilities.random.rvariable.TruncatedRV
 
  */
 class TruncatedDistribution(
-    theDistribution: DistributionIfc<*>, theCDFLowerLimit: Double, theCDFUpperLimit: Double,
-    theLowerLimit: Double, theUpperLimit: Double, name: String? = null
+    theDistribution: DistributionIfc<*>,
+    theCDFLowerLimit: Double,
+    theCDFUpperLimit: Double,
+    theLowerLimit: Double,
+    theUpperLimit: Double,
+    name: String? = null
 ) : Distribution<TruncatedDistribution>(name), GetRVariableIfc {
+
+    constructor(
+        theDistribution: DistributionIfc<*>,
+        distDomain: Interval,
+        truncInterval: Interval,
+        name: String? = null
+    ) : this(
+        theDistribution,
+        distDomain.lowerLimit,
+        distDomain.upperLimit,
+        truncInterval.lowerLimit,
+        truncInterval.upperLimit,
+        name
+    )
 
     init {
         require(theLowerLimit < theUpperLimit) { "The lower limit must be < the upper limit" }
@@ -118,7 +137,12 @@ class TruncatedDistribution(
             cdfAtUpperLimit = 1.0
             cdfAtLowerLimit = distribution.cdf(lowerLimit)
         }
-        require(!KSLMath.equal((cdfAtUpperLimit - cdfAtLowerLimit), 0.0)) { "The supplied limits have no probability support (F(upper) - F(lower) = 0.0)" }
+        require(
+            !KSLMath.equal(
+                (cdfAtUpperLimit - cdfAtLowerLimit),
+                0.0
+            )
+        ) { "The supplied limits have no probability support (F(upper) - F(lower) = 0.0)" }
     }
 
     /**

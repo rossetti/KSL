@@ -18,8 +18,11 @@
 
 package ksl.utilities.distributions
 
+
+interface InvertibleCDFIfc : CDFIfc, InverseCDFIfc
+
 /**
  *  General interface for functions that have probability distributions
  */
-interface DistributionFunctionIfc : CDFIfc, MeanIfc, VarianceIfc, InverseCDFIfc {
+interface DistributionFunctionIfc : InvertibleCDFIfc, MeanIfc, VarianceIfc {
 }
