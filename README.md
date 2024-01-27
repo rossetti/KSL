@@ -97,16 +97,18 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.0.5"
+version = "R1.0.6"
 
 ## Release Notes
 
-Latest Release: R1.0.5
+Latest Release: R1.0.6
 - Fixed AcceptanceRejectRV to correctly use majorizing function
 - added Logistic random variable and distribution
 - updated RVParameters and RVType for more flexibility
 - added Laplace distribution
 - improved KSLArrays.isAllEqual() and isAllDifferent() to account for double precision
+- improved histogram break point creation
+- simplified interface for TruncatedRV
 
 Release: R1.0.4
 - Fixed axis label issue in ScatterPlot
