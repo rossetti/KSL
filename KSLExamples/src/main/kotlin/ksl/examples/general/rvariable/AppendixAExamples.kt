@@ -32,9 +32,7 @@ import kotlin.math.exp
 
 fun main() {
 
-//    exampleA8()
-
-    partB()
+    exampleA8()
 }
 
 /**
@@ -58,47 +56,13 @@ fun exampleA8(){
 
 object f : PDFIfc {
     override fun pdf(x: Double): Double {
+        if ((x < -1.0) || (x > 1))
+            return 0.0
         return (0.75 * (1.0 - x * x))
     }
 
     override fun domain(): Interval {
         return Interval(-1.0, 1.0)
-    }
-
-}
-
-fun partB(){
-    val a = 1.0
-    // specify the proposal distribution
-    val wx = Exponential(1.0)
-    // majorizing constant, if g(x) is majorizing function, then g(x) = w(x)*c
-    val c = 1.0/(1.0 - exp(-a))
-    val f = TExp(a)
-    val rv = AcceptanceRejectionRV(wx, c, f)
-    val h = Histogram.create(0.0, a, 100)
-    for (i in 1..10000) {
-        val x = rv.value
-        h.collect(x)
-    }
-    println(h)
-    val hp = h.histogramPlot()
-    hp.showInBrowser()
-
-    val dp = DensityPlot(h) { x -> f.pdf(x) }
-    dp.showInBrowser()
-}
-
-class TExp(val a: Double) : PDFIfc {
-    private val c = 1.0/(1.0 - exp(-a))
-    override fun pdf(x: Double): Double {
-        if ((x < 0.0) || (x > a)){
-            return 0.0
-        }
-        return exp(-x) * c
-    }
-
-    override fun domain() : Interval {
-        return Interval(0.0, a)
     }
 
 }

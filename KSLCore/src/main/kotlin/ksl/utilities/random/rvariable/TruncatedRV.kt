@@ -18,7 +18,8 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.distributions.DistributionFunctionIfc
+import ksl.utilities.Interval
+import ksl.utilities.distributions.InvertibleCDFIfc
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 
@@ -33,8 +34,12 @@ import ksl.utilities.random.rng.RNStreamIfc
  * @param stream the random number stream
  */
 class TruncatedRV(
-    distribution: DistributionFunctionIfc, val cdfLL: Double, val cdfUL: Double,
-    val lowerLimit: Double, val upperLimit: Double, stream: RNStreamIfc = KSLRandom.nextRNStream()
+    distribution: InvertibleCDFIfc,
+    val cdfLL: Double,
+    val cdfUL: Double,
+    val lowerLimit: Double,
+    val upperLimit: Double,
+    stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : RVariable(stream) {
     init {
         require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
@@ -43,7 +48,19 @@ class TruncatedRV(
         require(!(lowerLimit == cdfLL && upperLimit == cdfUL)) { "There was no truncation over the interval of support" }
     }
 
-    private val myDistribution: DistributionFunctionIfc = distribution
+    constructor(
+        distribution: InvertibleCDFIfc,
+        distDomain: Interval,
+        truncInterval: Interval,
+    ) : this(
+        distribution,
+        distDomain.lowerLimit,
+        distDomain.upperLimit,
+        truncInterval.lowerLimit,
+        truncInterval.upperLimit,
+    )
+
+    private val myDistribution: InvertibleCDFIfc = distribution
 
     private val myFofLL: Double
     private val myFofUL: Double
@@ -80,10 +97,9 @@ class TruncatedRV(
      * @param streamNum    A positive integer to identify the stream
      */
     constructor(
-        distribution: DistributionFunctionIfc, cdfLL: Double, cdfUL: Double,
+        distribution: InvertibleCDFIfc, cdfLL: Double, cdfUL: Double,
         truncLL: Double, truncUL: Double, streamNum: Int
-    ) : this(distribution, cdfLL, cdfUL, truncLL, truncUL, KSLRandom.rnStream(streamNum)) {
-    }
+    ) : this(distribution, cdfLL, cdfUL, truncLL, truncUL, KSLRandom.rnStream(streamNum))
 
     override fun generate(): Double {
         val v = myFofLL + myDeltaFUFL * rnStream.randU01()
