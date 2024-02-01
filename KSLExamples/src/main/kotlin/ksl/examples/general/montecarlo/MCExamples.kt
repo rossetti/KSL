@@ -19,11 +19,9 @@
 package ksl.examples.general.montecarlo
 
 import ksl.utilities.KSLArrays
+import ksl.utilities.io.write
 import ksl.utilities.io.writeToFile
-import ksl.utilities.random.rvariable.BernoulliRV
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.NormalRV
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.IntegerFrequency
@@ -31,7 +29,9 @@ import ksl.utilities.statistics
 
 fun main(){
     //example1()
-    example2()
+   // example2()
+
+    mvnExample()
 }
 
 fun example1(){
@@ -68,4 +68,31 @@ fun example2(){
     val f = IntegerFrequency(name = "Frequency Tabulation")
     f.collect(data)
     println(f)
+}
+
+fun mvnExample(){
+    val cov = arrayOf(
+        doubleArrayOf(3.0, 2.0, 1.0),
+        doubleArrayOf(2.0, 5.0, 3.0),
+        doubleArrayOf(1.0, 3.0, 4.0),
+    )
+    val means = doubleArrayOf(1.0, 2.0, 3.0)
+
+    println("covariances")
+    cov.write()
+
+    val rv = MVNormalRV(means, cov)
+    for (i in 1..5) {
+        val sample: DoubleArray = rv.sample()
+        println(KSLArrays.toCSVString(sample))
+    }
+
+    println()
+    println("Correlations")
+    rv.correlations.write()
+
+    val rho = MVNormalRV.convertToCorrelation(cov)
+    println()
+    rho.write()
+    println(rho)
 }
