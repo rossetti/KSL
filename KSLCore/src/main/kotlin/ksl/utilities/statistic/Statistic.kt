@@ -20,6 +20,7 @@ package ksl.utilities.statistic
 import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.PDFModeler
+import org.hipparchus.stat.correlation.Covariance
 import kotlin.collections.max
 import kotlin.math.*
 
@@ -939,19 +940,64 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
 
         /**
          *  Computes the Pearson correlation between the elements of the array
-         *  based on n = min(x.size, y.size) elements.  If no elements, then
-         *  Double.NaN is returned.
+         *  based on n = min(x.size, y.size) elements.  There must be at
+         *  least two elements in each array.
          */
         fun pearsonCorrelation(x: DoubleArray, y: DoubleArray): Double {
-            val s = StatisticXY()
             val n = min(x.size, y.size)
-            if (n == 0) {
-                return Double.NaN
-            }
+            require(n > 2) {"There must be at least two elements in each array"}
+            val s = StatisticXY()
             for (i in 0 until n) {
                 s.collectXY(x[i], y[i])
             }
             return s.correlationXY
+        }
+
+        /**
+         *  Computes the covariance between the two arrays based on n = min(x.size, y.size) elements.
+         *  There must be at least two elements in each array.
+         */
+        fun covariance(x: DoubleArray, y: DoubleArray): Double {
+            val n = min(x.size, y.size)
+            require(n > 2) {"There must be at least two elements in each array"}
+            val s = StatisticXY()
+            for (i in 0 until n) {
+                s.collectXY(x[i], y[i])
+            }
+            return s.covarianceXY
+        }
+
+        /**
+         *  Assumes that the data is in each row of the matrix and
+         *  that each row has the same number of elements. That is,
+         *  the matrix must be rectangular.
+         */
+        fun covariances(matrix: Array<DoubleArray>): Array<DoubleArray> {
+            require(matrix.isRectangular()) { "The supplied matrix was not rectangular" }
+            require(matrix.size > 1){"The number of rows must be > 1"}
+            require(matrix[0].size > 2) {"The number of columns must be > 2"}
+            // https://hipparchus.org/apidocs/org/hipparchus/stat/correlation/Covariance.html
+            // assumes data is columns, must transpose, and compute bias corrected version
+            return Covariance(matrix.transpose(), true).covarianceMatrix.data
+//            val sXY = StatisticXY()
+//            val s = Statistic()
+//
+//            for (i in matrix.indices) {
+//                for(j in i..< matrix.size){
+//                    if (i == j){
+//                        s.collect(matrix[i])
+//                        // capture value
+//                        // reset statistics
+//                    } else {
+//                        for (k in matrix[i].indices){
+//                            sXY.collectXY(matrix[i][k], matrix[j][k])
+//                        }
+//                        //capture covariance
+//
+//                        // reset statistics
+//                    }
+//                }
+//            }
         }
 
         /**
@@ -1051,9 +1097,9 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             require(!expected.hasZero()) { "The expected array contains a 0.0 value" }
             var sum = 0.0
             for (i in counts.indices) {
-                sum = sum + counts[i]*ln(counts[i]/expected[i])
+                sum = sum + counts[i] * ln(counts[i] / expected[i])
             }
-            return 2.0*sum
+            return 2.0 * sum
         }
 
         /**
@@ -1071,17 +1117,17 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                 var fk = fn.cdf(orderStats[k])
                 // control for CDF values outside (0,1). That is when they are 0.0 or 1.0
                 // because natural logarithm will produce infinities
-                if (fk <= 0.0){
+                if (fk <= 0.0) {
                     fk = Double.MIN_VALUE
                 }
-                if (fk >= 1.0){
+                if (fk >= 1.0) {
                     fk = 1.0 - Double.MIN_VALUE
                 }
                 var fnmkp1 = fn.cdf(orderStats[n - (k + 1)])
-                if (fnmkp1 <= 0.0){
+                if (fnmkp1 <= 0.0) {
                     fnmkp1 = Double.MIN_VALUE
                 }
-                if (fnmkp1 >= 1.0){
+                if (fnmkp1 >= 1.0) {
                     fnmkp1 = 1.0 - Double.MIN_VALUE
                 }
                 sum = sum + (2.0 * i - 1.0) * (ln(fk) + ln(1.0 - fnmkp1))
