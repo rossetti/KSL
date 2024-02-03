@@ -79,17 +79,41 @@ class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc
         get() = vary * count
     val sumOfSquaredXY: Double
         get() = covxy * count
+    
+    /**
+     *  Assuming a linear fit between X and Y, this returns
+     *  the sum of squared error of the regression of the fit
+     */
     val sumSquaredErrorsRegression: Double
         get() {
             val t = sumOfSquaredXY
             return t * t / sumOfSquaredXX
         }
+    /**
+     *  Assuming a linear fit between X and Y, this returns
+     *  the sum of squared error total of the fit
+     */
     val sumOfSquaresErrorTotal: Double //TODO check this
         get() = sumOfSquaredYY
+
+    /**
+     *  Assuming a linear fit between X and Y, this returns
+     *  the coefficient of determination of the fit
+     */
     val coeffOfDetermination: Double
         get() = sumSquaredErrorsRegression / sumOfSquaredYY
+
+    /**
+     *  Assuming a linear fit between X and Y, this returns
+     *  the sum of squared error of the residuals of the fit
+     */
     val sumSquareErrorResiduals: Double
         get() = sumOfSquaresErrorTotal - sumSquaredErrorsRegression
+
+    /**
+     *  Assuming a linear fit between X and Y, this returns
+     *  the mean squared error of the residuals of the fit
+     */
     val mseOfResiduals: Double
         get() {
             val n = count - 2.0
@@ -97,14 +121,34 @@ class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc
                 Double.NaN
             } else sumSquareErrorResiduals / n
         }
+
+    /**
+     *  Assuming a linear fit between X and Y, this
+     *  returns the estimated slope.
+     */
     val slope: Double
         get() = if (KSLMath.equal(sumOfSquaredXX, 0.0)) {
             Double.NaN
         } else sumOfSquaredXY / sumOfSquaredXX
+
+    /**
+     *  Assuming a linear fit between X and y, this returns
+     *  the std error of the estimated slope.
+     */
     val slopeStdError: Double
         get() = sqrt(mseOfResiduals / sumOfSquaredXX)
+
+    /**
+     *  Assuming a linear fit between X and y, this
+     *  returns the estimated intercept term
+     */
     val intercept: Double
         get() = averageY - slope * averageX
+
+    /**
+     *  Assuming a linear fit between X and Y, this
+     *  returns the std error of the intercept term
+     */
     val interceptStdError: Double
         get() {
             val n = count
@@ -116,6 +160,11 @@ class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc
             val t2 = sumSquareErrorResiduals / n2
             return sqrt(t1 * t2)
         }
+
+    /**
+     *  Assuming a linear fit between X and Y, this returns
+     *  the adjusted R-squared value
+     */
     val adjustedRSq: Double
         get() {
             val n = count
@@ -126,16 +175,26 @@ class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc
                 Double.NaN
             } else ((n - 1.0) * r2 - k) / d
         }
+
+    /**
+     *  The covariance between X and Y
+     */
     val covarianceXY: Double
         get() = if (nxy > 1.0) {
             covxy
         } else {
             Double.NaN
         }
+
+    /**
+     *  The number of pairs presented to the collect methods
+     */
     val count: Double
         get() = nxy
 
-    // matches Pearson correlation
+    /**
+     *  The (Pearson) correlation between X and Y
+     */
     val correlationXY: Double
         get() = if (nxy > 1.0) {
             covxy / sqrt(varx * vary) // matches Pearson correlation
@@ -153,6 +212,20 @@ class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc
         nxy = 0.0
     }
 
+    /**
+     *  Convenience method for collecting over the arrays.
+     *  The arrays must be of the same size.
+     */
+    fun collectXY(x: DoubleArray, y: DoubleArray){
+        require(x.size == y.size) {"The array sizes must be equal"}
+        for(i in x.indices){
+            collectXY(x[i], y[i])
+        }
+    }
+
+    /**
+     *  Collects statistics on the presented pair
+     */
     fun collectXY(x: Double, y: Double) {
         // compute for n+1
         val n1: Double = nxy + 1.0
@@ -168,6 +241,9 @@ class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc
         nxy = nxy + 1.0
     }
 
+    /**
+     *  the average x divided by average y
+     */
     val ratioXY: Double
         get() = if (avgy == 0.0) {
             if (avgx > 0.0) {
@@ -180,6 +256,10 @@ class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc
         } else {
             avgx / avgy
         }
+
+    /**
+     *  the variance of the ratio of X over Y
+     */
     val ratioXYVariance: Double
         get() {
             val mu = ratioXY
@@ -188,6 +268,10 @@ class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc
             val cxy = covarianceXY
             return vx - 2.0 * mu * cxy + mu * mu * vy
         }
+
+    /**
+     *  the std error of the ratio of X over Y
+     */
     val ratioXYStdError: Double
         get() = if (nxy >= 1.0) {
             if (avgy != 0.0) {
