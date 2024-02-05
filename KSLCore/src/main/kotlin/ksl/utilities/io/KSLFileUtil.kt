@@ -593,7 +593,7 @@ object KSLFileUtil {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: DoubleArray, out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
+    fun write(array: DoubleArray, out: PrintWriter = SOUT, df: DecimalFormat? = null) {
         for (x in array) {
             if (df == null){
                 out.println(x)
@@ -634,8 +634,21 @@ object KSLFileUtil {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: Array<DoubleArray>, out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
+    fun write(array: Array<DoubleArray>, out: PrintWriter = SOUT, df: DecimalFormat? = null) {
         for (doubles in array) {
+            out.println(toCSVString(doubles, df))
+        }
+        out.flush()
+    }
+
+    /**  Allows writing directly to a known PrintWriter.  Facilitates writing
+     * to the file before or after the list is written
+     *
+     * @param list the array to write, must not be null
+     * @param out the PrintWriter to write to, must not be null
+     */
+    fun write(list: List<DoubleArray>, out: PrintWriter = SOUT, df: DecimalFormat? = null) {
+        for (doubles in list) {
             out.println(toCSVString(doubles, df))
         }
         out.flush()
@@ -689,7 +702,7 @@ object KSLFileUtil {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: IntArray, out: PrintWriter = KSLFileUtil.SOUT) {
+    fun write(array: IntArray, out: PrintWriter = SOUT) {
         for (x in array) {
             out.println(x)
         }
@@ -726,7 +739,7 @@ object KSLFileUtil {
      * @param array the array to write, must not be null
      * @param out the PrintWriter to write to, must not be null
      */
-    fun write(array: Array<IntArray>, out: PrintWriter = KSLFileUtil.SOUT) {
+    fun write(array: Array<IntArray>, out: PrintWriter = SOUT) {
         for (ints in array) {
             out.println(ints.toCSVString())
         }
@@ -798,6 +811,11 @@ object KSLFileUtil {
         val dir = Paths.get(dirStr)
         return dir.resolve(fileStr).toFile()
     }
+}
+
+
+fun List<DoubleArray>.write(out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
+    KSLFileUtil.write(this, out, df)
 }
 
 fun Array<DoubleArray>.write(out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {

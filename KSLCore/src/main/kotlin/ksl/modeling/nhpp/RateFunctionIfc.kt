@@ -58,5 +58,7 @@ interface RateFunctionIfc {
      * @param time the time to evaluate
      * @return true if the supplied time is within the time range
      */
-    operator fun contains(time: Double): Boolean
+    operator fun contains(time: Double): Boolean{
+        return (timeRangeLowerLimit <= time) && (time <= timeRangeUpperLimit)
+    }
 }
