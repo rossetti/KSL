@@ -29,9 +29,9 @@ import ksl.utilities.io.plotting.ObservationsPlot
 
 fun main(){
 
-//    asBrowserResults()
+    asBrowserResults()
 
-    scriptedResults()
+ //   scriptedResults()
 
 }
 
