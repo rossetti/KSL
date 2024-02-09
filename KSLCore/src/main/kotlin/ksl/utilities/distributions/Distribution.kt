@@ -30,49 +30,41 @@ abstract class Distribution<T>(name: String? = null) : DistributionIfc<T>, Ident
 
         /**
          * Computes the inverse CDF by using the bisection method [ll,ul] must
-         * contain the desired value. Initial search point is (ll+ul)/2.0
-         *
-         * [ll, ul] are defined on the domain of the CDF, i.e. the X values
+         * contain the desired value. The [ll, ul] are defined on the domain of the CDF, i.e. the x values
          *
          * @param cdf a reference to the cdf
          * @param p must be in [0,1]
          * @param ll lower limit of search range, must be &lt; ul
          * @param ul upper limit of search range, must be &gt; ll
+         * @param initialX an initial starting point that must be in [ll,ul]. Default value initial search point is (ll+ul)/2.0
          * @return the inverse of the CDF evaluated at p
          */
         fun inverseContinuousCDFViaBisection(
-            cdf: ContinuousDistributionIfc, p: Double,
-            ll: Double, ul: Double
+            cdf: CDFIfc, p: Double,
+            ll: Double, ul: Double, initialX: Double = (ll + ul)/2.0
         ): Double {
-            return inverseContinuousCDFViaBisection(cdf, p, ll, ul, (ll + ul) / 2.0)
+            return inverseContinuousCDFViaBisection(cdf, p, Interval(ll, ul), initialX)
         }
 
         /**
-         * Computes the inverse CDF by using the bisection method [ll,ul] must
-         * contain the desired value
-         *
-         * [ll, ul] are defined on the domain of the CDF, i.e. the x values
+         * Computes the inverse CDF by using the bisection method. The interval [ll,ul] must
+         * contain the desired value [ll, ul] are defined on the domain of the CDF, i.e. the x values.
          *
          * @param cdf a reference to the cdf
          * @param p must be in [0,1]
-         * @param ll lower limit of search range, must be &lt; ul
-         * @param ul upper limit of search range, must be &gt; ll
-         * @param initialX an initial starting point that must be in [ll,ul]
+         * @param interval
+         * @param initialX an initial starting point that must be in the interval. Default is the midpoint of the interval.
          * @return the inverse of the CDF evaluated at p
          */
         fun inverseContinuousCDFViaBisection(
-            cdf: ContinuousDistributionIfc, p: Double,
-            ll: Double, ul: Double, initialX: Double
+            cdf: CDFIfc, p: Double,
+            interval: Interval, initialX: Double = interval.midPoint
         ): Double {
-            if (ll >= ul) {
-                val msg = "Supplied lower limit $ll must be less than upper limit $ul"
-                throw IllegalArgumentException(msg)
+            require(interval.lowerLimit < interval.upperLimit) {
+                "Supplied lower limit ${interval.lowerLimit} must be less than upper limit ${interval.upperLimit}"
             }
-            if (p < ll || p > ul) {
-                val msg = "Supplied probability was $p Probability must be [0,1)"
-                throw IllegalArgumentException(msg)
-            }
-            val interval = Interval(ll, ul)
+            require(interval.contains(initialX)) { "Supplied initial point, $initialX was not in search interval $interval" }
+            require((0.0 <= p) && (p <= 1.0)) { "Supplied probability was $p Probability must be [0,1]" }
             val f = FunctionIfc { x -> cdf.cdf(x) - p }
             val rootFinder = BisectionRootFinder(f, interval, initialX)
             rootFinder.evaluate()
