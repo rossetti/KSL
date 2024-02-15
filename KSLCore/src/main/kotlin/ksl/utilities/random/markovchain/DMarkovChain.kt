@@ -22,6 +22,7 @@ import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.KSLArrays
 import ksl.utilities.copyOf
 import ksl.utilities.hasElement
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariable
@@ -54,13 +55,36 @@ class DMarkovChain(
 
     init {
         for (r in transMatrix.indices) {
-            myCDFs[r] = KSLRandom.makeCDF(transMatrix[r])
+           // myCDFs[r] = KSLRandom.makeCDF(transMatrix[r])
+            myCDFs[r] = makeCDF(transMatrix[r])
             myStates[r] = r + 1
         }
         require(myStates.hasElement(theInitialState)) { " The initial state, $theInitialState is not a valid state" }
     }
 
-    private val transProb = transMatrix.copyOf()
+    private fun makeCDF(pmf: DoubleArray) : DoubleArray{
+        require(pmf.size >= 2){"The array of probabilities must have 2 or more elements to be a PMF"}
+        var cp = 0.0
+        for((i, p) in pmf.withIndex()){
+            require((0.0 <= p) && (p <= 1.0 )){"The supplied element p($i$) = $p and was not a valid probability"}
+            cp = cp + p
+        }
+        require(KSLMath.equal(cp, 1.0)) {"The array of probabilities summed to more than 1.0"}
+        val cdf = DoubleArray(pmf.size)
+        var sum = 0.0
+        for (i in 0 until pmf.size - 1) {
+            sum = sum + pmf[i]
+            cdf[i] = sum
+        }
+        cdf[pmf.size - 1] = 1.0
+        return cdf
+    }
+
+    private val myTransProb = transMatrix.copyOf()
+    val transProb
+        get() = myTransProb.copyOf()
+    val transCDF
+        get() = myCDFs.copyOf()
 
     /**
      *  The initial starting state of the chain
@@ -78,7 +102,7 @@ class DMarkovChain(
         private set
 
     override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return DMarkovChain(initialState, transProb, stream)
+        return DMarkovChain(initialState, myTransProb, stream)
     }
 
     override fun generate(): Double {
@@ -100,28 +124,5 @@ class DMarkovChain(
     fun nextState(): Int {
         return value.toInt()
     }
-
-}
-
-fun main() {
-    val p = arrayOf(
-        doubleArrayOf(0.3, 0.1, 0.6),
-        doubleArrayOf(0.4, 0.4, 0.2),
-        doubleArrayOf(0.1, 0.7, 0.2)
-    )
-
-    val mc = DMarkovChain(1, p)
-    val f = IntegerFrequency()
-
-    for (i in 1..100000) {
-        f.collect(mc.nextState())
-    }
-    println("True Steady State Distribution")
-    println("P{X=1} = " + 238.0 / 854.0)
-    println("P{X=2} = " + 350.0 / 854.0)
-    println("P{X=3} = " + 266.0 / 854.0)
-    println()
-    println("Observed Steady State Distribution")
-    println(f)
 
 }
