@@ -20,7 +20,9 @@ package ksl.utilities.random.rvariable
 //TODO extension functions for array and collection work
 //TODO change argument checks to require()
 
+import ksl.utilities.countLessThan
 import ksl.utilities.distributions.*
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -1231,7 +1233,10 @@ object KSLRandom {
     }
 
     /**
-     * Each element must be in (0,1) and sum of elements must be less than or equal to 1.0
+     * Each element must be in (0,1) and sum of elements must be less than or equal to 1.0.
+     *
+     * Note: This function does not permit mass points with 0.0 probability, and it does
+     * not permit a mass point with probability 1.0.
      *
      * @param prob the array to check, must not be null, must have at least two elements
      * @return true if the array represents a probability mass function
@@ -1253,12 +1258,21 @@ object KSLRandom {
         return sum <= 1.0
     }
 
-    /**
+    /** There must be at least two elements in the supplied array. All elements must
+     *  be probabilities within [0.0, 1.0]. The sum of the probabilities must be 1.0
+     *
      * @param prob the array representing a PMF
      * @return a valid CDF
      */
     fun makeCDF(prob: DoubleArray): DoubleArray {
-        require(isValidPMF(prob)) { "The supplied array was not a valid PMF" }
+        require(prob.size >= 2){"The array of probabilities must have 2 or more elements to be a PMF"}
+        var cp = 0.0
+        for((i, p) in prob.withIndex()){
+            require((0.0 <= p) && (p <= 1.0 )){"The supplied element p($i$) = $p and was not a valid probability"}
+            cp = cp + p
+        }
+        require(KSLMath.equal(cp, 1.0)) {"The array of probabilities summed to more than 1.0"}
+ //       require(isValidPMF(prob)) { "The supplied array was not a valid PMF" }
         val cdf = DoubleArray(prob.size)
         var sum = 0.0
         for (i in 0 until prob.size - 1) {
