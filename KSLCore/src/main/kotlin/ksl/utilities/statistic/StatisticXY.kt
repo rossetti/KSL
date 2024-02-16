@@ -79,7 +79,7 @@ class StatisticXY(name: String? = "Statistic_${myIdCounter_ + 1}") : IdentityIfc
         get() = vary * count
     val sumOfSquaredXY: Double
         get() = covxy * count
-    
+
     /**
      *  Assuming a linear fit between X and Y, this returns
      *  the sum of squared error of the regression of the fit
