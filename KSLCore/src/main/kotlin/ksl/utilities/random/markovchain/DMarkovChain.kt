@@ -40,7 +40,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *  @param stream the random number stream
  * @author rossetti
  */
-class DMarkovChain(
+open class DMarkovChain(
     theInitialState: Int = 1,
     transMatrix: Array<DoubleArray>,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
@@ -49,9 +49,13 @@ class DMarkovChain(
         require(KSLArrays.isSquare(transMatrix)) { "The probability transition matrix must be square" }
     }
 
-    private var myStates: IntArray = IntArray(transMatrix.size)
+    protected var myStates: IntArray = IntArray(transMatrix.size)
+    val states: IntArray
+        get() = myStates.copyOf()
 
-    private var myCDFs: Array<DoubleArray> = Array(transMatrix.size) { DoubleArray(transMatrix.size) }
+    val numStates: Int = transMatrix.size
+
+    protected var myCDFs: Array<DoubleArray> = Array(transMatrix.size) { DoubleArray(transMatrix.size) }
 
     init {
         for (r in transMatrix.indices) {
@@ -80,8 +84,8 @@ class DMarkovChain(
         return cdf
     }
 
-    private val myTransProb = transMatrix.copyOf()
-    val transProb
+    protected val myTransProb = transMatrix.copyOf()
+    val transitionMatrix
         get() = myTransProb.copyOf()
     val transCDF
         get() = myCDFs.copyOf()
@@ -99,7 +103,7 @@ class DMarkovChain(
      *  The current state, with no transition implied. In other words, the last generated state
      */
     var state = initialState
-        private set
+        protected set
 
     override fun instance(stream: RNStreamIfc): RVariableIfc {
         return DMarkovChain(initialState, myTransProb, stream)
@@ -123,6 +127,15 @@ class DMarkovChain(
      */
     fun nextState(): Int {
         return value.toInt()
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("Transition Matrix")
+        for(array in myTransProb){
+            sb.appendLine(array.joinToString())
+        }
+        return sb.toString()
     }
 
 }
