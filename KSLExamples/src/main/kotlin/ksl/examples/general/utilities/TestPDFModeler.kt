@@ -20,9 +20,16 @@ package ksl.examples.general.utilities
 
 import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.fitting.*
+import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.StatisticReporter
+import ksl.utilities.io.writeToFile
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.GammaRV
+import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.parameters.GeneralizedBetaRVParameters
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
+import org.jetbrains.letsPlot.commons.intern.math.ipow
 
 fun main() {
     val e = ExponentialRV(10.0)
@@ -30,12 +37,30 @@ fun main() {
     val n = 1000
     val data = e.sample(n)
 //    data.write(KSL.out)
- //   testModeler(data)
- //      testExponentialEstimation(data)
+    //   testModeler(data)
+    //      testExponentialEstimation(data)
     //   testWeibullEstimation(data)
 
 //    testEvaluationModel(data)
-    testAllInOne(data)
+//    testAllInOne(data)
+
+    testGammaCase(7.5, 1.1)
+    //   testSampleFile()
+
+//    testAndersonDarling()
+}
+
+private fun testSampleFile() {
+    val myFile = KSLFileUtil.chooseFile()
+    if (myFile != null) {
+        val data = KSLFileUtil.scanToArray(myFile.toPath())
+        val d = PDFModeler(data)
+        d.histogram.histogramPlot().showInBrowser()
+        val estimationResults = d.estimateParameters(d.allEstimators, true)
+        val scores = d.evaluateScores(estimationResults, d.allScoringModels)
+        val result = d.estimateAndEvaluateScores()
+        d.showAllResultsInBrowser()
+    }
 }
 
 private fun testModeler(data: DoubleArray) {
@@ -48,9 +73,9 @@ private fun testModeler(data: DoubleArray) {
     }
 
     println()
-    for(result in scoreResults){
+    for (result in scoreResults) {
         println("Distribution = ${result.name}")
-        for(score in result.scores){
+        for (score in result.scores) {
             println("\t ${score.metric.name} = ${score.value}")
         }
         println()
@@ -145,21 +170,21 @@ private fun testWeibullEstimation(data: DoubleArray) {
 # omega2 = 0.055559, p-value = 0.842
  */
 
-fun testEvaluationModel(data: DoubleArray){
+fun testEvaluationModel(data: DoubleArray) {
     val d = PDFModeler(data)
     val estimationResults: List<EstimationResult> = d.estimateParameters(d.allEstimators)
     val scoringResults = d.scoringResults(estimationResults)
     val model = d.evaluateScoringResults(scoringResults)
-    scoringResults.forEach( ::println)
+    scoringResults.forEach(::println)
 
     println()
     println(model.alternativeValuesAsDataFrame("Distributions"))
 }
 
-fun testAllInOne(data: DoubleArray){
+fun testAllInOne(data: DoubleArray) {
     println()
     val d = PDFModeler(data)
-    val results  = d.estimateAndEvaluateScores()
+    val results = d.estimateAndEvaluateScores()
     results.sortedScoringResults.forEach(::println)
 
     val topResult = results.sortedScoringResults[0]
@@ -172,4 +197,49 @@ fun testAllInOne(data: DoubleArray){
     println()
     val bsr = d.bootStrapParameterEstimates(gResult)
     bsr.forEach(::println)
+}
+
+fun testGammaCase(shape: Double, scale: Double) {
+
+    // take the fifth option
+    val rv = GammaRV(shape, scale)
+    val experiments = mutableMapOf<Int, Statistic>()
+    for(i in 1..9){
+        val ss = (2).ipow(i + 2).toInt()
+        experiments[ss] = Statistic("SampleSizeStats_$ss")
+    }
+    for ((i, s) in experiments) {
+        println("Working on sample size $i")
+        for (j in 1..1000) {
+            val data = rv.sample(i)
+            try {
+                val d = PDFModeler(data)
+                val result = d.estimateAndEvaluateScores()
+                s.collect(result.sortedScoringResults[0].rvType == RVType.Gamma)
+            } catch (e: IllegalArgumentException) {
+                data.writeToFile("ErrorData_n_${i}_sample_${j}.txt")
+                throw e
+            }
+        }
+    }
+    val r = StatisticReporter(experiments.values.toMutableList())
+    println(r.halfWidthSummaryReport())
+
+    println("Done!")
+
+}
+
+fun testAndersonDarling() {
+    val myFile = KSLFileUtil.chooseFile()
+    if (myFile != null) {
+        val data = KSLFileUtil.scanToArray(myFile.toPath())
+        val parameters = GeneralizedBetaRVParameters()
+        parameters.changeDoubleParameter("alpha", 2.2714476680290643)
+        parameters.changeDoubleParameter("beta", 8.3184667381217)
+        parameters.changeDoubleParameter("min", 2.351646861220419)
+        parameters.changeDoubleParameter("max", 31.582890580323173)
+        val cdf = parameters.createDistribution()
+        val score = Statistic.andersonDarlingTestStatistic(data, cdf)
+        println("score = $score")
+    }
 }

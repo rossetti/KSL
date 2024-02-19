@@ -28,6 +28,9 @@ class AndersonDarlingScoringModel : PDFScoringModel("Anderson-Darling") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         val score = Statistic.andersonDarlingTestStatistic(data, cdf)
+        if (score.isInfinite()){
+            return badScore()
+        }
         return Score(this, score, true)
     }
 }

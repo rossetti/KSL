@@ -304,6 +304,19 @@ object KSLMath {
     }
 
     /**
+     *  If x <= 0.0, then return ln(Double.MIN_VALUE).  Since Double.MIN_VALUE
+     *  is the smallest possible value that is closest to 0.0 without being 0.0.
+     *  This prevents, ln(0.0) = -Infinity from appearing in calculations.
+     */
+    fun safeNaturalLog(x: Double) : Double {
+        return if (x <= 0.0){
+            ln(Double.MIN_VALUE)
+        } else {
+            ln(x)
+        }
+    }
+
+    /**
      *  Computes the [k]th root of [x]
      */
     fun kthRoot(x: Double, k: Int): Double {
