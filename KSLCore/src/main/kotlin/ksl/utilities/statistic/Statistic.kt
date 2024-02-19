@@ -20,6 +20,7 @@ package ksl.utilities.statistic
 import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.math.KSLMath
 import org.hipparchus.stat.correlation.Covariance
 import kotlin.collections.max
 import kotlin.math.*
@@ -1104,7 +1105,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
 
         /**
          *  Computes the [Anderson-Darling](https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test)
-         *  test statistic.
+         *  test statistic.  No adjustments for parameter estimation are performed.
          *
          */
         fun andersonDarlingTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
@@ -1117,6 +1118,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                 var fk = fn.cdf(orderStats[k])
                 // control for CDF values outside (0,1). That is when they are 0.0 or 1.0
                 // because natural logarithm will produce infinities
+                val lnfk = KSLMath.safeNaturalLog(fk)
                 if (fk <= 0.0) {
                     fk = Double.MIN_VALUE
                 }
@@ -1124,13 +1126,15 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                     fk = 1.0 - Double.MIN_VALUE
                 }
                 var fnmkp1 = fn.cdf(orderStats[n - (k + 1)])
+                val lnFnmkp1 = KSLMath.safeNaturalLog(1.0 - fnmkp1)
                 if (fnmkp1 <= 0.0) {
                     fnmkp1 = Double.MIN_VALUE
                 }
                 if (fnmkp1 >= 1.0) {
                     fnmkp1 = 1.0 - Double.MIN_VALUE
                 }
-                sum = sum + (2.0 * i - 1.0) * (ln(fk) + ln(1.0 - fnmkp1))
+                sum = sum + (2.0 * i - 1.0) * (lnfk + lnFnmkp1)
+ //               sum = sum + (2.0 * i - 1.0) * (ln(fk) + ln(1.0 - fnmkp1))
             }
             sum = sum / n
             return -(n + sum)

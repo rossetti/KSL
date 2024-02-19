@@ -110,8 +110,13 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
             // if a suitable interval was found, the search interval object was changed to reflect the changes
         }
         // if we get here then the interval should have a root
+        val initialPoint = if (!searchInterval.contains(shape)) {
+            searchInterval.midPoint
+        } else {
+            shape
+        }
         val solver = BisectionRootFinder(
-            fn, searchInterval, shape,
+            fn, searchInterval, initialPoint,
             maxIter = maximumIterations, desiredPrec = desiredPrecision
         )
         solver.evaluate()
