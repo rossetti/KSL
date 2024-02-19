@@ -97,11 +97,18 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.0.6"
+version = "R1.0.7"
 
 ## Release Notes
 
-Latest Release: R1.0.6
+Latest Release: R1.0.7
+- Fixed natural logarithm compute issue in Anderson-Darling test statistic
+- Fixed interval search issue for Gamma MLE parameter estimation
+- Added 1-D discrete Metropolis-Hasting Markov Chain, improved properties of DMarkovChain
+- Allow PMF to CDF with 0 probability on mass points
+- Updates to documentation, examples, 
+
+Release: R1.0.6
 - Fixed AcceptanceRejectRV to correctly use majorizing function
 - added Logistic random variable and distribution
 - updated RVParameters and RVType for more flexibility
