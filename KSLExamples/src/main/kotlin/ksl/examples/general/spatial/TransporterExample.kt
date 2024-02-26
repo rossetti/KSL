@@ -14,9 +14,9 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
 
-class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class SmallTransporterModel(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
-    private val myWalkingSpeedRV = TriangularRV(88.0, 176.0, 264.0)
+    private val truckSpeed = TriangularRV(88.0, 176.0, 264.0)
     private val dm = DistancesModel()
     private val enter = dm.Location("Enter")
     private val station1 = dm.Location("Station1")
@@ -31,16 +31,15 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
         dm.addDistance(station2, enter, 90.0, symmetric = true)
         dm.addDistance(exit, station1, 90.0, symmetric = true)
         dm.addDistance(exit, enter, 150.0, symmetric = true)
-         dm.defaultVelocity = myWalkingSpeedRV
-//        dm.defaultVelocity = ConstantRV(10000.0)
+         dm.defaultVelocity = truckSpeed
         spatialModel = dm
     }
 
-    private val mover1 = MovableResource(this, enter, myWalkingSpeedRV, "Mover1")
-    private val mover2 = MovableResource(this, enter, myWalkingSpeedRV, "Mover2")
-    private val mover3 = MovableResource(this, enter, myWalkingSpeedRV, "Mover3")
-    private val moverList = listOf(mover1, mover2, mover3)
-    private val movers = MovableResourcePoolWithQ(this, moverList, myWalkingSpeedRV, name = "Movers")
+    private val truck1 = MovableResource(this, initLocation = enter, truckSpeed, "Truck1")
+    private val truck2 = MovableResource(this, initLocation = enter, truckSpeed, "Truck2")
+    private val truck3 = MovableResource(this, initLocation = enter, truckSpeed, "Truck3")
+    private val truckList = listOf(truck1, truck2, truck3)
+    private val forkTrucks = MovableResourcePoolWithQ(this, truckList, truckSpeed, name = "ForkTrucks")
 
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
     private val worker2: ResourceWithQ = ResourceWithQ(this, "worker2")
@@ -53,7 +52,7 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
     val service2RV: RandomSourceCIfc
         get() = st2
-    private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -70,20 +69,16 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
     private val myUnLoadingTime = RandomVariable(this, UniformRV(0.25, 0.5))
     val unloadingTimeRV: RandomSourceCIfc
         get() = myUnLoadingTime
-    private inner class Customer : Entity() {
-        val tandemQProcess: KSLProcess = process {
+    private inner class Part : Entity() {
+        val mfgProcess: KSLProcess = process {
             currentLocation = enter
             wip.increment()
             timeStamp = time
-            transportWith(movers, station1, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
-            seize(worker1)
-            delay(st1)
-            release(worker1)
-            transportWith(movers, station2, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
-            seize(worker2)
-            delay(st2)
-            release(worker2)
-            transportWith(movers, exit, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+            transportWith(forkTrucks, toLoc = station1, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+            use(worker1, delayDuration = st1)
+            transportWith(forkTrucks, toLoc = station2, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+            use(worker2, delayDuration = st2)
+            transportWith(forkTrucks, toLoc = exit, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
@@ -91,8 +86,8 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
 }
 
 fun main() {
-    val m = Model()
-    val tq = SmallTransporterModel(m, name = "TandemQModel")
+    val m = Model( "TransporterExample")
+    val tq = SmallTransporterModel(m)
 
     m.numberOfReplications = 30
     m.lengthOfReplication = 20000.0
