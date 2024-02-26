@@ -26,6 +26,11 @@ import ksl.utilities.io.plotting.ObservationsPlot
 
 fun main() {
     // select file:  /Example/taskTimes.txt
+/*
+    KSLFileUtil.chooseFile()?.let{
+
+    }
+ */
     val myFile = KSLFileUtil.chooseFile()
     if (myFile != null) {
         val data = KSLFileUtil.scanToArray(myFile.toPath())
