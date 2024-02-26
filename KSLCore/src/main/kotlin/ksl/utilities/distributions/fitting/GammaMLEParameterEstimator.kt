@@ -2,6 +2,8 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Gamma
+import ksl.utilities.io.KSL
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
@@ -9,6 +11,7 @@ import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import kotlin.math.ln
+import kotlin.math.sqrt
 
 /**
  *  Estimates the parameters of the Gamma distribution based on a MLE algorithm.
@@ -163,7 +166,36 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
         val shapeUL = params[0]
         params = Gamma.parametersFromMeanAndVariance(llm, s.variance)
         val shapeLL = params[0].coerceAtLeast(defaultZeroTolerance)
+        if (shapeLL >= shapeUL){
+            return findInitialIntervalV2(estimationResult)
+        }
         return Interval(shapeLL, shapeUL)
+    }
+
+    private fun findInitialIntervalV2(estimationResult: EstimationResult): Interval {
+        val interval = approxConfidenceIntervalOnAlpha(estimationResult)
+        val ll = if (interval.lowerLimit <= 0.0) {
+            defaultZeroTolerance / 10.0
+        } else {
+            interval.lowerLimit
+        }
+        var ul = interval.upperLimit
+        while (ll >= ul) {
+            ul = ul + intervalFactor
+        }
+        return Interval(ll, ul)
+    }
+
+    /**
+     * https://math.stackexchange.com/questions/4102556/finding-standarad-error-estimation-confidence-interval-of-gamma-parameter-say
+     * This assumes that the scale parameter is known.
+     * It may return an interval that contains zero.
+     */
+    private fun approxConfidenceIntervalOnAlpha(estimationResult: EstimationResult): Interval {
+        val shape = estimationResult.parameters!!.doubleParameter("shape")
+        val n = estimationResult.statistics.count
+        val se = intervalFactor * sqrt(shape / n)
+        return Interval(shape - se, shape + se)
     }
 
 }
