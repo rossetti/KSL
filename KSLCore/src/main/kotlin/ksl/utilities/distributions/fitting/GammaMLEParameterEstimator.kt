@@ -91,7 +91,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
         }
         // use starting estimator to seed the MLE search
         val shape = start.parameters!!.doubleParameter("shape")
-        val scale = start.parameters.doubleParameter("scale")
+//        val scale = start.parameters.doubleParameter("scale")
         var lnsum = 0.0
         for (x in data) {
             lnsum = lnsum + ln(x)
@@ -110,6 +110,17 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
                 start.message = "MLE search failed to find suitable search interval. the MOM estimator was returned."
                 return start
             }
+            // need to check if search interval expanded past 0.0 on the lower side.
+            if (searchInterval.lowerLimit <= 0.0){
+                searchInterval.setInterval(defaultZeroTolerance, searchInterval.upperLimit)
+                // need to check revised interval
+                if (!RootFinder.hasRoot(fn, searchInterval)) {
+                    // a suitable interval was not found after two tries, return the MOM estimator with a new message
+                    start.message = "MLE search failed to find suitable search interval. the MOM estimator was returned."
+                    return start
+                }
+            }
+            // if we get here an interval has been found
             // if a suitable interval was found, the search interval object was changed to reflect the changes
         }
         // if we get here then the interval should have a root
@@ -156,7 +167,7 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
      *  The property intervalFactor can be used to adjust the width of the interval around the
      *  initial estimate of the shape.
      */
-    private fun findInitialInterval(estimationResult: EstimationResult): Interval {
+    private fun findInitialIntervalOLD(estimationResult: EstimationResult): Interval {
         val s = estimationResult.statistics
         val mean = s.average
         val me = intervalFactor * s.standardDeviation
@@ -167,13 +178,13 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
         params = Gamma.parametersFromMeanAndVariance(llm, s.variance)
         val shapeLL = params[0].coerceAtLeast(defaultZeroTolerance)
         if (shapeLL >= shapeUL){
-            return findInitialIntervalV2(estimationResult)
+            return findInitialInterval(estimationResult)
         }
         return Interval(shapeLL, shapeUL)
     }
 
-    private fun findInitialIntervalV2(estimationResult: EstimationResult): Interval {
-        val interval = approxConfidenceIntervalOnAlpha(estimationResult)
+    private fun findInitialInterval(estimationResult: EstimationResult): Interval {
+        val interval = approxIntervalOnAlpha(estimationResult)
         val ll = if (interval.lowerLimit <= 0.0) {
             defaultZeroTolerance / 10.0
         } else {
@@ -188,13 +199,13 @@ class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
 
     /**
      * https://math.stackexchange.com/questions/4102556/finding-standarad-error-estimation-confidence-interval-of-gamma-parameter-say
+     * This result motivates a prediction type interval
      * This assumes that the scale parameter is known.
      * It may return an interval that contains zero.
      */
-    private fun approxConfidenceIntervalOnAlpha(estimationResult: EstimationResult): Interval {
+    private fun approxIntervalOnAlpha(estimationResult: EstimationResult): Interval {
         val shape = estimationResult.parameters!!.doubleParameter("shape")
-        val n = estimationResult.statistics.count
-        val se = intervalFactor * sqrt(shape / n)
+        val se = intervalFactor * sqrt(shape)
         return Interval(shape - se, shape + se)
     }
 
