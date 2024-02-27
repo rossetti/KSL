@@ -215,12 +215,12 @@ fun testGammaCase(shape: Double, scale: Double) {
             try {
                 val d = PDFModeler(data)
                 val result: PDFModelingResults = d.estimateAndEvaluateScores(automaticShifting = false)
-                val er: EstimationResult = result.sortedScoringResults[0].estimationResult
-                val something = d.bootStrapParameterEstimates(er)
-                val interval = something[0].percentileBootstrapCI()
-                val p = result.sortedScoringResults[0].estimationResult.parameters
-                val beta = p!!.doubleParameter("scale")
-                val alpha = p!!.doubleParameter("shape")
+//                val er: EstimationResult = result.sortedScoringResults[0].estimationResult
+//                val something = d.bootStrapParameterEstimates(er)
+//                val interval = something[0].percentileBootstrapCI()
+//                val p = result.sortedScoringResults[0].estimationResult.parameters
+//                val beta = p!!.doubleParameter("scale")
+//                val alpha = p!!.doubleParameter("shape")
                 s.collect(result.sortedScoringResults[0].rvType == RVType.Gamma)
             } catch (e: IllegalArgumentException) {
                 data.writeToFile("ErrorData_n_${i}_sample_${j}.txt")
