@@ -102,7 +102,7 @@ version = "R1.0.8"
 ## Release Notes
 
 Latest Release: R1.0.8
-- Addressed issue with search interval for MLE computation of gamma shape parameter
+- Addressed new issue with search interval for MLE computation of gamma shape parameter
 
 Release: R1.0.7
 - Fixed natural logarithm compute issue in Anderson-Darling test statistic
