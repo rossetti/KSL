@@ -21,9 +21,7 @@ import ksl.utilities.Interval
 import ksl.utilities.exceptions.KSLTooManyIterationsException
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GammaRV
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 import kotlin.math.*
 
 /** Models random variables that have gamma distribution
@@ -34,7 +32,13 @@ import kotlin.math.*
  * @param name an optional name/label
  */
 class Gamma(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
-    Distribution<Gamma>(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+    Distribution<Gamma>(name),
+    ContinuousDistributionIfc,
+    LossFunctionDistributionIfc,
+    InverseCDFIfc,
+    GetRVariableIfc,
+    RVParametersTypeIfc by RVType.Gamma
+{
 
     init {
         require(theShape > 0) { "Shape parameter must be positive" }

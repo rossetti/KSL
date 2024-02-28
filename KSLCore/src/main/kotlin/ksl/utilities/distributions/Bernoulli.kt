@@ -21,6 +21,8 @@ package ksl.utilities.distributions
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.BernoulliRV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.floor
 
@@ -32,7 +34,8 @@ import kotlin.math.floor
  * @param successProb the probability of success, must be between (0,1)
  * @param name an optional name
  */
-class Bernoulli(successProb: Double= 0.5, name: String? = null) : Distribution<Bernoulli>(name), DiscreteDistributionIfc {
+class Bernoulli(successProb: Double= 0.5, name: String? = null) :
+    Distribution<Bernoulli>(name), DiscreteDistributionIfc, RVParametersTypeIfc by RVType.Bernoulli {
 
     init {
         require(!(successProb <= 0.0 || successProb >= 1.0)) { "Probability must be (0,1)" }

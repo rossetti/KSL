@@ -21,6 +21,8 @@ package ksl.utilities.distributions
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.GeneralizedBetaRV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
@@ -37,7 +39,7 @@ class GeneralizedBeta(
     minimum: Double = 0.0,
     maximum: Double = 1.0,
     name: String? = null
-) : Distribution<GeneralizedBeta>(name), ContinuousDistributionIfc, InverseCDFIfc {
+) : Distribution<GeneralizedBeta>(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.GeneralizedBeta {
 
     init {
         require(minimum < maximum) { "Lower limit must be < upper limit. lower limit = $minimum upper limit = $maximum" }

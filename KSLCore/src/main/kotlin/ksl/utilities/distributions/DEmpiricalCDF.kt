@@ -21,10 +21,7 @@ import ksl.utilities.column
 import ksl.utilities.divideConstant
 import ksl.utilities.isAllDifferent
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.DEmpiricalRV
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 
 /**
  * Provides a representation for a discrete distribution with
@@ -41,7 +38,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param name   an optional name/label
  */
 class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null) :
-    Distribution<DEmpiricalCDF>(name), DiscreteDistributionIfc, GetRVariableIfc {
+    Distribution<DEmpiricalCDF>(name), DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.DEmpirical {
 
     /**
      * Holds the list of probability points

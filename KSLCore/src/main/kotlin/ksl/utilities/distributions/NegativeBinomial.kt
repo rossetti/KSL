@@ -19,9 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.NegativeBinomialRV
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 import kotlin.math.*
 
 /** The number of failures before the rth success in a sequence of independent Bernoulli trials
@@ -33,7 +31,7 @@ import kotlin.math.*
  */
 class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1.0, name: String? = null) :
     Distribution<NegativeBinomial>(name), DiscretePMFInRangeDistributionIfc,
-    LossFunctionDistributionIfc, GetRVariableIfc {
+    LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.NegativeBinomial {
 
     init {
         require(!(theProbSuccess <= 0.0 || theProbSuccess >= 1.0)) { "Success Probability must be (0,1)" }

@@ -23,9 +23,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.RVariableIfc
-import ksl.utilities.random.rvariable.StudentTRV
+import ksl.utilities.random.rvariable.*
 import kotlin.math.*
 
 /** The Student T distribution

@@ -19,9 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.LognormalRV
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.sqrt
@@ -40,7 +38,7 @@ import kotlin.math.sqrt
  */
 class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? = null) :
     Distribution<Lognormal>(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc,
-    GetRVariableIfc {
+    GetRVariableIfc, RVParametersTypeIfc by RVType.Lognormal {
 
     init {
         require(theMean > 0) { "Mean must be positive" }

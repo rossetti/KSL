@@ -19,6 +19,8 @@ package ksl.utilities.distributions
 
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.DUniformRV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.floor
 
@@ -31,7 +33,7 @@ import kotlin.math.floor
  * @param name an optional name/label
  */
 class DUniform(min: Int = 0, max: Int = 1, name: String? = null) :
-    Distribution<DUniform>(name), DiscreteDistributionIfc {
+    Distribution<DUniform>(name), DiscreteDistributionIfc, RVParametersTypeIfc by RVType.DUniform {
 
     /** Constructs a discrete uniform where parameter[0] is the
      * lower limit and parameter[1] is the upper limit of the range.

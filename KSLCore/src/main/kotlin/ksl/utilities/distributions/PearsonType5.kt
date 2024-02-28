@@ -22,10 +22,7 @@ import ksl.utilities.distributions.fitting.AndersonDarlingScoringModel
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PearsonType5MLEParameterEstimator
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.PearsonType5RV
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.U01Test
 import kotlin.math.exp
@@ -39,7 +36,7 @@ import kotlin.math.pow
  * @param name an optional label/name
  */
 class PearsonType5 (shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
-    Distribution<PearsonType5>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+    Distribution<PearsonType5>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.PearsonType5 {
 
     init {
         require(shape > 0) { "Alpha (shape parameter) should be > 0" }
