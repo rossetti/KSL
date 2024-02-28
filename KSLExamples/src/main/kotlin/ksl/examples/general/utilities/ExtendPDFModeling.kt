@@ -190,5 +190,10 @@ fun evaluation(
     val data = rv.sample(sampleSize)
     val pdfModeler = PDFModeler(data)
     val pdfModelingResults = pdfModeler.estimateAndEvaluateScores(automaticShifting = automaticShifting)
-
+    // still need to make sure that the top performer was of the correct type
+    val er: EstimationResult = pdfModelingResults.sortedScoringResults.first().estimationResult
+    val estimatedParameters = er.parameters()
+    val parameterCI = er.percentileBootstrapCI()
+    // now the closeness of the estimated parameters to the true values can be checked
+    // now the CI can be checked to see if they contain the true values
 }
