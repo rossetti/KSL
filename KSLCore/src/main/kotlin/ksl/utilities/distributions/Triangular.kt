@@ -19,9 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.RVariableIfc
-import ksl.utilities.random.rvariable.TriangularRV
+import ksl.utilities.random.rvariable.*
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -37,7 +35,7 @@ class Triangular(
     theMode: Double = 0.0,
     theMax: Double = 1.0,
     name: String? = null
-) : Distribution<Triangular>(name), ContinuousDistributionIfc, GetRVariableIfc {
+) : Distribution<Triangular>(name), ContinuousDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Triangular {
     init {
         require(theMin <= theMode) { "min must be <= mode" }
         require(theMin < theMax) { "min must be < max" }

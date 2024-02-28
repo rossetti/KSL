@@ -19,9 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GeometricRV
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 import kotlin.math.*
 
 
@@ -34,7 +32,7 @@ import kotlin.math.*
  * @param name an optional label/name
  */
 class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution<Geometric>(name),
-    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Geometric {
 
     init {
         require(!(successProb < 0.0 || successProb > 1.0)) { "Probability must be [0,1]" }

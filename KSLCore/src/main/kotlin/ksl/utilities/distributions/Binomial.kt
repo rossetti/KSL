@@ -21,11 +21,13 @@ package ksl.utilities.distributions
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.BinomialRV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.*
 
 class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) : Distribution<Binomial>(name),
-    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc {
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, RVParametersTypeIfc by RVType.Binomial{
 
     init {
         require(!(pSuccess < 0.0 || pSuccess > 1.0)) { "Success Probability must be [0,1]" }

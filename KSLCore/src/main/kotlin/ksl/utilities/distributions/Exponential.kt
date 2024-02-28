@@ -19,9 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.pow
@@ -32,7 +30,7 @@ import kotlin.math.pow
  * @param name an optional label/name
  */
 class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution<Exponential>(name),
-    LossFunctionDistributionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+    LossFunctionDistributionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Exponential {
 
     /** Constructs an exponential distribution where parameter[0] is the
      * mean of the distribution

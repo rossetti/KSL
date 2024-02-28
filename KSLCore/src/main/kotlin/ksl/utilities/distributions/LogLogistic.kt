@@ -19,9 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.LogLogisticRV
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 import kotlin.math.PI
 import kotlin.math.pow
 import kotlin.math.sin
@@ -38,7 +36,7 @@ class LogLogistic(
     theShape: Double = 1.0,
     theScale: Double = 1.0,
     name: String? = null
-) : Distribution<LogLogistic>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+) : Distribution<LogLogistic>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.LogLogistic {
 
     init {
         require(theShape > 0) { "Shape parameter must be positive" }

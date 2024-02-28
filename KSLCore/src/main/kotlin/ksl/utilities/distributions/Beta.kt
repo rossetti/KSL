@@ -24,6 +24,8 @@ import ksl.utilities.math.FunctionIfc
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.BetaRV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
@@ -39,7 +41,7 @@ class Beta(
     alphaShape: Double,
     betaShape: Double,
     name: String? = null
-) : Distribution<Beta>(name), ContinuousDistributionIfc, InverseCDFIfc {
+) : Distribution<Beta>(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.Beta {
     init {
         require(alphaShape > 0) { "The 1st shape parameter must be > 0" }
         require(betaShape > 0) { "The 2nd shape parameter must be > 0" }

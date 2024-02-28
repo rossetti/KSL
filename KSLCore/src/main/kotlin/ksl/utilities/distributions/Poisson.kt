@@ -19,9 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.PoissonRV
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 import kotlin.math.*
 
 /**
@@ -31,7 +29,7 @@ import kotlin.math.*
  * @param name an optional label/name
  */
 class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisson>(name),
-    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc {
+    DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Poisson {
 
     init {
         require(theMean > 0.0) { "Mean must be > 0)" }

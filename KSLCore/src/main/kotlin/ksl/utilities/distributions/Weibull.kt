@@ -21,9 +21,7 @@ import ksl.utilities.Interval
 import ksl.utilities.countLessEqualTo
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.RVariableIfc
-import ksl.utilities.random.rvariable.WeibullRV
+import ksl.utilities.random.rvariable.*
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.pow
@@ -35,7 +33,7 @@ import kotlin.math.sqrt
  * @param name an optional name/label
  */
 class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
-    Distribution<Weibull>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+    Distribution<Weibull>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Weibull {
     init {
         require(theShape > 0) { "Shape parameter must be positive" }
         require(theScale > 0) { "Scale parameter must be positive" }

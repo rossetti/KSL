@@ -19,9 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.RVariableIfc
-import ksl.utilities.random.rvariable.UniformRV
+import ksl.utilities.random.rvariable.*
 
 /** Defines a uniform distribution over the given range.
  * @param theMinimum limit of the distribution
@@ -29,7 +27,7 @@ import ksl.utilities.random.rvariable.UniformRV
  * @param name an optional name/label
  */
 class Uniform (theMinimum: Double = 0.0, theMaximum: Double = 1.0, name: String? = null) :
-    Distribution<Uniform>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+    Distribution<Uniform>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Uniform {
 
     init {
         require(theMinimum < theMaximum) { "Lower limit must be < upper limit. lower limit = $theMinimum upper limit = $theMaximum" }

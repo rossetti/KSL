@@ -18,9 +18,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.ConstantRV
-import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.*
 
 /**
  * Constructs a degenerate distribution with all probability at the provided
@@ -32,7 +30,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param name a string name/label
 */
 class Constant (var value: Double = 0.0, name: String? = null) : Distribution<Constant>(name),
-    DiscreteDistributionIfc, GetRVariableIfc {
+    DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Constant{
 
     /**
      *
