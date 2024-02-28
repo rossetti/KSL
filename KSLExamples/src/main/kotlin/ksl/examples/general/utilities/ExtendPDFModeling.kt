@@ -24,10 +24,7 @@ import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PDFModelingResults
 import ksl.utilities.distributions.fitting.ScoringResult
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.GammaRV
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.ParameterizedRV
-import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.*
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.BootstrapEstimate
 import ksl.utilities.statistic.BootstrapSampler
