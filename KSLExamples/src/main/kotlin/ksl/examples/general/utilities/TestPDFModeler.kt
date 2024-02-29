@@ -29,6 +29,7 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GeneralizedBetaRVParameters
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import org.jetbrains.letsPlot.commons.intern.math.ipow
 
 fun main() {
@@ -44,7 +45,9 @@ fun main() {
 //    testEvaluationModel(data)
 //    testAllInOne(data)
 
-    testGammaCase(7.5, 1.1)
+    testGammaCaseV2(7.5, 1.1)
+
+
     //   testSampleFile()
 
 //    testAndersonDarling()
@@ -215,12 +218,6 @@ fun testGammaCase(shape: Double, scale: Double) {
             try {
                 val d = PDFModeler(data)
                 val result: PDFModelingResults = d.estimateAndEvaluateScores(automaticShifting = false)
-//                val er: EstimationResult = result.sortedScoringResults[0].estimationResult
-//                val something = d.bootStrapParameterEstimates(er)
-//                val interval = something[0].percentileBootstrapCI()
-//                val p = result.sortedScoringResults[0].estimationResult.parameters
-//                val beta = p!!.doubleParameter("scale")
-//                val alpha = p!!.doubleParameter("shape")
                 s.collect(result.sortedScoringResults[0].rvType == RVType.Gamma)
             } catch (e: IllegalArgumentException) {
                 data.writeToFile("ErrorData_n_${i}_sample_${j}.txt")
@@ -248,4 +245,58 @@ fun testAndersonDarling() {
         val score = Statistic.andersonDarlingTestStatistic(data, cdf)
         println("score = $score")
     }
+}
+
+fun testGammaCaseV2(shape: Double, scale: Double) {
+
+    // take the fifth option
+    val rv = GammaRV(shape, scale)
+    val familyStats = mutableMapOf<Int, Statistic>()
+    val shapeStats = mutableMapOf<Int, Statistic>()
+    val scaleStats = mutableMapOf<Int, Statistic>()
+    val bothStats = mutableMapOf<Int, Statistic>()
+    for(i in 1..9){
+        val ss = (2).ipow(i + 2).toInt()
+        familyStats[ss] = Statistic("SampleSizeStats_$ss")
+        shapeStats[ss] = Statistic("ShapeStats_$ss")
+        scaleStats[ss] = Statistic("ScaleStats_$ss")
+        bothStats[ss] = Statistic("BothStats_$ss")
+    }
+    for ((i, s) in familyStats) {
+        println("Working on sample size $i")
+        for (j in 1..1000) {
+            val data = rv.sample(i)
+            try {
+                val d = PDFModeler(data)
+                val result: PDFModelingResults = d.estimateAndEvaluateScores(automaticShifting = false)
+                val firstScoringResult = result.sortedScoringResults.first()
+                if (firstScoringResult.rvType == RVType.Gamma){
+                    s.collect(1.0)
+                    val er = firstScoringResult.estimationResult
+                    val bootStrapParameterEstimates = d.bootStrapParameterEstimates(er)
+                    val shapeInterval = bootStrapParameterEstimates[0].percentileBootstrapCI()
+                    val scaleInterval = bootStrapParameterEstimates[1].percentileBootstrapCI()
+                    shapeStats[i]!!.collect(shapeInterval.contains(shape))
+                    scaleStats[i]!!.collect(scaleInterval.contains(scale))
+                    bothStats[i]!!.collect(shapeInterval.contains(shape) && scaleInterval.contains(scale))
+                } else {
+                    s.collect(0.0)
+                }
+            } catch (e: IllegalArgumentException) {
+                data.writeToFile("ErrorData_n_${i}_sample_${j}.txt")
+                throw e
+            }
+        }
+    }
+    val statList = mutableListOf<StatisticIfc>()
+    statList.addAll(familyStats.values)
+    statList.addAll(shapeStats.values)
+    statList.addAll(scaleStats.values)
+    statList.addAll(bothStats.values)
+    val r = StatisticReporter(statList)
+
+    println(r.halfWidthSummaryReport())
+
+    println("Done!")
+
 }
