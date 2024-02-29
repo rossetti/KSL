@@ -43,8 +43,8 @@ fun <T> makeNameFromClass(clazz: Class<T>, id: Int, str: String? = null): String
     }
 }
 
-/** An interface to defining the identity of an object in terms
- * of a name and a number
+/** An interface to define the identity of an object in terms
+ * of a name, a number, and an optional label.
  */
 interface IdentityIfc : NameIfc {
     /**
