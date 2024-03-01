@@ -18,6 +18,7 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
@@ -30,7 +31,7 @@ import ksl.utilities.statistic.StatisticIfc
  *  is consistent with the required parameter estimation.
  *
  */
-interface ParameterEstimatorIfc {
+interface ParameterEstimatorIfc : IdentityIfc {
 
     /**
      *  Indicates if the estimator requires that the range of the data be checked for a shift

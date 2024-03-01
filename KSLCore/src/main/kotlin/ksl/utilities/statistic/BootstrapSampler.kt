@@ -18,7 +18,7 @@
 
 package ksl.utilities.statistic
 
-import ksl.utilities.DoubleArraySaver
+import ksl.utilities.*
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
@@ -26,8 +26,6 @@ import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.EmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariableIfc
-import ksl.utilities.statistics
-import ksl.utilities.transpose
 
 /**
  *  Given some data, produce multiple estimated statistics
@@ -35,7 +33,7 @@ import ksl.utilities.transpose
  *  the returned array. It is up to the user to interpret
  *  the array values appropriately.
  */
-interface MVBSEstimatorIfc {
+interface MVBSEstimatorIfc : IdentityIfc {
     /**
      * The name to associate with each dimension of the
      * array that is returned by estimate(). The names
@@ -47,7 +45,7 @@ interface MVBSEstimatorIfc {
     fun estimate(data: DoubleArray): DoubleArray
 }
 
-class BasicStatistics : MVBSEstimatorIfc{
+class BasicStatistics(aName: String? = null) : MVBSEstimatorIfc, IdentityIfc by Identity(aName){
 
     private val stat = Statistic()
 
