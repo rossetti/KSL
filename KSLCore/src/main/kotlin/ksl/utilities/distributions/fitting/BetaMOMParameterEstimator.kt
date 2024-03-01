@@ -1,5 +1,7 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.countGreaterThan
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.BetaRVParameters
@@ -19,7 +21,8 @@ import ksl.utilities.statistic.StatisticIfc
  * The sample average and sample variance of the observations must be strictly greater than zero.
  *
  */
-class BetaMOMParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
+class BetaMOMParameterEstimator(aName: String? = null) :
+    ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity(aName) {
 
     override val checkRange: Boolean = true
 

@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.parameters.NormalRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -27,7 +29,8 @@ import ksl.utilities.statistic.StatisticIfc
  *  Uses the sample average and sample variance of the data, which
  *  are the MLE estimators.  There must be at least two observations.
  */
-object NormalMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object NormalMLEParameterEstimator :
+    ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity("NormalMLEParameterEstimator")  {
 
     override val checkRange: Boolean = false
 
