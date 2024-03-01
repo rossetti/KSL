@@ -1,5 +1,7 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Gamma
 import ksl.utilities.io.KSL
@@ -23,7 +25,8 @@ import kotlin.math.sqrt
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-class GammaMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
+class GammaMLEParameterEstimator(aName: String? = null) :
+    ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity(aName) {
 
     override val names: List<String> = listOf("shape", "scale")
 
