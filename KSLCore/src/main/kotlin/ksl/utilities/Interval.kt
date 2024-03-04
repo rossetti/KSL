@@ -28,8 +28,7 @@ import ksl.utilities.statistic.Histogram
  * @param xUpper  the upper limit
  * @author rossetti
  */
-class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Double.POSITIVE_INFINITY) :
-    NewInstanceIfc<Interval> {
+class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Double.POSITIVE_INFINITY) {
 
     constructor(xLower: Int, xUpper: Int) : this(xLower.toDouble(), xUpper.toDouble())
 
@@ -92,7 +91,7 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
      *
      * @return A new instance with the same interval settings.
      */
-    override fun instance(): Interval {
+    fun instance(): Interval {
         return Interval(lowerLimit, upperLimit)
     }
 

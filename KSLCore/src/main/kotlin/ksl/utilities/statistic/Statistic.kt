@@ -1123,7 +1123,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                     fk = Double.MIN_VALUE
                 }
                 if (fk >= 1.0) {
-                    fk = 1.0 - Double.MIN_VALUE
+                    fk = 1.0 - Double.MIN_VALUE //TODO need to fix
                 }
                 var fnmkp1 = fn.cdf(orderStats[n - (k + 1)])
                 val lnFnmkp1 = KSLMath.safeNaturalLog(1.0 - fnmkp1)
@@ -1131,7 +1131,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                     fnmkp1 = Double.MIN_VALUE
                 }
                 if (fnmkp1 >= 1.0) {
-                    fnmkp1 = 1.0 - Double.MIN_VALUE
+                    fnmkp1 = 1.0 - Double.MIN_VALUE //TODO need to fix
                 }
                 sum = sum + (2.0 * i - 1.0) * (lnfk + lnFnmkp1)
  //               sum = sum + (2.0 * i - 1.0) * (ln(fk) + ln(1.0 - fnmkp1))
@@ -1276,7 +1276,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             // Create an auxiliary array of pairs, each pair stores the data as well as its index
             val pairs = Array<Pair<Double, Int>>(data.size) { Pair(data[it], it) }
             // sort according to the data (first element in the pair
-            val comparator = compareBy<Pair<Double, Int>> { it.first }
+            val comparator = compareBy<Pair<Double, Int>> { it.first } //TODO need to fix
             for ((k, pair) in pairs.withIndex()) {
                 ranks[pair.second] = k + 1.0
             }
