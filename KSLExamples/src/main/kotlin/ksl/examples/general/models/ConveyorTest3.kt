@@ -52,9 +52,9 @@ import ksl.utilities.Identity
 class ConveyorTest3(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
-    val stationA = Identity(aName = "A")
-    val stationB = Identity(aName = "B")
-    val stationC = Identity(aName = "C")
+    val stationA = Identity(name = "A")
+    val stationB = Identity(name = "B")
+    val stationC = Identity(name = "C")
 
     init {
         conveyor = Conveyor.builder(this)

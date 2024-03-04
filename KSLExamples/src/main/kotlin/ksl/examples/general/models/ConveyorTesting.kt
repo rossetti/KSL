@@ -32,9 +32,9 @@ fun partitionTest() {
 }
 
 fun buildTest() {
-    val i1 = Identity(aName = "A")
-    val i2 = Identity(aName = "B")
-    val i3 = Identity(aName = "C")
+    val i1 = Identity(name = "A")
+    val i2 = Identity(name = "B")
+    val i3 = Identity(name = "C")
     val c = Conveyor.builder(Model())
         .conveyorType(Conveyor.Type.ACCUMULATING)
         .velocity(3.0)
@@ -49,9 +49,9 @@ fun buildTest() {
 class TestConveyor(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
-    val i1 = Identity(aName = "A")
-    val i2 = Identity(aName = "B")
-    val i3 = Identity(aName = "C")
+    val i1 = Identity(name = "A")
+    val i2 = Identity(name = "B")
+    val i3 = Identity(name = "C")
 
     init {
         conveyor = Conveyor.builder(this)
@@ -157,9 +157,9 @@ fun runConveyorTest4(conveyorType: Conveyor.Type) {
 class TestConveyor2(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
-    val i1 = Identity(aName = "A")
-    val i2 = Identity(aName = "B")
-    val i3 = Identity(aName = "C")
+    val i1 = Identity(name = "A")
+    val i2 = Identity(name = "B")
+    val i3 = Identity(name = "C")
 
     init {
         conveyor = Conveyor.builder(this)
@@ -230,9 +230,9 @@ class TestConveyor2(parent: ModelElement, conveyorType: Conveyor.Type) : Process
 class TestConveyor3(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
-    val i1 = Identity(aName = "A")
-    val i2 = Identity(aName = "B")
-    val i3 = Identity(aName = "C")
+    val i1 = Identity(name = "A")
+    val i2 = Identity(name = "B")
+    val i3 = Identity(name = "C")
 
     init {
         conveyor = Conveyor.builder(this)
@@ -308,9 +308,9 @@ class TestConveyor3(parent: ModelElement, conveyorType: Conveyor.Type) : Process
 class TestConveyor4(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
-    val i1 = Identity(aName = "A")
-    val i2 = Identity(aName = "B")
-    val i3 = Identity(aName = "C")
+    val i1 = Identity(name = "A")
+    val i2 = Identity(name = "B")
+    val i3 = Identity(name = "C")
 
     init {
         conveyor = Conveyor.builder(this)
