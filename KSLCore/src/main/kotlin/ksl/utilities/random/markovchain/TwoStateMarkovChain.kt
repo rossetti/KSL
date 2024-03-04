@@ -18,7 +18,6 @@
 
 package ksl.utilities.random.markovchain
 
-import ksl.utilities.NewInstanceIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariable
@@ -30,7 +29,7 @@ class TwoStateMarkovChain(
     val p01: Double = 0.5,
     val p11: Double = 0.5,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream), NewInstanceIfc<TwoStateMarkovChain> {
+) : RVariable(stream) {
 
     init {
         require((0.0 < p11) && (p11 < 1.0)) { "P11 must be in (0,1)" }
