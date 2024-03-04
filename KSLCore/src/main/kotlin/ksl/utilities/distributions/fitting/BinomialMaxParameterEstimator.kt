@@ -1,5 +1,7 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.BinomialRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
@@ -18,7 +20,8 @@ import ksl.utilities.statistic.StatisticIfc
  *  the number of success in n trials.
  *  The estimation process does not ensure that n is integer valued.
  */
-object BinomialMaxParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object BinomialMaxParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("BinomialMaxParameterEstimator") {
 
     override val checkRange: Boolean = true
 

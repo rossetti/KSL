@@ -1,5 +1,7 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
@@ -11,7 +13,8 @@ import ksl.utilities.statistic.StatisticIfc
  *  at least two observations. The sample average and sample variance
  *  of the observations must be strictly greater than zero.
  */
-object GammaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object GammaMOMParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("GammaMOMParameterEstimator") {
 
     override val names: List<String> = listOf("shape", "scale")
 

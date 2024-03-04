@@ -1,5 +1,7 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.NegativeBinomialRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
@@ -15,7 +17,8 @@ import ksl.utilities.statistic.StatisticIfc
  *  the number of failures until the rth success.
  *  To ensure moment matching, the estimation process does not ensure that r is integer valued.
  */
-object NegBinomialMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object NegBinomialMOMParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("NegBinomialMOMParameterEstimator")  {
 
     override val checkRange: Boolean = true
 

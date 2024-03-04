@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.countLessEqualTo
 import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
@@ -34,7 +36,8 @@ import kotlin.math.ln
  *   the lognormal distribution.  The supplied data must be strictly
  *   positive and their must be at least 2 observations.
  */
-object LognormalMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object LognormalMLEParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("LognormalMLEParameterEstimator")  {
 
     override val checkRange: Boolean = true
 

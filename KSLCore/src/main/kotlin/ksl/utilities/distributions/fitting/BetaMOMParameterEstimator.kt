@@ -21,8 +21,8 @@ import ksl.utilities.statistic.StatisticIfc
  * The sample average and sample variance of the observations must be strictly greater than zero.
  *
  */
-class BetaMOMParameterEstimator(aName: String? = null) :
-    ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity(aName) {
+class BetaMOMParameterEstimator(name: String? = "BetaMOMParameterEstimator") :
+    ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity(name) {
 
     override val checkRange: Boolean = true
 

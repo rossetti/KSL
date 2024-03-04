@@ -21,7 +21,8 @@ import kotlin.math.pow
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-class WeibullMLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
+class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator") : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity(name) {
 
     override val checkRange: Boolean = true
 

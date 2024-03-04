@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.UniformRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
@@ -32,7 +34,8 @@ import ksl.utilities.statistic.StatisticIfc
  *   There must be at least two observations and the observations cannot all be the same.
  *
  */
-object UniformParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object UniformParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("UniformParameterEstimator") {
 
     override val checkRange: Boolean = false
 
