@@ -19,7 +19,6 @@ package ksl.utilities.random.robj
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.NewInstanceIfc
 import ksl.utilities.random.ParametersIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.SampleIfc
@@ -36,7 +35,7 @@ class DPopulation(
     elements: DoubleArray,
     stream: RNStreamIfc = KSLRandom.nextRNStream(),
     name: String? = null
-) : RandomIfc, SampleIfc, ParametersIfc, NewInstanceIfc<DPopulation>, IdentityIfc by Identity(name){
+) : RandomIfc, SampleIfc, ParametersIfc, IdentityIfc by Identity(name){
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers
@@ -57,7 +56,7 @@ class DPopulation(
      * @return Returns a new instance of the population with the same parameters
      * but a different random stream
      */
-    override fun instance(): DPopulation {
+    fun instance(): DPopulation {
         return DPopulation(myElements)
     }
 
