@@ -33,7 +33,8 @@ import ksl.utilities.statistic.StatisticIfc
  *
  * The supplied data cannot be negative or zero and must not all be equal in value.
  */
-class WeibullPercentileParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
+class WeibullPercentileParameterEstimator(name: String? = "WeibullPercentileParameterEstimator") : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity(name)  {
 
     override val names: List<String> = listOf("shape", "scale")
 

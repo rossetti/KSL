@@ -25,8 +25,8 @@ import kotlin.math.sqrt
  *  are not equal. The user may vary some of the search control parameters
  *  to assist with convergence.
  */
-class GammaMLEParameterEstimator(aName: String? = null) :
-    ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity(aName) {
+class GammaMLEParameterEstimator(name: String? = "GammaMLEParameterEstimator") :
+    ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity(name) {
 
     override val names: List<String> = listOf("shape", "scale")
 

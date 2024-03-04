@@ -18,12 +18,15 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.parameters.GeneralizedBetaRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
-object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object GeneralizedBetaMOMParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("GeneralizedBetaMOMParameterEstimator") {
 
     override val checkRange: Boolean = false
 

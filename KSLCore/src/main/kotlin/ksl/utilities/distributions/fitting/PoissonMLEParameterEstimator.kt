@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.PoissonRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
@@ -30,7 +32,8 @@ import ksl.utilities.statistic.StatisticIfc
  *  process assumes that the supplied data are integer valued counts
  *  over the range {0,1,2,...}
  */
-object PoissonMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object PoissonMLEParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("PoissonMLEParameterEstimator") {
 
     override val checkRange: Boolean = true
 

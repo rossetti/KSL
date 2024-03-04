@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.parameters.LaplaceRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -29,7 +31,8 @@ import kotlin.math.abs
  *  are the MLE estimators.  There must be at least two observations.
  *  The parameter names are location and scale
  */
-object LaplaceMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object LaplaceMLEParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("LaplaceMLEParameterEstimator") {
 
     override val checkRange: Boolean = false
 

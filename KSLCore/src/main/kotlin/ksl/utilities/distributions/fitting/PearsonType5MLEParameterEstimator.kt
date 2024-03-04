@@ -1,5 +1,7 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.parameters.PearsonType5RVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -19,7 +21,8 @@ import ksl.utilities.statistic.StatisticIfc
  *  a gamma distribution is fit. If the MLE of the gamma is successful
  *  the correct parameters are returned.
  */
-class PearsonType5MLEParameterEstimator() : ParameterEstimatorIfc, MVBSEstimatorIfc {
+class PearsonType5MLEParameterEstimator(name: String? = "PearsonType5MLEParameterEstimator") : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity(name) {
 
     override val checkRange: Boolean = true
 

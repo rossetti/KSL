@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
@@ -28,7 +30,8 @@ import ksl.utilities.statistic.StatisticIfc
  *  Uses the sample average of the observations, which is the MLE
  *  estimator. The data must not contain negative values.
  */
-object ExponentialMLEParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object ExponentialMLEParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("ExponentialMLEParameterEstimator") {
 
     override val checkRange: Boolean = true
 

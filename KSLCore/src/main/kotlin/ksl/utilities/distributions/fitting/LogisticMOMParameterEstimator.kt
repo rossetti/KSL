@@ -1,5 +1,7 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.random.rvariable.parameters.LogisticRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
@@ -14,7 +16,8 @@ import kotlin.math.sqrt
  *  at least two observations. The moment matching is based on an unbiased
  *  estimate of the variance.
  */
-object LogisticMOMParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object LogisticMOMParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("LogisticMOMParameterEstimator") {
 
     override val names: List<String> = listOf("location", "scale")
 

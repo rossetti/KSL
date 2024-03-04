@@ -59,7 +59,7 @@ interface IdentityIfc : NameIfc {
     var label: String?
 }
 
-open class Identity(aName: String? = null) : IdentityIfc, NameIfc {
+open class Identity(name: String? = null) : IdentityIfc, NameIfc {
 
     companion object {
         private var IDCounter: Int = 0
@@ -67,9 +67,9 @@ open class Identity(aName: String? = null) : IdentityIfc, NameIfc {
 
     override val id: Int = ++IDCounter
 
-    override val name: String = aName ?: ("ID_$id")
+    override val name: String = name ?: ("ID_$id")
 
-    override var label: String? = name
+    override var label: String? = this.name
 
     override fun toString(): String {
         return "Identity(id=$id, name=$name, label=$label)"

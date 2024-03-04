@@ -18,6 +18,8 @@
 
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.isAllEqual
 import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
@@ -30,7 +32,8 @@ import ksl.utilities.statistic.StatisticIfc
  *  the mode is estimated by solving for it in terms of the sample
  *  average.
  */
-object TriangularParameterEstimator : ParameterEstimatorIfc, MVBSEstimatorIfc {
+object TriangularParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("TriangularParameterEstimator") {
 
     override val checkRange: Boolean = false
 
