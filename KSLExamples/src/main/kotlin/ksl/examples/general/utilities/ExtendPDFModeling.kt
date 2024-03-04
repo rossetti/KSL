@@ -197,3 +197,11 @@ fun evaluation(
     // now the closeness of the estimated parameters to the true values can be checked
     // now the CI can be checked to see if they contain the true values
 }
+
+class PDFModelingExperiment(){
+
+    // data saving?
+    /*
+
+     */
+}
