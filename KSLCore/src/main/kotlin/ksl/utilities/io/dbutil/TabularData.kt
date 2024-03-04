@@ -23,7 +23,7 @@ import kotlin.reflect.full.*
  *
  * Example usage:
  * ```
- * data class Person(var name:String, var age:Int): DbData("Persons")
+ * data class Person(var name:String, var age:Int): TabularData("Persons")
  * db.selectDbDataInto(::Person)
  * ```
  * Assume that db holds an instance to a database that has a table called, Persons,
