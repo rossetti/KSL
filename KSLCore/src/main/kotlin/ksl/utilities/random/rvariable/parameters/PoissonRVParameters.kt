@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class PoissonRVParameters : RVParameters(
     rvClassName = RVType.Poisson.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Poisson)
-), CreateDistributionIfc<Poisson> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("mean", 1.0)
     }

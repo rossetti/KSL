@@ -32,7 +32,7 @@ import kotlin.math.sqrt
  * @param name an optional name/label
  */
 class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = null) :
-    Distribution<Normal>(name), ContinuousDistributionIfc,
+    Distribution(name), ContinuousDistributionIfc,
     LossFunctionDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Normal {
 
     init {

@@ -28,7 +28,7 @@ import kotlin.math.*
  * @param theMean the mean rate
  * @param name an optional label/name
  */
-class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution<Poisson>(name),
+class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
     DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Poisson {
 
     init {

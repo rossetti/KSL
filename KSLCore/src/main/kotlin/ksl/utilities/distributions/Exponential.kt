@@ -29,7 +29,7 @@ import kotlin.math.pow
  * @param theMean The mean of the distribution, must be &gt; 0.0
  * @param name an optional label/name
  */
-class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution<Exponential>(name),
+class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution(name),
     LossFunctionDistributionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Exponential {
 
     /** Constructs an exponential distribution where parameter[0] is the

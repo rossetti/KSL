@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class BernoulliRVParameters : RVParameters(
     rvClassName = RVType.Bernoulli.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Bernoulli)
-), CreateDistributionIfc<Bernoulli> {
+), CreateDistributionIfc{
     override fun fillParameters() {
         addDoubleParameter("probOfSuccess", 0.5)
     }

@@ -15,7 +15,7 @@ import kotlin.math.floor
 class NegativeBinomialRVParameters : RVParameters(
     rvClassName = RVType.NegativeBinomial.parametrizedRVClass.simpleName!!,
     rvType = (RVType.NegativeBinomial)
-), CreateDistributionIfc<NegativeBinomial> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("probOfSuccess", 0.5)
         addDoubleParameter("numSuccesses", 1.0)

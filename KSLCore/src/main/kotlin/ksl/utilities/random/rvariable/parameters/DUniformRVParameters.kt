@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class DUniformRVParameters : RVParameters(
     rvClassName = RVType.DUniform.parametrizedRVClass.simpleName!!,
     rvType = (RVType.DUniform)
-), CreateDistributionIfc<DUniform> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addIntegerParameter("min", 0)
         addIntegerParameter("max", 1)

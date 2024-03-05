@@ -32,14 +32,14 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * @param theShift        The linear shift
  * @param name         an optional name/label
  */
-open class ShiftedDistribution(theDistribution: DistributionIfc<*>, theShift: Double, name: String? = null) :
-    Distribution<ShiftedDistribution>(name) {
+open class ShiftedDistribution(theDistribution: DistributionIfc, theShift: Double, name: String? = null) :
+    Distribution(name) {
 
     init {
         require(theShift >= 0.0) { "The shift should not be < 0.0" }
     }
 
-    protected var distribution: DistributionIfc<*> = theDistribution
+    protected var distribution: DistributionIfc = theDistribution
 
 //    protected var myLossFunctionDistribution: LossFunctionDistributionIfc? = null
 
@@ -50,7 +50,7 @@ open class ShiftedDistribution(theDistribution: DistributionIfc<*>, theShift: Do
         }
 
     override fun instance(): ShiftedDistribution {
-        val d = distribution.instance() as DistributionIfc<*>
+        val d = distribution.instance()
         return ShiftedDistribution(d, shift)
     }
 
@@ -60,7 +60,7 @@ open class ShiftedDistribution(theDistribution: DistributionIfc<*>, theShift: Do
      * @param distribution must not be null
      * @param shift        must be &gt;=0.0
      */
-    fun setDistribution(distribution: DistributionIfc<*>, shift: Double) {
+    fun setDistribution(distribution: DistributionIfc, shift: Double) {
         this.distribution = distribution
         this.shift = shift
     }

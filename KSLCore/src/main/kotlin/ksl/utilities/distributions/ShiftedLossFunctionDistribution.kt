@@ -24,7 +24,7 @@ package ksl.utilities.distributions
  * @param theShift the shift
  */
 class ShiftedLossFunctionDistribution(theLossDistribution: LossFunctionDistributionIfc, theShift: Double) :
-    ShiftedDistribution(theLossDistribution as DistributionIfc<*>, theShift, null), LossFunctionDistributionIfc {
+    ShiftedDistribution(theLossDistribution as DistributionIfc, theShift, null), LossFunctionDistributionIfc {
 
     override fun firstOrderLossFunction(x: Double): Double {
         val cdf = distribution as LossFunctionDistributionIfc

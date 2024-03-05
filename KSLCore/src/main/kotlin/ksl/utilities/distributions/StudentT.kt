@@ -38,7 +38,7 @@ import kotlin.math.*
  * @param theDegreesOfFreedom  degrees of freedom
  * @param name an optional name/label
  */
-class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distribution<StudentT>(name),
+class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distribution(name),
     ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
 
     init {

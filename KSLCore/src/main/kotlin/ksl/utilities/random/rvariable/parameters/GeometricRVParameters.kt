@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class GeometricRVParameters : RVParameters(
     rvClassName = RVType.Geometric.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Geometric)
-), CreateDistributionIfc<Geometric> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("probOfSuccess", 0.5)
     }

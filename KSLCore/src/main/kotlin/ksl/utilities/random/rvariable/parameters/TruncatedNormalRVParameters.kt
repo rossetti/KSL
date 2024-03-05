@@ -10,7 +10,7 @@ import ksl.utilities.random.rvariable.TruncatedNormalRV
 class TruncatedNormalRVParameters : RVParameters(
     rvClassName = RVType.TruncatedNormal.parametrizedRVClass.simpleName!!,
     rvType = (RVType.TruncatedNormal)
-), CreateDistributionIfc<TruncatedNormal> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("mean", 0.0)
         addDoubleParameter("variance", 1.0)

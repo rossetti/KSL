@@ -10,7 +10,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class ChiSquaredDistribution(
     degreesOfFreedom: Double,
     name: String? = null
-) : Distribution<ChiSquaredDistribution>(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.ChiSquared {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.ChiSquared {
 
     init {
         require(degreesOfFreedom > 0) { "Degrees of Freedom must be >= 1" }

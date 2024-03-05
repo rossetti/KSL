@@ -30,7 +30,7 @@ import kotlin.math.*
  * @param name an optional name/label
  */
 class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1.0, name: String? = null) :
-    Distribution<NegativeBinomial>(name), DiscretePMFInRangeDistributionIfc,
+    Distribution(name), DiscretePMFInRangeDistributionIfc,
     LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.NegativeBinomial {
 
     init {

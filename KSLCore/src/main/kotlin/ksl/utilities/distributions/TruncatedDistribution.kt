@@ -36,16 +36,16 @@ import ksl.utilities.random.rvariable.TruncatedRV
 
  */
 class TruncatedDistribution(
-    theDistribution: DistributionIfc<*>,
+    theDistribution: DistributionIfc,
     theCDFLowerLimit: Double,
     theCDFUpperLimit: Double,
     theLowerLimit: Double,
     theUpperLimit: Double,
     name: String? = null
-) : Distribution<TruncatedDistribution>(name), GetRVariableIfc {
+) : Distribution(name), GetRVariableIfc {
 
     constructor(
-        theDistribution: DistributionIfc<*>,
+        theDistribution: DistributionIfc,
         distDomain: Interval,
         truncInterval: Interval,
         name: String? = null
@@ -65,7 +65,7 @@ class TruncatedDistribution(
         require(!(theLowerLimit == theCDFLowerLimit && theUpperLimit == theCDFUpperLimit)) { "There was no truncation over the interval of support" }
     }
 
-    var distribution: DistributionIfc<*> = theDistribution
+    var distribution: DistributionIfc = theDistribution
         private set
 
     var lowerLimit = 0.0
@@ -88,7 +88,7 @@ class TruncatedDistribution(
     }
 
     override fun instance(): TruncatedDistribution {
-        val d = distribution.instance() as DistributionIfc<*>
+        val d = distribution.instance()
         return TruncatedDistribution(d, cdfLowerLimit, cdfUpperLimit, lowerLimit, upperLimit)
     }
 
@@ -101,7 +101,7 @@ class TruncatedDistribution(
      * @param truncUL      The truncated upper limit (if moved in from cdfUL), must be &lt;= cdfUL
      */
     fun setDistribution(
-        distribution: DistributionIfc<*>, cdfLL: Double, cdfUL: Double,
+        distribution: DistributionIfc, cdfLL: Double, cdfUL: Double,
         truncLL: Double, truncUL: Double
     ) {
         this.distribution = distribution

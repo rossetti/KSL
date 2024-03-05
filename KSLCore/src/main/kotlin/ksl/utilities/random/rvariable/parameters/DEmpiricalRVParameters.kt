@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class DEmpiricalRVParameters : RVParameters(
     rvClassName = RVType.DEmpirical.parametrizedRVClass.simpleName!!,
     rvType = (RVType.DEmpirical)
-), CreateDistributionIfc<DEmpiricalCDF> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleArrayParameter("values", doubleArrayOf(0.0, 1.0))
         addDoubleArrayParameter("cdf", doubleArrayOf(0.5, 1.0))

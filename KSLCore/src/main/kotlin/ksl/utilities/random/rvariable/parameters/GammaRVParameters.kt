@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class GammaRVParameters : RVParameters(
     rvClassName = RVType.Gamma.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Gamma)
-), CreateDistributionIfc<Gamma> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("shape", 1.0)
         addDoubleParameter("scale", 1.0)

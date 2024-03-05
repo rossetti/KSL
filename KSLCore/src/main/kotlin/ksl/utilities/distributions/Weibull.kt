@@ -33,7 +33,7 @@ import kotlin.math.sqrt
  * @param name an optional name/label
  */
 class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
-    Distribution<Weibull>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Weibull {
+    Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Weibull {
     init {
         require(theShape > 0) { "Shape parameter must be positive" }
         require(theScale > 0) { "Scale parameter must be positive" }

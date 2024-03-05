@@ -27,7 +27,7 @@ import ksl.utilities.random.rvariable.*
  * @param name an optional name/label
  */
 class Uniform (theMinimum: Double = 0.0, theMaximum: Double = 1.0, name: String? = null) :
-    Distribution<Uniform>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Uniform {
+    Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Uniform {
 
     init {
         require(theMinimum < theMaximum) { "Lower limit must be < upper limit. lower limit = $theMinimum upper limit = $theMaximum" }

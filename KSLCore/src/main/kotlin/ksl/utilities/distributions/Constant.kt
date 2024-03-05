@@ -29,7 +29,7 @@ import ksl.utilities.random.rvariable.*
  * @param value the value for the constant
  * @param name a string name/label
 */
-class Constant (var value: Double = 0.0, name: String? = null) : Distribution<Constant>(name),
+class Constant (var value: Double = 0.0, name: String? = null) : Distribution(name),
     DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Constant{
 
     /**

@@ -15,7 +15,7 @@ class Laplace(
     var location: Double = 0.0,
     scale: Double = 1.0,
     name: String? = null
-) : Distribution<Laplace>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Laplace {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Laplace {
 
     init {
         require(scale > 0.0) { "The scale must be > 0.0" }

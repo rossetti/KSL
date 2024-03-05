@@ -35,7 +35,7 @@ class Triangular(
     theMode: Double = 0.0,
     theMax: Double = 1.0,
     name: String? = null
-) : Distribution<Triangular>(name), ContinuousDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Triangular {
+) : Distribution(name), ContinuousDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Triangular {
     init {
         require(theMin <= theMode) { "min must be <= mode" }
         require(theMin < theMax) { "min must be < max" }

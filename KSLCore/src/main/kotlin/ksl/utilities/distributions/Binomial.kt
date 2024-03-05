@@ -26,7 +26,7 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.*
 
-class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) : Distribution<Binomial>(name),
+class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) : Distribution(name),
     DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, RVParametersTypeIfc by RVType.Binomial{
 
     init {

@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class PearsonType5RVParameters : RVParameters(
     rvClassName = RVType.PearsonType5.parametrizedRVClass.simpleName!!,
     rvType = (RVType.PearsonType5)
-), CreateDistributionIfc<PearsonType5> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("shape", 1.0)
         addDoubleParameter("scale", 1.0)
