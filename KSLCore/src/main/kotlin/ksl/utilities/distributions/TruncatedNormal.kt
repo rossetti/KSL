@@ -23,7 +23,7 @@ class TruncatedNormal(
     normalVariance: Double,
     interval: Interval,
     name: String? = null
-) : Distribution<TruncatedNormal>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
 
     constructor(
         normal: Normal,

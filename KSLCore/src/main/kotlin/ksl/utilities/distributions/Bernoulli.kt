@@ -35,7 +35,7 @@ import kotlin.math.floor
  * @param name an optional name
  */
 class Bernoulli(successProb: Double= 0.5, name: String? = null) :
-    Distribution<Bernoulli>(name), DiscreteDistributionIfc, RVParametersTypeIfc by RVType.Bernoulli {
+    Distribution(name), DiscreteDistributionIfc, RVParametersTypeIfc by RVType.Bernoulli {
 
     init {
         require(!(successProb <= 0.0 || successProb >= 1.0)) { "Probability must be (0,1)" }

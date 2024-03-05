@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.TriangularRV
 class TriangularRVParameters : RVParameters(
     rvClassName = RVType.Triangular.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Triangular)
-), CreateDistributionIfc<Triangular> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("min", 0.0)
         addDoubleParameter("mode", 0.5)

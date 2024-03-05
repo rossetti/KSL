@@ -10,7 +10,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class LogisticRVParameters : RVParameters(
     rvClassName = RVType.Logistic.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Logistic)
-), CreateDistributionIfc<Logistic> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("location", 0.0)
         addDoubleParameter("scale", 1.0)
@@ -22,7 +22,7 @@ class LogisticRVParameters : RVParameters(
         return LogisticRV(location, scale, rnStream)
     }
 
-    override fun createDistribution(): Distribution<Logistic> {
+    override fun createDistribution(): Logistic {
         val location = doubleParameter("location")
         val scale = doubleParameter("scale")
         return Logistic(location, scale)

@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class ExponentialRVParameters : RVParameters(
     rvClassName = RVType.Exponential.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Exponential)
-), CreateDistributionIfc<Exponential> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("mean", 1.0)
     }

@@ -31,7 +31,7 @@ import kotlin.math.*
  * @param successProb the probability of success
  * @param name an optional label/name
  */
-class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution<Geometric>(name),
+class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(name),
     DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Geometric {
 
     init {

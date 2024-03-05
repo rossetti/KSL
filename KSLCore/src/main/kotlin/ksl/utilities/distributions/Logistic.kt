@@ -17,7 +17,7 @@ class Logistic(
     var location: Double = 0.0,
     scale: Double = 1.0,
     name: String? = null
-) : Distribution<Logistic>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Logistic {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Logistic {
 
     init {
         require(scale > 0.0) { "The scale must be > 0.0" }

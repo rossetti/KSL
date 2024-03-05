@@ -10,7 +10,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class GeneralizedBetaRVParameters : RVParameters(
     rvClassName = RVType.GeneralizedBeta.parametrizedRVClass.simpleName!!,
     rvType = (RVType.GeneralizedBeta)
-), CreateDistributionIfc<GeneralizedBeta> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("alpha", 1.0)
         addDoubleParameter("beta", 1.0)

@@ -36,7 +36,7 @@ import kotlin.math.pow
  * @param name an optional label/name
  */
 class PearsonType5 (shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
-    Distribution<PearsonType5>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.PearsonType5 {
+    Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.PearsonType5 {
 
     init {
         require(shape > 0) { "Alpha (shape parameter) should be > 0" }

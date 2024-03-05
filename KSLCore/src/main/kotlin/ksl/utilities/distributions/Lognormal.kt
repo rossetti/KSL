@@ -37,7 +37,7 @@ import kotlin.math.sqrt
  * @param name an optional name/label
  */
 class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? = null) :
-    Distribution<Lognormal>(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc,
+    Distribution(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc,
     GetRVariableIfc, RVParametersTypeIfc by RVType.Lognormal {
 
     init {

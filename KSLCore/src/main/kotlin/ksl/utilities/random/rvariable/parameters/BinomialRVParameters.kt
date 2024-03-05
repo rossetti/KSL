@@ -14,7 +14,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class BinomialRVParameters : RVParameters(
     rvClassName = RVType.Binomial.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Binomial)
-), CreateDistributionIfc<Binomial> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("probOfSuccess", 0.5)
         addDoubleParameter("numTrials", 2.0)

@@ -36,7 +36,7 @@ class LogLogistic(
     theShape: Double = 1.0,
     theScale: Double = 1.0,
     name: String? = null
-) : Distribution<LogLogistic>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.LogLogistic {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.LogLogistic {
 
     init {
         require(theShape > 0) { "Shape parameter must be positive" }

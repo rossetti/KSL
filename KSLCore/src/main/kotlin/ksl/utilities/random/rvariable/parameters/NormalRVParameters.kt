@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class NormalRVParameters : RVParameters(
     rvClassName = RVType.Normal.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Normal)
-), CreateDistributionIfc<Normal> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("mean", 0.0)
         addDoubleParameter("variance", 1.0)

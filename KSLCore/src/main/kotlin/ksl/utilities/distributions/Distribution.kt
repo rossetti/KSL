@@ -24,7 +24,7 @@ import ksl.utilities.Interval
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.rootfinding.BisectionRootFinder
 
-abstract class Distribution<T>(name: String? = null) : DistributionIfc<T>, IdentityIfc by Identity(name) {
+abstract class Distribution(name: String? = null) : DistributionIfc, IdentityIfc by Identity(name) {
 
     companion object {
 

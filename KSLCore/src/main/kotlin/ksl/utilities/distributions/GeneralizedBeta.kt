@@ -39,7 +39,7 @@ class GeneralizedBeta(
     minimum: Double = 0.0,
     maximum: Double = 1.0,
     name: String? = null
-) : Distribution<GeneralizedBeta>(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.GeneralizedBeta {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.GeneralizedBeta {
 
     init {
         require(minimum < maximum) { "Lower limit must be < upper limit. lower limit = $minimum upper limit = $maximum" }

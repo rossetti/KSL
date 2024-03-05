@@ -10,7 +10,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 class LaplaceRVParameters : RVParameters(
     rvClassName = RVType.Laplace.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Laplace)
-), CreateDistributionIfc<Laplace> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("location", 0.0)
         addDoubleParameter("scale", 1.0)
@@ -22,7 +22,7 @@ class LaplaceRVParameters : RVParameters(
         return LaplaceRV(location, scale, rnStream)
     }
 
-    override fun createDistribution(): Distribution<Laplace> {
+    override fun createDistribution(): Laplace {
         val location = doubleParameter("location")
         val scale = doubleParameter("scale")
         return Laplace(location, scale)

@@ -38,7 +38,7 @@ import ksl.utilities.random.rvariable.*
  * @param name   an optional name/label
  */
 class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null) :
-    Distribution<DEmpiricalCDF>(name), DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.DEmpirical {
+    Distribution(name), DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.DEmpirical {
 
     /**
      * Holds the list of probability points

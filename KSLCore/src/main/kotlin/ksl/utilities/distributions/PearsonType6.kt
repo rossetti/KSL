@@ -37,7 +37,7 @@ class PearsonType6 (
     theShape2: Double = 3.0,
     theScale: Double = 1.0,
     name: String? = null
-) : Distribution<PearsonType6>(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.PearsonType6 {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.PearsonType6 {
 
     init {
         require(theShape1 > 0.0) { "The 1st shape parameter must be > 0.0" }

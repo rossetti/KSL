@@ -41,7 +41,7 @@ class Beta(
     alphaShape: Double,
     betaShape: Double,
     name: String? = null
-) : Distribution<Beta>(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.Beta {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.Beta {
     init {
         require(alphaShape > 0) { "The 1st shape parameter must be > 0" }
         require(betaShape > 0) { "The 2nd shape parameter must be > 0" }

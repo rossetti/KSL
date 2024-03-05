@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.UniformRV
 class UniformRVParameters : RVParameters(
     rvClassName = RVType.Uniform.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Uniform)
-), CreateDistributionIfc<Uniform> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("min", 0.0)
         addDoubleParameter("max", 1.0)

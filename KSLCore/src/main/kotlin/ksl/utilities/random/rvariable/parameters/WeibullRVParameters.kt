@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.WeibullRV
 class WeibullRVParameters : RVParameters(
     rvClassName = RVType.Weibull.parametrizedRVClass.simpleName!!,
     rvType = (RVType.Weibull)
-), CreateDistributionIfc<Weibull> {
+), CreateDistributionIfc {
     override fun fillParameters() {
         addDoubleParameter("shape", 1.0)
         addDoubleParameter("scale", 1.0)

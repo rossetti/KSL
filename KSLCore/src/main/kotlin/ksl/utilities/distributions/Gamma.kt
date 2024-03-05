@@ -32,7 +32,7 @@ import kotlin.math.*
  * @param name an optional name/label
  */
 class Gamma(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
-    Distribution<Gamma>(name),
+    Distribution(name),
     ContinuousDistributionIfc,
     LossFunctionDistributionIfc,
     InverseCDFIfc,
