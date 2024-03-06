@@ -23,11 +23,16 @@ import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PDFModelingResults
 import ksl.utilities.distributions.fitting.ScoringResult
+import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.dbutil.TabularData
+import ksl.utilities.io.tabularfiles.TabularOutputFile
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.BootstrapEstimate
 import ksl.utilities.statistic.BootstrapSampler
+import java.nio.file.Path
 
 /**
  *  A rank of 0, means that the random variable type [rvType] was not
@@ -185,7 +190,7 @@ fun evaluation(
     rv: ParameterizedRV,
     sampleSize: Int,
     automaticShifting: Boolean = false
-){
+) {
     val parameters = rv.parameters.asDoubleMap()
     val data = rv.sample(sampleSize)
     val pdfModeler = PDFModeler(data)
@@ -198,10 +203,78 @@ fun evaluation(
     // now the CI can be checked to see if they contain the true values
 }
 
-class PDFModelingExperiment(){
 
-    // data saving?
-    /*
+data class PDFModelingData(
+    var sampleSize: Int = -1,
+    var distribution: String = "",
+    var trueParam1: Double = Double.NaN,
+    var trueParam2: Double = Double.NaN,
+    var estParam1: Double = Double.NaN,
+    var estParam2: Double = Double.NaN,
+    var rank: Int = -1,
+    var firstPlace: String = "",
+    var secondPlace: String = "",
+    var thirdPlace: String = "",
+    var sampleID: Int = -1,
+    var average: Double = Double.NaN,
+    var stdDev: Double = Double.NaN,
+    var min: Double = Double.NaN,
+    var max: Double = Double.NaN,
+    var skewness: Double = Double.NaN,
+    var kurtosis: Double = Double.NaN,
+    var ksScore: Double = Double.NaN,
+    var sqeScore: Double = Double.NaN,
+    var chiSqScore: Double = Double.NaN,
+    var adScore: Double = Double.NaN,
+    var cvmScore: Double = Double.NaN,
+) : TabularData("PDFModelingData")
 
-     */
+class PDFModelingExperiment(
+    name: String,
+    dirPath: Path = KSL.outDir
+) {
+    private val tFile: TabularOutputFile
+
+    init {
+        val path: Path = dirPath.resolve(name)
+        val rowData = PDFModelingData()
+        tFile = TabularOutputFile(rowData, path)
+    }
+
+    fun runExperiment(
+        distribution: String,
+        trueParam1: Double,
+        trueParam2: Double,
+        rv: ParameterizedRV,
+        sampleSize: Int,
+        numSamples: Int,
+        automaticShifting: Boolean = false
+    ) {
+        require(sampleSize >= 2) { "The size of each sample must be >= 2" }
+        require(numSamples >= 2) { "The number of samples to generate must be >= 2" }
+        for (i in 1..numSamples) {
+            val data = rv.sample(sampleSize)
+            val pdfModeler = PDFModeler(data)
+            val pdfModelingResults = pdfModeler.estimateAndEvaluateScores(automaticShifting = automaticShifting)
+            saveResults(distribution, trueParam1, trueParam2, pdfModelingResults)
+        }
+    }
+
+    private fun saveResults(
+        distribution: String,
+        trueParam1: Double,
+        trueParam2: Double,
+        pdfModelingResults: PDFModelingResults
+    ) {
+        val rowData = PDFModelingData()
+        rowData.distribution = distribution
+        rowData.trueParam1 = trueParam1
+        rowData.trueParam2 = trueParam2
+        val firstResult = pdfModelingResults.sortedScoringResults[0]
+        val secondResult = pdfModelingResults.sortedScoringResults[1]
+        val thirdResult = pdfModelingResults.sortedScoringResults[2]
+        pdfModelingResults.estimationResults[0]
+
+    }
+
 }
