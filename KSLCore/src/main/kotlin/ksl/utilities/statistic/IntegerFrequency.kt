@@ -446,6 +446,27 @@ class IntegerFrequency(
         return list
     }
 
+    fun freqTabulation() : String {
+        val sb = StringBuilder()
+        sb.append("Frequency Tabulation ").append(name).appendLine()
+        sb.append("----------------------------------------").appendLine()
+        sb.append("Number of cells = ").append(numberOfValues).appendLine()
+        sb.append("Lower limit = ").append(lowerLimit).appendLine()
+        sb.append("Upper limit = ").append(upperLimit).appendLine()
+        sb.append("Under flow count = ").append(underFlowCount).appendLine()
+        sb.append("Over flow count = ").append(overFlowCount).appendLine()
+        sb.append("Total count = ").append(totalCount).appendLine()
+        sb.append("Minimum value observed = ").append(min).appendLine()
+        sb.append("Maximum value observed = ").append(max).appendLine()
+        sb.append("----------------------------------------").appendLine()
+        sb.append("Value \t Count \t Proportion\n")
+        for (c in cells()) {
+            sb.append(c).appendLine()
+        }
+        sb.append("----------------------------------------").appendLine()
+        return sb.toString()
+    }
+
     override fun toString(): String {
         val sb = StringBuilder()
         sb.append("Frequency Tabulation ").append(name).appendLine()
