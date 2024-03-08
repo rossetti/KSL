@@ -289,6 +289,7 @@ class PDFModeler(private val data: DoubleArray) {
                 distribution.toString()
             }
             val scores = mutableListOf<Score>()
+            //TODO ISSUE: metric rescaling problem may occur if scoring model is reused
             for (model in scoringModels) {
                 val score = model.score(result)
                 scores.add(score)
@@ -318,7 +319,7 @@ class PDFModeler(private val data: DoubleArray) {
         for (sr in scoringResults) {
             alternatives[sr.name] = sr.scores
         }
-        model.defineAlternatives(alternatives)
+        model.defineAlternatives(alternatives)//TODO ISSUE: this can cause metric domain rescaling
         for (sr in scoringResults) {
             sr.values = model.valuesByAlternative(sr.name)
             sr.weightedValue = model.multiObjectiveValue(sr.name)
@@ -353,6 +354,7 @@ class PDFModeler(private val data: DoubleArray) {
         scoringModels: Set<PDFScoringModel> = allScoringModels
     ): PDFModelingResults {
         val estimationResults = estimateParameters(estimators, automaticShifting)
+        //TODO ISSUE: if scoring models are reused, their metric domains may not have been set for next usage
         return evaluateScores(estimationResults, scoringModels)
     }
 
@@ -363,7 +365,9 @@ class PDFModeler(private val data: DoubleArray) {
         estimationResults: List<EstimationResult>,
         scoringModels: Set<PDFScoringModel> = allScoringModels
     ): PDFModelingResults {
+        //TODO ISSUE: metric rescaling problem may occur if scoring model is reused
         val scoringResults = scoringResults(estimationResults, scoringModels)
+        //TODO ISSUE: this can cause metric domain rescaling
         val evaluationModel = evaluateScoringResults(scoringResults)
         return PDFModelingResults(estimationResults, scoringResults, evaluationModel)
     }

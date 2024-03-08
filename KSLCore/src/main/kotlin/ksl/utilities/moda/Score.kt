@@ -34,6 +34,6 @@ data class Score(
     var valid: Boolean = true
 ) {
     init {
-        require(metric.domain.contains(value)){"The supplied value = $value is not valid for the domain = ${metric.domain} of the metric."}
+        require(metric.domain.contains(value)){"The supplied value = $value is not valid for the domain = ${metric.domain} of the metric (${metric.name})."}
     }
 }
