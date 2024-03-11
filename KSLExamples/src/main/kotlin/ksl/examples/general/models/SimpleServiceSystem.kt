@@ -51,12 +51,12 @@ class SimpleServiceSystem(
 
     private fun arrival(event: KSLEvent<Nothing>) {
         val c = Customer()
-        activate(c.pharmacyProcess)
+        activate(c.serviceProcess)
         schedule(this::arrival, timeBetweenArrivals)
     }
 
     private inner class Customer : Entity() {
-        val pharmacyProcess: KSLProcess = process() {
+        val serviceProcess: KSLProcess = process() {
             wip.increment()
             timeStamp = time
             val a = seize(servers)
