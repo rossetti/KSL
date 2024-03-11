@@ -8,7 +8,7 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
 fun main(){
     val modelA = Model("Clinic A Model")
     val clinicA = ClinicDesignA(modelA, "Design A")
-    modelA.numberOfReplications = 10
+    modelA.numberOfReplications = 528
 
     val rdc1 = ReplicationDataCollector(modelA)
     rdc1.addResponse(clinicA.systemTime)
@@ -18,7 +18,7 @@ fun main(){
     val modelB = Model("Clinic B Model")
     val clinicB = ClinicDesignB(modelB, "Design B")
     modelB.resetStartStream()
-    modelB.numberOfReplications = 10
+    modelB.numberOfReplications = 528
 
     val rdc2 = ReplicationDataCollector(modelB)
     rdc2.addResponse(clinicB.systemTime)
