@@ -18,11 +18,13 @@
 
 package ksl.examples.general.models
 
+import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -67,5 +69,15 @@ class SimpleServiceSystem(
             numCustomers.increment()
         }
     }
+}
+
+fun main(){
+    val sim = Model("MM1 Model")
+    sim.numberOfReplications = 30
+    sim.lengthOfReplication = 20000.0
+    sim.lengthOfReplicationWarmUp = 5000.0
+    SimpleServiceSystem(sim, 1, name = "MM1")
+    sim.simulate()
+    sim.print()
 }
 
