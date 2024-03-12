@@ -1,6 +1,11 @@
 package ksl.utilities.distributions.fitting
 
+import ksl.utilities.Interval
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.statistic.BootstrapEstimate
+import ksl.utilities.statistic.BootstrapSampler
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.StatisticIfc
 
@@ -52,6 +57,99 @@ class EstimationResult(
                 originalData
             }
         }
+
+    /**
+     *  Performs the bootstrap sampling of the parameters associated
+     *  with the estimation result.
+     *
+     *  @param numBootstrapSamples the number of bootstrap samples
+     *  @param stream the stream for the bootstrap sampling
+     *  @return map of BootStrapEstimate instances representing the bootstrap
+     *  estimate results for each parameter. The key to the map is the name
+     *  of the parameter.
+     */
+    fun bootstrapParameters(
+        numBootstrapSamples: Int = 399,
+        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    ): Map<String, BootstrapEstimate> {
+        val data = if (shiftedData != null) {
+            shiftedData!!.shiftedData
+        } else {
+            originalData
+        }
+        val bss = BootstrapSampler(data, estimator, stream)
+        val list = bss.bootStrapEstimates(numBootstrapSamples)
+        val map = mutableMapOf<String, BootstrapEstimate>()
+        for (e in list) {
+            map[e.name] = e
+        }
+        return map
+    }
+
+    /**
+     *  Returns a map containing the double and integer valued
+     *  parameters from the estimation result.
+     *
+     *  The key to the map is the name of the parameter
+     *  and the value is the current estimated value of the parameter. If the
+     *  parameter is integer value, it is converted to a double value.
+     *
+     *  The map may be empty if the underlying parameters for the
+     *  estimation result was null.
+     */
+    fun parameters(): Map<String, Double> {
+        return if (this.parameters == null) {
+            mapOf()
+        } else {
+            parameters!!.asDoubleMap()
+        }
+    }
+
+    /**
+     *  Returns an array containing the double and integer valued
+     *  parameters. The elements of the array are the parameter values
+     *  based on the order of their names in doubleParameterNames
+     *  and integerParameterNames. If the
+     *  parameter is integer value, it is converted to a double value.
+     *
+     *  The array may be empty if the underlying parameters for the
+     *  estimation result was null.
+     */
+    fun parametersAsDoubleArray(): DoubleArray {
+        return if (this.parameters == null) {
+            doubleArrayOf()
+        } else {
+            parameters!!.asDoubleArray()
+        }
+    }
+
+    /**
+     *  Returns a map containing the percentile bootstrap confidence
+     *  intervals for the parameters associated with the estimation result.
+     *
+     *  The key to the map is the name of the parameter as specified
+     *  by the estimator associated with the estimation result
+     *  and the value is an interval representing the percentile bootstrap
+     *  confidence interval.
+     *
+     *  @param numBootstrapSamples the number of bootstrap samples
+     *  @param level the desired confidence interval level for each parameter
+     *  @param stream the stream for the bootstrap sampling
+     *  @return a map with key = parameter name and value being the interval
+     *
+     */
+    fun percentileBootstrapCI(
+        numBootstrapSamples: Int = 399,
+        level: Double = 0.95,
+        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    ): Map<String, Interval> {
+        val map = mutableMapOf<String, Interval>()
+        val bMap = bootstrapParameters(numBootstrapSamples, stream)
+        for ((name, e) in bMap) {
+            map[name] = e.percentileBootstrapCI(level)
+        }
+        return map
+    }
 
     override fun toString(): String {
         val sb = StringBuilder()

@@ -42,6 +42,41 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
+     *  Returns a map containing the double and integer valued
+     *  parameters. The key to the map is the name of the parameter
+     *  and the value is the current value of the parameter. If the
+     *  parameter is integer value, it is converted to a double value.
+     */
+    fun asDoubleMap(): Map<String, Double> {
+        val map = mutableMapOf<String, Double>()
+        for (k in this.doubleParameterNames) {
+            map[k] = this.doubleParameter(k)
+        }
+        for (k in this.integerParameterNames) {
+            map[k] = this.integerParameter(k).toDouble()
+        }
+        return map
+    }
+
+    /**
+     *  Returns an array containing the double and integer valued
+     *  parameters. The elements of the array are the parameter values
+     *  based on the order of their names in doubleParameterNames
+     *  and integerParameterNames. If the
+     *  parameter is integer value, it is converted to a double value.
+     */
+    fun asDoubleArray(): DoubleArray {
+        val list = mutableListOf<Double>()
+        for (k in this.doubleParameterNames) {
+            list.add(this.doubleParameter(k))
+        }
+        for (k in this.integerParameterNames) {
+            list.add(this.integerParameter(k).toDouble())
+        }
+        return list.toDoubleArray()
+    }
+
+    /**
      * The Map that hold the parameters as pairs
      * key = name of parameter
      * value = value of the parameter as a Double
