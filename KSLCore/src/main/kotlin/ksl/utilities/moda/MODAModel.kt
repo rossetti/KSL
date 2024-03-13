@@ -294,6 +294,41 @@ abstract class MODAModel(
     }
 
     /**
+     *   Returns a data from with the first column being the alternatives
+     *   by name, a column of raw score values for each metric for each alternative, and
+     *   a column of values for each metric for each alternative,
+     *  and a final column representing the overall value for the alternative.
+     *  The parameter [firstColumnName] can be used to name the first column of the
+     *  returned data frame. By default, the first column name is "Alternatives".
+     *
+     *  This function essentially combines alternativeScoresAsDataFrame() and
+     *  alternativeValuesAsDataFrame() into one data frame. The score column names
+     *  have _Score appended nad the value column names have _Value appended.
+     */
+    fun alternativeResultsAsDataFrame(firstColumnName: String = "Alternatives"): AnyFrame{
+        val alternativeColumn = alternatives.toColumn(firstColumnName)
+        // then make columns for each metric
+        val columns = mutableListOf<DataColumn<*>>()
+        columns.add(alternativeColumn)
+        val metrics = scoresByMetric()
+        for ((metric, score) in metrics) {
+            val dataColumn = score.toColumn("${metric.name}_Score")
+            columns.add(dataColumn)
+        }
+        val values = valuesByMetric()
+        for ((metric, value) in values) {
+            val dataColumn = value.toColumn("${metric.name}_Value")
+            columns.add(dataColumn)
+        }
+        // now add the overall value for each alternative
+        val valuesByAlternative = multiObjectiveValuesByAlternative()
+        val overallValue = valuesByAlternative.values.toColumn("Overall Value")
+        columns.add(overallValue)
+        //TODO it would be nice to add a column containing the rankings
+        return dataFrameOf(columns)
+    }
+
+    /**
      *  Computes statistics for each metric across the alternatives.
      */
     fun scoreStatisticsByMetric(): MutableMap<MetricIfc, Statistic> {
