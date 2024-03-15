@@ -207,6 +207,9 @@ private fun readFile() {
     println("Done with demo example.")
     DataFrameUtil.toTabularFile(df, "DataFrameVersion")
     tif.close()
+
+    val fp = KSL.outDir.resolve("data.csv")
+    TabularFile.createFromCSVFile(fp, tif.columnTypes, KSL.outDir.resolve("DataFromCSV"))
 }
 
 fun testDataFrame(){
