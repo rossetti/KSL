@@ -62,7 +62,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      * can be used to recommend a reasonable batch size.
      */
     var maxRowsInBatch = 0
-        set(numRows){
+        set(numRows) {
             require(numRows > 0) { "The number of rows in a batch must be > 0" }
             field = numRows
         }
@@ -160,7 +160,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      *
      * @param data the data represented by an instance of a TabularData
      */
-    fun writeRow(data: TabularData){
+    fun writeRow(data: TabularData) {
         myRow.setElements(data)
         writeRow(myRow)
     }
@@ -209,9 +209,9 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
      */
     override fun asDataFrame(): AnyFrame {
         val resultSet = myDb.selectAllIntoOpenResultSet(dataTableName)
-        val df  = if (resultSet!= null){
+        val df = if (resultSet != null) {
             DatabaseIfc.toDataFrame(resultSet)
-        }else{
+        } else {
             emptyDataFrame<Nothing>()
         }
         resultSet?.close()
@@ -242,7 +242,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
                 val numInserts = ps.executeBatch()
                 val k = numInserts.countGreaterEqualTo(0)
                 if (k < buffer.size) {
-                    KSL.logger.error{"Unable to write all rows $k of buffer size ${buffer.size} to tabular file $dataTableName"}
+                    KSL.logger.error { "Unable to write all rows $k of buffer size ${buffer.size} to tabular file $dataTableName" }
                     throw IOException("Unable to write rows to tabular file $dataTableName")
                 } else {
                     KSL.logger.trace { "Inserted $k rows of batch size ${buffer.size} into file $dataTableName" }
@@ -258,9 +258,10 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
                 is BatchUpdateException,
                 is SQLException,
                 is IOException -> {
-                    KSL.logger.error{"Unable to write all rows to tabular file $dataTableName"}
+                    KSL.logger.error { "Unable to write all rows to tabular file $dataTableName" }
                     throw IOException("Unable to write all rows to tabular file $dataTableName")
                 }
+
                 else -> throw ex
             }
         }
@@ -293,7 +294,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
          * optimization purposes only. Must be 0 or more
          */
         var defaultTextSize = 32
-            set(value){
+            set(value) {
                 require(value >= 0) { "The text size must be >= 0" }
                 field = value
             }
@@ -309,7 +310,7 @@ class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : Tabula
             require(numNumericColumns >= 0) { "The number of numeric columns must be >= 0" }
             require(numTextColumns >= 0) { "The number of text columns must be >= 0" }
             require(maxTextLength >= 0) { "The maximum text length must be >= 0" }
-            require((numNumericColumns != 0) && (numTextColumns) != 0) { "The number of numeric columns and the number of text cannot both be zero" }
+            require((numNumericColumns != 0) || (numTextColumns != 0)) { "The number of numeric columns ($numNumericColumns) and the number of text ($numTextColumns) cannot both be zero" }
             val nb = numNumericColumns * 8
             val tb = numTextColumns * maxTextLength * 2
             return nb + tb

@@ -18,6 +18,7 @@
 
 package ksl.utilities.io.tabularfiles
 
+import ksl.utilities.io.CSVUtil
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.SQLiteDb
 import ksl.utilities.maps.HashBiMap
@@ -27,6 +28,7 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import kotlin.reflect.KType
 
 enum class DataType {
     NUMERIC, TEXT
@@ -99,15 +101,15 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
         sb.appendLine("Column Types:")
         sb.appendLine(myDataTypes)
         sb.appendLine("Column Indices:")
-        for((k,v) in myNameAndIndex){
+        for ((k, v) in myNameAndIndex) {
             sb.appendLine("column $k = index $v")
         }
         sb.appendLine("Numeric Indices:")
-        for((k,v) in myNumericIndices){
+        for ((k, v) in myNumericIndices) {
             sb.appendLine("column index $k = numeric index $v")
         }
         sb.appendLine("Text Indices:")
-        for((k,v) in myTextIndices){
+        for ((k, v) in myTextIndices) {
             sb.appendLine("column index $k = text index $v")
         }
         return sb.toString()
@@ -307,7 +309,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
         val dataTypes = dataTypes
         for ((i, type) in dataTypes.withIndex()) {
             if (type == DataType.NUMERIC) {
-                if (elements[i] == null){
+                if (elements[i] == null) {
                     return false
                 } else {
                     if (!isNumeric(elements[i]!!)) {
@@ -316,7 +318,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
                 }
             } else {
                 // must be text
-                if (elements[i] != null){
+                if (elements[i] != null) {
                     if (isNumeric(elements[i]!!)) {
                         return false
                     }
@@ -424,13 +426,52 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
         }
 
         /**
+         *  Converts the list of KType instances to a
+         *  list of DataType instances.
+         *  If the type is {Double, Long, Integer, Boolean, Float, Short, Byte}
+         *  then it is NUMERIC otherwise it is considered TEXT.
+         *
+         */
+        fun toDataTypes(types: List<KType>): List<DataType> {
+            val list = mutableListOf<DataType>()
+            for (type in types) {
+                list.add(toDataType(type))
+            }
+            return list
+        }
+
+        /**
+         *  If the [kType] is {Double, Long, Integer, Boolean, Float, Short, Byte}
+         *  then it is NUMERIC otherwise it is considered TEXT.
+         */
+        fun toDataType(kType: KType): DataType {
+            if (kType.classifier == Double::class) {
+                return DataType.NUMERIC
+            } else if (kType.classifier == Int::class) {
+                return DataType.NUMERIC
+            } else if (kType.classifier == Long::class) {
+                return DataType.NUMERIC
+            } else if (kType.classifier == Boolean::class) {
+                return DataType.NUMERIC
+            } else if (kType.classifier == Float::class) {
+                return DataType.NUMERIC
+            } else if (kType.classifier == Short::class) {
+                return DataType.NUMERIC
+            } else if (kType.classifier == Byte::class) {
+                return DataType.NUMERIC
+            } else {
+                return DataType.TEXT
+            }
+        }
+
+        /**
          * Test if the object is any of {Double, Long, Integer, Boolean, Float, Short, Byte}
          *
          * @param element the element to test
          * @return true if it is numeric
          */
         fun isNumeric(element: Any?): Boolean {
-            if (element == null){
+            if (element == null) {
                 return false
             } else if (element is Double) {
                 return true
@@ -474,6 +515,51 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
             } else {
                 throw IllegalArgumentException("The element was not of numeric type")
             }
+        }
+
+        /** Reads in a CSV file and converts it to a tabular output file. The separator must be a comma.
+         *
+         *  Each row is individually processed. The number of columns for each row must be equal to the number
+         *  of (name, data type) pairs supplied.
+         *
+         *  @param pathToCSVFile the path to the CSV files for reading in
+         *  @param columnTypes the specification for each column of its name and data type (NUMERIC, TEXT)
+         *  @param pathToOutputFile the path to the TabularOutputFile that is created
+         *  @param skipLines the number of lines of the CSV file to skip before reading values. The default is 1
+         *  to skip the header. The column names become the names of the columns in the tabular output file.
+         *  @return the created tabular output file
+         */
+        fun createFromCSVFile(
+            pathToCSVFile: Path,
+            columnTypes: Map<String, DataType>,
+            pathToOutputFile: Path,
+            skipLines: Int = 1
+        ) : TabularOutputFile {
+            val itr = CSVUtil.csvIterator(pathToCSVFile)
+            var row = 0
+            for(i in 1..skipLines){
+                if (itr.hasNext()){
+                    val data = itr.next()
+                    row++
+                    require(data.size == columnTypes.size) {"Row ($row) had (${data.size}) columns: expected (${columnTypes.size} columns."}
+                }
+            }
+            val tof = TabularOutputFile(columnTypes, pathToOutputFile)
+            val rs = tof.row()
+            while(itr.hasNext()){
+                val data = itr.next()
+                row++
+                require(data.size == columnTypes.size) {"Row ($row) had (${data.size}) columns: expected (${columnTypes.size} columns."}
+                for (i in data.indices) {
+                    if (tof.dataType(i) == DataType.NUMERIC) {
+                        val d = data[i].toDouble()
+                        rs.setElement(i, TabularFile.asDouble(d))
+                    } else {
+                        rs.setElement(i, data[i])
+                    }
+                }
+            }
+            return tof
         }
     }
 }

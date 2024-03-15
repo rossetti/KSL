@@ -23,6 +23,9 @@ package ksl.utilities.io
 import ksl.observers.ControlVariateDataCollector
 import ksl.observers.ReplicationDataCollector
 import ksl.utilities.KSLArrays
+import ksl.utilities.io.tabularfiles.DataType
+import ksl.utilities.io.tabularfiles.TabularFile
+import ksl.utilities.io.tabularfiles.TabularOutputFile
 import ksl.utilities.isRectangular
 import ksl.utilities.maps.toMapOfLists
 import ksl.utilities.random.rng.RNStreamIfc
@@ -33,13 +36,11 @@ import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.toMapOfLists
-import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.DataColumn
-import org.jetbrains.kotlinx.dataframe.DataFrame
-import org.jetbrains.kotlinx.dataframe.DataRow
+import org.jetbrains.kotlinx.dataframe.*
 import org.jetbrains.kotlinx.dataframe.api.*
 import java.io.PrintWriter
 import java.lang.Appendable
+import java.nio.file.Path
 
 object DataFrameUtil {
 
@@ -347,6 +348,97 @@ object DataFrameUtil {
         val rowNum = KSLRandom.randomlySelect(rowIndices, cdf, stream)
         return df[rowNum]
     }
+
+    /**
+     *  Converts the data frame to rows of comma separated file output
+     *  with specified separator. The default [separator] is a comma.
+     *  Elements that are strings are enclosed in double quotes to permit
+     *  the separator to appear in the element. If the [header] is true,
+     *  then the column names of the dataframe are included as the first row
+     *  before any data rows are appended.
+     */
+    fun toCSV(
+        df: AnyFrame,
+        appendable: Appendable,
+        header: Boolean = true,
+        separator: String = ","
+    ) {
+        if (header){
+            appendable.appendLine(df.columnNames().joinToString(separator) { "\"$it\"" })
+        }
+        for (row in df) {
+            appendable.appendLine(row.toCSV(separator))
+        }
+    }
+
+    /**
+     *  Convert the dataframe to a TabularOutputFile with the supplied
+     *  file name within KSL.outDir
+     */
+    fun toTabularFile(df: AnyFrame, fileName: String) : TabularOutputFile {
+        return toTabularFile(df, KSL.outDir.resolve(fileName))
+    }
+
+    /**
+     *  Convert the dataframe to a TabularOutputFile at the supplied [pathToFile]
+     */
+    fun toTabularFile(df: AnyFrame, pathToFile: Path) : TabularOutputFile {
+        val cNames = df.columnNames()
+        val cTypes = df.columnTypes()
+        val dTypes = TabularFile.toDataTypes(cTypes)
+        val cols = mutableMapOf<String, DataType>()
+        for((i, n) in cNames.withIndex()){
+            cols[n] = dTypes[i]
+        }
+        val tof = TabularOutputFile(cols, pathToFile)
+        val rs = tof.row()
+        for(row in df){
+            rs.setElements(row.values())
+            tof.writeRow(rs)
+        }
+        tof.flushRows()
+        return tof
+    }
+}
+
+/**
+ *  Convert the dataframe to a TabularOutputFile with the supplied
+ *  file name within KSL.outDir
+ */
+fun AnyFrame.toTabularFile(fileName: String) : TabularFile {
+    return DataFrameUtil.toTabularFile(this, fileName)
+}
+
+/**
+ *  Convert the dataframe to a TabularOutputFile at the supplied [path]
+ */
+fun AnyFrame.toTabularFile(pathToFile: Path) : TabularFile {
+    return DataFrameUtil.toTabularFile(this, pathToFile)
+}
+
+/**
+ *  Converts the data frame to rows of comma separated file output
+ *  with specified separator. The default [separator] is a comma.
+ *  Elements that are strings are enclosed in double quotes to permit
+ *  the separator to appear in the element. If the [header] is true,
+ *  then the column names of the dataframe are included as the first row
+ *  before any data rows are appended.
+ */
+fun AnyFrame.toCSV(
+    appendable: Appendable,
+    header: Boolean = true,
+    separator: String = ","
+) {
+    return DataFrameUtil.toCSV(this, appendable, header, separator)
+}
+
+/**
+ *  Converts the DataRow to a string separated by the provided [separator].
+ *  The default is common separated. Elements in the row that are strings
+ *  are enclosed in double quotes to permit the separator to appear in the string.
+ */
+fun AnyRow.toCSV(separator: String = ","): String {
+    return values().joinToString(separator) { if (it is String) "\"$it\"" else it.toString() }
 }
 
 /**
@@ -394,8 +486,8 @@ fun DataColumn<Int>.frequencies(): IntegerFrequency {
  *  The column names are col1, col2, col3, etc.
  *  The 2D array must be rectangular
  */
-fun Array<DoubleArray>.toDataFrame(): DataFrame<*> {
-    require(this.isRectangular()) {"The array must be rectangular"}
+fun Array<DoubleArray>.toDataFrame(): AnyFrame {
+    require(this.isRectangular()) { "The array must be rectangular" }
     val map = this.toMapOfLists()
     return map.toDataFrame()
 }
@@ -405,10 +497,10 @@ fun Array<DoubleArray>.toDataFrame(): DataFrame<*> {
  *  a DataFrame, with the column names as the key from the map and
  *  the columns holding the data. Each array must have the same size.
  */
-fun Map<String, DoubleArray>.toDataFrame() : AnyFrame {
+fun Map<String, DoubleArray>.toDataFrame(): AnyFrame {
     val arrays = this.values.toList()
-    val da = Array(this.size){arrays[it]}
-    require(KSLArrays.isRectangular(da)){"The arrays must all have the same size"}
+    val da = Array(this.size) { arrays[it] }
+    require(KSLArrays.isRectangular(da)) { "The arrays must all have the same size" }
     return toMapOfLists().toDataFrame()
 }
 
