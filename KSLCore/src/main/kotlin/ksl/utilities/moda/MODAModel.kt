@@ -324,7 +324,9 @@ abstract class MODAModel(
         val valuesByAlternative = multiObjectiveValuesByAlternative()
         val overallValue = valuesByAlternative.values.toColumn("Overall Value")
         columns.add(overallValue)
-        //TODO it would be nice to add a column containing the rankings
+        val ranks = rankLargestToSmallest(overallValue.toDoubleArray()).toList()
+        val rankColumn = ranks.toColumn("Overall Rank")
+        columns.add(rankColumn)
         return dataFrameOf(columns)
     }
 
@@ -382,6 +384,25 @@ abstract class MODAModel(
     }
 
     companion object {
+
+        /**
+         *  Ranks the array elements from the largest as 1 and smallest as the size of the data array.
+         *  using ordinal ranking.
+         */
+        fun rankLargestToSmallest(data: DoubleArray): DoubleArray {
+            // create the ranks array
+            val ranks = DoubleArray(data.size) { 0.0 }
+            // Create an auxiliary array of pairs, each pair stores the data as well as its index
+            val pairs = Array<Pair<Double, Int>>(data.size) { Pair(data[it], it) }
+            // sort according to the data (first element in the pair
+            val comparator = compareBy<Pair<Double, Int>> { it.first }
+            pairs.sortWith(comparator.reversed())
+            for ((k, pair) in pairs.withIndex()) {
+                ranks[pair.second] = k + 1.0
+            }
+            return ranks
+        }
+
         /**
          *  The [alternativeColumn] is the column index for the data frame that
          *  represents the column holding the alternative names. The type of the

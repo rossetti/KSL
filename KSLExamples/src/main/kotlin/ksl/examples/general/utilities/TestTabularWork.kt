@@ -1,10 +1,12 @@
 package ksl.examples.general.utilities
 
+import ksl.utilities.io.DataFrameUtil
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.TabularData
 import ksl.utilities.io.tabularfiles.*
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.random.rvariable.NormalRV
 import java.io.IOException
 import java.io.PrintWriter
@@ -18,6 +20,8 @@ fun main() {
     readFile()
     // demonstrate writing tabular data
     writeTabularDataV2()
+
+//    testDataFrame()
 }
 
 /**
@@ -201,6 +205,16 @@ private fun readFile() {
     val df = tif.asDataFrame()
     println(df)
     println("Done with demo example.")
-
+    DataFrameUtil.toTabularFile(df, "DataFrameVersion")
     tif.close()
+}
+
+fun testDataFrame(){
+    val x = NormalRV(5.0, 4.0)
+    // create 50 samples of size 10
+    val samples = x.sampleAsRows(10, 5)
+    val df = samples.toDataFrame()
+    println(df)
+
+    DataFrameUtil.toTabularFile(df, "Test_DF_TF")
 }

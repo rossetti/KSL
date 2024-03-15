@@ -25,6 +25,9 @@ import com.opencsv.exceptions.CsvException
 import ksl.utilities.KSLArrays
 import ksl.utilities.toStrings
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.utilities.io.tabularfiles.DataType
+import ksl.utilities.io.tabularfiles.TabularFile
+import ksl.utilities.io.tabularfiles.TabularOutputFile
 import java.io.FileReader
 import java.io.FileWriter
 import java.io.IOException
