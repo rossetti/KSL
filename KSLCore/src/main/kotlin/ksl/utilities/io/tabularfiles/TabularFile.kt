@@ -546,6 +546,8 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
             }
             val tof = TabularOutputFile(columnTypes, pathToOutputFile)
             val rs = tof.row()
+
+            println("**************** printing")
             while(itr.hasNext()){
                 val data = itr.next()
                 row++
@@ -558,7 +560,12 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
                         rs.setElement(i, data[i])
                     }
                 }
+                //println(rs.toCSV())
+                println(" ---- printing this")
+                tof.writeRow(rs)
             }
+            println("**************** stop printing")
+            tof.flushRows()
             return tof
         }
     }
