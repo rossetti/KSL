@@ -25,6 +25,7 @@ package ksl.observers
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import org.jetbrains.kotlinx.dataframe.impl.asList
 
 /**
  * The purpose of this class is to store  replication data across a set of experiments
@@ -51,6 +52,9 @@ class ExperimentDataCollector(model: Model, autoAttach: Boolean = true) {
     private val myExpData: MutableMap<String, ReplicationDataCollector> = mutableMapOf()
     private val myModel: Model = model
     private val modelObserver: ModelObserver = ModelObserver()
+
+    val experimentNames: List<String>
+        get() = myExpData.keys.asList()
 
     init {
         if (autoAttach){
