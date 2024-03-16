@@ -41,18 +41,18 @@ dependencies {
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
 //    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2") //TODO delete
-    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "5.0.1")
+    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "6.0.3")
 
-    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.7")
+    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.12")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.4.12")
+    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.3")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.4.12")
+    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.3")
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
-    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.19.0")
+    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.23.1")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
@@ -99,13 +99,12 @@ dependencies {
     implementation(group = "org.apache.derby", name = "derbyclient", version = "10.15.2.0")
     implementation(group = "org.apache.derby", name = "derbytools", version = "10.15.2.0")
 
-    implementation(group = "org.postgresql", name = "postgresql", version = "42.6.0")
+    implementation(group = "org.postgresql", name = "postgresql", version = "42.7.3")
 
     implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.42.0.0")
 
     // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
- //   implementation("org.duckdb:duckdb_jdbc:0.8.1")
- //   implementation("org.duckdb:duckdb_jdbc:0.7.0")
+ //   implementation("org.duckdb:duckdb_jdbc:0.10.0")
     implementation(group = "com.zaxxer", name = "HikariCP", version = "5.0.1")
 
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
@@ -114,9 +113,9 @@ dependencies {
 //    implementation("org.dhatim:fastexcel:0.14.0")
 
     // https://mvnrepository.com/artifact/org.apache.poi/poi
-    api(group = "org.apache.poi", name = "poi", version = "5.2.3")
+    api(group = "org.apache.poi", name = "poi", version = "5.2.5")
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
-    api(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.3")
+    api(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.5")
 
     implementation(kotlin("stdlib-jdk8"))
 }
