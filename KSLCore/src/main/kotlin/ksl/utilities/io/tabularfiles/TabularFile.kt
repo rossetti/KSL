@@ -18,7 +18,9 @@
 
 package ksl.utilities.io.tabularfiles
 
+import ksl.utilities.io.CSVRowIterator
 import ksl.utilities.io.CSVUtil
+import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.SQLiteDb
 import ksl.utilities.maps.HashBiMap
@@ -28,6 +30,7 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import kotlin.io.path.name
 import kotlin.reflect.KType
 
 enum class DataType {
@@ -517,41 +520,66 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
             }
         }
 
+
         /** Reads in a CSV file and converts it to a tabular output file. The separator must be a comma.
          *
          *  Each row is individually processed. The number of columns for each row must be equal to the number
-         *  of (name, data type) pairs supplied.
+         *  of (name, data type) pairs supplied to define the columns.
          *
          *  @param pathToCSVFile the path to the CSV files for reading in
          *  @param columnTypes the specification for each column of its name and data type (NUMERIC, TEXT)
-         *  @param pathToOutputFile the path to the TabularOutputFile that is created
-         *  @param skipLines the number of lines of the CSV file to skip before reading values. The default is 1
-         *  to skip the header. The column names become the names of the columns in the tabular output file.
+         *  @param outFileName the name of the output file. It will be created in the parent directory
+         *  specified by [pathToCSVFile]
+         *  @param hasHeader indicates if the file has a header row. It will be skipped during conversion.
+         *  The default is true to skip the header. The column names become the names of the columns in the tabular output file.
          *  @return the created tabular output file
          */
         fun createFromCSVFile(
             pathToCSVFile: Path,
             columnTypes: Map<String, DataType>,
-            pathToOutputFile: Path,
-            skipLines: Int = 1
-        ) : TabularOutputFile {
-            val itr = CSVUtil.csvIterator(pathToCSVFile)
+            outFileName: String,
+            hasHeader: Boolean = true
+        ): TabularOutputFile {
+            return createFromCSVFile(pathToCSVFile, columnTypes, pathToCSVFile.parent.resolve(outFileName), hasHeader)
+        }
+
+        /** Reads in a CSV file and converts it to a tabular output file. The separator must be a comma.
+         *
+         *  Each row is individually processed. The number of columns for each row must be equal to the number
+         *  of (name, data type) pairs supplied to define the columns.
+         *
+         *  @param pathToCSVFile the path to the CSV files for reading in
+         *  @param columnTypes the specification for each column of its name and data type (NUMERIC, TEXT)
+         *  @param pathToOutputFile the path to the TabularOutputFile that is created. The default
+         *  is a file name the same as specified by [pathToCSVFile] with _TabularFile appended and in
+         *  the same parent directory of [pathToCSVFile]
+         *  @param hasHeader indicates if the file has a header row. It will be skipped during conversion.
+         *  The default is true to skip the header. The column names become the names of the columns in the tabular output file.
+         *  @return the created tabular output file
+         */
+        fun createFromCSVFile(
+            pathToCSVFile: Path,
+            columnTypes: Map<String, DataType>,
+            pathToOutputFile: Path = pathToCSVFile.parent.resolve(
+                "${KSLFileUtil.removeLastFileExtension(pathToCSVFile.fileName.toString())}_TabularFile"
+            ),
+            hasHeader: Boolean = true
+        ): TabularOutputFile {
+            val itr = CSVRowIterator(pathToCSVFile)
             var row = 0
-            for(i in 1..skipLines){
-                if (itr.hasNext()){
+            if (hasHeader) {
+                if (itr.hasNext()) {
                     val data = itr.next()
                     row++
-                    require(data.size == columnTypes.size) {"Row ($row) had (${data.size}) columns: expected (${columnTypes.size} columns."}
+                    require(data.size == columnTypes.size) { "Row ($row) had (${data.size}) columns: expected (${columnTypes.size} columns." }
                 }
             }
             val tof = TabularOutputFile(columnTypes, pathToOutputFile)
             val rs = tof.row()
-
-            println("**************** printing")
-            while(itr.hasNext()){
+            while (itr.hasNext()) {
                 val data = itr.next()
                 row++
-                require(data.size == columnTypes.size) {"Row ($row) had (${data.size}) columns: expected (${columnTypes.size} columns."}
+                require(data.size == columnTypes.size) { "Row ($row) had (${data.size}) columns: expected (${columnTypes.size} columns." }
                 for (i in data.indices) {
                     if (tof.dataType(i) == DataType.NUMERIC) {
                         val d = data[i].toDouble()
@@ -560,12 +588,10 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
                         rs.setElement(i, data[i])
                     }
                 }
-                //println(rs.toCSV())
-                println(" ---- printing this")
                 tof.writeRow(rs)
             }
-            println("**************** stop printing")
             tof.flushRows()
+            itr.close()
             return tof
         }
     }

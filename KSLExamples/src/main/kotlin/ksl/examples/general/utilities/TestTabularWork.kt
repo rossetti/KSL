@@ -139,6 +139,9 @@ private fun writeTabularDataV2(){
     }
     println()
     println()
+    tif.exportToCSV(KSL.createPrintWriter("SomeData.csv"))
+    val fp = KSL.outDir.resolve("SomeData.csv")
+    TabularFile.createFromCSVFile(fp, tif.columnTypes)
 }
 
 private fun readFile() {
@@ -209,7 +212,9 @@ private fun readFile() {
     tif.close()
 
     val fp = KSL.outDir.resolve("data.csv")
-    TabularFile.createFromCSVFile(fp, tif.columnTypes, KSL.outDir.resolve("DataFromCSV"))
+    println(fp)
+    //TabularFile.createFromCSVFile(fp, tif.columnTypes, KSL.outDir.resolve("DataFromCSV"))
+    TabularFile.createFromCSVFile(fp, tif.columnTypes)
 }
 
 fun testDataFrame(){
