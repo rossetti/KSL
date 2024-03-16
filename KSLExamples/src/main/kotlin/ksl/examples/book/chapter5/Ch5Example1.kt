@@ -24,7 +24,7 @@ fun main() {
 
     // demonstrate capturing data to database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
-//    val kslDatabaseObserver = KSLDatabaseObserver.createDerbyKSLDatabaseObserver(model)
+//    val derby = KSLDatabaseObserver.createDerbyKSLDatabaseObserver(model)
 
     // simulate the model
     model.simulate()
@@ -56,4 +56,8 @@ fun main() {
 
     out = model.outputDirectory.createPrintWriter("AcrossExperimentResults.md")
     kslDatabaseObserver.db.writeTableAsMarkdown("ACROSS_REP_VIEW", out)
+
+    println("Exporting database to Excel")
+    kslDatabaseObserver.db.exportToExcel()
+//    derby.db.exportToExcel()
 }

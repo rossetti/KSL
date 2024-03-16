@@ -61,6 +61,21 @@ interface DatabaseIOIfc {
     var defaultSchemaName: String?
 
     /**
+     * @return a list of all schemas within the database
+     */
+    val schemas: List<String>
+
+    /**
+     * @return a list of all view names within the database
+     */
+    val views: List<String>
+
+    /**
+     * @return a list of all table names within the database
+     */
+    val userDefinedTables: List<String>
+
+    /**
      * Writes the table as comma separated values
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the name of the table to write
@@ -402,7 +417,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      * @return a list of all table names within the database
      */
-    val userDefinedTables: List<String>
+    override val userDefinedTables: List<String>
         get() {
             val list = mutableListOf<String>()
             try {
@@ -425,7 +440,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      * @return a list of all schemas within the database
      */
-    val schemas: List<String>
+    override val schemas: List<String>
         get() {
             val list = mutableListOf<String>()
             try {
@@ -448,7 +463,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      * @return a list of all view names within the database
      */
-    val views: List<String>
+    override val views: List<String>
         get() {
             val list = mutableListOf<String>()
             try {
@@ -975,8 +990,23 @@ interface DatabaseIfc : DatabaseIOIfc {
             logger.info { "Exporting $schemaName to $wbName at $wbDirectory" }
             exportToExcel(tables, schemaName, wbName, wbDirectory)
         } else {
-            logger.info { "The supplied schema to write was null. No workbook named $wbName at $wbDirectory was created" }
+            logger.info { "The supplied schema to write was null. Exporting all user defined tables and views to $wbName at $wbDirectory" }
+            val list = mutableListOf<String>()
+            list.addAll(userDefinedTables)
+            list.addAll(views)
+            exportToExcel(list, null, wbName, wbDirectory)
         }
+    }
+
+    /**
+     *  This is needed because SQLite has no schemas
+     */
+    private fun sqliteExportToExcel(wbName: String, wbDirectory: Path){
+        val list = mutableListOf<String>()
+        list.addAll(userDefinedTables)
+        list.addAll(views)
+        logger.info { "SQLite: Exporting user defined tables and views to $wbName at $wbDirectory" }
+        exportToExcel(list, null, wbName, wbDirectory)
     }
 
     /** Writes each table in the list to an Excel workbook with each table being placed
@@ -2002,7 +2032,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             if (md != null) {
                 val nc = md.columnCount
                 for (c in 1..nc) {
-                    val catalogName: String = md.getCatalogName(c)
+                    val catalogName: String = md.getCatalogName(c)?.toString()?:""
                     val className: String = md.getColumnClassName(c)
                     val label: String = md.getColumnLabel(c)
                     val name: String = md.getColumnName(c)

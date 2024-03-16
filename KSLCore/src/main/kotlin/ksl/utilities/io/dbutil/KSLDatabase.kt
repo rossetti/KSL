@@ -904,6 +904,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         fun createSQLiteKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
             val database = SQLiteDb.createDatabase(dbName, dbDirectory)
             val executed = database.executeScript(dbScriptsDir.resolve("KSL_SQLite.sql"))
+           // database.defaultSchemaName = "main"
             if (!executed) {
                 DatabaseIfc.logger.error { "Unable to execute KSL_SQLite.sql creation script" }
                 throw DataAccessException("The execution script KSL_SQLite.sql did not fully execute")

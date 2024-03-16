@@ -44,7 +44,7 @@ import java.util.*
  * 4.3, 6.4
  * etc.
  *
- * The user is responsible for closing the file when iteration is complete.
+ * The user is responsible for closing the iterator when iteration is complete.
  *
  * @param pathToFile the path to the file
  */
