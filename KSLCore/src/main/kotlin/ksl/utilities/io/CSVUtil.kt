@@ -28,11 +28,30 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.utilities.io.tabularfiles.DataType
 import ksl.utilities.io.tabularfiles.TabularFile
 import ksl.utilities.io.tabularfiles.TabularOutputFile
+import java.io.Closeable
 import java.io.FileReader
 import java.io.FileWriter
 import java.io.IOException
 import java.nio.file.Path
 import java.util.*
+
+/**
+ * Returns an iterator to the rows of a csv file that may have the first row as a header
+ * of column labels and each subsequent row as the data for
+ * each column, e.g.
+ * "x", "y"
+ * 1.1, 2.0
+ * 4.3, 6.4
+ * etc.
+ *
+ * The user is responsible for closing the file when iteration is complete.
+ *
+ * @param pathToFile the path to the file
+ */
+class CSVRowIterator(
+    val pathToFile: Path,
+    private val csvReader: CSVReader = CSVReader(FileReader(pathToFile.toFile())),
+) : Iterator<Array<String>> by csvReader.iterator(), Closeable by csvReader
 
 /**
  * A class to facilitate some basic CSV processing without having to worry about underlying csv library.
@@ -76,27 +95,41 @@ object CSVUtil {
         return emptyList()
     }
 
+//    /**
+//     * Returns an iterator to the rows of a csv file that may have the first row as a header
+//     * of column labels and each subsequent row as the data for
+//     * each column, e.g.
+//     * "x", "y"
+//     * 1.1, 2.0
+//     * 4.3, 6.4
+//     * etc.
+//     * This method squelches any IOExceptions. An iterator with no elements is returned if there is a problem.
+//     *
+//     * @param pathToFile the path to the file
+//     * @return the filled list
+//     */
+//    fun csvIterator(pathToFile: Path): Iterator<Array<String>> {
+//
+//        try {
+//           // CSVReader(FileReader(pathToFile.toFile())).use { reader -> return reader.iterator() }
+//            val csvReader: CSVReader = CSVReader(FileReader(pathToFile.toFile()))
+//            return csvReader.iterator()
+//        } catch (e: IOException) {
+//            logger.warn { "There was a problem getting an iterator from file $pathToFile" }
+//        }
+//        return LinkedList<Array<String>>().iterator()
+//    }
+
     /**
-     * Returns an iterator to the rows of a csv file that may have the first row as a header
-     * of column labels and each subsequent row as the data for
-     * each column, e.g.
-     * "x", "y"
-     * 1.1, 2.0
-     * 4.3, 6.4
-     * etc.
-     * This method squelches any IOExceptions. An iterator with no elements is returned if there is a problem.
-     *
-     * @param pathToFile the path to the file
-     * @return the filled list
+     *  Returns a CSVReader. If there is a problem (e.g. IOException) null is returned.
      */
-    fun csvIterator(pathToFile: Path): Iterator<Array<String>> {
-        Objects.requireNonNull(pathToFile, "The path to the file must not be null")
+    fun csvReader(pathToFile: Path) : CSVReader? {
         try {
-            CSVReader(FileReader(pathToFile.toFile())).use { reader -> return reader.iterator() }
+            return CSVReader(FileReader(pathToFile.toFile()))
         } catch (e: IOException) {
-            logger.warn { "There was a problem getting an iterator from file $pathToFile" }
+            logger.warn { "There was a problem getting the reader from file $pathToFile" }
         }
-        return LinkedList<Array<String>>().iterator()
+        return null
     }
 
     /**
