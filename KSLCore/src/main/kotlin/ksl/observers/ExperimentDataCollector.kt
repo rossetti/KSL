@@ -39,9 +39,12 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  * the newly observed results.
  *
  * @param model the model to observe
+ * @param autoAttach true indicates that the collector will automatically be attached
+ * as an observer on the model when created. If the collector is not automatically attached
+ * then the startObserving() function needs to be called before running the model.
  * @author rossetti
  */
-class ExperimentDataCollector(model: Model) {
+class ExperimentDataCollector(model: Model, autoAttach: Boolean = true) {
     /**
      * First key, is for the experiment. The value holds the collected replication data
      */
@@ -50,7 +53,9 @@ class ExperimentDataCollector(model: Model) {
     private val modelObserver: ModelObserver = ModelObserver()
 
     init {
-        myModel.attachModelElementObserver(modelObserver)
+        if (autoAttach){
+            myModel.attachModelElementObserver(modelObserver)
+        }
     }
 
     /**
@@ -76,9 +81,9 @@ class ExperimentDataCollector(model: Model) {
 
         override fun beforeExperiment(modelElement: ModelElement) {
             val name: String = modelElement.model.experimentName
-            val rdc = ReplicationDataCollector(myModel, true)
+            val rdc = ReplicationDataCollector(myModel, addAll = true, autoAttach = false)
             myExpData[name] = rdc
-            rdc.stopObserving() // stop it so manual observing can be done
+//            rdc.stopObserving() // stop it so manual observing can be done
             rdc.beforeExperiment()
             myRDC = rdc
         }

@@ -1,5 +1,6 @@
 package ksl.examples.book.chapter5
 
+import ksl.observers.ExperimentDataCollector
 import ksl.observers.ReplicationDataCollector
 import ksl.observers.ResponseTraceCSV
 import ksl.simulation.Model
@@ -21,6 +22,8 @@ fun main() {
     val repData = ReplicationDataCollector(model)
     repData.addResponse(palletWorkCenter.totalProcessingTime)
     repData.addResponse(palletWorkCenter.probOfOverTime)
+
+    val expDataCollector = ExperimentDataCollector(model)
 
     // demonstrate capturing data to database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
@@ -57,7 +60,12 @@ fun main() {
     out = model.outputDirectory.createPrintWriter("AcrossExperimentResults.md")
     kslDatabaseObserver.db.writeTableAsMarkdown("ACROSS_REP_VIEW", out)
 
-    println("Exporting database to Excel")
-    kslDatabaseObserver.db.exportToExcel()
+//    println("Exporting database to Excel")
+//    kslDatabaseObserver.db.exportToExcel()
 //    derby.db.exportToExcel()
+
+    val mcb = expDataCollector.multipleComparisonAnalyzerFor(
+        listOf("Two Workers", "Three Workers"), palletWorkCenter.totalProcessingTime.name)
+
+    println(mcb)
 }
