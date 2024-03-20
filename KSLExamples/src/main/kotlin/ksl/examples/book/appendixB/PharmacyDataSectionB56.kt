@@ -26,12 +26,13 @@ import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.asMarkDownTable
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.ObservationsPlot
+import ksl.utilities.statistic.CachedHistogram
 
 fun main(){
 
     asBrowserResults()
 
- //   scriptedResults()
+//    scriptedResults()
 
 }
 
@@ -51,24 +52,18 @@ fun scriptedResults(){
     if (myFile != null){
         val data = KSLFileUtil.scanToArray(myFile.toPath())
         val d = PDFModeler(data)
-
         println(d.histogram)
         println()
-
         val hPlot = d.histogram.histogramPlot()
         hPlot.showInBrowser()
-
         val op = ObservationsPlot(data)
         op.showInBrowser()
-
         val acf = ACFPlot(data)
         acf.showInBrowser()
-
         val results  = d.estimateAndEvaluateScores()
         println("PDF Estimation Results for each Distribution:")
         println("------------------------------------------------------")
         results.sortedScoringResults.forEach(::println)
-
         val topResult = results.sortedScoringResults.first()
         val scores = results.evaluationModel.alternativeScoresAsDataFrame("Distributions")
         println()
@@ -76,9 +71,7 @@ fun scriptedResults(){
         val values = results.evaluationModel.alternativeValuesAsDataFrame("Distributions")
         println()
         println(values)
-
         val distPlot = topResult.distributionFitPlot()
-
         distPlot.showInBrowser("Recommended Distribution ${topResult.name}")
         println()
         println("** Recommended Distribution** ${topResult.name}")
