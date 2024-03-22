@@ -216,55 +216,6 @@ class PDFModeler(private val data: DoubleArray) {
     val leftShift: Double
         get() = estimateLeftShiftParameter(data, defaultZeroTolerance)
 
-    // facilitate plotting
-
-    /**
-     *  This set contains all the known estimators for estimating continuous
-     *  distributions. This is the union of nonRestrictedEstimators and positiveRestrictedEstimators
-     */
-    val allEstimators: Set<ParameterEstimatorIfc>
-        get() = nonRestrictedEstimators union positiveRestrictedEstimators
-
-    /**
-     *  This set holds estimators that can fit distributions for which
-     *  the domain is not restricted.
-     */
-    val nonRestrictedEstimators: Set<ParameterEstimatorIfc>
-        get() = setOf(
-            UniformParameterEstimator,
-            TriangularParameterEstimator,
-            NormalMLEParameterEstimator,
-            GeneralizedBetaMOMParameterEstimator
-        )
-
-    /**
-     *  This set holds the recommended estimators for estimating the
-     *  parameters of distributions on the positive domain x in (0, infinity)
-     */
-    val positiveRestrictedEstimators: Set<ParameterEstimatorIfc>
-        get() = setOf(
-            ExponentialMLEParameterEstimator,
-            LognormalMLEParameterEstimator,
-            GammaMLEParameterEstimator(),
-            WeibullMLEParameterEstimator(),
-            PearsonType5MLEParameterEstimator()
-        )
-
-    /**
-     *  This set holds predefined scoring models for evaluating
-     *  the distribution goodness of fit.
-     */
-    val allScoringModels: Set<PDFScoringModel>
-        get() = setOf(
-            ChiSquaredScoringModel(),
-            KSScoringModel(),
-            SquaredErrorScoringModel(),
-            AndersonDarlingScoringModel(),
-            CramerVonMisesScoringModel(),
-            //AkaikeInfoCriterionScoringModel,
-            //BayesianInfoCriterionScoringModel
-        )
-
     /**
      *  Estimates the parameters for all estimators represented by
      *  the set of [estimators]. The parameter [automaticShifting] controls
@@ -585,6 +536,53 @@ class PDFModeler(private val data: DoubleArray) {
     }
 
     companion object {
+
+        /**
+         *  This set contains all the known estimators for estimating continuous
+         *  distributions. This is the union of nonRestrictedEstimators and positiveRestrictedEstimators
+         */
+        val allEstimators: Set<ParameterEstimatorIfc>
+            get() = nonRestrictedEstimators union positiveRestrictedEstimators
+
+        /**
+         *  This set holds estimators that can fit distributions for which
+         *  the domain is not restricted.
+         */
+        val nonRestrictedEstimators: Set<ParameterEstimatorIfc>
+            get() = setOf(
+                UniformParameterEstimator,
+                TriangularParameterEstimator,
+                NormalMLEParameterEstimator,
+                GeneralizedBetaMOMParameterEstimator
+            )
+
+        /**
+         *  This set holds the recommended estimators for estimating the
+         *  parameters of distributions on the positive domain x in (0, infinity)
+         */
+        val positiveRestrictedEstimators: Set<ParameterEstimatorIfc>
+            get() = setOf(
+                ExponentialMLEParameterEstimator,
+                LognormalMLEParameterEstimator,
+                GammaMLEParameterEstimator(),
+                WeibullMLEParameterEstimator(),
+                PearsonType5MLEParameterEstimator()
+            )
+
+        /**
+         *  This set holds predefined scoring models for evaluating
+         *  the distribution goodness of fit.
+         */
+        val allScoringModels: Set<PDFScoringModel>
+            get() = setOf(
+                ChiSquaredScoringModel(),
+                KSScoringModel(),
+                SquaredErrorScoringModel(),
+                AndersonDarlingScoringModel(),
+                CramerVonMisesScoringModel(),
+                //AkaikeInfoCriterionScoringModel,
+                //BayesianInfoCriterionScoringModel
+            )
 
         /**
          *  Uses bootstrapping to estimate a confidence interval for the minimum
