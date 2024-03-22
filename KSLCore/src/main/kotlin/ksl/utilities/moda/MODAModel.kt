@@ -68,7 +68,7 @@ abstract class MODAModel(
     }
 
     /**
-     *  Defines the alternatives and their scores that should be evaluated by the
+     *  Defines the [alternatives] and their scores that should be evaluated by the
      *  model. The metrics for the model must have been previously defined prior
      *  to specifying the alternatives. The scores supplied for each alternative must have
      *  been created for each metric. If insufficient scores or incompatible
@@ -76,6 +76,13 @@ abstract class MODAModel(
      *  has been previously defined, its data will be overwritten by the newly supplied
      *  scores.  Any alternatives that are new will be added to the alternatives to
      *  be evaluated (provided that they have scores for all defined metrics).
+     *  The supplied scores may not encompass the entire domain of the related metrics.
+     *  It may be useful to adjust the domain limits (of the metrics) based on the actual (realized)
+     *  scores that were supplied.
+     *  @param adjustMetricLowerLimits indicates that the metric domain's lower limits should be
+     *  rescaled if true. The default is false.
+     *  @param adjustMetricUpperLimits indicates that the metric domain's upper limits should be
+     *  rescaled if true. The default is true.
      */
     fun defineAlternatives(
         alternatives: Map<String, List<Score>>,
@@ -94,6 +101,7 @@ abstract class MODAModel(
         // it may be useful to adjust domain limits based on realized scores
         // to improve scalability. Only rescale if requested.
         if (adjustMetricLowerLimits || adjustMetricUpperLimits) {
+            //TODO this causes the side-effect that the domain of the metrics for the scores are changed.
             rescaleMetricDomains(adjustMetricLowerLimits, adjustMetricUpperLimits)
         }
     }

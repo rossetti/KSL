@@ -59,8 +59,8 @@ private fun testSampleFile() {
         val data = KSLFileUtil.scanToArray(myFile.toPath())
         val d = PDFModeler(data)
         d.histogram.histogramPlot().showInBrowser()
-        val estimationResults = d.estimateParameters(d.allEstimators, true)
-        val scores = d.evaluateScores(estimationResults, d.allScoringModels)
+        val estimationResults = d.estimateParameters(PDFModeler.allEstimators, true)
+        val scores = d.evaluateScores(estimationResults, PDFModeler.allScoringModels)
         val result = d.estimateAndEvaluateScores()
         d.showAllResultsInBrowser()
     }
@@ -68,7 +68,7 @@ private fun testSampleFile() {
 
 private fun testModeler(data: DoubleArray) {
     val d = PDFModeler(data)
-    val list = d.estimateParameters(d.allEstimators)
+    val list = d.estimateParameters(PDFModeler.allEstimators)
     val scoreResults = d.scoringResults(list)
 
     for (element in list) {
@@ -175,7 +175,7 @@ private fun testWeibullEstimation(data: DoubleArray) {
 
 fun testEvaluationModel(data: DoubleArray) {
     val d = PDFModeler(data)
-    val estimationResults: List<EstimationResult> = d.estimateParameters(d.allEstimators)
+    val estimationResults: List<EstimationResult> = d.estimateParameters(PDFModeler.allEstimators)
     val scoringResults = d.scoringResults(estimationResults)
     val model = d.evaluateScoringResults(scoringResults)
     scoringResults.forEach(::println)
