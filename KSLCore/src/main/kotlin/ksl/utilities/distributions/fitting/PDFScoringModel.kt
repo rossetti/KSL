@@ -29,6 +29,11 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  *  continuous distribution for the supplied data
  */
 abstract class PDFScoringModel(name: String) : Metric(name){
+    //TODO a scoring model should probably not be a sub-class of metric
+    // it should have an instance of one, but not be one
+    // if necessary consider using delegation, but that may not even be necessary.
+    // it appears that it needs to be a metric because the metric is needed
+    // to create the score and because the MODA model needs metrics.
 
     abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 

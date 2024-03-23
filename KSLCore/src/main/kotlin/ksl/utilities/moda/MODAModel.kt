@@ -311,9 +311,9 @@ abstract class MODAModel(
      *
      *  This function essentially combines alternativeScoresAsDataFrame() and
      *  alternativeValuesAsDataFrame() into one data frame. The score column names
-     *  have _Score appended nad the value column names have _Value appended.
+     *  have _Score appended and the value column names have _Value appended.
      */
-    fun alternativeResultsAsDataFrame(firstColumnName: String = "Alternatives"): AnyFrame{
+    fun alternativeResultsAsDataFrame(firstColumnName: String = "Alternatives"): AnyFrame {
         val alternativeColumn = alternatives.toColumn(firstColumnName)
         // then make columns for each metric
         val columns = mutableListOf<DataColumn<*>>()
