@@ -310,6 +310,14 @@ class PDFModeler(private val data: DoubleArray) {
         return list
     }
 
+    //TODO ScoreResult contains the list of scores. The every score has a metric. This
+    // method may cause the domain of the metric to change (mutating the metric). Because
+    // the metric is mutated there may be domain violations if it is reused.
+    // Basically you cannot reuse the same set of scoring model instances.
+    // The basic underlying problem is that Metric can be mutated as part of the
+    // score evaluation process. A solution may be to copy the list of scoring
+    // results so that the mutation works on a copy.
+
     /**
      *  Evaluates the supplied scoring results using the supplied
      *  evaluation model.  A default additive MODA model is supplied
