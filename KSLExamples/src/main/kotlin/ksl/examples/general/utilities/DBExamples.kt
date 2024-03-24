@@ -3,6 +3,7 @@ package ksl.examples.general.utilities
 import kotlinx.datetime.Clock
 import ksl.examples.book.chapter4.DriveThroughPharmacy
 import ksl.simulation.Model
+import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.*
 import ksl.utilities.io.writeMarkDownTable
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -26,7 +27,8 @@ fun main() {
 
 //    DBExamples.testKSLDatabase()
 
-    DBExamples.exampleExcelDbImport()
+//    DBExamples.exampleExcelDbImport()
+
 }
 
 object DBExamples {
@@ -213,4 +215,29 @@ object DBExamples {
         db.printTableAsText(tableName = "SP", schemaName = "APP")
         return db
     }
+
+//    fun testDuckDbFromFullScript() : DatabaseIfc {
+//        // Define the path to the database.
+//        val pathToDb = pathToDbExamples.resolve("SP_FullCreate_Db")
+//        // Specify the path as a datasource with true indicating that new database will be created (even if old exists)
+//        val dataSource: DataSource = DuckDb.createDataSource(pathToDb)
+//        // Now, make the database from the data source
+//        val db = Database(dataSource, "SP_FullCreate_Db")
+//        // We have only established the database, but there isn't anything in it.
+//        // Specify the path to the full SQL script file that will create the database structure and fill it.
+//        val script = pathToDbExamples.resolve("SPDatabase_FullCreate.sql")
+//        // Create a database creation execution task and execute it.
+//        val task: DbCreateTask = db.create().withCreationScript(script).execute()
+//        // Perform a simple select * command on the table SP
+//     //   db.printAllTablesAsText("APP")
+//        db.printTableAsText(tableName = "SP")
+//        return db
+//    }
+//
+//    fun testDuckDbCon(){
+//        val path = KSL.dbDir.resolve("TestDuckDb.db")
+//        val ds = DuckDbDataSource(path)
+//        val con = ds.connection
+//        con.close()
+//    }
 }

@@ -104,7 +104,7 @@ dependencies {
     implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.42.0.0")
 
     // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
-    implementation("org.duckdb:duckdb_jdbc:0.10.0")
+ //   implementation("org.duckdb:duckdb_jdbc:0.10.0")
     implementation(group = "com.zaxxer", name = "HikariCP", version = "5.0.1")
 
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader

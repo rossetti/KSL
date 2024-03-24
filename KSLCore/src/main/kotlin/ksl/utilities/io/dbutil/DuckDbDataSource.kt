@@ -11,6 +11,10 @@ class DuckDbDataSource(
 }
 
 fun main() {
+
+}
+
+fun testDuckDbCon(){
     val path = KSL.dbDir.resolve("TestDuckDb.db")
     val ds = DuckDbDataSource(path)
     val con = ds.connection

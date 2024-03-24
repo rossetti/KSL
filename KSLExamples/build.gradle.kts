@@ -35,6 +35,8 @@ repositories {
 dependencies {
 
     implementation(project(":KSLCore"))
+
+//    implementation("org.duckdb:duckdb_jdbc:0.10.0")
     
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
 //    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "2.1.21")
