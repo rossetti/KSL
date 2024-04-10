@@ -50,19 +50,19 @@ fun main() {
 //    testFunctionPlot()
 //    testHistogramPlot()
 //    testStateVariablePlot()
-//    testWelchPlotting()
+    testWelchPlotting()
 //          testObservationPlot()
 //    testACFPlot()
-    testPMFPlot()
-    testCDFPlot()
-
-    testECDFPlot()
-
-    testFitDistPlot()
-
-    testCDFDiffPlot()
-
-    testComparePMFPlot()
+//    testPMFPlot()
+//    testCDFPlot()
+//
+//    testECDFPlot()
+//
+//    testFitDistPlot()
+//
+//    testCDFDiffPlot()
+//
+//    testComparePMFPlot()
 
 //    temp()
 
