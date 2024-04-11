@@ -17,7 +17,8 @@ import java.sql.SQLException
 
 class CounterTrace(
     theCounter: Counter,
-    val pathToFile: Path = theCounter.myModel.outputDirectory.outDir.resolve(theCounter.name + "_Trace"),
+    val pathToFile: Path = theCounter.myModel.outputDirectory.outDir.resolve(
+        theCounter.name.replace(':', '_') + "_Trace"),
 ) : ModelElementObserver(theCounter.name) {
 
     private val variable = theCounter
@@ -47,7 +48,8 @@ class CounterTrace(
 
     constructor(
         theCounter: CounterCIfc,
-        pathToFile: Path = (theCounter as Response).myModel.outputDirectory.outDir.resolve(theCounter.name + "_Trace"),
+        pathToFile: Path = (theCounter as Response).myModel.outputDirectory.outDir.resolve(
+            theCounter.name.replace(':', '_') + "_Trace"),
     ) : this(theCounter as Counter, pathToFile)
 
     /**

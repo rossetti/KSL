@@ -15,7 +15,8 @@ import java.sql.SQLException
 
 class ResponseTrace(
     theResponse: Response,
-    val pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace"),
+    val pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(
+        theResponse.name.replace(':', '_') + "_Trace"),
 ) : ModelElementObserver(theResponse.name) {
 
     private val variable = theResponse
@@ -45,7 +46,8 @@ class ResponseTrace(
 
     constructor(
         theResponse: ResponseCIfc,
-        pathToFile: Path = (theResponse as Response).myModel.outputDirectory.outDir.resolve(theResponse.name + "_Trace"),
+        pathToFile: Path = (theResponse as Response).myModel.outputDirectory.outDir.resolve(
+            theResponse.name.replace(':', '_') + "_Trace"),
     ) : this(theResponse as Response, pathToFile)
     /**
      * The maximum number of replications to include in the trace.

@@ -35,7 +35,7 @@ import java.nio.file.Path
  */
 class CSVExperimentReport(
     model: Model,
-    reportName: String = model.name + "_CSVExperimentReport",
+    reportName: String = model.name.replace(':', '_') + "_CSVExperimentReport",
     directoryPath: Path = model.outputDirectory.csvDir,
 ) : CSVReport(model, reportName, directoryPath) {
 
