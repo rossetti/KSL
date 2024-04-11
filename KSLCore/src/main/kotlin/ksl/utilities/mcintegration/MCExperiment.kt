@@ -143,7 +143,7 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
      *  Does not perform a pilot run to determine stopping criteria or number of
      *  samples to meet desired half-width. Requires 2 or more macro replications.
      */
-    private fun runMacroReplications(numMacroReps: Int): Double {
+    fun runMacroReplications(numMacroReps: Int): Double {
         require(numMacroReps > 2) {"There must be 2 or more macro replications: supplied = $numMacroReps" }
         macroReplicationStatistics.reset()
         beforeMacroReplications()
