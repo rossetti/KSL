@@ -136,6 +136,24 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
         return ceil(`var` * (z * z) / (dn * dn))
     }
 
+    /**
+     *  Runs [numMacroReps] macro replications of the micro replications.
+     *  Does not check half-width or other stopping criteria. Uses the
+     *  current setting of the number of micro replications per macro replication.
+     *  Does not perform a pilot run to determine stopping criteria or number of
+     *  samples to meet desired half-width. Requires 2 or more macro replications.
+     */
+    private fun runMacroReplications(numMacroReps: Int): Double {
+        require(numMacroReps > 2) {"There must be 2 or more macro replications: supplied = $numMacroReps" }
+        macroReplicationStatistics.reset()
+        beforeMacroReplications()
+        for (i in 1..numMacroReps) {
+            macroReplicationStatistics.collect(runMicroReplications())
+        }
+        afterMacroReplications()
+        return macroReplicationStatistics.average
+    }
+
     override fun runSimulation(): Double {
         macroReplicationStatistics.reset()
         val numNeeded = runInitialSample()
