@@ -26,7 +26,8 @@ import java.nio.file.Path
 
 class CounterTraceCSV(
     theCounter: Counter,
-    pathToFile: Path = theCounter.myModel.outputDirectory.outDir.resolve(theCounter.name + "_Trace.csv"),
+    pathToFile: Path = theCounter.myModel.outputDirectory.outDir.resolve(
+        theCounter.name.replace(':', '_') + "_Trace.csv"),
     header: Boolean = true
 ) :
     ModelElementObserver(theCounter.name) {

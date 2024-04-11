@@ -31,7 +31,7 @@ import java.nio.file.Path
  */
 abstract class CSVReport(
     theModel: Model,
-    reportName: String = theModel.name + "_CSVReport",
+    reportName: String = theModel.name.replace(':', '_') + "_CSVReport",
     directoryPath: Path = theModel.outputDirectory.outDir,
 ) :
     ModelElementObserver(reportName) {

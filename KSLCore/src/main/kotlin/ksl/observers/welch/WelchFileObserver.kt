@@ -49,8 +49,9 @@ class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelEl
             StatisticType.TALLY
         }
         val outDir: Path = responseVariable.model.outputDirectory.outDir
-        val subDir: Path = outDir.resolve(responseVariable.name + "_Welch")
-        myWelchDataFileCollector = WelchDataFileCollector(subDir, statType, responseVariable.name, batchSize)
+        val fn = responseVariable.name.replace(':', '_')
+        val subDir: Path = outDir.resolve(fn + "_Welch")
+        myWelchDataFileCollector = WelchDataFileCollector(subDir, statType, fn, batchSize)
         responseVariable.attachModelElementObserver(this)
     }
 
