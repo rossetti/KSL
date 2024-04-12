@@ -1674,8 +1674,9 @@ object KSLArrays {
         if (array.size == 1) {
             return true
         }
-        for (i in 1 until array.size) {
-            if (KSLMath.equal(array[i-1], array[i], precision)){
+        val sorted = array.copyOf().sortedArray()
+        for (i in 1 until sorted.size) {
+            if (KSLMath.equal(sorted[i-1], sorted[i], precision)){
                 return false
             }
 //            if (array[i - 1] == array[i]) {
@@ -1700,8 +1701,9 @@ object KSLArrays {
         if (array.size == 1) {
             return true
         }
-        for (i in 1 until array.size) {
-            if (array[i - 1] == array[i]) {
+        val sorted = array.copyOf().sortedArray()
+        for (i in 1 until sorted.size) {
+            if (sorted[i - 1] == sorted[i]) {
                 return false
             }
         }
@@ -2423,6 +2425,182 @@ object KSLArrays {
         result.removeAt(index)
         return result.toDoubleArray()
     }
+
+    /**
+     *  The rows of the [sets] array are treated like elements in sets.
+     *  The function returns the element stored at the [index] of
+     *  the cartesian product of the sets. The index must be between
+     *  0 and (n-1), where n is the number of elements in the cartesian
+     *  product. The elements start at 0. Since the elements of the arrays
+     *  represent a set, the values must be unique. That is, no duplicates
+     *  are permitted within an individual array.
+     *
+     *  Example:
+     *      val a = intArrayOf(1, 2)
+     *     val b = intArrayOf(3, 4)
+     *     val c = intArrayOf(5)
+     *     val d = intArrayOf(6, 7, 8)
+     *     val index = 4
+     *     val result = cartesianProductRow(array, index)
+     *     println("The element at index $index is: ${result.joinToString()}")
+     *
+     *     Prints:
+     *     The element at index 4 is: 1, 4, 5, 7
+     */
+    fun cartesianProductRow(sets: Array<IntArray>, index: Int): IntArray {
+        var n = 1
+        for (i in sets.indices) {
+            require(sets[i].isAllDifferent()){"The elements of of the ${i}th array were not all unique"}
+            n = n*sets[i].size
+        }
+        require(index in 0..<n) {"The supplied index must be between 0 and ${n-1}"}
+        var k = index
+        var currentElement: Int
+        var currentSetLength: Int
+        val totalSets = sets.size
+        val resultTuple = IntArray(totalSets)
+        for (i in totalSets - 1 downTo 0) {
+            currentSetLength = sets[i].size
+            currentElement = sets[i][k % currentSetLength]
+            resultTuple[i] = currentElement
+            k = k / currentSetLength
+        }
+        return resultTuple
+    }
+
+    /**
+     *  The rows of the [sets] array are treated like elements in sets.
+     *  The function returns the element stored at the [index] of
+     *  the cartesian product of the sets. The index must be between
+     *  0 and (n-1), where n is the number of elements in the cartesian
+     *  product. The elements start at 0. Since the elements of the arrays
+     *  represent a set, the values must be unique. That is, no duplicates
+     *  are permitted within an individual array.
+     *
+     *  Example:
+     *      val a = intArrayOf(1, 2)
+     *     val b = intArrayOf(3, 4)
+     *     val c = intArrayOf(5)
+     *     val d = intArrayOf(6, 7, 8)
+     *     val index = 4
+     *     val result = cartesianProductRow(array, index)
+     *     println("The element at index $index is: ${result.joinToString()}")
+     *
+     *     Prints:
+     *     The element at index 4 is: 1, 4, 5, 7
+     */
+    fun cartesianProductRow(sets: List<IntArray>, index: Int): IntArray {
+        var n = 1
+        for (i in sets.indices) {
+            require(sets[i].isAllDifferent()){"The elements of of the ${i}th array were not all unique"}
+            n = n*sets[i].size
+        }
+        require(index in 0..<n) {"The supplied index must be between 0 and ${n-1}"}
+        var k = index
+        var currentElement: Int
+        var currentSetLength: Int
+        val totalSets = sets.size
+        val resultTuple = IntArray(totalSets)
+        for (i in totalSets - 1 downTo 0) {
+            currentSetLength = sets[i].size
+            currentElement = sets[i][k % currentSetLength]
+            resultTuple[i] = currentElement
+            k = k / currentSetLength
+        }
+        return resultTuple
+    }
+
+    /**
+     *  The rows of the [sets] array are treated like elements in sets.
+     *  The function returns the element stored at the [index] of
+     *  the cartesian product of the sets. The index must be between
+     *  0 and (n-1), where n is the number of elements in the cartesian
+     *  product. The elements start at 0. Since the elements of the arrays
+     *  represent a set, the values must be unique. That is, no duplicates
+     *  are permitted within an individual array.
+     */
+    fun cartesianProductRow(sets: Array<DoubleArray>, index: Int): DoubleArray {
+        var n = 1
+        for (i in sets.indices) {
+            require(sets[i].isAllDifferent()){"The elements of of the ${i}th array were not all unique"}
+            n = n*sets[i].size
+        }
+        require(index in 0..<n) {"The supplied index must be between 0 and ${n-1}"}
+        var k = index
+        var currentElement: Double
+        var currentSetLength: Int
+        val totalSets = sets.size
+        val resultTuple = DoubleArray(totalSets)
+        for (i in totalSets - 1 downTo 0) {
+            currentSetLength = sets[i].size
+            currentElement = sets[i][k % currentSetLength]
+            resultTuple[i] = currentElement
+            k = k / currentSetLength
+        }
+        return resultTuple
+    }
+
+    /**
+     *  The rows of the [sets] array are treated like elements in sets.
+     *  The function returns the element stored at the [index] of
+     *  the cartesian product of the sets. The index must be between
+     *  0 and (n-1), where n is the number of elements in the cartesian
+     *  product. The elements start at 0. Since the elements of the arrays
+     *  represent a set, the values must be unique. That is, no duplicates
+     *  are permitted within an individual array.
+     */
+    fun cartesianProductRow(sets: List<DoubleArray>, index: Int): DoubleArray {
+        var n = 1
+        for (i in sets.indices) {
+            require(sets[i].isAllDifferent()){"The elements of of the ${i}th array were not all unique"}
+            n = n*sets[i].size
+        }
+        require(index in 0..<n) {"The supplied index must be between 0 and ${n-1}"}
+        var k = index
+        var currentElement: Double
+        var currentSetLength: Int
+        val totalSets = sets.size
+        val resultTuple = DoubleArray(totalSets)
+        for (i in totalSets - 1 downTo 0) {
+            currentSetLength = sets[i].size
+            currentElement = sets[i][k % currentSetLength]
+            resultTuple[i] = currentElement
+            k = k / currentSetLength
+        }
+        return resultTuple
+    }
+
+    /**
+     *  Computes the cartesian product of the supplied sets and returns
+     *  a list holding the rows of the cartesian product
+     */
+    fun cartesianProduct(a: Set<*>, b: Set<*>, vararg sets: Set<*>): List<List<*>> =
+        (setOf(a, b).plus(sets))
+            .fold(listOf(listOf<Any?>())) { acc, set ->
+                acc.flatMap { list -> set.map { element -> list + element } }
+            }
+
+    /**
+     *  Computes the cartesian product of the sets of doubles and returns
+     *  a list holding the rows of the cartesian product with each row represented
+     *  as a list.
+     */
+    fun cartesianProductOfDoubles(a: Set<Double>, b: Set<Double>, vararg sets: Set<Double>): List<List<Double>> =
+        (setOf(a, b).plus(sets))
+            .fold(listOf(listOf())) { acc, set ->
+                acc.flatMap { list -> set.map { element -> list + element } }
+            }
+
+    /**
+     *  Computes the cartesian product of the sets of ints and returns
+     *  a list holding the rows of the cartesian product with each row represented
+     *  as a list.
+     */
+    fun cartesianProductOfInts(a: Set<Int>, b: Set<Int>, vararg sets: Set<Int>): List<List<Int>> =
+        (setOf(a, b).plus(sets))
+            .fold(listOf(listOf())) { acc, set ->
+                acc.flatMap { list -> set.map { element -> list + element } }
+            }
 }
 
 /** Extension functions and other functions for working with arrays
