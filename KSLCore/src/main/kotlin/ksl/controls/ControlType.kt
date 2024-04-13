@@ -7,7 +7,10 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 
 /**
- * Defines the set of valid control types
+ * Defines the set of valid control types. The valid types are
+ * (DOUBLE, INTEGER, LONG, FLOAT, SHORT, BYTE, BOOLEAN).
+ * All control types are ultimately coerced to type Double,
+ * with BOOLEAN mapping true to 1.0 and false to 0.0.
  */
 enum class ControlType(private val clazz: KClass<*>) {
     DOUBLE(Double::class) {
