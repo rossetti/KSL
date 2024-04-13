@@ -822,6 +822,10 @@ fun Array<DoubleArray>.write(out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFor
     KSLFileUtil.write(this, out, df)
 }
 
+fun Array<DoubleArray>.print(df: DecimalFormat? = null) {
+    KSLFileUtil.write(this, KSLFileUtil.SOUT, df)
+}
+
 fun Array<DoubleArray>.writeToFile(pathToFile: Path, df: DecimalFormat? = null) {
     KSLFileUtil.writeToFile(this, pathToFile, df)
 }
