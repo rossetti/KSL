@@ -6,6 +6,7 @@ import ksl.utilities.io.print
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+import kotlin.math.min
 
 /**
  *  A factorial design represents a list of design points where every design point
@@ -202,6 +203,23 @@ class FactorialDesign(
         return cols.toDataFrame()
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("FactorialDesign")
+        sb.appendLine("name: $name")
+        sb.appendLine("number of design points: $numDesignPoints")
+        sb.appendLine("Factors")
+        for((name, factor) in factors) {
+            sb.appendLine(factor)
+        }
+        sb.appendLine("First few Design Points")
+        val n = min(4, numDesignPoints)
+        for (i in 1..n){
+            sb.appendLine("\t$i : ${designPoint(i).joinToString()}")
+        }
+        return sb.toString()
+    }
+
     companion object {
 
         /**
@@ -231,6 +249,8 @@ fun testFD(){
     val f2 = Factor("B", doubleArrayOf(5.0, 9.0))
     val factors = setOf(f1, f2)
     val fd = FactorialDesign(factors)
+    println(fd)
+    println()
     println("Factorial Design as Data Frame")
     println(fd.designPointsAsDataframe())
     println()
