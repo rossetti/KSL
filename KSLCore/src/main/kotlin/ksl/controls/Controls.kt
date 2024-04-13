@@ -28,6 +28,21 @@ import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
 
+/**
+ *   A control represents an element within a model that can be changed by the user.
+ *   Every control has a type (DOUBLE, INTEGER, LONG, FLOAT, SHORT, BYTE, BOOLEAN).
+ *   The value of the control can be set by the user.  If the supplied value is
+ *   not within the allowed range of the control, the value will be limited to
+ *   within the range.  If the user assigns the value of the control to less
+ *   than the lower bound, then the value is set to the lower bound. If the user
+ *   assigns the value greater than the upper bound, then the value is set
+ *   at the upper bound. For example, suppose the lower bound of the control is 1.0
+ *   and the upper bound is 10.0.  Setting the control value to 0.0, will set the
+ *   control to 1.0. Setting the control value to 12.0, will set the control
+ *   to 10.0. Thus, out of range values are not permitted and corrected (silently).
+ *   The limitToRange() function can be used to inspect the value that will result
+ *   if the control is set to the supplied value.
+ */
 interface ControlIfc {
     val type: ControlType
     var value: Double
@@ -59,6 +74,9 @@ interface ControlIfc {
     }
 }
 
+/**
+ *  A data class for transferring the data associated with a control.
+ */
 data class ControlData(
     val key: String,
     val value: Double,
@@ -71,6 +89,27 @@ data class ControlData(
     val modelName: String
 )
 
+/**
+ *  This class holds the controls associated with an instance of a model.
+ *  The controls can be accessed via their key names.  The following functions
+ *  are useful when accessing controls.
+ *
+ *  - controlKeys() returns the names of the controls
+ *  - hasControl(name:String) checks if name is a control
+ *  - asList() the controls as a list
+ *  - asListByType(controlType: ControlType) a filtered list of controls by control type
+ *  - control(controlKey: String) returns the named control or null
+ *  - controlTypes() the set of control types used by the model
+ *  - asMap() - all the controls as a map, with the pairs (control name, value)
+ *  - setControlsFromMap(controlMap: Map<String, Double>) perhaps the most useful of the
+ *    functions. Sets the controls by name to the supplied value for each control.
+ *  - setControlsFromJSON(json: String) assumes that the JSON represents a control map and
+ *    sets the controls as specified.
+ *  - controlsMapAsJsonString() a JSON string representation of a control map
+ *  - controlData() a list holding instances of ControlData of all the controls for data transfer purposes
+ *  - controlDataAsString() a string representation of the control data
+ *  
+ */
 class Controls(aModel: Model) {
 
     private val myControls = mutableMapOf<String, ControlIfc>()
