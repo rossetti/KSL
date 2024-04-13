@@ -42,7 +42,7 @@ class Factor(
      *  @param low the low value of factor, must be strictly less than the high value
      *  @param high the high value of the factor, must be strictly greater than the low value
      */
-    constructor(name: String, low: Double, high: Double) : this(name, doubleArrayOf())
+    constructor(name: String, low: Double, high: Double) : this(name, doubleArrayOf(low, high))
 
     val halfRange: Double
         get() = (levels.last() - levels.first()) / 2.0
