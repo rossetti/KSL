@@ -19,6 +19,7 @@
 package ksl.controls
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.controls.experiments.Factor
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.maps.KSLMaps
@@ -84,6 +85,20 @@ interface ControlIfc {
      */
     fun limitToRange(values: DoubleArray) : DoubleArray {
         return values.map { value -> limitToRange(value) }.toDoubleArray()
+    }
+
+    /**
+     *  Creates a factor having the levels for this control
+     */
+    fun factor(levels: DoubleArray) : Factor {
+        return Factor.create(this, levels)
+    }
+
+    /**
+     *  Creates a two level factor for this control
+     */
+    fun factor(low: Double, high: Double) : Factor {
+        return Factor.create(this, low, high)
     }
 }
 
