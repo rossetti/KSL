@@ -57,6 +57,11 @@ interface ControlIfc {
     val modelName: String
 
     /**
+     *  Checks if the supplied value is within [lowerBound, upperBound]
+     */
+    fun withinRange(value: Double): Boolean = value in lowerBound..upperBound
+
+    /**
      * Ensures that the supplied double is within the bounds
      * associated with the control. This function does
      * not change the state of the control.
@@ -71,6 +76,14 @@ interface ControlIfc {
             return upperBound
         }
         return value
+    }
+
+    /**
+     *  Returns an array that has been mapped to legal values
+     *  for the control
+     */
+    fun limitToRange(values: DoubleArray) : DoubleArray {
+        return values.map { value -> limitToRange(value) }.toDoubleArray()
     }
 }
 
@@ -108,7 +121,7 @@ data class ControlData(
  *  - controlsMapAsJsonString() a JSON string representation of a control map
  *  - controlData() a list holding instances of ControlData of all the controls for data transfer purposes
  *  - controlDataAsString() a string representation of the control data
- *  
+ *
  */
 class Controls(aModel: Model) {
 
