@@ -47,17 +47,47 @@ class FactorialDOE(
      *  @param designPoint the design point to simulate
      *  @param numReps the number of replications for the design point
      */
-    fun simulate(designPoint: Int, numReps: Int) {
+    fun simulateDesignPoint(designPoint: Int, numReps: Int) {
         require(designPoint in 1..myReplicates.size) {"The design point ($designPoint) was not in the design." }
         require(numReps >= 1) {"The number of replications per design point must be >= 1." }
-        
+
         TODO("not implemented yet")
 
     }
 
+    /**
+     *   Simulates the design points specified by [points] for the corresponding
+     *   number of [replications].
+     *   The number of design points must be 1 and the number of total design points.
+     *   The replications and points arrays must have the same number of elements.
+     *   The elements of the points array specify the design point to simulate.
+     *   If any element in the points array is not a valid design point it is skipped (not simulated).
+     *   The elements of the replications array are expected to be a valid number of replications
+     *   for the corresponding design point. If any element of the replications array is 0 or less
+     *   then the design point is skipped (not simulated).  Thus, the user can (in theory)
+     *   simulated the design points in any order via the points array and skip design points
+     *   as needed.
+     */
+    fun simulateDesignPoints(points: IntArray, replications: IntArray){
+        require(points.isNotEmpty()){"The design points array must not be empty!"}
+        require(replications.isNotEmpty()){"The replications array must not be empty!"}
+        require(points.size <= myReplicates.size) {"The number of design points must be <= ${myReplicates.size}"}
+        require(replications.size <= myReplicates.size) {"The size of the replications array must be <= ${myReplicates.size}"}
+        require(points.size == replications.size) {"The size the arrays must be the same"}
+        for((i,point) in points.withIndex()) {
+            if (point in 1..myReplicates.size) {
+                // valid design point
+                if (replications[i] >= 1){
+                    // has replications
+                    simulateDesignPoint(point, replications[i])
+                }
+            }
+        }
+    }
+
     fun simulateDesign() {
         for ((i, nr) in myReplicates.withIndex()) {
-            simulate(i + 1, nr)
+            simulateDesignPoint(i + 1, nr)
         }
     }
 }
