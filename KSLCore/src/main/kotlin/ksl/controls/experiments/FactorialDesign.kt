@@ -35,7 +35,7 @@ class DesignPoint(
     override fun toString(): String {
         return "DesignPoint(number=$number, settings=$settings, coded=$coded, numberOfReplications=$numberOfReplications)"
     }
-    
+
 }
 
 /**
