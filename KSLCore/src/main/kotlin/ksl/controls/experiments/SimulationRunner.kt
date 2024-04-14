@@ -34,14 +34,24 @@ class SimulationRunner(
     private val model: Model
 ) {
 
+    /**
+     *  The model will be run with the provided [inputs] based on the current run parameters
+     *  (model.extractRunParameters()) associated with the model.
+     *
+     *  The inputs can represent both control (key, value) pairs and random variable parameter
+     *  (key, value) pairs to be applied to the experiment.  The inputs may be empty.
+     *
+     *  @return returns an instance of SimulationRun that holds the experiment, inputs, and results
+     *  associated with the simulation run.
+     */
     fun simulate(
         inputs: Map<String, Double> = mapOf(),
         experiment: Experiment? = null
-    ) {
+    ) : SimulationRun {
         if (experiment == null) {
-            simulate(inputs, model.extractRunParameters())
+            return simulate(inputs, model.extractRunParameters())
         } else {
-            simulate(inputs, experiment.extractRunParameters())
+            return simulate(inputs, experiment.extractRunParameters())
         }
     }
 
@@ -94,6 +104,9 @@ class SimulationRunner(
         }
     }
 
+    /**
+     *  Sets up the simulation based on the inputs and experimental run parameters.
+     */
     private fun setupSimulation(simulationRun: SimulationRun) {
         Model.logger.info { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
         // apply the run parameters to the model
