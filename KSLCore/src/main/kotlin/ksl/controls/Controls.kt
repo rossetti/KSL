@@ -87,19 +87,19 @@ interface ControlIfc {
         return values.map { value -> limitToRange(value) }.toDoubleArray()
     }
 
-    /**
-     *  Creates a factor having the levels for this control
-     */
-    fun factor(levels: DoubleArray) : Factor {
-        return Factor.create(this, levels)
-    }
-
-    /**
-     *  Creates a two level factor for this control
-     */
-    fun factor(low: Double, high: Double) : Factor {
-        return Factor.create(this, low, high)
-    }
+//    /**
+//     *  Creates a factor having the levels for this control
+//     */
+//    fun factor(levels: DoubleArray) : Factor {
+//        return Factor.create(this, levels)
+//    }
+//
+//    /**
+//     *  Creates a two level factor for this control
+//     */
+//    fun factor(low: Double, high: Double) : Factor {
+//        return Factor.create(this, low, high)
+//    }
 }
 
 /**
