@@ -55,7 +55,17 @@ import java.io.StringWriter
  *  asking the model for its controls via model.controls() and then using the methods on the Controls
  *  class for the names. The controlsMapAsJsonString() or asMap() functions are especially helpful
  *  for this purpose.
- *  
+ *
+ *  For the parameters associated with random variables, the naming convention is different.
+ *  Again, the model element name is used as part of the identifier, then the value of
+ *  rvParamConCatString from the companion object is concatenated between the name of the
+ *  model element and the name of its parameter.  For example, suppose there is a
+ *  random variable that has been named ServiceTimeRV that is exponentially distributed.
+ *  Also assume that rvParamConCatString is "_PARAM_", which is its default value. Then,
+ *  to access the mean of the service time random variable, we use "ServiceTimeRV_PARAM_mean".
+ *  Thus, it is important to note the name of the random variable within the model and the
+ *  KSL's default names for the random variable parameters.
+ *
  */
 class SimulationRunner(
     private val model: Model
