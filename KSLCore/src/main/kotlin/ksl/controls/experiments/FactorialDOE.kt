@@ -7,11 +7,12 @@ import ksl.simulation.Model
  *  @param model the model to simulate
  *  @param factorSettings a mapping between each factor and a string
  *  representing the name of the control or parameter to associate with the factor
+ *  @param numRepsPerDesignPoint the number of replications for each design point. Defaults to 10.
  */
 class FactorialDOE(
     private val model: Model,
     private val factorSettings: Map<Factor, String>,
-    numRepsPerDesignPoint: Int = 1
+    numRepsPerDesignPoint: Int = 10
 ) {
     private val myControls = model.controls()
     private val myRVParameterSetter = model.rvParameterSetter
@@ -24,7 +25,18 @@ class FactorialDOE(
 
     val factorialDesign = FactorialDesign(factorSettings.keys, "${model}_Factorial_DOE")
 
-    private val myReplicates = IntArray(factorSettings.keys.cartesianProductSize()) { numRepsPerDesignPoint }
+    val numDesignPoints : Int
+        get() = factorialDesign.numDesignPoints
+
+    private val myReplicates = IntArray(numDesignPoints) { numRepsPerDesignPoint }
+
+    /**
+     *  Specifies that each design point have [numReps] replications.
+     *  If [numReps] is less than 1, then it is silently changed to 1.
+     */
+    fun replicationsPerDesignPoint(numReps: Int) {
+        myReplicates.fill(if (numReps < 1) 1 else numReps)
+    }
 
     /**
      *  Allows the number of replications for each of the design points in the design
@@ -34,10 +46,10 @@ class FactorialDOE(
      */
     var designPointReplications: IntArray
         get() = myReplicates.copyOf()
-        set(value) {
-            require(value.size == myReplicates.size) { "The size (${value.size}) of the array must be the number of design points: ${myReplicates.size}" }
-            for ((i, r) in value.withIndex()) {
-                myReplicates[i] = if (value[i] < 1) 1 else value[i]
+        set(array) {
+            require(array.size == numDesignPoints) { "The size (${array.size}) of the array must be the number of design points: ${myReplicates.size}" }
+            for ((i, r) in array.withIndex()) {
+                myReplicates[i] = if (array[i] < 1) 1 else array[i]
             }
         }
 
@@ -48,9 +60,9 @@ class FactorialDOE(
      *  @param numReps the number of replications for the design point
      */
     fun simulateDesignPoint(designPoint: Int, numReps: Int) {
-        require(designPoint in 1..myReplicates.size) {"The design point ($designPoint) was not in the design." }
+        require(designPoint in 1..numDesignPoints) {"The design point ($designPoint) was not in the design." }
         require(numReps >= 1) {"The number of replications per design point must be >= 1." }
-
+        val dp = factorialDesign.designPointToMap(designPoint)
         TODO("not implemented yet")
 
     }
@@ -71,11 +83,11 @@ class FactorialDOE(
     fun simulateDesignPoints(points: IntArray, replications: IntArray){
         require(points.isNotEmpty()){"The design points array must not be empty!"}
         require(replications.isNotEmpty()){"The replications array must not be empty!"}
-        require(points.size <= myReplicates.size) {"The number of design points must be <= ${myReplicates.size}"}
-        require(replications.size <= myReplicates.size) {"The size of the replications array must be <= ${myReplicates.size}"}
-        require(points.size == replications.size) {"The size the arrays must be the same"}
+        require(points.size <= numDesignPoints) {"The number of design points must be <= $numDesignPoints"}
+        require(replications.size <= numDesignPoints) {"The size of the replications array must be <= $numDesignPoints"}
+        require(points.size == replications.size) {"The size the arrays must be the same."}
         for((i,point) in points.withIndex()) {
-            if (point in 1..myReplicates.size) {
+            if (point in 1..numDesignPoints) {
                 // valid design point
                 if (replications[i] >= 1){
                     // has replications
@@ -85,9 +97,17 @@ class FactorialDOE(
         }
     }
 
-    fun simulateDesign() {
-        for ((i, nr) in myReplicates.withIndex()) {
-            simulateDesignPoint(i + 1, nr)
+    /**
+     *   Causes all design points to be simulated in order 1, 2, 3,...
+     *   using the number of replications provided in designPointReplications
+     *   @param numReps the number of replications per design point. If 0 (the default)
+     *   then the current specification of replications per design point is used.
+     */
+    fun simulateDesign(numReps: Int = 0) {
+        if (numReps >= 1) {
+            replicationsPerDesignPoint(numReps)
         }
+        val points = (1..numDesignPoints).toList().toIntArray()
+        simulateDesignPoints(points, designPointReplications)
     }
 }
