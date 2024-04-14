@@ -64,7 +64,13 @@ import java.io.StringWriter
  *  Also assume that rvParamConCatString is "_PARAM_", which is its default value. Then,
  *  to access the mean of the service time random variable, we use "ServiceTimeRV_PARAM_mean".
  *  Thus, it is important to note the name of the random variable within the model and the
- *  KSL's default names for the random variable parameters.
+ *  KSL's default names for the random variable parameters.  When random variables are
+ *  not explicitly named by the modeler, the KSL will automatically provide a default
+ *  unique name. Thus, if you plan to control a specific random variable's parameters, you
+ *  should strongly consider providing an explicit name. To get the names (and current values)
+ *  of the random variable parameters, you can print out the toString() method of the
+ *  RVParameterSetter class after obtaining it from the model via the model's rvParameterSetter
+ *  property.
  *
  */
 class SimulationRunner(
