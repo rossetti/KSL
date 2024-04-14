@@ -8,16 +8,34 @@ import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import kotlin.math.min
 
+/**
+ *  Represents a point in a factorial design.
+ *
+ *  @param number the number of the point in the sequence of points of the design
+ *  @param settings holds pairs (factor name, value) to be assigned
+ *  for the factors at this design point.
+ *  @param coded indicates if the values in the settings are original (false) or
+ *  coded (true).
+ */
 class DesignPoint(
     val number: Int,
     val settings: Map<String, Double>,
     val coded: Boolean
 ) {
+    /**
+     *  Indicates the desired number of replications of this design point.
+     *  Must be 1 or more.
+     */
     var numberOfReplications: Int = 1
         set(value) {
             require(value >= 1) { "number must be >= 1" }
             field = value
         }
+
+    override fun toString(): String {
+        return "DesignPoint(number=$number, settings=$settings, coded=$coded, numberOfReplications=$numberOfReplications)"
+    }
+    
 }
 
 /**
