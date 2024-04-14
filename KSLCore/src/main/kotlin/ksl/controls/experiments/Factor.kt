@@ -98,33 +98,33 @@ class Factor(
 
     companion object {
 
-        /**
-         *  Creates a factor with the same name as the control that has
-         *  the specified values for its levels. There must be 2 or more
-         *  values specified, they must be strictly increasing, and within
-         *  the range of the control.
-         *
-         */
-        fun create(control: ControlIfc, values: DoubleArray): Factor {
-            require(values.size >= 2) { "At least 2 values must be in the array." }
-            require(values.isStrictlyIncreasing()) { "The supplied values must be strictly increasing in value" }
-            for(value in values) {
-                require(control.withinRange(value)) {"The supplied value = $value was outside the range of values for the control" }
-            }
-            return Factor(control.keyName, values)
-        }
-
-        /**
-         *  Creates a factor with the same name as the control that has
-         *  the specified [low] and [high] values for its levels.
-         *  Low must be strictly less than high and both within the range for the control.
-         */
-        fun create(control: ControlIfc, low: Double, high: Double): Factor {
-            require (low < high) {"The low value must be strictly less than the high value" }
-            require(control.withinRange(low)) {"The supplied value = $low was outside the range of values for the control" }
-            require(control.withinRange(high)) {"The supplied value = $high was outside the range of values for the control" }
-            return Factor(control.keyName, low, high)
-        }
+//        /**
+//         *  Creates a factor with the same name as the control that has
+//         *  the specified values for its levels. There must be 2 or more
+//         *  values specified, they must be strictly increasing, and within
+//         *  the range of the control.
+//         *
+//         */
+//        fun create(control: ControlIfc, values: DoubleArray): Factor {
+//            require(values.size >= 2) { "At least 2 values must be in the array." }
+//            require(values.isStrictlyIncreasing()) { "The supplied values must be strictly increasing in value" }
+//            for(value in values) {
+//                require(control.withinRange(value)) {"The supplied value = $value was outside the range of values for the control" }
+//            }
+//            return Factor(control.keyName, values)
+//        }
+//
+//        /**
+//         *  Creates a factor with the same name as the control that has
+//         *  the specified [low] and [high] values for its levels.
+//         *  Low must be strictly less than high and both within the range for the control.
+//         */
+//        fun create(control: ControlIfc, low: Double, high: Double): Factor {
+//            require (low < high) {"The low value must be strictly less than the high value" }
+//            require(control.withinRange(low)) {"The supplied value = $low was outside the range of values for the control" }
+//            require(control.withinRange(high)) {"The supplied value = $high was outside the range of values for the control" }
+//            return Factor(control.keyName, low, high)
+//        }
 
     }
 }
