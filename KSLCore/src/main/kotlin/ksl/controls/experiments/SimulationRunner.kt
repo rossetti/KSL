@@ -30,6 +30,33 @@ import ksl.utilities.toPrimitives
 import java.io.PrintWriter
 import java.io.StringWriter
 
+/**
+ *  The purpose of this class is to facilitate the running of a simulation model based
+ *  on some inputs and experimental run parameters. The simulate() functions take in
+ *  the inputs and the experimental run parameters and after execution return an
+ *  instance of SimulationRun.
+ *
+ *  There are two key issues to note when using this class. First, you should strongly
+ *  consider changing the name of the experiment associated with the model when repeatedly
+ *  executing the simulate() function. This will facilitate the identification of the experiment
+ *  associated with the simulation run within databases and other output mechanisms.
+ *
+ *  The second issue is the specification of the map of inputs. This map of (String, Double)
+ *  pairs represents the inputs to the simulation model as specified by controls and the
+ *  parameters of random variables within the model. The naming convention is important to note.
+ *  For controls, by default, the key to associate with the value is the model element's name
+ *  concatenated with the property that was annotated with the control.  For example, if
+ *  the resource had name Worker and annotated property initialCapacity, then the key
+ *  will be "Worker.initialCapacity". Note the use of the "." character to separate
+ *  the model element name and the property name.  Since, the KSL model element naming
+ *  convention require unique names for each model element, the key will be unique for the control.
+ *  However, the model element name may be a very long string depending on your approach
+ *  to naming the model elements. The name associated with each control can be inspected by
+ *  asking the model for its controls via model.controls() and then using the methods on the Controls
+ *  class for the names. The controlsMapAsJsonString() or asMap() functions are especially helpful
+ *  for this purpose.
+ *  
+ */
 class SimulationRunner(
     private val model: Model
 ) {
