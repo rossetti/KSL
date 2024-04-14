@@ -11,8 +11,8 @@ import kotlin.math.min
 class DesignPoint(
     val number: Int,
     val settings: Map<String, Double>,
-    val coded : Boolean
-){
+    val coded: Boolean
+) {
     var numberOfReplications: Int = 1
         set(value) {
             require(value >= 1) { "number must be >= 1" }
@@ -24,7 +24,7 @@ class DesignPoint(
  *  The number of elements that would exist in the
  *  cartesian product of the factors in the set
  */
-fun Set<Factor>.cartesianProductSize() : Int {
+fun Set<Factor>.cartesianProductSize(): Int {
     var n = 1
     for (factor in this) {
         n = n * factor.levels.size
@@ -256,12 +256,12 @@ class FactorialDesign(
         sb.appendLine("name: $name")
         sb.appendLine("number of design points: $numDesignPoints")
         sb.appendLine("Factors")
-        for((name, factor) in factors) {
+        for ((name, factor) in factors) {
             sb.appendLine(factor)
         }
         sb.appendLine("First few Design Points")
         val n = min(4, numDesignPoints)
-        for (i in 1..n){
+        for (i in 1..n) {
             sb.appendLine("\t$i : ${designPointToArray(i).joinToString()}")
         }
         return sb.toString()
@@ -277,7 +277,7 @@ class FactorialDesign(
         fun twoToKDesign(names: Set<String>): FactorialDesign {
             require(names.size > 2) { "There must be at least 2 factors in the design" }
             val set = mutableSetOf<Factor>()
-            for(name in names){
+            for (name in names) {
                 set.add(Factor(name))
             }
             return FactorialDesign(set)
@@ -287,11 +287,11 @@ class FactorialDesign(
 
 }
 
-fun main(){
+fun main() {
     testFD()
 }
 
-fun testFD(){
+fun testFD() {
     val f1 = Factor("A", doubleArrayOf(1.0, 2.0, 3.0, 4.0))
     val f2 = Factor("B", doubleArrayOf(5.0, 9.0))
     val factors = setOf(f1, f2)
