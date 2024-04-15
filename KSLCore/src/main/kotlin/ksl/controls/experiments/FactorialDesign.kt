@@ -54,7 +54,12 @@ fun Set<Factor>.cartesianProductSize(): Int {
  *  A factorial design represents a list of design points where every design point
  *  represents a possible row in the cartesian product of the levels for the
  *  factors. That is, all possible combinations of the levels for the factors
- *  are possible design points.
+ *  are possible design points.  A design point is individually generated
+ *  when needed via the design point request functions.
+ *
+ *  @param factors a set representing the factors used in the design. There must
+ *  be 2 factors in the supplied set.
+ *  @param name an optional name for the design
  *
  */
 class FactorialDesign(
