@@ -87,7 +87,7 @@ class SimulationRunner(
      *  @return returns an instance of SimulationRun that holds the experiment, inputs, and results
      *  associated with the simulation run.
      */
-    fun simulate(
+    fun simulate(//TODO why does this method exist?
         inputs: Map<String, Double> = mapOf(),
         experiment: Experiment? = null
     ) : SimulationRun {

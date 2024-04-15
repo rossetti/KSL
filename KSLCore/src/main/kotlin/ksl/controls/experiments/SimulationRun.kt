@@ -31,6 +31,10 @@ import ksl.utilities.statistic.Statistic
  * same inputs and parameters, which cause the creation of results for each response within
  * each replication. The main purpose of SimulationRun is to transfer data about the execution
  * of a simulation. It acts as a data transfer class.
+ *
+ * After the simulation run is executed, the results property will hold pairs (response name, array)
+ * where the response name is the name of the model element associated with the response and
+ * the array contains the observations of the response for each replication.
  */
 @kotlinx.serialization.Serializable
 class SimulationRun private constructor(
@@ -44,14 +48,14 @@ class SimulationRun private constructor(
     var results: Map<String, DoubleArray> = mapOf()
 ) {
     constructor(
-        experiment: ExperimentRunParameters,
+        experimentRunParameters: ExperimentRunParameters,
         inputs: Map<String, Double> = mapOf(),
         runId: String? = null,
         runName: String? = null
     ) : this(
-        runId ?: KSL.randomUUIDString(),
-        runName ?: (experiment.experimentName),
-        experiment,
+        id = runId ?: KSL.randomUUIDString(),
+        name = runName ?: (experimentRunParameters.experimentName),
+        experimentRunParameters = experimentRunParameters,
         inputs = inputs
     )
 

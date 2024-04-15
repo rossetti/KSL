@@ -21,6 +21,7 @@ package ksl.examples.general.running
 import ksl.controls.experiments.Factor
 import ksl.controls.experiments.FactorialDOE
 import ksl.simulation.Model
+import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 fun main(){
@@ -65,4 +66,9 @@ fun simulateFactorialDesign(){
     val kslDatabaseObserver = KSLDatabaseObserver(m)
     val fd = FactorialDOE(m, factors, 3)
     fd.simulateDesign()
+
+    for(sr in fd.simulationRuns){
+        KSL.out.println(sr.toJson())
+        KSL.out.println()
+    }
 }
