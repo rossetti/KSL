@@ -130,13 +130,15 @@ class RVParameterSetter(private val model: Model) {
     /**
      * Uses parametersAsDoubles to get a map of map, then flattens the map
      * to a single map with the key as the concatenated key of the outer and inner keys
-     * concatenated with the "_PARAM_" character string. The combined key needs to be unique
-     * and not be present within the random variable names.
+     * concatenated with the current value of the rvParamConCatString character string,
+     * which is "_PARAM_" by default.
+     *
+     * The combined key needs to be unique and not be present within the random variable names.
      *
      * @return the flattened map
      */
     val flatParametersAsDoubles: Map<String, Double>
-        get() = flatParametersAsDoubles("_PARAM_")
+        get() = flatParametersAsDoubles(rvParamConCatString)
 
     /**
      * Uses parametersAsDoubles to get a map of map, then flattens the map
@@ -198,6 +200,22 @@ class RVParameterSetter(private val model: Model) {
             false
         } else parameters.changeParameter(paramName, value)
         // ask the parameter to make the change
+    }
+
+    /**
+     * A convenience method to check if the named random variable exists and
+     * if so, if the named paramName exists for it parameters
+     *
+     * @param rvName    the name of the random variable to change, must not be null
+     * @param paramName the parameter name of the random variable, must not be null
+     * @return true if the named random variable has a parameter with the provided name
+     * False if the name random variable does not exist or the parameter name doesn't exit for it.
+     */
+    fun containsParameter(rvName: String, paramName: String) : Boolean{
+        if (!rvParameters.containsKey(rvName)) {
+            return false
+        }
+        return rvParameters[rvName]!!.containsParameter(paramName)
     }
 
     /**
@@ -266,5 +284,25 @@ class RVParameterSetter(private val model: Model) {
         }
         Model.logger.info{ "$countChanged out of $numberOfParameterizedRandomVariables random variable parameters were changed in the model via the parameter setter."}
         return countChanged
+    }
+
+    companion object {
+        /**
+         * The string used to flatten or un-flatten random variable parameters
+         * Assumed as "_PARAM_" by default
+         */
+        var rvParamConCatString = "_PARAM_"
+
+        /**
+         *  Splits the key into two strings based on the [catChars]. Since the
+         *  flattened map of random variable parameters has a key that concatenates
+         *  the name of the random variable with the parameter's name, this function
+         *  can be used to separate them. The default concatenation string is held
+         *  in rvParamConCatString, which is "_PARAM_" by default.
+         */
+        fun splitFlattenedRVKey(key: String, catChars: String = rvParamConCatString): Array<String> {
+            return key.split(catChars.toRegex(), limit = 2).toTypedArray()
+        }
+
     }
 }

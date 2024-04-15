@@ -62,6 +62,9 @@ fun showControls(){
 
 }
 
+/**
+ *  This example is not testing the input and parameter setting.
+ */
 fun testSimulationRunner(){
     val model = Model("ControlsTest", autoCSVReports = true)
     model.lengthOfReplication = 6.0 * 60.0
