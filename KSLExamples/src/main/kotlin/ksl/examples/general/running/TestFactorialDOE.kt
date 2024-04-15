@@ -70,5 +70,8 @@ fun simulateFactorialDesign(){
     for(sr in fd.simulationRuns){
         KSL.out.println(sr.toJson())
         KSL.out.println()
+        val r = sr.statisticalReporter()
+        println(r.halfWidthSummaryReport())
+        println()
     }
 }

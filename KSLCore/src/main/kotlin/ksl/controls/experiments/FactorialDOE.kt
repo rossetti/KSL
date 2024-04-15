@@ -58,6 +58,12 @@ class FactorialDOE(
     private val mySimulationRunner = SimulationRunner(model)
 
     /**
+     *  capture the original experiment run parameters so that they can
+     *  be restored to original after executing a design point
+     */
+    private val myOriginalExpRunParams: ExperimentRunParameters = model.extractRunParameters()
+
+    /**
      *  Use to hold executed simulation runs, 1 for each design point executed
      */
     private val mySimulationRuns = mutableListOf<SimulationRun>()
@@ -132,8 +138,7 @@ class FactorialDOE(
      *
      *  @param designPoint the design point to simulate
      *  @param numReps the number of replications for the design point
-     *  @param experimentRunParameters the run parameters associated with the model. By default,
-     *  these are extracted from the model, but the user can provide updated values.
+     *  @param baseExperimentName the base name for each experiment representing the design point
      *  @param clearRuns Any prior simulation runs are cleared prior to executing. The default is false
      *  @param addRuns If true the executed run will be added to the executed simulation runs. The
      *  default is true.
@@ -141,7 +146,7 @@ class FactorialDOE(
     fun simulateDesignPoint(
         designPoint: Int,
         numReps: Int,
-        experimentRunParameters: ExperimentRunParameters = model.extractRunParameters(),
+        baseExperimentName: String = "${myOriginalExpRunParams.experimentName}_DP_$designPoint",
         clearRuns: Boolean = false,
         addRuns: Boolean = true
     ) {
@@ -165,14 +170,15 @@ class FactorialDOE(
             inputs[cp] = v
         }
         // setup experiment and its name
-        experimentRunParameters.numberOfReplications = numReps
-        experimentRunParameters.experimentName = "${baseExperimentName}_DP_$designPoint"
+        model.numberOfReplications = numReps
+        model.experimentName = baseExperimentName
         // use SimulationRunner to run the simulation
-        val sr = mySimulationRunner.simulate(inputs, experimentRunParameters)
+        val sr = mySimulationRunner.simulate(inputs, model.extractRunParameters())
         // add SimulationRun to simulation run list
         if (addRuns){
             mySimulationRuns.add(sr)
         }
+        model.changeRunParameters(myOriginalExpRunParams)
     }
 
     /**
@@ -194,7 +200,6 @@ class FactorialDOE(
         points: IntArray,
         replications: IntArray,
         clearRuns: Boolean = true,
-        experimentRunParameters: ExperimentRunParameters = model.extractRunParameters()
     ){
         require(points.isNotEmpty()){"The design points array must not be empty!"}
         require(replications.isNotEmpty()){"The replications array must not be empty!"}
@@ -209,7 +214,7 @@ class FactorialDOE(
                 // valid design point
                 if (replications[i] >= 1){
                     // has replications
-                    simulateDesignPoint(point, replications[i], experimentRunParameters)
+                    simulateDesignPoint(point, replications[i])
                 }
             }
         }
@@ -226,12 +231,11 @@ class FactorialDOE(
     fun simulateDesign(
         numReps: Int = 0,
         clearRuns: Boolean = true,
-        experimentRunParameters: ExperimentRunParameters = model.extractRunParameters()
     ) {
         if (numReps >= 1) {
             replicationsPerDesignPoint(numReps)
         }
         val points = (1..numDesignPoints).toList().toIntArray()
-        simulateDesignPoints(points, designPointReplications, clearRuns, experimentRunParameters)
+        simulateDesignPoints(points, designPointReplications, clearRuns)
     }
 }
