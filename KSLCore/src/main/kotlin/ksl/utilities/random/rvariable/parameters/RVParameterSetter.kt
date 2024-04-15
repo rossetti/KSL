@@ -40,10 +40,11 @@ data class RVParameterData(
 class RVParameterSetter(private val model: Model) {
     val rvParameters: Map<String, RVParameters>
     val rvParametersData: List<RVParameterData>
+        get() = extractParameters().second
     init{
         val pair = extractParameters()
         rvParameters = pair.first
-        rvParametersData = pair.second
+ //       rvParametersData = pair.second
     }
 
     val modelName: String = model.name
@@ -196,6 +197,7 @@ class RVParameterSetter(private val model: Model) {
             return false
         }
         val parameters: RVParameters? = rvParameters[rvName]
+ //       println("***** RV = $rvName changing parameter = $paramName to value = $value ")
         return if (!parameters!!.containsParameter(paramName)) {
             false
         } else parameters.changeParameter(paramName, value)
@@ -275,7 +277,11 @@ class RVParameterSetter(private val model: Model) {
                 // compare the map entries
                 val toBe: RVParameters? = rvParameters[rvName]
                 val current: RVParameters = rs.parameters
+//                println("rv = $rvName")
+//                println("current = $current")
+//                println("toBe = $toBe")
                 if (current != toBe) {
+//                    println("current and toBe are different, make changes")
                     // change has occurred
                     countChanged++
                     rv.initialRandomSource = toBe!!.createRVariable()

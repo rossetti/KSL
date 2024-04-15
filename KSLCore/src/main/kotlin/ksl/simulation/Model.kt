@@ -878,7 +878,9 @@ class Model(
         // if the user has asked for the parameters, then they may have changed
         // thus apply the possibly new parameters to set up the model
         if (myRVParameterSetter != null) {
+            logger.info { "Parameters may have changed. Apply the parameters to the model." }
             myRVParameterSetter!!.applyParameterChanges(this)
+            logger.info { "The parameter setter applied the parameter changes." }
         }
 
         // do all model element beforeExperiment() actions
