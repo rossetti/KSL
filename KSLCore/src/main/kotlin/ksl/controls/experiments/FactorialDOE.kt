@@ -62,6 +62,12 @@ class FactorialDOE(
      */
     private val mySimulationRuns = mutableListOf<SimulationRun>()
 
+    var baseExperimentName = model.experimentName
+        set(value) {
+            require(value.isNotBlank()) { "name must not be blank" }
+            field = value
+        }
+
     /**
      *  Returns the list of executed runs, one run for each design point simulated
      */
@@ -160,7 +166,7 @@ class FactorialDOE(
         }
         // setup experiment and its name
         experimentRunParameters.numberOfReplications = numReps
-        experimentRunParameters.experimentName = "${model.experimentName}_DP_$designPoint"
+        experimentRunParameters.experimentName = "${baseExperimentName}_DP_$designPoint"
         // use SimulationRunner to run the simulation
         val sr = mySimulationRunner.simulate(inputs, experimentRunParameters)
         // add SimulationRun to simulation run list
