@@ -240,7 +240,7 @@ class SimulationRunner(
          * The string used to flatten or un-flatten random variable parameters
          * Assumed as "_PARAM_" by default
          */
-        var rvParamConCatString = "_PARAM_"
+        var rvParamConCatString = RVParameterSetter.rvParamConCatString
 
     }
 }
