@@ -70,6 +70,10 @@ class Scenario(
 
 /**
  *  Facilitates the running of many scenarios in a sequence.
+ *  @param the name of the scenario runner. By default, this name
+ *  is used as the name of the database
+ *  @param scenarioList a list of scenarios to execute
+ *  @param kslDb the KSLDatabase that will hold the results from the scenarios
  */
 class ScenarioRunner(
     name: String,
@@ -87,6 +91,11 @@ class ScenarioRunner(
 
     private val myScenariosByName = mutableMapOf<String, Scenario>()
     private val myDbObserversByName = mutableMapOf<String, KSLDatabaseObserver>()
+
+    /**
+     *  The database observers that were attached to the models. This
+     *  property could be used to turn off all or some of the observers
+     */
     val dbObservers: List<KSLDatabaseObserver>
         get() = myDbObserversByName.values.toList()
 
