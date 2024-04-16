@@ -21,6 +21,9 @@ package ksl.controls.experiments
 import ksl.simulation.ExperimentIfc
 import ksl.simulation.Model
 import ksl.utilities.Identity
+import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 /**
  *  A scenario represents the specification of a model to run, with some
@@ -44,14 +47,14 @@ class Scenario(
     var simulationRun: SimulationRun? = null
 
     init {
-        require(model.validateInputKeys(inputs.keys)) {"The inputs contained invalid input names"}
-        for((n, v) in inputs){
+        require(model.validateInputKeys(inputs.keys)) { "The inputs contained invalid input names" }
+        for ((n, v) in inputs) {
             myInputs[n] = v
         }
         model.numberOfReplications = numberReplications
         model.lengthOfReplication = lengthOfReplication
         model.lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
-        model.experimentName = this.name
+        model.experimentName = "Scenario_${id}_${model.experimentName}"
     }
 
     /**
@@ -59,7 +62,7 @@ class Scenario(
      *  run parameters using the supplied inputs. Generates a new simulation run
      *  with each execution
      */
-    fun simulate(){
+    fun simulate() {
         simulationRun = simulationRunner.simulate(myInputs, model.extractRunParameters())
     }
 
@@ -68,7 +71,11 @@ class Scenario(
 /**
  *  Facilitates the running of many scenarios in a sequence.
  */
-class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
+class ScenarioRunner(
+    name: String,
+    scenarioList: List<Scenario> = emptyList(),
+    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir),
+) : Identity(name) {
 
     private val myScenarios = mutableListOf<Scenario>()
 
@@ -82,8 +89,9 @@ class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
 
     init {
         myScenarios.addAll(scenarioList)
-        for(scenario in scenarioList){
+        for (scenario in scenarioList) {
             myScenariosByName[scenario.name] = scenario
+            KSLDatabaseObserver(scenario.model, kslDb)
         }
     }
 
@@ -100,8 +108,8 @@ class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
      *  greater than or equal to 1.
      */
     fun numReplicationsPerScenario(numReps: Int) {
-       // require(numReps >=1){"The number of replications for each scenario should be >= 1"}
-        for(scenario in myScenarios){
+        // require(numReps >=1){"The number of replications for each scenario should be >= 1"}
+        for (scenario in myScenarios) {
             if (numReps >= 1) {
                 scenario.numberOfReplications = numReps
             }
@@ -118,10 +126,11 @@ class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
         numberReplications: Int = model.numberOfReplications,
         lengthOfReplication: Double = model.lengthOfReplication,
         lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
-    ) : Scenario {
+    ): Scenario {
         val s = Scenario(name, model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
         myScenarios.add(s)
         myScenariosByName[s.name] = s
+        KSLDatabaseObserver(model, kslDb)
         return s
     }
 
@@ -130,9 +139,9 @@ class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
      *  progression is not a valid index then no scenario is simulated.
      *
      */
-    fun simulate(scenarios: IntProgression = myScenarios.indices){
-        for(scenarioIndex in scenarios){
-            if (scenarioIndex in myScenarios.indices){
+    fun simulate(scenarios: IntProgression = myScenarios.indices) {
+        for (scenarioIndex in scenarios) {
+            if (scenarioIndex in myScenarios.indices) {
                 myScenarios[scenarioIndex].simulate()
             }
         }
