@@ -69,7 +69,12 @@ class Scenario(
 }
 
 /**
- *  Facilitates the running of many scenarios in a sequence.
+ *  Facilitates the running of many scenarios in a sequence. A KSLDatabase
+ *  is used to capture the statistics for each scenario. Each scenario is
+ *  treated like a different experiment. The scenarios can be based on
+ *  the same or different models.  The scenarios also capture the inputs and
+ *  results via a SimulationRun.
+ *
  *  @param the name of the scenario runner. By default, this name
  *  is used as the name of the database
  *  @param scenarioList a list of scenarios to execute
