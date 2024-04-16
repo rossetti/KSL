@@ -52,8 +52,8 @@ class FactorialDOE(
     private val factorSettings: Map<Factor, String>,
     numRepsPerDesignPoint: Int = 10
 ) {
-    private val myControls = model.controls()
-    private val myRVParameterSetter = model.rvParameterSetter
+//    private val myControls = model.controls()
+//    private val myRVParameterSetter = model.rvParameterSetter
 
     private val mySimulationRunner = SimulationRunner(model)
 
@@ -84,11 +84,14 @@ class FactorialDOE(
         require(factorSettings.isNotEmpty()) { "factorControls must not be empty" }
         require(numRepsPerDesignPoint >= 1)  {"The number of replications per design point must be >= 1." }
         // check if supplied control or parameter keys make sense for this model
-        for ((f, n) in factorSettings){
-            val rvKeys = RVParameterSetter.splitFlattenedRVKey(n)
-            require(myControls.hasControl(n) || myRVParameterSetter.containsParameter(rvKeys[0], rvKeys[1]))
-              {"The name $n related to factor (${f.name}) is not a control or a rv parameter."}
+        require(model.validateInputKeys(factorSettings.values.toSet())) {
+            "The factor settings contained invalid input names"
         }
+//        for ((f, n) in factorSettings){
+//            val rvKeys = RVParameterSetter.splitFlattenedRVKey(n)
+//            require(myControls.hasControl(n) || myRVParameterSetter.containsParameter(rvKeys[0], rvKeys[1]))
+//              {"The name $n related to factor (${f.name}) is not a control or a rv parameter."}
+//        }
     }
 
     val factorialDesign = FactorialDesign(factorSettings.keys, "${model}_Factorial_DOE")
@@ -178,6 +181,7 @@ class FactorialDOE(
         if (addRuns){
             mySimulationRuns.add(sr)
         }
+        // reset the model run parameters back to their original values
         model.changeRunParameters(myOriginalExpRunParams)
     }
 
