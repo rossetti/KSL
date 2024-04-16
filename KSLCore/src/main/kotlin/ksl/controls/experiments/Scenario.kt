@@ -27,16 +27,20 @@ import ksl.utilities.Identity
  *  inputs.  Each scenario will produce a simulation run.
  */
 class Scenario(
+    name: String? = null,
     val model: Model,
     inputs: Map<String, Double>,
     numberReplications: Int = model.numberOfReplications,
     lengthOfReplication: Double = model.lengthOfReplication,
     lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
-    name: String? = null
 ) : Identity(name), ExperimentIfc by model {
 
-    val simulationRunner = SimulationRunner(model)
+    private val simulationRunner = SimulationRunner(model)
     private val myInputs = mutableMapOf<String, Double>()
+
+    /**
+     * returns the last generated simulation run
+     */
     var simulationRun: SimulationRun? = null
 
     init {
@@ -47,20 +51,35 @@ class Scenario(
         model.numberOfReplications = numberReplications
         model.lengthOfReplication = lengthOfReplication
         model.lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+        model.experimentName = this.name
     }
 
-    fun runScenario(){
+    /**
+     *  Simulates the scenario by simulating the model at its current experimental
+     *  run parameters using the supplied inputs. Generates a new simulation run
+     *  with each execution
+     */
+    fun simulate(){
         simulationRun = simulationRunner.simulate(myInputs, model.extractRunParameters())
     }
+
 }
 
+/**
+ *  Facilitates the running of many scenarios in a sequence.
+ */
 class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
 
     private val myScenarios = mutableListOf<Scenario>()
+
+    /**
+     *  A read only list of the scenarios to be run.
+     */
     val scenarioList: List<Scenario>
         get() = myScenarios
 
     private val myScenariosByName = mutableMapOf<String, Scenario>()
+
     init {
         myScenarios.addAll(scenarioList)
         for(scenario in scenarioList){
@@ -68,18 +87,55 @@ class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
         }
     }
 
+    /**
+     *  Gets the scenario by its name or null if not there.
+     */
+    fun scenarioByName(name: String): Scenario? {
+        return myScenariosByName[name]
+    }
+
+    /** Sets the number replications for each scenario to a common
+     *  number of replications.
+     *  @param numReps the number of replications for each scenario. Must be
+     *  greater than or equal to 1.
+     */
+    fun numReplicationsPerScenario(numReps: Int) {
+       // require(numReps >=1){"The number of replications for each scenario should be >= 1"}
+        for(scenario in myScenarios){
+            if (numReps >= 1) {
+                scenario.numberOfReplications = numReps
+            }
+        }
+    }
+
+    /**
+     *  Adds a scenario to the possible scenarios to simulate.
+     */
     fun addScenario(
+        name: String? = null,
         model: Model,
         inputs: Map<String, Double>,
         numberReplications: Int = model.numberOfReplications,
         lengthOfReplication: Double = model.lengthOfReplication,
         lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
-        name: String? = null
     ) : Scenario {
-        val s = Scenario(model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp, name)
+        val s = Scenario(name, model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
         myScenarios.add(s)
         myScenariosByName[s.name] = s
         return s
+    }
+
+    /** Interprets the integer progression as the indices of the
+     *  contained scenarios that should be simulated. If the
+     *  progression is not a valid index then no scenario is simulated.
+     *
+     */
+    fun simulate(scenarios: IntProgression = myScenarios.indices){
+        for(scenarioIndex in scenarios){
+            if (scenarioIndex in myScenarios.indices){
+                myScenarios[scenarioIndex].simulate()
+            }
+        }
     }
 
 }
