@@ -35,6 +35,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatString
 import java.nio.file.Path
 import kotlin.time.Duration
 
@@ -1220,6 +1221,66 @@ class Model(
             }
             return stats
         }
+
+    /**
+     *   Checks if the supplied set of strings are valid inputs (controls or random variable
+     *   parameters).
+     *
+     *  For controls, by default, the key to associate with the value is the model element's name
+     *  concatenated with the property that was annotated with the control.  For example, if
+     *  the resource had name Worker and annotated property initialCapacity, then the key
+     *  will be "Worker.initialCapacity". Note the use of the "." character to separate
+     *  the model element name and the property name.  Since, the KSL model element naming
+     *  convention require unique names for each model element, the key will be unique for the control.
+     *  However, the model element name may be a very long string depending on your approach
+     *  to naming the model elements. The name associated with each control can be inspected by
+     *  asking the model for its controls via model.controls() and then using the methods on the Controls
+     *  class for the names. The controlsMapAsJsonString() or asMap() functions are especially helpful
+     *  for this purpose.
+     *
+     *  For the parameters associated with random variables, the naming convention is different.
+     *  Again, the model element name is used as part of the identifier, then the value of
+     *  rvParamConCatString from the companion object is concatenated between the name of the
+     *  model element and the name of its parameter.  For example, suppose there is a
+     *  random variable that has been named ServiceTimeRV that is exponentially distributed.
+     *  Also assume that rvParamConCatString is "_PARAM_", which is its default value. Then,
+     *  to access the mean of the service time random variable, we use "ServiceTimeRV_PARAM_mean".
+     *  Thus, it is important to note the name of the random variable within the model and the
+     *  default names used by the KSL for the random variable parameters.  When random variables are
+     *  not explicitly named by the modeler, the KSL will automatically provide a default
+     *  unique name. Thus, if you plan to control a specific random variable's parameters, you
+     *  should strongly consider providing an explicit name. To get the names (and current values)
+     *  of the random variable parameters, you can print out the toString() method of the
+     *  RVParameterSetter class after obtaining it from the model via the model's rvParameterSetter
+     *  property.
+     *
+     *  @param inputKeys the set of keys to check
+     *  @param conCatString the string used to concatenate random variables with their parameters.
+     *  By default, this is "_PARAM_"
+     *  @return true if all provided input keys are valid
+     */
+    fun validateInputKeys(inputKeys: Set<String>, conCatString: String = rvParamConCatString): Boolean {
+        val rvs = RVParameterSetter(this)
+        val controls = Controls(this)
+        for (key in inputKeys) {
+            if (controls.hasControl(key)) {
+                continue
+            } else {
+                // not a control, check for parameter
+                val rvKeys = RVParameterSetter.splitFlattenedRVKey(key, conCatString)
+                if (rvs.containsParameter(rvKeys[0], rvKeys[1])) {
+                    // it is a parameter
+                    continue
+                } else {
+                    // not a control and not a parameter
+                    logger.trace { "The input key $key was not a valid control or rv parameter" }
+                    return false
+                }
+            }
+        }
+        // if we get here, all have validated
+        return true
+    }
 
     companion object {
         /**
