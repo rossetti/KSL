@@ -35,20 +35,31 @@ class Scenario(
     name: String? = null
 ) : Identity(name), ExperimentIfc by model {
 
-//    private val mySimulationRunner = SimulationRunner(model)
+    val simulationRunner = SimulationRunner(model)
+    private val myInputs = mutableMapOf<String, Double>()
     var simulationRun: SimulationRun? = null
 
     init {
         require(model.validateInputKeys(inputs.keys)) {"The inputs contained invalid input names"}
+        for((n, v) in inputs){
+            myInputs[n] = v
+        }
         model.numberOfReplications = numberReplications
         model.lengthOfReplication = lengthOfReplication
         model.lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+    }
+
+    fun runScenario(){
+        simulationRun = simulationRunner.simulate(myInputs, model.extractRunParameters())
     }
 }
 
 class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
 
     private val myScenarios = mutableListOf<Scenario>()
+    val scenarioList: List<Scenario>
+        get() = myScenarios
+
     private val myScenariosByName = mutableMapOf<String, Scenario>()
     init {
         myScenarios.addAll(scenarioList)
@@ -56,4 +67,19 @@ class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
             myScenariosByName[scenario.name] = scenario
         }
     }
+
+    fun addScenario(
+        model: Model,
+        inputs: Map<String, Double>,
+        numberReplications: Int = model.numberOfReplications,
+        lengthOfReplication: Double = model.lengthOfReplication,
+        lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
+        name: String? = null
+    ) : Scenario {
+        val s = Scenario(model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp, name)
+        myScenarios.add(s)
+        myScenariosByName[s.name] = s
+        return s
+    }
+
 }
