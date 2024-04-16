@@ -27,7 +27,7 @@ import ksl.utilities.io.KSL
  * @param model the model to observe
  * @param db the properly configured databased to hold KSL related results
  * @param clearDataBeforeExperimentOption indicates whether data should be cleared before each experiment. The
- * default is false. Data will not be clear if multiple simulations of the same model are executed within
+ * default is false. Data will not be cleared if multiple simulations of the same model are executed within
  * the same execution frame. An error is issued if the experiment name has not changed.
  */
 class KSLDatabaseObserver(
