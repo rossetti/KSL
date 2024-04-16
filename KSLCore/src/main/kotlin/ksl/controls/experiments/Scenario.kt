@@ -29,12 +29,31 @@ import ksl.utilities.Identity
 class Scenario(
     val model: Model,
     inputs: Map<String, Double>,
+    numberReplications: Int = model.numberOfReplications,
+    lengthOfReplication: Double = model.lengthOfReplication,
+    lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
     name: String? = null
 ) : Identity(name), ExperimentIfc by model {
 
 //    private val mySimulationRunner = SimulationRunner(model)
+    var simulationRun: SimulationRun? = null
 
     init {
         require(model.validateInputKeys(inputs.keys)) {"The inputs contained invalid input names"}
+        model.numberOfReplications = numberReplications
+        model.lengthOfReplication = lengthOfReplication
+        model.lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+    }
+}
+
+class ScenarioRunner(scenarioList: List<Scenario> = emptyList()) {
+
+    private val myScenarios = mutableListOf<Scenario>()
+    private val myScenariosByName = mutableMapOf<String, Scenario>()
+    init {
+        myScenarios.addAll(scenarioList)
+        for(scenario in scenarioList){
+            myScenariosByName[scenario.name] = scenario
+        }
     }
 }
