@@ -86,12 +86,15 @@ class ScenarioRunner(
         get() = myScenarios
 
     private val myScenariosByName = mutableMapOf<String, Scenario>()
+    private val myDbObserversByName = mutableMapOf<String, KSLDatabaseObserver>()
+    val dbObservers: List<KSLDatabaseObserver>
+        get() = myDbObserversByName.values.toList()
 
     init {
         myScenarios.addAll(scenarioList)
         for (scenario in scenarioList) {
             myScenariosByName[scenario.name] = scenario
-            KSLDatabaseObserver(scenario.model, kslDb)
+            myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb)
         }
     }
 
@@ -100,6 +103,13 @@ class ScenarioRunner(
      */
     fun scenarioByName(name: String): Scenario? {
         return myScenariosByName[name]
+    }
+
+    /**
+     *  Gets the database observer by the scenario name or null if not there.
+     */
+    fun databaseObserverByName(name: String): KSLDatabaseObserver? {
+        return myDbObserversByName[name]
     }
 
     /** Sets the number replications for each scenario to a common
@@ -130,7 +140,7 @@ class ScenarioRunner(
         val s = Scenario(name, model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
         myScenarios.add(s)
         myScenariosByName[s.name] = s
-        KSLDatabaseObserver(model, kslDb)
+        myDbObserversByName[s.name] = KSLDatabaseObserver(model, kslDb)
         return s
     }
 
