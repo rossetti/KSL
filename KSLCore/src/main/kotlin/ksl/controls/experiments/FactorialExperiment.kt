@@ -1,6 +1,10 @@
 package ksl.controls.experiments
 
 import ksl.simulation.Model
+import ksl.utilities.Identity
+import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 /**
  *  Facilitates the simulation of a model via a factorial design.
@@ -47,14 +51,22 @@ import ksl.simulation.Model
  *  @param numRepsPerDesignPoint the number of replications for each design point. Defaults to 10.
  */
 class FactorialExperiment(
+    name: String,
     private val model: Model,
     private val factorSettings: Map<Factor, String>,
-    numRepsPerDesignPoint: Int = 10
-) {
-//    private val myControls = model.controls()
-//    private val myRVParameterSetter = model.rvParameterSetter
+    numRepsPerDesignPoint: Int = 10,
+    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
+) : Identity(name) {
 
     private val mySimulationRunner = SimulationRunner(model)
+
+    /**
+     *  The database observer of the model. Can be used to stop observing, etc.
+     *  The observer is created to clear data before experiments.
+     *  Assumes that if the user is re-running the design that existing data for the experiment
+     *  should be deleted.
+     */
+    val dbObserver: KSLDatabaseObserver = KSLDatabaseObserver(model, kslDb, true)
 
     /**
      *  capture the original experiment run parameters so that they can
@@ -65,19 +77,13 @@ class FactorialExperiment(
     /**
      *  Use to hold executed simulation runs, 1 for each design point executed
      */
-    private val mySimulationRuns = mutableListOf<SimulationRun>()
-
-    var baseExperimentName = model.experimentName
-        set(value) {
-            require(value.isNotBlank()) { "name must not be blank" }
-            field = value
-        }
+    private val mySimulationRuns = mutableMapOf<Int, SimulationRun>()
 
     /**
      *  Returns the list of executed runs, one run for each design point simulated
      */
     val simulationRuns: List<SimulationRun>
-        get() = mySimulationRuns
+        get() = mySimulationRuns.values.toList()
 
     init {
         require(factorSettings.isNotEmpty()) { "factorControls must not be empty" }
@@ -86,11 +92,6 @@ class FactorialExperiment(
         require(model.validateInputKeys(factorSettings.values.toSet())) {
             "The factor settings contained invalid input names"
         }
-//        for ((f, n) in factorSettings){
-//            val rvKeys = RVParameterSetter.splitFlattenedRVKey(n)
-//            require(myControls.hasControl(n) || myRVParameterSetter.containsParameter(rvKeys[0], rvKeys[1]))
-//              {"The name $n related to factor (${f.name}) is not a control or a rv parameter."}
-//        }
     }
 
     /**
@@ -182,7 +183,7 @@ class FactorialExperiment(
         require(designPoint in 1..numDesignPoints) { "The design point ($designPoint) was not in the design." }
         require(numReps >= 1) { "The number of replications per design point must be >= 1." }
         if (clearRuns) {
-            mySimulationRuns.clear()
+            clearSimulationRuns()
         }
         val dp = factorialDesign.designPointToMap(designPoint)
         // dp holds (factor name, factor level) for the factors at this design point
@@ -202,10 +203,12 @@ class FactorialExperiment(
         model.numberOfReplications = numReps
         model.experimentName = baseExperimentName
         // use SimulationRunner to run the simulation
+        Model.logger.info { "FactorialExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
         val sr = mySimulationRunner.simulate(inputs, model.extractRunParameters())
+        Model.logger.info { "FactorialExperiment: Completed design point $designPoint for experiment: ${model.experimentName} " }
         // add SimulationRun to simulation run list
         if (addRuns) {
-            mySimulationRuns.add(sr)
+            mySimulationRuns[designPoint] = sr
         }
         // reset the model run parameters back to their original values
         model.changeRunParameters(myOriginalExpRunParams)
@@ -237,7 +240,7 @@ class FactorialExperiment(
         require(replications.size <= numDesignPoints) { "The size of the replications array must be <= $numDesignPoints" }
         require(points.size == replications.size) { "The size the arrays must be the same." }
         if (clearRuns) {
-            mySimulationRuns.clear()
+            clearSimulationRuns()
         }
         for ((i, point) in points.withIndex()) {
             if (point in 1..numDesignPoints) {

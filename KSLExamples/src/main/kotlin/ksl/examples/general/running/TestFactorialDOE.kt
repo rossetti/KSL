@@ -63,8 +63,7 @@ fun simulateFactorialDesign(){
         fC to "MM1_Test:TBA_PARAM_mean"
     )
     val m = buildModel()
-    val kslDatabaseObserver = KSLDatabaseObserver(m)
-    val fd = FactorialExperiment(m, factors, 3)
+    val fd = FactorialExperiment("FactorDesignTest", m, factors, 3)
     fd.simulateDesign()
 
     for(sr in fd.simulationRuns){
@@ -74,6 +73,7 @@ fun simulateFactorialDesign(){
         println(r.halfWidthSummaryReport(title = sr.name))
         println()
     }
-   // kslDatabaseObserver.db.clearAllData()
+
+    // This second set of runs will clear the first set from the database
     fd.simulateDesign()
 }
