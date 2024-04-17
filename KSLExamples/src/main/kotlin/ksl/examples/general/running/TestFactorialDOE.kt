@@ -19,7 +19,7 @@
 package ksl.examples.general.running
 
 import ksl.controls.experiments.Factor
-import ksl.controls.experiments.FactorialDOE
+import ksl.controls.experiments.FactorialExperiment
 import ksl.simulation.Model
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
@@ -64,7 +64,7 @@ fun simulateFactorialDesign(){
     )
     val m = buildModel()
     val kslDatabaseObserver = KSLDatabaseObserver(m)
-    val fd = FactorialDOE(m, factors, 3)
+    val fd = FactorialExperiment(m, factors, 3)
     fd.simulateDesign()
 
     for(sr in fd.simulationRuns){
@@ -74,4 +74,6 @@ fun simulateFactorialDesign(){
         println(r.halfWidthSummaryReport(title = sr.name))
         println()
     }
+   // kslDatabaseObserver.db.clearAllData()
+    fd.simulateDesign()
 }

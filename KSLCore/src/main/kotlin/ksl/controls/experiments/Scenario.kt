@@ -75,7 +75,7 @@ class Scenario(
  *  the same or different models.  The scenarios also capture the inputs and
  *  results via a SimulationRun.
  *
- *  @param the name of the scenario runner. By default, this name
+ *  @param name of the scenario runner. By default, this name
  *  is used as the name of the database
  *  @param scenarioList a list of scenarios to execute
  *  @param kslDb the KSLDatabase that will hold the results from the scenarios
@@ -118,7 +118,7 @@ class ScenarioRunner(
         myScenarios.addAll(scenarioList)
         for (scenario in scenarioList) {
             myScenariosByName[scenario.name] = scenario
-            myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb, true)
+            myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb)
         }
     }
 
@@ -164,7 +164,7 @@ class ScenarioRunner(
         val s = Scenario(name, model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
         myScenarios.add(s)
         myScenariosByName[s.name] = s
-        myDbObserversByName[s.name] = KSLDatabaseObserver(model, kslDb, true)
+        myDbObserversByName[s.name] = KSLDatabaseObserver(model, kslDb)
         return s
     }
 
@@ -186,6 +186,7 @@ class ScenarioRunner(
         }
         for (scenarioIndex in scenarios) {
             if (scenarioIndex in myScenarios.indices) {
+                //TODO we could clear data only if the experiment name already exists
                 myScenarios[scenarioIndex].simulate()
             }
         }
