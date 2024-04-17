@@ -173,7 +173,7 @@ class ScenarioRunner(
      *  progression is not a valid index then no scenario is simulated.
      *  @param scenarios The indices of the scenarios to execute. By default, all scenarios.
      *  @param clearAllData indicates if all data will be removed from the associated KSLDatabase
-     *  prior to executing all the scenarios. The default is true. All data is cleared. This assumes
+     *  prior to executing the scenarios. The default is true. All data is cleared. This assumes
      *  that the basic use case is to re-run the scenarios. If false is specified, then special
      *  care is needed to ensure that no execution of any scenario has the same experiment name.
      *  If the user doesn't change any scenario experiment names, then re-running will result in
