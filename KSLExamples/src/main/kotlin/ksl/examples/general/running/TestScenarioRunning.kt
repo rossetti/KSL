@@ -15,7 +15,7 @@ fun main(){
         println()
     }
 
-    scenarioRunner.simulate()
+    scenarioRunner.simulate(clearAllData = false)
     for(s in scenarioRunner.scenarioList) {
         val sr = s.simulationRun?.statisticalReporter()
         val r = sr?.halfWidthSummaryReport(title = s.experimentName)

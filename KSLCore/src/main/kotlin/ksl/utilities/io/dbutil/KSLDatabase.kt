@@ -430,8 +430,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         KSL.logger.error { "An experiment record exists for simulation: $simName, and experiment: $expName in database ${db.label}" }
         KSL.logger.error { "The user attempted to run a simulation for an experiment that has " }
         KSL.logger.error { " the same name as an existing experiment without allowing its data to be cleared." }
-        KSL.logger.error { "The user should consider using the clearDataBeforeExperimentOption property on the observer." }
-        KSL.logger.error { "Or, the user might change the name of the experiment before calling model.simulate()." }
+        KSL.logger.error { "The user should consider explicitly clearing data within the database associated with experiment $expName." }
+        KSL.logger.error {" This can be accomplished by using the clearAllData() or deleteExperimentWithName(expName=$expName) functions prior to rerunning."}
+        KSL.logger.error { "Or, the user might change the name of the experiment before calling simulating the model." }
         KSL.logger.error { "This error is to prevent the user from accidentally losing data associated with simulation: $simName, and experiment: $expName in database ${db.label}" }
         throw DataAccessException("An experiment record already exists with the experiment name $expName. Check the ksl.log for details.")
     }

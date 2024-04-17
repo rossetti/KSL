@@ -93,8 +93,14 @@ class FactorialExperiment(
 //        }
     }
 
+    /**
+     *  The factorial design implied by the factors
+     */
     val factorialDesign = FactorialDesign(factorSettings.keys, "${model}_Factorial_DOE")
 
+    /**
+     *  The number of design points in the base design (without replications)
+     */
     val numDesignPoints: Int
         get() = factorialDesign.numDesignPoints
 
@@ -154,9 +160,10 @@ class FactorialExperiment(
     /**
      *  Simulates the specified design point from the factorial design for the
      *  specified number of replications.  The specified number of replications
-     *  will override whatever is specified in the [experimentRunParameters].
-     *  Also, the name of the experiment associated with the design point is automatically
-     *  changed to include the design point being simulated.
+     *  will override whatever is specified in the model's specified number of replications.
+     *  Also, the model experiment's name is automatically to use the supplied [baseExperimentName]
+     *  with the design point identity concatenated to ensure that is experiment has
+     *  a unique name when capturing the data within a database.
      *
      *  @param designPoint the design point to simulate
      *  @param numReps the number of replications for the design point
