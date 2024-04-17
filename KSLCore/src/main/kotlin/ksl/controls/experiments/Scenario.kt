@@ -118,7 +118,7 @@ class ScenarioRunner(
         myScenarios.addAll(scenarioList)
         for (scenario in scenarioList) {
             myScenariosByName[scenario.name] = scenario
-            myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb)
+            myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb, true)
         }
     }
 
@@ -164,7 +164,7 @@ class ScenarioRunner(
         val s = Scenario(name, model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
         myScenarios.add(s)
         myScenariosByName[s.name] = s
-        myDbObserversByName[s.name] = KSLDatabaseObserver(model, kslDb)
+        myDbObserversByName[s.name] = KSLDatabaseObserver(model, kslDb, true)
         return s
     }
 
