@@ -285,7 +285,16 @@ class RVParameterSetter(private val model: Model) {
     val numberOfParameterizedRandomVariables: Int
         get() = rvParameters.size
 
-    /**
+    /** If a RVParameterSetter has been created based on a model, then
+     *  this method can be used to apply changed parameters to the model.
+     *  The primary use of the function occurs in the setUpExperiment()
+     *  function of the model.  If the model has a RVParameterSetter
+     *  then it is used to apply any potential parameter changes to the model
+     *  automatically prior to running the experiment.
+     *  This method could be used at any time to change the parameters of the model;
+     *  however, changing the parameter setting during the execution of a model
+     *  is highly discouraged.
+     *  
      * @return the number of parameterized random variables that had their parameters changed in some way
      */
     fun applyParameterChanges(model: Model): Int {
