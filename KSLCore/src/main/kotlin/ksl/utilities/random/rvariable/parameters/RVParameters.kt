@@ -277,15 +277,13 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
-     * Changes the value associated with the parameterName to the supplied value.  If the parameterName is null
-     * or there is no parameter for the supplied parameterName, then an exception occurs.
-     *
-     *
+     * Changes the value associated with the parameterName to the supplied value.
      * The supplied array is copied.
      *
-     * @param parameterName parameterName with which the double[] value is to be associated
-     * @param value         the double[] value to be associated with parameterName, cannot be null, must be same size as original double[]
-     * @return the previous double[] value that was associated with the parameterName
+     * @param parameterName parameterName with which the double array is to be associated
+     * @param value         the double array to be associated with parameterName, cannot be null,
+     * must be same size as the original double array
+     * @return the previous double array that was associated with the parameterName
      */
     fun changeDoubleArrayParameter(parameterName: String, value: DoubleArray): DoubleArray? {
         checkKey(parameterName)
