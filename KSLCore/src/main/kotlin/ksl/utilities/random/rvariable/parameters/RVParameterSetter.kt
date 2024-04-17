@@ -294,7 +294,7 @@ class RVParameterSetter(private val model: Model) {
      *  This method could be used at any time to change the parameters of the model;
      *  however, changing the parameter setting during the execution of a model
      *  is highly discouraged.
-     *  
+     *
      * @return the number of parameterized random variables that had their parameters changed in some way
      */
     fun applyParameterChanges(model: Model): Int {
