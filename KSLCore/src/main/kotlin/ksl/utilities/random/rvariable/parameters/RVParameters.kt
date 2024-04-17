@@ -25,6 +25,15 @@ import kotlin.collections.HashMap
 import kotlin.reflect.KClass
 
 /**
+ *  This class facilitates the transfer of parameter information for random variables.
+ *
+ *  A random variable can define its types, names, and values associated with its parameters.
+ *  Subclasses of this class hold the data associated with the parameters for types of
+ *  random variables.  The name, type, and values for the parameters can be requested.
+ *  Instances of the associated random variable can be created based on the parameter settings.
+ *  Parameterized random variables can supply the appropriate subclass instance with its
+ *  current parameter settings.
+ *
  * @param rvClassName the simple name of the KSL random variable
  * @param rvType The type of random variable from the legal set of random variable types for the KSL
  *   that are parameterized random variables

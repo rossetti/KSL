@@ -28,6 +28,11 @@ import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ParameterizedRV
 import java.lang.StringBuilder
 
+/**
+ *  A data transfer class holding the information about a random
+ *  variable's parameters. Used primarily to store the data within
+ *  the KSL database.
+ */
 data class RVParameterData(
     val clazzName: String,
     val elementId: Int,
@@ -37,17 +42,44 @@ data class RVParameterData(
     val paramValue: Double
 )
 
+/**
+ *  The purpose of this class is to work with a model instance to
+ *  facilitate the changes of parameters associated with random variables.
+ *  The parameters of random variables can be changes and then applied
+ *  to the model. A change in the underlying data is not applied to the
+ *  associated model until explicitly applied to the model.
+ *
+ */
 class RVParameterSetter(private val model: Model) {
+
+    /**
+     *  The key to this map is the unique name of the random variable
+     *  within the model. The associated value is an instance of
+     *  RVParameters which can be used to get the associated parameters
+     *  and to
+     */
     val rvParameters: Map<String, RVParameters>
+
+    /**
+     *  The parameters held by the model in a list of a data class
+     */
     val rvParametersData: List<RVParameterData>
         get() = extractParameters().second
+
     init{
         val pair = extractParameters()
         rvParameters = pair.first
  //       rvParametersData = pair.second
     }
 
+    /**
+     *  The model element name of the associated model
+     */
     val modelName: String = model.name
+
+    /**
+     *  The id of the associated model
+     */
     val modelId = model.id
 
     override fun toString(): String {
@@ -86,7 +118,8 @@ class RVParameterSetter(private val model: Model) {
      * Converts double and integer parameters to a Map that holds a Map, with the
      * outer key being the random variable name and the inner map the parameter names
      * as keys and the parameter values as values.  Ignores any double array parameters
-     * and converts any integer parameter values to double values.
+     * and converts any integer parameter values to double values. The resulting
+     * map can be used for data transfer.
      *
      * @return the parameters as a map of maps
      */
@@ -197,7 +230,6 @@ class RVParameterSetter(private val model: Model) {
             return false
         }
         val parameters: RVParameters? = rvParameters[rvName]
- //       println("***** RV = $rvName changing parameter = $paramName to value = $value ")
         return if (!parameters!!.containsParameter(paramName)) {
             false
         } else parameters.changeParameter(paramName, value)
