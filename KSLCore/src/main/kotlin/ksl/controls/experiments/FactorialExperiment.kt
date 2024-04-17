@@ -1,7 +1,6 @@
 package ksl.controls.experiments
 
 import ksl.simulation.Model
-import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 
 /**
  *  Facilitates the simulation of a model via a factorial design.
@@ -47,7 +46,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  *  representing the name of the control or parameter to associate with the factor
  *  @param numRepsPerDesignPoint the number of replications for each design point. Defaults to 10.
  */
-class FactorialDOE(
+class FactorialExperiment(
     private val model: Model,
     private val factorSettings: Map<Factor, String>,
     numRepsPerDesignPoint: Int = 10
@@ -82,7 +81,7 @@ class FactorialDOE(
 
     init {
         require(factorSettings.isNotEmpty()) { "factorControls must not be empty" }
-        require(numRepsPerDesignPoint >= 1)  {"The number of replications per design point must be >= 1." }
+        require(numRepsPerDesignPoint >= 1) { "The number of replications per design point must be >= 1." }
         // check if supplied control or parameter keys make sense for this model
         require(model.validateInputKeys(factorSettings.values.toSet())) {
             "The factor settings contained invalid input names"
@@ -96,7 +95,7 @@ class FactorialDOE(
 
     val factorialDesign = FactorialDesign(factorSettings.keys, "${model}_Factorial_DOE")
 
-    val numDesignPoints : Int
+    val numDesignPoints: Int
         get() = factorialDesign.numDesignPoints
 
     private val myReplicates = IntArray(numDesignPoints) { numRepsPerDesignPoint }
@@ -105,7 +104,7 @@ class FactorialDOE(
      *  Causes any previous simulation runs associated with the execution of design points
      *  to be cleared.
      */
-    fun clearSimulationRuns(){
+    fun clearSimulationRuns() {
         mySimulationRuns.clear()
     }
 
@@ -133,6 +132,26 @@ class FactorialDOE(
         }
 
     /**
+     *  Each design point in the associated factorial design is replicated
+     *  by the number of associated replications held in the property
+     *  designPointReplications. This results in an expanded list of
+     *  design points (as double arrays) with repeated copies
+     *  of the design points within the returned list. The number of
+     *  copies of each design point is based on its associated
+     *  number of replications.
+     */
+    fun replicatedDesignPoints() : List<DoubleArray> {
+        val dpList = mutableListOf<DoubleArray>()
+        val dps = factorialDesign.designPointsToList()
+        for ((i, dp) in dps.withIndex()){
+            for(r in 1..myReplicates[i]){
+                dpList.add(dp.copyOf())
+            }
+        }
+        return dpList
+    }
+
+    /**
      *  Simulates the specified design point from the factorial design for the
      *  specified number of replications.  The specified number of replications
      *  will override whatever is specified in the [experimentRunParameters].
@@ -153,8 +172,8 @@ class FactorialDOE(
         clearRuns: Boolean = false,
         addRuns: Boolean = true
     ) {
-        require(designPoint in 1..numDesignPoints) {"The design point ($designPoint) was not in the design." }
-        require(numReps >= 1) {"The number of replications per design point must be >= 1." }
+        require(designPoint in 1..numDesignPoints) { "The design point ($designPoint) was not in the design." }
+        require(numReps >= 1) { "The number of replications per design point must be >= 1." }
         if (clearRuns) {
             mySimulationRuns.clear()
         }
@@ -164,7 +183,7 @@ class FactorialDOE(
         val inputs = mutableMapOf<String, Double>()
         // fill the inputs map based on the factor level settings
         // the simulation runner takes care of assigning the inputs to the model
-        for((f, v) in dp){
+        for ((f, v) in dp) {
             // get the factor from the design
             val factor = factorialDesign.factors[f]!!
             // get the control parameter from the factor setting
@@ -178,7 +197,7 @@ class FactorialDOE(
         // use SimulationRunner to run the simulation
         val sr = mySimulationRunner.simulate(inputs, model.extractRunParameters())
         // add SimulationRun to simulation run list
-        if (addRuns){
+        if (addRuns) {
             mySimulationRuns.add(sr)
         }
         // reset the model run parameters back to their original values
@@ -204,19 +223,19 @@ class FactorialDOE(
         points: IntArray,
         replications: IntArray,
         clearRuns: Boolean = true,
-    ){
-        require(points.isNotEmpty()){"The design points array must not be empty!"}
-        require(replications.isNotEmpty()){"The replications array must not be empty!"}
-        require(points.size <= numDesignPoints) {"The number of design points must be <= $numDesignPoints"}
-        require(replications.size <= numDesignPoints) {"The size of the replications array must be <= $numDesignPoints"}
-        require(points.size == replications.size) {"The size the arrays must be the same."}
+    ) {
+        require(points.isNotEmpty()) { "The design points array must not be empty!" }
+        require(replications.isNotEmpty()) { "The replications array must not be empty!" }
+        require(points.size <= numDesignPoints) { "The number of design points must be <= $numDesignPoints" }
+        require(replications.size <= numDesignPoints) { "The size of the replications array must be <= $numDesignPoints" }
+        require(points.size == replications.size) { "The size the arrays must be the same." }
         if (clearRuns) {
             mySimulationRuns.clear()
         }
-        for((i,point) in points.withIndex()) {
+        for ((i, point) in points.withIndex()) {
             if (point in 1..numDesignPoints) {
                 // valid design point
-                if (replications[i] >= 1){
+                if (replications[i] >= 1) {
                     // has replications
                     simulateDesignPoint(point, replications[i])
                 }
