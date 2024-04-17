@@ -101,6 +101,7 @@ object SQLiteDb : EmbeddedDbIfc {
         config.setLockingMode(SQLiteConfig.LockingMode.NORMAL)
         config.transactionMode = SQLiteConfig.TransactionMode.IMMEDIATE
         config.setSynchronous(SQLiteConfig.SynchronousMode.NORMAL)
+        config.enforceForeignKeys(true)
         // If read-only, then use the existing journal, if any
         // removed to prevent creation of shm and wal files
 //        if (!readOnly) {

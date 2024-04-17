@@ -60,7 +60,7 @@ class Scenario(
     /**
      *  Simulates the scenario by simulating the model at its current experimental
      *  run parameters using the supplied inputs. Generates a new simulation run
-     *  with each execution
+     *  with each execution.
      */
     fun simulate() {
         simulationRun = simulationRunner.simulate(myInputs, model.extractRunParameters())
@@ -83,7 +83,7 @@ class Scenario(
 class ScenarioRunner(
     name: String,
     scenarioList: List<Scenario> = emptyList(),
-    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir),
+    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
 ) : Identity(name) {
 
     private val myScenarios = mutableListOf<Scenario>()

@@ -68,11 +68,17 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             DatabaseIfc.logger.error { "The database does not have the required tables for a KSLDatabase" }
             throw KSLDatabaseNotConfigured()
         }
+        DatabaseIfc.logger.info { "KSLDatabase ${db.label} at initialization: Clear data option = $clearDataOption" }
         if (clearDataOption) {
+            DatabaseIfc.logger.info { "Started clearing all data for KSLDatabase ${db.label} at initialization." }
             clearAllData()
+            DatabaseIfc.logger.info { "Completed clearing all data for KSLDatabase ${db.label} at initialization." }
         }
     }
 
+    /**
+     * Clears all data from user defined tables
+     */
     fun clearAllData() {
         // remove all data from user tables
         var i = 0
@@ -172,26 +178,26 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * exist with the expName, then nothing occurs.
      *
      * @param expName the experiment name for the simulation
-     * @return true if the record was deleted, false if it was not
      */
-    fun deleteExperimentWithName(expName: String): Boolean {
+    fun deleteExperimentWithName(expName: String) {
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete experiment $expName in database: $label" }
             db.getConnection().use { connection ->
-                val ps = db.makeDeleteFromPreparedStatement(connection, "experiment", "expName", defaultSchemaName)
+                val ps = db.makeDeleteFromPreparedStatement(connection, "experiment", "exp_name", defaultSchemaName)
                 ps.setString(1, expName)
-                val deleted = ps.execute()
-                if (deleted) {
-                    DatabaseIfc.logger.trace { "Deleted Experiment, $expName, for simulation." }
-                } else {
-                    DatabaseIfc.logger.trace { "PreparedStatement: Experiment, $expName, was not deleted." }
-                }
-                return deleted
+                ps.execute()
+                //val deleted = ps.execute()
+//                if (deleted) {
+//                    DatabaseIfc.logger.info { "Deleted Experiment, $expName, for simulation." }
+//                } else {
+//                    DatabaseIfc.logger.info { "PreparedStatement: Experiment, $expName, was not deleted." }
+//                }
+//                return deleted
             }
         } catch (e: SQLException) {
             DatabaseIfc.logger.warn { "There was an SQLException when trying to delete experiment $expName" }
             DatabaseIfc.logger.warn { "SQLException: $e" }
-            return false
+           // return false
         }
     }
 

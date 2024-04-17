@@ -65,9 +65,8 @@ open class Identity(name: String? = null) : IdentityIfc, NameIfc {
         private var IDCounter: Int = 0
     }
 
-    override val id: Int = ++IDCounter
-
-    override val name: String = name ?: ("ID_$id")
+    final override val id: Int = ++IDCounter
+    final override val name: String = if (!name.isNullOrEmpty()) name else "ID_$id"
 
     override var label: String? = this.name
 
