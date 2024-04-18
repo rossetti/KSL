@@ -8,7 +8,8 @@ import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.*
 
 /**
  *  Facilitates the simulation of a model via a factorial design.
@@ -170,11 +171,71 @@ class FactorialExperiment(
      *  of the design points within the data frame. The number of
      *  copies of each design point is based on its associated
      *  number of replications.
+     *  The data frame has columns (exp_name, rep_id, factor1, factor2, ..., factorN)
+     *  where factorK is the name of the kth factor.
      */
     fun replicatedDesignPointsAsDataFrame(): AnyFrame {
         val points = KSLArrays.to2DDoubleArray(replicatedDesignPoints())
         val cols = points.toMapOfLists(factorialDesign.factorNames)
-        return cols.toDataFrame()
+        val expCol = replicatedExpNames().toColumn("exp_name")
+        val repIds = replicationIds().toColumn("rep_id")
+        val df = if (expCol.size() == points.size){
+            expCol.toDataFrame().add(repIds).add(cols.toDataFrame())
+        } else{
+            cols.toDataFrame()
+        }
+        return df
+    }
+
+    /**
+     *  Returns a data frame that has columns (exp_name, rep_id, [responseName]) where
+     *  the values in the [responseName] column have the value of the response for the named experiments
+     *  and the replication id (number) for the value.
+     */
+    fun responseAsDataFrame(responseName: String): AnyFrame {
+        return kslDb.withRepViewStatistics(responseName)
+    }
+
+    /**
+     *  Returns a data frame that has columns (exp_name, rep_id, factor1, factor2, ..., factorN, [responseName]) where
+     *  the values in the [responseName] column have the value of the response for the named experiments
+     *  and the replication id (number) for the value.  The dataframe provides the data
+     *  for performing a response surfacing model for the named response.
+     */
+    fun replicatedDesignPointsWithResponse(responseName: String): AnyFrame {
+        val df1 = replicatedDesignPointsAsDataFrame()
+        val df2 = responseAsDataFrame(responseName)
+        val exp_name by column<String>()
+        val rep_id by column<Int>()
+        return df1.join(df2, type = JoinType.Inner) {exp_name and rep_id}
+    }
+
+    /**
+     *  Supports extraction of replication identifiers from simulation runs
+     */
+    private fun replicationIds() : List<Int> {
+        val list = mutableListOf<Int>()
+        for ((dp, sr) in mySimulationRuns){
+            // dp is design point number 1<=dp<=number of design points
+            for (r in 1..myReplicates[dp-1]){
+                list.add(r)
+            }
+        }
+        return list
+    }
+
+    /**
+     *  Supports extraction of replicated experiment names from simulation runs
+     */
+    private fun replicatedExpNames() : List<String>{
+        val list = mutableListOf<String>()
+        for ((dp, sr) in mySimulationRuns){
+            // dp is design point number 1<=dp<=number of design points
+            for (r in 1..myReplicates[dp-1]){
+                list.add(sr.experimentRunParameters.experimentName)
+            }
+        }
+        return list
     }
 
     /**
