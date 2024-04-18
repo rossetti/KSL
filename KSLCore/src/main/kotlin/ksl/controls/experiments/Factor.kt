@@ -9,7 +9,7 @@ import ksl.utilities.*
  *  That is, they must be unique and increasing in value.
  *  @param values the value for each level as an array. There must be 2 or more values supplied.
  */
-class Factor(
+open class Factor(
     name: String,
     values: DoubleArray = doubleArrayOf(-1.0, 1.0),
 ) : Identity(name) {
@@ -96,4 +96,15 @@ class Factor(
     }
 
 }
+
+/** Creates a two level factor with provided low and high values.
+ *  @param name the name of the factor
+ *  @param low the low value of factor, must be strictly less than the high value
+ *  @param high the high value of the factor, must be strictly greater than the low value
+ */
+class TwoLevelFactor(
+    name: String,
+    low: Double = -1.0,
+    high: Double = 1.0
+) : Factor(name, low, high)
 
