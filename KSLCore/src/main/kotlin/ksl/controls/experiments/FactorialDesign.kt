@@ -310,28 +310,4 @@ class FactorialDesign(
 
 }
 
-fun main() {
-    testFD()
-}
 
-fun testFD() {
-    val f1 = Factor("A", doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-    val f2 = Factor("B", doubleArrayOf(5.0, 9.0))
-    val factors = setOf(f1, f2)
-    val fd = FactorialDesign(factors)
-    println(fd)
-    println()
-    println("Factorial Design as Data Frame")
-    println(fd.designPointsAsDataframe())
-    println()
-    println("Coded Factorial Design as Data Frame")
-    println(fd.codedDesignPointsAsDataframe())
-    println()
-    val array = fd.designPointsTo2DArray()
-    array.print()
-    println()
-    val kd = FactorialDesign.twoToKDesign(setOf("A", "B", "C", "D"))
-    println("Factorial Design as Data Frame")
-    println(kd.designPointsAsDataframe())
-    println()
-}

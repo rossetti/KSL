@@ -33,6 +33,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.StatisticIfc
+import org.jetbrains.kotlinx.dataframe.AnyFrame
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -255,6 +256,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             df = df.remove("numColumns", "schemaName", "tableName")
             return df
         }
+
+    /**
+     *  Returns a data frame that has columns (exp_name, rep_id, [responseName]) where
+     *  the values in the [responseName] column have the value of the response for the named experiments
+     *  and the replication id (number) for the value.
+     */
+    fun withRepViewStatistics(responseName: String): AnyFrame {
+        val dm = withinRepViewStatistics.filter { "stat_name"<String>() == responseName }
+        return dm.select("exp_name", "rep_id", "rep_value").rename{dm.getColumn("rep_value")}.into(responseName)
+    }
 
     val acrossReplicationStatistics: DataFrame<AcrossRepViewData>
         get() {

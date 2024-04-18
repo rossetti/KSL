@@ -19,9 +19,11 @@
 package ksl.examples.general.running
 
 import ksl.controls.experiments.Factor
+import ksl.controls.experiments.FactorialDesign
 import ksl.controls.experiments.FactorialExperiment
 import ksl.simulation.Model
-import org.jetbrains.kotlinx.dataframe.api.print
+import ksl.utilities.io.print
+import org.jetbrains.kotlinx.dataframe.api.*
 
 fun main(){
 
@@ -71,6 +73,23 @@ fun simulateFactorialDesign(){
     println()
     fd.simulateDesign()
     println("Simulation of the design is completed")
+    val df2 = fd.replicatedDesignPointsAsDataFrame()
+
+    df2.print(rowsLimit = 36)
+    println()
+
+    val df3 = fd.responseAsDataFrame("System Time")
+    df3.print(rowsLimit = 36)
+
+    val df4 = fd.replicatedDesignPointsWithResponse("System Time")
+    df4.print(rowsLimit = 36)
+
+//    fd.kslDb.withinRepViewStatistics.schema().print()
+//    println()
+//    val dm = fd.kslDb.withinRepViewStatistics.filter { "stat_name"<String>().equals("System Time") }
+
+  //  val dm = fd.kslDb.withinRepViewStatistics.drop { "stat_name"<String>().equals("System Time") }
+//    dm.print(rowsLimit = 50)
 
 //    for(sr in fd.simulationRuns){
 //        KSL.out.println(sr.toJson())
@@ -82,4 +101,26 @@ fun simulateFactorialDesign(){
 
     // This second set of runs will clear the first set from the database
  //   fd.simulateDesign()
+}
+
+fun testFD() {
+    val f1 = Factor("A", doubleArrayOf(1.0, 2.0, 3.0, 4.0))
+    val f2 = Factor("B", doubleArrayOf(5.0, 9.0))
+    val factors = setOf(f1, f2)
+    val fd = FactorialDesign(factors)
+    println(fd)
+    println()
+    println("Factorial Design as Data Frame")
+    println(fd.designPointsAsDataframe())
+    println()
+    println("Coded Factorial Design as Data Frame")
+    println(fd.codedDesignPointsAsDataframe())
+    println()
+    val array = fd.designPointsTo2DArray()
+    array.print()
+    println()
+    val kd = FactorialDesign.twoToKDesign(setOf("A", "B", "C", "D"))
+    println("Factorial Design as Data Frame")
+    println(kd.designPointsAsDataframe())
+    println()
 }
