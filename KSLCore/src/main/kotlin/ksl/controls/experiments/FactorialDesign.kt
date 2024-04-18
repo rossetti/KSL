@@ -2,41 +2,10 @@ package ksl.controls.experiments
 
 import ksl.utilities.Identity
 import ksl.utilities.KSLArrays
-import ksl.utilities.io.print
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import kotlin.math.min
-
-///**
-// *  Represents a point in a factorial design.
-// *
-// *  @param number the number of the point in the sequence of points of the design
-// *  @param settings holds pairs (factor name, value) to be assigned
-// *  for the factors at this design point.
-// *  @param coded indicates if the values in the settings are original (false) or
-// *  coded (true).
-// */
-//class DesignPoint(
-//    val number: Int,
-//    val settings: Map<String, Double>,
-//    val coded: Boolean
-//) {
-//    /**
-//     *  Indicates the desired number of replications of this design point.
-//     *  Must be 1 or more.
-//     */
-//    var numberOfReplications: Int = 1
-//        set(value) {
-//            require(value >= 1) { "number must be >= 1" }
-//            field = value
-//        }
-//
-//    override fun toString(): String {
-//        return "DesignPoint(number=$number, settings=$settings, coded=$coded, numberOfReplications=$numberOfReplications)"
-//    }
-//
-//}
 
 /**
  *  The number of elements that would exist in the
@@ -184,31 +153,6 @@ class FactorialDesign(
         }
         return rowMap
     }
-
-//    /**
-//     *  Returns the design point at the kth row of the factorial design based
-//     *  on the cartesian product of the factors and their levels. The returned
-//     *  DesignPoint holds pairs (factor name, level) for each of the factor settings
-//     *  at the designated design point.
-//     *
-//     *  @param k must be in 1 to numDesignPoints
-//     */
-//    fun designPoint(k: Int, coded: Boolean = false): DesignPoint {
-//        val data = if (coded) designPointToMap(k) else codedDesignPointToMap(k)
-//        return DesignPoint(k, data, coded)
-//    }
-//
-//    /**
-//     *  Returns all the design points based on the cartesian product of the factors and their levels.
-//     *  The rows of the list are the design points.
-//     */
-//    fun designPoints(coded: Boolean = false): List<DesignPoint> {
-//        val list = mutableListOf<DesignPoint>()
-//        for (i in 1..numDesignPoints) {
-//            list.add(designPoint(i, coded))
-//        }
-//        return list
-//    }
 
     /**
      *  Returns all the design points based on the cartesian product of the factors and their levels.

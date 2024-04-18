@@ -1,6 +1,5 @@
 package ksl.controls.experiments
 
-import ksl.controls.ControlIfc
 import ksl.utilities.*
 
 /**
@@ -96,96 +95,5 @@ class Factor(
         return result
     }
 
-    companion object {
-
-//        /**
-//         *  Creates a factor with the same name as the control that has
-//         *  the specified values for its levels. There must be 2 or more
-//         *  values specified, they must be strictly increasing, and within
-//         *  the range of the control.
-//         *
-//         */
-//        fun create(control: ControlIfc, values: DoubleArray): Factor {
-//            require(values.size >= 2) { "At least 2 values must be in the array." }
-//            require(values.isStrictlyIncreasing()) { "The supplied values must be strictly increasing in value" }
-//            for(value in values) {
-//                require(control.withinRange(value)) {"The supplied value = $value was outside the range of values for the control" }
-//            }
-//            return Factor(control.keyName, values)
-//        }
-//
-//        /**
-//         *  Creates a factor with the same name as the control that has
-//         *  the specified [low] and [high] values for its levels.
-//         *  Low must be strictly less than high and both within the range for the control.
-//         */
-//        fun create(control: ControlIfc, low: Double, high: Double): Factor {
-//            require (low < high) {"The low value must be strictly less than the high value" }
-//            require(control.withinRange(low)) {"The supplied value = $low was outside the range of values for the control" }
-//            require(control.withinRange(high)) {"The supplied value = $high was outside the range of values for the control" }
-//            return Factor(control.keyName, low, high)
-//        }
-
-    }
 }
 
-fun main() {
-//    testCP()
-//    println()
-//    testCPRow()
-
-    testFactor()
-}
-
-fun testFactor() {
-    val f = Factor("A", doubleArrayOf(5.0, 10.0, 15.0, 20.0, 25.0))
-    println(f)
-    val g = Factor("G", 5..25 step 5)
-    println(g)
-    val x = Factor("X")
-    println(x)
-}
-
-fun testCP() {
-    val a = setOf(1, 2)
-    val b = setOf(3, 4)
-    val c = setOf(5)
-    val d = setOf(6, 7, 8)
-
-    val abcd = KSLArrays.cartesianProduct(a, b, c, d)
-
-    println(abcd)
-    println()
-
-    val s1 = setOf(1.0, 2.0)
-    val s2 = setOf(3.0, 4.0)
-    val s3 = setOf(5.0)
-    val s4 = setOf(6.0, 7.0, 8.0)
-    val s1s2s3s4 = KSLArrays.cartesianProductOfDoubles(s1, s2, s3, s4)
-    println()
-    for ((i, s) in s1s2s3s4.withIndex()) {
-        println("The element at index $i is: ${s1s2s3s4[i].joinToString()}")
-    }
-}
-
-fun testCPRow() {
-    val a = intArrayOf(1, 2)
-    val b = intArrayOf(3, 4)
-    val c = intArrayOf(5)
-    val d = intArrayOf(6, 7, 8)
-    val n = a.size * b.size * c.size * d.size
-    val array = arrayOf(a, b, c, d)
-
-    println()
-    val index = 4
-    val r = KSLArrays.cartesianProductRow(array, index)
-    println("The element at index $index is: ${r.joinToString()}")
-
-    println()
-    println("Elements via indexed rows:")
-    for (i in 0..<n) {
-        val result = KSLArrays.cartesianProductRow(array, i)
-        println("The element at index $i is: ${result.joinToString()}")
-    }
-    println()
-}
