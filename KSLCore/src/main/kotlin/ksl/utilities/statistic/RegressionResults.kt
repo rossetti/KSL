@@ -454,7 +454,10 @@ data class RegressionData(
          *  Create the regression data from a data frame. The data frame
          *  must have a column with the response name [responseName] and
          *  columns with the names in the list [predictorNames]. The
-         *  data type of these columns must be Double.
+         *  data type of these columns must be Double. [hasIntercept] indicates
+         *  if the regression should include an intercept term. The default is
+         *  true. The data in the data frame does not need to have a column
+         *  for estimating the intercept.
          */
         fun create(
             df: AnyFrame,
@@ -500,9 +503,7 @@ data class RegressionData(
  *  Performs Ordinary Least Squares fit of the data with the response.
  *  The default is to assume that an intercept term will be estimated.
  *
- *  @param response an array of length n, where n is the number of observations
- *  @param data an n by k matrix where k is the number of columns
- *  @param hasIntercept if true the intercept will be estimated
+ *  @param regressionData specifies the data for the regression
  */
 class OLSRegression(regressionData: RegressionData) : RegressionResultsIfc {
 
@@ -513,6 +514,15 @@ class OLSRegression(regressionData: RegressionData) : RegressionResultsIfc {
         loadData(regressionData)
     }
 
+    /**
+     *  Create the regression data from a data frame. The data frame
+     *  must have a column with the response name [responseName] and
+     *  columns with the names in the list [predictorNames]. The
+     *  data type of these columns must be Double. [hasIntercept] indicates
+     *  if the regression should include an intercept term. The default is
+     *  true. The data in the data frame does not need to have a column
+     *  for estimating the intercept.
+     */
     constructor(
         df: AnyFrame,
         responseName: String,
