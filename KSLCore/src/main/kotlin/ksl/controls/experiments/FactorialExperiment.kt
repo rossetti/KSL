@@ -2,9 +2,13 @@ package ksl.controls.experiments
 
 import ksl.simulation.Model
 import ksl.utilities.Identity
+import ksl.utilities.KSLArrays
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import ksl.utilities.toMapOfLists
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 /**
  *  Facilitates the simulation of a model via a factorial design.
@@ -156,6 +160,21 @@ class FactorialExperiment(
             }
         }
         return dpList
+    }
+
+    /**
+     *  Each design point in the associated factorial design is replicated
+     *  by the number of associated replications held in the property
+     *  designPointReplications. This results in an expanded list of
+     *  design points within a dataframe with repeated copies
+     *  of the design points within the data frame. The number of
+     *  copies of each design point is based on its associated
+     *  number of replications.
+     */
+    fun replicatedDesignPointsAsDataFrame(): AnyFrame {
+        val points = KSLArrays.to2DDoubleArray(replicatedDesignPoints())
+        val cols = points.toMapOfLists(factorialDesign.factorNames)
+        return cols.toDataFrame()
     }
 
     /**

@@ -21,8 +21,7 @@ package ksl.examples.general.running
 import ksl.controls.experiments.Factor
 import ksl.controls.experiments.FactorialExperiment
 import ksl.simulation.Model
-import ksl.utilities.io.KSL
-import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import org.jetbrains.kotlinx.dataframe.api.print
 
 fun main(){
 
@@ -64,16 +63,23 @@ fun simulateFactorialDesign(){
     )
     val m = buildModel()
     val fd = FactorialExperiment("FactorDesignTest", m, factors, 3)
-    fd.simulateDesign()
 
-    for(sr in fd.simulationRuns){
-        KSL.out.println(sr.toJson())
-        KSL.out.println()
-        val r = sr.statisticalReporter()
-        println(r.halfWidthSummaryReport(title = sr.name))
-        println()
-    }
+    println("Design points being simulated")
+    val df = fd.replicatedDesignPointsAsDataFrame()
+
+    df.print(rowsLimit = 36)
+    println()
+    fd.simulateDesign()
+    println("Simulation of the design is completed")
+
+//    for(sr in fd.simulationRuns){
+//        KSL.out.println(sr.toJson())
+//        KSL.out.println()
+//        val r = sr.statisticalReporter()
+//        println(r.halfWidthSummaryReport(title = sr.name))
+//        println()
+//    }
 
     // This second set of runs will clear the first set from the database
-    fd.simulateDesign()
+ //   fd.simulateDesign()
 }
