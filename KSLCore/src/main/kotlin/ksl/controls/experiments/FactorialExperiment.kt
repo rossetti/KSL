@@ -209,11 +209,7 @@ class FactorialExperiment(
      *  for performing a response surfacing model for the named response.
      */
     fun replicatedDesignPointsWithResponse(responseName: String): AnyFrame {
-        val df1 = replicatedDesignPointsAsDataFrame()
-        val df2 = responseAsDataFrame(responseName)
-        val exp_name by column<String>()
-        val rep_id by column<Int>()
-        return df1.join(df2, type = JoinType.Inner) {exp_name and rep_id}
+        return replicatedDesignPointsWithResponses(setOf(responseName))
     }
 
     /**
@@ -225,7 +221,7 @@ class FactorialExperiment(
      *  and the replication id (number) for the value.  The dataframe provides the data
      *  for performing a response surfacing model for the named responses.
      */
-    fun replicatedDesignPointsWithResponses(names: List<String> = responseNames): AnyFrame {
+    fun replicatedDesignPointsWithResponses(names: Set<String> = responseNames.toSet()): AnyFrame {
         require(names.isNotEmpty()) {"The supplied names cannot be empty" }
         val vn = responseNames
         var df = replicatedDesignPointsAsDataFrame()
