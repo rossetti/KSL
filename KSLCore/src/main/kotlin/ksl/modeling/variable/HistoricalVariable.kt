@@ -149,7 +149,7 @@ class HistoricalVariable(
     }
 
     private fun stoppingAction(historicalVariable: HistoricalVariable){
-        executive.stop("Historical variable: $name: Stopped replication = ${model.currentReplicationNumber} at time $time")
+        executive.stop("Historical variable: ${historicalVariable.name}: Stopped replication = ${model.currentReplicationNumber} at time $time")
         model.endSimulation("Ended all replications by historical variable: $name")
     }
 
