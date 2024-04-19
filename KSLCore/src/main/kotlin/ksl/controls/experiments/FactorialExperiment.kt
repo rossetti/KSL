@@ -173,6 +173,26 @@ class FactorialExperiment(
     }
 
     /**
+     *  Each coded design point in the associated factorial design is replicated
+     *  by the number of associated replications held in the property
+     *  designPointReplications. This results in an expanded list of
+     *  design points (as double arrays) with repeated copies
+     *  of the design points within the returned list. The number of
+     *  copies of each design point is based on its associated
+     *  number of replications.
+     */
+    fun replicatedCodedDesignPoints() : List<DoubleArray> {
+        val dpList = mutableListOf<DoubleArray>()
+        val dps = factorialDesign.codedDesignPointsToList()
+        for ((i, dp) in dps.withIndex()){
+            for(r in 1..myReplicates[i]){
+                dpList.add(dp.copyOf())
+            }
+        }
+        return dpList
+    }
+
+    /**
      *  Each design point in the associated factorial design is replicated
      *  by the number of associated replications held in the property
      *  designPointReplications. This results in an expanded list of
@@ -185,6 +205,30 @@ class FactorialExperiment(
      */
     fun replicatedDesignPointsAsDataFrame(): AnyFrame {
         val points = KSLArrays.to2DDoubleArray(replicatedDesignPoints())
+        val cols = points.toMapOfLists(factorialDesign.factorNames)
+        val expCol = replicatedExpNames().toColumn("exp_name")
+        val repIds = replicationIds().toColumn("rep_id")
+        val df = if (expCol.size() == points.size){
+            expCol.toDataFrame().add(repIds).add(cols.toDataFrame())
+        } else{
+            cols.toDataFrame()
+        }
+        return df
+    }
+
+    /**
+     *  Each design point in the associated factorial design is replicated
+     *  by the number of associated replications held in the property
+     *  designPointReplications. This results in an expanded list of
+     *  design points within a dataframe with repeated copies
+     *  of the design points within the data frame. The number of
+     *  copies of each design point is based on its associated
+     *  number of replications.
+     *  The data frame has columns (exp_name, rep_id, factor1, factor2, ..., factorN)
+     *  where factorK is the name of the kth factor.
+     */
+    fun replicatedCodedDesignPointsAsDataFrame(): AnyFrame {
+        val points = KSLArrays.to2DDoubleArray(replicatedCodedDesignPoints())
         val cols = points.toMapOfLists(factorialDesign.factorNames)
         val expCol = replicatedExpNames().toColumn("exp_name")
         val repIds = replicationIds().toColumn("rep_id")
@@ -228,6 +272,42 @@ class FactorialExperiment(
         require(names.isNotEmpty()) {"The supplied names cannot be empty" }
         val vn = responseNames
         var df = replicatedDesignPointsAsDataFrame()
+        val exp_name by column<String>()
+        val rep_id by column<Int>()
+        for(name in names){
+            if (vn.contains(name)) {
+                val df2 = responseAsDataFrame(name)
+                df = df.join(df2, type = JoinType.Inner) { exp_name and rep_id }
+            }
+        }
+        return df
+    }
+
+    /**
+     *  Returns a data frame that has columns (exp_name, rep_id, factor1, factor2, ..., factorN, [responseName]) where
+     *  the values in the [responseName] column have the value of the response for the named experiments
+     *  and the replication id (number) for the value.
+     *  The factor levels are specified by their coded values.
+     *  The dataframe provides the data for performing a response surfacing model for the named response.
+     */
+    fun replicatedCodedDesignPointsWithResponse(responseName: String): AnyFrame {
+        return replicatedCodedDesignPointsWithResponses(setOf(responseName))
+    }
+
+    /**
+     *  Returns a data frame that has columns:
+     *
+     *  (exp_name, rep_id, factor1, factor2, ..., factorN, responseName1, responseName2, ...)
+     *
+     *  where the values in the response name columns have the value of the response for the named experiments
+     *  and the replication id (number) for the value.
+     *  The factor levels are specified by their coded values.
+     *  The dataframe provides the data for performing a response surfacing model for the named responses.
+     */
+    fun replicatedCodedDesignPointsWithResponses(names: Set<String> = responseNames.toSet()): AnyFrame {
+        require(names.isNotEmpty()) {"The supplied names cannot be empty" }
+        val vn = responseNames
+        var df = replicatedCodedDesignPointsAsDataFrame()
         val exp_name by column<String>()
         val rep_id by column<Int>()
         for(name in names){
@@ -396,4 +476,22 @@ class FactorialExperiment(
         val out = KSLFileUtil.createPrintWriter(directory.resolve(fileName))
         df.writeCSV(out)
     }
+
+    /**
+     *  Writes the results to a csv formatted file
+     *
+     *  (exp_name, rep_id, factor1, factor2, ..., factorN, responseName1, responseName2, ...)
+     *
+     *  where the values in the response name columns have the value of the response for the named experiments
+     *  and the replication id (number) for the value.
+     */
+    fun codedResultsToCSV(
+        fileName: String = name.replace(" ", "_") + ".csv",
+        directory: Path = KSL.csvDir){
+        val df = replicatedCodedDesignPointsWithResponses()
+        val out = KSLFileUtil.createPrintWriter(directory.resolve(fileName))
+        df.writeCSV(out)
+    }
+
+
 }
