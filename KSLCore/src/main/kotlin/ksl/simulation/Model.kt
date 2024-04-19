@@ -92,6 +92,19 @@ class Model(
         get() = myCounters
 
     /**
+     *  The names of all the response variables and counters in the model
+     */
+    val responseNames: List<String>
+        get() {
+            val list = mutableListOf<String>()
+            val r = myResponses.map { it.name }
+            val c = myCounters.map { it.name }
+            list.addAll(r)
+            list.addAll(c)
+            return list
+        }
+
+    /**
      * A list of all the Variables within the model
      */
     private var myVariables: MutableList<Variable> = ArrayList()
