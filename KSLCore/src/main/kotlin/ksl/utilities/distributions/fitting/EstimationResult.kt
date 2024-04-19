@@ -101,7 +101,7 @@ class EstimationResult(
         return if (this.parameters == null) {
             mapOf()
         } else {
-            parameters!!.asDoubleMap()
+            parameters.asDoubleMap()
         }
     }
 
@@ -119,7 +119,7 @@ class EstimationResult(
         return if (this.parameters == null) {
             doubleArrayOf()
         } else {
-            parameters!!.asDoubleArray()
+            parameters.asDoubleArray()
         }
     }
 

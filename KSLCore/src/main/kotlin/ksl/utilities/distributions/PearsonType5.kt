@@ -202,6 +202,6 @@ fun main(){
 
     val sm = AndersonDarlingScoringModel()
 
-    sm.score(data, result.parameters!!)
+    sm.score(data, result.parameters)
 
 }

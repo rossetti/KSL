@@ -45,11 +45,8 @@ dependencies {
 //    api(group = "ch.qos.logback", name = "logback-core", version = "1.2.10")
 
 //TODO probably not needed because only used in KSLCore
-    api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-//    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
-//    implementation("org.junit.jupiter:junit-jupiter:5.7.0")
-//    implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.10")
+    api("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
     testImplementation(kotlin("test"))
     implementation(kotlin("stdlib-jdk8"))

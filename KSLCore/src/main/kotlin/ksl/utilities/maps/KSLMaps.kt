@@ -225,7 +225,7 @@ fun Map<String, DoubleArray>.statisticalSummaries(): Map<String, StatisticIfc> {
  *  Computes the confidence intervals for the data in the map
  */
 fun Map<String, DoubleArray>.confidenceIntervals(level: Double = 0.95): Map<String, Interval> {
-    return Statistic.confidenceIntervals(this)
+    return Statistic.confidenceIntervals(this, level)
 }
 
 /**
