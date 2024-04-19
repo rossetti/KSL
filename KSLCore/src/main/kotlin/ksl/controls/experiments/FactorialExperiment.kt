@@ -110,6 +110,12 @@ class FactorialExperiment(
     val numDesignPoints: Int
         get() = factorialDesign.numDesignPoints
 
+    /**
+     *  The names of the responses or counters in the model
+     */
+    val responseNames: List<String>
+        get() = model.responseNames
+
     private val myReplicates = IntArray(numDesignPoints) { numRepsPerDesignPoint }
 
     /**
@@ -208,6 +214,30 @@ class FactorialExperiment(
         val exp_name by column<String>()
         val rep_id by column<Int>()
         return df1.join(df2, type = JoinType.Inner) {exp_name and rep_id}
+    }
+
+    /**
+     *  Returns a data frame that has columns:
+     *
+     *  (exp_name, rep_id, factor1, factor2, ..., factorN, responseName1, responseName2, ...)
+     *
+     *  where the values in the response name columns have the value of the response for the named experiments
+     *  and the replication id (number) for the value.  The dataframe provides the data
+     *  for performing a response surfacing model for the named responses.
+     */
+    fun replicatedDesignPointsWithResponses(names: List<String> = responseNames): AnyFrame {
+        require(names.isNotEmpty()) {"The supplied names cannot be empty" }
+        val vn = responseNames
+        var df = replicatedDesignPointsAsDataFrame()
+        val exp_name by column<String>()
+        val rep_id by column<Int>()
+        for(name in names){
+            if (vn.contains(name)) {
+                val df2 = responseAsDataFrame(name)
+                df = df.join(df2, type = JoinType.Inner) { exp_name and rep_id }
+            }
+        }
+        return df
     }
 
     /**
