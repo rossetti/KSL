@@ -90,6 +90,8 @@ fun simulateFactorialDesign(){
     val df5 = fd.replicatedDesignPointsWithResponses()
     df5.print(rowsLimit = 36)
 
+    fd.resultsToCSV()
+
 //    fd.kslDb.withinRepViewStatistics.schema().print()
 //    println()
 //    val dm = fd.kslDb.withinRepViewStatistics.filter { "stat_name"<String>().equals("System Time") }

@@ -198,7 +198,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         } catch (e: SQLException) {
             DatabaseIfc.logger.warn { "There was an SQLException when trying to delete experiment $expName" }
             DatabaseIfc.logger.warn { "SQLException: $e" }
-           // return false
+            // return false
         }
     }
 
@@ -263,8 +263,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      *  and the replication id (number) for the value.
      */
     fun withRepViewStatistics(responseName: String): AnyFrame {
-        val dm = withinRepViewStatistics.filter { "stat_name"<String>() == responseName }
-        return dm.select("exp_name", "rep_id", "rep_value").rename{dm.getColumn("rep_value")}.into(responseName)
+        val stat_name by column<String>()
+        var dm = withinRepViewStatistics.filter { stat_name() == responseName }
+        val rep_value by column<Double>()
+        val exp_name by column<String>()
+        val rep_id by column<Int>()
+        dm = dm.select(exp_name, rep_id, rep_value)
+        dm = dm.rename { rep_value }.into { responseName }
+        return dm
     }
 
     val acrossReplicationStatistics: DataFrame<AcrossRepViewData>
@@ -448,7 +454,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         KSL.logger.error { "The user attempted to run a simulation for an experiment that has " }
         KSL.logger.error { " the same name as an existing experiment without allowing its data to be cleared." }
         KSL.logger.error { "The user should consider explicitly clearing data within the database associated with experiment $expName." }
-        KSL.logger.error {" This can be accomplished by using the clearAllData() or deleteExperimentWithName(expName=$expName) functions prior to rerunning."}
+        KSL.logger.error { " This can be accomplished by using the clearAllData() or deleteExperimentWithName(expName=$expName) functions prior to rerunning." }
         KSL.logger.error { "Or, the user might change the name of the experiment before calling simulating the model." }
         KSL.logger.error { "This error is to prevent the user from accidentally losing data associated with simulation: $simName, and experiment: $expName in database ${db.label}" }
         throw DataAccessException("An experiment record already exists with the experiment name $expName. Check the ksl.log for details.")
@@ -922,7 +928,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         fun createSQLiteKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
             val database = SQLiteDb.createDatabase(dbName, dbDirectory)
             val executed = database.executeScript(dbScriptsDir.resolve("KSL_SQLite.sql"))
-           // database.defaultSchemaName = "main"
+            // database.defaultSchemaName = "main"
             if (!executed) {
                 DatabaseIfc.logger.error { "Unable to execute KSL_SQLite.sql creation script" }
                 throw DataAccessException("The execution script KSL_SQLite.sql did not fully execute")

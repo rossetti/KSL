@@ -4,12 +4,15 @@ import ksl.simulation.Model
 import ksl.utilities.Identity
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
+import org.jetbrains.kotlinx.dataframe.io.writeCSV
+import java.nio.file.Path
 
 /**
  *  Facilitates the simulation of a model via a factorial design.
@@ -376,5 +379,21 @@ class FactorialExperiment(
         }
         val points = (1..numDesignPoints).toList().toIntArray()
         simulateDesignPoints(points, designPointReplications, clearRuns)
+    }
+
+    /**
+     *  Writes the results to a csv formatted file
+     *
+     *  (exp_name, rep_id, factor1, factor2, ..., factorN, responseName1, responseName2, ...)
+     *
+     *  where the values in the response name columns have the value of the response for the named experiments
+     *  and the replication id (number) for the value.
+    */
+    fun resultsToCSV(
+        fileName: String = name.replace(" ", "_") + ".csv",
+        directory: Path = KSL.csvDir){
+        val df = replicatedDesignPointsWithResponses()
+        val out = KSLFileUtil.createPrintWriter(directory.resolve(fileName))
+        df.writeCSV(out)
     }
 }
