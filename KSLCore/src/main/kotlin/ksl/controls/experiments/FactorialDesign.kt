@@ -19,6 +19,36 @@ fun Set<Factor>.cartesianProductSize(): Int {
     return n
 }
 
+interface FactorialDesignIfc {
+    val factors: Map<String, Factor>
+    val numDesignPoints: Int
+    val factorNames: List<String>
+
+    /**
+     *  Returns all the design points based on the cartesian product of the factors and their levels.
+     *  The element arrays of the returned list are the design points. The element
+     *  array's 0th element represents the first factor in the list of factor names.
+     */
+    fun designPointsToList(): List<DoubleArray>
+
+    /**
+     *  Returns all the design points based on the cartesian product of the factors and their levels.
+     *  The element arrays of the returned list are the design points. The element
+     *  array's 0th element represents the first factor in the list of factor names.
+     */
+    fun codedDesignPointsToList(): List<DoubleArray>
+
+    /**
+     *  Returns the design point at the kth row of the factorial design based
+     *  on the cartesian product of the factors and their levels. The returned
+     *  map holds pairs (factor name, level) for each of the factor settings
+     *  at the designated design point.
+     *
+     *  @param k must be in 1 to numDesignPoints
+     */
+    fun designPointToMap(k: Int): Map<String, Double>
+}
+
 /**
  *  A factorial design represents a list of design points where every design point
  *  represents a possible row in the cartesian product of the levels for the
@@ -34,16 +64,16 @@ fun Set<Factor>.cartesianProductSize(): Int {
 class FactorialDesign(
     factors: Set<Factor>,
     name: String? = null
-) : Identity(name) {
+) : Identity(name), FactorialDesignIfc {
 
     private val myFactors = mutableMapOf<String, Factor>()
 
-    val factors: Map<String, Factor>
+    override val factors: Map<String, Factor>
         get() = myFactors
 
-    val numDesignPoints: Int
+    override val numDesignPoints: Int
 
-    val factorNames: List<String>
+    override val factorNames: List<String>
 
     private val myLevels: List<DoubleArray>
     private val myCodedLevels: List<DoubleArray>
@@ -98,7 +128,7 @@ class FactorialDesign(
      *  The element arrays of the returned list are the design points. The element
      *  array's 0th element represents the first factor in the list of factor names.
      */
-    fun designPointsToList(): List<DoubleArray> {
+    override fun designPointsToList(): List<DoubleArray> {
         val list = mutableListOf<DoubleArray>()
         for (i in 1..numDesignPoints) {
             list.add(designPointToArray(i))
@@ -120,7 +150,7 @@ class FactorialDesign(
      *  The element arrays of the returned list are the design points. The element
      *  array's 0th element represents the first factor in the list of factor names.
      */
-    fun codedDesignPointsToList(): List<DoubleArray> {
+    override fun codedDesignPointsToList(): List<DoubleArray> {
         val list = mutableListOf<DoubleArray>()
         for (i in 1..numDesignPoints) {
             list.add(codedDesignPointToArray(i))
@@ -145,7 +175,7 @@ class FactorialDesign(
      *
      *  @param k must be in 1 to numDesignPoints
      */
-    fun designPointToMap(k: Int): Map<String, Double> {
+    override fun designPointToMap(k: Int): Map<String, Double> {
         val rowMap = mutableMapOf<String, Double>()
         val points = designPointToArray(k)
         for ((i, point) in points.withIndex()) {
@@ -248,6 +278,20 @@ class FactorialDesign(
                 set.add(Factor(name))
             }
             return FactorialDesign(set)
+        }
+
+        /**
+         *  Create a coded 2-Level full-factorial design matrix
+         *
+         *  @param numFactors the number of factors in the design
+         *  @return the 2d design matrix
+         */
+        fun fullFactorial2Levels(numFactors: Int): Array<DoubleArray> {
+            require(numFactors >= 2) { "There must be at least 2 factors" }
+            // make the names
+            val names = List(numFactors) { "A$it" }.toSet()
+            val fd = twoToKDesign(names)
+            return fd.designPointsTo2DArray()
         }
     }
 

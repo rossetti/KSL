@@ -105,7 +105,7 @@ class FactorialExperiment(
     /**
      *  The factorial design implied by the factors
      */
-    val factorialDesign = FactorialDesign(factorSettings.keys, "${model}_Factorial_DOE")
+    val factorialDesign: FactorialDesignIfc = FactorialDesign(factorSettings.keys, "${model}_Factorial_DOE")
 
     /**
      *  The number of design points in the base design (without replications)
