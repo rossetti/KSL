@@ -20,6 +20,7 @@ fun Set<Factor>.cartesianProductSize(): Int {
 }
 
 class DesignPoint internal constructor(
+    val design: FactorialDesignIfc,
     val number: Int,
     val settings: Map<Factor, Double>
 )
@@ -212,7 +213,7 @@ class FactorialDesign(
             val factor = myFactors[factorNames[i]]!!
             rowMap[factor] = point
         }
-        return DesignPoint(k, rowMap)
+        return DesignPoint(this, k, rowMap)
     }
 
     /**
