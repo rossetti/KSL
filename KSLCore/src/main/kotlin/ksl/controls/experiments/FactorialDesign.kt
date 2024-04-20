@@ -19,8 +19,8 @@ fun Set<Factor>.cartesianProductSize(): Int {
     return n
 }
 
-class DesignPoint internal constructor (
-    val number:Int,
+class DesignPoint internal constructor(
+    val number: Int,
     val settings: Map<Factor, Double>
 )
 
@@ -52,6 +52,39 @@ interface FactorialDesignIfc {
      *  @param k must be in 1 to numDesignPoints
      */
     fun designPointToMap(k: Int): Map<String, Double>
+
+    /**
+     *  Returns the design point at the kth row of the factorial design based
+     *  on the cartesian product of the factors and their levels.
+     *
+     *  @param k must be in 1 to numDesignPoints
+     *  @return the returned DesignPoint
+     */
+    fun designPoint(k: Int): DesignPoint
+
+    /**
+     *  Returns the name of the factor. The first factor is at k = 1
+     *  @param k must be in 1 to number of factors
+     */
+    fun factorName(k: Int): String = factorNames[k - 1]
+
+    /**
+     *  Returns all the design points based on the cartesian product of the factors and their levels
+     *  as a 2D array.  The rows of the array are the design points.
+     *  The row array's 0th element represents the first factor in the list of factor names.
+     */
+    fun designPointsTo2DArray(): Array<DoubleArray> {
+        return KSLArrays.to2DDoubleArray(designPointsToList())
+    }
+
+    /**
+     *  Returns all the design points based on the cartesian product of the factors and their levels
+     *  as a 2D array. The rows of the array are the design points.
+     *  The row array's 0th element represents the first factor in the list of factor names.
+     */
+    fun codedDesignPointsTo2DArray(): Array<DoubleArray> {
+        return KSLArrays.to2DDoubleArray(codedDesignPointsToList())
+    }
 }
 
 /**
@@ -103,12 +136,6 @@ class FactorialDesign(
     }
 
     /**
-     *  Returns the name of the factor. The first factor is at k = 1
-     *  @param k must be in 1 to number of factors
-     */
-    fun factorName(k: Int): String = factorNames[k - 1]
-
-    /**
      *  Returns the design point at the kth row of the factorial design based
      *  on the cartesian product of the factors and their levels.
      *  @param k must be in 1 to numDesignPoints
@@ -142,15 +169,6 @@ class FactorialDesign(
     }
 
     /**
-     *  Returns all the design points based on the cartesian product of the factors and their levels
-     *  as a 2D array.  The rows of the array are the design points.
-     *  The row array's 0th element represents the first factor in the list of factor names.
-     */
-    fun designPointsTo2DArray(): Array<DoubleArray> {
-        return KSLArrays.to2DDoubleArray(designPointsToList())
-    }
-
-    /**
      *  Returns all the design points based on the cartesian product of the factors and their levels.
      *  The element arrays of the returned list are the design points. The element
      *  array's 0th element represents the first factor in the list of factor names.
@@ -161,15 +179,6 @@ class FactorialDesign(
             list.add(codedDesignPointToArray(i))
         }
         return list
-    }
-
-    /**
-     *  Returns all the design points based on the cartesian product of the factors and their levels
-     *  as a 2D array. The rows of the array are the design points.
-     *  The row array's 0th element represents the first factor in the list of factor names.
-     */
-    fun codedDesignPointsTo2DArray(): Array<DoubleArray> {
-        return KSLArrays.to2DDoubleArray(codedDesignPointsToList())
     }
 
     /**
@@ -196,7 +205,7 @@ class FactorialDesign(
      *  @param k must be in 1 to numDesignPoints
      *  @return the returned DesignPoint
      */
-    fun designPoint(k: Int) : DesignPoint {
+    override fun designPoint(k: Int): DesignPoint {
         val rowMap = mutableMapOf<Factor, Double>()
         val points = designPointToArray(k)
         for ((i, point) in points.withIndex()) {
@@ -204,6 +213,13 @@ class FactorialDesign(
             rowMap[factor] = point
         }
         return DesignPoint(k, rowMap)
+    }
+
+    /**
+     *  Returns all the design points based on the cartesian product of the factors and their levels.
+     */
+    fun designPoints(): List<DesignPoint> {
+        return List(numDesignPoints) { designPoint(it + 1) }
     }
 
     /**
