@@ -9,7 +9,6 @@ import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.io.writeCSV
 import java.nio.file.Path
@@ -143,7 +142,7 @@ class FactorialExperiment(
      *  array is less than 1, it is set to 1. There must be at least 1 replicate
      *  for each design point.
      */
-    var designPointReplications: IntArray
+    var replicationsPerDesignPoint: IntArray
         get() = myReplicates.copyOf()
         set(array) {
             require(array.size == numDesignPoints) { "The size (${array.size}) of the array must be the number of design points: ${myReplicates.size}" }
@@ -161,11 +160,11 @@ class FactorialExperiment(
      *  copies of each design point is based on its associated
      *  number of replications.
      */
-    fun replicatedDesignPoints() : List<DoubleArray> {
+    fun replicatedDesignPoints(): List<DoubleArray> {
         val dpList = mutableListOf<DoubleArray>()
         val dps = factorialDesign.designPointsToList()
-        for ((i, dp) in dps.withIndex()){
-            for(r in 1..myReplicates[i]){
+        for ((i, dp) in dps.withIndex()) {
+            for (r in 1..myReplicates[i]) {
                 dpList.add(dp.copyOf())
             }
         }
@@ -181,11 +180,11 @@ class FactorialExperiment(
      *  copies of each design point is based on its associated
      *  number of replications.
      */
-    fun replicatedCodedDesignPoints() : List<DoubleArray> {
+    fun replicatedCodedDesignPoints(): List<DoubleArray> {
         val dpList = mutableListOf<DoubleArray>()
         val dps = factorialDesign.codedDesignPointsToList()
-        for ((i, dp) in dps.withIndex()){
-            for(r in 1..myReplicates[i]){
+        for ((i, dp) in dps.withIndex()) {
+            for (r in 1..myReplicates[i]) {
                 dpList.add(dp.copyOf())
             }
         }
@@ -208,9 +207,9 @@ class FactorialExperiment(
         val cols = points.toMapOfLists(factorialDesign.factorNames)
         val expCol = replicatedExpNames().toColumn("exp_name")
         val repIds = replicationIds().toColumn("rep_id")
-        val df = if (expCol.size() == points.size){
+        val df = if (expCol.size() == points.size) {
             expCol.toDataFrame().add(repIds).add(cols.toDataFrame())
-        } else{
+        } else {
             cols.toDataFrame()
         }
         return df
@@ -232,9 +231,9 @@ class FactorialExperiment(
         val cols = points.toMapOfLists(factorialDesign.factorNames)
         val expCol = replicatedExpNames().toColumn("exp_name")
         val repIds = replicationIds().toColumn("rep_id")
-        val df = if (expCol.size() == points.size){
+        val df = if (expCol.size() == points.size) {
             expCol.toDataFrame().add(repIds).add(cols.toDataFrame())
-        } else{
+        } else {
             cols.toDataFrame()
         }
         return df
@@ -269,12 +268,12 @@ class FactorialExperiment(
      *  for performing a response surfacing model for the named responses.
      */
     fun replicatedDesignPointsWithResponses(names: Set<String> = responseNames.toSet()): AnyFrame {
-        require(names.isNotEmpty()) {"The supplied names cannot be empty" }
+        require(names.isNotEmpty()) { "The supplied names cannot be empty" }
         val vn = responseNames
         var df = replicatedDesignPointsAsDataFrame()
         val exp_name by column<String>()
         val rep_id by column<Int>()
-        for(name in names){
+        for (name in names) {
             if (vn.contains(name)) {
                 val df2 = responseAsDataFrame(name)
                 df = df.join(df2, type = JoinType.Inner) { exp_name and rep_id }
@@ -305,12 +304,12 @@ class FactorialExperiment(
      *  The dataframe provides the data for performing a response surfacing model for the named responses.
      */
     fun replicatedCodedDesignPointsWithResponses(names: Set<String> = responseNames.toSet()): AnyFrame {
-        require(names.isNotEmpty()) {"The supplied names cannot be empty" }
+        require(names.isNotEmpty()) { "The supplied names cannot be empty" }
         val vn = responseNames
         var df = replicatedCodedDesignPointsAsDataFrame()
         val exp_name by column<String>()
         val rep_id by column<Int>()
-        for(name in names){
+        for (name in names) {
             if (vn.contains(name)) {
                 val df2 = responseAsDataFrame(name)
                 df = df.join(df2, type = JoinType.Inner) { exp_name and rep_id }
@@ -322,11 +321,11 @@ class FactorialExperiment(
     /**
      *  Supports extraction of replication identifiers from simulation runs
      */
-    private fun replicationIds() : List<Int> {
+    private fun replicationIds(): List<Int> {
         val list = mutableListOf<Int>()
-        for ((dp, sr) in mySimulationRuns){
+        for ((dp, sr) in mySimulationRuns) {
             // dp is design point number 1<=dp<=number of design points
-            for (r in 1..myReplicates[dp-1]){
+            for (r in 1..myReplicates[dp - 1]) {
                 list.add(r)
             }
         }
@@ -336,11 +335,11 @@ class FactorialExperiment(
     /**
      *  Supports extraction of replicated experiment names from simulation runs
      */
-    private fun replicatedExpNames() : List<String>{
+    private fun replicatedExpNames(): List<String> {
         val list = mutableListOf<String>()
-        for ((dp, sr) in mySimulationRuns){
+        for ((dp, sr) in mySimulationRuns) {
             // dp is design point number 1<=dp<=number of design points
-            for (r in 1..myReplicates[dp-1]){
+            for (r in 1..myReplicates[dp - 1]) {
                 list.add(sr.experimentRunParameters.experimentName)
             }
         }
@@ -458,7 +457,7 @@ class FactorialExperiment(
             replicationsPerDesignPoint(numReps)
         }
         val points = (1..numDesignPoints).toList().toIntArray()
-        simulateDesignPoints(points, designPointReplications, clearRuns)
+        simulateDesignPoints(points, replicationsPerDesignPoint, clearRuns)
     }
 
     /**
@@ -468,10 +467,11 @@ class FactorialExperiment(
      *
      *  where the values in the response name columns have the value of the response for the named experiments
      *  and the replication id (number) for the value.
-    */
+     */
     fun resultsToCSV(
         fileName: String = name.replace(" ", "_") + ".csv",
-        directory: Path = KSL.csvDir){
+        directory: Path = KSL.csvDir
+    ) {
         val df = replicatedDesignPointsWithResponses()
         val out = KSLFileUtil.createPrintWriter(directory.resolve(fileName))
         df.writeCSV(out)
@@ -487,10 +487,30 @@ class FactorialExperiment(
      */
     fun codedResultsToCSV(
         fileName: String = name.replace(" ", "_") + ".csv",
-        directory: Path = KSL.csvDir){
+        directory: Path = KSL.csvDir
+    ) {
         val df = replicatedCodedDesignPointsWithResponses()
         val out = KSLFileUtil.createPrintWriter(directory.resolve(fileName))
         df.writeCSV(out)
+    }
+
+    fun testPredicate(
+        designPointFilter: (Int, DoubleArray) -> Boolean,
+        replications: IntArray,
+        clearRuns: Boolean = true,
+    ) {
+        require(replications.isNotEmpty()) { "The replications array must not be empty!" }
+        require(replications.size <= numDesignPoints) { "The size of the replications array must be <= $numDesignPoints" }
+        if (clearRuns) {
+            clearSimulationRuns()
+        }
+        for (i in 1..numDesignPoints) {
+            // has replications
+            if (replications[i] >= 1) {
+
+                simulateDesignPoint(i, replications[i])
+            }
+        }
     }
 
 

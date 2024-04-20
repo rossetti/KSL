@@ -19,6 +19,11 @@ fun Set<Factor>.cartesianProductSize(): Int {
     return n
 }
 
+class DesignPoint internal constructor (
+    val number:Int,
+    val settings: Map<Factor, Double>
+)
+
 interface FactorialDesignIfc {
     val factors: Map<String, Factor>
     val numDesignPoints: Int
@@ -182,6 +187,23 @@ class FactorialDesign(
             rowMap[factorNames[i]] = point
         }
         return rowMap
+    }
+
+    /**
+     *  Returns the design point at the kth row of the factorial design based
+     *  on the cartesian product of the factors and their levels.
+     *
+     *  @param k must be in 1 to numDesignPoints
+     *  @return the returned DesignPoint
+     */
+    fun designPoint(k: Int) : DesignPoint {
+        val rowMap = mutableMapOf<Factor, Double>()
+        val points = designPointToArray(k)
+        for ((i, point) in points.withIndex()) {
+            val factor = myFactors[factorNames[i]]!!
+            rowMap[factor] = point
+        }
+        return DesignPoint(k, rowMap)
     }
 
     /**

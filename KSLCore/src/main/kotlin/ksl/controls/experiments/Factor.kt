@@ -1,6 +1,7 @@
 package ksl.controls.experiments
 
 import ksl.utilities.*
+import org.checkerframework.checker.units.qual.m
 
 /**
  *  This class represents an individual factor within a factorial design.
@@ -44,12 +45,21 @@ open class Factor(
      */
     constructor(name: String, low: Double, high: Double) : this(name, doubleArrayOf(low, high))
 
+    /**
+     *  The half-range of the levels.
+     */
     val halfRange: Double
         get() = (levels.last() - levels.first()) / 2.0
 
+    /**
+     *  The mid-point of the levels.
+     */
     val midPoint: Double
         get() = (levels.last() + levels.first()) / 2.0
 
+    /**
+     *  The levels as coded values.
+     */
     val codedLevels: List<Double>
         get() {
             val h = halfRange
@@ -57,10 +67,23 @@ open class Factor(
             return List(levels.size) { (levels[it] - m) / h }
         }
 
+    /**
+     *  The value based on coding.
+     */
+    fun codedValue(rawValue: Double): Double {
+        return (rawValue - midPoint) / halfRange
+    }
+
+    /**
+     *  The levels as an array.
+     */
     fun levels() : DoubleArray {
         return levels.toDoubleArray()
     }
 
+    /**
+     *  The coded levels as an array.
+     */
     fun codedLevels() : DoubleArray {
         return codedLevels.toDoubleArray()
     }
