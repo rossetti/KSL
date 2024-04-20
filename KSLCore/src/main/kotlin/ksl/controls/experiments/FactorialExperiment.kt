@@ -513,5 +513,59 @@ class FactorialExperiment(
         }
     }
 
+    /**
+     *  Simulates the specified design point from the factorial design for the
+     *  specified number of replications.  The specified number of replications
+     *  will override whatever is specified in the model's specified number of replications.
+     *  Also, the model experiment's name is automatically to use the supplied [baseExperimentName]
+     *  with the design point identity concatenated to ensure that is experiment has
+     *  a unique name when capturing the data within a database.
+     *
+     *  @param designPoint the design point to simulate
+     *  @param numReps the number of replications for the design point
+     *  @param baseExperimentName the base name for each experiment representing the design point
+     *  @param clearRuns Any prior simulation runs are cleared prior to executing. The default is false
+     *  @param addRuns If true the executed run will be added to the executed simulation runs. The
+     *  default is true.
+     */
+//    fun simulate(
+//        designPoint: DesignPoint,
+//        numReps: Int,
+//        baseExperimentName: String = "${myOriginalExpRunParams.experimentName}_DP_$designPoint",
+//        clearRuns: Boolean = false,
+//        addRuns: Boolean = true
+//    ) {
+//        require(numReps >= 1) { "The number of replications per design point must be >= 1." }
+//        if (clearRuns) {
+//            clearSimulationRuns()
+//        }
+//        val dp = factorialDesign.designPointToMap(designPoint)
+//        // dp holds (factor name, factor level) for the factors at this design point
+//        // use to hold the inputs for the simulation
+//        val inputs = mutableMapOf<String, Double>()
+//        // fill the inputs map based on the factor level settings
+//        // the simulation runner takes care of assigning the inputs to the model
+//        for ((f, v) in dp) {
+//            // get the factor from the design
+//            val factor = factorialDesign.factors[f]!!
+//            // get the control parameter from the factor setting
+//            val cp = factorSettings[factor]!!
+//            // get correct control name or parameter name for assigning to input map
+//            inputs[cp] = v
+//        }
+//        // setup experiment and its name
+//        model.numberOfReplications = numReps
+//        model.experimentName = baseExperimentName
+//        // use SimulationRunner to run the simulation
+//        Model.logger.info { "FactorialExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
+//        val sr = mySimulationRunner.simulate(inputs, model.extractRunParameters())
+//        Model.logger.info { "FactorialExperiment: Completed design point $designPoint for experiment: ${model.experimentName} " }
+//        // add SimulationRun to simulation run list
+//        if (addRuns) {
+//            mySimulationRuns[designPoint] = sr
+//        }
+//        // reset the model run parameters back to their original values
+//        model.changeRunParameters(myOriginalExpRunParams)
+//    }
 
 }
