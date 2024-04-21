@@ -104,7 +104,7 @@ class FactorialExperiment(
     /**
      *  The factorial design implied by the factors
      */
-    val factorialDesign: FactorialDesignIfc = FactorialDesign(factorSettings.keys, "${model}_Factorial_DOE")
+    val factorialDesign: FactorialDesign = FactorialDesign(factorSettings.keys, "${model}_Factorial_DOE")
 
     /**
      *  The number of design points in the base design (without replications)
@@ -535,7 +535,7 @@ class FactorialExperiment(
         clearRuns: Boolean = false,
         addRuns: Boolean = true
     ) {
-        require(designPoint.design == factorialDesign) {"The design point was not associated with this experiment."}
+//        require(designPoint.design == factorialDesign) {"The design point was not associated with this experiment."}
         require(numReps >= 1) { "The number of replications per design point must be >= 1." }
         if (clearRuns) {
             clearSimulationRuns()

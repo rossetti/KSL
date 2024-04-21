@@ -9,6 +9,7 @@ import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.io.writeCSV
 import java.nio.file.Path
@@ -85,7 +86,7 @@ class DesignedExperiment(
     /**
      *  Use to hold executed simulation runs, 1 for each design point executed
      */
-    private val mySimulationRuns = mutableMapOf<Int, SimulationRun>() //TODO should key be design point?
+    private val mySimulationRuns = mutableMapOf<DesignPoint, SimulationRun>()
 
     /**
      *  Returns the list of executed runs, one run for each design point simulated
@@ -108,15 +109,10 @@ class DesignedExperiment(
     }
 
     /**
-     *  The factorial design implied by the factors
+     *  The number of design points executed in the base design (without replications)
      */
-//    val factorialDesign: FactorialDesignIfc = FactorialDesign(factorSettings.keys, "${model}_Factorial_DOE")
-
-    /**
-     *  The number of design points in the base design (without replications)
-     */
-//    val numDesignPoints: Int
-//        get() = factorialDesign.numDesignPoints
+    val numSimulationRuns: Int
+        get() = mySimulationRuns.size
 
     /**
      *  The names of the responses or counters in the model
@@ -201,7 +197,14 @@ class DesignedExperiment(
      *  @param coded indicates if the points should be coded, the default is false
      */
     fun replicatedDesignPoints(coded: Boolean = false): List<DoubleArray> {
-        TODO("Not Implemented yet!")
+        val dpList = mutableListOf<DoubleArray>()
+        for((dp, _) in mySimulationRuns) {
+            for(i in 1..dp.numReplications){
+                val points = if (coded) dp.codedValues() else dp.values()
+                dpList.add(points)
+            }
+        }
+        return dpList
     }
 
     /**
@@ -211,7 +214,7 @@ class DesignedExperiment(
         val list = mutableListOf<Int>()
         for ((dp, sr) in mySimulationRuns) {
             // dp is design point number 1<=dp<=number of design points
-            for (r in 1..myReplicates[dp - 1]) {
+            for (r in 1..dp.numReplications) {
                 list.add(r)
             }
         }
@@ -225,7 +228,7 @@ class DesignedExperiment(
         val list = mutableListOf<String>()
         for ((dp, sr) in mySimulationRuns) {
             // dp is design point number 1<=dp<=number of design points
-            for (r in 1..myReplicates[dp - 1]) {
+            for (r in 1..dp.numReplications) {
                 list.add(sr.experimentRunParameters.experimentName)
             }
         }
@@ -245,6 +248,9 @@ class DesignedExperiment(
      *  @param coded indicates if the points should be coded, the default is false
      */
     fun replicatedDesignPointsAsDataFrame(coded: Boolean = false): AnyFrame {
+        if (mySimulationRuns.isEmpty()){
+            return DataFrame.empty()
+        }
         val points = KSLArrays.to2DDoubleArray(replicatedDesignPoints(coded))
         val cols = points.toMapOfLists(design.factorNames)
         val expCol = replicatedExpNames().toColumn("exp_name")
@@ -292,6 +298,9 @@ class DesignedExperiment(
         coded: Boolean = false
     ): AnyFrame {
         require(names.isNotEmpty()) { "The supplied names cannot be empty" }
+        if (mySimulationRuns.isEmpty()){
+            return DataFrame.empty()
+        }
         val vn = responseNames
         var df = replicatedDesignPointsAsDataFrame(coded)
         val exp_name by column<String>()
@@ -323,6 +332,9 @@ class DesignedExperiment(
         clearRuns: Boolean = true,
         addRuns: Boolean = true
     ) {
+        if (clearRuns) {
+            clearSimulationRuns()
+        }
         while (iterator.hasNext()) {
             val dp = iterator.next()
             // set number of replications
@@ -379,13 +391,12 @@ class DesignedExperiment(
         Model.logger.info { "FactorialExperiment: Completed design point $designPoint for experiment: ${model.experimentName} " }
         // add SimulationRun to simulation run list
         if (addRuns) {
-            mySimulationRuns[designPoint.number] = sr
+            mySimulationRuns[designPoint] = sr
         }
         // reset the model run parameters back to their original values
         model.changeRunParameters(myOriginalExpRunParams)
     }
 
-
     /**
      *  Writes the results to a csv formatted file
      *
@@ -393,29 +404,14 @@ class DesignedExperiment(
      *
      *  where the values in the response name columns have the value of the response for the named experiments
      *  and the replication id (number) for the value.
+     *  @param coded indicates if the points should be coded, the default is false
      */
     fun resultsToCSV(
         fileName: String = name.replace(" ", "_") + ".csv",
-        directory: Path = KSL.csvDir
+        directory: Path = KSL.csvDir,
+        coded: Boolean = false
     ) {
-        val df = replicatedDesignPointsWithResponses()
-        val out = KSLFileUtil.createPrintWriter(directory.resolve(fileName))
-        df.writeCSV(out)
-    }
-
-    /**
-     *  Writes the results to a csv formatted file
-     *
-     *  (exp_name, rep_id, factor1, factor2, ..., factorN, responseName1, responseName2, ...)
-     *
-     *  where the values in the response name columns have the value of the response for the named experiments
-     *  and the replication id (number) for the value.
-     */
-    fun codedResultsToCSV(
-        fileName: String = name.replace(" ", "_") + ".csv",
-        directory: Path = KSL.csvDir
-    ) {
-        val df = replicatedCodedDesignPointsWithResponses()
+        val df = replicatedDesignPointsWithResponses(coded = coded)
         val out = KSLFileUtil.createPrintWriter(directory.resolve(fileName))
         df.writeCSV(out)
     }
