@@ -89,7 +89,7 @@ open class FactorialDesign(
      *  @param k must be in 1 to numDesignPoints
      *  @return the returned DesignPoint
      */
-    private fun designPoint(k: Int): DesignPoint {
+    protected fun designPoint(k: Int): DesignPoint {
         val rowMap = mutableMapOf<Factor, Double>()
         val points = designPointToArray(k)
         for ((i, point) in points.withIndex()) {

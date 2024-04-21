@@ -717,13 +717,13 @@ object KSLArrays {
      * @param collection the array to check
      * @return true if the array is rectangular
      */
-    fun isRectangular(collection: Collection<DoubleArray>) : Boolean {
+    fun isRectangular(collection: Collection<DoubleArray>): Boolean {
         if (collection.isEmpty()) {
             return false // no rows can't be rectangular
         }
         val nc: Int = collection.first().size // number of elements in first array, all rows must have this
-        for(array in collection){
-            if (array.size != nc){
+        for (array in collection) {
+            if (array.size != nc) {
                 return false
             }
         }
@@ -1648,7 +1648,7 @@ object KSLArrays {
             return true
         }
         for (i in 1 until array.size) {
-            if (!KSLMath.equal(array[i-1], array[i], precision)){
+            if (!KSLMath.equal(array[i - 1], array[i], precision)) {
                 return false
             }
 //            if (array[i - 1] != array[i]) {
@@ -1676,7 +1676,7 @@ object KSLArrays {
         }
         val sorted = array.copyOf().sortedArray()
         for (i in 1 until sorted.size) {
-            if (KSLMath.equal(sorted[i-1], sorted[i], precision)){
+            if (KSLMath.equal(sorted[i - 1], sorted[i], precision)) {
                 return false
             }
 //            if (array[i - 1] == array[i]) {
@@ -2450,10 +2450,10 @@ object KSLArrays {
     fun cartesianProductRow(sets: Array<IntArray>, index: Int): IntArray {
         var n = 1
         for (i in sets.indices) {
-            require(sets[i].isAllDifferent()){"The elements of of the ${i}th array were not all unique"}
-            n = n*sets[i].size
+            require(sets[i].isAllDifferent()) { "The elements of of the ${i}th array were not all unique" }
+            n = n * sets[i].size
         }
-        require(index in 0..<n) {"The supplied index must be between 0 and ${n-1}"}
+        require(index in 0..<n) { "The supplied index must be between 0 and ${n - 1}" }
         var k = index
         var currentElement: Int
         var currentSetLength: Int
@@ -2492,10 +2492,10 @@ object KSLArrays {
     fun cartesianProductRow(sets: List<IntArray>, index: Int): IntArray {
         var n = 1
         for (i in sets.indices) {
-            require(sets[i].isAllDifferent()){"The elements of of the ${i}th array were not all unique"}
-            n = n*sets[i].size
+            require(sets[i].isAllDifferent()) { "The elements of of the ${i}th array were not all unique" }
+            n = n * sets[i].size
         }
-        require(index in 0..<n) {"The supplied index must be between 0 and ${n-1}"}
+        require(index in 0..<n) { "The supplied index must be between 0 and ${n - 1}" }
         var k = index
         var currentElement: Int
         var currentSetLength: Int
@@ -2522,10 +2522,10 @@ object KSLArrays {
     fun cartesianProductRow(sets: Array<DoubleArray>, index: Int): DoubleArray {
         var n = 1
         for (i in sets.indices) {
-            require(sets[i].isAllDifferent()){"The elements of of the ${i}th array were not all unique"}
-            n = n*sets[i].size
+            require(sets[i].isAllDifferent()) { "The elements of of the ${i}th array were not all unique" }
+            n = n * sets[i].size
         }
-        require(index in 0..<n) {"The supplied index must be between 0 and ${n-1}"}
+        require(index in 0..<n) { "The supplied index must be between 0 and ${n - 1}" }
         var k = index
         var currentElement: Double
         var currentSetLength: Int
@@ -2552,10 +2552,10 @@ object KSLArrays {
     fun cartesianProductRow(sets: List<DoubleArray>, index: Int): DoubleArray {
         var n = 1
         for (i in sets.indices) {
-            require(sets[i].isAllDifferent()){"The elements of of the ${i}th array were not all unique"}
-            n = n*sets[i].size
+            require(sets[i].isAllDifferent()) { "The elements of of the ${i}th array were not all unique" }
+            n = n * sets[i].size
         }
-        require(index in 0..<n) {"The supplied index must be between 0 and ${n-1}"}
+        require(index in 0..<n) { "The supplied index must be between 0 and ${n - 1}" }
         var k = index
         var currentElement: Double
         var currentSetLength: Int
@@ -3034,6 +3034,17 @@ fun DoubleArray.normScaledArray(): DoubleArray {
  */
 fun DoubleArray.copyWithout(index: Int): DoubleArray {
     return KSLArrays.copyWithout(index, this)
+}
+
+/**
+ *  Computes the product of the elements in the array
+ */
+fun DoubleArray.product(): Double {
+    var p = 1.0
+    for (x in this) {
+        p = p * x
+    }
+    return p
 }
 
 /**
