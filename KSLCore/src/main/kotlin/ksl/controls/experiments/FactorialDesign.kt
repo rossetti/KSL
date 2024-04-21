@@ -20,7 +20,7 @@ import kotlin.math.min
  *  @param name an optional name for the design
  *
  */
-class FactorialDesign(
+open class FactorialDesign(
     factors: Set<Factor>,
     name: String? = null
 ) : Identity(name), ExperimentalDesignIfc {
@@ -31,7 +31,7 @@ class FactorialDesign(
 
     val numDesignPoints: Int
 
-    override val factorNames: List<String>
+    final override val factorNames: List<String>
 
     private val myLevels: List<DoubleArray>
     private val myCodedLevels: List<DoubleArray>
