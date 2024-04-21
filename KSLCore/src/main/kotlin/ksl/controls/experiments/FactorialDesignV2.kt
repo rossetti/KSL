@@ -102,16 +102,21 @@ class FactorialDesignV2(
      *  This iterator should present each design point
      *  until all points in the design have been presented.
      */
-    private inner class FullDesignIterator : Iterator<DesignPoint> {
-        private var currentPoint = 0
+    private inner class DesignPointIterator : DesignPointIteratorIfc {
+        override var count: Int = 0
+            private set
+
+        override var last: DesignPoint? = null
+            private set
 
         override fun hasNext(): Boolean {
-            return currentPoint <= numDesignPoints
+            return count <= numDesignPoints
         }
 
         override fun next(): DesignPoint {
-            currentPoint++
-            return designPoint(currentPoint)
+            count++
+            last = designPoint(count)
+            return last!!
         }
 
     }
@@ -137,8 +142,8 @@ class FactorialDesignV2(
      *  Returns an iterator that produces the design points
      *  in order from 1 to the number of design points.
      */
-    override fun iterator(): Iterator<DesignPoint> {
-        return FullDesignIterator()
+    override fun iterator(): DesignPointIteratorIfc {
+        return DesignPointIterator()
     }
 
     /**
