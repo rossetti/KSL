@@ -2570,37 +2570,37 @@ object KSLArrays {
         return resultTuple
     }
 
-//    /**
-//     *  Computes the cartesian product of the supplied sets and returns
-//     *  a list holding the rows of the cartesian product
-//     */
-//    fun cartesianProduct(a: Set<*>, b: Set<*>, vararg sets: Set<*>): List<List<*>> =
-//        (setOf(a, b).plus(sets))
-//            .fold(listOf(listOf<Any?>())) { acc, set ->
-//                acc.flatMap { list -> set.map { element -> list + element } }
-//            }
-//
-//    /**
-//     *  Computes the cartesian product of the sets of doubles and returns
-//     *  a list holding the rows of the cartesian product with each row represented
-//     *  as a list.
-//     */
-//    fun cartesianProductOfDoubles(a: Set<Double>, b: Set<Double>, vararg sets: Set<Double>): List<List<Double>> =
-//        (setOf(a, b).plus(sets))
-//            .fold(listOf(listOf())) { acc, set ->
-//                acc.flatMap { list -> set.map { element -> list + element } }
-//            }
-//
-//    /**
-//     *  Computes the cartesian product of the sets of ints and returns
-//     *  a list holding the rows of the cartesian product with each row represented
-//     *  as a list.
-//     */
-//    fun cartesianProductOfInts(a: Set<Int>, b: Set<Int>, vararg sets: Set<Int>): List<List<Int>> =
-//        (setOf(a, b).plus(sets))
-//            .fold(listOf(listOf())) { acc, set ->
-//                acc.flatMap { list -> set.map { element -> list + element } }
-//            }
+    /**
+     *  Computes the cartesian product of the supplied sets and returns
+     *  a list holding the rows of the cartesian product
+     */
+    fun cartesianProduct(a: Set<*>, b: Set<*>, vararg sets: Set<*>): List<List<*>> =
+        (setOf(a, b).plus(sets))
+            .fold(listOf(listOf<Any?>())) { acc, set ->
+                acc.flatMap { list -> set.map { element -> list + element } }
+            }
+
+    /**
+     *  Computes the cartesian product of the sets of doubles and returns
+     *  a list holding the rows of the cartesian product with each row represented
+     *  as a list.
+     */
+    fun cartesianProductOfDoubles(a: Set<Double>, b: Set<Double>, vararg sets: Set<Double>): List<List<Double>> =
+        (setOf(a, b).plus(sets))
+            .fold(listOf(listOf())) { acc, set ->
+                acc.flatMap { list -> set.map { element -> list + element } }
+            }
+
+    /**
+     *  Computes the cartesian product of the sets of ints and returns
+     *  a list holding the rows of the cartesian product with each row represented
+     *  as a list.
+     */
+    fun cartesianProductOfInts(a: Set<Int>, b: Set<Int>, vararg sets: Set<Int>): List<List<Int>> =
+        (setOf(a, b).plus(sets))
+            .fold(listOf(listOf())) { acc, set ->
+                acc.flatMap { list -> set.map { element -> list + element } }
+            }
 }
 
 /** Extension functions and other functions for working with arrays
