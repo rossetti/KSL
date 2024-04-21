@@ -97,16 +97,16 @@ interface FactorialDesignIfc {
 class FactorialDesign(
     factors: Set<Factor>,
     name: String? = null
-) : Identity(name), FactorialDesignIfc {
+) : Identity(name)  {
 
     private val myFactors = mutableMapOf<String, Factor>()
 
-    override val factors: Map<String, Factor>
+    val factors: Map<String, Factor>
         get() = myFactors
 
-    override val numDesignPoints: Int
+    val numDesignPoints: Int
 
-    override val factorNames: List<String>
+    val factorNames: List<String>
 
     private val myLevels: List<DoubleArray>
     private val myCodedLevels: List<DoubleArray>
@@ -155,7 +155,7 @@ class FactorialDesign(
      *  The element arrays of the returned list are the design points. The element
      *  array's 0th element represents the first factor in the list of factor names.
      */
-    override fun designPointsToList(): List<DoubleArray> {
+    fun designPointsToList(): List<DoubleArray> {
         val list = mutableListOf<DoubleArray>()
         for (i in 1..numDesignPoints) {
             list.add(designPointToArray(i))
@@ -168,7 +168,7 @@ class FactorialDesign(
      *  The element arrays of the returned list are the design points. The element
      *  array's 0th element represents the first factor in the list of factor names.
      */
-    override fun codedDesignPointsToList(): List<DoubleArray> {
+    fun codedDesignPointsToList(): List<DoubleArray> {
         val list = mutableListOf<DoubleArray>()
         for (i in 1..numDesignPoints) {
             list.add(codedDesignPointToArray(i))
@@ -184,7 +184,7 @@ class FactorialDesign(
      *
      *  @param k must be in 1 to numDesignPoints
      */
-    override fun designPointToMap(k: Int): Map<String, Double> {
+    fun designPointToMap(k: Int): Map<String, Double> {
         val rowMap = mutableMapOf<String, Double>()
         val points = designPointToArray(k)
         for ((i, point) in points.withIndex()) {
@@ -193,29 +193,29 @@ class FactorialDesign(
         return rowMap
     }
 
-    /**
-     *  Returns the design point at the kth row of the factorial design based
-     *  on the cartesian product of the factors and their levels.
-     *
-     *  @param k must be in 1 to numDesignPoints
-     *  @return the returned DesignPoint
-     */
-    override fun designPoint(k: Int): DesignPoint {
-        val rowMap = mutableMapOf<Factor, Double>()
-        val points = designPointToArray(k)
-        for ((i, point) in points.withIndex()) {
-            val factor = myFactors[factorNames[i]]!!
-            rowMap[factor] = point
-        }
-        return DesignPoint(this, k, rowMap)
-    }
-
-    /**
-     *  Returns all the design points based on the cartesian product of the factors and their levels.
-     */
-    fun designPoints(): List<DesignPoint> {
-        return List(numDesignPoints) { designPoint(it + 1) }
-    }
+//    /**
+//     *  Returns the design point at the kth row of the factorial design based
+//     *  on the cartesian product of the factors and their levels.
+//     *
+//     *  @param k must be in 1 to numDesignPoints
+//     *  @return the returned DesignPoint
+//     */
+//    override fun designPoint(k: Int): DesignPoint {
+//        val rowMap = mutableMapOf<Factor, Double>()
+//        val points = designPointToArray(k)
+//        for ((i, point) in points.withIndex()) {
+//            val factor = myFactors[factorNames[i]]!!
+//            rowMap[factor] = point
+//        }
+//        return DesignPoint(this, k, rowMap)
+//    }
+//
+//    /**
+//     *  Returns all the design points based on the cartesian product of the factors and their levels.
+//     */
+//    fun designPoints(): List<DesignPoint> {
+//        return List(numDesignPoints) { designPoint(it + 1) }
+//    }
 
     /**
      *  Returns all the design points based on the cartesian product of the factors and their levels.
@@ -278,6 +278,24 @@ class FactorialDesign(
         val points = codedDesignPointsTo2DArray()
         val cols = points.toMapOfLists(factorNames)
         return cols.toDataFrame()
+    }
+
+    /**
+     *  Returns all the design points based on the cartesian product of the factors and their levels
+     *  as a 2D array.  The rows of the array are the design points.
+     *  The row array's 0th element represents the first factor in the list of factor names.
+     */
+    fun designPointsTo2DArray(): Array<DoubleArray> {
+        return KSLArrays.to2DDoubleArray(designPointsToList())
+    }
+
+    /**
+     *  Returns all the design points based on the cartesian product of the factors and their levels
+     *  as a 2D array. The rows of the array are the design points.
+     *  The row array's 0th element represents the first factor in the list of factor names.
+     */
+    fun codedDesignPointsTo2DArray(): Array<DoubleArray> {
+        return KSLArrays.to2DDoubleArray(codedDesignPointsToList())
     }
 
     override fun toString(): String {
