@@ -200,7 +200,7 @@ class DesignedExperiment(
     /**
      *  @param coded indicates if the points should be coded, the default is false
      */
-    fun replicatedDesignPoints(coded: Boolean = false) :List<DoubleArray> {
+    fun replicatedDesignPoints(coded: Boolean = false): List<DoubleArray> {
         TODO("Not Implemented yet!")
     }
 
@@ -231,7 +231,7 @@ class DesignedExperiment(
         }
         return list
     }
-    
+
     /**
      *  Each design point in the associated factorial design is replicated
      *  by the number of associated replications held in the property
@@ -305,17 +305,31 @@ class DesignedExperiment(
         return df
     }
 
+    /**
+     *   Causes all design points to be simulated as presented by the [iterator]
+     *   using the number of replications specified by the design points.
+     *
+     *   @param numRepsPerDesignPoint the number of replications per design point. If null (the default)
+     *   then the specification of replications is obtained from the design point. If a value
+     *   greater than or equal to 1 is supplied, the value is used for every executed design point.
+     *   @param clearRuns indicates that any previous simulation runs for the design points will be cleared
+     *   prior to executing these design points. The default is true.
+     *   @param addRuns If true the executed simulations will be added to the executed simulation runs. The
+     *   default is true.
+     */
     fun simulate(
         iterator: Iterator<DesignPoint> = design.iterator(),
+        numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true
     ) {
         while (iterator.hasNext()) {
             val dp = iterator.next()
-            //TODO set number of replications
-            if (dp.numReplications >= 1){
-                simulate(dp, clearRuns = clearRuns, addRuns = addRuns)
+            // set number of replications
+            if (numRepsPerDesignPoint != null && numRepsPerDesignPoint > 0) {
+                dp.numReplications = numRepsPerDesignPoint
             }
+            simulate(dp, clearRuns = clearRuns, addRuns = addRuns)
         }
     }
 
