@@ -18,7 +18,7 @@ import java.nio.file.Path
 data class DesignPointInfo(val point: Int, val exp_name: String, val rep_id: Int)
 
 /**
- *  Facilitates the simulation of a model via a factorial design.
+ *  Facilitates the simulation of a model via an experimental design.
  *
  *  The map representing the factor and its associated string requires some further
  *  discussion.  The naming convention for controls and random variable parameters is important to note.
@@ -56,21 +56,32 @@ data class DesignPointInfo(val point: Int, val exp_name: String, val rep_id: Int
  *  would be mapOf(factorA to "Worker.initialCapacity", factorB to "ServiceTimeRV_PARAM_mean")
  *  where factorA and factorB are references to the associated Factor instances.
  *
- *  @param model the model to simulate
- *  @param factorSettings a mapping between each factor and a string
- *  representing the name of the control or parameter to associate with the factor
- *  @param numRepsPerDesignPoint the number of replications for each design point. Defaults to 10.
+ *  @param model The model to simulate.
+ *  @param factorSettings A mapping between each factor and a string
+ *  representing the name of the control or parameter to associate with the factor.
+ *  @param design The design that will be simulated. The factors specified in the design must
+ *  be contained in the factor settings.
+ *  @param numRepsPerDesignPoint The number of replications for each design point. Defaults to 10.
+ *  @param kslDb a KSLDatabase that will hold the data from the experiment.
  */
 class DesignedExperiment(
     name: String,
     private val model: Model,
     private val factorSettings: Map<Factor, String>,
     val design: ExperimentalDesignIfc,
-    numRepsPerDesignPoint: Int = 10,
     val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
 ) : Identity(name) {
 
     private val mySimulationRunner = SimulationRunner(model)
+
+    /**
+     *  A default value for the number of replications per design point.
+     *  Used only if specified greater that or equal to 1.  This
+     *  will overwrite the number of replications for every design point
+     *  if specified greater than 0. By default, it is set to -1, causing
+     *  the design points to use the specification from the design.
+     */
+    var defaultNumRepsPerDesignPoint: Int = -1
 
     /**
      *  The database observer of the model. Can be used to stop observing, etc.
@@ -99,7 +110,6 @@ class DesignedExperiment(
 
     init {
         require(factorSettings.isNotEmpty()) { "factorControls must not be empty" }
-        require(numRepsPerDesignPoint >= 1) { "The number of replications per design point must be >= 1." }
         // ensure that factors in the design are the same as in the factor settings
         for ((_, factor) in design.factors) {
             require(factorSettings.containsKey(factor))
@@ -122,8 +132,6 @@ class DesignedExperiment(
      */
     val responseNames: List<String>
         get() = model.responseNames
-
-//    private val myReplicates = IntArray(numDesignPoints) { numRepsPerDesignPoint }
 
     /**
      *  Causes any previous simulation runs associated with the execution of design points
@@ -261,7 +269,7 @@ class DesignedExperiment(
      */
     fun simulate(
         iterator: Iterator<DesignPoint> = design.iterator(),
-        numRepsPerDesignPoint: Int? = null,
+        numRepsPerDesignPoint: Int = defaultNumRepsPerDesignPoint,
         clearRuns: Boolean = true,
         addRuns: Boolean = true
     ) {
@@ -271,7 +279,7 @@ class DesignedExperiment(
         while (iterator.hasNext()) {
             val dp = iterator.next()
             // set number of replications
-            if (numRepsPerDesignPoint != null && numRepsPerDesignPoint > 0) {
+            if (numRepsPerDesignPoint > 0) {
                 dp.numReplications = numRepsPerDesignPoint
             }
             simulate(dp, addRuns = addRuns)
