@@ -110,7 +110,7 @@ class FactorialDesignV2(
             private set
 
         override fun hasNext(): Boolean {
-            return count <= numDesignPoints
+            return count < numDesignPoints
         }
 
         override fun next(): DesignPoint {
