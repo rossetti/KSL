@@ -19,20 +19,6 @@ fun Set<Factor>.cartesianProductSize(): Int {
     return n
 }
 
-class DesignPoint internal constructor(
-    val design: FactorialDesignIfc,
-    val number: Int,
-    val settings: Map<Factor, Double>
-) {
-    fun codedValues() : DoubleArray {
-        val list = mutableListOf<Double>()
-        for((f,v) in settings.entries) {
-            list.add(f.codedValue(v))
-        }
-        return list.toDoubleArray()
-    }
-}
-
 interface FactorialDesignIfc {
     val factors: Map<String, Factor>
     val numDesignPoints: Int
