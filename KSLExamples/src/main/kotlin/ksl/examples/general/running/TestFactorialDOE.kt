@@ -18,9 +18,7 @@
 
 package ksl.examples.general.running
 
-import ksl.controls.experiments.Factor
-import ksl.controls.experiments.FactorialDesign
-import ksl.controls.experiments.FactorialExperiment
+import ksl.controls.experiments.*
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.print
@@ -29,7 +27,7 @@ import org.jetbrains.kotlinx.dataframe.api.*
 fun main(){
 
  //   printControlsAndRVParameters()
-    simulateFactorialDesign()
+    simulateFactorialDesign2()
 }
 
 fun buildModel() : Model {
@@ -188,4 +186,48 @@ fun testCPRow() {
         println("The element at index $i is: ${result.joinToString()}")
     }
     println()
+}
+
+fun simulateFactorialDesign2(){
+    val fA = Factor("Server", doubleArrayOf(1.0, 2.0, 3.0))
+    val fB = Factor("MeanST", doubleArrayOf(0.6, 0.7))
+    val fC = Factor("MeanTBA", doubleArrayOf(1.0, 5.0))
+    val factors = mapOf(
+        fA to "MM1Q.numServers",
+        fB to "MM1_Test:ServiceTime_PARAM_mean",
+        fC to "MM1_Test:TBA_PARAM_mean"
+    )
+    val m = buildModel()
+
+    val fd = FactorialDesignV2(factors.keys)
+    val de = DesignedExperiment("FactorDesignTest", m, factors, fd)
+
+    println("Design points being simulated")
+    val df = fd.designPointsAsDataframe()
+
+    df.print(rowsLimit = 36)
+    println()
+    de.simulate(numRepsPerDesignPoint = 3)
+    println("Simulation of the design is completed")
+    val df2 = de.replicatedDesignPointsAsDataFrame()
+
+    df2.print(rowsLimit = 36)
+    println()
+
+    val df3 = de.responseAsDataFrame("System Time")
+    df3.print(rowsLimit = 36)
+
+    println()
+    val df4 = de.replicatedDesignPointsWithResponse("System Time")
+    df4.print(rowsLimit = 36)
+
+    println()
+    val df5 = de.replicatedDesignPointsWithResponses()
+    df5.print(rowsLimit = 36)
+
+    println()
+    val df6 = de.replicatedDesignPointsWithResponses(coded = true)
+    df6.print(rowsLimit = 36)
+
+    de.resultsToCSV()
 }

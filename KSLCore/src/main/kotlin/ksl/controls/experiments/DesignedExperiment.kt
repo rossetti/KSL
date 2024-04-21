@@ -130,69 +130,6 @@ class DesignedExperiment(
         mySimulationRuns.clear()
     }
 
-//    /**
-//     *  Specifies that each design point have [numReps] replications.
-//     *  If [numReps] is less than 1, then it is silently changed to 1.
-//     */
-//    fun replicationsPerDesignPoint(numReps: Int) {
-//        myReplicates.fill(if (numReps < 1) 1 else numReps)
-//    }
-
-//    /**
-//     *  Allows the number of replications for each of the design points in the design
-//     *  to be different by allowing an unbalanced design. If any element in the
-//     *  array is less than 1, it is set to 1. There must be at least 1 replicate
-//     *  for each design point.
-//     */
-//    var replicationsPerDesignPoint: IntArray
-//        get() = myReplicates.copyOf()
-//        set(array) {
-//            require(array.size == numDesignPoints) { "The size (${array.size}) of the array must be the number of design points: ${myReplicates.size}" }
-//            for ((i, r) in array.withIndex()) {
-//                myReplicates[i] = if (array[i] < 1) 1 else array[i]
-//            }
-//        }
-
-//    /**
-//     *  Each design point in the associated factorial design is replicated
-//     *  by the number of associated replications held in the property
-//     *  designPointReplications. This results in an expanded list of
-//     *  design points (as double arrays) with repeated copies
-//     *  of the design points within the returned list. The number of
-//     *  copies of each design point is based on its associated
-//     *  number of replications.
-//     */
-//    fun replicatedDesignPoints(): List<DoubleArray> {
-//        val dpList = mutableListOf<DoubleArray>()
-//        val dps = factorialDesign.designPointsToList()
-//        for ((i, dp) in dps.withIndex()) {
-//            for (r in 1..myReplicates[i]) {
-//                dpList.add(dp.copyOf())
-//            }
-//        }
-//        return dpList
-//    }
-
-//    /**
-//     *  Each coded design point in the associated factorial design is replicated
-//     *  by the number of associated replications held in the property
-//     *  designPointReplications. This results in an expanded list of
-//     *  design points (as double arrays) with repeated copies
-//     *  of the design points within the returned list. The number of
-//     *  copies of each design point is based on its associated
-//     *  number of replications.
-//     */
-//    fun replicatedCodedDesignPoints(): List<DoubleArray> {
-//        val dpList = mutableListOf<DoubleArray>()
-//        val dps = factorialDesign.codedDesignPointsToList()
-//        for ((i, dp) in dps.withIndex()) {
-//            for (r in 1..myReplicates[i]) {
-//                dpList.add(dp.copyOf())
-//            }
-//        }
-//        return dpList
-//    }
-
     /**
      *  @param coded indicates if the points should be coded, the default is false
      */
@@ -341,7 +278,7 @@ class DesignedExperiment(
             if (numRepsPerDesignPoint != null && numRepsPerDesignPoint > 0) {
                 dp.numReplications = numRepsPerDesignPoint
             }
-            simulate(dp, clearRuns = clearRuns, addRuns = addRuns)
+            simulate(dp, addRuns = addRuns)
         }
     }
 
