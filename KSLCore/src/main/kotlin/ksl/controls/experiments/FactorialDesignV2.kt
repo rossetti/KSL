@@ -5,6 +5,7 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+import kotlin.math.min
 
 
 /**
@@ -156,6 +157,54 @@ class FactorialDesignV2(
         val points = designPointsTo2DArray(coded)
         val cols = points.toMapOfLists(factorNames)
         return cols.toDataFrame()
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("FactorialDesign")
+        sb.appendLine("name: $name")
+        sb.appendLine("number of design points: $numDesignPoints")
+        sb.appendLine("Factors")
+        for ((name, factor) in factors) {
+            sb.appendLine(factor)
+        }
+        sb.appendLine("First few Design Points")
+        val n = min(4, numDesignPoints)
+        for (i in 1..n) {
+            sb.appendLine("\t$i : ${designPointToArray(i).joinToString()}")
+        }
+        return sb.toString()
+    }
+
+    companion object {
+
+        /**
+         *  Creates a two the k factorial design with levels -1 and 1
+         *  based on the supplied [names] for each factor. There must
+         *  be at least 2 names supplied.
+         */
+        fun twoToKDesign(names: Set<String>): FactorialDesignV2 {
+            require(names.size > 2) { "There must be at least 2 factors in the design" }
+            val set = mutableSetOf<Factor>()
+            for (name in names) {
+                set.add(Factor(name))
+            }
+            return FactorialDesignV2(set)
+        }
+
+        /**
+         *  Create a coded 2-Level full-factorial design matrix
+         *
+         *  @param numFactors the number of factors in the design
+         *  @return the 2d design matrix
+         */
+        fun fullFactorial2Levels(numFactors: Int): Array<DoubleArray> {
+            require(numFactors >= 2) { "There must be at least 2 factors" }
+            // make the names
+            val names = List(numFactors) { "A$it" }.toSet()
+            val fd = twoToKDesign(names)
+            return fd.designPointsTo2DArray()
+        }
     }
 
 }
