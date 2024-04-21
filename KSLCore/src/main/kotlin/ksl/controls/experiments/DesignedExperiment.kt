@@ -12,7 +12,10 @@ import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.io.writeCSV
+import org.jetbrains.kotlinx.dataframe.size
 import java.nio.file.Path
+
+data class DesignPointInfo(val point: Int, val exp_name: String, val rep_id: Int)
 
 /**
  *  Facilitates the simulation of a model via a factorial design.
@@ -145,31 +148,18 @@ class DesignedExperiment(
     }
 
     /**
-     *  Supports extraction of replication identifiers from simulation runs
+     *  Returns replicated design point information in the order that the points were executed
+     *  as a data frame.
      */
-    private fun replicationIds(): List<Int> {
-        val list = mutableListOf<Int>()
+    fun replicatedDesignPointInfo() : DataFrame<DesignPointInfo> {
+        val list = mutableListOf<DesignPointInfo>()
         for ((dp, sr) in mySimulationRuns) {
             // dp is design point number 1<=dp<=number of design points
             for (r in 1..dp.numReplications) {
-                list.add(r)
+                list.add(DesignPointInfo(dp.number, sr.experimentRunParameters.experimentName, r))
             }
         }
-        return list
-    }
-
-    /**
-     *  Supports extraction of replicated experiment names from simulation runs
-     */
-    private fun replicatedExpNames(): List<String> {
-        val list = mutableListOf<String>()
-        for ((dp, sr) in mySimulationRuns) {
-            // dp is design point number 1<=dp<=number of design points
-            for (r in 1..dp.numReplications) {
-                list.add(sr.experimentRunParameters.experimentName)
-            }
-        }
-        return list
+        return list.toDataFrame()
     }
 
     /**
@@ -190,10 +180,9 @@ class DesignedExperiment(
         }
         val points = KSLArrays.to2DDoubleArray(replicatedDesignPoints(coded))
         val cols = points.toMapOfLists(design.factorNames)
-        val expCol = replicatedExpNames().toColumn("exp_name")
-        val repIds = replicationIds().toColumn("rep_id")
-        val df = if (expCol.size() == points.size) {
-            expCol.toDataFrame().add(repIds).add(cols.toDataFrame())
+        val dpi = replicatedDesignPointInfo()
+        val df = if (dpi.rowsCount() == points.size) {
+            dpi.add(cols.toDataFrame())
         } else {
             cols.toDataFrame()
         }
@@ -206,7 +195,14 @@ class DesignedExperiment(
      *  and the replication id (number) for the value.
      */
     fun responseAsDataFrame(responseName: String): AnyFrame {
-        return kslDb.withRepViewStatistics(responseName)
+        val dpi = replicatedDesignPointInfo()
+        val df = kslDb.withRepViewStatistics(responseName)
+        if (dpi.rowsCount() != df.rowsCount()) {
+            return DataFrame.empty()
+        }
+        val exp_name by column<String>()
+        val rep_id by column<Int>()
+        return dpi.join(df, type = JoinType.Inner) { exp_name and rep_id }
     }
 
     /**

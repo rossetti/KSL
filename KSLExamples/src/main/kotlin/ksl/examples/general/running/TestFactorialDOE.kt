@@ -209,11 +209,19 @@ fun simulateFactorialDesign2(){
     println()
     de.simulate(numRepsPerDesignPoint = 3)
     println("Simulation of the design is completed")
+
+//    println("Design point info")
+//    val dpi = de.replicatedDesignPointInfo()
+//    dpi.print(rowsLimit = 36)
+
+    println()
+    println("Replicated design points")
     val df2 = de.replicatedDesignPointsAsDataFrame()
 
     df2.print(rowsLimit = 36)
     println()
 
+    println("Responses as a data frame")
     val df3 = de.responseAsDataFrame("System Time")
     df3.print(rowsLimit = 36)
 
