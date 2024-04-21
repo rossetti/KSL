@@ -27,7 +27,7 @@ import org.jetbrains.kotlinx.dataframe.api.*
 fun main(){
 
  //   printControlsAndRVParameters()
-    simulateFactorialDesign2()
+    simulateFactorialDesign()
 }
 
 fun buildModel() : Model {
@@ -53,66 +53,6 @@ fun printControlsAndRVParameters(){
     println(rvp)
 }
 
-fun simulateFactorialDesign(){
-    val fA = Factor("Server", doubleArrayOf(1.0, 2.0, 3.0))
-    val fB = Factor("MeanST", doubleArrayOf(0.6, 0.7))
-    val fC = Factor("MeanTBA", doubleArrayOf(1.0, 5.0))
-    val factors = mapOf(
-        fA to "MM1Q.numServers",
-        fB to "MM1_Test:ServiceTime_PARAM_mean",
-        fC to "MM1_Test:TBA_PARAM_mean"
-    )
-    val m = buildModel()
-    val fd = FactorialExperiment("FactorDesignTest", m, factors, 3)
-
-    println("Design points being simulated")
-    val df = fd.replicatedDesignPointsAsDataFrame()
-
-    df.print(rowsLimit = 36)
-    println()
-    fd.simulateDesign()
-    println("Simulation of the design is completed")
-    val df2 = fd.replicatedDesignPointsAsDataFrame()
-
-    df2.print(rowsLimit = 36)
-    println()
-
-    val df3 = fd.responseAsDataFrame("System Time")
-    df3.print(rowsLimit = 36)
-
-    println()
-    val df4 = fd.replicatedDesignPointsWithResponse("System Time")
-    df4.print(rowsLimit = 36)
-
-    println()
-    val df5 = fd.replicatedDesignPointsWithResponses()
-    df5.print(rowsLimit = 36)
-
-    println()
-    val df6 = fd.replicatedCodedDesignPointsWithResponses()
-    df6.print(rowsLimit = 36)
-
-    fd.resultsToCSV()
-
-//    fd.kslDb.withinRepViewStatistics.schema().print()
-//    println()
-//    val dm = fd.kslDb.withinRepViewStatistics.filter { "stat_name"<String>().equals("System Time") }
-
-  //  val dm = fd.kslDb.withinRepViewStatistics.drop { "stat_name"<String>().equals("System Time") }
-//    dm.print(rowsLimit = 50)
-
-//    for(sr in fd.simulationRuns){
-//        KSL.out.println(sr.toJson())
-//        KSL.out.println()
-//        val r = sr.statisticalReporter()
-//        println(r.halfWidthSummaryReport(title = sr.name))
-//        println()
-//    }
-
-    // This second set of runs will clear the first set from the database
- //   fd.simulateDesign()
-}
-
 fun testFD() {
     val f1 = Factor("A", doubleArrayOf(1.0, 2.0, 3.0, 4.0))
     val f2 = Factor("B", doubleArrayOf(5.0, 9.0))
@@ -124,7 +64,7 @@ fun testFD() {
     println(fd.designPointsAsDataframe())
     println()
     println("Coded Factorial Design as Data Frame")
-    println(fd.codedDesignPointsAsDataframe())
+    println(fd.designPointsAsDataframe(true))
     println()
     val array = fd.designPointsTo2DArray()
     array.print()
@@ -188,7 +128,7 @@ fun testCPRow() {
     println()
 }
 
-fun simulateFactorialDesign2(){
+fun simulateFactorialDesign(){
     val fA = Factor("Server", doubleArrayOf(1.0, 2.0, 3.0))
     val fB = Factor("MeanST", doubleArrayOf(0.6, 0.7))
     val fC = Factor("MeanTBA", doubleArrayOf(1.0, 5.0))
@@ -199,7 +139,7 @@ fun simulateFactorialDesign2(){
     )
     val m = buildModel()
 
-    val fd = FactorialDesignV2(factors.keys)
+    val fd = FactorialDesign(factors.keys)
     val de = DesignedExperiment("FactorDesignTest", m, factors, fd)
 
     println("Design points being simulated")
