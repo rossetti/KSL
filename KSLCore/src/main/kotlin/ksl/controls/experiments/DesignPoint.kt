@@ -87,7 +87,6 @@ fun List<DesignPoint>.asDataFrame(coded: Boolean = false): AnyFrame {
     } else {
         List(size) { this[it].values() }
     }
-    first().design.factorNames
     val cols = KSLArrays.to2DDoubleArray(points).toMapOfLists(first().design.factorNames)
     return cols.toDataFrame()
 }
