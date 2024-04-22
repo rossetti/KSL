@@ -92,6 +92,7 @@ class TwoLevelFactorialDesign(
         for (index in word) {
             p = p * cv[index - 1]
         }
+        //TODO this is only testing for I, could this be generalized to -I?
         return p == 1.0
     }
 
