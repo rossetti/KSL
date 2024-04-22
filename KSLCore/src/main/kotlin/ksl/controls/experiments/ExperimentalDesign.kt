@@ -5,13 +5,14 @@ import ksl.utilities.Identity
 class ExperimentalDesign(
     factors: Set<Factor>,
     name: String? = null,
+    numReps: Int = 1
 ) : Identity(name), ExperimentalDesignIfc {
 
     init {
         require(factors.isNotEmpty()) { "At least one factor must be defined" }
     }
 
-    override var defaultNumReplications: Int = 1
+    override var defaultNumReplications: Int = numReps
         set(value) {
             require(value > 0) { "Default number of replications must be greater than 0" }
             field = value
@@ -24,13 +25,19 @@ class ExperimentalDesign(
     private val myDesignPoints = mutableListOf<DesignPoint>()
 
     /**
-     *
+     *  Creates a design point and adds it to the design.
+     *  @param settings the factors in the settings must be in the design
+     *  @param numReps the number of replications for the design point, must be more than 0
      */
     fun addDesignPoint(
         settings: Map<Factor, Double>,
         numReps: Int = defaultNumReplications
     ) : DesignPoint {
         require(factors.values.containsAll(settings.keys)) { "The supplied factors do not match the design's factors" }
+        //TODO need to ensure that the doubles in the map are valid for the range of the factor
+        for((f,v) in settings){
+
+        }
         val num = myDesignPoints.size + 1
         val dp = DesignPoint(this,num, settings, numReps)
         myDesignPoints.add(dp)
@@ -48,7 +55,7 @@ class ExperimentalDesign(
     /**
      *  This iterator should present each design point
      *  until all points in the design have been presented.
-     *  @param defaultNumReplications the number of replications for the design points.
+     *  @param numReps the number of replications for the design points.
      *  Must be greater or equal to 1.
      */
     private inner class DesignPointIterator(val numReps: Int) : DesignPointIteratorIfc {

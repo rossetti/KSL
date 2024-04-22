@@ -41,6 +41,9 @@ class DesignPoint(
     init {
         require(number > 0) { "Number must be positive." }
         require(defaultNumReplications >= 1) { "number replications must be >= 1" }
+        for((f, v) in settings.entries) {
+            require(f.isValid(v)) {"The settings of $v is invalid for factor: ${f.name} having interval ${f.interval}." }
+        }
     }
 
     /**

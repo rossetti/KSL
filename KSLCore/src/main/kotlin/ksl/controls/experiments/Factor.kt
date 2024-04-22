@@ -19,11 +19,22 @@ open class Factor(
      *  The levels as a list
      */
     val levels: List<Double>
+    val interval: Interval
 
     init {
         require(values.size >= 2) { "At least 2 values must be in the array." }
         require(values.isStrictlyIncreasing()) { "The supplied values must be strictly increasing in value" }
         levels = values.asList()
+        val min = levels.min()
+        val max = levels.max()
+        interval = Interval(min, max)
+    }
+
+    /**
+     *  True if the value is valid over the range for the factor
+     */
+    fun isValid(value: Double): Boolean {
+        return interval.contains(value)
     }
 
     /**
@@ -71,6 +82,7 @@ open class Factor(
      *  The value based on coding.
      */
     fun codedValue(rawValue: Double): Double {
+        require(isValid(rawValue)) {"The raw value ($rawValue) is invalid: $interval."}
         return (rawValue - midPoint) / halfRange
     }
 
