@@ -24,16 +24,18 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.io.print
 import org.jetbrains.kotlinx.dataframe.api.*
 
-fun main(){
+fun main() {
 
- //   printControlsAndRVParameters()
+    //   printControlsAndRVParameters()
 
     test2LevelDesign()
+
+//    testFractionalDesign()
 
 //    simulateFactorialDesign()
 }
 
-fun buildModel() : Model {
+fun buildModel(): Model {
     val sim = Model("MM1 Test")
     sim.numberOfReplications = 15
     sim.lengthOfReplication = 10000.0
@@ -42,11 +44,11 @@ fun buildModel() : Model {
     return sim
 }
 
-fun printControlsAndRVParameters(){
+fun printControlsAndRVParameters() {
 
     val m = buildModel()
 
-    val controls  = m.controls()
+    val controls = m.controls()
     val rvp = m.rvParameterSetter
 
     println("Controls")
@@ -131,7 +133,7 @@ fun testCPRow() {
     println()
 }
 
-fun simulateFactorialDesign(){
+fun simulateFactorialDesign() {
     val fA = Factor("Server", doubleArrayOf(1.0, 2.0, 3.0))
     val fB = Factor("MeanST", doubleArrayOf(0.6, 0.7))
     val fC = Factor("MeanTBA", doubleArrayOf(1.0, 5.0))
@@ -183,12 +185,15 @@ fun simulateFactorialDesign(){
     de.resultsToCSV()
 }
 
-fun test2LevelDesign(){
-    val design = TwoLevelFactorialDesign(setOf(
-        TwoLevelFactor("A", 5.0, 15.0),
-        TwoLevelFactor("B", 2.0, 11.0),
-        TwoLevelFactor("C", 6.0, 10.0),
-    ))
+fun test2LevelDesign() {
+    val design = TwoLevelFactorialDesign(
+        setOf(
+            TwoLevelFactor("A", 5.0, 15.0),
+            TwoLevelFactor("B", 2.0, 11.0),
+            TwoLevelFactor("C", 6.0, 10.0),
+            TwoLevelFactor("D", 3.0, 9.0),
+        )
+    )
     val fdf = design.designPointsAsDataframe()
     println("Full design points")
     fdf.print(rowsLimit = 36)
@@ -196,10 +201,45 @@ fun test2LevelDesign(){
     design.designPointsAsDataframe(true).print(rowsLimit = 36)
     println()
 
+    // This is a resolution IV 2^(4-1) design
+    // This design can be found here: https://www.itl.nist.gov/div898/handbook/pri/section3/eqns/2to4m1.txt
     val itr = design.halfFractionIterator()
-
     val dPoints = itr.asSequence().toList()
     val df = dPoints.asDataFrame(coded = true)
     println("Positive half-fraction")
+    df.print(rowsLimit = 36)
+
+    println("The same design using a fractional iterator")
+    design.fractionalIterator(setOf(setOf(1, 2, 3, 4)))
+        .asSequence().toList()
+        .asDataFrame(true).print(rowsLimit = 36)
+
+}
+
+fun testFractionalDesign() {
+    val design = TwoLevelFactorialDesign(
+        setOf(
+            TwoLevelFactor("A", 5.0, 15.0),
+            TwoLevelFactor("B", 2.0, 11.0),
+            TwoLevelFactor("C", 6.0, 10.0),
+            TwoLevelFactor("D", 3.0, 9.0),
+            TwoLevelFactor("E", 4.0, 16.0)
+        )
+    )
+    val fdf = design.designPointsAsDataframe()
+    println("Full design points")
+    fdf.print(rowsLimit = 36)
+    println("Coded full design points")
+    design.designPointsAsDataframe(true).print(rowsLimit = 36)
+    println()
+
+    // This is a resolution III 2^(5-2) design
+    // This design can be found here: https://www.itl.nist.gov/div898/handbook/pri/section3/eqns/2to5m2.txt
+    val relation = setOf(setOf(1, 2, 4), setOf(1, 3, 5), setOf(2, 3, 4, 5))
+    val itr = design.fractionalIterator(relation)
+
+    val dPoints = itr.asSequence().toList()
+    val df = dPoints.asDataFrame(coded = true)
+    println("Fractional design points")
     df.print(rowsLimit = 36)
 }
