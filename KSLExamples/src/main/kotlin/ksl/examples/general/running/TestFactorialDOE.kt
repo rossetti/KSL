@@ -28,11 +28,11 @@ fun main() {
 
     //   printControlsAndRVParameters()
 
-    test2LevelDesign()
+//    test2LevelDesign()
 
 //    testFractionalDesign()
 
-//    simulateFactorialDesign()
+    simulateFactorialDesign()
 }
 
 fun buildModel(): Model {
