@@ -2,11 +2,6 @@ package ksl.controls.experiments
 
 import ksl.utilities.Identity
 import ksl.utilities.KSLArrays
-import ksl.utilities.toMapOfLists
-import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.api.toDataFrame
-import kotlin.math.min
-
 
 /**
  *  A factorial design represents a list of design points where every design point
@@ -115,7 +110,7 @@ open class FactorialDesign(
     override fun iterator(): DesignPointIteratorIfc {
         return DesignPointIterator()
     }
-    
+
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("FactorialDesign")
