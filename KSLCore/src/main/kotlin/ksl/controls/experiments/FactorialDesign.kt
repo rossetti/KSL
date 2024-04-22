@@ -69,20 +69,6 @@ open class FactorialDesign(
     }
 
     /**
-     *  Returns all the design points based on the cartesian product of the factors and their levels.
-     *  The element arrays of the returned list are the design points. The element
-     *  array's 0th element represents the first factor in the list of factor names.
-     *  @param coded indicates if the points should be coded, the default is false
-     */
-    private fun designPointsToList(coded: Boolean = false): List<DoubleArray> {
-        val list = mutableListOf<DoubleArray>()
-        for (i in 1..numDesignPoints) {
-            list.add(designPointToArray(i, coded))
-        }
-        return list
-    }
-
-    /**
      *  Returns the design point at the kth row of the factorial design based
      *  on the cartesian product of the factors and their levels.
      *
@@ -123,42 +109,13 @@ open class FactorialDesign(
     }
 
     /**
-     *  Returns all the design points based on the cartesian product of the factors and their levels.
-     */
-    fun designPoints(): List<DesignPoint> {
-        return List(numDesignPoints) { designPoint(it + 1) }
-    }
-
-    /**
-     *  Returns all the design points based on the cartesian product of the factors and their levels
-     *  as a 2D array.  The rows of the array are the design points.
-     *  The row array's 0th element represents the first factor in the list of factor names.
-     *  @param coded indicates if the points should be coded, the default is false
-     */
-    fun designPointsTo2DArray(coded: Boolean = false): Array<DoubleArray> {
-        return KSLArrays.to2DDoubleArray(designPointsToList(coded))
-    }
-
-    /**
      *  Returns an iterator that produces the design points
      *  in order from 1 to the number of design points.
      */
     override fun iterator(): DesignPointIteratorIfc {
         return DesignPointIterator()
     }
-
-    /**
-     *  Returns the design points as a data frame. The columns
-     *  of the data frame are the factor names and the rows are the
-     *  design points.
-     *  @param coded indicates if the points are coded. The default is false.
-     */
-    fun designPointsAsDataframe(coded: Boolean = false): AnyFrame {
-        val points = designPointsTo2DArray(coded)
-        val cols = points.toMapOfLists(factorNames)
-        return cols.toDataFrame()
-    }
-
+    
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("FactorialDesign")
@@ -169,10 +126,8 @@ open class FactorialDesign(
             sb.appendLine(factor)
         }
         sb.appendLine("First few Design Points")
-        val n = min(4, numDesignPoints)
-        for (i in 1..n) {
-            sb.appendLine("\t$i : ${designPointToArray(i).joinToString()}")
-        }
+        iterator().asSequence().take(4)
+            .forEach { sb.appendLine("\t${it.number} : ${it.values().joinToString()}") }
         return sb.toString()
     }
 
