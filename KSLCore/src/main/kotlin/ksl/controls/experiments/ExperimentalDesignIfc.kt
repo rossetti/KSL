@@ -25,6 +25,14 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
     fun factorName(k: Int): String = factorNames[k - 1]
 
     /**
+     *  Returns an iterator that produces the design points
+     *  in order from 1 to the number of design points.
+     *  @param defaultNumReplications the number of replications for the design points returned from the iterator
+     *  Must be greater or equal to 1.
+     */
+    fun designIterator(defaultNumReplications: Int = 1): DesignPointIteratorIfc
+
+    /**
      *  Returns all the design points based on the cartesian product of the factors and their levels.
      */
     fun designPoints(): List<DesignPoint> {

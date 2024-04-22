@@ -68,23 +68,27 @@ open class FactorialDesign(
      *  on the cartesian product of the factors and their levels.
      *
      *  @param k must be in 1 to numDesignPoints
+     *  @param defaultNumReplications the number of replications for this design point
+     *  Must be greater or equal to 1.
      *  @return the returned DesignPoint
      */
-    protected fun designPoint(k: Int): DesignPoint {
+    protected fun designPoint(k: Int, defaultNumReplications: Int = 1): DesignPoint {
         val rowMap = mutableMapOf<Factor, Double>()
         val points = designPointToArray(k)
         for ((i, point) in points.withIndex()) {
             val factor = myFactors[factorNames[i]]!!
             rowMap[factor] = point
         }
-        return DesignPoint(this, k, rowMap)
+        return DesignPoint(this, k, rowMap, defaultNumReplications)
     }
 
     /**
      *  This iterator should present each design point
      *  until all points in the design have been presented.
+     *  @param defaultNumReplications the number of replications for the design points.
+     *  Must be greater or equal to 1.
      */
-    private inner class DesignPointIterator : DesignPointIteratorIfc {
+    inner class DesignPointIterator(val defaultNumReplications: Int = 1) : DesignPointIteratorIfc {
         override var count: Int = 0
             private set
 
@@ -97,7 +101,7 @@ open class FactorialDesign(
 
         override fun next(): DesignPoint {
             count++
-            last = designPoint(count)
+            last = designPoint(count, defaultNumReplications)
             return last!!
         }
 
@@ -109,6 +113,16 @@ open class FactorialDesign(
      */
     override fun iterator(): DesignPointIteratorIfc {
         return DesignPointIterator()
+    }
+
+    /**
+     *  Returns an iterator that produces the design points
+     *  in order from 1 to the number of design points.
+     *  @param defaultNumReplications the number of replications for the design points returned from the iterator
+     *  Must be greater or equal to 1.
+     */
+    override fun designIterator(defaultNumReplications: Int): DesignPointIteratorIfc {
+        return DesignPointIterator(defaultNumReplications)
     }
 
     override fun toString(): String {

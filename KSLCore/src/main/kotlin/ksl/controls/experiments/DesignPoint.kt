@@ -26,6 +26,11 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 /**
  *  A design point is a specification of the [settings] for the
  *  factors of an experiment.
+ *  @param design the design associated with this point
+ *  @param number the number of the point within the design
+ *  @param settings the specification of the settings for the factors for this point
+ *  @param defaultNumReplications the number of replications for this design point
+ *  Must be greater or equal to 1.
  */
 class DesignPoint(
     val design: ExperimentalDesignIfc,
