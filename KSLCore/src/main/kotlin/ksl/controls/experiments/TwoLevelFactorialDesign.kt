@@ -14,7 +14,7 @@ class TwoLevelFactorialDesign(
      */
     private inner class HalfFractionIterator(val half: Double = 1.0) : DesignPointIteratorIfc {
         init {
-            require((half == 1.0) || (half == 0.0)) { "The half fraction must be 1.0 or -1.0"}
+            require((half == 1.0) || (half == -1.0)) { "The half fraction must be 1.0 or -1.0"}
         }
         // use the main iterator to go through all point
         private val itr = iterator() as DesignPointIteratorIfc
