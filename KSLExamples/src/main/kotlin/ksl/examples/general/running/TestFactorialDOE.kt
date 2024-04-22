@@ -27,7 +27,10 @@ import org.jetbrains.kotlinx.dataframe.api.*
 fun main(){
 
  //   printControlsAndRVParameters()
-    simulateFactorialDesign()
+
+    test2LevelDesign()
+
+//    simulateFactorialDesign()
 }
 
 fun buildModel() : Model {
@@ -178,4 +181,25 @@ fun simulateFactorialDesign(){
     df6.print(rowsLimit = 36)
 
     de.resultsToCSV()
+}
+
+fun test2LevelDesign(){
+    val design = TwoLevelFactorialDesign(setOf(
+        TwoLevelFactor("A", 5.0, 15.0),
+        TwoLevelFactor("B", 2.0, 11.0),
+        TwoLevelFactor("C", 6.0, 10.0),
+    ))
+    val fdf = design.designPointsAsDataframe()
+    println("Full design points")
+    fdf.print(rowsLimit = 36)
+    println("Coded full design points")
+    design.designPointsAsDataframe(true).print(rowsLimit = 36)
+    println()
+
+    val itr = design.halfFractionIterator()
+
+    val dPoints = itr.asSequence().toList()
+    val df = dPoints.asDataFrame(coded = true)
+    println("Positive half-fraction")
+    df.print(rowsLimit = 36)
 }

@@ -1,4 +1,3 @@
-
 /*
  *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
@@ -19,11 +18,17 @@
 
 package ksl.controls.experiments
 
+import ksl.utilities.KSLArrays
+import ksl.utilities.toMapOfLists
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+
 /**
  *  A design point is a specification of the [settings] for the
  *  factors of an experiment.
  */
-class DesignPoint (
+class DesignPoint(
     val design: ExperimentalDesignIfc,
     val number: Int,
     val settings: Map<Factor, Double>
@@ -46,9 +51,9 @@ class DesignPoint (
      *  The raw values for each factor for this design point with ordering
      *  based on the order in which the factors are placed in the settings.
      */
-    fun values() : DoubleArray {
+    fun values(): DoubleArray {
         val list = mutableListOf<Double>()
-        for((f,v) in settings.entries) {
+        for ((f, v) in settings.entries) {
             list.add(v)
         }
         return list.toDoubleArray()
@@ -58,11 +63,32 @@ class DesignPoint (
      *  The coded values for each factor for this design point with ordering
      *  based on the order in which the factors are placed in the settings.
      */
-    fun codedValues() : DoubleArray {
+    fun codedValues(): DoubleArray {
         val list = mutableListOf<Double>()
-        for((f,v) in settings.entries) {
+        for ((f, v) in settings.entries) {
             list.add(f.codedValue(v))
         }
         return list.toDoubleArray()
     }
+}
+
+/**
+ *  Turns the list of design points into a data frame.
+ *  The columns of the data frame are the factor names and the rows are the
+ *  design points values.
+ *  @param coded indicates if the points should be coded. The default is false.
+ */
+fun List<DesignPoint>.asDataFrame(coded: Boolean = false): AnyFrame {
+    if (isEmpty()) {
+        return AnyFrame.empty()
+    }
+    // get the points as arrays
+    val points = if (coded) {
+        List(size) { this[it].codedValues() }
+    } else {
+        List(size) { this[it].values() }
+    }
+    first().design.factorNames
+    val cols = KSLArrays.to2DDoubleArray(points).toMapOfLists(first().design.factorNames)
+    return cols.toDataFrame()
 }
