@@ -19,6 +19,13 @@ open class FactorialDesign(
     factors: Set<Factor>,
     name: String? = null
 ) : Identity(name), ExperimentalDesignIfc {
+
+    override var defaultNumReplications: Int = 1
+        set(value) {
+            require(value > 0) { "Default number of replications must be greater than 0" }
+            field = value
+        }
+
     private val myFactors = mutableMapOf<String, Factor>()
 
     override val factors: Map<String, Factor>
@@ -68,18 +75,18 @@ open class FactorialDesign(
      *  on the cartesian product of the factors and their levels.
      *
      *  @param k must be in 1 to numDesignPoints
-     *  @param defaultNumReplications the number of replications for this design point
+     *  @param replications the number of replications for this design point
      *  Must be greater or equal to 1.
      *  @return the returned DesignPoint
      */
-    protected fun designPoint(k: Int, defaultNumReplications: Int = 1): DesignPoint {
+    protected fun designPoint(k: Int, replications: Int = defaultNumReplications): DesignPoint {
         val rowMap = mutableMapOf<Factor, Double>()
         val points = designPointToArray(k)
         for ((i, point) in points.withIndex()) {
             val factor = myFactors[factorNames[i]]!!
             rowMap[factor] = point
         }
-        return DesignPoint(this, k, rowMap, defaultNumReplications)
+        return DesignPoint(this, k, rowMap, replications)
     }
 
     /**
@@ -88,7 +95,7 @@ open class FactorialDesign(
      *  @param defaultNumReplications the number of replications for the design points.
      *  Must be greater or equal to 1.
      */
-    inner class DesignPointIterator(val defaultNumReplications: Int = 1) : DesignPointIteratorIfc {
+    inner class DesignPointIterator(val numReps: Int = defaultNumReplications) : DesignPointIteratorIfc {
         override var count: Int = 0
             private set
 
@@ -101,7 +108,7 @@ open class FactorialDesign(
 
         override fun next(): DesignPoint {
             count++
-            last = designPoint(count, defaultNumReplications)
+            last = designPoint(count, numReps)
             return last!!
         }
 
@@ -118,11 +125,11 @@ open class FactorialDesign(
     /**
      *  Returns an iterator that produces the design points
      *  in order from 1 to the number of design points.
-     *  @param defaultNumReplications the number of replications for the design points returned from the iterator
+     *  @param replications the number of replications for the design points returned from the iterator
      *  Must be greater or equal to 1.
      */
-    override fun designIterator(defaultNumReplications: Int): DesignPointIteratorIfc {
-        return DesignPointIterator(defaultNumReplications)
+    override fun designIterator(replications: Int): DesignPointIteratorIfc {
+        return DesignPointIterator(replications)
     }
 
     override fun toString(): String {
