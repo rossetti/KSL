@@ -104,6 +104,10 @@ open class FactorialDesign(
      *  until all points in the design have been presented.
      */
     private inner class DesignPointIterator : DesignPointIteratorIfc {
+
+        override val factors: List<Factor>
+            get() = myFactors.values.toList()
+
         override var count: Int = 0
             private set
 
