@@ -29,9 +29,13 @@ class TwoLevelFactorialDesign(
      *  With 1 referencing the first factor, 2 the 2nd, etc.
      *
      *  @param relation the set of words for the defining relation.
+     *  @param sign the sign of the generator 1.0 = I, -1.0 = -I. The default is 1.0.
      */
-    fun fractionalIterator(relation: Set<Set<Int>>): FractionalIterator {
-        return FractionalIterator(relation)
+    fun fractionalIterator(
+        relation: Set<Set<Int>>,
+        sign: Double = 1.0
+    ): FractionalIterator {
+        return FractionalIterator(relation, sign)
     }
 
     /**
@@ -79,8 +83,14 @@ class TwoLevelFactorialDesign(
      *  @param word the set of factor indices for the word of a defining relation. The
      *  word must have at least 3 elements and its size must be less than
      *  or equal to the number of factors.
+     *  @param sign the sign of the generator 1.0 = I, -1.0 = -I. The default is 1.0.
      */
-    fun inDesignWord(dp: DesignPoint, word: Set<Int>) : Boolean {
+    fun inDesignWord(
+        dp: DesignPoint,
+        word: Set<Int>,
+        sign: Double = 1.0
+    ) : Boolean {
+        require((sign == 1.0) || (sign == -1.0)) { "The generator sign must be 1.0 or -1.0" }
         require(word.size >= 2) {"The word must have at least 2 elements"}
         require(word.size <= dp.settings.size)
             {"The size of the word (${word.size} must be <= the number of factors (${dp.settings.size})"}
@@ -92,8 +102,7 @@ class TwoLevelFactorialDesign(
         for (index in word) {
             p = p * cv[index - 1]
         }
-        //TODO this is only testing for I, could this be generalized to -I?
-        return p == 1.0
+        return p == sign
     }
 
     /**
@@ -107,13 +116,19 @@ class TwoLevelFactorialDesign(
      *  With 1 referencing the first factor, 2 the 2nd, etc.
      *
      *  @param relation the set of words for the defining relation.
+     *  @param sign the sign of the generator 1.0 = I, -1.0 = -I. The default is 1.0.
      */
-    fun inDesignRelation(dp: DesignPoint, relation: Set<Set<Int>>) : Boolean {
+    fun inDesignRelation(
+        dp: DesignPoint,
+        relation: Set<Set<Int>>,
+        sign: Double = 1.0
+    ) : Boolean {
+        require((sign == 1.0) || (sign == -1.0)) { "The generator sign must be 1.0 or -1.0" }
         if (relation.isEmpty()){
             return false
         }
         for(word in relation){
-            if (!inDesignWord(dp, word)){
+            if (!inDesignWord(dp, word, sign)){
                 return false
             }
         }
@@ -134,8 +149,12 @@ class TwoLevelFactorialDesign(
      *  With 1 referencing the first factor, 2 the 2nd, etc.
      *
      *  @param relation the set of words for the defining relation.
+     *  @param sign the sign of the generator 1.0 = I, -1.0 = -I. The default is 1.0.
      */
-    inner class FractionalIterator(relation: Set<Set<Int>>) : DesignPointIteratorIfc {
+    inner class FractionalIterator(
+        relation: Set<Set<Int>>,
+        sign: Double = 1.0
+    ) : DesignPointIteratorIfc {
 
         // The internal iterator for the points
         private val itr: Iterator<DesignPoint>
@@ -143,7 +162,7 @@ class TwoLevelFactorialDesign(
         init {
             // make the sequence and get the iterator
             val tmp = this@TwoLevelFactorialDesign.iterator()
-            itr = tmp.asSequence().filter { inDesignRelation(it, relation) }.iterator()
+            itr = tmp.asSequence().filter { inDesignRelation(it, relation, sign) }.iterator()
         }
 
         override var count: Int = 0
