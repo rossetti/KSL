@@ -300,7 +300,7 @@ class DesignedExperiment(
      *  @param addRuns If true the executed run will be added to the executed simulation runs. The
      *  default is true.
      */
-    fun simulate(
+    private fun simulate(
         designPoint: DesignPoint,
         baseExperimentName: String = "${myOriginalExpRunParams.experimentName}_DP_${designPoint.number}",
         clearRuns: Boolean = false,
