@@ -30,17 +30,19 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 class DesignPoint(
     val design: ExperimentalDesignIfc,
     val number: Int,
-    val settings: Map<Factor, Double>
+    val settings: Map<Factor, Double>,
+    defaultNumReplications: Int = 1
 ) {
     init {
         require(number > 0) { "Number must be positive." }
+        require(defaultNumReplications >= 1) { "number replications must be >= 1" }
     }
 
     /**
      *  The number of replications must be 0 or more. If 0,
      *  then the design point should not be executed. The default is 1.
      */
-    var numReplications: Int = 1
+    var numReplications: Int = defaultNumReplications
         set(value) {
             require(value >= 1) { "number replications must be >= 1" }
             field = value
