@@ -26,20 +26,35 @@ class ExperimentalDesign(
 
     /**
      *  Creates a design point and adds it to the design.
+     *  @param values the values to assign to the factors, ordered by factor name
+     *  @param numReps the number of replications for the design point, must be more than 0
+     */
+    fun addDesignPoint(
+        values: DoubleArray,
+        numReps: Int = defaultNumReplications
+    ): DesignPoint {
+        require(values.size == factorNames.size) { "The number of values must be ${factorNames.size}." }
+        val settings = mutableMapOf<Factor, Double>()
+        for ((i, fn) in factorNames.withIndex()) {
+            val f = factors[fn]!!
+            require(f.isValid(values[i])){"The supplied value (${values} is invalid for factor ${f.name} with interval ${f.interval}"}
+            settings[f] = values[i]
+        }
+        return addDesignPoint(settings, numReps)
+    }
+
+    /**
+     *  Creates a design point and adds it to the design.
      *  @param settings the factors in the settings must be in the design
      *  @param numReps the number of replications for the design point, must be more than 0
      */
     fun addDesignPoint(
         settings: Map<Factor, Double>,
         numReps: Int = defaultNumReplications
-    ) : DesignPoint {
+    ): DesignPoint {
         require(factors.values.containsAll(settings.keys)) { "The supplied factors do not match the design's factors" }
-        //TODO need to ensure that the doubles in the map are valid for the range of the factor
-        for((f,v) in settings){
-
-        }
         val num = myDesignPoints.size + 1
-        val dp = DesignPoint(this,num, settings, numReps)
+        val dp = DesignPoint(this, num, settings, numReps)
         myDesignPoints.add(dp)
         return dp
     }
