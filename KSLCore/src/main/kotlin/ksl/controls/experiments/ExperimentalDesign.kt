@@ -25,6 +25,13 @@ class ExperimentalDesign(
     private val myDesignPoints = mutableListOf<DesignPoint>()
 
     /**
+     *  Clears all the design points from the design.
+     */
+    fun clearDesignPoints() {
+        myDesignPoints.clear()
+    }
+
+    /**
      *  Creates a design point and adds it to the design.
      *  @param values the values to assign to the factors, ordered by factor name
      *  @param numReps the number of replications for the design point, must be more than 0
