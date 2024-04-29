@@ -314,14 +314,18 @@ abstract class MODAModel(
      *  The parameter [firstColumnName] can be used to name the first column of the
      *  returned data frame. By default, the first column name is "Alternatives".
      *  The metric ranking columns are labeled as "${metric.name}_Rank"
+     *  @param rankingMethod provides the type of ranking. By default, it is ordinal.
      */
-    fun alternativeRanksAsDataFrame(firstColumnName: String = "Alternatives"): AnyFrame {
+    fun alternativeRanksAsDataFrame(
+        firstColumnName: String = "Alternatives",
+        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+    ): AnyFrame {
         // make the alternative column
         val alternativeColumn = alternatives.toColumn(firstColumnName)
         // then make columns for each metric
         val columns = mutableListOf<DataColumn<*>>()
         columns.add(alternativeColumn)
-        val metrics = ranksByMetric()
+        val metrics = ranksByMetric(rankingMethod)
         for ((metric, score) in metrics) {
             val dataColumn = score.toColumn("${metric.name}_Rank")
             columns.add(dataColumn)
