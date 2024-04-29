@@ -497,6 +497,7 @@ class PDFModeler(private val data: DoubleArray) {
         val results = estimateAndEvaluateScores()
         val scores = results.evaluationModel.alternativeScoresAsDataFrame("Distributions")
         val values = results.evaluationModel.alternativeValuesAsDataFrame("Distributions")
+        val ranks = results.evaluationModel.alternativeRanksAsDataFrame("Distributions")
         val topResult = results.sortedScoringResults.first()
         val distPlot = topResult.distributionFitPlot()
         if (plotFileName != null) {
@@ -524,6 +525,12 @@ class PDFModeler(private val data: DoubleArray) {
             appendLine(values.toStandaloneHTML())
             appendLine("</div>")
             appendLine("<div>")
+//            appendLine("<h2>")
+//            appendLine("Ranks")
+//            appendLine("</h2>")
+//            appendLine(ranks.toStandaloneHTML())
+//            appendLine("</div>")
+//            appendLine("<div>")
             appendLine("<p>")
             appendLine("<strong> Recommended Distribution</strong> ${topResult.name}")
             appendLine("</p>")
@@ -583,11 +590,11 @@ class PDFModeler(private val data: DoubleArray) {
          */
         val allScoringModels: Set<PDFScoringModel>
             get() = setOf(
-                ChiSquaredScoringModel(),
+//                ChiSquaredScoringModel(),
                 KSScoringModel(),
                 SquaredErrorScoringModel(),
                 AndersonDarlingScoringModel(),
-                CramerVonMisesScoringModel(),
+//                CramerVonMisesScoringModel(),
                 //AkaikeInfoCriterionScoringModel,
                 //BayesianInfoCriterionScoringModel
             )
