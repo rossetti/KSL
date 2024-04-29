@@ -529,6 +529,13 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
     companion object {
 
         /**
+         *  The types of ranking methods for the ranks() function.
+         */
+        enum class Ranking {
+            Dense, Fractional, Ordinal
+        }
+
+        /**
          * Uses definition 7, as per R definitions
          *
          * @param unsortedData the array of data. The data will be sorted as a side effect of the call
@@ -1222,6 +1229,23 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
             val num = n - 2.0 * k + 2
             val deNom = n - k + 1.0
             return (num / deNom) * ln(ln(n)) - 2.0 * k * lnMax
+        }
+
+        /**
+         *  Computes the ranks for the data array based on the supplied
+         *  ranking method.
+         *  @param data the data to rank
+         *  @param method the method to use for ranking (Ordinal, Fractional, Dense) with
+         *  Ordinal as the default
+         *  @return the ranks returned in an array, where element k of the array holds the rank
+         *  of element k in the [data] array
+         */
+        fun ranks(data: DoubleArray, method: Ranking = Ranking.Ordinal) : DoubleArray {
+            return when (method) {
+                Ranking.Ordinal -> ordinalRanks(data)
+                Ranking.Dense -> denseRanks(data)
+                Ranking.Fractional -> fractionalRanks(data)
+            }
         }
 
         /**
