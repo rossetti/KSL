@@ -233,6 +233,7 @@ abstract class MODAModel(
         rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
     ): List<Double> {
         val mv = metricValues(metric).toDoubleArray()
+        //TODO this is ranking in the wrong direction, higher is supposed to be better
         return Statistic.ranks(mv, rankingMethod).toList()
     }
 
