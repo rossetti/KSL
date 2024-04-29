@@ -185,6 +185,22 @@ abstract class MODAModel(
     }
 
     /**
+     *  Returns the ranks of the transformed metric scores as values from the assigned
+     *  value function for each metric with each element
+     *  of the returned list for a different alternative in the order
+     *  that the alternatives are listed. The default ranking method is Ordinal.
+     */
+    fun ranksByMetric(
+        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+    ): Map<MetricIfc, List<Double>> {
+        val map = mutableMapOf<MetricIfc, List<Double>>()
+        for (metric in metrics) {
+            map[metric] = metricRanks(metric, rankingMethod)
+        }
+        return map
+    }
+
+    /**
      *  Retrieves the values from the value functions for each alternative as a
      *  list of transformed values based on the supplied [metric]. The supplied
      *  metric must be part of the model.
@@ -200,6 +216,24 @@ abstract class MODAModel(
             list.add(v)
         }
         return list
+    }
+
+    /**
+     *  Retrieves the rank of each value for each alternative as a
+     *  list of ranks based on the supplied [metric]. The supplied
+     *  metric must be part of the model. The elements of the list
+     *  return the ranking of the alternatives with respect to the supplied
+     *  [metric].  The number of elements is the number of alternatives.
+     *  Thus, element 0 has the rank of the alternative 0 based on the metric.
+     *  Thus, each alternative may have a different ranking based on the different
+     *  metrics.
+     */
+    fun metricRanks(
+        metric: MetricIfc,
+        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+    ): List<Double> {
+        val mv = metricValues(metric).toDoubleArray()
+        return Statistic.ranks(mv, rankingMethod).toList()
     }
 
     /**
