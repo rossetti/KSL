@@ -953,7 +953,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          */
         fun pearsonCorrelation(x: DoubleArray, y: DoubleArray): Double {
             val n = min(x.size, y.size)
-            require(n > 2) {"There must be at least two elements in each array"}
+            require(n > 2) { "There must be at least two elements in each array" }
             val s = StatisticXY()
             for (i in 0 until n) {
                 s.collectXY(x[i], y[i])
@@ -967,7 +967,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          */
         fun covariance(x: DoubleArray, y: DoubleArray): Double {
             val n = min(x.size, y.size)
-            require(n > 2) {"There must be at least two elements in each array"}
+            require(n > 2) { "There must be at least two elements in each array" }
             val s = StatisticXY()
             for (i in 0 until n) {
                 s.collectXY(x[i], y[i])
@@ -982,8 +982,8 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          */
         fun covariances(matrix: Array<DoubleArray>): Array<DoubleArray> {
             require(matrix.isRectangular()) { "The supplied matrix was not rectangular" }
-            require(matrix.size > 1){"The number of rows must be > 1"}
-            require(matrix[0].size > 2) {"The number of columns must be > 2"}
+            require(matrix.size > 1) { "The number of rows must be > 1" }
+            require(matrix[0].size > 2) { "The number of columns must be > 2" }
             // https://hipparchus.org/apidocs/org/hipparchus/stat/correlation/Covariance.html
             // assumes data is columns, must transpose, and compute bias corrected version
             return Covariance(matrix.transpose(), true).covarianceMatrix.data
@@ -1141,7 +1141,7 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
                     fnmkp1 = 1.0 - Double.MIN_VALUE //TODO need to delete
                 }
                 sum = sum + (2.0 * i - 1.0) * (lnfk + lnFnmkp1)
- //               sum = sum + (2.0 * i - 1.0) * (ln(fk) + ln(1.0 - fnmkp1))
+                //               sum = sum + (2.0 * i - 1.0) * (ln(fk) + ln(1.0 - fnmkp1))
             }
             sum = sum / n
             return -(n + sum)
@@ -1239,12 +1239,19 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *  Ordinal as the default
          *  @return the ranks returned in an array, where element k of the array holds the rank
          *  of element k in the [data] array
+         *
+         *   @param largestToSmallest if true the rankings are largest to smallest. The default
+         *   is false (smallest to largest).
          */
-        fun ranks(data: DoubleArray, method: Ranking = Ranking.Ordinal) : DoubleArray {
+        fun ranks(
+            data: DoubleArray,
+            method: Ranking = Ranking.Ordinal,
+            largestToSmallest: Boolean = false
+        ): DoubleArray {
             return when (method) {
-                Ranking.Ordinal -> ordinalRanks(data)
-                Ranking.Dense -> denseRanks(data)
-                Ranking.Fractional -> fractionalRanks(data)
+                Ranking.Ordinal -> ordinalRanks(data, largestToSmallest)
+                Ranking.Dense -> denseRanks(data, largestToSmallest)
+                Ranking.Fractional -> fractionalRanks(data, largestToSmallest)
             }
         }
 
@@ -1255,15 +1262,22 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *   the [data] array.  Ties are handled by assigning the mean of the ranks
          *   that would have been given otherwise, so that the sum of the ranks is preserved.
          *   This is called [fractional ranking](https://en.wikipedia.org/wiki/Ranking)
+         *
+         *   @param largestToSmallest if true the rankings are largest to smallest. The default
+         *   is false (smallest to largest).
          */
-        fun fractionalRanks(data: DoubleArray): DoubleArray {
+        fun fractionalRanks(data: DoubleArray, largestToSmallest: Boolean = false): DoubleArray {
             // create the ranks array
             val ranks = DoubleArray(data.size) { 0.0 }
             // Create an auxiliary array of pairs, each pair stores the data as well as its index
             val pairs = Array<Pair<Double, Int>>(data.size) { Pair(data[it], it) }
             // sort according to the data (first element in the pair
             val comparator = compareBy<Pair<Double, Int>> { it.first }
-            pairs.sortWith(comparator)
+            if (largestToSmallest) {
+                pairs.sortWith(comparator.reversed())
+            } else {
+                pairs.sortWith(comparator)
+            }
             var r = 1
             var i = 0
             val n = data.size
@@ -1293,15 +1307,22 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *   predicated on the "first" ranking method for the R rank() function.
          *
          *   This is called [ordinal ranking](https://en.wikipedia.org/wiki/Ranking)
+         *
+         *   @param largestToSmallest if true the rankings are largest to smallest. The default
+         *   is false (smallest to largest).
          */
-        fun ordinalRanks(data: DoubleArray): DoubleArray {
+        fun ordinalRanks(data: DoubleArray, largestToSmallest: Boolean = false): DoubleArray {
             // create the ranks array
             val ranks = DoubleArray(data.size) { 0.0 }
             // Create an auxiliary array of pairs, each pair stores the data as well as its index
             val pairs = Array<Pair<Double, Int>>(data.size) { Pair(data[it], it) }
             // sort according to the data (first element in the pair
             val comparator = compareBy<Pair<Double, Int>> { it.first }
-            pairs.sortWith(comparator)
+            if (largestToSmallest) {
+                pairs.sortWith(comparator.reversed())
+            } else {
+                pairs.sortWith(comparator)
+            }
             for ((k, pair) in pairs.withIndex()) {
                 ranks[pair.second] = k + 1.0
             }
@@ -1315,15 +1336,21 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *   the [data] array.  In dense ranking, items that compare equally receive
          *   the same ranking number, and the next items receive the immediately following ranking number.
          *   This is called [dense ranking](https://en.wikipedia.org/wiki/Ranking)
+         *   @param largestToSmallest if true the rankings are largest to smallest. The default
+         *   is false (smallest to largest).
          */
-        fun denseRanks(data: DoubleArray): DoubleArray {
+        fun denseRanks(data: DoubleArray, largestToSmallest: Boolean = false): DoubleArray {
             // create the ranks array
             val ranks = DoubleArray(data.size) { 0.0 }
             // Create an auxiliary array of pairs, each pair stores the data as well as its index
             val pairs = Array<Pair<Double, Int>>(data.size) { Pair(data[it], it) }
             // sort according to the data (first element in the pair
             val comparator = compareBy<Pair<Double, Int>> { it.first }
-            pairs.sortWith(comparator)
+            if (largestToSmallest) {
+                pairs.sortWith(comparator.reversed())
+            } else {
+                pairs.sortWith(comparator)
+            }
             var r = 1
             ranks[pairs[0].second] = r.toDouble()
             for (k in 1.until(data.size)) {
