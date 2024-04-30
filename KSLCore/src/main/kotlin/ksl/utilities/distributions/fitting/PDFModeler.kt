@@ -497,7 +497,7 @@ class PDFModeler(private val data: DoubleArray) {
         val results = estimateAndEvaluateScores()
         val scores = results.evaluationModel.alternativeScoresAsDataFrame("Distributions")
         val values = results.evaluationModel.alternativeValuesAsDataFrame("Distributions")
-        val ranks = results.evaluationModel.alternativeRanksAsDataFrame("Distributions")
+ //       val ranks = results.evaluationModel.alternativeRanksAsDataFrame("Distributions")
         val topResult = results.sortedScoringResults.first()
         val distPlot = topResult.distributionFitPlot()
         if (plotFileName != null) {
