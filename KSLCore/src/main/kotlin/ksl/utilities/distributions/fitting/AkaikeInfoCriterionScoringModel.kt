@@ -36,6 +36,9 @@ import ksl.utilities.statistic.Statistic
 class AkaikeInfoCriterionScoringModel : PDFScoringModel("AIC") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
+        if (data.isEmpty()){
+            return Score(this, Double.MAX_VALUE, true)
+        }
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
         val score = Statistic.akaikeInfoCriterion(data.size, k, lm)

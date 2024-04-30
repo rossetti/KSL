@@ -998,12 +998,13 @@ object KSLArrays {
     }
 
     /**
-     * The array must not be null
+     * The array must not be null.
      *
-     * @param array the input array
+     * @param array the input array. Cannot be empty.
      * @return the sum of the squares of the elements of the array
      */
     fun sumOfSquares(array: DoubleArray): Double {
+        require(array.isNotEmpty()) {"The array cannot be empty."}
         var sum = 0.0
         for (v in array) {
             sum = sum + v * v
@@ -1012,12 +1013,40 @@ object KSLArrays {
     }
 
     /**
-     * The array must have non-negative elements and not be null
+     * Subtracts the arrays element by element. Arrays must have same length and must not be empty.
+     * Computes the sum of the squares of the differences.
+     *
+     * @param a the first array
+     * @param b the second array
+     * @return the sum of  (a[i]-b[i])^2 for the elements
+     */
+    fun sumOfSquaredError(a: DoubleArray, b: DoubleArray) : Double {
+        require(a.isNotEmpty() && b.isNotEmpty()) {"The arrays cannot be empty."}
+        val d = subtractElements(a, b)
+        return sumOfSquares(d)
+    }
+
+    /**
+     * Subtracts the arrays element by element. Arrays must have same length and must not be empty.
+     * Computes the average of the squares of the differences.
+     *
+     * @param a the first array. Cannot be empty.
+     * @param b the second array. Cannot be empty
+     * @return the average of sum of (a[i]-b[i])^2 for the elements
+     */
+    fun meanSquaredError(a: DoubleArray, b: DoubleArray) : Double {
+        require(a.isNotEmpty() && b.isNotEmpty()) {"The arrays cannot be empty."}
+        return sumOfSquaredError(a, b)/a.size
+    }
+
+    /**
+     * The array must have non-negative elements and not be empty
      *
      * @param array the input array
      * @return the sum of the square roots of the elements of the array
      */
     fun sumOfSquareRoots(array: DoubleArray): Double {
+        require(array.isNotEmpty()) {"The array cannot be empty."}
         var sum = 0.0
         for (v in array) {
             sum = sum + sqrt(v)

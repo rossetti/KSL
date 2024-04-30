@@ -936,6 +936,9 @@ class Statistic(name: String = "Statistic_${++StatCounter}", values: DoubleArray
          *  comes from the supplied distribution.
          */
         fun ksTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
+            if (data.isEmpty()){
+                return Double.MAX_VALUE
+            }
             val tp = data.orderStatistics()
             tp.mapInPlace { x -> fn.cdf(x) }
             val n = tp.size

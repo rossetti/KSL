@@ -28,6 +28,9 @@ import ksl.utilities.statistic.Statistic
 class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
+        if (data.isEmpty()){
+            return Score(this, Double.MAX_VALUE, true)
+        }
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
         val domain = cdf.domain()
         bp = Histogram.addLowerLimit(domain.lowerLimit, bp)

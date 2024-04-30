@@ -36,6 +36,9 @@ import ksl.utilities.statistic.Statistic
 class BayesianInfoCriterionScoringModel : PDFScoringModel("BIC") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
+        if (data.isEmpty()){
+            return Score(this, Double.MAX_VALUE, true)
+        }
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
         val score = Statistic.bayesianInfoCriterion(data.size, k, lm)

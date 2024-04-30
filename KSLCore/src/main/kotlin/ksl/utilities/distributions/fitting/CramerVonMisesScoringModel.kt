@@ -27,6 +27,9 @@ import ksl.utilities.statistic.Statistic
 class CramerVonMisesScoringModel : PDFScoringModel("Cramer-von-Mises") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
+        if (data.isEmpty()){
+            return Score(this, Double.MAX_VALUE, true)
+        }
         val score = Statistic.cramerVonMisesTestStatistic(data, cdf)
         return Score(this, score, true)
     }
