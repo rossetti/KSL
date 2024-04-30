@@ -18,15 +18,22 @@
 
 package ksl.utilities.distributions.fitting
 
-import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
-import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 
+/**
+ *  This scoring model represents the sum of squared error between
+ *  the predicted probabilities (based on the assumed distribution)
+ *  and the observed probabilities. The break points for the histogram
+ *  are specified by PDFModeler.equalizedCDFBreakPoints()
+ */
 class SquaredErrorScoringModel : PDFScoringModel("Squared-Error") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
+        if (data.isEmpty()){
+            return Score(this, Double.MAX_VALUE, true)
+        }
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
         val domain = cdf.domain()
         bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
@@ -36,6 +43,9 @@ class SquaredErrorScoringModel : PDFScoringModel("Squared-Error") {
         val predicted =  PDFModeler.binProbabilities(h.bins, cdf)
         val observed = h.binFractions
         val n = predicted.size.coerceAtMost(observed.size)
+        if (n == 0){
+            return Score(this, Double.MAX_VALUE, true)
+        }
         var sum = 0.0
         for (i in 0.until(n)) {
             sum = sum + (predicted[i] - observed[i]) * (predicted[i] - observed[i])
