@@ -1,7 +1,8 @@
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
+import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.random.rvariable.parameters.PearsonType5RVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic

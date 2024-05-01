@@ -1,11 +1,11 @@
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Gamma
-import ksl.utilities.io.KSL
-import ksl.utilities.math.KSLMath
+import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder

@@ -16,25 +16,28 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.random.rvariable.parameters.NormalRVParameters
+import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.parameters.LaplaceRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
+import kotlin.math.abs
 
 /**
- *  Uses the sample average and sample variance of the data, which
+ *  Uses the sample median and the mean absolute deviation from the median, which
  *  are the MLE estimators.  There must be at least two observations.
+ *  The parameter names are location and scale
  */
-object NormalMLEParameterEstimator :
-    ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity("NormalMLEParameterEstimator")  {
+object LaplaceMLEParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("LaplaceMLEParameterEstimator") {
 
     override val checkRange: Boolean = false
 
-    override val names: List<String> = listOf("mean", "variance")
+    override val names: List<String> = listOf("location", "scale")
 
     /**
      *  If the estimation process is not successful, then an
@@ -46,8 +49,8 @@ object NormalMLEParameterEstimator :
             return doubleArrayOf()
         }
         return doubleArrayOf(
-            er.parameters.doubleParameter("mean"),
-            er.parameters.doubleParameter("variance")
+            er.parameters.doubleParameter("location"),
+            er.parameters.doubleParameter("scale")
         )
     }
 
@@ -61,14 +64,20 @@ object NormalMLEParameterEstimator :
                 estimator = this
             )
         }
-        val parameters = NormalRVParameters()
-        parameters.changeDoubleParameter("mean", statistics.average)
-        parameters.changeDoubleParameter("variance", statistics.variance)
+        val location = Statistic.median(data)
+        var sum = 0.0
+        for(x in data){
+            sum = sum + abs(x - location)
+        }
+        val scale = sum/data.size
+        val parameters = LaplaceRVParameters()
+        parameters.changeDoubleParameter("location", location)
+        parameters.changeDoubleParameter("scale", scale)
         return EstimationResult(
             originalData = data,
             statistics = statistics,
             parameters = parameters,
-            message = "The normal parameters were estimated successfully using a MLE technique",
+            message = "The laplace parameters were estimated successfully using a MLE technique",
             success = true,
             estimator = this
         )

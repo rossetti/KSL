@@ -16,9 +16,11 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.scoring
 
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.moda.Metric
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score

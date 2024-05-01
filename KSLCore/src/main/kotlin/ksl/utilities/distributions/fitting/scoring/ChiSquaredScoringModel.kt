@@ -16,32 +16,25 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.scoring
 
-import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
-import ksl.utilities.moda.MetricIfc
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.moda.Score
+import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 
-/**
- *   Computes the Akaike Information Criterion (AIC) based on
- *   the data as the score.  This assumes that the parameters of
- *   the supplied distribution have been estimated from the data
- *   and evaluates the likelihood associated with the current
- *   parameters of the distribution. The parameters of
- *   the distribution are not assumed to have been estimated from
- *   a maximum likelihood approach.
- */
-class AkaikeInfoCriterionScoringModel : PDFScoringModel("AIC") {
+class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
             return Score(this, Double.MAX_VALUE, true)
         }
-        val k = cdf.parameters().size
-        val lm = cdf.sumLogLikelihood(data)
-        val score = Statistic.akaikeInfoCriterion(data.size, k, lm)
-        return Score(this, score, true)
+        var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
+        val domain = cdf.domain()
+        bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
+        bp = Histogram.addUpperLimit(domain.upperLimit, bp)
+        val chiSq = Statistic.chiSqTestStatistic(data, bp, cdf)
+        return Score(this, chiSq,true)
     }
 }

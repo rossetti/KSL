@@ -19,6 +19,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.*
+import ksl.utilities.distributions.fitting.estimators.*
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Histogram

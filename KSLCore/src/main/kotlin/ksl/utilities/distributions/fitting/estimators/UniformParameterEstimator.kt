@@ -16,32 +16,32 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.countLessEqualTo
-import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
+import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.isAllEqual
+import ksl.utilities.random.rvariable.parameters.UniformRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
-import ksl.utilities.statistics
-import kotlin.math.exp
-import kotlin.math.ln
 
 /**
- *   Takes the natural logarithm of the data and then estimates
- *   the mean and variance of the associated normal distribution.
- *   Then the parameters are converted to the mean and variance of
- *   the lognormal distribution.  The supplied data must be strictly
- *   positive and their must be at least 2 observations.
+ *   Uses the minimum unbiased estimators based on the order statistics.
+ *   See: 1. Castillo E, Hadi AS. A method for estimating parameters and quantiles of
+ *   distributions of continuous random variables. Computational Statistics & Data Analysis.
+ *   1995 Oct;20(4):421–39.
+ *   There must be at least two observations and the observations cannot all be the same.
+ *
  */
-object LognormalMLEParameterEstimator : ParameterEstimatorIfc,
-    MVBSEstimatorIfc, IdentityIfc by Identity("LognormalMLEParameterEstimator")  {
+object UniformParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("UniformParameterEstimator") {
 
-    override val checkRange: Boolean = true
+    override val checkRange: Boolean = false
 
-    override val names: List<String> = listOf("mean", "variance")
+    override val names: List<String> = listOf("min", "max")
 
     /**
      *  If the estimation process is not successful, then an
@@ -53,8 +53,8 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc,
             return doubleArrayOf()
         }
         return doubleArrayOf(
-            er.parameters.doubleParameter("mean"),
-            er.parameters.doubleParameter("variance")
+            er.parameters.doubleParameter("min"),
+            er.parameters.doubleParameter("max")
         )
     }
 
@@ -68,32 +68,24 @@ object LognormalMLEParameterEstimator : ParameterEstimatorIfc,
                 estimator = this
             )
         }
-        if (data.countLessEqualTo(0.0) > 0) {
+        if (data.isAllEqual()){
             return EstimationResult(
                 originalData = data,
                 statistics = statistics,
-                message = "Cannot fit lognormal distribution when some observations are <= 0.0",
+                message = "The observations were all equal.",
                 success = false,
                 estimator = this
             )
         }
-        // transform to normal on ln scale
-        val lnData = DoubleArray(data.size) { ln(data[it]) }
-        // estimate parameters of normal distribution
-        val s = lnData.statistics()
-        val mu = s.average
-        val sigma2 = s.variance
-        // compute the parameters of the log-normal distribution
-        val mean = exp(mu + (sigma2 / 2.0))
-        val variance = exp(2.0 * mu + sigma2) * (exp(sigma2) - 1.0)
-        val parameters = LognormalRVParameters()
-        parameters.changeDoubleParameter("mean", mean)
-        parameters.changeDoubleParameter("variance", variance)
+        val interval = PDFModeler.rangeEstimate(statistics.min, statistics.max, data.size)
+        val parameters = UniformRVParameters()
+        parameters.changeDoubleParameter("min", interval.lowerLimit)
+        parameters.changeDoubleParameter("max", interval.upperLimit)
         return EstimationResult(
             originalData = data,
             statistics = statistics,
             parameters = parameters,
-            message = "The lognormal parameters were estimated successfully using a MLE technique",
+            message = "The uniform parameters were estimated successfully.",
             success = true,
             estimator = this
         )
