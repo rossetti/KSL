@@ -18,8 +18,8 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.distributions.fitting.NormalMLEParameterEstimator
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.distributions.fitting.estimators.NormalMLEParameterEstimator
 import ksl.utilities.random.rvariable.GammaRV
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.random.rvariable.exp

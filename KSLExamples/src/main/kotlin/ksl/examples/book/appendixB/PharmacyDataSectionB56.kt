@@ -19,14 +19,10 @@
 package ksl.examples.book.appendixB
 
 import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
-import ksl.utilities.distributions.fitting.ExponentialMLEParameterEstimator
 import ksl.utilities.distributions.fitting.PDFModeler
-import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
-import ksl.utilities.io.asMarkDownTable
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.ObservationsPlot
-import ksl.utilities.statistic.CachedHistogram
 
 fun main(){
 

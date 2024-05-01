@@ -19,6 +19,7 @@
 package ksl.examples.book.appendixB
 
 import ksl.utilities.distributions.fitting.*
+import ksl.utilities.distributions.fitting.estimators.PoissonMLEParameterEstimator
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.ObservationsPlot
