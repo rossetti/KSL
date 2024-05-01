@@ -20,6 +20,9 @@ package ksl.examples.general.utilities
 
 import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.fitting.*
+import ksl.utilities.distributions.fitting.estimators.ExponentialMLEParameterEstimator
+import ksl.utilities.distributions.fitting.estimators.WeibullMLEParameterEstimator
+import ksl.utilities.distributions.fitting.scoring.ChiSquaredScoringModel
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.writeToFile
