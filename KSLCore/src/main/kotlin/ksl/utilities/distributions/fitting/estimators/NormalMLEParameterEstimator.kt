@@ -16,26 +16,26 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.countLessThan
-import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
+import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.parameters.NormalRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
- *  Uses the sample average of the observations, which is the MLE
- *  estimator. The data must not contain negative values.
+ *  Uses the sample average and sample variance of the data, which
+ *  are the MLE estimators.  There must be at least two observations.
  */
-object ExponentialMLEParameterEstimator : ParameterEstimatorIfc,
-    MVBSEstimatorIfc, IdentityIfc by Identity("ExponentialMLEParameterEstimator") {
+object NormalMLEParameterEstimator :
+    ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity("NormalMLEParameterEstimator")  {
 
-    override val checkRange: Boolean = true
+    override val checkRange: Boolean = false
 
-    override val names: List<String> = listOf("mean")
+    override val names: List<String> = listOf("mean", "variance")
 
     /**
      *  If the estimation process is not successful, then an
@@ -47,36 +47,29 @@ object ExponentialMLEParameterEstimator : ParameterEstimatorIfc,
             return doubleArrayOf()
         }
         return doubleArrayOf(
-            er.parameters.doubleParameter("mean")
+            er.parameters.doubleParameter("mean"),
+            er.parameters.doubleParameter("variance")
         )
     }
 
     override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
-        if (data.isEmpty()){
+        if (data.size < 2){
             return EstimationResult(
                 originalData = data,
                 statistics = statistics,
-                message = "There must be at least one observations",
+                message = "There must be at least two observations",
                 success = false,
                 estimator = this
             )
         }
-        if (data.countLessThan(0.0) > 0) {
-            return EstimationResult(
-                originalData = data,
-                statistics = statistics,
-                message = "Cannot fit exponential distribution when some observations are less than 0.0",
-                success = false,
-                estimator = this
-            )
-        }
-        val parameters = ExponentialRVParameters()
+        val parameters = NormalRVParameters()
         parameters.changeDoubleParameter("mean", statistics.average)
+        parameters.changeDoubleParameter("variance", statistics.variance)
         return EstimationResult(
             originalData = data,
             statistics = statistics,
             parameters = parameters,
-            message = "The exponential parameters were estimated successfully using a MLE technique",
+            message = "The normal parameters were estimated successfully using a MLE technique",
             success = true,
             estimator = this
         )

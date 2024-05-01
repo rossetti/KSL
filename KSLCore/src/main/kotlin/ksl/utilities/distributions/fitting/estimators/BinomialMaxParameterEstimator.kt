@@ -1,8 +1,10 @@
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.countLessThan
+import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.random.rvariable.parameters.BinomialRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -10,15 +12,18 @@ import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  Estimates the probability of success (p) and number of trials (n)
- *  for the binomial distribution based on
- *  the method of moments. The data must not contain negative values. The estimation
+ *  for the binomial distribution based. The number of trials is estimated
+ *  based on the maximum observed value adjusted based on range estimation
+ *  for uniform(min, max) distribution.
+ *
+ *  The data must not contain negative values. The estimation
  *  process assumes that the supplied data are integer valued counts
  *  over the range {0,1,2,..., n}.  That is this parameterization represents
  *  the number of success in n trials.
- *  To ensure moment matching, the estimation process does not ensure that n is integer valued.
+ *  The estimation process does not ensure that n is integer valued.
  */
-object BinomialMOMParameterEstimator : ParameterEstimatorIfc,
-    MVBSEstimatorIfc, IdentityIfc by Identity("BinomialMOMParameterEstimator") {
+object BinomialMaxParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("BinomialMaxParameterEstimator") {
 
     override val checkRange: Boolean = true
 
@@ -76,18 +81,10 @@ object BinomialMOMParameterEstimator : ParameterEstimatorIfc,
                 estimator = this
             )
         }
-        val sigma2 = statistics.variance * (statistics.count - 1.0) / statistics.count
-        if (statistics.average <= sigma2) {
-            return EstimationResult(
-                originalData = data,
-                statistics = statistics,
-                message = "Cannot match moments when sample average <= estimated variance",
-                success = false,
-                estimator = this
-            )
-        }
-        val p = 1.0 - (sigma2 / statistics.average)
-        val n = statistics.average / p
+
+        val range = PDFModeler.rangeEstimate(statistics.min, statistics.max, statistics.count.toInt())
+        val n = range.upperLimit
+        val p = statistics.average/n
         val parameters = BinomialRVParameters()
         parameters.changeDoubleParameter("probOfSuccess", p)
         parameters.changeDoubleParameter("numTrials", n)
@@ -95,7 +92,7 @@ object BinomialMOMParameterEstimator : ParameterEstimatorIfc,
             originalData = data,
             statistics = statistics,
             parameters = parameters,
-            message = "The binomial parameters were estimated successfully using a MOM technique",
+            message = "The binomial parameters were estimated successfully",
             success = true,
             estimator = this
         )

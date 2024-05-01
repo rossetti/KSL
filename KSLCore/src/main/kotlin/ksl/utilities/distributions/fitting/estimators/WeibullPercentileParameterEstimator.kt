@@ -1,7 +1,8 @@
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.*
 import ksl.utilities.distributions.Weibull
+import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.statistic.JackKnifeEstimator
 import ksl.utilities.statistic.MVBSEstimatorIfc

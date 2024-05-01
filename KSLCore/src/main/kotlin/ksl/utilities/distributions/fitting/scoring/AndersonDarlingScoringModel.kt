@@ -16,21 +16,22 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.scoring
 
-import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
-import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
-class CramerVonMisesScoringModel : PDFScoringModel("Cramer-von-Mises") {
+class AndersonDarlingScoringModel : PDFScoringModel("Anderson-Darling") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
             return Score(this, Double.MAX_VALUE, true)
         }
-        val score = Statistic.cramerVonMisesTestStatistic(data, cdf)
+        val score = Statistic.andersonDarlingTestStatistic(data, cdf)
+        if (score.isInfinite()){
+            return badScore()
+        }
         return Score(this, score, true)
     }
 }

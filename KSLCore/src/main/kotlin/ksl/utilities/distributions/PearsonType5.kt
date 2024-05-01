@@ -18,9 +18,9 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
-import ksl.utilities.distributions.fitting.AndersonDarlingScoringModel
+import ksl.utilities.distributions.fitting.scoring.AndersonDarlingScoringModel
 import ksl.utilities.distributions.fitting.PDFModeler
-import ksl.utilities.distributions.fitting.PearsonType5MLEParameterEstimator
+import ksl.utilities.distributions.fitting.estimators.PearsonType5MLEParameterEstimator
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.Statistic

@@ -16,28 +16,30 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions.fitting
+package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.countLessThan
-import ksl.utilities.random.rvariable.parameters.PoissonRVParameters
+import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.isAllEqual
+import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
- *  Uses the sample average of the observations, which is the MLE
- *  estimator. The data must not contain negative values. The estimation
- *  process assumes that the supplied data are integer valued counts
- *  over the range {0,1,2,...}
+ *  The approach is based on estimating the min and max via
+ *  the recommended approach for the uniform distribution. Then,
+ *  the mode is estimated by solving for it in terms of the sample
+ *  average.
  */
-object PoissonMLEParameterEstimator : ParameterEstimatorIfc,
-    MVBSEstimatorIfc, IdentityIfc by Identity("PoissonMLEParameterEstimator") {
+object TriangularParameterEstimator : ParameterEstimatorIfc,
+    MVBSEstimatorIfc, IdentityIfc by Identity("TriangularParameterEstimator") {
 
-    override val checkRange: Boolean = true
+    override val checkRange: Boolean = false
 
-    override val names: List<String> = listOf("mean")
+    override val names: List<String> = listOf("min", "mode", "max")
 
     /**
      *  If the estimation process is not successful, then an
@@ -49,45 +51,53 @@ object PoissonMLEParameterEstimator : ParameterEstimatorIfc,
             return doubleArrayOf()
         }
         return doubleArrayOf(
-            er.parameters.doubleParameter("mean")
+            er.parameters.doubleParameter("min"),
+            er.parameters.doubleParameter("mode"),
+            er.parameters.doubleParameter("max")
         )
     }
-
     override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
-        if (data.isEmpty()) {
+        if (data.size < 2){
             return EstimationResult(
                 originalData = data,
                 statistics = statistics,
-                message = "There must be at least one observations",
+                message = "There must be at least two observations",
                 success = false,
                 estimator = this
             )
         }
-        if (data.countLessThan(0.0) > 0) {
+        if (data.isAllEqual()){
             return EstimationResult(
                 originalData = data,
                 statistics = statistics,
-                message = "Cannot fit Poisson distribution when some observations are less than 0.0",
+                message = "The observations were all equal.",
                 success = false,
                 estimator = this
             )
         }
-        if (statistics.average == 0.0) {
-            return EstimationResult(
-                originalData = data,
-                statistics = statistics,
-                message = "Cannot fit Poisson distribution when all observations are 0.0",
-                success = false,
-                estimator = this
-            )
+        val interval = PDFModeler.rangeEstimate(statistics.min, statistics.max, data.size)
+        // estimate a and b like the uniform distribution
+        val a = interval.lowerLimit
+        val b = interval.upperLimit
+        // compute the mode by matching moments with the mean.
+        // the mean = (a + c + b)/3.0
+        var c = 3.0*statistics.average - a - b
+        // ensure that the mode estimate is inside the range
+        if(c > b){
+            c = b
         }
-        val parameters = PoissonRVParameters()
-        parameters.changeDoubleParameter("mean", statistics.average)
+        if(c < a){
+            c = a
+        }
+        val parameters = TriangularRVParameters()
+        parameters.changeDoubleParameter("min", a)
+        parameters.changeDoubleParameter("max", b)
+        parameters.changeDoubleParameter("mode", c)
         return EstimationResult(
             originalData = data,
             statistics = statistics,
             parameters = parameters,
-            message = "The Poisson parameters were estimated successfully using a MLE technique",
+            message = "The triangular parameters were estimated successfully.",
             success = true,
             estimator = this
         )
