@@ -564,19 +564,26 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
          * @return the list of histogram bins
          */
         fun makeBins(breakPoints: DoubleArray): List<HistogramBin> {
-            require(KSLArrays.isStrictlyIncreasing(breakPoints)) { "The break points were not strictly increasing." }
+            // remove any duplicates
+            val bp = if (!KSLArrays.isStrictlyIncreasing(breakPoints)){
+                breakPoints.toSet().toDoubleArray()
+            } else {
+                breakPoints
+            }
+            // still need to be increasing
+            require(KSLArrays.isStrictlyIncreasing(bp)) { "The break points were not strictly increasing." }
             val binList: MutableList<HistogramBin> = ArrayList()
             // case of 1 break point must be handled
-            if (breakPoints.size == 1) {
+            if (bp.size == 1) {
                 // two bins, 1 below and 1 above
-                binList.add(HistogramBin(1, Double.NEGATIVE_INFINITY, breakPoints[0]))
-                binList.add(HistogramBin(2, breakPoints[0], Double.POSITIVE_INFINITY))
+                binList.add(HistogramBin(1, Double.NEGATIVE_INFINITY, bp[0]))
+                binList.add(HistogramBin(2, bp[0], Double.POSITIVE_INFINITY))
                 return binList
             }
 
             // two or more break points
-            for (i in 1 until breakPoints.size) {
-                binList.add(HistogramBin(i, breakPoints[i - 1], breakPoints[i]))
+            for (i in 1 until bp.size) {
+                binList.add(HistogramBin(i, bp[i - 1], bp[i]))
             }
             return binList
         }
