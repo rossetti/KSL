@@ -246,10 +246,11 @@ class DesignedExperiment(
         var df = replicatedDesignPointsAsDataFrame(coded)
         val exp_name by column<String>()
         val rep_id by column<Int>()
+        val point by column<Int>()
         for (name in names) {
             if (vn.contains(name)) {
                 val df2 = responseAsDataFrame(name)
-                df = df.join(df2, type = JoinType.Inner) { exp_name and rep_id }
+                df = df.join(df2, type = JoinType.Inner) { exp_name and rep_id and point }
             }
         }
         return df
