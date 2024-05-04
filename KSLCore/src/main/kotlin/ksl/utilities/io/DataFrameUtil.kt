@@ -527,7 +527,7 @@ interface StatSchema {
  *  The first column holds the names of the statistics and the
  *  second column holds the values.
  */
-fun Statistic.asDataFrame(): DataFrame<StatSchema> {
+fun Statistic.toDataFrame(): DataFrame<StatSchema> {
     val map = this.statisticsAsMap
     val c1 = column(map.keys) named "Statistic"
     val c2 = column(map.values) named "Value"

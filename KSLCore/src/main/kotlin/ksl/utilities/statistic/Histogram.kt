@@ -19,7 +19,7 @@ package ksl.utilities.statistic
 
 import ksl.utilities.KSLArrays
 import ksl.utilities.insertAt
-import ksl.utilities.io.asDataFrame
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.plotting.HistogramPlot
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.math.KSLMath

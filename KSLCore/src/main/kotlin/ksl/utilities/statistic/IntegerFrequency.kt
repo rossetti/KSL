@@ -24,7 +24,7 @@ package ksl.utilities.statistic
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.DEmpiricalCDF
-import ksl.utilities.io.asDataFrame
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.plotting.IntegerFrequencyPlot
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.random.rvariable.DEmpiricalRV
