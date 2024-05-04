@@ -214,7 +214,7 @@ object DataFrameUtil {
     /**
      *  @return the statistics on the column
      */
-    fun statistics(dc: DataColumn<Double>, name: String? = null): Statistic {
+    fun statistics(dc: DataColumn<Double>, name: String? = dc.name()): Statistic {
         return Statistic(name, dc.toDoubleArray())
     }
 
@@ -223,9 +223,10 @@ object DataFrameUtil {
      */
     fun histogram(
         dc: DataColumn<Double>,
-        breakPoints: DoubleArray = Histogram.recommendBreakPoints(dc.toDoubleArray())
+        breakPoints: DoubleArray = Histogram.recommendBreakPoints(dc.toDoubleArray()),
+        name: String? = dc.name()
     ): Histogram {
-        return Histogram.create(dc.toDoubleArray(), breakPoints)
+        return Histogram.create(dc.toDoubleArray(), breakPoints, name)
     }
 
     /**
@@ -233,7 +234,7 @@ object DataFrameUtil {
      *  @param name an optional name for the returned frequencies
      *  @return the frequencies of the integers in the column
      */
-    fun frequenciesI(dc: DataColumn<Int>, name: String? = null): IntegerFrequency {
+    fun frequenciesI(dc: DataColumn<Int>, name: String? = dc.name()): IntegerFrequency {
         val array = dc.toTypedArray().toIntArray()
         val f = IntegerFrequency(name = name)
         f.collect(array)
@@ -246,7 +247,7 @@ object DataFrameUtil {
      *  @return converts the double values to integers and then returns
      *  the frequencies of the integers in the column
      */
-    fun frequenciesD(dc: DataColumn<Double>, name: String? = null): IntegerFrequency {
+    fun frequenciesD(dc: DataColumn<Double>, name: String? = dc.name()): IntegerFrequency {
         val array = dc.toTypedArray().toDoubleArray()
         val f = IntegerFrequency(name = name)
         f.collect(array)
@@ -256,8 +257,8 @@ object DataFrameUtil {
     /**
      *  @return a box plot summary for the column
      */
-    fun boxPlotSummary(dc: DataColumn<Double>): BoxPlotSummary {
-        return BoxPlotSummary(dc.toDoubleArray())
+    fun boxPlotSummary(dc: DataColumn<Double>, name: String? = dc.name()): BoxPlotSummary {
+        return BoxPlotSummary(dc.toDoubleArray(), name)
     }
 
     /**
@@ -482,42 +483,45 @@ fun IntegerFrequency.asDataFrame(): DataFrame<FrequencyData> {
 /**
  *  Converts the histogram bin data into a dataframe representation
  */
-fun Histogram.asDataFrame(): DataFrame<HistogramBinData> {
+fun HistogramIfc.asDataFrame(): DataFrame<HistogramBinData> {
     return this.histogramData().toDataFrame()
 }
 
 /**
  *  @return the statistics on the column
  */
-fun DataColumn<Double>.statistics(name: String? = null): Statistic {
+fun DataColumn<Double>.statistics(name: String? = this.name()): Statistic {
     return DataFrameUtil.statistics(this, name)
 }
 
 /**
  *  @return the histogram on the column
  */
-fun DataColumn<Double>.histogram(breakPoints: DoubleArray = Histogram.recommendBreakPoints(this.toDoubleArray())): Histogram {
-    return DataFrameUtil.histogram(this, breakPoints)
+fun DataColumn<Double>.histogram(
+    breakPoints: DoubleArray = Histogram.recommendBreakPoints(this.toDoubleArray()),
+    name: String? = this.name()
+): Histogram {
+    return DataFrameUtil.histogram(this, breakPoints, name)
 }
 
 /**
  *  @return the box plot summary on the column
  */
-fun DataColumn<Double>.boxPlotSummary(): BoxPlotSummary {
-    return DataFrameUtil.boxPlotSummary(this)
+fun DataColumn<Double>.boxPlotSummary(name: String? = this.name()): BoxPlotSummary {
+    return DataFrameUtil.boxPlotSummary(this, name)
 }
 
 /**
  *  @return the frequency tabulation on the column
  */
-fun DataColumn<Int>.frequenciesI(name: String? = null): IntegerFrequency {
+fun DataColumn<Int>.frequenciesI(name: String? = this.name()): IntegerFrequency {
     return DataFrameUtil.frequenciesI(this, name)
 }
 
 /**
  *  @return the frequency tabulation on the column
  */
-fun DataColumn<Double>.frequenciesD(name: String? = null): IntegerFrequency {
+fun DataColumn<Double>.frequenciesD(name: String? = this.name()): IntegerFrequency {
     return DataFrameUtil.frequenciesD(this, name)
 }
 
