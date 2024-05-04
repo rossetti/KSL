@@ -26,7 +26,6 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
 
-
 /**
  * A Histogram tabulates data into bins.  The user must specify the break points
  * of the bins, b0, b1, b2, ..., bk, where there are k+1 break points, and k bins.
@@ -356,6 +355,22 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
 //        sb.appendLine()
 //        sb.append("-------------------------------------")
         return sb.toString()
+    }
+
+    /**
+     *  The data of the histogram bins
+     */
+    fun histogramData() : List<HistogramBinData> {
+        val list = mutableListOf<HistogramBinData>()
+        val n = count
+        var ct = 0.0
+        for (bin in myBins) {
+            val c: Double = bin.count()
+            ct = ct + c
+            list.add(HistogramBinData(bin.binNumber, bin.binLabel, bin.lowerLimit, bin.upperLimit,
+                bin.count, ct, c / n, ct/n))
+        }
+        return list
     }
 
     companion object {

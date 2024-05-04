@@ -21,6 +21,20 @@ package ksl.utilities.statistic
 import ksl.utilities.Interval
 
 /**
+ *  Holds the data associated with a histogram bin
+ */
+data class HistogramBinData(
+    val binNum: Int,
+    val binLabel: String,
+    val binLowerLimit: Double,
+    val binUpperLimit: Double,
+    val binCount: Int,
+    val cumCount: Double,
+    val proportion: Double,
+    val cumProportion: Double
+)
+
+/**
  * @param theBinNumber the bin number
  * @param theLowerLimit the lower limit of the bin
  * @param theUpperLimit the upper limit of the bin
