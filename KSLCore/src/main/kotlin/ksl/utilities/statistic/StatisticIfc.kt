@@ -31,7 +31,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      *
      * @return The name as a String
      */
-    val name: String
+    override val name: String
 
     /**
      * Gets the sum of the observations.

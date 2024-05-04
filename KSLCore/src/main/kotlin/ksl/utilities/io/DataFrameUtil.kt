@@ -446,6 +446,52 @@ fun AnyFrame.statistics(): DataFrame<StatisticData> {
 }
 
 /**
+ *  Creates a dataframe that holds the box plot summary data for
+ *  any column that holds Double type within the original dataframe.
+ */
+fun AnyFrame.boxPlotSummaryData(): DataFrame<BoxPlotDataIfc> {
+    val list = mutableListOf<BoxPlotDataIfc>()
+    for(c in columns()){
+        if (c.typeClass == Double::class){
+            val ct = c as DataColumn<Double>
+            list.add(ct.boxPlotSummary())
+        }
+    }
+    var df = list.toDataFrame()
+    df = df.move("name").to(0)
+    df = df.move("count").to(1)
+    df = df.move("min").to(2)
+    df = df.move("firstQuartile").to(3)
+    df = df.move("median").to(4)
+    df = df.move("thirdQuartile").to(5)
+    df = df.move("max").to(6)
+    return df
+}
+
+/**
+ *  Creates a dataframe that holds the summary statistical data for
+ *  any column that holds Double type within the original dataframe.
+ */
+fun AnyFrame.summaryStatistics(): DataFrame<SummaryStatisticsIfc>{
+    val list = mutableListOf<SummaryStatisticsIfc>()
+    for(c in columns()){
+        if (c.typeClass == Double::class){
+            val ct = c as DataColumn<Double>
+            list.add(ct.statistics())
+        }
+    }
+    var df = list.toDataFrame()
+    df = df.move("name").to(0)
+    df = df.move("count").to(1)
+    df = df.move("average").to(2)
+    df = df.move("standardDeviation").to(3)
+    df = df.move("variance").to(4)
+    df = df.move("min").to(5)
+    df = df.move("max").to(6)
+    return df
+}
+
+/**
  *  Converts the data frame to rows of comma separated file output
  *  with specified separator. The default [separator] is a comma.
  *  Elements that are strings are enclosed in double quotes to permit
@@ -491,14 +537,14 @@ fun Statistic.asDataFrame(): DataFrame<StatSchema> {
 /**
  *  Converts the integer frequency data into a dataframe representation
  */
-fun IntegerFrequency.asDataFrame(): DataFrame<FrequencyData> {
+fun IntegerFrequency.toDataFrame(): DataFrame<FrequencyData> {
     return this.frequencyData().toDataFrame()
 }
 
 /**
  *  Converts the histogram bin data into a dataframe representation
  */
-fun HistogramIfc.asDataFrame(): DataFrame<HistogramBinData> {
+fun HistogramIfc.toDataFrame(): DataFrame<HistogramBinData> {
     return this.histogramData().toDataFrame()
 }
 

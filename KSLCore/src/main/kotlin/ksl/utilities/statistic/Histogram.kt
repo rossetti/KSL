@@ -21,6 +21,7 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.insertAt
 import ksl.utilities.io.asDataFrame
 import ksl.utilities.io.plotting.HistogramPlot
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlin.math.ceil
@@ -617,5 +618,5 @@ fun main() {
 //    println(h1)
     println(h2)
     println()
-    println(h2.asDataFrame())
+    println(h2.toDataFrame())
 }

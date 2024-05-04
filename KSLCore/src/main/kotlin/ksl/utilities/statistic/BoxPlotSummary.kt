@@ -22,6 +22,16 @@ import ksl.utilities.*
 import kotlin.math.ceil
 import kotlin.math.floor
 
+interface BoxPlotDataIfc {
+    val name: String
+    val count: Double
+    val min: Double
+    val firstQuartile: Double
+    val median: Double
+    val thirdQuartile: Double
+    val max: Double
+}
+
 /**
  * Prepares the statistical quantities typically found on a box plot.
  * This implementation uses a full sort of the data. The original data
@@ -35,35 +45,38 @@ import kotlin.math.floor
  *
  * @param data the data to be summarized, must not be null and must not contain any Double.NaN values
  */
-class BoxPlotSummary(data: DoubleArray, name: String? = null): IdentityIfc by Identity(name) {
+class BoxPlotSummary(
+    data: DoubleArray,
+    name: String? = null
+): IdentityIfc by Identity(name), BoxPlotDataIfc {
     /**
      * @return the estimated median
      */
-    var median = 0.0
+    override var median = 0.0
         private set
 
     /**
      * @return the estimated 1st quartile
      */
-    var firstQuartile = 0.0
+    override var firstQuartile = 0.0
         private set
 
     /**
      * @return the estimated 3rd quartile
      */
-    var thirdQuartile = 0.0
+    override var thirdQuartile = 0.0
         private set
 
     /**
      * @return the minimum value in the data
      */
-    var min = 0.0
+    override var min = 0.0
         private set
 
     /**
      * @return the maximum value of the data
      */
-    var max = 0.0
+    override var max = 0.0
         private set
 
     private val orderStatistics: DoubleArray
@@ -93,7 +106,7 @@ class BoxPlotSummary(data: DoubleArray, name: String? = null): IdentityIfc by Id
     val average: Double
         get() = statistic.average
 
-    val count: Double
+    override val count: Double
         get() = statistic.count
 
     val variance: Double
