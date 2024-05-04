@@ -20,13 +20,11 @@ package ksl.examples.general.utilities
 
 import ksl.utilities.distributions.KolmogorovSmirnovDist
 import ksl.utilities.distributions.Normal
-import ksl.utilities.io.asDataFrame
-import ksl.utilities.io.statistics
-import ksl.utilities.io.toDataFrame
-import ksl.utilities.io.writeToFile
+import ksl.utilities.io.*
 import ksl.utilities.math.KSLMath
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.U01Test
+import org.jetbrains.kotlinx.dataframe.api.column
 
 val testData = doubleArrayOf(
     9.57386907765005, 12.2683505035727, 9.57737208532118, 9.46483590382401, 10.7426270820019, 13.6417539779286,
@@ -85,7 +83,13 @@ fun demoDataFrame() {
     val df = data.toDataFrame()
     println(df)
     println()
-    println(df.statistics())
+    println(df.summaryStatistics())
+    println()
+    println(df.boxPlotSummaryData())
+    println()
+    val weight by column<Double>()
+    val dataColumn = df[weight].statistics().asDataFrame()
+    println(dataColumn)
 }
 
 fun testPearsonCorrelation() {

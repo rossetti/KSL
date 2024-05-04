@@ -26,6 +26,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.DEmpiricalCDF
 import ksl.utilities.io.asDataFrame
 import ksl.utilities.io.plotting.IntegerFrequencyPlot
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.toDoubles
@@ -586,7 +587,7 @@ fun main() {
 
     println(freq)
     println()
-    println(freq.asDataFrame())
+    println(freq.toDataFrame())
 
     val dEmpiricalCDF = freq.createDEmpiricalCDF()
     println(dEmpiricalCDF)
