@@ -431,6 +431,21 @@ fun AnyFrame.toTabularFile(pathToFile: Path) : TabularFile {
 }
 
 /**
+ *  Creates a dataframe that holds the statistical data for
+ *  any column that holds Double type within the original dataframe.
+ */
+fun AnyFrame.statistics(): DataFrame<StatisticData> {
+    val list = mutableListOf<StatisticData>()
+    for(c in columns()){
+        if (c.typeClass == Double::class){
+            val ct = c as DataColumn<Double>
+            list.add(ct.statistics().statisticData())
+        }
+    }
+    return list.toDataFrame()
+}
+
+/**
  *  Converts the data frame to rows of comma separated file output
  *  with specified separator. The default [separator] is a comma.
  *  Elements that are strings are enclosed in double quotes to permit
