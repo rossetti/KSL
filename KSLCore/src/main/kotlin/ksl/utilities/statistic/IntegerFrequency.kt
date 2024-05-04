@@ -29,6 +29,13 @@ import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.toDoubles
 
+data class FrequencyData(
+    val value: Int,
+    val count: Double,
+    val proportion: Double,
+    val cumProportion: Double
+)
+
 /**
  * This class tabulates the frequency associated with
  * the integers presented to it via the collect() method
@@ -415,6 +422,20 @@ class IntegerFrequency(
         val list: MutableList<Cell> = ArrayList()
         for (c in cellSet) {
             list.add(c.instance())
+        }
+        return list
+    }
+
+    /**
+     *  Returns the data associated with the tabulation.
+     */
+    fun frequencyData() : List<FrequencyData> {
+        val list = mutableListOf<FrequencyData>()
+        val cList = cellList()
+        var cp = 0.0
+        for (c in cList) {
+            cp = cp + c.proportion
+            list.add(FrequencyData(c.value, c.count, c.proportion, cp))
         }
         return list
     }

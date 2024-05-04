@@ -31,12 +31,10 @@ import ksl.utilities.maps.toMapOfLists
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.sample
-import ksl.utilities.statistic.BoxPlotSummary
-import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.IntegerFrequency
-import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.*
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.*
+import org.jetbrains.kotlinx.dataframe.annotations.DataSchema
 import org.jetbrains.kotlinx.dataframe.api.*
 import java.io.PrintWriter
 import java.lang.Appendable
@@ -216,8 +214,8 @@ object DataFrameUtil {
     /**
      *  @return the statistics on the column
      */
-    fun statistics(dc: DataColumn<Double>): Statistic {
-        return Statistic(dc.toDoubleArray())
+    fun statistics(dc: DataColumn<Double>, name: String? = null): Statistic {
+        return Statistic(name, dc.toDoubleArray())
     }
 
     /**
@@ -231,11 +229,26 @@ object DataFrameUtil {
     }
 
     /**
-     *  @return the statistics on the column
+     *  @param dc the column to count
+     *  @param name an optional name for the returned frequencies
+     *  @return the frequencies of the integers in the column
      */
-    fun frequencies(dc: DataColumn<Int>): IntegerFrequency {
+    fun frequenciesI(dc: DataColumn<Int>, name: String? = null): IntegerFrequency {
         val array = dc.toTypedArray().toIntArray()
-        val f = IntegerFrequency()
+        val f = IntegerFrequency(name = name)
+        f.collect(array)
+        return f
+    }
+
+    /**
+     *  @param dc the column to count
+     *  @param name an optional name for the returned frequencies
+     *  @return converts the double values to integers and then returns
+     *  the frequencies of the integers in the column
+     */
+    fun frequenciesD(dc: DataColumn<Double>, name: String? = null): IntegerFrequency {
+        val array = dc.toTypedArray().toDoubleArray()
+        val f = IntegerFrequency(name = name)
         f.collect(array)
         return f
     }
@@ -441,23 +454,43 @@ fun AnyRow.toCSV(separator: String = ","): String {
     return values().joinToString(separator) { if (it is String) "\"$it\"" else it.toString() }
 }
 
+@DataSchema
+interface StatSchema {
+    val statName: String
+    val statValue: Double
+}
+
 /**
  *  Converts a statistic to a data frame with two columns.
  *  The first column holds the names of the statistics and the
  *  second column holds the values.
  */
-fun Statistic.asDataFrame(): AnyFrame {
+fun Statistic.asDataFrame(): DataFrame<StatSchema> {
     val map = this.statisticsAsMap
     val c1 = column(map.keys) named "Statistic"
     val c2 = column(map.values) named "Value"
-    return dataFrameOf(c1, c2)
+    return dataFrameOf(c1, c2).cast()
+}
+
+/**
+ *  Converts the integer frequency data into a dataframe representation
+ */
+fun IntegerFrequency.asDataFrame(): DataFrame<FrequencyData> {
+    return this.frequencyData().toDataFrame()
+}
+
+/**
+ *  Converts the histogram bin data into a dataframe representation
+ */
+fun Histogram.asDataFrame(): DataFrame<HistogramBinData> {
+    return this.histogramData().toDataFrame()
 }
 
 /**
  *  @return the statistics on the column
  */
-fun DataColumn<Double>.statistics(): Statistic {
-    return DataFrameUtil.statistics(this)
+fun DataColumn<Double>.statistics(name: String? = null): Statistic {
+    return DataFrameUtil.statistics(this, name)
 }
 
 /**
@@ -477,8 +510,15 @@ fun DataColumn<Double>.boxPlotSummary(): BoxPlotSummary {
 /**
  *  @return the frequency tabulation on the column
  */
-fun DataColumn<Int>.frequencies(): IntegerFrequency {
-    return DataFrameUtil.frequencies(this)
+fun DataColumn<Int>.frequenciesI(name: String? = null): IntegerFrequency {
+    return DataFrameUtil.frequenciesI(this, name)
+}
+
+/**
+ *  @return the frequency tabulation on the column
+ */
+fun DataColumn<Double>.frequenciesD(name: String? = null): IntegerFrequency {
+    return DataFrameUtil.frequenciesD(this, name)
 }
 
 /**
