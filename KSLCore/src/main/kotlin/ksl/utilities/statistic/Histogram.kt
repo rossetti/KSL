@@ -19,6 +19,7 @@ package ksl.utilities.statistic
 
 import ksl.utilities.KSLArrays
 import ksl.utilities.insertAt
+import ksl.utilities.io.asDataFrame
 import ksl.utilities.io.plotting.HistogramPlot
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -357,22 +358,6 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
         return sb.toString()
     }
 
-    /**
-     *  The data of the histogram bins
-     */
-    fun histogramData() : List<HistogramBinData> {
-        val list = mutableListOf<HistogramBinData>()
-        val n = count
-        var ct = 0.0
-        for (bin in myBins) {
-            val c: Double = bin.count()
-            ct = ct + c
-            list.add(HistogramBinData(bin.binNumber, bin.binLabel, bin.lowerLimit, bin.upperLimit,
-                bin.count, ct, c / n, ct/n))
-        }
-        return list
-    }
-
     companion object {
         /**
          * Create a histogram with lower limit set to zero
@@ -606,8 +591,12 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
         /**
          *  Creates a default histogram based on default break points for the supplied data
          */
-        fun create(array: DoubleArray, breakPoints: DoubleArray = recommendBreakPoints(array)): Histogram {
-            val h = Histogram(breakPoints)
+        fun create(
+            array: DoubleArray,
+            breakPoints: DoubleArray = recommendBreakPoints(array),
+            name: String? = null
+        ): Histogram {
+            val h = Histogram(breakPoints, name)
             h.collect(array)
             return h
         }
@@ -627,4 +616,6 @@ fun main() {
     }
 //    println(h1)
     println(h2)
+    println()
+    println(h2.asDataFrame())
 }

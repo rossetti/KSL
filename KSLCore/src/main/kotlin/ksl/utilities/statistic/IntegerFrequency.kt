@@ -24,12 +24,15 @@ package ksl.utilities.statistic
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.DEmpiricalCDF
+import ksl.utilities.io.asDataFrame
 import ksl.utilities.io.plotting.IntegerFrequencyPlot
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.toDoubles
 
 data class FrequencyData(
+    val id: Int,
+    val name: String,
     val value: Int,
     val count: Double,
     val proportion: Double,
@@ -435,7 +438,7 @@ class IntegerFrequency(
         var cp = 0.0
         for (c in cList) {
             cp = cp + c.proportion
-            list.add(FrequencyData(c.value, c.count, c.proportion, cp))
+            list.add(FrequencyData(id, name, c.value, c.count, c.proportion, cp))
         }
         return list
     }
@@ -582,6 +585,8 @@ fun main() {
     }
 
     println(freq)
+    println()
+    println(freq.asDataFrame())
 
     val dEmpiricalCDF = freq.createDEmpiricalCDF()
     println(dEmpiricalCDF)

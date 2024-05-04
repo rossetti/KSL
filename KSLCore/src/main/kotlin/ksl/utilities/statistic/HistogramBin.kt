@@ -24,6 +24,8 @@ import ksl.utilities.Interval
  *  Holds the data associated with a histogram bin
  */
 data class HistogramBinData(
+    val id: Int,
+    val name: String,
     val binNum: Int,
     val binLabel: String,
     val binLowerLimit: Double,

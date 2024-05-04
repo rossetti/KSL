@@ -380,4 +380,20 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     fun histogramPlot(proportions: Boolean = true) : HistogramPlot {
         return HistogramPlot(this, proportions)
     }
+
+    /**
+     *  The data of the histogram bins
+     */
+    fun histogramData() : List<HistogramBinData> {
+        val list = mutableListOf<HistogramBinData>()
+        val n = count
+        var ct = 0.0
+        for (bin in bins) {
+            val c: Double = bin.count()
+            ct = ct + c
+            list.add(HistogramBinData(this.id, this.name, bin.binNumber, bin.binLabel, bin.lowerLimit, bin.upperLimit,
+                bin.count, ct, c / n, ct/n))
+        }
+        return list
+    }
 }
