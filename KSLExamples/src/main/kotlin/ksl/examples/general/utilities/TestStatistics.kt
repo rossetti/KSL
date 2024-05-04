@@ -21,6 +21,8 @@ package ksl.examples.general.utilities
 import ksl.utilities.distributions.KolmogorovSmirnovDist
 import ksl.utilities.distributions.Normal
 import ksl.utilities.io.asDataFrame
+import ksl.utilities.io.statistics
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.writeToFile
 import ksl.utilities.math.KSLMath
 import ksl.utilities.statistic.Statistic
@@ -46,8 +48,15 @@ val testData = doubleArrayOf(
     9.20756684199006, 13.0421837951471, 8.50476579169282, 7.7653569673433
 )
 
-class TestStatistics {
-}
+val wt = doubleArrayOf(
+    2.620, 2.875, 2.320, 3.215, 3.440, 3.460, 3.570, 3.190, 3.150, 3.440, 3.440,
+    4.070, 3.730, 3.780, 5.250, 5.424, 5.345, 2.200, 1.615, 1.835, 2.465, 3.520, 3.435, 3.840, 3.845, 1.935,
+    2.140, 1.513, 3.170, 2.770, 3.570, 2.780
+)
+val mpg = doubleArrayOf(
+    21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2, 17.8, 16.4, 17.3, 15.2, 10.4, 10.4, 14.7,
+    32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7, 15.0, 21.4
+)
 
 fun main() {
     //   testData.writeToFile("testData.txt")
@@ -57,9 +66,11 @@ fun main() {
     //println(Statistic(testData))
 
 //    testKSStatistic()
-    val k = U01Test.recommendNumChiSquaredIntervals(100, 0.95)
-    println("k = $k")
+//    val k = U01Test.recommendNumChiSquaredIntervals(100, 0.95)
+//    println("k = $k")
 //    testStatistics()
+
+    demoDataFrame()
 }
 
 fun testStatistics(){
@@ -69,16 +80,16 @@ fun testStatistics(){
     println(s.asDataFrame())
 }
 
+fun demoDataFrame() {
+    val data = mapOf("weight" to wt, "mpg" to mpg)
+    val df = data.toDataFrame()
+    println(df)
+    println()
+    println(df.statistics())
+}
+
 fun testPearsonCorrelation() {
-    val wt = doubleArrayOf(
-        2.620, 2.875, 2.320, 3.215, 3.440, 3.460, 3.570, 3.190, 3.150, 3.440, 3.440,
-        4.070, 3.730, 3.780, 5.250, 5.424, 5.345, 2.200, 1.615, 1.835, 2.465, 3.520, 3.435, 3.840, 3.845, 1.935,
-        2.140, 1.513, 3.170, 2.770, 3.570, 2.780
-    )
-    val mpg = doubleArrayOf(
-        21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2, 17.8, 16.4, 17.3, 15.2, 10.4, 10.4, 14.7,
-        32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7, 15.0, 21.4
-    )
+
     val pc = Statistic.pearsonCorrelation(wt, mpg)
     println("pearson correlation = $pc")
 
