@@ -80,7 +80,7 @@ open class Factor(
     /**
      *  Converts the coded value to the original measurement scale
      */
-    fun toRawValue(codedValue: Double) : Double {
+    fun toOriginalValue(codedValue: Double) : Double {
         return halfRange*codedValue + midPoint
     }
 

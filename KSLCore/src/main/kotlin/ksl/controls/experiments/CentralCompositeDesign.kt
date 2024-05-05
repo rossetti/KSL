@@ -5,14 +5,14 @@ import ksl.utilities.Identity
 
 class CentralCompositeDesign(
     factors: Set<TwoLevelFactor>,
-    val factorialReps: Int = 1,
-    val axialReps: Int = 1,
-    val centerReps: Int =  1,
+    val numFactorialReps: Int = 1,
+    val numAxialReps: Int = 1,
+    val numCenterReps: Int = 1,
     val axialSpacing: Double,
     name: String? = null
 ) : Identity(name), ExperimentalDesignIfc {
 
-    private val myDesign : ExperimentalDesign = ExperimentalDesign(factors)
+    private val myDesign: ExperimentalDesign = ExperimentalDesign(factors)
 
     private val myTwoLevelFactorialDesign = TwoLevelFactorialDesign(factors)
 
@@ -27,32 +27,45 @@ class CentralCompositeDesign(
 
     val numFactorialPoints: Int
 
+    val numAxialPoints: Int
+        get() = 2 * numFactors
+
     init {
-        require(factorialReps > 0) { "Number of factorial replications must be > 0" }
-        require(axialReps > 0) { "Number of axial replications must be > 0" }
-        require(centerReps > 0) { "Number of center replications must be > 0" }
+        require(numFactorialReps > 0) { "Number of factorial replications must be > 0" }
+        require(numAxialReps > 0) { "Number of axial replications must be > 0" }
+        require(numCenterReps > 0) { "Number of center replications must be > 0" }
         require(axialSpacing > 0.0) { "The axial spacing must be > 0" }
         // fill the design with the factorial points
         val ptItr = myTwoLevelFactorialDesign.iterator()
-        numFactorialPoints = fillFactorialPoints(ptItr)
-        //TODO fill the axial points
-
+        numFactorialPoints = makeFactorialPoints(ptItr)
+        //make the axial points
+        makeAxialPoints()
         //make the center point with the appropriate number of replications
-        myDesign.addDesignPoint(centerPoint(), centerReps)
+        myDesign.addDesignPoint(centerPoint(), numCenterReps)
     }
 
-    private fun fillFactorialPoints(ptItr: DesignPointIteratorIfc) : Int {
+    private fun makeAxialPoints() {
+        for (i in 0 until numFactors) {
+            val posArray = DoubleArray(numFactors) { 0.0 }
+            val neqArray = DoubleArray(numFactors) { 0.0 }
+            posArray[i] = axialSpacing
+            neqArray[i] = -axialSpacing
+            val posPt = toOriginalValues(posArray)
+            val neqPt = toOriginalValues(neqArray)
+            myDesign.addDesignPoint(posPt, numAxialReps)
+            myDesign.addDesignPoint(neqPt, numAxialReps)
+        }
+    }
+
+    private fun makeFactorialPoints(ptItr: DesignPointIteratorIfc): Int {
         var pCount = 0
         while (ptItr.hasNext()) {
             val dp = ptItr.next()
-            myDesign.addDesignPoint(dp.settings, factorialReps)
+            myDesign.addDesignPoint(dp.settings, numFactorialReps)
             pCount++
         }
         return pCount
     }
-
-    val numAxialPoints: Int
-        get() = 2*numFactorialPoints
 
     override fun designIterator(replications: Int): DesignPointIteratorIfc {
         return myDesign.designIterator(replications)
