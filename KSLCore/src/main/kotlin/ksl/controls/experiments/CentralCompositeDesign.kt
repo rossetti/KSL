@@ -54,14 +54,6 @@ class CentralCompositeDesign(
     val numAxialPoints: Int
         get() = 2*numFactorialPoints
 
-    fun centerPoint() : DoubleArray {
-        val list = mutableListOf<Double>()
-        for (factor in factors.values){
-            list.add(factor.midPoint)
-        }
-        return list.toDoubleArray()
-    }
-
     override fun designIterator(replications: Int): DesignPointIteratorIfc {
         return myDesign.designIterator(replications)
     }

@@ -76,4 +76,16 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
         val cols = points.toMapOfLists(factorNames)
         return cols.toDataFrame()
     }
+
+    /**
+     *  Makes a center point for the factors of the design in the
+     *  original measurement units
+     */
+    fun centerPoint() : DoubleArray {
+        val list = mutableListOf<Double>()
+        for (factor in factors.values){
+            list.add(factor.midPoint)
+        }
+        return list.toDoubleArray()
+    }
 }
