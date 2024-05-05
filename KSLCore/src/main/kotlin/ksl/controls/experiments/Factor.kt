@@ -30,7 +30,7 @@ open class Factor(
     }
 
     /**
-     *  True if the value is with the range for the factor
+     *  True if the value is within the range limits of the factor
      */
     fun isInRange(value: Double): Boolean {
         return interval.contains(value)
