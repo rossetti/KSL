@@ -88,4 +88,32 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
         }
         return list.toDoubleArray()
     }
+
+    /**
+     *  Converts the original values to code values
+     *  @param rawValues the values for each factor. The size must be the number of factors
+     *  with element 0 representing the first factor
+     */
+    fun toCodedValues(rawValues: DoubleArray) : DoubleArray {
+        require(rawValues.size == factors.size){"The number of values (${rawValues.size}) must be equal to the number of factors (${factors.size})"}
+        val array = DoubleArray(rawValues.size)
+        for (i in rawValues.indices){
+            array[i] = factors[factorNames[i]]!!.toCodedValue(rawValues[i])
+        }
+        return array
+    }
+
+    /**
+     *  Converts the coded values to values on the original measurement scale.
+     *  @param codedValues the values for each factor. The size must be the number of factors
+     *  with element 0 representing the first factor
+     */
+    fun toOriginalValues(codedValues: DoubleArray) : DoubleArray {
+        require(codedValues.size == factors.size){"The number of values (${codedValues.size}) must be equal to the number of factors (${factors.size})"}
+        val array = DoubleArray(codedValues.size)
+        for (i in codedValues.indices){
+            array[i] = factors[factorNames[i]]!!.toOriginalValue((codedValues[i]))
+        }
+        return array
+    }
 }
