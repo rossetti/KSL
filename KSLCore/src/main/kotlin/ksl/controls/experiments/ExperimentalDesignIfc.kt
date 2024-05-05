@@ -20,14 +20,20 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
 
     /**
      *  Checks if the settings for the factors are valid for this design
+     *  @param settings the map contains each factor and the setting of the factor
+     *  @param enforceRange true indicates if the range limits of the factor are
+     *  used in the validation check. Not enforcing the range check allows settings
+     *  that may be out of range limits for the factors
      */
-    fun isValid(settings: Map<Factor, Double>): Boolean {
+    fun isValid(settings: Map<Factor, Double>, enforceRange:Boolean = true): Boolean {
         if (settings.isEmpty()) {
             return false
         }
         for ((f, v) in settings.entries) {
             if (!factors.containsValue(f)) { return false}
-            if (!f.isInRange(v)) return false
+            if (enforceRange){
+                if (!f.isInRange(v)) return false
+            }
         }
         return true
     }
