@@ -38,7 +38,7 @@ class ExperimentalDesign(
         val settings = mutableMapOf<Factor, Double>()
         for ((i, fn) in factorNames.withIndex()) {
             val f = factors[fn]!!
-            require(f.isValid(values[i])){"The supplied value (${values} is invalid for factor ${f.name} with interval ${f.interval}"}
+//TODO            require(f.isValid(values[i])){"The supplied value (${values} is invalid for factor ${f.name} with interval ${f.interval}"}
             settings[f] = values[i]
         }
         return addDesignPoint(settings, numReps)

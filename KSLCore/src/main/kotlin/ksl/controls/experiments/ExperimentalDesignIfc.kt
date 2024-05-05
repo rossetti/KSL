@@ -19,6 +19,20 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
     val factorNames: List<String>
 
     /**
+     *  Checks if the settings for the factors are valid for this design
+     */
+    fun isValid(settings: Map<Factor, Double>): Boolean {
+        if (settings.isEmpty()) {
+            return false
+        }
+        for ((f, v) in settings.entries) {
+            if (!factors.containsValue(f)) { return false}
+            if (!f.isValid(v)) return false
+        }
+        return true
+    }
+
+    /**
      *  Returns the name of the factor. The first factor is at k = 1
      *  @param k must be in 1 to number of factors
      */
@@ -83,9 +97,9 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
      *  Makes a center point for the factors of the design in the
      *  original measurement units
      */
-    fun centerPoint() : DoubleArray {
+    fun centerPoint(): DoubleArray {
         val list = mutableListOf<Double>()
-        for (factor in factors.values){
+        for (factor in factors.values) {
             list.add(factor.midPoint)
         }
         return list.toDoubleArray()
@@ -96,10 +110,10 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
      *  @param rawValues the values for each factor. The size must be the number of factors
      *  with element 0 representing the first factor
      */
-    fun toCodedValues(rawValues: DoubleArray) : DoubleArray {
-        require(rawValues.size == factors.size){"The number of values (${rawValues.size}) must be equal to the number of factors (${factors.size})"}
+    fun toCodedValues(rawValues: DoubleArray): DoubleArray {
+        require(rawValues.size == factors.size) { "The number of values (${rawValues.size}) must be equal to the number of factors (${factors.size})" }
         val array = DoubleArray(rawValues.size)
-        for (i in rawValues.indices){
+        for (i in rawValues.indices) {
             array[i] = factors[factorNames[i]]!!.toCodedValue(rawValues[i])
         }
         return array
@@ -110,10 +124,10 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
      *  @param codedValues the values for each factor. The size must be the number of factors
      *  with element 0 representing the first factor
      */
-    fun toOriginalValues(codedValues: DoubleArray) : DoubleArray {
-        require(codedValues.size == factors.size){"The number of values (${codedValues.size}) must be equal to the number of factors (${factors.size})"}
+    fun toOriginalValues(codedValues: DoubleArray): DoubleArray {
+        require(codedValues.size == factors.size) { "The number of values (${codedValues.size}) must be equal to the number of factors (${factors.size})" }
         val array = DoubleArray(codedValues.size)
-        for (i in codedValues.indices){
+        for (i in codedValues.indices) {
             array[i] = factors[factorNames[i]]!!.toOriginalValue((codedValues[i]))
         }
         return array
