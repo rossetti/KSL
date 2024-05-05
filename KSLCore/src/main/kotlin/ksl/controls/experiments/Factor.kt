@@ -30,9 +30,9 @@ open class Factor(
     }
 
     /**
-     *  True if the value is valid over the range for the factor
+     *  True if the value is with the range for the factor
      */
-    fun isValid(value: Double): Boolean {
+    fun isInRange(value: Double): Boolean {
         return interval.contains(value)
     }
 
@@ -85,10 +85,12 @@ open class Factor(
     }
 
     /**
-     *  Converts the original raw value to the coded measurement scale
+     *  Converts the original raw value to the coded measurement scale.
+     *  This conversion does not check if the raw value is within
+     *  the range limits of the factor. Thus, a coded value can
+     *  exceed 1 and be smaller than -1
      */
     fun toCodedValue(rawValue: Double): Double {
-//TODO        require(isValid(rawValue)) {"The raw value ($rawValue) is invalid: $interval."}
         return (rawValue - midPoint) / halfRange
     }
 

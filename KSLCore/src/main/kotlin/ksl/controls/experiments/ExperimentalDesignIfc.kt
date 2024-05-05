@@ -27,7 +27,7 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
         }
         for ((f, v) in settings.entries) {
             if (!factors.containsValue(f)) { return false}
-            if (!f.isValid(v)) return false
+            if (!f.isInRange(v)) return false
         }
         return true
     }
