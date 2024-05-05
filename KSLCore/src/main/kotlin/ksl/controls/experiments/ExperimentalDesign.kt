@@ -64,7 +64,7 @@ class ExperimentalDesign(
         return myDesignPoints.iterator()
     }
 
-    override fun designIterator(replications: Int): DesignPointIteratorIfc {
+    override fun designIterator(replications: Int?): DesignPointIteratorIfc {
         return DesignPointIterator(replications)
     }
 
@@ -72,9 +72,10 @@ class ExperimentalDesign(
      *  This iterator should present each design point
      *  until all points in the design have been presented.
      *  @param numReps the number of replications for the design points.
-     *  Must be greater or equal to 1.
+     *  If not null, it must be greater or equal to 1. If null, the design point's
+     *  current number of replications is used.
      */
-    private inner class DesignPointIterator(val numReps: Int) : DesignPointIteratorIfc {
+    private inner class DesignPointIterator(val numReps: Int? = null) : DesignPointIteratorIfc {
 
         private val itr = myDesignPoints.iterator()
 
@@ -91,7 +92,9 @@ class ExperimentalDesign(
         override fun next(): DesignPoint {
             count++
             val dp = itr.next()
-            dp.numReplications = numReps
+            if ((numReps != null) && (numReps > 0)) {
+                dp.numReplications = numReps
+            }
             last = dp
             return dp
         }
