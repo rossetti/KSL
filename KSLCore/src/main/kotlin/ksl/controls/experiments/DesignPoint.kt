@@ -32,7 +32,7 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
  *  @param defaultNumReplications the number of replications for this design point
  *  Must be greater or equal to 1.
  */
-class DesignPoint(
+class DesignPoint internal constructor(
     val design: ExperimentalDesignIfc,
     val number: Int,
     val settings: Map<Factor, Double>,
