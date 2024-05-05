@@ -20,6 +20,7 @@
 
 package ksl.utilities.io
 
+import ksl.controls.experiments.DesignPoint
 import ksl.observers.ControlVariateDataCollector
 import ksl.observers.ReplicationDataCollector
 import ksl.utilities.KSLArrays
@@ -686,4 +687,24 @@ fun <T> DataFrame<T>.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.def
     val rowIndices = IntRange(0, this.rowsCount()).toMutableList()
     val sample: MutableList<Int> = rowIndices.sample(sampleSize, stream)
     return this[sample]
+}
+
+/**
+ *  Turns the list of design points into a data frame.
+ *  The columns of the data frame are the factor names and the rows are the
+ *  design points values.
+ *  @param coded indicates if the points should be coded. The default is false.
+ */
+fun List<DesignPoint>.toDataFrame(coded: Boolean = false): AnyFrame {
+    if (isEmpty()) {
+        return AnyFrame.empty()
+    }
+    // get the points as arrays
+    val points = if (coded) {
+        List(size) { this[it].codedValues() }
+    } else {
+        List(size) { this[it].values() }
+    }
+    val cols = KSLArrays.to2DDoubleArray(points).toMapOfLists(first().design.factorNames)
+    return cols.toDataFrame()
 }

@@ -22,7 +22,8 @@ import ksl.controls.experiments.*
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.print
-import org.jetbrains.kotlinx.dataframe.api.*
+import ksl.utilities.io.toDataFrame
+import org.jetbrains.kotlinx.dataframe.api.print
 
 fun main() {
 
@@ -205,14 +206,14 @@ fun test2LevelDesign() {
     // This design can be found here: https://www.itl.nist.gov/div898/handbook/pri/section3/eqns/2to4m1.txt
     val itr = design.halfFractionIterator()
     val dPoints = itr.asSequence().toList()
-    val df = dPoints.asDataFrame(coded = true)
+    val df = dPoints.toDataFrame(coded = true)
     println("Positive half-fraction")
     df.print(rowsLimit = 36)
 
     println("The same design using a fractional iterator")
     design.fractionalIterator(setOf(setOf(1, 2, 3, 4)))
         .asSequence().toList()
-        .asDataFrame(true).print(rowsLimit = 36)
+        .toDataFrame(true).print(rowsLimit = 36)
 
 }
 
@@ -239,7 +240,7 @@ fun testFractionalDesign() {
     val itr = design.fractionalIterator(relation)
 
     val dPoints = itr.asSequence().toList()
-    val df = dPoints.asDataFrame(coded = true)
+    val df = dPoints.toDataFrame(coded = true)
     println("Fractional design points")
     df.print(rowsLimit = 36)
 }
