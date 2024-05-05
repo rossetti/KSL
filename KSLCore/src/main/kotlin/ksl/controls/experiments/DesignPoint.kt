@@ -18,6 +18,11 @@
 
 package ksl.controls.experiments
 
+import ksl.utilities.KSLArrays
+import ksl.utilities.toMapOfLists
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+
 /**
  *  A design point is a specification of the [settings] for the
  *  factors of an experiment.
@@ -74,5 +79,25 @@ class DesignPoint(
         }
         return list.toDoubleArray()
     }
+}
+
+/**
+ *  Turns the list of design points into a data frame.
+ *  The columns of the data frame are the factor names and the rows are the
+ *  design points values.
+ *  @param coded indicates if the points should be coded. The default is false.
+ */
+fun List<DesignPoint>.toDataFrame(coded: Boolean = false): AnyFrame {
+    if (isEmpty()) {
+        return AnyFrame.empty()
+    }
+    // get the points as arrays
+    val points = if (coded) {
+        List(size) { this[it].codedValues() }
+    } else {
+        List(size) { this[it].values() }
+    }
+    val cols = KSLArrays.to2DDoubleArray(points).toMapOfLists(first().design.factorNames)
+    return cols.toDataFrame()
 }
 

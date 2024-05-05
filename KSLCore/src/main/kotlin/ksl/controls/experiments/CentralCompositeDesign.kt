@@ -67,7 +67,7 @@ class CentralCompositeDesign(
         return pCount
     }
 
-    override fun designIterator(replications: Int): DesignPointIteratorIfc {
+    override fun designIterator(replications: Int?): DesignPointIteratorIfc {
         return myDesign.designIterator(replications)
     }
 

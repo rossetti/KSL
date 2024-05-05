@@ -28,12 +28,14 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
      *  Returns an iterator that produces the design points
      *  in order from 1 to the number of design points.
      *  @param replications the number of replications for the design points returned from the iterator
-     *  Must be greater or equal to 1.
+     *  If null (the default) the current setting for the number of replications of the design point
+     *  is used; otherwise, the design point's number of replications will be updated by the supplied
+     *  value. Must be greater than 0
      */
-    fun designIterator(replications: Int = 1): DesignPointIteratorIfc
+    fun designIterator(replications: Int? = null): DesignPointIteratorIfc
 
     /**
-     *  Returns all the design points based on the cartesian product of the factors and their levels.
+     *  Returns all the design points in the experiment
      */
     fun designPoints(): List<DesignPoint> {
         return iterator().asSequence().toList()

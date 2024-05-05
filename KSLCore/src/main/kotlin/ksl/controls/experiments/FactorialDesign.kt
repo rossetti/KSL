@@ -73,14 +73,18 @@ open class FactorialDesign(
      *  Must be greater or equal to 1.
      *  @return the returned DesignPoint
      */
-    protected fun designPoint(k: Int, replications: Int): DesignPoint {
+    protected fun designPoint(k: Int, replications: Int?): DesignPoint {
         val rowMap = mutableMapOf<Factor, Double>()
         val points = designPointToArray(k)
         for ((i, point) in points.withIndex()) {
             val factor = myFactors[factorNames[i]]!!
             rowMap[factor] = point
         }
-        return DesignPoint(this, k, rowMap, replications)
+        return if ((replications != null) && (replications > 0)) {
+            DesignPoint(this, k, rowMap, replications)
+        } else {
+            DesignPoint(this, k, rowMap, 1)
+        }
     }
 
     /**
@@ -89,7 +93,7 @@ open class FactorialDesign(
      *  @param numReps the number of replications for the design points.
      *  Must be greater or equal to 1.
      */
-    inner class FactorialDesignIterator(val numReps: Int) : DesignPointIteratorIfc {
+    inner class FactorialDesignIterator(val numReps: Int? = null) : DesignPointIteratorIfc {
         override var count: Int = 0
             private set
 
@@ -122,7 +126,7 @@ open class FactorialDesign(
      *  @param replications the number of replications for the design points returned from the iterator
      *  Must be greater or equal to 1.
      */
-    override fun designIterator(replications: Int): DesignPointIteratorIfc {
+    override fun designIterator(replications: Int?): DesignPointIteratorIfc {
         return FactorialDesignIterator(replications)
     }
 
