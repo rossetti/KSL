@@ -24,6 +24,7 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.io.print
 import ksl.utilities.io.toDataFrame
 import org.jetbrains.kotlinx.dataframe.api.print
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 fun main() {
 
@@ -33,7 +34,9 @@ fun main() {
 
 //    testFractionalDesign()
 
-    simulateFactorialDesign()
+//    simulateFactorialDesign()
+
+    testCCD()
 }
 
 fun buildModel(): Model {
@@ -243,4 +246,18 @@ fun testFractionalDesign() {
     val df = dPoints.toDataFrame(coded = true)
     println("Fractional design points")
     df.print(rowsLimit = 36)
+}
+
+fun testCCD(){
+    val factors = setOf(
+        TwoLevelFactor("A", 5.0, 15.0),
+        TwoLevelFactor("B", 2.0, 11.0),
+        TwoLevelFactor("C", 6.0, 10.0),
+    )
+    val ccd = CentralCompositeDesign(factors, axialSpacing = 1.682 )
+    val ucdf = ccd.designPointsAsDataframe()
+    ucdf.print(rowsLimit = 36)
+    println()
+    val cdf = ccd.designPointsAsDataframe(coded = true)
+    cdf.print(rowsLimit = 36)
 }

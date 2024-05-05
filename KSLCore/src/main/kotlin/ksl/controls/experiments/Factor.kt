@@ -88,7 +88,7 @@ open class Factor(
      *  Converts the original raw value to the coded measurement scale
      */
     fun toCodedValue(rawValue: Double): Double {
-        require(isValid(rawValue)) {"The raw value ($rawValue) is invalid: $interval."}
+//TODO        require(isValid(rawValue)) {"The raw value ($rawValue) is invalid: $interval."}
         return (rawValue - midPoint) / halfRange
     }
 
