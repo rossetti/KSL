@@ -89,7 +89,7 @@ open class FactorialDesign(
      *  @param numReps the number of replications for the design points.
      *  Must be greater or equal to 1.
      */
-    inner class DesignPointIterator(val numReps: Int) : DesignPointIteratorIfc {
+    inner class FactorialDesignIterator(val numReps: Int) : DesignPointIteratorIfc {
         override var count: Int = 0
             private set
 
@@ -113,7 +113,7 @@ open class FactorialDesign(
      *  in order from 1 to the number of design points. Every des
      */
     override fun iterator(): DesignPointIteratorIfc {
-        return DesignPointIterator(defaultNumReplications)
+        return FactorialDesignIterator(defaultNumReplications)
     }
 
     /**
@@ -123,7 +123,7 @@ open class FactorialDesign(
      *  Must be greater or equal to 1.
      */
     override fun designIterator(replications: Int): DesignPointIteratorIfc {
-        return DesignPointIterator(replications)
+        return FactorialDesignIterator(replications)
     }
 
     override fun toString(): String {
