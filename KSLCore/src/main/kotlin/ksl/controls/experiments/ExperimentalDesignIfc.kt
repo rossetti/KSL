@@ -8,12 +8,6 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 interface ExperimentalDesignIfc : Iterable<DesignPoint> {
 
     /**
-     *  The default number of replications for each design point, when
-     *  they all have the same number.
-     */
-    val defaultNumReplications: Int
-
-    /**
      *  The factors associated with the design held by
      *  name.
      */
@@ -36,7 +30,7 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
      *  @param replications the number of replications for the design points returned from the iterator
      *  Must be greater or equal to 1.
      */
-    fun designIterator(replications: Int = defaultNumReplications): DesignPointIteratorIfc
+    fun designIterator(replications: Int = 1): DesignPointIteratorIfc
 
     /**
      *  Returns all the design points based on the cartesian product of the factors and their levels.

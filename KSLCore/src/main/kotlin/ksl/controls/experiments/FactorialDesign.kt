@@ -20,12 +20,6 @@ open class FactorialDesign(
     name: String? = null
 ) : Identity(name), ExperimentalDesignIfc {
 
-    override var defaultNumReplications: Int = 1
-        set(value) {
-            require(value > 0) { "Default number of replications must be greater than 0" }
-            field = value
-        }
-
     private val myFactors = mutableMapOf<String, Factor>()
 
     override val factors: Map<String, Factor>
@@ -79,7 +73,7 @@ open class FactorialDesign(
      *  Must be greater or equal to 1.
      *  @return the returned DesignPoint
      */
-    protected fun designPoint(k: Int, replications: Int = defaultNumReplications): DesignPoint {
+    protected fun designPoint(k: Int, replications: Int): DesignPoint {
         val rowMap = mutableMapOf<Factor, Double>()
         val points = designPointToArray(k)
         for ((i, point) in points.withIndex()) {
@@ -92,10 +86,10 @@ open class FactorialDesign(
     /**
      *  This iterator should present each design point
      *  until all points in the design have been presented.
-     *  @param defaultNumReplications the number of replications for the design points.
+     *  @param numReps the number of replications for the design points.
      *  Must be greater or equal to 1.
      */
-    inner class DesignPointIterator(val numReps: Int = defaultNumReplications) : DesignPointIteratorIfc {
+    inner class DesignPointIterator(val numReps: Int) : DesignPointIteratorIfc {
         override var count: Int = 0
             private set
 
@@ -116,10 +110,10 @@ open class FactorialDesign(
 
     /**
      *  Returns an iterator that produces the design points
-     *  in order from 1 to the number of design points.
+     *  in order from 1 to the number of design points. Every des
      */
     override fun iterator(): DesignPointIteratorIfc {
-        return DesignPointIterator()
+        return DesignPointIterator(defaultNumReplications)
     }
 
     /**
@@ -148,6 +142,12 @@ open class FactorialDesign(
     }
 
     companion object {
+
+        var defaultNumReplications: Int = 1
+            set(value) {
+                require(value > 0) { "Default number of replications must be greater than 0" }
+                field = value
+            }
 
         /**
          *  Creates a two the k factorial design with levels -1 and 1
