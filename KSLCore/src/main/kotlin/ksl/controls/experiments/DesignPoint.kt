@@ -70,7 +70,7 @@ class DesignPoint(
     fun codedValues(): DoubleArray {
         val list = mutableListOf<Double>()
         for ((f, v) in settings.entries) {
-            list.add(f.codedValue(v))
+            list.add(f.toCodedValue(v))
         }
         return list.toDoubleArray()
     }

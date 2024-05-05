@@ -1,7 +1,6 @@
 package ksl.controls.experiments
 
 import ksl.utilities.*
-import org.checkerframework.checker.units.qual.m
 
 /**
  *  This class represents an individual factor within a factorial design.
@@ -79,9 +78,16 @@ open class Factor(
         }
 
     /**
-     *  The value based on coding.
+     *  Converts the coded value to the original measurement scale
      */
-    fun codedValue(rawValue: Double): Double {
+    fun toRawValue(codedValue: Double) : Double {
+        return halfRange*codedValue + midPoint
+    }
+
+    /**
+     *  Converts the original raw value to the coded measurement scale
+     */
+    fun toCodedValue(rawValue: Double): Double {
         require(isValid(rawValue)) {"The raw value ($rawValue) is invalid: $interval."}
         return (rawValue - midPoint) / halfRange
     }
