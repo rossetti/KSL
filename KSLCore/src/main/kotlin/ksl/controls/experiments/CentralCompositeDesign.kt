@@ -19,19 +19,19 @@ class CentralCompositeDesign(
     val numFactors: Int
         get() = factorialDesign.factors.size
 
+    //   private val myDesign : ExperimentalDesign
+
     init {
         require(factorialReps > 0) { "Number of factorial replications must be > 0" }
         require(axialReps > 0) { "Number of axial replications must be > 0" }
         require(centerReps > 0) { "Number of center replications must be > 0" }
         require(axialSpacing > 0.0) { "The axial spacing must be > 0" }
     }
-
- //   private val myDesign : ExperimentalDesign
-
+    
     override val factors: Map<String, Factor>
-        get() = TODO("Not yet implemented")
+        get() = factorialDesign.factors
     override val factorNames: List<String>
-        get() = TODO("Not yet implemented")
+        get() = factorialDesign.factorNames
 
     override fun designIterator(replications: Int): DesignPointIteratorIfc {
         TODO("Not yet implemented")
