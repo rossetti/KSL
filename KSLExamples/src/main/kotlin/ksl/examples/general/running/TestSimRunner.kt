@@ -23,8 +23,11 @@ import ksl.controls.experiments.SimulationRunner
 import ksl.examples.book.chapter5.PalletWorkCenter
 import ksl.examples.book.chapter6.StemFairMixer
 import ksl.simulation.Model
+import ksl.utilities.io.ExcelUtil
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import org.jetbrains.kotlinx.dataframe.api.print
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 fun main(){
     showControls()
@@ -41,6 +44,12 @@ fun showControls(){
     val kslDatabaseObserver = KSLDatabaseObserver(model)
     // get the controls
     val controls = model.controls()
+
+    controls.controlData().toDataFrame().print(rowsLimit = 36)
+
+    val cmap = controls.asMap()
+    ExcelUtil.exportToExcel(cmap, "Controls")
+
 //    println(controls)
     println()
     val control = controls.control("JHBuntR.initialCapacity")

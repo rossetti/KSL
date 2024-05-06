@@ -28,7 +28,7 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 fun main() {
 
-    //   printControlsAndRVParameters()
+       printControlsAndRVParameters()
 
 //    test2LevelDesign()
 
@@ -36,7 +36,7 @@ fun main() {
 
 //    simulateFactorialDesign()
 
-    testCCD()
+//    testCCD()
 }
 
 fun buildModel(): Model {

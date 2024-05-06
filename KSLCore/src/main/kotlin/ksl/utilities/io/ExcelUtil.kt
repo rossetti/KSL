@@ -20,12 +20,17 @@ package ksl.utilities.io
 
 import com.opencsv.CSVWriterBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.utilities.io.dbutil.DatabaseIfc
+import ksl.utilities.io.dbutil.DatabaseIfc.Companion
+import ksl.utilities.io.dbutil.DatabaseIfc.Companion.exportAsWorkSheet
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException
 import org.apache.poi.openxml4j.opc.OPCPackage
 import org.apache.poi.openxml4j.opc.PackageAccess
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.ss.util.WorkbookUtil
+import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.FileOutputStream
 import java.io.FileWriter
 import java.io.IOException
 import java.math.BigDecimal
@@ -393,4 +398,49 @@ object ExcelUtil  {
     fun numberColumns(row: Row): Int {
         return row.lastCellNum.toInt()
     }
+
+    /** Writes each entry in the map to an Excel workbook.
+     *
+     * @param map the map of information to export
+     * @param wbName the name of the workbook
+     * @param wbDirectory the directory to store the workbook
+     */
+    fun exportToExcel(
+        map: Map<String, Double>,
+        sheetName: String,
+        wbName: String = sheetName,
+        wbDirectory: Path = KSL.excelDir
+    ) {
+        val wbn = if (!wbName.endsWith(".xlsx")) {
+            "$wbName.xlsx"
+        } else {
+            wbName
+        }
+        val path = wbDirectory.resolve(wbn)
+        FileOutputStream(path.toFile()).use {
+            logger.info { "Opened workbook $path for writing map $sheetName to Excel" }
+            var rowCnt = 0
+            val workbook = SXSSFWorkbook(100)
+            val sheet = workbook.createSheet(sheetName)
+            val headerRow = sheet.createRow(0)
+            val nameHeader = headerRow.createCell(0)
+            nameHeader.setCellValue("Element Name")
+            val valueHeader = headerRow.createCell(1)
+            valueHeader.setCellValue("Element Value")
+            rowCnt++
+            for((n,v) in map) {
+                val nextRow = sheet.createRow(rowCnt)
+                val nameCell = nextRow.createCell(0)
+                nameCell.setCellValue(n)
+                val valueCell = nextRow.createCell(1)
+                writeCell(valueCell, v)
+                rowCnt++
+            }
+            workbook.write(it)
+            workbook.close()
+            workbook.dispose()
+            logger.info { "Closed workbook $path after writing map $sheetName to Excel" }
+        }
+    }
+
 }
