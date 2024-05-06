@@ -33,14 +33,14 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
  *  Must be greater or equal to 1.
  *  @param enforceRange true indicates if the range limits of the factor are
  *  used in the validation check. Not enforcing the range check allows settings
- *  that may be out of range limits for the factors
+ *  that may be out of range limits for the factors. The default is true.
  */
 class DesignPoint internal constructor(
     val design: ExperimentalDesignIfc,
     val number: Int,
     val settings: Map<Factor, Double>,
     defaultNumReplications: Int = 1,
-    enforceRange: Boolean = true,
+    enforceRange: Boolean = true
 ) {
     init {
         require(number > 0) { "Number must be positive." }
