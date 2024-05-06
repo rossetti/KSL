@@ -1286,7 +1286,7 @@ class Model(
                     continue
                 } else {
                     // not a control and not a parameter
-                    logger.trace { "The input key $key was not a valid control or rv parameter" }
+                    logger.info { "The input key '$key' was not a valid control or rv parameter" }
                     return false
                 }
             }

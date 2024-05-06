@@ -88,7 +88,7 @@ fun demoExcelMap(){
         "second" to 2.0,
         "third" to Double.POSITIVE_INFINITY,
         "fourth" to Double.NaN)
-    ExcelUtil.exportToExcel(map, "TestExcelMap")
+    ExcelUtil.writeToExcel(map, "TestExcelMap")
     val inMap = ExcelUtil.readToMap("TestExcelMap")
     for((key, value) in inMap){
         println("$key -> $value")
