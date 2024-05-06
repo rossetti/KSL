@@ -3,7 +3,7 @@ package ksl.controls.experiments
 import ksl.utilities.Identity
 
 
-class CentralCompositeDesign(
+open class CentralCompositeDesign(
     factors: Set<TwoLevelFactor>,
     val numFactorialReps: Int = 1,
     val numAxialReps: Int = 1,
@@ -12,17 +12,17 @@ class CentralCompositeDesign(
     name: String? = null
 ) : Identity(name), ExperimentalDesignIfc {
 
-    private val myDesign: ExperimentalDesign = ExperimentalDesign(factors)
+    protected val myDesign: ExperimentalDesign = ExperimentalDesign(factors)
 
-    private val myTwoLevelFactorialDesign = TwoLevelFactorialDesign(factors)
+    protected val myTwoLevelFactorialDesign = TwoLevelFactorialDesign(factors)
 
     val numFactors: Int
         get() = myDesign.factors.size
 
-    override val factors: Map<String, Factor>
+    final override val factors: Map<String, Factor>
         get() = myDesign.factors
 
-    override val factorNames: List<String>
+    final override val factorNames: List<String>
         get() = myDesign.factorNames
 
     val numFactorialPoints: Int
@@ -44,7 +44,7 @@ class CentralCompositeDesign(
         myDesign.addDesignPoint(centerPoint(), numCenterReps)
     }
 
-    private fun makeAxialPoints() {
+    protected fun makeAxialPoints() {
         for (i in 0 until numFactors) {
             val posArray = DoubleArray(numFactors) { 0.0 }
             val neqArray = DoubleArray(numFactors) { 0.0 }
@@ -57,7 +57,7 @@ class CentralCompositeDesign(
         }
     }
 
-    private fun makeFactorialPoints(ptItr: DesignPointIteratorIfc): Int {
+    protected fun makeFactorialPoints(ptItr: DesignPointIteratorIfc): Int {
         var pCount = 0
         while (ptItr.hasNext()) {
             val dp = ptItr.next()
