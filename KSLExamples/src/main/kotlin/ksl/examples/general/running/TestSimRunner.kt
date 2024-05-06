@@ -48,7 +48,7 @@ fun showControls(){
     controls.controlData().toDataFrame().print(rowsLimit = 36)
 
     val cmap = controls.asMap()
-    ExcelUtil.exportToExcel(cmap, "Controls")
+    ExcelUtil.writeToExcel(cmap, "Controls")
     val rmap = ExcelUtil.readToMap("Controls")
     for ((k, v) in rmap) {
         println("$k: $v")

@@ -399,13 +399,26 @@ object ExcelUtil  {
         return row.lastCellNum.toInt()
     }
 
-    /** Writes each entry in the map to an Excel workbook.
+    /** Writes each entry in the map to an Excel workbook. The mapping
+     * of problematic double values is as follows:
      *
+     *  - Double.NaN is written as the string "NaN"
+     *  - Double.POSITIVE_INFINITY is written as a string "+Infinity"
+     *  - Double.NEGATIVE_INFINITY is written as a string "-Infinity"
+     *
+     * Note that NULL is not a possible value in the map.
+     *
+     * @param sheetName the name of the sheet within the workbook. This should
+     * follow the sheet naming conventions of Excel
      * @param map the map of information to export
-     * @param wbName the name of the workbook
-     * @param wbDirectory the directory to store the workbook
+     * @param wbName the name of the workbook. By default, assumes that
+     * the workbook name is the same as the sheet name.
+     * @param wbDirectory the directory to store the workbook. By default,
+     * this is KSL.excelDir.
+     * @param header if true a header of (Element Name, Element Value) is the first
+     * row in the sheet. By default, no header is written.
      */
-    fun exportToExcel(
+    fun writeToExcel(
         map: Map<String, Double>,
         sheetName: String,
         wbName: String = sheetName,
@@ -454,6 +467,18 @@ object ExcelUtil  {
         }
     }
 
+    /** This is the reverse operation to the function writeToExcel() for a Map<String, Double>
+     *  The strings "+Infinity", "-Infinity", and "NaN" in the value column are correctly converted
+     *  to the appropriate double representation.  Any rows that have empty cells (null) are skipped in the
+     *  processing.
+     *
+     *  @param sheetName the name of the sheet holding the map. If the workbook does not
+     *  contain the named sheet then an empty map is returned
+     *  @param pathToWorkbook the path to the workbook file. By default, this is assumed
+     *  to be a workbook in the KSL.excelDir directory with the name "sheetName.xlsx"
+     *  @param skipFirstRow if true the first row of the sheet is skipped because it
+     *  contains a header. The default is false.
+     */
     fun readToMap(
         sheetName: String,
         pathToWorkbook: Path = KSL.excelDir.resolve("${sheetName}.xlsx"),
