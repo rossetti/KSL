@@ -19,10 +19,7 @@
 package ksl.examples.general.utilities
 
 import ksl.utilities.KSLArrays
-import ksl.utilities.io.CSVUtil
-import ksl.utilities.io.KSL
-import ksl.utilities.io.KSLFileUtil
-import ksl.utilities.io.OutputDirectory
+import ksl.utilities.io.*
 import ksl.utilities.random.rvariable.NormalRV
 import java.nio.file.Paths
 
@@ -31,8 +28,10 @@ fun main() {
  //   demoKSLClass()
 //    demoCSVUtil()
 
-    val file =  KSLFileUtil.chooseFile()
-    println("The chosen file path was $file")
+//    val file =  KSLFileUtil.chooseFile()
+//    println("The chosen file path was $file")
+
+    demoExcelMap()
 }
 
 fun demoOutputDirectory() {
@@ -80,5 +79,18 @@ fun demoCSVUtil(){
     val m = KSLArrays.parseTo2DArray(dataAsList)
     for(i in matrix.indices){
         println(m[i].contentToString())
+    }
+}
+
+fun demoExcelMap(){
+    val map = mapOf(
+        "first" to 1.0,
+        "second" to 2.0,
+        "third" to Double.POSITIVE_INFINITY,
+        "fourth" to Double.NaN)
+    ExcelUtil.exportToExcel(map, "TestExcelMap")
+    val inMap = ExcelUtil.readToMap("TestExcelMap")
+    for((key, value) in inMap){
+        println("$key -> $value")
     }
 }

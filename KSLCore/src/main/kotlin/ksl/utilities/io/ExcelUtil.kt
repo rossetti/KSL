@@ -409,7 +409,8 @@ object ExcelUtil  {
         map: Map<String, Double>,
         sheetName: String,
         wbName: String = sheetName,
-        wbDirectory: Path = KSL.excelDir
+        wbDirectory: Path = KSL.excelDir,
+        header: Boolean = false
     ) {
         val wbn = if (!wbName.endsWith(".xlsx")) {
             "$wbName.xlsx"
@@ -422,18 +423,28 @@ object ExcelUtil  {
             var rowCnt = 0
             val workbook = SXSSFWorkbook(100)
             val sheet = workbook.createSheet(sheetName)
-            val headerRow = sheet.createRow(0)
-            val nameHeader = headerRow.createCell(0)
-            nameHeader.setCellValue("Element Name")
-            val valueHeader = headerRow.createCell(1)
-            valueHeader.setCellValue("Element Value")
-            rowCnt++
+            if (header) {
+                val headerRow = sheet.createRow(0)
+                val nameHeader = headerRow.createCell(0)
+                nameHeader.setCellValue("Element Name")
+                val valueHeader = headerRow.createCell(1)
+                valueHeader.setCellValue("Element Value")
+                rowCnt++
+            }
             for((n,v) in map) {
                 val nextRow = sheet.createRow(rowCnt)
                 val nameCell = nextRow.createCell(0)
                 nameCell.setCellValue(n)
                 val valueCell = nextRow.createCell(1)
-                writeCell(valueCell, v)
+                if (v.isNaN()){
+                    valueCell.setCellValue("NaN")
+                } else if (v == Double.POSITIVE_INFINITY){
+                    valueCell.setCellValue("+Infinity")
+                } else if (v == Double.NEGATIVE_INFINITY){
+                    valueCell.setCellValue("-Infinity")
+                } else {
+                    writeCell(valueCell, v)
+                }
                 rowCnt++
             }
             workbook.write(it)
@@ -442,5 +453,47 @@ object ExcelUtil  {
             logger.info { "Closed workbook $path after writing map $sheetName to Excel" }
         }
     }
+
+    fun readToMap(
+        sheetName: String,
+        pathToWorkbook: Path = KSL.excelDir.resolve("${sheetName}.xlsx"),
+        skipFirstRow: Boolean = false,
+    ): Map<String, Double> {
+        val workbook: XSSFWorkbook = openExistingXSSFWorkbookReadOnly(pathToWorkbook)
+            ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
+        val sheet = workbook.getSheet(sheetName)
+        if (sheet == null) {
+            logger.info { "No corresponding sheet named $sheetName in workbook $pathToWorkbook" }
+            return emptyMap()
+        }
+        val rowIterator = sheet.rowIterator()
+        if (skipFirstRow) {
+            if (rowIterator.hasNext()) {
+                rowIterator.next()
+            }
+        }
+        val map = mutableMapOf<String, Double>()
+        while (rowIterator.hasNext()) {
+            val row = rowIterator.next()
+            val rowData = readRowAsStringList(row, 2)
+            if (rowData[0] != null) {
+                val sn = rowData[0]!!
+                if (rowData[1] != null) {
+                    if (rowData[1].equals("NaN")){
+                        map[sn] = Double.NaN
+                    } else if (rowData[1].equals("+Infinity")){
+                        map[sn] = Double.POSITIVE_INFINITY
+                    } else if (rowData[1].equals("-Infinity")){
+                        map[sn] = Double.NEGATIVE_INFINITY
+                    } else {
+                        map[sn] = rowData[1]!!.toDouble()
+                    }
+                }
+            }
+        }
+        return map
+    }
+
+
 
 }

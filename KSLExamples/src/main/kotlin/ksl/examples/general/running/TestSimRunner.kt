@@ -49,7 +49,10 @@ fun showControls(){
 
     val cmap = controls.asMap()
     ExcelUtil.exportToExcel(cmap, "Controls")
-
+    val rmap = ExcelUtil.readToMap("Controls")
+    for ((k, v) in rmap) {
+        println("$k: $v")
+    }
 //    println(controls)
     println()
     val control = controls.control("JHBuntR.initialCapacity")
