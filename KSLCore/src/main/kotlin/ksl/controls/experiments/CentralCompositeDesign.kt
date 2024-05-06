@@ -52,8 +52,8 @@ class CentralCompositeDesign(
             neqArray[i] = -axialSpacing
             val posPt = toOriginalValues(posArray)
             val neqPt = toOriginalValues(neqArray)
-            myDesign.addDesignPoint(posPt, numAxialReps)
-            myDesign.addDesignPoint(neqPt, numAxialReps)
+            myDesign.addDesignPoint(posPt, numAxialReps, enforceRange = false)
+            myDesign.addDesignPoint(neqPt, numAxialReps, enforceRange = false)
         }
     }
 
