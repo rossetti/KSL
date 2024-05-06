@@ -31,7 +31,7 @@ class ExperimentalDesign(
      *  @param numReps the number of replications for the design point, must be more than 0
      *  @param enforceRange true indicates if the range limits of the factor are
      *  used in the validation check. Not enforcing the range check allows settings
-     *  that may be out of range limits for the factors
+     *  that may be out of range limits for the factors. The default is true.
      */
     fun addDesignPoint(
         values: DoubleArray,
@@ -53,7 +53,7 @@ class ExperimentalDesign(
      *  @param numReps the number of replications for the design point, must be more than 0
      *  @param enforceRange true indicates if the range limits of the factor are
      *  used in the validation check. Not enforcing the range check allows settings
-     *  that may be out of range limits for the factors
+     *  that may be out of range limits for the factors.  The default is true.
      */
     fun addDesignPoint(
         settings: Map<Factor, Double>,
