@@ -31,20 +31,21 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
  *  @param settings the specification of the settings for the factors for this point
  *  @param defaultNumReplications the number of replications for this design point
  *  Must be greater or equal to 1.
+ *  @param enforceRange true indicates if the range limits of the factor are
+ *  used in the validation check. Not enforcing the range check allows settings
+ *  that may be out of range limits for the factors
  */
 class DesignPoint internal constructor(
     val design: ExperimentalDesignIfc,
     val number: Int,
     val settings: Map<Factor, Double>,
-    defaultNumReplications: Int = 1
+    defaultNumReplications: Int = 1,
+    enforceRange: Boolean = true,
 ) {
     init {
         require(number > 0) { "Number must be positive." }
         require(defaultNumReplications >= 1) { "number replications must be >= 1" }
-        require(design.isValid(settings)) { "The settings for the point are invalid for this design" }
-//        for((f, v) in settings.entries) {
-//            require(f.isValid(v)) {"The settings of $v is invalid for factor: ${f.name} having interval ${f.interval}." }
-//        }
+        require(design.isValid(settings, enforceRange)) { "The settings for the point are invalid for this design" }
     }
 
     /**
