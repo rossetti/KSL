@@ -35,7 +35,7 @@ fun main(){
 }
 
 fun showControls(){
-    val model = Model("ControlsTest", autoCSVReports = true)
+    val model = Model("STEM_Fair_Test", autoCSVReports = true)
     model.numberOfReplications = 10
     model.experimentName = "StemFairExp"
     // add the model element to the main model
@@ -45,14 +45,14 @@ fun showControls(){
     // get the controls
     val controls = model.controls()
 
-    controls.controlData().toDataFrame().print(rowsLimit = 36)
+//    controls.controlData().toDataFrame().print(rowsLimit = 36)
 
-    val cmap = controls.asMap()
-    ExcelUtil.writeToExcel(cmap, "Controls")
-    val rmap = ExcelUtil.readToMap("Controls")
-    for ((k, v) in rmap) {
-        println("$k: $v")
-    }
+//    val cmap = controls.asMap()
+//    ExcelUtil.writeToExcel(cmap, "Controls")
+//    val rmap = ExcelUtil.readToMap("Controls")
+//    for ((k, v) in rmap) {
+ //       println("$k: $v")
+//    }
 //    println(controls)
     println()
     val control = controls.control("JHBuntR.initialCapacity")
@@ -62,15 +62,20 @@ fun showControls(){
     println(" JHBunt initial capacity = ${stemFairMixer.jhBuntRecruiters.initialCapacity}")
     println()
     val rvParams = model.rvParameterSetter
-    println(rvParams)
+//    println(rvParams)
 
-   println(rvParams.parametersAsJson())
+    val pm = rvParams.flatParametersAsDoubles
+    for ((k, v) in pm) {
+        println("$k: $v")
+    }
+
+ //  println(rvParams.parametersAsJson())
 
     println()
-    val list = rvParams.rvParametersData
-    for(thing in list){
-        println(thing)
-    }
+//    val list = rvParams.rvParametersData
+//    for(thing in list){
+//        println(thing)
+//    }
 
 }
 

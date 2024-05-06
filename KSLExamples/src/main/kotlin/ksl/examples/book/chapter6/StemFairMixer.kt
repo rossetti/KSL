@@ -32,7 +32,8 @@ class StemFairMixer(parent: ModelElement, name: String? = null) : ProcessModel(p
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(2.0, 1)
     private val myNameTagTimeRV = RandomVariable(this, UniformRV((15.0 / 60.0), (45.0 / 60.0), 2))
-    private val myWanderingTimeRV = RandomVariable(this, TriangularRV(15.0, 20.0, 45.0, 3))
+    private val myWanderingTimeRV = RandomVariable(this, TriangularRV(15.0, 20.0, 45.0, 3),
+        name = "WanderingT")
     private val myTalkWithJHBunt = RandomVariable(this, ExponentialRV(6.0, 4))
     private val myTalkWithMalMart = RandomVariable(this, ExponentialRV(3.0, 5))
     private val myDecideToWander = RandomVariable(this, BernoulliRV(0.5, 6))
