@@ -29,16 +29,19 @@ class ExperimentalDesign(
      *  Creates a design point and adds it to the design.
      *  @param values the values to assign to the factors, ordered by factor name
      *  @param numReps the number of replications for the design point, must be more than 0
+     *  @param enforceRange true indicates if the range limits of the factor are
+     *  used in the validation check. Not enforcing the range check allows settings
+     *  that may be out of range limits for the factors
      */
     fun addDesignPoint(
         values: DoubleArray,
-        numReps: Int = 1
+        numReps: Int = 1,
+        enforceRange: Boolean = true
     ): DesignPoint {
         require(values.size == factorNames.size) { "The number of values must be ${factorNames.size}." }
         val settings = mutableMapOf<Factor, Double>()
         for ((i, fn) in factorNames.withIndex()) {
             val f = factors[fn]!!
-//TODO            require(f.isValid(values[i])){"The supplied value (${values} is invalid for factor ${f.name} with interval ${f.interval}"}
             settings[f] = values[i]
         }
         return addDesignPoint(settings, numReps)
@@ -48,14 +51,18 @@ class ExperimentalDesign(
      *  Creates a design point and adds it to the design.
      *  @param settings the factors in the settings must be in the design
      *  @param numReps the number of replications for the design point, must be more than 0
+     *  @param enforceRange true indicates if the range limits of the factor are
+     *  used in the validation check. Not enforcing the range check allows settings
+     *  that may be out of range limits for the factors
      */
     fun addDesignPoint(
         settings: Map<Factor, Double>,
-        numReps: Int = 1
+        numReps: Int = 1,
+        enforceRange: Boolean = true
     ): DesignPoint {
         require(factors.values.containsAll(settings.keys)) { "The supplied factors do not match the design's factors" }
         val num = myDesignPoints.size + 1
-        val dp = DesignPoint(this, num, settings, numReps)
+        val dp = DesignPoint(this, num, settings, numReps, enforceRange)
         myDesignPoints.add(dp)
         return dp
     }
