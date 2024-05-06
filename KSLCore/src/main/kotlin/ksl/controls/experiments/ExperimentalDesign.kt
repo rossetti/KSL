@@ -44,7 +44,7 @@ class ExperimentalDesign(
             val f = factors[fn]!!
             settings[f] = values[i]
         }
-        return addDesignPoint(settings, numReps)
+        return addDesignPoint(settings, numReps, enforceRange)
     }
 
     /**
