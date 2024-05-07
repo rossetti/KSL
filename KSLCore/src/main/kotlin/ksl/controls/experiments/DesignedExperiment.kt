@@ -56,12 +56,12 @@ data class DesignPointInfo(val point: Int, val exp_name: String, val rep_id: Int
  *  would be mapOf(factorA to "Worker.initialCapacity", factorB to "ServiceTimeRV_PARAM_mean")
  *  where factorA and factorB are references to the associated Factor instances.
  *
+ *  @param name the name of the experiment for saving simulation results
  *  @param model The model to simulate.
  *  @param factorSettings A mapping between each factor and a string
  *  representing the name of the control or parameter to associate with the factor.
  *  @param design The design that will be simulated. The factors specified in the design must
  *  be contained in the factor settings.
- *  @param numRepsPerDesignPoint The number of replications for each design point. Defaults to 10.
  *  @param kslDb a KSLDatabase that will hold the data from the experiment.
  */
 class DesignedExperiment(
@@ -71,6 +71,22 @@ class DesignedExperiment(
     val design: ExperimentalDesignIfc,
     val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
 ) : Identity(name) {
+
+    /**
+     *  @param name the name of the experiment for saving simulation results
+     *  @param model The model to simulate.
+     *  @param twoLevelSettings A mapping between each factor and a string
+     *  representing the name of the control or parameter to associate with the factor.
+     *  @param design The design that will be simulated. The factors specified in the design must
+     *  be contained in the factor settings.
+     *  @param kslDb a KSLDatabase that will hold the data from the experiment.
+     */
+    constructor(name: String,
+                model: Model,
+                twoLevelSettings: Map<TwoLevelFactor, String>,
+                design: TwoLevelFactorialDesign,
+                kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
+    ) : this(name, model, twoLevelFactorSetting(twoLevelSettings), design, kslDb)
 
     private val mySimulationRunner = SimulationRunner(model)
 
@@ -257,6 +273,26 @@ class DesignedExperiment(
     }
 
     /**
+     *   Causes all design points to be simulated as presented by the design's
+     *   default iterator using the number of replications specified by the design points.
+     *
+     *   @param numRepsPerDesignPoint the number of replications per design point. If null (the default)
+     *   then the specification of replications is obtained from the design point. If a value
+     *   greater than or equal to 1 is supplied, the value is used for every executed design point.
+     *   @param clearRuns indicates that any previous simulation runs for the design points will be cleared
+     *   prior to executing these design points. The default is true.
+     *   @param addRuns If true the executed simulations will be added to the executed simulation runs. The
+     *   default is true.
+     */
+    fun simulateAll(
+        numRepsPerDesignPoint: Int = defaultNumRepsPerDesignPoint,
+        clearRuns: Boolean = true,
+        addRuns: Boolean = true
+    ){
+        simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns)
+    }
+
+    /**
      *   Causes all design points to be simulated as presented by the [iterator]
      *   using the number of replications specified by the design points.
      *
@@ -269,7 +305,7 @@ class DesignedExperiment(
      *   default is true.
      */
     fun simulate(
-        iterator: Iterator<DesignPoint> = design.iterator(),
+        iterator: Iterator<DesignPoint>,
         numRepsPerDesignPoint: Int = defaultNumRepsPerDesignPoint,
         clearRuns: Boolean = true,
         addRuns: Boolean = true
@@ -356,5 +392,15 @@ class DesignedExperiment(
         val df = replicatedDesignPointsWithResponses(coded = coded)
         val out = KSLFileUtil.createPrintWriter(directory.resolve(fileName))
         df.writeCSV(out)
+    }
+
+    companion object {
+        fun twoLevelFactorSetting(twoLevelSettings : Map<TwoLevelFactor, String>) : Map<Factor, String>{
+            val map = mutableMapOf<Factor, String>()
+            for((key, value) in twoLevelSettings){
+                map[key] = value
+            }
+            return map
+        }
     }
 }
