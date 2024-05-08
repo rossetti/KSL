@@ -319,6 +319,7 @@ class DesignedExperiment(
             if (numRepsPerDesignPoint > 0) {
                 dp.numReplications = numRepsPerDesignPoint
             }
+            println("simulating $dp")
             simulate(dp, addRuns = addRuns)
         }
     }

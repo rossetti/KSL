@@ -156,7 +156,7 @@ fun simulateFactorialDesign() {
 
     df.print(rowsLimit = 36)
     println()
-    de.simulate(numRepsPerDesignPoint = 3)
+    de.simulateAll(numRepsPerDesignPoint = 3)
     println("Simulation of the design is completed")
 
 //    println("Design point info")
