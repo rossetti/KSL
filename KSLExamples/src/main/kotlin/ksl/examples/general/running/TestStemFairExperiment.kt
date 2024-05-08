@@ -1,10 +1,10 @@
 package ksl.examples.general.running
 
+
+
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
-import ksl.controls.experiments.DesignedExperiment
-import ksl.controls.experiments.Factor
-import ksl.controls.experiments.FactorialDesign
+import ksl.controls.experiments.*
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.entity.ResourceWithQCIfc
@@ -22,15 +22,14 @@ class StemFairMixer(
 ) :
     ProcessModel(parent, name) {
 
+
     private val myTBArrivals: RVariableIfc = ExponentialRV(2.0, 1)
-    private val myNameTagTimeRV =
-        RandomVariable(this, UniformRV((15.0 / 60.0), (45.0 / 60.0), 2), name = "${parent.name}:TagT")
-    private val myWanderingTimeRV =
-        RandomVariable(this, TriangularRV(15.0, 20.0, 45.0, 3), name = "${parent.name}:WanderingT")
-    private val myTalkWithJHBunt = RandomVariable(this, ExponentialRV(6.0, 4), name = "${parent.name}:TalkJBH")
-    private val myTalkWithMalMart = RandomVariable(this, ExponentialRV(3.0, 5), name = "${parent.name}:TalkWalmart")
-    private val myDecideToWander = RandomVariable(this, BernoulliRV(0.5, 6), name = "${parent.name}:DecidetoW")
-    private val myDecideToLeave = RandomVariable(this, BernoulliRV(0.1, 7), name = "${parent.name}:DecideLeave")
+    private val myNameTagTimeRV = RandomVariable(this, UniformRV((15.0 / 60.0), (45.0 / 60.0), 2),name = "${parent.name}:TagT")
+    private val myWanderingTimeRV = RandomVariable(this, TriangularRV(15.0, 20.0, 45.0, 3),name= "${parent.name}:WanderingT")
+    private val myTalkWithJHBunt = RandomVariable(this, ExponentialRV(6.0, 4),name= "${parent.name}:TalkJBH")
+    private val myTalkWithMalMart = RandomVariable(this, ExponentialRV(3.0, 5),name= "${parent.name}:TalkWalmart")
+    private val myDecideToWander = RandomVariable(this, BernoulliRV(0.5, 6),name= "${parent.name}:DecidetoW")
+    private val myDecideToLeave = RandomVariable(this, BernoulliRV(0.1, 7),name= "${parent.name}:DecideLeave")
 
     private val myOverallSystemTime = Response(this, "OverallSystemTime")
     private val mySystemTimeNW = Response(this, "NonWanderSystemTime")
@@ -39,12 +38,13 @@ class StemFairMixer(
     private val myNumInSystem = TWResponse(this, "NumInSystem")
 
 
+
     private val myJHBuntRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "JHBuntR")
-    val jhBuntRecruiters: ResourceWithQCIfc
+    val jhBuntRecruiters : ResourceWithQCIfc
         get() = myJHBuntRecruiters
 
     private val myMalWartRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "MalWartR")
-    val malWartRecruiters: ResourceWithQCIfc
+    val malWartRecruiters : ResourceWithQCIfc
         get() = myMalWartRecruiters
 
     private val generator = EntityGenerator(::Student, myTBArrivals, myTBArrivals)
@@ -90,7 +90,7 @@ class StemFairMixer(
 }
 
 fun main() {
-   // printControlsAndRVParameters1()
+//    printControlsAndRVParameters1()
     simulateFactorialDesign1()
 }
 
@@ -98,18 +98,27 @@ fun buildModel1(): Model {
     val m = Model("Stem_Fair_Test")
     m.lengthOfReplication = 6.0 * 60.0
     m.numberOfReplications = 400
-    val SF = StemFairMixer(m, name = "STEMF")
+    val SF = StemFairMixer(m,  name = "STEMF")
     return m
+
 }
 
 fun printControlsAndRVParameters1() {
+
     val m = buildModel1()
+
     val controls = m.controls()
     val rvp = m.rvParameterSetter
+
+
+
     val pm = rvp.flatParametersAsDoubles
     for ((k, v) in pm) {
         println("$k: $v")
     }
+
+
+
     println("Controls")
     println(controls)
     println()
@@ -118,15 +127,20 @@ fun printControlsAndRVParameters1() {
 }
 
 fun simulateFactorialDesign1() {
-    val fA = Factor("WalServer", doubleArrayOf(2.0, 3.0, 4.0))
-    val fB = Factor("JBHServer", doubleArrayOf(2.0, 3.0, 4.0))
+//    val fA = Factor("WalServer", doubleArrayOf( 2.0, 3.0,4.0))
+    val fA = TwoLevelFactor("WalServer", 2.0, 4.0)
+    val fB = TwoLevelFactor("JBHServer", 2.0, 4.0)
+    val fC = TwoLevelFactor("TalkJBHTime", 6.0, 7.0)
+    val fD = TwoLevelFactor("TalkWalmarttime", 0.3, 0.4)
+    val fE = TwoLevelFactor("Tagtimemin", 0.5, 0.6)
+//    val fB = Factor("JBHServer", doubleArrayOf( 2.0, 3.0,4.0))
+//
+//    val fC = Factor("TalkJBHTime", doubleArrayOf( 6.0,7.0))
+//    val fD = Factor("TalkWalmarttime", doubleArrayOf(0.3, 0.4))
+//
+//    val fE = Factor("Tagtimemin", doubleArrayOf(0.5,0.6))
 
-    val fC = Factor("TalkJBHTime", doubleArrayOf(6.0, 7.0))
-    val fD = Factor("TalkWalmarttime", doubleArrayOf(0.3, 0.4))
-
-    val fE = Factor("Tagtimemin", doubleArrayOf(0.5, 0.75))
-
-    val factors1 = mapOf(
+    val factors1 = mapOf<Factor, String> (
         fA to "MalWartR.initialCapacity",
         fB to "JHBuntR.initialCapacity",
 
@@ -137,32 +151,41 @@ fun simulateFactorialDesign1() {
     )
     val m1 = buildModel1()
 
-    val controls = m1.controls()
-    val cm = controls.asMap()
-    println("Controls")
-    for((k, v) in cm) {
-        println("$k: $v")
-    }
-    println()
-    println("RV Parameters")
-    val rvp = m1.rvParameterSetter
-    val pm = rvp.flatParametersAsDoubles
-    for ((k, v) in pm) {
-        println("$k: $v")
-    }
+    val design = TwoLevelFactorialDesign(
+        setOf(
+            TwoLevelFactor("WalServer", 2.0, 4.0),
+            TwoLevelFactor("JBHServer", 2.0, 4.0),
+            TwoLevelFactor("TalkJBHTime", 6.0, 7.0),
+            TwoLevelFactor("TalkWalmarttime", 0.3, 0.4),
+            TwoLevelFactor("Tagtimemin", 0.5, 0.6)
+        )
+    )
+    println("design")
+    design.designPointsAsDataframe(true).print(rowsLimit = 36)
+//    println("design")
+//    println(design)
 
-    println()
+//    val fd1 = FactorialDesign(factors1.keys)
 
-    val fd1 = FactorialDesign(factors1.keys)
-    val de1 = DesignedExperiment("FactorDesignTest", m1, factors1, fd1)
+
+    val de1 = DesignedExperiment("FactorDesignTest", m1, factors1,design)
 
     println("Design points being simulated")
-    val df = fd1.designPointsAsDataframe()
+    val df = design.designPointsAsDataframe()
 
     df.print(rowsLimit = 36)
     println()
-    de1.simulate(numRepsPerDesignPoint = 3)
+    val relation = setOf(setOf(1, 2, 4), setOf(1, 3, 5), setOf(2, 3, 4, 5))
+    val itr = design.fractionalIterator(relation)
+//    val dPoints = itr.asSequence().toList()
+//    val d = dPoints.toDataFrame(coded = true)
+    //val itr = design.iterator()
+ //   val itr = design.halfFractionIterator()
+    require(itr.hasNext()){"There are no design points"}
+    de1.simulate(itr)
     println("Simulation of the design is completed")
+
+
 
 //    println("Design point info")
 //    val dpi = de.replicatedDesignPointInfo()
