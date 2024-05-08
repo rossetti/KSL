@@ -28,11 +28,11 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 fun main() {
 
-       printControlsAndRVParameters()
+ //      printControlsAndRVParameters()
 
 //    test2LevelDesign()
 
-//    testFractionalDesign()
+    testFractionalDesign()
 
 //    simulateFactorialDesign()
 
@@ -241,7 +241,9 @@ fun testFractionalDesign() {
     // This design can be found here: https://www.itl.nist.gov/div898/handbook/pri/section3/eqns/2to5m2.txt
     val relation = setOf(setOf(1, 2, 4), setOf(1, 3, 5), setOf(2, 3, 4, 5))
     val itr = design.fractionalIterator(relation)
-
+    println("number of factors = ${itr.numFactors}")
+    println("number of points = ${itr.numPoints}")
+    println("fraction (p) = ${itr.fraction}")
     val dPoints = itr.asSequence().toList()
     val df = dPoints.toDataFrame(coded = true)
     println("Fractional design points")

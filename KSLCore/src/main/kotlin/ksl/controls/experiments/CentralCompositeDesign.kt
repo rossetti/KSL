@@ -39,9 +39,6 @@ open class CentralCompositeDesign(
 
     protected val myTwoLevelFactorialDesign = TwoLevelFactorialDesign(factors)
 
-    val numFactors: Int
-        get() = myDesign.factors.size
-
     final override val factors: Map<String, Factor>
         get() = myDesign.factors
 

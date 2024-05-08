@@ -19,6 +19,12 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
     val factorNames: List<String>
 
     /**
+     *  The number of factor in the design
+     */
+    val numFactors
+        get() = factorNames.size
+
+    /**
      *  Checks if the settings for the factors are valid for this design
      *  @param settings the map contains each factor and the setting of the factor
      *  @param enforceRange true indicates if the range limits of the factor are

@@ -2,6 +2,9 @@ package ksl.controls.experiments
 
 import ksl.utilities.math.KSLMath
 import ksl.utilities.product
+import kotlin.math.ln
+import kotlin.math.log2
+import kotlin.math.roundToInt
 
 class TwoLevelFactorialDesign(
     factors: Set<TwoLevelFactor>,
@@ -44,23 +47,37 @@ class TwoLevelFactorialDesign(
      *  until all points in the half-fraction have been presented.
      */
     inner class HalfFractionIterator(val half: Double = 1.0) : DesignPointIteratorIfc {
-        /**
-         *  The fraction level (p) of the iterator, as in 2^(k-p)
-         *  A half-fraction has p = 1, i.e. 2^(-1) = 1/2
-         */
-        val fraction = 1
 
         override val design = this@TwoLevelFactorialDesign
+
         // The internal iterator for the points
         private val itr: Iterator<DesignPoint>
+
+        private val points: List<DesignPoint>
+
+        val numPoints: Int
+            get() = points.size
+
+        /**
+         *  For a 2^(k-p) factorial design, this is p. p=1 means half-fraction,
+         *  p=2 means quarter fraction, etc.
+         */
+        val fraction : Int
+            get() = numFactors - (ln(numPoints.toDouble())/ln(2.0)).roundToInt()
 
         init {
             require((half == 1.0) || (half == -1.0)) { "The half fraction must be 1.0 or -1.0" }
             // make the sequence and get the iterator
             val tmp = this@TwoLevelFactorialDesign.iterator()
-            itr = tmp.asSequence().filter {
-                KSLMath.equal(it.codedValues().product(), half)
-            }.iterator()
+            points = tmp.asSequence().filter { KSLMath.equal(it.codedValues().product(), half)}.toList()
+            itr = points.iterator()
+        }
+
+        /**
+         *  A new iterator starting at the first point
+         */
+        fun newInstance() : HalfFractionIterator {
+            return HalfFractionIterator(half)
         }
 
         override var count: Int = 0
@@ -162,18 +179,37 @@ class TwoLevelFactorialDesign(
      *  @param sign the sign of the generator 1.0 = I, -1.0 = -I. The default is 1.0.
      */
     inner class FractionalIterator(
-        relation: Set<Set<Int>>,
-        sign: Double = 1.0
+        private val relation: Set<Set<Int>>,
+        private val sign: Double = 1.0
     ) : DesignPointIteratorIfc {
         override val design : TwoLevelFactorialDesign = this@TwoLevelFactorialDesign
 
         // The internal iterator for the points
         private val itr: Iterator<DesignPoint>
 
+        private val points: List<DesignPoint>
+
+        val numPoints: Int
+            get() = points.size
+
+        /**
+         *  For a 2^(k-p) factorial design, this is p. p=1 means half-fraction,
+         *  p=2 means quarter fraction, etc.
+         */
+        val fraction : Int
+            get() = numFactors - (ln(numPoints.toDouble())/ln(2.0)).roundToInt()
+
         init {
             // make the sequence and get the iterator
             val tmp = this@TwoLevelFactorialDesign.iterator()
-            itr = tmp.asSequence().filter { inDesignRelation(it, relation, sign) }.iterator()
+            val filter: Sequence<DesignPoint> = tmp.asSequence().filter { inDesignRelation(it, relation, sign) }
+            // the points in the fraction
+            points = filter.toList()
+            itr = points.iterator()
+        }
+
+        fun newInstance() : FractionalIterator {
+            return FractionalIterator(relation, sign)
         }
 
         override var count: Int = 0
