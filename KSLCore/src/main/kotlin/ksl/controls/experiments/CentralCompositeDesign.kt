@@ -1,6 +1,8 @@
 package ksl.controls.experiments
 
 import ksl.utilities.Identity
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 /**
  *  A [central composite design](https://www.itl.nist.gov/div898/handbook/pri/section3/pri3361.htm)
@@ -68,7 +70,7 @@ open class CentralCompositeDesign(
     final override fun centerPoint(): DoubleArray {
         return super.centerPoint()
     }
-    
+
     protected fun makeAxialPoints() {
         for (i in 0 until numFactors) {
             val posArray = DoubleArray(numFactors) { 0.0 }
@@ -98,5 +100,36 @@ open class CentralCompositeDesign(
 
     override fun iterator(): Iterator<DesignPoint> {
         return myDesign.iterator()
+    }
+
+    companion object {
+
+        /**
+         *  Computes the axial spacing for a rotatable design based on page 470 of
+         *  Box et al. (2005) "Response Surfaces Mixtures and Ridge Analysis" Wiley.
+         *
+         *  @param numFactors the factors for the design
+         *  @param numFactorialReps the number of replications at each point in the factorial design.
+         *  The default is 1.
+         *  @param numAxialReps the number of replications for the axial points in the factorial design.
+         *   The default is 1.
+         *  @return the axial spacing in coded units for the design. The axial spacing must
+         *  be greater than 0.0. The user is responsible for selecting an appropriate axial spacing value
+         *  that determines the quality of the design.
+         */
+        fun rotatableAxialSpacing(
+            numFactors: Int,
+            fraction: Int = 0,
+            numFactorialReps: Int = 1,
+            numAxialReps: Int = 1
+        ): Double {
+            require(numFactors >= 2) { "There must be 2 or more factors" }
+            require(fraction >= 0) { "The fraction must be >= 0" }
+            require(numFactorialReps >= 1) { "The number of factorial replications must be >= 1" }
+            require(numAxialReps >= 1) { "The number of axial point replications must be >= 1" }
+            val dp = 2.0.pow(numFactors - fraction)
+            val v: Double = (dp * numFactorialReps) / numAxialReps
+            return sqrt(sqrt(v))
+        }
     }
 }
