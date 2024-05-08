@@ -2,7 +2,28 @@ package ksl.controls.experiments
 
 import ksl.utilities.Identity
 
-
+/**
+ *  A [central composite design](https://www.itl.nist.gov/div898/handbook/pri/section3/pri3361.htm)
+ *  represent a two-level factorial design that has
+ *  been augmented with a center point and axial point to enable the modeling
+ *  of quadratic response surface models.
+ *
+ *  This base class specifies a circumscribed central composite design. Thus, the extreme
+ *  values for the high and low settings for the factors will be exceeded. Care must
+ *  be taken to ensure that the values for the axial points are valid values for the
+ *  design factors in the original parameter space.
+ *
+ *  @param factors the factors for the design
+ *  @param numFactorialReps the number of replications at each point in the factorial design.
+ *  The default is 1.
+ *  @param numCenterReps the number of replications for the center point in the factorial design.
+ *  The default is 1.
+ *  @param numAxialReps the number of replications for the axial points in the factorial design.
+ *   The default is 1.
+ *  @param axialSpacing the axial spacing in coded units for the design. The axial spacing must
+ *  be greater than 0.0. The user is responsible for selecting an appropriate axial spacing value
+ *  that determines the quality of the design.
+ */
 open class CentralCompositeDesign(
     factors: Set<TwoLevelFactor>,
     val numFactorialReps: Int = 1,
