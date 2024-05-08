@@ -84,7 +84,7 @@ class DesignedExperiment(
     constructor(name: String,
                 model: Model,
                 twoLevelSettings: Map<TwoLevelFactor, String>,
-                design: TwoLevelFactorialDesign,
+                design: ExperimentalDesignIfc,
                 kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
     ) : this(name, model, twoLevelFactorSetting(twoLevelSettings), design, kslDb)
 
