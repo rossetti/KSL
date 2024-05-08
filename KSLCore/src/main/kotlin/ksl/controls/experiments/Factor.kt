@@ -1,6 +1,7 @@
 package ksl.controls.experiments
 
 import ksl.utilities.*
+import ksl.utilities.math.KSLMath
 
 /**
  *  This class represents an individual factor within a factorial design.
@@ -71,11 +72,7 @@ open class Factor(
      *  The levels as coded values.
      */
     val codedLevels: List<Double>
-        get() {
-            val h = halfRange
-            val m = midPoint
-            return List(levels.size) { (levels[it] - m) / h }
-        }
+        get() = List(levels.size) { (toCodedValue(levels[it])) }
 
     /**
      *  Converts the coded value to the original measurement scale
@@ -87,11 +84,17 @@ open class Factor(
     /**
      *  Converts the original raw value to the coded measurement scale.
      *  This conversion does not check if the raw value is within
-     *  the range limits of the factor. Thus, a coded value can
-     *  exceed 1 and be smaller than -1
+     *  the range limits of the factor.
      */
     fun toCodedValue(rawValue: Double): Double {
-        return (rawValue - midPoint) / halfRange
+        val v = (rawValue - midPoint) / halfRange
+        return if (KSLMath.equal(v, 1.0)) {
+            1.0
+        } else if (KSLMath.equal(v, -1.0)){
+            -1.0
+        } else {
+            v
+        }
     }
 
     /**
