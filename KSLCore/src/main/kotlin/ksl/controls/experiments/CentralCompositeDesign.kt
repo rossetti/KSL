@@ -27,7 +27,7 @@ import kotlin.math.sqrt
  *  that determines the quality of the design.
  */
 open class CentralCompositeDesign(
-    factors: Set<TwoLevelFactor>,
+    factors: Set<TwoLevelFactor>, //TODO could this be an iterator to two level factorial design
     val numFactorialReps: Int = 1,
     val numAxialReps: Int = 1,
     val numCenterReps: Int = 1,
