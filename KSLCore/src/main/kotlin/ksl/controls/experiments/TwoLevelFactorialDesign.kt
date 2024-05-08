@@ -44,7 +44,7 @@ class TwoLevelFactorialDesign(
      *  until all points in the half-fraction have been presented.
      */
     inner class HalfFractionIterator(val half: Double = 1.0) : DesignPointIteratorIfc {
-
+        override val design = this@TwoLevelFactorialDesign
         // The internal iterator for the points
         private val itr: Iterator<DesignPoint>
 
@@ -159,6 +159,7 @@ class TwoLevelFactorialDesign(
         relation: Set<Set<Int>>,
         sign: Double = 1.0
     ) : DesignPointIteratorIfc {
+        override val design : TwoLevelFactorialDesign = this@TwoLevelFactorialDesign
 
         // The internal iterator for the points
         private val itr: Iterator<DesignPoint>

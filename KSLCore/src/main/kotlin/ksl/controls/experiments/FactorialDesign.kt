@@ -94,6 +94,9 @@ open class FactorialDesign(
      *  Must be greater or equal to 1.
      */
     inner class FactorialDesignIterator(val numReps: Int? = null) : DesignPointIteratorIfc {
+
+        override val design: ExperimentalDesignIfc = this@FactorialDesign
+
         override var count: Int = 0
             private set
 

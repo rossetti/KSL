@@ -1,6 +1,9 @@
 package ksl.controls.experiments
 
 interface DesignPointIteratorIfc : Iterator<DesignPoint> {
+
+    val design: ExperimentalDesignIfc
+
     /**
      *  The number of design points presented
      */

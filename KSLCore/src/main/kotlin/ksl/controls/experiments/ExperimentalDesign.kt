@@ -82,8 +82,8 @@ class ExperimentalDesign(
      *  If not null, it must be greater or equal to 1. If null, the design point's
      *  current number of replications is used.
      */
-    private inner class DesignPointIterator(val numReps: Int? = null) : DesignPointIteratorIfc {
-
+    inner class DesignPointIterator(val numReps: Int? = null) : DesignPointIteratorIfc {
+        override val design: ExperimentalDesignIfc = this@ExperimentalDesign
         private val itr = myDesignPoints.iterator()
 
         override var count: Int = 0
