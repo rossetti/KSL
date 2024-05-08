@@ -44,6 +44,12 @@ class TwoLevelFactorialDesign(
      *  until all points in the half-fraction have been presented.
      */
     inner class HalfFractionIterator(val half: Double = 1.0) : DesignPointIteratorIfc {
+        /**
+         *  The fraction level (p) of the iterator, as in 2^(k-p)
+         *  A half-fraction has p = 1, i.e. 2^(-1) = 1/2
+         */
+        val fraction = 1
+
         override val design = this@TwoLevelFactorialDesign
         // The internal iterator for the points
         private val itr: Iterator<DesignPoint>
