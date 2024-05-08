@@ -158,13 +158,13 @@ open class FactorialDesign(
          *  based on the supplied [names] for each factor. There must
          *  be at least 2 names supplied.
          */
-        fun twoToKDesign(names: Set<String>): FactorialDesign {
+        fun twoToKDesign(names: Set<String>): TwoLevelFactorialDesign {
             require(names.size > 2) { "There must be at least 2 factors in the design" }
-            val set = mutableSetOf<Factor>()
+            val set = mutableSetOf<TwoLevelFactor>()
             for (name in names) {
-                set.add(Factor(name))
+                set.add(TwoLevelFactor(name))
             }
-            return FactorialDesign(set)
+            return TwoLevelFactorialDesign(set)
         }
 
         /**

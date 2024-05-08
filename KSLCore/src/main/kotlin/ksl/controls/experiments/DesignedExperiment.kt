@@ -285,7 +285,7 @@ class DesignedExperiment(
      *   default is true.
      */
     fun simulateAll(
-        numRepsPerDesignPoint: Int = defaultNumRepsPerDesignPoint,
+        numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true
     ){
@@ -296,6 +296,8 @@ class DesignedExperiment(
      *   Causes all design points to be simulated as presented by the [iterator]
      *   using the number of replications specified by the design points.
      *
+     *   @param iterator an iterator that presents the design points to simulate. If the iterator
+     *   is empty then a warning is printed.
      *   @param numRepsPerDesignPoint the number of replications per design point. If null (the default)
      *   then the specification of replications is obtained from the design point. If a value
      *   greater than or equal to 1 is supplied, the value is used for every executed design point.
@@ -306,20 +308,29 @@ class DesignedExperiment(
      */
     fun simulate(
         iterator: Iterator<DesignPoint>,
-        numRepsPerDesignPoint: Int = defaultNumRepsPerDesignPoint,
+        numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true
     ) {
+        if (!iterator.hasNext()){
+            val wm = "WARNING: The supplied iterator for designed experiment, $name, had no design points."
+            Model.logger.warn { wm }
+            println()
+            println(wm)
+            println()
+            System.out.flush()
+        }
         if (clearRuns) {
             clearSimulationRuns()
         }
         while (iterator.hasNext()) {
             val dp = iterator.next()
             // set number of replications
-            if (numRepsPerDesignPoint > 0) {
-                dp.numReplications = numRepsPerDesignPoint
+            if (numRepsPerDesignPoint != null){
+                if (numRepsPerDesignPoint > 0) {
+                    dp.numReplications = numRepsPerDesignPoint
+                }
             }
-            println("simulating $dp")
             simulate(dp, addRuns = addRuns)
         }
     }
@@ -396,6 +407,10 @@ class DesignedExperiment(
     }
 
     companion object {
+
+        /**
+         *  Converts a two level factor setting map to a standard factor setting map
+         */
         fun twoLevelFactorSetting(twoLevelSettings : Map<TwoLevelFactor, String>) : Map<Factor, String>{
             val map = mutableMapOf<Factor, String>()
             for((key, value) in twoLevelSettings){

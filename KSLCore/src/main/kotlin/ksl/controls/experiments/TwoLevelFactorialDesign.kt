@@ -52,12 +52,9 @@ class TwoLevelFactorialDesign(
             require((half == 1.0) || (half == -1.0)) { "The half fraction must be 1.0 or -1.0" }
             // make the sequence and get the iterator
             val tmp = this@TwoLevelFactorialDesign.iterator()
-           // require(tmp.hasNext()){"tmp had no points"}
-            //itr = tmp.asSequence().filter { it.codedValues().product() <= half }.iterator()
             itr = tmp.asSequence().filter {
                 KSLMath.equal(it.codedValues().product(), half)
             }.iterator()
-            require(itr.hasNext()){"itr was empty"}
         }
 
         override var count: Int = 0
