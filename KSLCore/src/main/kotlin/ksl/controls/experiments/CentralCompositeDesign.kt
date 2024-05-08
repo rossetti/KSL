@@ -65,6 +65,10 @@ open class CentralCompositeDesign(
         myDesign.addDesignPoint(centerPoint(), numCenterReps)
     }
 
+    final override fun centerPoint(): DoubleArray {
+        return super.centerPoint()
+    }
+    
     protected fun makeAxialPoints() {
         for (i in 0 until numFactors) {
             val posArray = DoubleArray(numFactors) { 0.0 }
