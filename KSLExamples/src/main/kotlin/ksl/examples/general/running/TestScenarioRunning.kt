@@ -15,25 +15,25 @@ fun main(){
         println()
     }
 
-    //TODO this repeated call cause experiment name issue, why?
-    scenarioRunner.simulate(clearAllData = false)
-    for(s in scenarioRunner.scenarioList) {
-        val sr = s.simulationRun?.statisticalReporter()
-        val r = sr?.halfWidthSummaryReport(title = s.experimentName)
-        println(r)
-        println()
-    }
+    //this repeated call cause experiment name error because it should
+//    scenarioRunner.simulate(clearAllData = false)
+//    for(s in scenarioRunner.scenarioList) {
+//        val sr = s.simulationRun?.statisticalReporter()
+//        val r = sr?.halfWidthSummaryReport(title = s.experimentName)
+//        println(r)
+//        println()
+//    }
 }
 
 fun buildScenarios() : List<Scenario> {
-    val sim1 = Model("MM1 Test1")
+    val sim1 = Model("MM1 Test1", autoCSVReports = true)
     sim1.numberOfReplications = 3
     sim1.lengthOfReplication = 100.0
     sim1.lengthOfReplicationWarmUp = 50.0
     GIGcQueue(sim1, 1, name = "MM1Q")
     val sim1Inputs = mapOf("MM1Q.numServers" to 2.0)
 
-    val sim2 = Model("MM1 Test2")
+    val sim2 = Model("MM1 Test2", autoCSVReports = true)
     sim2.numberOfReplications = 10
     sim2.lengthOfReplication = 1000.0
     sim2.lengthOfReplicationWarmUp = 50.0
