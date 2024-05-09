@@ -15,13 +15,13 @@ fun main(){
         println()
     }
 
-    scenarioRunner.simulate(clearAllData = false)
-    for(s in scenarioRunner.scenarioList) {
-        val sr = s.simulationRun?.statisticalReporter()
-        val r = sr?.halfWidthSummaryReport(title = s.experimentName)
-        println(r)
-        println()
-    }
+//    scenarioRunner.simulate(clearAllData = false)
+//    for(s in scenarioRunner.scenarioList) {
+//        val sr = s.simulationRun?.statisticalReporter()
+//        val r = sr?.halfWidthSummaryReport(title = s.experimentName)
+//        println(r)
+//        println()
+//    }
 }
 
 fun buildScenarios() : List<Scenario> {
