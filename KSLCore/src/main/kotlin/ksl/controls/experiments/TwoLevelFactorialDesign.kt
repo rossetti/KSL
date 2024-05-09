@@ -119,7 +119,7 @@ class TwoLevelFactorialDesign(
         /**
          *  A new iterator starting at the first point
          */
-        fun newInstance() : TwoLevelFractionalIterator {
+        override fun newInstance() : TwoLevelFractionalIterator {
             return TwoLevelFractionalIterator(relation, numReps, sign)
         }
     }

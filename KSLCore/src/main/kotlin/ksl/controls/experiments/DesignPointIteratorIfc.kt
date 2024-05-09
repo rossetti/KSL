@@ -4,6 +4,9 @@ interface DesignPointIteratorIfc : Iterator<DesignPoint> {
 
     val design: ExperimentalDesignIfc
 
+    val factors
+        get() = design.factors.values.toSet()
+
     val numFactors
         get() = design.numFactors
 
@@ -16,4 +19,9 @@ interface DesignPointIteratorIfc : Iterator<DesignPoint> {
      *  The last presented design point
      */
     val last: DesignPoint?
+
+    /**
+     *  A new iterator starting at the first point
+     */
+    fun newInstance() : DesignPointIteratorIfc
 }

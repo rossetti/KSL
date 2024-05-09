@@ -32,11 +32,11 @@ fun main() {
 
 //    test2LevelDesign()
 
-    testFractionalDesign()
+//    testFractionalDesign()
 
 //    simulateFactorialDesign()
 
-//    testCCD()
+    testCCD()
 }
 
 fun buildModel(): Model {
@@ -261,7 +261,9 @@ fun testCCD(){
         TwoLevelFactor("B", 2.0, 11.0),
         TwoLevelFactor("C", 6.0, 10.0),
     )
-    val ccd = CentralCompositeDesign(factors, axialSpacing = 1.682 )
+    val fd = TwoLevelFactorialDesign(factors)
+    val itr = fd.designIterator()
+    val ccd = CentralCompositeDesign(itr, axialSpacing = 1.682 )
     val ucdf = ccd.designPointsAsDataframe()
     ucdf.print(rowsLimit = 36)
     println()

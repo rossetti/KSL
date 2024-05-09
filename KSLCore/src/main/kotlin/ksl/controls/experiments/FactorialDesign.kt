@@ -1,5 +1,6 @@
 package ksl.controls.experiments
 
+import ksl.controls.experiments.TwoLevelFactorialDesign.TwoLevelFractionalIterator
 import ksl.utilities.Identity
 import ksl.utilities.KSLArrays
 
@@ -95,7 +96,7 @@ open class FactorialDesign(
      */
     open inner class FactorialDesignIterator(val numReps: Int? = null) : DesignPointIteratorIfc {
 
-        override val design: ExperimentalDesignIfc = this@FactorialDesign
+        override val design: FactorialDesign = this@FactorialDesign
 
         override var count: Int = 0
             protected set
@@ -111,6 +112,13 @@ open class FactorialDesign(
             count++
             last = designPoint(count, numReps)
             return last!!
+        }
+
+        /**
+         *  A new iterator starting at the first point
+         */
+        override fun newInstance() : FactorialDesignIterator {
+            return FactorialDesignIterator(numReps)
         }
 
     }
@@ -129,7 +137,7 @@ open class FactorialDesign(
      *  @param replications the number of replications for the design points returned from the iterator
      *  Must be greater or equal to 1.
      */
-    override fun designIterator(replications: Int?): DesignPointIteratorIfc {
+    override fun designIterator(replications: Int?): FactorialDesignIterator {
         return FactorialDesignIterator(replications)
     }
 

@@ -106,5 +106,9 @@ class ExperimentalDesign(
             return dp
         }
 
+        override fun newInstance(): DesignPointIterator {
+            return DesignPointIterator(numReps)
+        }
+
     }
 }
