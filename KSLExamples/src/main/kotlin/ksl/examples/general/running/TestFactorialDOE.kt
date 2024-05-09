@@ -236,6 +236,11 @@ fun testFractionalDesign() {
     println("Coded full design points")
     design.designPointsAsDataframe(true).print(rowsLimit = 36)
     println()
+    // half-fraction
+    val hitr = design.halfFractionIterator()
+    println("Positive half-fraction")
+    hitr.asSequence().toList().toDataFrame(coded = true).print(rowsLimit = 36)
+    println()
 
     // This is a resolution III 2^(5-2) design
     // This design can be found here: https://www.itl.nist.gov/div898/handbook/pri/section3/eqns/2to5m2.txt
@@ -263,3 +268,4 @@ fun testCCD(){
     val cdf = ccd.designPointsAsDataframe(coded = true)
     cdf.print(rowsLimit = 36)
 }
+

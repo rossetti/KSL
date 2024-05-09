@@ -93,15 +93,15 @@ open class FactorialDesign(
      *  @param numReps the number of replications for the design points.
      *  Must be greater or equal to 1.
      */
-    inner class FactorialDesignIterator(val numReps: Int? = null) : DesignPointIteratorIfc {
+    open inner class FactorialDesignIterator(val numReps: Int? = null) : DesignPointIteratorIfc {
 
         override val design: ExperimentalDesignIfc = this@FactorialDesign
 
         override var count: Int = 0
-            private set
+            protected set
 
         override var last: DesignPoint? = null
-            private set
+            protected set
 
         override fun hasNext(): Boolean {
             return count < numDesignPoints
