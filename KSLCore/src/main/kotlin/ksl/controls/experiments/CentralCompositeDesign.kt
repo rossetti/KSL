@@ -15,7 +15,7 @@ import kotlin.math.sqrt
  *  be taken to ensure that the values for the axial points are valid values for the
  *  design factors in the original parameter space.
  *
- *  @param factors the factors for the design
+ *  @param twoLevelDesignItr an iterator to the points in the factorial or fractional factorial design
  *  @param numFactorialReps the number of replications at each point in the factorial design.
  *  The default is 1.
  *  @param numCenterReps the number of replications for the center point in the factorial design.
@@ -27,7 +27,7 @@ import kotlin.math.sqrt
  *  that determines the quality of the design.
  */
 open class CentralCompositeDesign(
-    factors: Set<TwoLevelFactor>, //TODO could this be an iterator to two level factorial design
+    protected val twoLevelDesignItr: FactorialDesign.FactorialDesignIterator,
     val numFactorialReps: Int = 1,
     val numAxialReps: Int = 1,
     val numCenterReps: Int = 1,
@@ -35,9 +35,71 @@ open class CentralCompositeDesign(
     name: String? = null
 ) : Identity(name), ExperimentalDesignIfc {
 
-    protected val myDesign: ExperimentalDesign = ExperimentalDesign(factors)
+    /**
+     *  A [central composite design](https://www.itl.nist.gov/div898/handbook/pri/section3/pri3361.htm)
+     *  represent a two-level factorial design that has
+     *  been augmented with a center point and axial point to enable the modeling
+     *  of quadratic response surface models.
+     *
+     *  This base class specifies a circumscribed central composite design. Thus, the extreme
+     *  values for the high and low settings for the factors will be exceeded. Care must
+     *  be taken to ensure that the values for the axial points are valid values for the
+     *  design factors in the original parameter space.
+     *
+     *  @param twoLevelFactorialDesign the full design
+     *  @param numFactorialReps the number of replications at each point in the factorial design.
+     *  The default is 1.
+     *  @param numCenterReps the number of replications for the center point in the factorial design.
+     *  The default is 1.
+     *  @param numAxialReps the number of replications for the axial points in the factorial design.
+     *   The default is 1.
+     *  @param axialSpacing the axial spacing in coded units for the design. The axial spacing must
+     *  be greater than 0.0. The user is responsible for selecting an appropriate axial spacing value
+     *  that determines the quality of the design.
+     */
+    constructor(
+        twoLevelFactorialDesign: TwoLevelFactorialDesign,
+        numFactorialReps: Int = 1,
+        numAxialReps: Int = 1,
+        numCenterReps: Int = 1,
+        axialSpacing: Double,
+        name: String? = null
+    ) : this(twoLevelFactorialDesign.designIterator(), numFactorialReps, numAxialReps,
+        numCenterReps, axialSpacing, name)
 
-    protected val myTwoLevelFactorialDesign = TwoLevelFactorialDesign(factors)
+    /**
+     *  A [central composite design](https://www.itl.nist.gov/div898/handbook/pri/section3/pri3361.htm)
+     *  represent a two-level factorial design that has
+     *  been augmented with a center point and axial point to enable the modeling
+     *  of quadratic response surface models.
+     *
+     *  This base class specifies a circumscribed central composite design. Thus, the extreme
+     *  values for the high and low settings for the factors will be exceeded. Care must
+     *  be taken to ensure that the values for the axial points are valid values for the
+     *  design factors in the original parameter space.
+     *
+     *  @param factors the factors in the design
+     *  @param numFactorialReps the number of replications at each point in the factorial design.
+     *  The default is 1.
+     *  @param numCenterReps the number of replications for the center point in the factorial design.
+     *  The default is 1.
+     *  @param numAxialReps the number of replications for the axial points in the factorial design.
+     *   The default is 1.
+     *  @param axialSpacing the axial spacing in coded units for the design. The axial spacing must
+     *  be greater than 0.0. The user is responsible for selecting an appropriate axial spacing value
+     *  that determines the quality of the design.
+     */
+    constructor(
+        factors: Set<TwoLevelFactor>,
+        numFactorialReps: Int = 1,
+        numAxialReps: Int = 1,
+        numCenterReps: Int = 1,
+        axialSpacing: Double,
+        name: String? = null
+    ) : this(TwoLevelFactorialDesign(factors), numFactorialReps, numAxialReps,
+        numCenterReps, axialSpacing, name)
+
+    protected val myDesign: ExperimentalDesign = ExperimentalDesign(twoLevelDesignItr.factors)
 
     final override val factors: Map<String, Factor>
         get() = myDesign.factors
@@ -56,8 +118,7 @@ open class CentralCompositeDesign(
         require(numCenterReps > 0) { "Number of center replications must be > 0" }
         require(axialSpacing > 0.0) { "The axial spacing must be > 0" }
         // fill the design with the factorial points
-        val ptItr = myTwoLevelFactorialDesign.iterator()
-        numFactorialPoints = makeFactorialPoints(ptItr)
+        numFactorialPoints = makeFactorialPoints(twoLevelDesignItr)
         //make the axial points
         makeAxialPoints()
         //make the center point with the appropriate number of replications
