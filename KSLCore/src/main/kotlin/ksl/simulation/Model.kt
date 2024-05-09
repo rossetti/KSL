@@ -48,8 +48,6 @@ class Model(
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
 //TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
-//TODO observers
-//TODO controls and parameters
     /**
      *
      * @return the defined OutputDirectory for the simulation

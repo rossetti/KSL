@@ -3,8 +3,12 @@ package ksl.controls.experiments
 import ksl.simulation.Model
 import ksl.utilities.Identity
 import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.OutputDirectory
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import java.nio.file.Path
+import kotlin.io.path.deleteRecursively
 
 /**
  *  Facilitates the running of many scenarios in a sequence. A KSLDatabase
@@ -21,7 +25,8 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
 class ScenarioRunner(
     name: String,
     scenarioList: List<Scenario> = emptyList(),
-    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
+    val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
+    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory)
 ) : Identity(name) {
 
     private val myScenarios = mutableListOf<Scenario>()
@@ -41,16 +46,6 @@ class ScenarioRunner(
      */
     val dbObservers: List<KSLDatabaseObserver>
         get() = myDbObserversByName.values.toList()
-
-//    /**
-//     *  Tell the observers to clear the data before next experiment execution
-//     */
-//    fun clearDataBeforeExperimentOption(option: Boolean){
-//        for(dbo in dbObservers){
-//            println("setting clear data option to $option")
-//            dbo.clearDataBeforeExperimentOption = option
-//        }
-//    }
 
     init {
         myScenarios.addAll(scenarioList)
@@ -118,14 +113,21 @@ class ScenarioRunner(
      *  an error to prevent unplanned loss of data.
      */
     fun simulate(scenarios: IntProgression = myScenarios.indices, clearAllData: Boolean = true) {
-//        clearDataBeforeExperimentOption(true)//TODO why not working
         if (clearAllData) {
             kslDb.clearAllData()
         }
         for (scenarioIndex in scenarios) {
             if (scenarioIndex in myScenarios.indices) {
-                //TODO we could clear data only if the experiment name already exists
-                myScenarios[scenarioIndex].simulate()
+                //TODO consider clearing data only if the experiment name already exists
+                val scenario = myScenarios[scenarioIndex]
+//                // delete default output directory for the model
+//                val modelCurrentDirectory = scenario.model.outputDirectory.outDir.toFile()
+//                modelCurrentDirectory.deleteRecursively()
+//                // now give the model a new directory within the scenarios
+//                val modelDirName = scenario.model.name.replace(" ", "_") + "_OutputDir"
+//                val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
+//                scenario.model.outputDirectory = OutputDirectory(modelDir, outFileName  = "kslOutput.txt")
+                scenario.simulate()
             }
         }
     }
