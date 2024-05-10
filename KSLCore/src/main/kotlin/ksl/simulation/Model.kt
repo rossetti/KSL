@@ -35,6 +35,8 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.observers.textfile.CSVExperimentReport
+import ksl.observers.textfile.CSVReplicationReport
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatString
 import java.nio.file.Path
 import kotlin.time.Duration
@@ -53,6 +55,9 @@ class Model(
      * @return the defined OutputDirectory for the simulation
      */
     var outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
+
+    private lateinit var myCSVRepReport: CSVReplicationReport
+    private lateinit var myCSVExpReport: CSVExperimentReport
 
     var autoPrintSummaryReport: Boolean = false
 
@@ -186,7 +191,7 @@ class Model(
     //TODO default stream?
     internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "${this.name}:DefaultUniformRV")
 
-    val simulationReporter: SimulationReporter = SimulationReporter(this, autoCSVReports)
+    val simulationReporter: SimulationReporter = SimulationReporter(this)
 
     /**
      * @param stream the stream that the model will manage
@@ -206,6 +211,55 @@ class Model(
     }
 
     /**
+     * Attaches the CSVReplicationReport to the model if not attached.
+     * If you turn on the reporting, you need to do it before running the simulation.
+     *
+     */
+    fun turnOnReplicationCSVStatisticReporting() {
+        if (!this::myCSVRepReport.isInitialized){
+            myCSVRepReport = CSVReplicationReport(model)
+        }
+        if (!isModelElementObserverAttached(myCSVRepReport)){
+            attachModelElementObserver(myCSVRepReport)
+        }
+    }
+
+    /**
+     * Detaches the CSVReplicationReport from the model.
+     *
+     */
+    fun turnOffReplicationCSVStatisticReporting() {
+        if (!this::myCSVRepReport.isInitialized){
+            return
+        }
+        detachModelElementObserver(myCSVRepReport)
+    }
+
+    /**
+     * Attaches the CSVExperimentReport to the model if not attached.
+     *
+     */
+    fun turnOnAcrossReplicationStatisticReporting(){
+        if (!this::myCSVExpReport.isInitialized){
+            myCSVExpReport = CSVExperimentReport(model)
+        }
+        if (!isModelElementObserverAttached(myCSVExpReport)){
+            attachModelElementObserver(myCSVExpReport)
+        }
+    }
+
+    /**
+     * Detaches the CSVExperimentReport from the model.
+     *
+     */
+    fun turnOffAcrossReplicationStatisticReporting() {
+        if (!this::myCSVExpReport.isInitialized){
+            return
+        }
+        detachModelElementObserver(myCSVExpReport)
+    }
+
+    /**
      * Tells the simulation reporter to capture statistical output for within replication
      * and across replication responses to comma separated value files. If you do not
      * want both turned on, or you want to control the reporting more directly then use the property
@@ -214,8 +268,8 @@ class Model(
      * just supply the autoCSVReports option as true when you create the model.
      */
     fun turnOnCSVStatisticalReports() {
-        simulationReporter.turnOnReplicationCSVStatisticReporting()
-        simulationReporter.turnOnAcrossReplicationStatisticReporting()
+        turnOnReplicationCSVStatisticReporting()
+        turnOnAcrossReplicationStatisticReporting()
     }
 
     /**
@@ -1103,6 +1157,7 @@ class Model(
     override fun hasExperimentalControls() = myExperiment.hasExperimentalControls()
 
     override fun hasMoreReplications() = myExperiment.hasMoreReplications()
+
     override fun changeRunParameters(runParameters: ExperimentRunParametersIfc) {
         myExperiment.changeRunParameters(runParameters)
     }
