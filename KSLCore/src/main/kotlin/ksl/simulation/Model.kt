@@ -46,7 +46,7 @@ private var simCounter: Int = 0
 class Model(
     val simulationName: String = "Simulation${++simCounter}",
     pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
-    autoCSVReports: Boolean = false,
+    var autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
 //TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
@@ -260,16 +260,25 @@ class Model(
     }
 
     /**
-     * Tells the simulation reporter to capture statistical output for within replication
+     * Tells the model to capture statistical output for within replication
      * and across replication responses to comma separated value files. If you do not
-     * want both turned on, or you want to control the reporting more directly then use the property
-     * simulationReporter.  Turning on the reporting only effects the next simulation run. So,
+     * want both turned on, or you want to control the reporting more directly then use the
+     * individual functions for this purpose.  Turning on the reporting only effects the next simulation run. So,
      * turn on the reporting before you simulate.  If you want the reporting all the time, then
      * just supply the autoCSVReports option as true when you create the model.
      */
     fun turnOnCSVStatisticalReports() {
         turnOnReplicationCSVStatisticReporting()
         turnOnAcrossReplicationStatisticReporting()
+    }
+
+    /**
+     *  Tells the model to stop collecting and reporting within and across replication
+     *  statistics as comma separated value (CSV) files.
+     */
+    fun turnOffCSVStatisticalReports(){
+        turnOffReplicationCSVStatisticReporting()
+        turnOffAcrossReplicationStatisticReporting()
     }
 
     /**
@@ -1208,6 +1217,11 @@ class Model(
      * Runs all remaining replications based on the current settings
      */
     fun simulate() {
+        if (autoCSVReports){
+            turnOnCSVStatisticalReports()
+        } else {
+            turnOffCSVStatisticalReports()
+        }
         myReplicationProcess.run()
         if (autoPrintSummaryReport) {
             print()
