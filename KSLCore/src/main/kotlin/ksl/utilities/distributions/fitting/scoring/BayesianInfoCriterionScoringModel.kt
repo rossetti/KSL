@@ -42,4 +42,8 @@ class BayesianInfoCriterionScoringModel : PDFScoringModel("BIC") {
         val score = Statistic.bayesianInfoCriterion(data.size, k, lm)
         return Score(this, score, true)
     }
+
+    override fun newInstance(): BayesianInfoCriterionScoringModel {
+        return BayesianInfoCriterionScoringModel()
+    }
 }

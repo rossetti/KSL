@@ -38,4 +38,8 @@ class QQCorrelationScoringModel(
         }
         return Score(this, s, true)
     }
+
+    override fun newInstance(): QQCorrelationScoringModel {
+        return QQCorrelationScoringModel()
+    }
 }

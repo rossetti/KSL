@@ -29,4 +29,8 @@ class PPSSEScoringModel(
         val sse = errors.sumOfSquares()
         return Score(this, sse, true)
     }
+
+    override fun newInstance(): PPSSEScoringModel {
+        return PPSSEScoringModel()
+    }
 }

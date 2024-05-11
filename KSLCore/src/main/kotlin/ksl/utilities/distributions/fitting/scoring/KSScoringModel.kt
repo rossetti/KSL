@@ -28,4 +28,8 @@ class KSScoringModel : PDFScoringModel("K-S") {
         val score = Statistic.ksTestStatistic(data, cdf)
         return Score(this, score, true)
     }
+
+    override fun newInstance(): KSScoringModel {
+        return KSScoringModel()
+    }
 }

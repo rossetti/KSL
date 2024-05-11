@@ -36,4 +36,8 @@ class PPCorrelationScoringModel(
         }
         return Score(this, s, true)
     }
+
+    override fun newInstance(): PPCorrelationScoringModel {
+        return PPCorrelationScoringModel()
+    }
 }

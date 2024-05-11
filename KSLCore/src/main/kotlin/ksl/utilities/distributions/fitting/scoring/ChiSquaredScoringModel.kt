@@ -37,4 +37,8 @@ class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared") {
         val chiSq = Statistic.chiSqTestStatistic(data, bp, cdf)
         return Score(this, chiSq,true)
     }
+
+    override fun newInstance(): ChiSquaredScoringModel {
+        return ChiSquaredScoringModel()
+    }
 }
