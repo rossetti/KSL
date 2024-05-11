@@ -61,9 +61,7 @@ abstract class PDFScoringModel(name: String) : Metric(name){
             } else {
                 result.originalData
             }
-            val score = score(data, parameters)
-//            result.myScores.add(score)
-            score
+            score(data, parameters)
         }
     }
 

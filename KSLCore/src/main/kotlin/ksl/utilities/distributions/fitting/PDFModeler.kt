@@ -213,6 +213,9 @@ class PDFModeler(
         scoringModels: Set<PDFScoringModel> = defaultScoringModels,
     ): List<ScoringResult> {
         val list = mutableListOf<ScoringResult>()
+        //TODO copied because models and their metrics may be mutated during the scoring process
+        val scoringModelSet: Set<PDFScoringModel> = scoringModels.map {it.newInstance()}.toSet()
+
         for (result in results) {
             if (!result.success || (result.parameters == null)) {
                 continue
@@ -225,7 +228,7 @@ class PDFModeler(
             }
             val scores = mutableListOf<Score>()
             //TODO ISSUE: metric rescaling problem may occur if scoring model is reused
-            for (model in scoringModels) {
+            for (model in scoringModelSet) {
                 val score = model.score(result)
                 scores.add(score)
             }
