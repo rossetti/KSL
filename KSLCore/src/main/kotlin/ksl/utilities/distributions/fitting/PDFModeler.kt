@@ -61,21 +61,19 @@ import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
  *    the individual functions may permit some further customization of
  *    the estimation process.
  */
-class PDFModeler(private val data: DoubleArray) {
+class PDFModeler(
+    private val data: DoubleArray
+) {
 
-    private val myHistogram: Histogram
+    private val myHistogram: Histogram by lazy {
+        Histogram.create(data, name = "PDF Modeler Default Histogram")
+    }
 
     val histogram: HistogramIfc
         get() = myHistogram
 
     val statistics: StatisticIfc
         get() = myHistogram
-
-    init {
-        val breakPoints = Histogram.recommendBreakPoints(data)
-        myHistogram = Histogram(breakPoints)
-        myHistogram.collect(data)
-    }
 
     val hasZeroes: Boolean
         get() = myHistogram.zeroCount > 0
