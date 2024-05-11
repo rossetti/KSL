@@ -55,4 +55,8 @@ class SquaredErrorScoringModel : PDFScoringModel("Squared-Error") {
         }
         return Score(this, sum,true)
     }
+
+    override fun newInstance(): SquaredErrorScoringModel {
+        return SquaredErrorScoringModel()
+    }
 }

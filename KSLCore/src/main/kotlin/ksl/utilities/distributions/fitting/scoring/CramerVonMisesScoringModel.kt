@@ -19,6 +19,7 @@
 package ksl.utilities.distributions.fitting.scoring
 
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
@@ -30,5 +31,9 @@ class CramerVonMisesScoringModel : PDFScoringModel("Cramer-von-Mises") {
         }
         val score = Statistic.cramerVonMisesTestStatistic(data, cdf)
         return Score(this, score, true)
+    }
+
+    override fun newInstance(): CramerVonMisesScoringModel {
+        return CramerVonMisesScoringModel()
     }
 }

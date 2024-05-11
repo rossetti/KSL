@@ -33,6 +33,10 @@ import ksl.utilities.statistic.Statistic
  */
 class AkaikeInfoCriterionScoringModel : PDFScoringModel("AIC") {
 
+    override fun newInstance(): AkaikeInfoCriterionScoringModel {
+        return AkaikeInfoCriterionScoringModel()
+    }
+
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
             return Score(this, Double.MAX_VALUE, true)

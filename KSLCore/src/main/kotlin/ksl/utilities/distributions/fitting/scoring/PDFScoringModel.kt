@@ -39,6 +39,8 @@ abstract class PDFScoringModel(name: String) : Metric(name){
 
     abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
+    abstract fun newInstance(): PDFScoringModel
+
     fun score(data: DoubleArray, parameters: RVParameters) : Score {
         val cdf = PDFModeler.createDistribution(parameters)
         return if (cdf == null){

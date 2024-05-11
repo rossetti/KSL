@@ -34,4 +34,8 @@ class AndersonDarlingScoringModel : PDFScoringModel("Anderson-Darling") {
         }
         return Score(this, score, true)
     }
+
+    override fun newInstance(): AndersonDarlingScoringModel {
+        return AndersonDarlingScoringModel()
+    }
 }

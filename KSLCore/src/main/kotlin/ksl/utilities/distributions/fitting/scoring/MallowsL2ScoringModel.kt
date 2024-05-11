@@ -45,4 +45,8 @@ class MallowsL2ScoringModel : PDFScoringModel("MallowsL2") {
         val mL2 = sqrt(sum/n.toDouble())
         return Score(this, mL2,true)
     }
+
+    override fun newInstance(): MallowsL2ScoringModel {
+        return MallowsL2ScoringModel()
+    }
 }
