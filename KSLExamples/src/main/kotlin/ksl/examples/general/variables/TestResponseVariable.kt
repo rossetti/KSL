@@ -47,7 +47,7 @@ fun main() {
     val sim = Model("test RS")
     TestResponseVariable(sim)
     val reporter: SimulationReporter = sim.simulationReporter
-    reporter.turnOnReplicationCSVStatisticReporting()
+    sim.turnOnReplicationCSVStatisticReporting()
     sim.numberOfReplications = 5
     sim.lengthOfReplication = 25.0
     sim.simulate()

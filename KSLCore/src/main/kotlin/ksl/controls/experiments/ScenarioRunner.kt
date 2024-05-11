@@ -120,13 +120,13 @@ class ScenarioRunner(
             if (scenarioIndex in myScenarios.indices) {
                 //TODO consider clearing data only if the experiment name already exists
                 val scenario = myScenarios[scenarioIndex]
-//                // delete default output directory for the model
-//                val modelCurrentDirectory = scenario.model.outputDirectory.outDir.toFile()
-//                modelCurrentDirectory.deleteRecursively()
-//                // now give the model a new directory within the scenarios
-//                val modelDirName = scenario.model.name.replace(" ", "_") + "_OutputDir"
-//                val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
-//                scenario.model.outputDirectory = OutputDirectory(modelDir, outFileName  = "kslOutput.txt")
+                // delete default output directory for the model
+                val modelCurrentDirectory = scenario.model.outputDirectory.outDir.toFile()
+                modelCurrentDirectory.deleteRecursively()
+                // now give the model a new directory within the scenarios
+                val modelDirName = scenario.model.name.replace(" ", "_") + "_OutputDir"
+                val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
+                scenario.model.outputDirectory = OutputDirectory(modelDir, outFileName  = "kslOutput.txt")
                 scenario.simulate()
             }
         }
