@@ -212,7 +212,7 @@ class PDFModeler(private val data: DoubleArray) {
      */
     fun scoringResults(
         results: List<EstimationResult>,
-        scoringModels: Set<PDFScoringModel> = allScoringModels,
+        scoringModels: Set<PDFScoringModel> = defaultScoringModels,
     ): List<ScoringResult> {
         val list = mutableListOf<ScoringResult>()
         for (result in results) {
@@ -296,7 +296,7 @@ class PDFModeler(private val data: DoubleArray) {
     fun estimateAndEvaluateScores(
         estimators: Set<ParameterEstimatorIfc> = allEstimators,
         automaticShifting: Boolean = true,
-        scoringModels: Set<PDFScoringModel> = allScoringModels
+        scoringModels: Set<PDFScoringModel> = defaultScoringModels
     ): PDFModelingResults {
         val estimationResults = estimateParameters(estimators, automaticShifting)
         //TODO ISSUE: if scoring models are reused, their metric domains may not have been set for next usage
@@ -308,7 +308,7 @@ class PDFModeler(private val data: DoubleArray) {
      */
     fun evaluateScores(
         estimationResults: List<EstimationResult>,
-        scoringModels: Set<PDFScoringModel> = allScoringModels
+        scoringModels: Set<PDFScoringModel> = defaultScoringModels
     ): PDFModelingResults {
         //TODO ISSUE: metric rescaling problem may occur if scoring model is reused
         val scoringResults = scoringResults(estimationResults, scoringModels)
@@ -515,7 +515,7 @@ class PDFModeler(private val data: DoubleArray) {
          *  This set holds predefined scoring models for evaluating
          *  the distribution goodness of fit.
          */
-        val allScoringModels: Set<PDFScoringModel>
+        val defaultScoringModels: Set<PDFScoringModel>
             get() = setOf(
                 AndersonDarlingScoringModel(),
                 PPSSEScoringModel(),
