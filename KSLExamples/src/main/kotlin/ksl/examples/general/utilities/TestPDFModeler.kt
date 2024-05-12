@@ -63,7 +63,7 @@ private fun testSampleFile() {
         val d = PDFModeler(data)
         d.histogram.histogramPlot().showInBrowser()
         val estimationResults = d.estimateParameters(PDFModeler.allEstimators, true)
-        val scores = d.evaluateScores(estimationResults, PDFModeler.defaultScoringModels)
+        val scores = d.evaluateScores(estimationResults)
         val result = d.estimateAndEvaluateScores()
         d.showAllResultsInBrowser()
     }

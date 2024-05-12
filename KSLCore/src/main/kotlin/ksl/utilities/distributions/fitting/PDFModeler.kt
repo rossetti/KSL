@@ -15,56 +15,44 @@
  *     You should have received a copy of the GNU General Public License
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.estimators.*
-import ksl.utilities.distributions.fitting.scoring.*
+import ksl.utilities.distributions.fitting.scoring.AndersonDarlingScoringModel
+import ksl.utilities.distributions.fitting.scoring.KSScoringModel
+import ksl.utilities.distributions.fitting.scoring.PDFScoringModel
+import ksl.utilities.distributions.fitting.scoring.PPSSEScoringModel
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.ACFPlot
+import ksl.utilities.io.plotting.BoxPlot
+import ksl.utilities.io.plotting.HistogramDensityPlot
 import ksl.utilities.io.plotting.ObservationsPlot
+import ksl.utilities.io.toDataFrame
+import ksl.utilities.io.toStatDataFrame
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.RVType
-import ksl.utilities.random.rvariable.parameters.*
+import ksl.utilities.random.rvariable.*
+import ksl.utilities.random.rvariable.parameters.GammaRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.*
+import org.jetbrains.kotlinx.dataframe.api.remove
+import org.jetbrains.kotlinx.dataframe.io.DisplayConfiguration
 import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 
 /**
- *  The purpose of this class is to serve as the general location
- *  for implementing the estimation of distribution parameter across
- *  many distributions. The general use involves the following:
- *
- *      val d = PDFModeler(data)
- *      val estimationResults: List<EstimationResult> = d.estimateParameters(d.allEstimators)
- *      val scoringResults = d.scoringResults(estimationResults)
- *      val model = d.evaluateScoringResults(scoringResults)
- *      scoringResults.forEach( ::println)
- *
- *   The scoring results will be updated with the evaluation information
- *   and will contain the evaluation scores. The scoring results can be
- *   sorted to find the recommended distribution based on the evaluation score.
- *
- *   Alternatively, the single function can be used:
- *
- *      val d = PDFModeler(data)
- *      val results  = d.estimateAndEvaluateScores()
- *
- *    This function returns an instance of PDFModelingResults, which
- *    will have the results of the entire fitting process. The advantage of using
- *    the individual functions may permit some further customization of
- *    the estimation process.
+ *  @param data the data to analyze for fitting a probability distribution
+ *  @param scoringModels the scoring models to use to evaluate the fitting process
+ *  and recommend a distribution. By default, this is defaultScoringModels
  */
 class PDFModeler(
-    private val data: DoubleArray
+    private val data: DoubleArray,
+    private val scoringModels: Set<PDFScoringModel> = defaultScoringModels,
 ) {
-
     private val myHistogram: Histogram by lazy {
         Histogram.create(data, name = "PDF Modeler Default Histogram")
     }
@@ -171,7 +159,7 @@ class PDFModeler(
         if (automaticShifting) {
             val minCI = confidenceIntervalForMinimum()
             if (defaultZeroTolerance < minCI.lowerLimit) {
-                shiftedData = leftShiftData(data)
+                shiftedData = PDFModeler.leftShiftData(data)
             }
         }
         val shiftedStats = shiftedData?.shiftedData?.statistics()
@@ -197,8 +185,8 @@ class PDFModeler(
     fun estimateParameters(
         estimator: ParameterEstimatorIfc,
         automaticShifting: Boolean = true
-    ): List<EstimationResult> {
-        return estimateParameters(setOf(estimator), automaticShifting)
+    ): EstimationResult {
+        return estimateParameters(setOf(estimator), automaticShifting).first()
     }
 
     /**
@@ -210,24 +198,22 @@ class PDFModeler(
      */
     fun scoringResults(
         results: List<EstimationResult>,
-        scoringModels: Set<PDFScoringModel> = defaultScoringModels,
     ): List<ScoringResult> {
         val list = mutableListOf<ScoringResult>()
-        //TODO copied because models and their metrics may be mutated during the scoring process
-        val scoringModelSet: Set<PDFScoringModel> = scoringModels.map {it.newInstance()}.toSet()
-
+        // copied because models and their metrics may be mutated during the scoring process
+        val scoringModelSet: Set<PDFScoringModel> = scoringModels.map { it.newInstance() }.toSet()
         for (result in results) {
             if (!result.success || (result.parameters == null)) {
                 continue
             }
-            val distribution = createDistribution(result.parameters) ?: continue
+            val distribution = PDFModeler.createDistribution(result.parameters) ?: continue
             val name = if (result.shiftedData != null) {
                 "${result.shiftedData!!.shift} + $distribution"
             } else {
                 distribution.toString()
             }
             val scores = mutableListOf<Score>()
-            //TODO ISSUE: metric rescaling problem may occur if scoring model is reused
+            //metric rescaling may occur for copied scoring model
             for (model in scoringModelSet) {
                 val score = model.score(result)
                 scores.add(score)
@@ -237,14 +223,6 @@ class PDFModeler(
         }
         return list
     }
-
-    //TODO ScoreResult contains the list of scores. The every score has a metric. This
-    // method may cause the domain of the metric to change (mutating the metric). Because
-    // the metric is mutated there may be domain violations if it is reused.
-    // Basically you cannot reuse the same set of scoring model instances.
-    // The basic underlying problem is that Metric can be mutated as part of the
-    // score evaluation process. A solution may be to copy the list of scoring
-    // results so that the mutation works on a copy.
 
     /**
      *  Evaluates the supplied scoring results using the supplied
@@ -265,7 +243,7 @@ class PDFModeler(
         for (sr in scoringResults) {
             alternatives[sr.name] = sr.scores
         }
-        model.defineAlternatives(alternatives)//TODO ISSUE: this can cause metric domain rescaling
+        model.defineAlternatives(alternatives)//this can cause metric domain rescaling
         for (sr in scoringResults) {
             sr.values = model.valuesByAlternative(sr.name)
             sr.weightedValue = model.multiObjectiveValue(sr.name)
@@ -297,11 +275,9 @@ class PDFModeler(
     fun estimateAndEvaluateScores(
         estimators: Set<ParameterEstimatorIfc> = allEstimators,
         automaticShifting: Boolean = true,
-        scoringModels: Set<PDFScoringModel> = defaultScoringModels
     ): PDFModelingResults {
         val estimationResults = estimateParameters(estimators, automaticShifting)
-        //TODO ISSUE: if scoring models are reused, their metric domains may not have been set for next usage
-        return evaluateScores(estimationResults, scoringModels)
+        return evaluateScores(estimationResults)
     }
 
     /**
@@ -309,41 +285,65 @@ class PDFModeler(
      */
     fun evaluateScores(
         estimationResults: List<EstimationResult>,
-        scoringModels: Set<PDFScoringModel> = defaultScoringModels
     ): PDFModelingResults {
-        //TODO ISSUE: metric rescaling problem may occur if scoring model is reused
-        val scoringResults = scoringResults(estimationResults, scoringModels)
-        //TODO ISSUE: this can cause metric domain rescaling
+        val scoringResults = scoringResults(estimationResults)
+        //this can cause metric domain rescaling
         val evaluationModel = evaluateScoringResults(scoringResults)
-        return PDFModelingResults(estimationResults, scoringResults, evaluationModel)
+        val results = PDFModelingResults(estimationResults, scoringResults, evaluationModel)
+        return results
     }
 
     /**
-     *  Makes a histogram, observations plot, auto-correlation plot,
-     *  performs the fitting and scoring process, and performs goodness
-     *  of fit tests on the top scoring distribution and displays
-     *  all the results by opening a browser window. The generated
-     *  html file is stored in the KSL.plotDir directory using the supplied
-     *  name as the pre-fix for a temporary file.
+     *  Presents a statistical summary of the data in html format.
+     *  This includes that summary statistics, box plot statistics,
+     *  histogram statistics, and an analysis of the shift parameter.
      */
-    fun showAllResultsInBrowser(fileName: String = "pdfModelingResults") {
-        KSLFileUtil.openInBrowser(fileName = fileName, allResultsToHTML(fileName))
-    }
-
-    /**
-     *  Makes a histogram, observations plot, auto-correlation plot,
-     *  performs the fitting and scoring process, and performs goodness
-     *  of fit tests on the top scoring distribution and captures
-     *  the results as a string containing the html for display.
-     *  The optional argument [plotFileName] can be used to cause
-     *  a PNG file to be saved to the plot directory.
-     */
-    fun allResultsToHTML(plotFileName: String? = null): String {
+    fun htmlStatisticalSummary(): String {
+        // produce html results
+        // basic statistics and box plot summary data
+        val statDf = histogram.toStatDataFrame()
+        // box plot summary
+        val boxPlotDf = BoxPlotSummary(data).toDataFrame()
+        // histogram statistics
+        var histDf = histogram.toDataFrame()
+        histDf = histDf.remove("id")
+        histDf = histDf.remove("name")
+        histDf = histDf.remove("binLabel")
+        val config = DisplayConfiguration.DEFAULT
+        config.rowsLimit = histogram.numberBins + 1
+        // estimate left shift parameter
+        val leftShift = estimateLeftShiftParameter(data)
+        val minCI = confidenceIntervalForMinimum(data)
         val sb = StringBuilder().apply {
-            appendLine(histogramResultsAsHTML(plotFileName))
-            appendLine(observationsPlotAsHTML(plotFileName))
-            appendLine(acfPlotAsHTML(plotFileName))
-            appendLine(scoringResultsAsHTML(plotFileName))
+            appendLine("<h1>")
+            appendLine("Statistical Summary")
+            appendLine("</h1>")
+            appendLine("<div>")
+            appendLine(statDf.toStandaloneHTML())
+            appendLine("</div>")
+            appendLine("<h1>")
+            appendLine("Box Plot Summary")
+            appendLine("</h1>")
+            appendLine("<div>")
+            appendLine(boxPlotDf.toStandaloneHTML())
+            appendLine("</div>")
+            appendLine("<h1>")
+            appendLine("Histogram Summary")
+            appendLine("</h1>")
+            appendLine("<div>")
+            appendLine(histDf.toStandaloneHTML(configuration = config))
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine("<h1>")
+            appendLine("Shift Parameter Analysis")
+            appendLine("</h1>")
+            appendLine("<pre>")
+            appendLine("Estimated Left Shift Parameter: $leftShift")
+            appendLine("Confidence Interval for Minimum: $minCI")
+            appendLine("</pre>")
+            appendLine("</div>")
+            appendLine("<p>")
+            appendLine("</p>")
         }
         return sb.toString()
     }
@@ -353,7 +353,7 @@ class PDFModeler(
      *  The optional argument [plotFileName] can be used to cause
      *  a PNG file to be saved to the plot directory.
      */
-    fun histogramResultsAsHTML(plotFileName: String? = null): String {
+    fun htmlHistogram(plotFileName: String? = null): String {
         val hPlot = histogram.histogramPlot()
         if (plotFileName != null) {
             hPlot.saveToFile("${plotFileName}_Hist_Plot")
@@ -365,10 +365,56 @@ class PDFModeler(
             appendLine("<div>")
             appendLine(hPlot.toHTML())
             appendLine("</div>")
+        }
+        return sb.toString()
+    }
+
+    /**
+     *  Presents the histograms, box plot, observation plot,
+     *  and auto-correlation plot for the data.
+     */
+    fun htmlVisualizationSummary(): String {
+        // produce html results
+        // KSL histogram
+        val hPlot = histogram.histogramPlot()
+        // histogram with density overlay
+        val hdPlot = HistogramDensityPlot(data)
+        // box plot
+        val bp = BoxPlot(data)
+        // observation plot
+        val op = ObservationsPlot(data)
+        // acf plot
+        val acf = ACFPlot(data)
+        val sb = StringBuilder().apply {
+            appendLine("<h1>")
+            appendLine("Visualization Results")
+            appendLine("</h1>")
+            appendLine("<h2>")
+            appendLine("Histograms")
+            appendLine("</h2>")
             appendLine("<div>")
-            appendLine("<pre>")
-            appendLine(histogram.toString())
-            appendLine("</pre>")
+            appendLine(hPlot.toHTML())
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine(hdPlot.toHTML())
+            appendLine("</div>")
+            appendLine("<h2>")
+            appendLine("Box Plot")
+            appendLine("</h2>")
+            appendLine("<div>")
+            appendLine(bp.toHTML())
+            appendLine("</div>")
+            appendLine("<h2>")
+            appendLine("Observation Plot")
+            appendLine("</h2>")
+            appendLine("<div>")
+            appendLine(op.toHTML())
+            appendLine("</div>")
+            appendLine("<h2>")
+            appendLine("Autocorrelation Plot")
+            appendLine("</h2>")
+            appendLine("<div>")
+            appendLine(acf.toHTML())
             appendLine("</div>")
         }
         return sb.toString()
@@ -379,7 +425,7 @@ class PDFModeler(
      *  The optional argument [plotFileName] can be used to cause
      *  a PNG file to be saved to the plot directory.
      */
-    fun observationsPlotAsHTML(plotFileName: String? = null): String {
+    fun htmlObservationPlot(plotFileName: String? = null): String {
         val op = ObservationsPlot(data)
         if (plotFileName != null) {
             op.saveToFile("${plotFileName}_Obs_Plot")
@@ -400,7 +446,7 @@ class PDFModeler(
      *  The optional argument [plotFileName] can be used to cause
      *  a PNG file to be saved to the plot directory.
      */
-    fun acfPlotAsHTML(plotFileName: String? = null): String {
+    fun htmlACFPlot(plotFileName: String? = null): String {
         val acf = ACFPlot(data)
         if (plotFileName != null) {
             acf.saveToFile("${plotFileName}_ACF_Plot")
@@ -417,50 +463,78 @@ class PDFModeler(
     }
 
     /**
-     *  Just the scoring results as html.
-     *  The optional argument [plotFileName] can be used to cause
-     *  a PNG file to be saved to the plot directory.
+     *  Produces a html representation of the scoring and metric evaluation
+     *  results including the recommended distribution.
      */
-    fun scoringResultsAsHTML(plotFileName: String? = null): String {
-        val results = estimateAndEvaluateScores()
-        val scores = results.evaluationModel.alternativeScoresAsDataFrame("Distributions")
-        val values = results.evaluationModel.alternativeValuesAsDataFrame("Distributions")
- //       val ranks = results.evaluationModel.alternativeRanksAsDataFrame("Distributions")
-        val topResult = results.sortedScoringResults.first()
-        val distPlot = topResult.distributionFitPlot()
-        if (plotFileName != null) {
-            distPlot.saveToFile("${plotFileName}_PDF_Plot")
-        }
-        val gof = ContinuousCDFGoodnessOfFit(
-            topResult.estimationResult.testData,
-            topResult.distribution,
-            numEstimatedParameters = topResult.numberOfParameters
-        )
+    fun htmlScoringSummary(pdfModelingResults: PDFModelingResults): String {
+        // produce html results
+        // scoring data frame
+        val scores = pdfModelingResults.scoresAsDataFrame()
+        // values data frame
+        val values = pdfModelingResults.metricsAsDataFrame()
+        val configuration: DisplayConfiguration = DisplayConfiguration.DEFAULT
+        configuration.cellContentLimit = 120
         val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("PDF Modeling Results")
             appendLine("</h1>")
             appendLine("<div>")
             appendLine("<h2>")
-            appendLine("Scores")
+            appendLine("Scores:")
             appendLine("</h2>")
-            appendLine(scores.toStandaloneHTML())
+            appendLine(scores.toStandaloneHTML(configuration))
             appendLine("</div>")
             appendLine("<div>")
             appendLine("<h2>")
-            appendLine("Values")
+            appendLine("Metric Evaluation:")
             appendLine("</h2>")
-            appendLine(values.toStandaloneHTML())
+            appendLine(values.toStandaloneHTML(configuration))
             appendLine("</div>")
             appendLine("<div>")
-//            appendLine("<h2>")
-//            appendLine("Ranks")
-//            appendLine("</h2>")
-//            appendLine(ranks.toStandaloneHTML())
-//            appendLine("</div>")
-//            appendLine("<div>")
+            appendLine("<h2>")
+            appendLine("Recommended Distribution:")
+            appendLine("</h2>")
+            appendLine("<div>")
             appendLine("<p>")
-            appendLine("<strong> Recommended Distribution</strong> ${topResult.name}")
+            appendLine(pdfModelingResults.topResult.name)
+            appendLine("</p>")
+            appendLine("</div>")
+        }
+        return sb.toString()
+    }
+
+    /**
+     *  Produces a html representation of the goodness of fit results which
+     *  include the distribution fit quad plot and the chi-squared goodness
+     *  of fit statistics.
+     */
+    fun htmlGoodnessOfFitSummary(
+        pdfModelingResults: PDFModelingResults,
+        plotFileName: String? = null
+    ): String {
+        // produce html results
+        // distribution quad evaluation plot
+        val result = pdfModelingResults.topResult
+        val distPlot = result.distributionFitPlot()
+        if (plotFileName != null) {
+            distPlot.saveToFile("${plotFileName}_PDF_Plot")
+        }
+        // goodness of fit results
+        val gof = ContinuousCDFGoodnessOfFit(
+            result.estimationResult.testData,
+            result.distribution,
+            numEstimatedParameters = result.numberOfParameters
+        )
+        val sb = StringBuilder().apply {
+            appendLine("<h1>")
+            appendLine("PDF Goodness of Fit Results")
+            appendLine("</h1>")
+            appendLine("<h2>")
+            appendLine("Recommended Distribution:")
+            appendLine("</h2>")
+            appendLine("<div>")
+            appendLine("<p>")
+            appendLine(result.name)
             appendLine("</p>")
             appendLine("</div>")
             appendLine("<div>")
@@ -476,6 +550,36 @@ class PDFModeler(
             appendLine("</div>")
         }
         return sb.toString()
+    }
+
+    /**
+     *  This function will apply the estimators to the data and report all the results
+     *  in HTML format.
+     *  @param estimators the estimators to apply, by default (allEstimators)
+     *  @param automaticShifting true by default, if true applies automatic shifting to the estimation process
+     *  @param pdfModelingResults the results of applying the estimators and evaluating the scores
+     *  @param statResultsFileName a file name for statistical results
+     *  Default = "PDF_Modeling_Statistical_Summary"
+     *  @param visualizationResultsFileName a file name for visualization results
+     *  Default = "PDF_Modeling_Visualization_Summary"
+     *  @param scoringResultsFileName a file name for scoring results
+     *  Default = "PDF_Modeling_Scoring_Summary"
+     *  @param goodnessOfFitResultsFileName a file name for goodness of fit results.
+     *  Default = "PDF_Modeling_GoodnessOfFit_Summary"
+     */
+    fun showAllResultsInBrowser(
+        estimators: Set<ParameterEstimatorIfc> = allEstimators,
+        automaticShifting: Boolean = true,
+        pdfModelingResults: PDFModelingResults = estimateAndEvaluateScores(estimators, automaticShifting),
+        statResultsFileName: String = "PDF_Modeling_Statistical_Summary",
+        visualizationResultsFileName: String = "PDF_Modeling_Visualization_Summary",
+        scoringResultsFileName: String = "PDF_Modeling_Scoring_Summary",
+        goodnessOfFitResultsFileName: String = "PDF_Modeling_GoodnessOfFit_Summary",
+    ){
+        KSLFileUtil.openInBrowser(fileName = statResultsFileName, htmlStatisticalSummary())
+        KSLFileUtil.openInBrowser(fileName = visualizationResultsFileName, htmlVisualizationSummary())
+        KSLFileUtil.openInBrowser(fileName = scoringResultsFileName, htmlScoringSummary(pdfModelingResults))
+        KSLFileUtil.openInBrowser(fileName = goodnessOfFitResultsFileName, htmlGoodnessOfFitSummary(pdfModelingResults))
     }
 
     companion object {
@@ -944,4 +1048,12 @@ class PDFModeler(
         }
     }
 
+}
+
+fun main() {
+//     val rv = ShiftedRV(5.0, LognormalRV(20.0, 2.0))
+    val rv = LognormalRV(20.0, 2.0)
+    //   val rv = TriangularRV(3.0, 6.0, 10.0)
+    val pdfModeler = PDFModeler(rv.sample(1000))
+    pdfModeler.showAllResultsInBrowser()
 }

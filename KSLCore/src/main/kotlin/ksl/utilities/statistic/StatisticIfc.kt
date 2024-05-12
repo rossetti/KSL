@@ -262,6 +262,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
     fun leadingDigitRule(multiplier: Double): Int
 
     fun statisticData(): StatisticData {
+        val ci = confidenceInterval
         return StatisticData(
             name,
             count,
@@ -270,12 +271,13 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
             standardError,
             halfWidth,
             confidenceLevel,
+            ci.lowerLimit,
+            ci.upperLimit,
             min,
             max,
             sum,
             variance,
             deviationSumOfSquares,
-            lastValue,
             kurtosis,
             skewness,
             lag1Covariance,
@@ -444,12 +446,13 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      * "Standard Error"
      * "Half-width"
      * "Confidence Level"
+     * "Lower Limit"
+     * "Upper Limit"
      * "Minimum"
      * "Maximum"
      * "Sum"
      * "Variance"
      * "Deviation Sum of Squares"
-     * "Last value collected"
      * "Kurtosis"
      * "Skewness"
      * "Lag 1 Covariance"
@@ -459,6 +462,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      */
     val statisticsAsMap: Map<String, Double>
         get() {
+            val ci = confidenceInterval
             val stats: MutableMap<String, Double> = LinkedHashMap()
             stats["Count"] = count
             stats["Average"] = average
@@ -466,12 +470,13 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
             stats["Standard Error"] = standardError
             stats["Half-width"] = halfWidth
             stats["Confidence Level"] = confidenceLevel
+            stats["Lower Limit"] = ci.lowerLimit
+            stats["Upper Limit"] = ci.upperLimit
             stats["Minimum"] = min
             stats["Maximum"] = max
             stats["Sum"] = sum
             stats["Variance"] = variance
             stats["Deviation Sum of Squares"] = deviationSumOfSquares
-            stats["Last value collected"] = lastValue
             stats["Kurtosis"] = kurtosis
             stats["Skewness"] = skewness
             stats["Lag 1 Covariance"] = lag1Covariance
