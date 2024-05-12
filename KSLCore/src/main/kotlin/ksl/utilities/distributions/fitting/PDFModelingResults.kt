@@ -2,6 +2,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.random.rvariable.RVType
+import org.jetbrains.kotlinx.dataframe.AnyFrame
 
 /**
  *  Holds all the results from the PDF modeling process.
@@ -16,6 +17,32 @@ data class PDFModelingResults(
 ) {
     val sortedScoringResults
         get() = scoringResults.sorted()
+
+    /**
+     *  The top result according to the scoring evaluation model
+     */
+    val topResult
+        get() = sortedScoringResults.first()
+
+    /**
+     *  Returns the scores in the form of a data frame.
+     *  The first column is the distributions that were evaluated.
+     *  Subsequent columns represent the scoring model results for
+     *  each distribution.
+     */
+    fun scoresAsDataFrame() : AnyFrame {
+        return evaluationModel.alternativeScoresAsDataFrame("Distributions")
+    }
+
+    /**
+     *  Returns the metric in the form of a data frame.
+     *  The first column is the distributions that were evaluated.
+     *  Subsequent columns represent the metric results for
+     *  each distribution including the overall metric value. The rows are sorted by overall value.
+     */
+    fun metricsAsDataFrame() : AnyFrame {
+        return evaluationModel.alternativeValuesAsDataFrame("Distributions")
+    }
 
     /**
      *  The PDF modeling process estimates the parameters for a set of

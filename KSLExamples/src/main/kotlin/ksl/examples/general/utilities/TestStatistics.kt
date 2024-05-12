@@ -75,7 +75,7 @@ fun testStatistics(){
     val s = Statistic(testData)
     println(s)
     println()
-    println(s.toDataFrame())
+    println(s.toStatDataFrame())
 }
 
 fun demoDataFrame() {
@@ -88,7 +88,7 @@ fun demoDataFrame() {
     println(df.boxPlotSummaryData())
     println()
     val weight by column<Double>()
-    val dataColumn = df[weight].statistics().toDataFrame()
+    val dataColumn = df[weight].statistics().toStatDataFrame()
     println(dataColumn)
 }
 

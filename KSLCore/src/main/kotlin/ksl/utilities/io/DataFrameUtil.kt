@@ -524,11 +524,24 @@ interface StatSchema {
 }
 
 /**
+ *  Converts the box plot summary data to a data frame with two columns.
+ *  The first column holds the name of the statstics and the second column
+ *  holds the values.
+ *
+ */
+fun BoxPlotSummary.toDataFrame(): DataFrame<BoxPlotDataIfc> {
+    val map = this.asMap()
+    val c1 = column(map.keys) named "Box Plot Statistic"
+    val c2 = column(map.values) named "Value"
+    return dataFrameOf(c1, c2).cast()
+}
+
+/**
  *  Converts a statistic to a data frame with two columns.
  *  The first column holds the names of the statistics and the
  *  second column holds the values.
  */
-fun Statistic.toDataFrame(): DataFrame<StatSchema> {
+fun StatisticIfc.toStatDataFrame(): DataFrame<StatSchema> {
     val map = this.statisticsAsMap
     val c1 = column(map.keys) named "Statistic"
     val c2 = column(map.values) named "Value"

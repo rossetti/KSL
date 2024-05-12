@@ -18,6 +18,7 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.KSLArrays
+import ksl.utilities.distributions.Normal
 import ksl.utilities.insertAt
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.plotting.HistogramPlot
@@ -62,8 +63,10 @@ import kotlin.math.pow
  * @param breakPoints the break points for the histogram, must be strictly increasing
  * @param name an optional name for the histogram
  */
-class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatistic(name),
-    HistogramIfc {
+class Histogram(
+    breakPoints: DoubleArray,
+    name: String? = null
+) : AbstractStatistic(name), HistogramIfc {
 
     /**
      * holds the binned data
@@ -421,10 +424,10 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             require(numBins > 0) { "The number of bins must be > 0" }
             val binWidth = (upperLimit - lowerLimit) / numBins
             //    val binWidth = KSLMath.roundToScale((upperLimit - lowerLimit) / numBins, false)
- //           println("binWidth = $binWidth")
+            //           println("binWidth = $binWidth")
             val b = createBreakPoints(lowerLimit, numBins, binWidth)
             // ensures last break point is not past the upper limit due to round-off accumulation
-            if (b.last() > upperLimit){
+            if (b.last() > upperLimit) {
                 b[b.lastIndex] = upperLimit
             }
             return b
@@ -547,16 +550,57 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
             // first determine a reasonable bin width
             val s = statistic.standardDeviation
             val n = statistic.count
-            // http://www.fmrib.ox.ac.uk/analysis/techrep/tr00mj2/tr00mj2/node24.html
-            //double iqr = 1.35*s;
-            // use the more "optimal" estimate
-            val width = 3.49 * s * n.pow(-1.0 / 3.0)
             // round the width to a reasonable scale
-            val binWidth = KSLMath.roundToScale(width, false)
-            // now compute a number of bins for this width
+            val binWidth = recommendBinWidth(n, s)
             val nb = (ceil(UL) - floor(LL)) / binWidth
             val numBins = ceil(nb).toInt()
             return createBreakPoints(floor(LL), numBins, binWidth)
+        }
+
+        fun recommendBinWidth(numObs: Double, stdDev: Double): Double {
+            require(numObs > 1.0) { "The number of observations must be > 1" }
+            require(stdDev > 0.0) { "The standard deviation must be > 0.0" }
+            // http://www.fmrib.ox.ac.uk/analysis/techrep/tr00mj2/tr00mj2/node24.html
+            //double iqr = 1.35*s;
+            // use the more "optimal" estimate
+            val width = 3.49 * stdDev * numObs.pow(-1.0 / 3.0)
+            // round the width to a reasonable scale
+            val binWidth = KSLMath.roundToScale(width, false)
+            return binWidth
+        }
+
+        /**
+         *  Approximates the standard deviation of data via the range.
+         *  See equation (9) in [reference](https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-14-135)
+         *  @param numObs the number of observations, must be greater than 1
+         *  @param range the estimated range of the data, range = min - max. Must be
+         *  greater than 0.0.
+         */
+        fun approximateStdDev(numObs: Double, range: Double) : Double {
+            require(numObs > 1.0) { "The number of observations must be > 1" }
+            require(range > 0.0) { "The range must be > 0.0" }
+            val p = (numObs - 0.375)/(numObs + 0.25)
+            val z2 = 2.0* Normal.stdNormalInvCDF(p)
+            return range/z2
+        }
+
+        /**
+         *  Recommends a suitable number of bins for a histogram.
+         *  @param numObs the number of observations to bin, must be greater than 1
+         *  @param min the minimum of the data's observations
+         *  @param max the maximum of the data's observations
+         *  @param stdDev an estimate of the standard deviation of the observations
+         */
+        fun recommendNumBins(numObs: Double, min: Double, max: Double, stdDev: Double): Int {
+            require(min.isFinite()) { "The minimum must be finite" }
+            require(max.isFinite()) { "The maximum must be finite" }
+            require(min < max) { "The minimum must be less than the maximum" }
+            require(!KSLMath.equal(min, max)) { "The minimum must be less than the maximum" }
+            val bw = recommendBinWidth(numObs, stdDev)
+            // now compute a number of bins for this width
+            val nb = (ceil(max) - floor(min)) / bw
+            val numBins = ceil(nb).toInt()
+            return numBins
         }
 
         /** Creates a list of ordered bins for use in a histogram
@@ -566,7 +610,7 @@ class Histogram(breakPoints: DoubleArray, name: String? = null) : AbstractStatis
          */
         fun makeBins(breakPoints: DoubleArray): List<HistogramBin> {
             // remove any duplicates
-            val bp = if (!KSLArrays.isStrictlyIncreasing(breakPoints)){
+            val bp = if (!KSLArrays.isStrictlyIncreasing(breakPoints)) {
                 breakPoints.toSet().toDoubleArray()
             } else {
                 breakPoints
