@@ -36,8 +36,9 @@ class SquaredErrorScoringModel : PDFScoringModel("Squared-Error") {
             return Score(this, Double.MAX_VALUE, true)
         }
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
-        // make sure that they are unique
-        bp = bp.toSet().toDoubleArray()
+//        bp.sort()
+//        // make sure that they are unique
+//        bp = bp.toSet().toDoubleArray()
         val domain = cdf.domain()
         bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
         bp = Histogram.addUpperLimit(domain.upperLimit, bp)

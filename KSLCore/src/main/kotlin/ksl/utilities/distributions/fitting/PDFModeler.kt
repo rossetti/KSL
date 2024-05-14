@@ -844,7 +844,9 @@ class PDFModeler(
                 return inverse.invCDF(doubleArrayOf(1.0 / 3.0, 2.0 / 3.0))
             }
             val p = U01Test.recommendedU01BreakPoints(sampleSize, defaultConfidenceLevel)
-            return inverse.invCDF(p)
+            val bp = inverse.invCDF(p)
+            bp.sort() //must be increasing
+            return bp.toSet().toDoubleArray() // must be unique
         }
 
         /**
