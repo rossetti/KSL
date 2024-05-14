@@ -609,15 +609,18 @@ class Histogram(
          * @return the list of histogram bins
          */
         fun makeBins(breakPoints: DoubleArray): List<HistogramBin> {
-            // remove any duplicates
+            require(breakPoints.isNotEmpty()) { "The break points array was empty" }
+            val binList: MutableList<HistogramBin> = ArrayList()
+            // remove any duplicates and make strictly increasing
             val bp = if (!KSLArrays.isStrictlyIncreasing(breakPoints)) {
+                // sort them to be increasing
+                breakPoints.sort()
+                // make them unique
                 breakPoints.toSet().toDoubleArray()
+                // might only have 1 break point again
             } else {
                 breakPoints
             }
-            // still need to be increasing
-            require(KSLArrays.isStrictlyIncreasing(bp)) { "The break points were not strictly increasing." }
-            val binList: MutableList<HistogramBin> = ArrayList()
             // case of 1 break point must be handled
             if (bp.size == 1) {
                 // two bins, 1 below and 1 above
@@ -625,8 +628,7 @@ class Histogram(
                 binList.add(HistogramBin(2, bp[0], Double.POSITIVE_INFINITY))
                 return binList
             }
-
-            // two or more break points
+            // two or more break points, make the bins
             for (i in 1 until bp.size) {
                 binList.add(HistogramBin(i, bp[i - 1], bp[i]))
             }

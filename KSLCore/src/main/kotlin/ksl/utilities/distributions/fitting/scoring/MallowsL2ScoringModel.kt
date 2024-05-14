@@ -26,7 +26,8 @@ class MallowsL2ScoringModel : PDFScoringModel("MallowsL2") {
         }
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
         // make sure that they are unique
-        bp = bp.toSet().toDoubleArray()
+//        bp.sort()
+//        bp = bp.toSet().toDoubleArray()
         val domain = cdf.domain()
         bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
         bp = Histogram.addUpperLimit(domain.upperLimit, bp)

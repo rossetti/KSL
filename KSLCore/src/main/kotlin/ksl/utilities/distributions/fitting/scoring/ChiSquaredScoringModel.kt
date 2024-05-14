@@ -31,6 +31,8 @@ class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared") {
             return Score(this, Double.MAX_VALUE, true)
         }
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
+//        bp.sort()
+//        bp.toSet().toDoubleArray()
         val domain = cdf.domain()
         bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
         bp = Histogram.addUpperLimit(domain.upperLimit, bp)
