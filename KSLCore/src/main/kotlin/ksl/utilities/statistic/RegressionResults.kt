@@ -3,7 +3,9 @@ package ksl.utilities.statistic
 import ksl.utilities.*
 import ksl.utilities.distributions.Normal
 import ksl.utilities.distributions.StudentT
+import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.FitDistPlot
+import ksl.utilities.io.plotting.ObservationsPlot
 import ksl.utilities.io.plotting.ScatterPlot
 import ksl.utilities.io.write
 import org.hipparchus.stat.regression.OLSMultipleLinearRegression
@@ -338,9 +340,42 @@ interface RegressionResultsIfc {
      */
     fun residualsVsPredictedPlot(): ScatterPlot {
         val plot = ScatterPlot(predicted, residuals, 0.0)
+        plot.title = "Predicted vs Residuals"
         plot.xLabel = "Predicted"
         plot.yLabel = "Residual"
         return plot
+    }
+
+    /**
+     *  A plot of the residuals based on observation order.
+     */
+    fun residualsVsObservationOrderPlot(): ObservationsPlot {
+        val plot = ObservationsPlot(residuals)
+        plot.title = "Residuals vs Observation Order"
+        plot.xLabel = "Observation Order"
+        plot.yLabel = "Residuals"
+        return plot
+    }
+
+    /**
+     *  Shows the diagnostic plots within a browser window.
+     */
+    fun showDiagnosticPlotsInBrowser(){
+        val sb = StringBuilder().apply {
+            appendLine("<h1>")
+            appendLine("Diagnostic Plots")
+            appendLine("</h1>")
+            appendLine("<div>")
+            appendLine(standardizedResidualsNormalPlot().toHTML())
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine(residualsVsPredictedPlot().toHTML())
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine(residualsVsObservationOrderPlot().toHTML())
+            appendLine("</div>")
+        }
+        KSLFileUtil.openInBrowser(fileName = "Regression_Diagnostics", sb.toString())
     }
 
     /**
