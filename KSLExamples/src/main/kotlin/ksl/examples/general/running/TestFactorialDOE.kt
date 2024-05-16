@@ -34,9 +34,9 @@ fun main() {
 
 //    testFractionalDesign()
 
-//    simulateFactorialDesign()
+    simulateFactorialDesign()
 
-    testCCD()
+//    testCCD()
 }
 
 fun buildModel(): Model {
