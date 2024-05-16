@@ -442,7 +442,7 @@ fun AnyFrame.multiply(colA: DataColumn<Double>, colB: DataColumn<Double>): AnyFr
     for (row in this) {
         list.add(row[colA] * row[colB])
     }
-   // this.mapToColumn("${colA.name()}*${colB.name()}"){colA()*colB()}
+    // this.mapToColumn("${colA.name()}*${colB.name()}"){colA()*colB()}
     return this.add(list.toColumn("${colA.name()}*${colB.name()}"))
 }
 
@@ -450,23 +450,37 @@ fun AnyFrame.multiply(colA: DataColumn<Double>, colB: DataColumn<Double>): AnyFr
  *  Causes a new column to be added to the dataframe that represents the
  *  element-wise multiplication of the columns in the set. The columns must be in the dataframe.
  */
+fun AnyFrame.multiplyColumns(columnNames: Set<String>): AnyFrame {
+    require(columnNames.size >= 2) { "There must be at least two columns" }
+    val set = mutableSetOf<AnyCol>()
+    for (name in columnNames) {
+        require(this.containsColumn(name)) { "column $name was not in the data frame" }
+        set.add(getColumn(name))
+    }
+    return multiply(set)
+}
+
+/**
+ *  Causes a new column to be added to the dataframe that represents the
+ *  element-wise multiplication of the columns in the set. The columns must be in the dataframe.
+ */
 fun AnyFrame.multiply(columns: Set<AnyCol>): AnyFrame {
-    require(columns.size >= 2){"There must be at least two columns" }
-    for(col in columns){
+    require(columns.size >= 2) { "There must be at least two columns" }
+    for (col in columns) {
         require(contains(col)) { "column ${col.name()} was not in the data frame" }
         require(col.typeClass == Double::class) { "column ${col.name()} is not a double column" }
     }
     val list = mutableListOf<Double>()
     for (row in this) {
         var p = 1.0
-        for(col in columns){
+        for (col in columns) {
             val c = row[col] as Double
             p = p * c
         }
         list.add(p)
     }
     val sb = StringBuilder()
-    for(col in columns){
+    for (col in columns) {
         sb.append("${col.name()}*")
     }
     return this.add(list.toColumn(sb.toString().dropLast(1)))

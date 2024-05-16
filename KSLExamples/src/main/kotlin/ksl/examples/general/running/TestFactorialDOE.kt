@@ -22,6 +22,7 @@ import ksl.controls.experiments.*
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.multiply
+import ksl.utilities.io.multiplyColumns
 import ksl.utilities.io.print
 import ksl.utilities.io.toDataFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
@@ -288,10 +289,11 @@ fun testDataFrameWork(){
     val fd = design.designPointsAsDataframe(coded = true)
     fd.print(rowsLimit = 36)
 
-    val cA = fd.getColumn("A")
-    val cB = fd.getColumn("B")
-    val cC = fd.getColumn("C")
-    val mfd = fd.multiply(setOf(cA, cB, cC))
+//    val cA = fd.getColumn("A")
+//    val cB = fd.getColumn("B")
+//    val cC = fd.getColumn("C")
+//    val mfd = fd.multiply(setOf(cA, cB, cC))
+    val mfd = fd.multiplyColumns(setOf("A", "B", "C"))
    // val mfd = fd.multiply("A", "B")
     mfd.print(rowsLimit = 36)
 }
