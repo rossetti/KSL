@@ -378,7 +378,7 @@ object DataFrameUtil {
         header: Boolean = true,
         separator: String = ","
     ) {
-        if (header){
+        if (header) {
             appendable.appendLine(df.columnNames().joinToString(separator) { "\"$it\"" })
         }
         for (row in df) {
@@ -390,24 +390,24 @@ object DataFrameUtil {
      *  Convert the dataframe to a TabularOutputFile with the supplied
      *  file name within KSL.outDir
      */
-    fun toTabularFile(df: AnyFrame, fileName: String) : TabularOutputFile {
+    fun toTabularFile(df: AnyFrame, fileName: String): TabularOutputFile {
         return toTabularFile(df, KSL.outDir.resolve(fileName))
     }
 
     /**
      *  Convert the dataframe to a TabularOutputFile at the supplied [pathToFile]
      */
-    fun toTabularFile(df: AnyFrame, pathToFile: Path) : TabularOutputFile {
+    fun toTabularFile(df: AnyFrame, pathToFile: Path): TabularOutputFile {
         val cNames = df.columnNames()
         val cTypes = df.columnTypes()
         val dTypes = TabularFile.toDataTypes(cTypes)
         val cols = mutableMapOf<String, DataType>()
-        for((i, n) in cNames.withIndex()){
+        for ((i, n) in cNames.withIndex()) {
             cols[n] = dTypes[i]
         }
         val tof = TabularOutputFile(cols, pathToFile)
         val rs = tof.row()
-        for(row in df){
+        for (row in df) {
             rs.setElements(row.values())
             tof.writeRow(rs)
         }
@@ -417,17 +417,73 @@ object DataFrameUtil {
 }
 
 /**
+ *  Causes a new column to be added to the dataframe that represents the
+ *  element-wise multiplication of column A and B. The columns must be in the
+ *  data frame and be of type DataColumn<Double>
+ */
+fun AnyFrame.multiply(colAName: String, colBName: String): AnyFrame {
+    require(containsColumn(colAName)) { "column $colAName was not in the data frame" }
+    require(containsColumn(colBName)) { "column $colBName was not in the data frame" }
+    val colA = get(colAName)
+    val colB = get(colBName)
+    require(colA.typeClass == Double::class) { "column $colAName is not a double column" }
+    require(colB.typeClass == Double::class) { "column $colBName is not a double column" }
+    return this.multiply(colA as DataColumn<Double>, colB as DataColumn<Double>)
+}
+
+/**
+ *  Causes a new column to be added to the dataframe that represents the
+ *  element-wise multiplication of column A and B. The columns must be in the dataframe.
+ */
+fun AnyFrame.multiply(colA: DataColumn<Double>, colB: DataColumn<Double>): AnyFrame {
+    require(contains(colA)) { "column ${colA.name()} was not in the data frame" }
+    require(contains(colB)) { "column ${colB.name()} was not in the data frame" }
+    val list = mutableListOf<Double>()
+    for (row in this) {
+        list.add(row[colA] * row[colB])
+    }
+   // this.mapToColumn("${colA.name()}*${colB.name()}"){colA()*colB()}
+    return this.add(list.toColumn("${colA.name()}*${colB.name()}"))
+}
+
+/**
+ *  Causes a new column to be added to the dataframe that represents the
+ *  element-wise multiplication of the columns in the set. The columns must be in the dataframe.
+ */
+fun AnyFrame.multiply(columns: Set<AnyCol>): AnyFrame {
+    require(columns.size >= 2){"There must be at least two columns" }
+    for(col in columns){
+        require(contains(col)) { "column ${col.name()} was not in the data frame" }
+        require(col.typeClass == Double::class) { "column ${col.name()} is not a double column" }
+    }
+    val list = mutableListOf<Double>()
+    for (row in this) {
+        var p = 1.0
+        for(col in columns){
+            val c = row[col] as Double
+            p = p * c
+        }
+        list.add(p)
+    }
+    val sb = StringBuilder()
+    for(col in columns){
+        sb.append("${col.name()}*")
+    }
+    return this.add(list.toColumn(sb.toString().dropLast(1)))
+}
+
+/**
  *  Convert the dataframe to a TabularOutputFile with the supplied
  *  file name within KSL.outDir
  */
-fun AnyFrame.toTabularFile(fileName: String) : TabularFile {
+fun AnyFrame.toTabularFile(fileName: String): TabularFile {
     return DataFrameUtil.toTabularFile(this, fileName)
 }
 
 /**
  *  Convert the dataframe to a TabularOutputFile at the supplied [path]
  */
-fun AnyFrame.toTabularFile(pathToFile: Path) : TabularFile {
+fun AnyFrame.toTabularFile(pathToFile: Path): TabularFile {
     return DataFrameUtil.toTabularFile(this, pathToFile)
 }
 
@@ -437,8 +493,8 @@ fun AnyFrame.toTabularFile(pathToFile: Path) : TabularFile {
  */
 fun AnyFrame.statistics(): DataFrame<StatisticData> {
     val list = mutableListOf<StatisticData>()
-    for(c in columns()){
-        if (c.typeClass == Double::class){
+    for (c in columns()) {
+        if (c.typeClass == Double::class) {
             val ct = c as DataColumn<Double>
             list.add(ct.statistics().statisticData())
         }
@@ -452,8 +508,8 @@ fun AnyFrame.statistics(): DataFrame<StatisticData> {
  */
 fun AnyFrame.boxPlotSummaryData(): DataFrame<BoxPlotDataIfc> {
     val list = mutableListOf<BoxPlotDataIfc>()
-    for(c in columns()){
-        if (c.typeClass == Double::class){
+    for (c in columns()) {
+        if (c.typeClass == Double::class) {
             val ct = c as DataColumn<Double>
             list.add(ct.boxPlotSummary())
         }
@@ -473,10 +529,10 @@ fun AnyFrame.boxPlotSummaryData(): DataFrame<BoxPlotDataIfc> {
  *  Creates a dataframe that holds the summary statistical data for
  *  any column that holds Double type within the original dataframe.
  */
-fun AnyFrame.summaryStatistics(): DataFrame<SummaryStatisticsIfc>{
+fun AnyFrame.summaryStatistics(): DataFrame<SummaryStatisticsIfc> {
     val list = mutableListOf<SummaryStatisticsIfc>()
-    for(c in columns()){
-        if (c.typeClass == Double::class){
+    for (c in columns()) {
+        if (c.typeClass == Double::class) {
             val ct = c as DataColumn<Double>
             list.add(ct.statistics())
         }
