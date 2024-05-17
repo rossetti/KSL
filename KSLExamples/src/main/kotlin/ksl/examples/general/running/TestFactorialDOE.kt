@@ -293,7 +293,7 @@ fun testDataFrameWork(){
 //    val cB = fd.getColumn("B")
 //    val cC = fd.getColumn("C")
 //    val mfd = fd.multiply(setOf(cA, cB, cC))
-    val mfd = fd.multiplyColumns(setOf("A", "B", "C"))
+    val mfd = fd.multiplyColumns(listOf("A", "B", "C"))
    // val mfd = fd.multiply("A", "B")
     mfd.print(rowsLimit = 36)
 }

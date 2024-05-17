@@ -417,18 +417,66 @@ object DataFrameUtil {
 }
 
 /**
+ *  Checks if the column holds type Double
+ */
+internal fun AnyCol.isDoubleColumn(): Boolean {
+    return typeClass == Double::class
+}
+
+/**
+ *  Checks if all the columns in the list hold Double values
+ */
+internal fun List<AnyCol>.allDoubleColumns(): Boolean {
+    for (col in this) {
+        if (!col.isDoubleColumn()) return false
+    }
+    return true
+}
+
+/**
+ *  Converts the list of AnyCol to a list of DataColumn<Double>
+ *  Any column in the list that hold Double type will be added
+ *  to the returned list. Columns that do not hold Double type
+ *  will not be added to the list.
+ */
+internal fun List<AnyCol>.toDoubleColumns(): List<DataColumn<Double>> {
+    val list = mutableListOf<DataColumn<Double>>()
+    for (col in this) {
+        // this cast should be safe because of the column type test
+        if (col.isDoubleColumn()) list.add(col as DataColumn<Double>)
+    }
+    return list
+}
+
+/**
+ *  True if the dataframe contains all the named columns in the list.
+ *  False if at least one column is not in the dataframe.
+ */
+fun AnyFrame.hasAllNamedColumns(columnNames: List<String>): Boolean {
+    for (col in columnNames) {
+        if (!this.containsColumn(col)) return false
+    }
+    return true
+}
+
+/**
+ *  True if the dataframe contains all the columns in the list.
+ *  False if at least one column is not in the dataframe.
+ */
+fun AnyFrame.hasAllColumns(list: List<AnyCol>): Boolean {
+    for (col in list) {
+        if (!this.containsColumn(col)) return false
+    }
+    return true
+}
+
+/**
  *  Causes a new column to be added to the dataframe that represents the
  *  element-wise multiplication of column A and B. The columns must be in the
  *  data frame and be of type DataColumn<Double>
  */
 fun AnyFrame.multiply(colAName: String, colBName: String): AnyFrame {
-    require(containsColumn(colAName)) { "column $colAName was not in the data frame" }
-    require(containsColumn(colBName)) { "column $colBName was not in the data frame" }
-    val colA = get(colAName)
-    val colB = get(colBName)
-    require(colA.typeClass == Double::class) { "column $colAName is not a double column" }
-    require(colB.typeClass == Double::class) { "column $colBName is not a double column" }
-    return this.multiply(colA as DataColumn<Double>, colB as DataColumn<Double>)
+    return multiplyColumns(listOf(colAName, colBName))
 }
 
 /**
@@ -436,46 +484,38 @@ fun AnyFrame.multiply(colAName: String, colBName: String): AnyFrame {
  *  element-wise multiplication of column A and B. The columns must be in the dataframe.
  */
 fun AnyFrame.multiply(colA: DataColumn<Double>, colB: DataColumn<Double>): AnyFrame {
-    require(contains(colA)) { "column ${colA.name()} was not in the data frame" }
-    require(contains(colB)) { "column ${colB.name()} was not in the data frame" }
-    val list = mutableListOf<Double>()
-    for (row in this) {
-        list.add(row[colA] * row[colB])
-    }
-    // this.mapToColumn("${colA.name()}*${colB.name()}"){colA()*colB()}
-    return this.add(list.toColumn("${colA.name()}*${colB.name()}"))
+    return multiply(listOf(colA, colB))
 }
 
 /**
  *  Causes a new column to be added to the dataframe that represents the
- *  element-wise multiplication of the columns in the set. The columns must be in the dataframe.
+ *  element-wise multiplication of the columns in the list. The columns must be in the dataframe
+ *  and the columns must hold Double values.
  */
-fun AnyFrame.multiplyColumns(columnNames: Set<String>): AnyFrame {
-    require(columnNames.size >= 2) { "There must be at least two columns" }
-    val set = mutableSetOf<AnyCol>()
+fun AnyFrame.multiplyColumns(columnNames: List<String>): AnyFrame {
+    require(columnNames.size >= 2) { "There must be at least two columns to multiply." }
+    val list = mutableListOf<DataColumn<Double>>()
     for (name in columnNames) {
-        require(this.containsColumn(name)) { "column $name was not in the data frame" }
-        set.add(getColumn(name))
+        require(containsColumn(name)) { "column $name was not in the data frame" }
+        val col = getColumn(name)
+        require(col.typeClass == Double::class) { "column ${col.name()} is not a double column" }
+        list.add(col as DataColumn<Double>)
     }
-    return multiply(set)
+    return multiply(list)
 }
 
 /**
  *  Causes a new column to be added to the dataframe that represents the
- *  element-wise multiplication of the columns in the set. The columns must be in the dataframe.
+ *  element-wise multiplication of the columns in the list. The columns must be in the dataframe.
  */
-fun AnyFrame.multiply(columns: Set<AnyCol>): AnyFrame {
-    require(columns.size >= 2) { "There must be at least two columns" }
-    for (col in columns) {
-        require(contains(col)) { "column ${col.name()} was not in the data frame" }
-        require(col.typeClass == Double::class) { "column ${col.name()} is not a double column" }
-    }
+fun AnyFrame.multiply(columns: List<DataColumn<Double>>): AnyFrame {
+    require(hasAllColumns(columns)) { "A supplied column was not part of the dataframe!" }
+    require(columns.size >= 2) { "There must be at least two columns!" }
     val list = mutableListOf<Double>()
     for (row in this) {
         var p = 1.0
         for (col in columns) {
-            val c = row[col] as Double
-            p = p * c
+            p = p * row[col]
         }
         list.add(p)
     }
@@ -483,7 +523,7 @@ fun AnyFrame.multiply(columns: Set<AnyCol>): AnyFrame {
     for (col in columns) {
         sb.append("${col.name()}*")
     }
-    return this.add(list.toColumn(sb.toString().dropLast(1)))
+    return add(list.toColumn(sb.toString().dropLast(1)))
 }
 
 /**
