@@ -5,10 +5,22 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
     private val myTerms: MutableMap<String, List<String>> = mutableMapOf()
 
     /**
-     * Returns the terms of the model
+     * Returns the terms of the model as a map
      */
-    val terms: Map<String, List<String>>
+    val termsAsMap: Map<String, List<String>>
         get() = myTerms
+
+    /**
+     *  Returns the terms of the model as a list of lists
+     */
+    val termsAsList: List<List<String>>
+        get() {
+            val list = mutableListOf<List<String>>()
+            for((key, term) in myTerms){
+                list.add(term)
+            }
+            return list
+        }
 
     init {
         if (includeMainEffects) {
@@ -17,7 +29,6 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
             }
         }
     }
-
 
     /**
      *  Every string in the list must be within the main effects set
@@ -43,6 +54,14 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
         for (e in list) {
             term(e)
         }
+    }
+
+    /**
+     *  Assumes a parsable string and converts it to a list of terms
+     *  for specifying the model from the string.
+     */
+    fun parseFromString(parseString: String) {
+        specify(parse(parseString))
     }
 
     /**
