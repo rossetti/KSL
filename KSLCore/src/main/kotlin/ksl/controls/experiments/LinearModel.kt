@@ -75,26 +75,29 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
      *  Repeatedly calls term() with the elements in the list
      *  to specify an entire model.
      */
-    fun specify(list: List<List<String>>) {
+    fun specify(list: List<List<String>>) : LinearModel {
         for (e in list) {
             term(e)
         }
+        return this
     }
 
     /**
      *  Specifies a model with all terms (main effects, first order interactions,
      *  2nd order interactions, etc.
      */
-    fun specifyAllTerms() {
+    fun specifyAllTerms() : LinearModel {
         specify(allTerms(mainEffects))
+        return this
     }
 
     /**
      *  Assumes a parsable string and converts it to a list of terms
      *  for specifying the model from the string.
      */
-    fun parseFromString(parseString: String) {
+    fun parseFromString(parseString: String) : LinearModel {
         specify(parse(parseString))
+        return this
     }
 
     /**
@@ -103,55 +106,61 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
      *  term "A*B". The elements of the list must be valid single (main) effect
      *  term names.
      */
-    fun term(list: List<String>) {
+    fun term(list: List<String>) : LinearModel {
         require(isValidTerm(list)) { "The list had invalid elements" }
         if (list.size == 1) {
             // adding a main effect
             myTerms[list[0]] = list
-            return
+            return this
         }
         // two or more elements in the list, form the key
         val key = list.joinToString("*")
         myTerms[key] = list
+        return this
     }
 
     /**
      *  Shorthand for adding a two-way interaction term. The
      *  names must be different.
      */
-    fun twoWay(name1: String, name2: String) {
+    fun twoWay(name1: String, name2: String) : LinearModel {
         require(name1 != name2) { "The two way interaction must have different names" }
         term(listOf(name1, name2))
+        return this
     }
 
     /**
      *  Shorthand for adding a three-way interaction term. The
      *  names must be different.
      */
-    fun threeWay(name1: String, name2: String, name3: String) {
+    fun threeWay(name1: String, name2: String, name3: String) : LinearModel {
         require((name1 != name2) && (name1 != name3) && (name2 != name3)) { "The three way interaction must have different names" }
         term(listOf(name1, name2, name3))
+        return this
     }
 
     /**
      *  Shorthand for adding an n-way interaction term.
      */
-    fun nWay(set: Set<String>) {
+    fun nWay(set: Set<String>) : LinearModel {
         term(set.toList())
+        return this
     }
 
     /**
      *  Shorthand for adding a quadratic term.
      */
-    fun quadratic(name: String) {
+    fun quadratic(name: String) : LinearModel {
         term(listOf(name, name))
+        return this
     }
 
     /**
      *  Shorthand for adding a cubic term.
      */
-    fun cubic(name: String) {
+    fun cubic(name: String) : LinearModel {
         term(listOf(name, name, name))
+        return this
     }
 
     fun asString(): String {

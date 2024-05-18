@@ -21,10 +21,7 @@ package ksl.examples.general.running
 import ksl.controls.experiments.*
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
-import ksl.utilities.io.multiply
-import ksl.utilities.io.multiplyColumns
-import ksl.utilities.io.print
-import ksl.utilities.io.toDataFrame
+import ksl.utilities.io.*
 import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.getColumn
 import org.jetbrains.kotlinx.dataframe.api.print
@@ -283,7 +280,7 @@ fun testDataFrameWork(){
             TwoLevelFactor("A", 5.0, 15.0),
             TwoLevelFactor("B", 2.0, 11.0),
             TwoLevelFactor("C", 6.0, 10.0),
-            TwoLevelFactor("D", 3.0, 9.0),
+//            TwoLevelFactor("D", 3.0, 9.0),
         )
     )
     val fd = design.designPointsAsDataframe(coded = true)
@@ -293,8 +290,12 @@ fun testDataFrameWork(){
 //    val cB = fd.getColumn("B")
 //    val cC = fd.getColumn("C")
 //    val mfd = fd.multiply(setOf(cA, cB, cC))
-    val mfd = fd.multiplyColumns(listOf("A", "B", "C"))
+//    val mfd = fd.multiplyColumns(listOf("A", "B", "C"))
    // val mfd = fd.multiply("A", "B")
-    mfd.print(rowsLimit = 36)
+//    mfd.print(rowsLimit = 36)
+
+    val lm = design.linearModel.specifyAllTerms()
+    val lmDF = fd.addColumnsFor(lm)
+    lmDF.print(rowsLimit = 36)
 }
 
