@@ -3,12 +3,34 @@ package ksl.controls.experiments
 import com.google.common.collect.Sets
 import ksl.controls.experiments.LinearModel.Companion.allTerms
 
+/**
+ *  This class provides the ability to specify a linear model (for use in regression and
+ *  design of experiments). This is only a string specification of the model. The terms
+ *  are specified by the names of the factors.
+ *
+ *  Example: A model with 3 main effects, "A", "B", "C", with full model = "A B C A*B A*C B*C A*B*C".
+ *     // y = b0 + b1*A + b2*B + b3*C + b12*AB + b13*AC + b23*BC + b123*ABC
+ *     val m3 = LinearModel(setOf("A", "B", "C"))
+ *     m3.specifyAllTerms()
+ *
+ *   The properties termsAsMap and termsAsList provide access to the specification.
+ *
+ *   @param mainEffects the names of the factors (regressors) in a set
+ *   @param includeMainEffects starts the model with only the main effects. The default is true.
+ */
 class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = true) {
 
     private val myTerms: MutableMap<String, List<String>> = mutableMapOf()
 
     /**
-     * Returns the terms of the model as a map
+     *  By default, we assume an intercept term
+     */
+    var intercept: Boolean = true
+
+    /**
+     * Returns the terms of the model as a map. The key to the
+     * map is the string join of the elements in the associated list
+     * with the elements separated by '*'.
      */
     val termsAsMap: Map<String, List<String>>
         get() = myTerms
