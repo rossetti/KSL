@@ -24,6 +24,7 @@ fun main() {
     println()
     val r1 = OLSRegression(rd)
     println(r1)
+    r1.showDiagnosticPlotsInBrowser()
 //    println()
 //    println(r1.residualsAsDataFrame())
 
