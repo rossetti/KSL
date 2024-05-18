@@ -294,6 +294,7 @@ fun testDataFrameWork(){
    // val mfd = fd.multiply("A", "B")
 //    mfd.print(rowsLimit = 36)
 
+//    val lm = design.linearModel.specifyAllTerms()
     val lm = design.linearModel.specifyAllTerms()
     val lmDF = fd.addColumnsFor(lm)
     lmDF.print(rowsLimit = 36)
