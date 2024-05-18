@@ -240,6 +240,8 @@ class DesignedExperiment(
         return replicatedDesignPointsWithResponses(setOf(responseName), coded)
     }
 
+    //TODO prepare regression data
+
     /**
      *  Returns a data frame that has columns:
      *
