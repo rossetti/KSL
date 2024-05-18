@@ -19,6 +19,12 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
     val factorNames: List<String>
 
     /**
+     *  To facilitate the specification of a linear model for the design
+     */
+    val linearModel: LinearModel
+        get() = LinearModel(factors.keys)
+
+    /**
      *  The number of factor in the design
      */
     val numFactors
