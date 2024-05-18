@@ -1,5 +1,8 @@
 package ksl.controls.experiments
 
+import com.google.common.collect.Sets
+import ksl.controls.experiments.LinearModel.Companion.allTerms
+
 class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = true) {
 
     private val myTerms: MutableMap<String, List<String>> = mutableMapOf()
@@ -54,6 +57,14 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
         for (e in list) {
             term(e)
         }
+    }
+
+    /**
+     *  Specifies a model with all terms (main effects, first order interactions,
+     *  2nd order interactions, etc.
+     */
+    fun specifyAllTerms() {
+        specify(allTerms(mainEffects))
     }
 
     /**
@@ -157,20 +168,53 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
             }
             return m
         }
-    }
 
+        /**
+         *  Forms a model specification with all first order,
+         *  2nd order, 3rd order, etc. interactions
+         */
+        fun allTerms(set: Set<String>): List<List<String>> {
+            val m = mutableListOf<List<String>>()
+            val ps: MutableSet<MutableSet<String>> = Sets.powerSet(set)
+            for(s in ps){
+                if(s.isNotEmpty()){
+                    m.add(s.toList())
+                }
+            }
+            m.sortBy { it.size }
+            return  m
+        }
+    }
 
 }
 
 fun main() {
-    val model = LinearModel(setOf("A", "B", "C"), true)
+    val factors = setOf("A", "B", "C")
+    val model = LinearModel(factors, true)
     model.term(listOf("A", "B"))
     model.quadratic("A")
     model.cubic("C")
     println(model.asString())
 
     val list = LinearModel.parse("A B C A*B A*C B*C A*B*C")
-    val m2 = LinearModel(setOf("A", "B", "C"), true)
+    val m2 = LinearModel(factors, true)
     m2.specify(list)
     println(m2.toString())
+    println()
+    val ps: MutableSet<MutableSet<String>> = Sets.powerSet(factors)
+    for(s in ps){
+        println(s)
+    }
+    println()
+    val ts = allTerms(setOf("A", "B", "C", "D"))
+    for(s in ts){
+        println(s)
+    }
+    println()
+    val m3 = LinearModel(setOf("A", "B", "C", "D"))
+    m3.specifyAllTerms()
+    println(m3.toString())
+    println()
+    println(m3.asString())
+
 }
