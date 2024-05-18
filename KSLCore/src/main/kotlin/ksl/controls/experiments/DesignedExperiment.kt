@@ -245,50 +245,6 @@ class DesignedExperiment(
         return replicatedDesignPointsWithResponses(setOf(responseName), coded)
     }
 
-    /**
-     *  The regression data to perform the regression of the linear model
-     *
-     *  @param responseName the name of the response variable in the regression
-     *  @param linearModel the linear model specification for the regression
-     *  @param coded if true perform the regression with the coded variables
-     *  @return the data necessary to perform the regression analysis as a dataframe
-     */
-    fun regressionDataAsDataFrame(responseName: String, linearModel: LinearModel, coded: Boolean = false): AnyFrame {
-        // get the base dataframe with the response
-        var df = replicatedDesignPointsWithResponse(responseName, coded)
-        df = df.addColumnsFor(linearModel)
-        return df
-    }
-
-    /**
-     *  The regression data to perform the regression of the linear model
-     *
-     *  @param responseName the name of the response variable in the regression
-     *  @param linearModel the linear model specification for the regression
-     *  @param coded if true perform the regression with the coded variables
-     *  @return the data necessary to perform the regression analysis
-    */
-    fun regressionData(responseName: String, linearModel: LinearModel, coded: Boolean = false): RegressionData {
-        val df = regressionDataAsDataFrame(responseName, linearModel, coded)
-        val rns = linearModel.termsAsMap.keys.toList()
-        return RegressionData.create(df, responseName, rns, linearModel.intercept)
-    }
-
-    /**
-     *  Perform the regression of the linear model for predicting the response.
-     *  @param responseName the name of the response variable in the regression
-     *  @param linearModel the linear model specification for the regression
-     *  @param coded if true perform the regression with the coded variables
-     *  @return the regression results
-     */
-    fun regressionResults(
-        responseName: String,
-        linearModel: LinearModel,
-        coded: Boolean = false
-    ): RegressionResultsIfc {
-        val rd = regressionData(responseName, linearModel, coded)
-        return OLSRegression(rd)
-    }
 
     /**
      *  Returns a data frame that has columns:
@@ -298,7 +254,7 @@ class DesignedExperiment(
      *  where the values in the response name columns have the value of the response for the named experiments
      *  and the replication id (number) for the value.  The dataframe provides the data
      *  for performing a response surfacing model for the named responses.
-     *  @param coded indicates if the points should be coded, the default is false
+     *  @param coded indicates if the points should be coded, the default is false.
      */
     fun replicatedDesignPointsWithResponses(
         names: Set<String> = responseNames.toSet(),
@@ -320,6 +276,59 @@ class DesignedExperiment(
             }
         }
         return df
+    }
+
+    /**
+     *  The regression data to perform the regression of the linear model
+     *
+     *  @param responseName the name of the response variable in the regression
+     *  @param linearModel the linear model specification for the regression
+     *  @param coded if true perform the regression with the coded variables. The default is true.
+     *  @return the data necessary to perform the regression analysis as a dataframe
+     */
+    fun regressionDataAsDataFrame(
+        responseName: String,
+        linearModel: LinearModel,
+        coded: Boolean = true
+    ): AnyFrame {
+        // get the base dataframe with the response
+        var df = replicatedDesignPointsWithResponse(responseName, coded)
+        df = df.addColumnsFor(linearModel)
+        return df
+    }
+
+    /**
+     *  The regression data to perform the regression of the linear model
+     *
+     *  @param responseName the name of the response variable in the regression
+     *  @param linearModel the linear model specification for the regression
+     *  @param coded if true perform the regression with the coded variables. The default is true.
+     *  @return the data necessary to perform the regression analysis
+     */
+    fun regressionData(
+        responseName: String,
+        linearModel: LinearModel,
+        coded: Boolean = true
+    ): RegressionData {
+        val df = regressionDataAsDataFrame(responseName, linearModel, coded)
+        val rns = linearModel.termsAsMap.keys.toList()
+        return RegressionData.create(df, responseName, rns, linearModel.intercept)
+    }
+
+    /**
+     *  Perform the regression of the linear model for predicting the response.
+     *  @param responseName the name of the response variable in the regression
+     *  @param linearModel the linear model specification for the regression
+     *  @param coded if true perform the regression with the coded variables. The default is true.
+     *  @return the regression results
+     */
+    fun regressionResults(
+        responseName: String,
+        linearModel: LinearModel,
+        coded: Boolean = true
+    ): RegressionResultsIfc {
+        val rd = regressionData(responseName, linearModel, coded)
+        return OLSRegression(rd)
     }
 
     /**
