@@ -21,6 +21,7 @@
 package ksl.utilities.io
 
 import ksl.controls.experiments.DesignPoint
+import ksl.controls.experiments.LinearModel
 import ksl.observers.ControlVariateDataCollector
 import ksl.observers.ReplicationDataCollector
 import ksl.utilities.KSLArrays
@@ -502,6 +503,25 @@ fun AnyFrame.multiplyColumns(columnNames: List<String>): AnyFrame {
         list.add(col as DataColumn<Double>)
     }
     return multiply(list)
+}
+
+/**
+ *   Causes the columns associated with the linear model to be added to the
+ *   dataframe.
+ *   @param linearModel the linear model specified with the column names. Columns
+ *   representing the main effects must already be in the dataframe
+ *   @return the new dataframe with the additional columns
+ */
+fun AnyFrame.addColumnsFor(linearModel: LinearModel) : AnyFrame {
+    // require that base columns exist
+    require(hasAllNamedColumns(linearModel.mainEffects.toList())){"There were missing named columns in the dataframe"}
+    var df = this
+    for(cn in linearModel.termsAsList){
+        if (cn.size >= 2){
+            df = df.multiplyColumns(cn)
+        }
+    }
+    return df
 }
 
 /**
