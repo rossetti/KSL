@@ -5,8 +5,12 @@ import ksl.utilities.Identity
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.addColumnsFor
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import ksl.utilities.statistic.OLSRegression
+import ksl.utilities.statistic.RegressionData
+import ksl.utilities.statistic.RegressionResultsIfc
 import ksl.utilities.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataFrame
@@ -81,11 +85,12 @@ class DesignedExperiment(
      *  be contained in the factor settings.
      *  @param kslDb a KSLDatabase that will hold the data from the experiment.
      */
-    constructor(name: String,
-                model: Model,
-                twoLevelSettings: Map<TwoLevelFactor, String>,
-                design: TwoLevelFactorialDesign,
-                kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
+    constructor(
+        name: String,
+        model: Model,
+        twoLevelSettings: Map<TwoLevelFactor, String>,
+        design: TwoLevelFactorialDesign,
+        kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
     ) : this(name, model, twoLevelFactorSetting(twoLevelSettings), design, kslDb)
 
     private val mySimulationRunner = SimulationRunner(model)
@@ -162,8 +167,8 @@ class DesignedExperiment(
      */
     fun replicatedDesignPoints(coded: Boolean = false): List<DoubleArray> {
         val dpList = mutableListOf<DoubleArray>()
-        for((dp, _) in mySimulationRuns) {
-            for(i in 1..dp.numReplications){
+        for ((dp, _) in mySimulationRuns) {
+            for (i in 1..dp.numReplications) {
                 val points = if (coded) dp.codedValues() else dp.values()
                 dpList.add(points)
             }
@@ -175,7 +180,7 @@ class DesignedExperiment(
      *  Returns replicated design point information in the order that the points were executed
      *  as a data frame.
      */
-    fun replicatedDesignPointInfo() : DataFrame<DesignPointInfo> {
+    fun replicatedDesignPointInfo(): DataFrame<DesignPointInfo> {
         val list = mutableListOf<DesignPointInfo>()
         for ((dp, sr) in mySimulationRuns) {
             // dp is design point number 1<=dp<=number of design points
@@ -199,7 +204,7 @@ class DesignedExperiment(
      *  @param coded indicates if the points should be coded, the default is false
      */
     fun replicatedDesignPointsAsDataFrame(coded: Boolean = false): AnyFrame {
-        if (mySimulationRuns.isEmpty()){
+        if (mySimulationRuns.isEmpty()) {
             return DataFrame.empty()
         }
         val points = KSLArrays.to2DDoubleArray(replicatedDesignPoints(coded))
@@ -240,7 +245,50 @@ class DesignedExperiment(
         return replicatedDesignPointsWithResponses(setOf(responseName), coded)
     }
 
-    //TODO prepare regression data
+    /**
+     *  The regression data to perform the regression of the linear model
+     *
+     *  @param responseName the name of the response variable in the regression
+     *  @param linearModel the linear model specification for the regression
+     *  @param coded if true perform the regression with the coded variables
+     *  @return the data necessary to perform the regression analysis as a dataframe
+     */
+    fun regressionDataAsDataFrame(responseName: String, linearModel: LinearModel, coded: Boolean = false): AnyFrame {
+        // get the base dataframe with the response
+        var df = replicatedDesignPointsWithResponse(responseName, coded)
+        df = df.addColumnsFor(linearModel)
+        return df
+    }
+
+    /**
+     *  The regression data to perform the regression of the linear model
+     *
+     *  @param responseName the name of the response variable in the regression
+     *  @param linearModel the linear model specification for the regression
+     *  @param coded if true perform the regression with the coded variables
+     *  @return the data necessary to perform the regression analysis
+    */
+    fun regressionData(responseName: String, linearModel: LinearModel, coded: Boolean = false): RegressionData {
+        val df = regressionDataAsDataFrame(responseName, linearModel, coded)
+        val rns = linearModel.termsAsMap.keys.toList()
+        return RegressionData.create(df, responseName, rns, linearModel.intercept)
+    }
+
+    /**
+     *  Perform the regression of the linear model for predicting the response.
+     *  @param responseName the name of the response variable in the regression
+     *  @param linearModel the linear model specification for the regression
+     *  @param coded if true perform the regression with the coded variables
+     *  @return the regression results
+     */
+    fun regressionResults(
+        responseName: String,
+        linearModel: LinearModel,
+        coded: Boolean = false
+    ): RegressionResultsIfc {
+        val rd = regressionData(responseName, linearModel, coded)
+        return OLSRegression(rd)
+    }
 
     /**
      *  Returns a data frame that has columns:
@@ -257,7 +305,7 @@ class DesignedExperiment(
         coded: Boolean = false
     ): AnyFrame {
         require(names.isNotEmpty()) { "The supplied names cannot be empty" }
-        if (mySimulationRuns.isEmpty()){
+        if (mySimulationRuns.isEmpty()) {
             return DataFrame.empty()
         }
         val vn = responseNames
@@ -290,7 +338,7 @@ class DesignedExperiment(
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true
-    ){
+    ) {
         simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns)
     }
 
@@ -314,7 +362,7 @@ class DesignedExperiment(
         clearRuns: Boolean = true,
         addRuns: Boolean = true
     ) {
-        if (!iterator.hasNext()){
+        if (!iterator.hasNext()) {
             val wm = "WARNING: The supplied iterator for designed experiment, $name, had no design points."
             Model.logger.warn { wm }
             println()
@@ -328,7 +376,7 @@ class DesignedExperiment(
         while (iterator.hasNext()) {
             val dp = iterator.next()
             // set number of replications
-            if (numRepsPerDesignPoint != null){
+            if (numRepsPerDesignPoint != null) {
                 if (numRepsPerDesignPoint > 0) {
                     dp.numReplications = numRepsPerDesignPoint
                 }
@@ -413,9 +461,9 @@ class DesignedExperiment(
         /**
          *  Converts a two level factor setting map to a standard factor setting map
          */
-        fun twoLevelFactorSetting(twoLevelSettings : Map<TwoLevelFactor, String>) : Map<Factor, String>{
+        fun twoLevelFactorSetting(twoLevelSettings: Map<TwoLevelFactor, String>): Map<Factor, String> {
             val map = mutableMapOf<Factor, String>()
-            for((key, value) in twoLevelSettings){
+            for ((key, value) in twoLevelSettings) {
                 map[key] = value
             }
             return map
