@@ -1,5 +1,7 @@
 package ksl.examples.book.chapter7
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.queue.Queue
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
@@ -13,40 +15,73 @@ interface InventoryFillerIfc {
     fun fillInventory(demand: Int)
 }
 
-abstract class Inventory(parent: ModelElement, initialOnHand: Int = 1, replenisher: InventoryFillerIfc, name: String?) :
-    ModelElement(parent, name), InventoryFillerIfc {
+abstract class Inventory(
+    parent: ModelElement,
+    initialOnHand: Int = 1,
+    replenisher: InventoryFillerIfc,
+    name: String?
+) : ModelElement(parent, name), InventoryFillerIfc {
 
-    var replenishmentFiller: InventoryFillerIfc = replenisher
+    init {
+        require(initialOnHand >= 0) { "The initial on-hand inventory must be >= 0" }
+    }
 
-    protected val myAmountBackOrdered = TWResponse(this, "${this.name}:AmountBackOrdered")
-    val amountBackOrdered: Int
-        get() = myAmountBackOrdered.value.toInt()
+    protected val myOnHand = TWResponse(this, theInitialValue = initialOnHand.toDouble(),
+        name = "${this.name}:OnHand")
 
-    protected val myOnOrder = TWResponse(this, "${this.name}:OnOrder")
-    val onOrder: Int
-        get() = myOnOrder.value.toInt()
-
-    protected val myOnHand = TWResponse(this, theInitialValue = initialOnHand.toDouble(), name = "${this.name}:OnHand")
     val onHand: Int
         get() = myOnHand.value.toInt()
-
-    fun setInitialOnHand(amount: Int){
-        require(amount>= 0) {"The initial amount on hand must be >= 0"}
-        myOnHand.initialValue = amount.toDouble()
-    }
 
     val onHandResponse: TWResponseCIfc
         get() = myOnHand
 
-    init {
-        myOnHand.attachIndicator({ x -> x > 0 }, name = "${this.name}:PTimeWithStockOnHand")
-    }
+    val probOfStockOnHandResponse: ResponseIfc = myOnHand.attachIndicator(
+                             { x -> x > 0 }, name = "${this.name}:PTimeWithStockOnHand")
+
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 0.0
+    )
+    var initialOnHand: Int
+        get() = myOnHand.initialValue.toInt()
+        set(amount) {
+            require(amount >= 0) { "The initial amount on hand must be >= 0" }
+            myOnHand.initialValue = amount.toDouble()
+        }
+
+    protected val myAmountBackOrdered = TWResponse(this, "${this.name}:AmountBackOrdered")
+
+    val amountBackOrdered: Int
+        get() = myAmountBackOrdered.value.toInt()
+
+    val amountBackOrderedResponse: TWResponseCIfc
+        get() = myAmountBackOrdered
+
+    protected val myOnOrder = TWResponse(this, "${this.name}:OnOrder")
+
+    val onOrder: Int
+        get() = myOnOrder.value.toInt()
+
+    val onOrderedResponse: TWResponseCIfc
+        get() = myOnOrder
 
     val inventoryPosition: Int
         get() = onHand + onOrder - amountBackOrdered
 
     protected val myBackOrderQ: Queue<Demand> = Queue(this, "${this.name}:BackOrderQ")
+
+    val backOrderQTimeResponse: ResponseIfc
+        get() = myBackOrderQ.timeInQ
+
+    val backOrderNumInQResponse: TWResponseCIfc
+        get() = myBackOrderQ.numInQ
+
     protected val myFirstFillRate = Response(this, "${this.name}:FillRate")
+
+    val fillRateResponse: ResponseIfc
+        get() = myFirstFillRate
+
+    var replenishmentFiller: InventoryFillerIfc = replenisher
 
     inner class Demand(val originalAmount: Int = 1, var amountNeeded: Int) : QObject()
 

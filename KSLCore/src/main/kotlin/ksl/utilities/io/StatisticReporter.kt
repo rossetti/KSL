@@ -252,7 +252,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
             if (reportTitle != null) {
                 formatter.format("%s %n", reportTitle)
             }
-            formatter.format("Statistical Summary Report%n")
+            formatter.format("**Statistical Summary Report**%n")
         }
         if (timeDateFlag) {
             formatter.format("%tc%n%n", Calendar.getInstance().timeInMillis)
@@ -265,7 +265,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
             t.addRow(getHalfWidthSummaryReportRow(stat, level, df))
         }
         sb.append(t)
-        sb.append(System.lineSeparator())
+        sb.appendLine()
         return sb
     }
 
@@ -307,7 +307,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
             if (reportTitle != null) {
                 formatter.format("%s %n", reportTitle)
             }
-            formatter.format("Statistical Summary Report%n%n")
+            formatter.format("**Statistical Summary Report**%n")
         }
         if (timeDateFlag) {
             formatter.format("%tc%n%n", Calendar.getInstance().timeInMillis)

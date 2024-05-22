@@ -1,29 +1,51 @@
 package ksl.examples.book.chapter7
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.simulation.ModelElement
 import kotlin.math.ceil
 
 class RQInventory(
     parent: ModelElement,
-    reOrderPoint: Int = 1,
-    reOrderQuantity: Int = 1,
-    initialOnHand : Int = reOrderPoint + reOrderQuantity,
+    reorderPt: Int = 1,
+    reorderQty: Int = 1,
+    initialOnHand : Int = reorderPt + reorderQty,
     replenisher: InventoryFillerIfc,
     name: String?
 ) : Inventory(parent, initialOnHand, replenisher, name){
 
+    private var myInitialReorderPt: Int
+    private var myInitialReorderQty : Int
+
     init {
-        require(reOrderQuantity > 0) {"The reorder quantity must be > 0"}
-        require(reOrderPoint >= -reOrderQuantity){"reorder point ($reOrderPoint) must be >= - reorder quantity ($reOrderQuantity)"}
+        require(reorderQty > 0) {"The reorder quantity must be > 0"}
+        require(reorderPt >= -reorderQty){"reorder point ($reorderPt) must be >= - reorder quantity ($reorderQty)"}
+        myInitialReorderPt = reorderQty
+        myInitialReorderQty = reorderQty
     }
 
-    private var myInitialReorderPt = reOrderPoint
-
-    private var myInitialReorderQty = reOrderQuantity
-
     private var myReorderPt = myInitialReorderPt
-
     private var myReorderQty = myInitialReorderQty
+
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 0.0
+    )
+    var initialReorderPoint: Int
+        get() = myInitialReorderPt
+        set(value) {
+            setInitialPolicyParameters(value, myInitialReorderQty)
+        }
+
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 0.0
+    )
+    var initialReorderQty: Int
+        get() = myInitialReorderQty
+        set(value) {
+            setInitialPolicyParameters(myInitialReorderPt, value)
+        }
 
     fun setInitialPolicyParameters(reorderPt: Int = myInitialReorderPt, reorderQty: Int = myInitialReorderQty) {
         require(reorderQty > 0) { "reorder quantity must be > 0" }

@@ -16,11 +16,38 @@ import ksl.controls.experiments.LinearModel.Companion.allTerms
  *   The properties termsAsMap and termsAsList provide access to the specification.
  *
  *   @param mainEffects the names of the factors (regressors) in a set
- *   @param includeMainEffects starts the model with only the main effects. The default is true.
+ *   @param type the type of model to start with. The default is first order terms (main effects)
+ *   as define by the provided set of main effects.
  */
-class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = true) {
+class LinearModel(val mainEffects: Set<String>, type: Type = Type.FirstOrder) {
+
+    enum class Type {
+        FirstOrder, FirstAndSecond, AllTerms
+    }
 
     private val myTerms: MutableMap<String, List<String>> = mutableMapOf()
+
+    init {
+        when (type) {
+            Type.FirstOrder ->
+                for (f in mainEffects) {
+                    myTerms[f] = listOf(f)
+                }
+
+            Type.FirstAndSecond -> {
+                val list = allTerms(mainEffects)
+                for (element in list) {
+                    if (element.size <= 2) {
+                        term(element)
+                    }
+                }
+            }
+
+            Type.AllTerms -> {
+                specifyAllTerms()
+            }
+        }
+    }
 
     /**
      *  By default, we assume an intercept term
@@ -41,19 +68,11 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
     val termsAsList: List<List<String>>
         get() {
             val list = mutableListOf<List<String>>()
-            for((key, term) in myTerms){
+            for ((key, term) in myTerms) {
                 list.add(term)
             }
             return list
         }
-
-    init {
-        if (includeMainEffects) {
-            for (f in mainEffects) {
-                myTerms[f] = listOf(f)
-            }
-        }
-    }
 
     /**
      *  Every string in the list must be within the main effects set
@@ -75,7 +94,7 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
      *  Repeatedly calls term() with the elements in the list
      *  to specify an entire model.
      */
-    fun specify(list: List<List<String>>) : LinearModel {
+    fun specify(list: List<List<String>>): LinearModel {
         for (e in list) {
             term(e)
         }
@@ -86,7 +105,7 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
      *  Specifies a model with all terms (main effects, first order interactions,
      *  2nd order interactions, etc.
      */
-    fun specifyAllTerms() : LinearModel {
+    fun specifyAllTerms(): LinearModel {
         specify(allTerms(mainEffects))
         return this
     }
@@ -95,7 +114,7 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
      *  Assumes a parsable string and converts it to a list of terms
      *  for specifying the model from the string.
      */
-    fun parseFromString(parseString: String) : LinearModel {
+    fun parseFromString(parseString: String): LinearModel {
         specify(parse(parseString))
         return this
     }
@@ -106,7 +125,7 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
      *  term "A*B". The elements of the list must be valid single (main) effect
      *  term names.
      */
-    fun term(list: List<String>) : LinearModel {
+    fun term(list: List<String>): LinearModel {
         require(isValidTerm(list)) { "The list had invalid elements" }
         if (list.size == 1) {
             // adding a main effect
@@ -123,7 +142,7 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
      *  Shorthand for adding a two-way interaction term. The
      *  names must be different.
      */
-    fun twoWay(name1: String, name2: String) : LinearModel {
+    fun twoWay(name1: String, name2: String): LinearModel {
         require(name1 != name2) { "The two way interaction must have different names" }
         term(listOf(name1, name2))
         return this
@@ -133,7 +152,7 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
      *  Shorthand for adding a three-way interaction term. The
      *  names must be different.
      */
-    fun threeWay(name1: String, name2: String, name3: String) : LinearModel {
+    fun threeWay(name1: String, name2: String, name3: String): LinearModel {
         require((name1 != name2) && (name1 != name3) && (name2 != name3)) { "The three way interaction must have different names" }
         term(listOf(name1, name2, name3))
         return this
@@ -142,7 +161,7 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
     /**
      *  Shorthand for adding an n-way interaction term.
      */
-    fun nWay(set: Set<String>) : LinearModel {
+    fun nWay(set: Set<String>): LinearModel {
         term(set.toList())
         return this
     }
@@ -150,7 +169,7 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
     /**
      *  Shorthand for adding a quadratic term.
      */
-    fun quadratic(name: String) : LinearModel {
+    fun quadratic(name: String): LinearModel {
         term(listOf(name, name))
         return this
     }
@@ -158,7 +177,7 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
     /**
      *  Shorthand for adding a cubic term.
      */
-    fun cubic(name: String) : LinearModel {
+    fun cubic(name: String): LinearModel {
         term(listOf(name, name, name))
         return this
     }
@@ -188,8 +207,8 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
         fun parse(model: String): List<List<String>> {
             val list = model.split(" ")
             val m = mutableListOf<List<String>>()
-            for(s in list){
-                if (s.length == 1){
+            for (s in list) {
+                if (s.length == 1) {
                     m.add(listOf(s))
                 } else {
                     // split the string by '*'
@@ -207,13 +226,13 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
         fun allTerms(set: Set<String>): List<List<String>> {
             val m = mutableListOf<List<String>>()
             val ps: MutableSet<MutableSet<String>> = Sets.powerSet(set)
-            for(s in ps){
-                if(s.isNotEmpty()){
+            for (s in ps) {
+                if (s.isNotEmpty()) {
                     m.add(s.toList())
                 }
             }
             m.sortBy { it.size }
-            return  m
+            return m
         }
     }
 
@@ -221,24 +240,24 @@ class LinearModel(val mainEffects: Set<String>, includeMainEffects: Boolean = tr
 
 fun main() {
     val factors = setOf("A", "B", "C")
-    val model = LinearModel(factors, true)
+    val model = LinearModel(factors)
     model.term(listOf("A", "B"))
     model.quadratic("A")
     model.cubic("C")
     println(model.asString())
 
     val list = LinearModel.parse("A B C A*B A*C B*C A*B*C")
-    val m2 = LinearModel(factors, true)
+    val m2 = LinearModel(factors)
     m2.specify(list)
     println(m2.toString())
     println()
     val ps: MutableSet<MutableSet<String>> = Sets.powerSet(factors)
-    for(s in ps){
+    for (s in ps) {
         println(s)
     }
     println()
     val ts = allTerms(setOf("A", "B", "C", "D"))
-    for(s in ts){
+    for (s in ts) {
         println(s)
     }
     println()
