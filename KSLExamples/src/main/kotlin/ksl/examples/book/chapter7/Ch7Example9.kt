@@ -16,8 +16,8 @@ fun test1() {
     val reorderPoint = 1
     val reorderQty = 2
     val rqModel = RQInventorySystem(m, reorderPoint, reorderQty, "RQ Inventory Model")
-    rqModel.setInitialOnHand(0)
-    rqModel.timeBetweenDemandRV.initialRandomSource = ExponentialRV(1.0 / 3.6)
+    rqModel.initialOnHand = 0
+    rqModel.timeBetweenDemand.initialRandomSource = ExponentialRV(1.0 / 3.6)
     rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
 
     m.lengthOfReplication = 110000.0
@@ -26,7 +26,8 @@ fun test1() {
     m.simulate()
     m.print()
     val r = m.simulationReporter
-    r.writeHalfWidthSummaryReportAsMarkDown(KSL.out, df = MarkDown.D3FORMAT)
+    val out = m.outputDirectory.createPrintWriter("R-Q Inventory Results.md")
+    r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
 }
 
 fun test2() {
@@ -34,8 +35,8 @@ fun test2() {
     val reorderPoint = 1
     val reorderQty = 1
     val rqModel = RQInventorySystem(m, reorderPoint, reorderQty, "RQ Inventory Model")
-    rqModel.setInitialOnHand(2)
-    rqModel.timeBetweenDemandRV.initialRandomSource = ExponentialRV(1.0 / 3.6)
+    rqModel.initialOnHand = 2
+    rqModel.timeBetweenDemand.initialRandomSource = ExponentialRV(1.0 / 3.6)
     rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
 
     m.lengthOfReplication = 110000.0

@@ -15,30 +15,62 @@ class RQInventorySystem(
     name: String? = null
 ) : ModelElement(parent, name) {
 
-    private var leadTimeRV = RandomVariable(this, ConstantRV(10.0))
+    private var demandAmountRV = RandomVariable(
+        this, ConstantRV(1.0),
+        name = "${this.name}:DemandAmountRV"
+    )
+
+    val demandAmount: RandomSourceCIfc
+        get() = demandAmountRV
+
+    private var leadTimeRV = RandomVariable(
+        this, ConstantRV(10.0),
+        name = "${this.name}:LeadTimeRV"
+    )
+
     val leadTime: RandomSourceCIfc
         get() = leadTimeRV
 
-    private var timeBetweenDemand: RandomVariable = RandomVariable(parent, ExponentialRV(365.0 / 14.0))
-    val timeBetweenDemandRV: RandomSourceCIfc
-        get() = timeBetweenDemand
-
-    private val demandGenerator = EventGenerator(this, this::sendDemand, timeBetweenDemand, timeBetweenDemand)
-
-    private val inventory: RQInventory = RQInventory(
-        this, reorderPt, reorderQty, replenisher = Warehouse(), name = "Item"
+    private var timeBetweenDemandRV: RandomVariable = RandomVariable(
+        parent, ExponentialRV(365.0 / 14.0),
+        name = "${this.name}:TimeBtwDemandRV"
     )
 
-    fun setInitialOnHand(amount: Int){
-        inventory.setInitialOnHand(amount)
-    }
+    val timeBetweenDemand: RandomSourceCIfc
+        get() = timeBetweenDemandRV
 
-    fun setInitialPolicyParameters(reorderPt: Int, reorderQty: Int){
+    private val demandGenerator = EventGenerator(this, this::sendDemand,
+        timeBetweenDemandRV, timeBetweenDemandRV)
+
+    private val inventory: RQInventory = RQInventory(
+        this, reorderPt, reorderQty, replenisher = Warehouse(), name = "${this.name}:Item"
+    )
+
+    var initialOnHand: Int
+        get() = inventory.initialOnHand
+        set(amount) {
+            require(amount >= 0) { "The initial amount on hand must be >= 0" }
+            inventory.initialOnHand = amount
+        }
+
+    var initialReorderPoint: Int
+        get() = inventory.initialReorderPoint
+        set(value) {
+            inventory.initialReorderPoint = value
+        }
+
+    var initialReorderQty: Int
+        get() = inventory.initialReorderQty
+        set(value) {
+            inventory.initialReorderQty = value
+        }
+
+    fun setInitialPolicyParameters(reorderPt: Int, reorderQty: Int) {
         inventory.setInitialPolicyParameters(reorderPt, reorderQty)
     }
 
     private fun sendDemand(generator: EventGenerator) {
-        inventory.fillInventory(1)
+        inventory.fillInventory(demandAmountRV.value.toInt())
     }
 
     inner class Warehouse : InventoryFillerIfc {

@@ -19,12 +19,6 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
     val factorNames: List<String>
 
     /**
-     *  To facilitate the specification of a linear model for the design
-     */
-    val linearModel: LinearModel
-        get() = LinearModel(factors.keys)
-
-    /**
      *  The number of factor in the design
      */
     val numFactors
@@ -37,17 +31,27 @@ interface ExperimentalDesignIfc : Iterable<DesignPoint> {
      *  used in the validation check. Not enforcing the range check allows settings
      *  that may be out of range limits for the factors
      */
-    fun isValid(settings: Map<Factor, Double>, enforceRange:Boolean = true): Boolean {
+    fun isValid(settings: Map<Factor, Double>, enforceRange: Boolean = true): Boolean {
         if (settings.isEmpty()) {
             return false
         }
         for ((f, v) in settings.entries) {
-            if (!factors.containsValue(f)) { return false}
-            if (enforceRange){
+            if (!factors.containsValue(f)) {
+                return false
+            }
+            if (enforceRange) {
                 if (!f.isInRange(v)) return false
             }
         }
         return true
+    }
+
+    /**
+     *  To facilitate the specification of a linear model for the design
+     *  @param type the type of model to start with. By default, a first order (main effects) model.
+     */
+    fun linearModel(type: LinearModel.Type = LinearModel.Type.FirstOrder): LinearModel {
+        return LinearModel(factors.keys, type)
     }
 
     /**
