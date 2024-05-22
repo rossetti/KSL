@@ -8,6 +8,7 @@ import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.FitDistPlot
 import ksl.utilities.io.plotting.ObservationsPlot
 import ksl.utilities.io.plotting.ScatterPlot
+import org.hipparchus.distribution.continuous.FDistribution
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
 import org.jetbrains.kotlinx.dataframe.api.toColumn
@@ -92,6 +93,14 @@ interface RegressionResultsIfc {
      */
     val fStatistic
         get() = meanSquaredOfRegression / meanSquaredError
+
+    val fPValue: Double
+        get() {
+            val f0 = fStatistic
+            val dofNum = regressionDoF
+            val dofDenom = errorDoF
+            return 1.0 - FDistribution(dofNum,dofDenom).cumulativeProbability(f0)
+        }
 
     /**
      *  This is SSE (sum of squared residual error).
@@ -283,27 +292,37 @@ interface RegressionResultsIfc {
         val sb = StringBuilder()
         sb.appendLine("Regression Results")
         sb.appendLine("-------------------------------------------------------------------------------------")
-        sb.appendLine("Parameter Estimation Results")
-        sb.appendLine(parameterResults(level))
+        sb.appendLine(anovaResults())
         sb.appendLine("-------------------------------------------------------------------------------------")
         sb.appendLine("Error Variance (MSE) = $errorVariance")
         sb.appendLine("Regression Standard Error = $regressionStandardError")
         sb.appendLine("R-Squared = $rSquared")
         sb.appendLine("Adjusted R-Squared = $adjustedRSquared")
         sb.appendLine("-------------------------------------------------------------------------------------")
+        sb.appendLine("Parameter Estimation Results")
+        sb.appendLine(parameterResults(level))
+        sb.appendLine("-------------------------------------------------------------------------------------")
+        return sb.toString()
+    }
+
+    /**
+     *  ANOVA results for regression as a string
+     */
+    fun anovaResults() : String {
+        val sb = StringBuilder()
         sb.appendLine("Analysis of Variance")
         val formatter = Formatter(sb)
         formatter.format(
-            "%-15s %10s %10s %15s %15s %n", "Source   ", "SumSq",
-            "DOF", "MS", "f_0"
+            "%-15s %10s %10s %15s %15s %15s %n", "Source   ", "SumSq",
+            "DOF", "MS", "f_0", "P(F>f0)"
         )
         formatter.format(
-            "%-15s %10g %10.0f %15f %15f %n", "Regression", regressionSumOfSquares,
-            regressionDoF, meanSquaredOfRegression, fStatistic
+            "%-15s %10g %10.0f %15f %15f %15f %n", "Regression", regressionSumOfSquares,
+            regressionDoF, meanSquaredOfRegression, fStatistic, fPValue
         )
         formatter.format("%-15s %10g %10.0f %15f %n", "Error", residualSumOfSquares, errorDoF, meanSquaredError)
         val dof = regressionDoF + errorDoF
-        formatter.format("%-15s %10g %10.0f %n", "Total", totalSumOfSquares, dof)
+        formatter.format("%-15s %10g %10.0f ", "Total", totalSumOfSquares, dof)
         return sb.toString()
     }
 
@@ -354,10 +373,7 @@ interface RegressionResultsIfc {
         return plot
     }
 
-    /**
-     *  Shows the diagnostic plots within a browser window.
-     */
-    fun showDiagnosticPlotsInBrowser(){
+    fun htmlDiagnosticPlots(): String {
         val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("Diagnostic Plots")
@@ -372,7 +388,14 @@ interface RegressionResultsIfc {
             appendLine(residualsVsObservationOrderPlot().toHTML())
             appendLine("</div>")
         }
-        KSLFileUtil.openInBrowser(fileName = "Regression_Diagnostics", sb.toString())
+        return sb.toString()
+    }
+
+    /**
+     *  Shows the diagnostic plots within a browser window.
+     */
+    fun showDiagnosticPlotsInBrowser() {
+        KSLFileUtil.openInBrowser(fileName = "Regression_Diagnostics", htmlDiagnosticPlots())
     }
 
     /**
