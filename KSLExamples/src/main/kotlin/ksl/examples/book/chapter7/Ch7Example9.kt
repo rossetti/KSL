@@ -34,7 +34,7 @@ fun test2() {
     val m = Model()
     val reorderPoint = 1
     val reorderQty = 1
-    val rqModel = RQInventorySystem(m, reorderPoint, reorderQty, "RQ Inventory Model")
+    val rqModel = RQInventorySystem(m, reorderPoint, reorderQty, "RQInventoryModel")
     rqModel.initialOnHand = 2
     rqModel.timeBetweenDemand.initialRandomSource = ExponentialRV(1.0 / 3.6)
     rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
