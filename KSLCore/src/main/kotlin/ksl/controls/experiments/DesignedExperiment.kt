@@ -235,7 +235,8 @@ class DesignedExperiment(
     }
 
     /**
-     *  Returns a data frame that has columns (exp_name, rep_id, factor1, factor2, ..., factorN, [responseName]) where
+     *  Returns a data frame that has columns
+     *  (point, exp_name, rep_id, [responseName], factor1, factor2, ..., factorN) where
      *  the values in the [responseName] column have the value of the response for the named experiments
      *  and the replication id (number) for the value.  The dataframe provides the data
      *  for performing a response surfacing model for the named response.
@@ -245,11 +246,10 @@ class DesignedExperiment(
         return replicatedDesignPointsWithResponses(setOf(responseName), coded)
     }
 
-
     /**
      *  Returns a data frame that has columns:
      *
-     *  (exp_name, rep_id, factor1, factor2, ..., factorN, responseName1, responseName2, ...)
+     *  (point, exp_name, rep_id, responseName1, responseName2, ..., factor1, factor2, ..., factorN)
      *
      *  where the values in the response name columns have the value of the response for the named experiments
      *  and the replication id (number) for the value.  The dataframe provides the data
@@ -272,7 +272,7 @@ class DesignedExperiment(
         for (name in names) {
             if (vn.contains(name)) {
                 val df2 = responseAsDataFrame(name)
-                df = df.join(df2, type = JoinType.Inner) { exp_name and rep_id and point }
+                df = df2.join(df, type = JoinType.Inner) { exp_name and rep_id and point }
             }
         }
         return df

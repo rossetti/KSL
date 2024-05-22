@@ -28,6 +28,24 @@ class RQInventorySystem(
         name = "${this.name}:LeadTimeRV"
     )
 
+    var unitHoldingCost: Double
+        get() = inventory.unitHoldingCost
+        set(value) {
+            inventory.unitHoldingCost = value
+        }
+
+    var unitBackorderCost: Double
+        get() = inventory.unitBackOrderCost
+        set(value) {
+            inventory.unitBackOrderCost = value
+        }
+
+    var costPerOrder: Double
+        get() = inventory.costPerOrder
+        set(value) {
+            inventory.costPerOrder = value
+        }
+
     val leadTime: RandomSourceCIfc
         get() = leadTimeRV
 
