@@ -72,4 +72,9 @@ fun rQExperiment(m: Model) {
     println(lm.asString())
     val lmDF = resultsDf.addColumnsFor(lm)
     lmDF.print(rowsLimit = 80)
+
+    val regressionResults = de.regressionResults("RQInventoryModel:Item:TotalCost", lm)
+    println()
+    println(regressionResults)
+
 }
