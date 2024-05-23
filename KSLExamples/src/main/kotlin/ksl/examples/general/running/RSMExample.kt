@@ -55,7 +55,10 @@ fun rQModel(): Model {
 
 fun rQExperiment(m: Model) {
     val r = TwoLevelFactor("ReorderLevel", low = 1.0, high = 5.0)
-    val q = TwoLevelFactor("ReorderQty", low = 1.0, high = 6.0)
+    println(r)
+    val q = TwoLevelFactor("ReorderQty", low = 1.0, high = 7.0)
+    println(q)
+    println()
     val design = TwoLevelFactorialDesign(setOf(r, q))
     println("Design points being simulated")
     val df = design.designPointsAsDataframe()
