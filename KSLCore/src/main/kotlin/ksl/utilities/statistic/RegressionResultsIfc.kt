@@ -16,6 +16,7 @@ import org.jetbrains.kotlinx.dataframe.io.DisplayConfiguration
 import org.jetbrains.kotlinx.dataframe.io.toHTML
 import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 import java.util.*
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
@@ -235,7 +236,7 @@ interface RegressionResultsIfc {
         get() {
             val t0 = parameterTStatistics
             val dof = errorDoF
-            return DoubleArray(t0.size) { 2.0 * (1.0 - StudentT.cdf(dof, t0[it])) }
+            return DoubleArray(t0.size) { 2.0 * (1.0 - StudentT.cdf(dof, abs(t0[it]))) }
         }
 
     /**
@@ -276,8 +277,8 @@ interface RegressionResultsIfc {
         val pNames = pn.toColumn("Predictor")
         val param = parameters.toList().toColumn("parameter")
         val paramSE = parametersStdError.toList().toColumn("parameterSE")
-        val paramTValues = parameterTStatistics.toList().toColumn("TValue")
-        val pValues = parameterPValues.toList().toColumn("P-Values")
+        val paramTValues = parameterTStatistics.toList().toColumn("t0-ratio")
+        val pValues = parameterPValues.toList().toColumn("2*P(T>|t0|)")
         val intervals = parameterConfidenceIntervals(level)
         val lowerLimits = List(intervals.size) { intervals[it].lowerLimit }
         val upperLimits = List(intervals.size) { intervals[it].upperLimit }
@@ -309,7 +310,7 @@ interface RegressionResultsIfc {
     }
 
     /**
-     *  The regression results in the form of an html string
+     *  The regression results in the form of a html string
      */
     fun htmlResults(level: Double = 0.95) : String {
         val sb = StringBuilder().apply {
