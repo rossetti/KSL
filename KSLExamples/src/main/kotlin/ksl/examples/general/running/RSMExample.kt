@@ -13,11 +13,9 @@ import org.jetbrains.kotlinx.dataframe.api.print
 
 fun main() {
     val m = rQModel()
-
+//    runRQModel(m)
 //    printControlsAndRVs(m)
     rQExperiment(m)
-//    m.simulate()
-//    m.print()
 }
 
 fun printControlsAndRVs(m: Model) {
@@ -32,27 +30,32 @@ fun printControlsAndRVs(m: Model) {
     println()
 }
 
+fun runRQModel(m: Model){
+    m.simulate()
+    m.print()
+}
+
 fun rQModel(): Model {
     val m = Model()
     val rqModel = RQInventorySystem(m, name = "RQInventoryModel")
     rqModel.costPerOrder = 0.15 //$ per order
     rqModel.unitHoldingCost = 0.25 //$ per unit per month
     rqModel.unitBackorderCost = 1.75 //$ per unit per month
-    rqModel.initialReorderPoint = 1
-    rqModel.initialReorderQty = 2
+    rqModel.initialReorderPoint = 2
+    rqModel.initialReorderQty = 3
     rqModel.initialOnHand = rqModel.initialReorderPoint + rqModel.initialReorderQty
     rqModel.timeBetweenDemand.initialRandomSource = ExponentialRV(1.0 / 3.6)
     rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
 
     m.lengthOfReplication = 72.0
     m.lengthOfReplicationWarmUp = 12.0
-    m.numberOfReplications = 20
+    m.numberOfReplications = 30
     return m
 }
 
 fun rQExperiment(m: Model) {
     val r = TwoLevelFactor("ReorderLevel", low = 1.0, high = 5.0)
-    val q = TwoLevelFactor("ReorderQty", low = 2.0, high = 6.0)
+    val q = TwoLevelFactor("ReorderQty", low = 1.0, high = 6.0)
     val design = TwoLevelFactorialDesign(setOf(r, q))
     println("Design points being simulated")
     val df = design.designPointsAsDataframe()
