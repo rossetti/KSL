@@ -12,6 +12,9 @@ import org.hipparchus.distribution.continuous.FDistribution
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
 import org.jetbrains.kotlinx.dataframe.api.toColumn
+import org.jetbrains.kotlinx.dataframe.io.DisplayConfiguration
+import org.jetbrains.kotlinx.dataframe.io.toHTML
+import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 import java.util.*
 import kotlin.math.sqrt
 
@@ -303,6 +306,49 @@ interface RegressionResultsIfc {
         sb.appendLine(parameterResults(level))
         sb.appendLine("-------------------------------------------------------------------------------------")
         return sb.toString()
+    }
+
+    /**
+     *  The regression results in the form of an html string
+     */
+    fun htmlResults(level: Double = 0.95) : String {
+        val sb = StringBuilder().apply {
+            appendLine("<h1>")
+            appendLine("Regression Results")
+            appendLine("</h1>")
+            appendLine("<div>")
+            appendLine("<pre>")
+            appendLine(anovaResults())
+            appendLine("</pre>")
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine("<pre>")
+            appendLine("Error Variance (MSE) = $errorVariance")
+            appendLine("Regression Standard Error = $regressionStandardError")
+            appendLine("R-Squared = $rSquared")
+            appendLine("Adjusted R-Squared = $adjustedRSquared")
+            appendLine("</pre>")
+            appendLine("</div>")
+            val pr = parameterResults(level)
+            pr.rowsCount()
+            val config = DisplayConfiguration.DEFAULT
+            config.rowsLimit = pr.rowsCount() + 1
+            config.cellContentLimit = 72
+            appendLine("<div>")
+            appendLine(pr.toStandaloneHTML(configuration = config))
+            appendLine("</div>")
+            appendLine("<div>")
+            appendLine(htmlDiagnosticPlots())
+            appendLine("</div>")
+        }
+        return sb.toString()
+    }
+
+    /**
+     *  Shows the diagnostic plots within a browser window.
+     */
+    fun showResultsInBrowser(level: Double = 0.95) {
+        KSLFileUtil.openInBrowser(fileName = "Regression_Results", htmlResults(level))
     }
 
     /**
