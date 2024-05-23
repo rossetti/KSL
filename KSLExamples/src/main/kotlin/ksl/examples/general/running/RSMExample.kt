@@ -76,5 +76,6 @@ fun rQExperiment(m: Model) {
     val regressionResults = de.regressionResults("RQInventoryModel:Item:TotalCost", lm)
     println()
     println(regressionResults)
+    regressionResults.showResultsInBrowser()
 
 }
