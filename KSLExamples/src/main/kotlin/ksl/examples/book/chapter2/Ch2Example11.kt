@@ -23,6 +23,7 @@ import ksl.utilities.random.rvariable.KSLRandom.rPoisson
 import ksl.utilities.random.rvariable.KSLRandom.rUniform
 
 /**
+ * Example 2.17
  * This example illustrates that the user can use the static methods
  * of KSLRandom to generate from any of the defined random variables
  * as simple function calls.
@@ -31,5 +32,5 @@ fun main() {
     val v = rUniform(10.0, 15.0) // generate a U(10, 15) value
     val x = rNormal(5.0, 2.0) // generate a Normal(mu=5.0, var= 2.0) value
     val n = rPoisson(4.0).toDouble() //generate from a Poisson(mu=4.0) value
-    System.out.printf("v = %f, x = %f, n = %f %n", v, x, n)
+    print(String.format("v = %f, x = %f, n = %f %n", v, x, n))
 }

@@ -18,24 +18,23 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.randomlySelect
+import ksl.utilities.Interval
+import ksl.utilities.distributions.Exponential
+import ksl.utilities.random.rvariable.DEmpiricalRV
+import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.MixtureRV
+import ksl.utilities.random.rvariable.TruncatedRV
 
 /**
- * Example 2.18
- * This example illustrates how to use the randomlySelect() method
- * of the KSLRandom class to randomly select from a list. The extension
- * function for lists can also be used.
+ * Example 2.14
+ *
+ * This example illustrates how to create and use a truncated random variable.
  */
 fun main() {
-    // create a list
-    val strings = listOf("A", "B", "C", "D")
-    // randomly pick from the list, with equal probability
+    val cdf = Exponential(mean = 10.0)
+    val rv = TruncatedRV(cdf, Interval(0.0, Double.POSITIVE_INFINITY), Interval(3.0, 6.0))
+    print(String.format("%3s %15s %n", "n", "Values"))
     for (i in 1..5) {
-        println(KSLRandom.randomlySelect(strings))
-    }
-    println()
-    for (i in 1..5) {
-        println(strings.randomlySelect())
+        print(String.format("%3d %15f %n", i, rv.value))
     }
 }

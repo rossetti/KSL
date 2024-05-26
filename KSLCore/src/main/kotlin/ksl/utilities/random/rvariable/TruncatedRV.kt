@@ -19,6 +19,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.Interval
+import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.InvertibleCDFIfc
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
@@ -51,13 +52,22 @@ class TruncatedRV(
     constructor(
         distribution: InvertibleCDFIfc,
         distDomain: Interval,
-        truncInterval: Interval,
+        truncInterval: Interval
     ) : this(
         distribution,
         distDomain.lowerLimit,
         distDomain.upperLimit,
         truncInterval.lowerLimit,
         truncInterval.upperLimit,
+    )
+
+    constructor(
+        distribution: ContinuousDistributionIfc,
+        truncInterval: Interval,
+    ) : this(
+        distribution,
+        distribution.domain(),
+        truncInterval
     )
 
     private val myDistribution: InvertibleCDFIfc = distribution

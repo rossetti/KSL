@@ -26,10 +26,10 @@ import kotlin.math.pow
 
 /** Models exponentially distributed random variables
  * This distribution is commonly use to model the time between events
- * @param theMean The mean of the distribution, must be &gt; 0.0
+ * @param mean The mean of the distribution, must be &gt; 0.0
  * @param name an optional label/name
  */
-class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution(name),
+class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name),
     LossFunctionDistributionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Exponential {
 
     /** Constructs an exponential distribution where parameter[0] is the
@@ -39,13 +39,13 @@ class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution(na
     constructor(parameters: DoubleArray) : this(parameters[0], null)
 
     init {
-        require(theMean > 0.0) { "Exponential mean must be > 0.0" }
+        require(mean > 0.0) { "Exponential mean must be > 0.0" }
     }
 
     /**
      * mean of the distribution, must be &gt; 0.0
      */
-    var mean = theMean
+    var mean = mean
         set(value) {
             require(value > 0.0) { "Exponential mean must be > 0.0" }
             field = value
@@ -63,9 +63,9 @@ class Exponential(theMean: Double = 1.0, name: String? = null) : Distribution(na
         return mean
     }
 
-    val moment3: Double = mean.pow(3.0) * exp(Gamma.logGammaFunction(4.0))
+    val moment3: Double = this.mean.pow(3.0) * exp(Gamma.logGammaFunction(4.0))
 
-    val moment4: Double = mean.pow(4.0) * exp(Gamma.logGammaFunction(5.0))
+    val moment4: Double = this.mean.pow(4.0) * exp(Gamma.logGammaFunction(5.0))
 
     override fun cdf(x: Double): Double {
         if ((x == Double.POSITIVE_INFINITY) || (x == Double.MAX_VALUE)) {

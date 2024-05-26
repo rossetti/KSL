@@ -23,6 +23,7 @@ import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.permute
 
 /**
+ * Example 2.19
  * This example illustrates how to define a population of
  * values (DPopulation) and use it to perform sampling operations
  * such as random samples and permutations.  Similar functionality
