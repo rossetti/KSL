@@ -18,27 +18,22 @@
 
 package ksl.examples.book.chapter2
 
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.estimators.NormalMLEParameterEstimator
+import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.BootstrapSampler
 
 /**
- *  Example 2.23
- *  Illustrates how to estimate parameters for distribution fitting.
+ *  Example 2.24
+ *  Illustrates how to use the PDFModeler class to fit a distribution to some data.
  */
 fun main(){
-    // define a normal random variable,
-    val x = NormalRV(2.0, 5.0)
-    // generate some data
-    val data = x.sample(100)
-    // create the estimator
-    val ne = NormalMLEParameterEstimator
-    // estimate the parameters
-    val result = ne.estimateParameters(data)
-    println(result)
-    val bss = BootstrapSampler(data, ne)
-    val list = bss.bootStrapEstimates(400)
-    for (element in list) {
-        println(element.toString())
+    // select file: PharmacyInputModelingExampleData.txt
+    val myFile = KSLFileUtil.chooseFile()
+    if (myFile != null){
+        val data = KSLFileUtil.scanToArray(myFile.toPath())
+        val d = PDFModeler(data)
+        d.showAllResultsInBrowser()
     }
 }
