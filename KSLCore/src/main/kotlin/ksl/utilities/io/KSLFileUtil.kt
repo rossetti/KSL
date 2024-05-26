@@ -813,6 +813,13 @@ object KSLFileUtil {
     }
 }
 
+/**
+ *  Wraps String.format() to print a formatted string.
+ *  The [fmt] string must be valid for String.format()
+ */
+fun printf(fmt:String, vararg args: Any?){
+    print(String.format(fmt, args))
+}
 
 fun List<DoubleArray>.write(out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
     KSLFileUtil.write(this, out, df)

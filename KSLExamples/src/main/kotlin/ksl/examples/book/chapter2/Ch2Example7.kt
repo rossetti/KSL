@@ -22,19 +22,19 @@ import ksl.utilities.random.rvariable.NormalRV
 
 
 /**
+ * Example 2.9
  * This example illustrates how to use the classes within the rvariable package.
  * Specifically, a Normal(mean=20, variance=4.0) random variable is
  * created and values are obtained via the value property
  */
-
 fun main() {
     // create a normal mean = 20.0, variance = 4.0 random variable
     val n = NormalRV(20.0, 4.0)
-    System.out.printf("%3s %15s %n", "n", "Values")
+    print(String.format("%3s %15s %n", "n", "Values"))
     // generate some values
     for (i in 1..5) {
-        // getValue() method returns generated values
+        // the value property returns a generated value
         val x = n.value
-        System.out.printf("%3d %15f %n", i, x)
+        print(String.format("%3d %15f %n", i, x))
     }
 }
