@@ -302,8 +302,12 @@ class PDFModeler(
         // produce html results
         // basic statistics and box plot summary data
         val statDf = histogram.toStatDataFrame()
+        val statConfig = DisplayConfiguration.DEFAULT
+        statConfig.rowsLimit = statDf.rowsCount()
         // box plot summary
         val boxPlotDf = BoxPlotSummary(data).toDataFrame()
+        val boxConfig = DisplayConfiguration.DEFAULT
+        boxConfig.rowsLimit = boxPlotDf.rowsCount()
         // histogram statistics
         var histDf = histogram.toDataFrame()
         histDf = histDf.remove("id")
@@ -319,13 +323,13 @@ class PDFModeler(
             appendLine("Statistical Summary")
             appendLine("</h1>")
             appendLine("<div>")
-            appendLine(statDf.toStandaloneHTML())
+            appendLine(statDf.toStandaloneHTML(configuration = statConfig))
             appendLine("</div>")
             appendLine("<h1>")
             appendLine("Box Plot Summary")
             appendLine("</h1>")
             appendLine("<div>")
-            appendLine(boxPlotDf.toStandaloneHTML())
+            appendLine(boxPlotDf.toStandaloneHTML(configuration = boxConfig))
             appendLine("</div>")
             appendLine("<h1>")
             appendLine("Histogram Summary")
@@ -390,14 +394,14 @@ class PDFModeler(
             appendLine("Visualization Results")
             appendLine("</h1>")
             appendLine("<h2>")
-            appendLine("Histograms")
+            appendLine("Histogram")
             appendLine("</h2>")
             appendLine("<div>")
             appendLine(hPlot.toHTML())
             appendLine("</div>")
-            appendLine("<div>")
-            appendLine(hdPlot.toHTML())
-            appendLine("</div>")
+//            appendLine("<div>")
+//            appendLine(hdPlot.toHTML())
+//            appendLine("</div>")
             appendLine("<h2>")
             appendLine("Box Plot")
             appendLine("</h2>")
@@ -474,6 +478,7 @@ class PDFModeler(
         val values = pdfModelingResults.metricsAsDataFrame()
         val configuration: DisplayConfiguration = DisplayConfiguration.DEFAULT
         configuration.cellContentLimit = 120
+        configuration.rowsLimit = scores.rowsCount()
         val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("PDF Modeling Results")

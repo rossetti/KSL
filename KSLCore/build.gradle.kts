@@ -60,13 +60,13 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.6.3")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
-    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.0")
+    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.2")
 
 // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-common
 //    implementation("org.jetbrains.lets-plot:lets-plot-common:4.0.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-image-export
-    api("org.jetbrains.lets-plot:lets-plot-image-export:4.3.0")
+    api("org.jetbrains.lets-plot:lets-plot-image-export:4.3.2")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
 //    api("org.jetbrains.kotlinx:dataframe-core:0.12.0")
