@@ -18,24 +18,27 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.randomlySelect
+import ksl.utilities.random.rvariable.DEmpiricalRV
 
 /**
- * Example 2.18
- * This example illustrates how to use the randomlySelect() method
- * of the KSLRandom class to randomly select from a list. The extension
- * function for lists can also be used.
+ * Example 2.12
+ *
+ * This example illustrates how to use the classes within the rvariable package.
+ * Specifically, a discrete empirical random variable is
+ * created and values are obtained via the value property. A discrete
+ * empirical random variable requires a set of values and a CDF over the
+ * values.
  */
 fun main() {
-    // create a list
-    val strings = listOf("A", "B", "C", "D")
-    // randomly pick from the list, with equal probability
+    // values is the set of possible values
+    val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+    // cdf is the cumulative distribution function over the values
+    val cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
+    //create a discrete empirical random variable
+    val n1 = DEmpiricalRV(values, cdf)
+    println(n1)
+    print(String.format("%3s %15s %n", "n", "Values"))
     for (i in 1..5) {
-        println(KSLRandom.randomlySelect(strings))
-    }
-    println()
-    for (i in 1..5) {
-        println(strings.randomlySelect())
+        print(String.format("%3d %15f %n", i, n1.value))
     }
 }

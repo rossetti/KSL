@@ -1,5 +1,5 @@
 /*
- *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,24 +18,44 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.GammaRV
-import ksl.utilities.random.rvariable.NormalRV
-import ksl.utilities.random.rvariable.exp
-import ksl.utilities.statistics
+import ksl.utilities.Interval
+import ksl.utilities.distributions.PDFIfc
+import ksl.utilities.distributions.Uniform
+import ksl.utilities.io.plotting.DensityPlot
+import ksl.utilities.random.rvariable.*
+import ksl.utilities.statistic.Histogram
 
-fun main(){
-    // define a lognormal random variable, y
-    val x = NormalRV(2.0, 5.0)
-    val y = exp(x)
-    // generate from y
-    val ySample = y.sample(1000)
-    println(ySample.statistics())
-    // define a beta random variable in terms of gamma
-    val alpha1 = 2.0
-    val alpha2 = 5.0
-    val y1 = GammaRV(alpha1, 1.0)
-    val y2 = GammaRV(alpha2, 1.0)
-    val betaRV = y1/(y1+y2)
-    val betaSample = betaRV.sample(500)
-    println(betaSample.statistics())
+/**
+ * Example 2.16
+ *
+ * This example illustrates how to generate random variates using the
+ * acceptance/rejection algorithm.
+ */
+fun main() {
+    // proposal distribution
+    val wx = Uniform(-1.0, 1.0)
+    // majorizing constant, if g(x) is majorizing function, then g(x) = w(x)*c
+    val c = 3.0 / 2.0
+    val rv = AcceptanceRejectionRV(wx, c, fOfx)
+    val h = Histogram.create(-1.0, 1.0, 100)
+    for (i in 1..1000) {
+        h.collect(rv.value)
+    }
+    val hp = h.histogramPlot()
+    hp.showInBrowser()
+    val dp = DensityPlot(h) { x -> fOfx.pdf(x) }
+    dp.showInBrowser()
+}
+
+object fOfx : PDFIfc {
+    override fun pdf(x: Double): Double {
+        if ((x < -1.0) || (x > 1))
+            return 0.0
+        return (0.75 * (1.0 - x * x))
+    }
+
+    override fun domain(): Interval {
+        return Interval(-1.0, 1.0)
+    }
+
 }

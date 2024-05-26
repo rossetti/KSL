@@ -1,38 +1,29 @@
-/*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
- *
- *     This program is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.TriangularRV
+import kotlin.math.floor
+import kotlin.math.ln
 
 /**
- * Example 2.10
- * This example illustrates how to use the classes within the rvariable package.
- * Specifically, a Triangular( min = 2.0, mode = 5.0, max = 10.0) random variable is
- * created and values are obtained via the sample() method.
+ * Example 2.8
+ *
+Use the following pseudo-random numbers u_{1} = 0.35, u_{2} = 0.64,
+u_{3} = 0.14, generate a random variate from a shifted negative binomial distribution
+having parameters r=3 and p= 0.3.
  */
 fun main() {
-    // create a triangular random variable with min = 2.0, mode = 5.0, max = 10.0
-    val t = TriangularRV(2.0, 5.0, 10.0)
-    // sample 5 values
-    val sample = t.sample(5)
-    print(String.format("%3s %15s %n", "n", "Values"))
-    for (i in sample.indices) {
-        print(String.format("%3d %15f %n", i + 1, sample[i]))
-    }
+    val u1 = 0.35
+    val u2 = 0.64
+    val u3 = 0.14
+    val p = 0.3
+    val x1 = rGeom(p, u1)
+    val x2 = rGeom(p, u2)
+    val x3 = rGeom(p, u3)
+    val x = x1 + x2 + x3
+    println("Generated X = $x")
+}
+
+fun rGeom(p: Double, u: Double): Double {
+    val n = ln(1.0 - u)
+    val d = ln(1.0 - p)
+    return 1.0 + floor(n / d)
 }

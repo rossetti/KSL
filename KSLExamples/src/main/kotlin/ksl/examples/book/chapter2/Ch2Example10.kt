@@ -18,27 +18,21 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.DEmpiricalRV
+import ksl.utilities.random.rvariable.TriangularRV
 
 /**
- * Example 2.12
- *
+ * Example 2.10
  * This example illustrates how to use the classes within the rvariable package.
- * Specifically, a discrete empirical random variable is
- * created and values are obtained via the value property. A discrete
- * empirical random variable requires a set of values and a CDF over the
- * values.
+ * Specifically, a Triangular( min = 2.0, mode = 5.0, max = 10.0) random variable is
+ * created and values are obtained via the sample() method.
  */
 fun main() {
-    // values is the set of possible values
-    val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-    // cdf is the cumulative distribution function over the values
-    val cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
-    //create a discrete empirical random variable
-    val n1 = DEmpiricalRV(values, cdf)
-    println(n1)
+    // create a triangular random variable with min = 2.0, mode = 5.0, max = 10.0
+    val t = TriangularRV(2.0, 5.0, 10.0)
+    // sample 5 values
+    val sample = t.sample(5)
     print(String.format("%3s %15s %n", "n", "Values"))
-    for (i in 1..5) {
-        print(String.format("%3d %15f %n", i, n1.value))
+    for (i in sample.indices) {
+        print(String.format("%3d %15f %n", i + 1, sample[i]))
     }
 }

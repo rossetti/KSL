@@ -1,5 +1,5 @@
 /*
- *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,27 +18,19 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.distributions.fitting.PDFModeler
-import ksl.utilities.distributions.fitting.estimators.NormalMLEParameterEstimator
-import ksl.utilities.random.rvariable.GammaRV
-import ksl.utilities.random.rvariable.NormalRV
-import ksl.utilities.random.rvariable.exp
-import ksl.utilities.statistic.BootstrapSampler
-import ksl.utilities.statistics
+import ksl.utilities.random.rvariable.KSLRandom.rNormal
+import ksl.utilities.random.rvariable.KSLRandom.rPoisson
+import ksl.utilities.random.rvariable.KSLRandom.rUniform
 
-fun main(){
-    // define a normal random variable,
-    val x = NormalRV(2.0, 5.0)
-    // generate some data
-    val data = x.sample(100)
-    // create the estimator
-    val ne = NormalMLEParameterEstimator
-    // estimate the parameters
-    val result = ne.estimateParameters(data)
-    println(result)
-    val bss = BootstrapSampler(data, ne)
-    val list = bss.bootStrapEstimates(400)
-    for (element in list) {
-        println(element.toString())
-    }
+/**
+ * Example 2.17
+ * This example illustrates that the user can use the static methods
+ * of KSLRandom to generate from any of the defined random variables
+ * as simple function calls.
+ */
+fun main() {
+    val v = rUniform(10.0, 15.0) // generate a U(10, 15) value
+    val x = rNormal(5.0, 2.0) // generate a Normal(mu=5.0, var= 2.0) value
+    val n = rPoisson(4.0).toDouble() //generate from a Poisson(mu=4.0) value
+    print(String.format("v = %f, x = %f, n = %f %n", v, x, n))
 }
