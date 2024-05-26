@@ -18,26 +18,22 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.NormalRV
 
+
 /**
- * Example 2.11
+ * Example 2.9
  * This example illustrates how to use the classes within the rvariable package.
  * Specifically, a Normal(mean=20, variance=4.0) random variable is
- * created and values are obtained via the getValue() method.
- *
- *
- * In this case, stream 3 is used to generate from the random variable.
+ * created and values are obtained via the value property
  */
 fun main() {
-    // get stream 3
-    val stream = KSLRandom.rnStream(3)
-    // create a normal mean = 20.0, variance = 4.0, with the stream
-    val n = NormalRV(20.0, 4.0, stream)
+    // create a normal mean = 20.0, variance = 4.0 random variable
+    val n = NormalRV(20.0, 4.0)
     print(String.format("%3s %15s %n", "n", "Values"))
+    // generate some values
     for (i in 1..5) {
-        // value property returns generated values
+        // the value property returns a generated value
         val x = n.value
         print(String.format("%3d %15f %n", i, x))
     }

@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,27 +18,29 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.GammaRV
 import ksl.utilities.random.rvariable.NormalRV
+import ksl.utilities.random.rvariable.exp
+import ksl.utilities.statistics
 
 /**
- * Example 2.11
- * This example illustrates how to use the classes within the rvariable package.
- * Specifically, a Normal(mean=20, variance=4.0) random variable is
- * created and values are obtained via the getValue() method.
- *
- *
- * In this case, stream 3 is used to generate from the random variable.
+ *  Example 2.21
+ *  Illustrates how to create functions of random variables and use them
+ *  to generate random variates.
  */
-fun main() {
-    // get stream 3
-    val stream = KSLRandom.rnStream(3)
-    // create a normal mean = 20.0, variance = 4.0, with the stream
-    val n = NormalRV(20.0, 4.0, stream)
-    print(String.format("%3s %15s %n", "n", "Values"))
-    for (i in 1..5) {
-        // value property returns generated values
-        val x = n.value
-        print(String.format("%3d %15f %n", i, x))
-    }
+fun main(){
+    // define a lognormal random variable, y
+    val x = NormalRV(2.0, 5.0)
+    val y = exp(x)
+    // generate from y
+    val ySample = y.sample(1000)
+    println(ySample.statistics())
+    // define a beta random variable in terms of gamma
+    val alpha1 = 2.0
+    val alpha2 = 5.0
+    val y1 = GammaRV(alpha1, 1.0)
+    val y2 = GammaRV(alpha2, 1.0)
+    val betaRV = y1/(y1+y2)
+    val betaSample = betaRV.sample(500)
+    println(betaSample.statistics())
 }

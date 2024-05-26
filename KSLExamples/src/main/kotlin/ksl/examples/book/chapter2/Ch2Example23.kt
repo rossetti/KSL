@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,20 +18,27 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.Interval
-import ksl.utilities.distributions.Exponential
-import ksl.utilities.random.rvariable.*
+import ksl.utilities.distributions.fitting.estimators.NormalMLEParameterEstimator
+import ksl.utilities.random.rvariable.NormalRV
+import ksl.utilities.statistic.BootstrapSampler
 
 /**
- * Example 2.15
- *
- * This example illustrates how to create and use a shifted random variable.
+ *  Example 2.22
+ *  Illustrates how to estimate parameters for distribution fitting.
  */
-fun main() {
-    val w = WeibullRV(shape = 3.0, scale = 5.0)
-    val rv = ShiftedRV(5.0, w)
-    print(String.format("%3s %15s %n", "n", "Values"))
-    for (i in 1..5) {
-        print(String.format("%3d %15f %n", i, rv.value))
+fun main(){
+    // define a normal random variable,
+    val x = NormalRV(2.0, 5.0)
+    // generate some data
+    val data = x.sample(100)
+    // create the estimator
+    val ne = NormalMLEParameterEstimator
+    // estimate the parameters
+    val result = ne.estimateParameters(data)
+    println(result)
+    val bss = BootstrapSampler(data, ne)
+    val list = bss.bootStrapEstimates(400)
+    for (element in list) {
+        println(element.toString())
     }
 }

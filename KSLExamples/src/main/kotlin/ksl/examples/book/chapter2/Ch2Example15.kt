@@ -1,5 +1,5 @@
 /*
- *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,18 +18,18 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.io.writeToFile
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.RVariableIfc
-import ksl.utilities.statistic.Statistic
+import ksl.utilities.random.rvariable.*
 
-fun main(){
-    var erlang: RVariableIfc = ExponentialRV(10.0)
-    for(i in 1..4) {
-        erlang = erlang + ExponentialRV(10.0)
+/**
+ * Example 2.15
+ *
+ * This example illustrates how to create and use a shifted random variable.
+ */
+fun main() {
+    val w = WeibullRV(shape = 3.0, scale = 5.0)
+    val rv = ShiftedRV(5.0, w)
+    print(String.format("%3s %15s %n", "n", "Values"))
+    for (i in 1..5) {
+        print(String.format("%3d %15f %n", i, rv.value))
     }
-    val sample = erlang.sample(1000)
-    val stats = Statistic(sample)
-    print(stats)
-    sample.writeToFile("erlang.txt")
 }

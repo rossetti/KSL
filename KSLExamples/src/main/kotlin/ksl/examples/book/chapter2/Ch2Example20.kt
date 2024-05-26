@@ -1,5 +1,5 @@
 /*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,24 +18,23 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.DEmpiricalRV
+import ksl.utilities.io.writeToFile
 import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.MixtureRV
+import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.statistic.Statistic
 
 /**
- * Example 2.13
- *
- * This example illustrates how to create and use a mixture random variable.
+ *  Example 2.20
+ *  Illustrate the use of functions of random variables to generate
+ *  Erlang random variable via convolution.
  */
-fun main() {
-    // rvs is the list of random variables for the mixture
-    val rvs = listOf(ExponentialRV(1.5), ExponentialRV(1.1))
-    // cdf is the cumulative distribution function over the random variables
-    val cdf = doubleArrayOf(0.7, 1.0)
-    //create a mixture random variable
-    val he = MixtureRV(rvs, cdf)
-    print(String.format("%3s %15s %n", "n", "Values"))
-    for (i in 1..5) {
-        print(String.format("%3d %15f %n", i, he.value))
+fun main(){
+    var erlang: RVariableIfc = ExponentialRV(10.0)
+    for(i in 1..4) {
+        erlang = erlang + ExponentialRV(10.0)
     }
+    val sample = erlang.sample(1000)
+    val stats = Statistic(sample)
+    print(stats)
+    sample.writeToFile("erlang.txt")
 }

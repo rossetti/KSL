@@ -1,40 +1,21 @@
-/*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
- *
- *     This program is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rvariable.NormalRV
-
+import kotlin.math.ln
 
 /**
- * Example 2.9
- * This example illustrates how to use the classes within the rvariable package.
- * Specifically, a Normal(mean=20, variance=4.0) random variable is
- * created and values are obtained via the value property
+ * Example 2.7
+ *
+ * Consider a random variable, X, that represents the time until failure for a machine tool.
+ * Suppose X is exponentially distributed with an expected value of 1.33.
+ * Generate a random variate for the time until the first failure using a uniformly distributed value of u = 0.7.
  */
 fun main() {
-    // create a normal mean = 20.0, variance = 4.0 random variable
-    val n = NormalRV(20.0, 4.0)
-    print(String.format("%3s %15s %n", "n", "Values"))
-    // generate some values
-    for (i in 1..5) {
-        // the value property returns a generated value
-        val x = n.value
-        print(String.format("%3d %15f %n", i, x))
-    }
+    val u = 0.7
+    val mean = 1.333333
+    val x = rExpo(mean, u)
+    println("Generated X = $x")
+}
+
+fun rExpo(mean: Double, u: Double) : Double {
+    return -mean*ln(1.0 - u)
 }
