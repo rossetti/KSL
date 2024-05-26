@@ -22,7 +22,9 @@ import ksl.utilities.random.rvariable.KSLRandom
 
 
 /**
- * This example illustrates how to use JSLRandom to get and use streams.
+ * Example 2.2
+ *
+ * This example illustrates how to use KSLRandom to get and use streams.
  * The example illustrates how to advance a stream to it's next sub-stream,
  * how to reset the stream back to its beginning.
  */

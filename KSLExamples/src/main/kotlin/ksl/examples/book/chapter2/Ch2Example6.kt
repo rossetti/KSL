@@ -21,6 +21,8 @@ package ksl.examples.book.chapter2
 import ksl.utilities.random.rvariable.KSLRandom
 
 /**
+ * Example 2.6
+ *
  * This example illustrates another approach to producing
  * antithetic pseudo-random numbers using the same stream.
  * This approach resets the stream to its starting point and
@@ -33,7 +35,7 @@ fun main() {
     val s = KSLRandom.defaultRNStream()
     s.resetStartStream()
     // generate regular
-    System.out.printf("%3s %15s %n", "n", "U")
+    print(String.format("%3s %15s %n", "n", "U"))
     for (i in 1..5) {
         val u = s.randU01()
         System.out.printf("%3d %15f %n", i, u)
@@ -42,9 +44,9 @@ fun main() {
     s.resetStartStream()
     s.antithetic = true
     println()
-    System.out.printf("%3s %15s %n", "n", "1-U")
+    print(String.format("%3s %15s %n", "n", "1-U"))
     for (i in 1..5) {
         val u = s.randU01()
-        System.out.printf("%3d %15f %n", i, u)
+        print(String.format("%3d %15f %n", i, u))
     }
 }

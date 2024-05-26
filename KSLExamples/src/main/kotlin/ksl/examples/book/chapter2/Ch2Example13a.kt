@@ -18,27 +18,24 @@
 
 package ksl.examples.book.chapter2
 
-import ksl.utilities.random.rng.RNStreamProvider
-
+import ksl.utilities.random.rvariable.DEmpiricalRV
+import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.MixtureRV
 
 /**
- * Example 2.1
+ * Example 2.13
  *
- * This example illustrates how to make a stream provider, get streams
- * from the provider, and use the streams to generate pseudo-random
- * numbers.
+ * This example illustrates how to create and use a mixture random variable.
  */
 fun main() {
-    // make a provider for creating streams
-    val p1 = RNStreamProvider()
-    // get the first stream from the provider
-    val p1s1 = p1.nextRNStream()
-    // make another provider, the providers are identical
-    val p2 = RNStreamProvider()
-    // thus the first streams returned are identical
-    val p2s1 = p2.nextRNStream()
-    print(String.format("%3s %15s %15s %n", "n", "p1s1", "p2s2"))
-    for (i in 1..10) {
-        print(String.format("%3d %15f %15f %n", i, p1s1.randU01(), p2s1.randU01()))
+    // rvs is the list of random variables for the mixture
+    val rvs = listOf(ExponentialRV(1.5), ExponentialRV(1.1))
+    // cdf is the cumulative distribution function over the random variables
+    val cdf = doubleArrayOf(0.7, 1.0)
+    //create a mixture random variable
+    val he = MixtureRV(rvs, cdf)
+    print(String.format("%3s %15s %n", "n", "Values"))
+    for (i in 1..5) {
+        print(String.format("%3d %15f %n", i, he.value))
     }
 }

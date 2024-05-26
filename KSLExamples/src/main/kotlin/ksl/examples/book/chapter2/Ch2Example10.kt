@@ -21,6 +21,8 @@ package ksl.examples.book.chapter2
 import ksl.utilities.random.rvariable.DEmpiricalRV
 
 /**
+ * Example 2.12
+ *
  * This example illustrates how to use the classes within the rvariable package.
  * Specifically, a discrete empirical random variable is
  * created and values are obtained via the value property. A discrete
@@ -35,8 +37,8 @@ fun main() {
     //create a discrete empirical random variable
     val n1 = DEmpiricalRV(values, cdf)
     println(n1)
-    System.out.printf("%3s %15s %n", "n", "Values")
+    print(String.format("%3s %15s %n", "n", "Values"))
     for (i in 1..5) {
-        System.out.printf("%3d %15f %n", i, n1.value)
+        print(String.format("%3d %15f %n", i, n1.value))
     }
 }
