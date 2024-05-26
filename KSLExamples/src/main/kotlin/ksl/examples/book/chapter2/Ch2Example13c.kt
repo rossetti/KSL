@@ -1,6 +1,6 @@
 /*
- *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -16,11 +16,22 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.utilities.distributions
+package ksl.examples.book.chapter2
 
-import ksl.utilities.random.ParametersIfc
-import ksl.utilities.random.rvariable.GetRVariableIfc
+import ksl.utilities.Interval
+import ksl.utilities.distributions.Exponential
+import ksl.utilities.random.rvariable.*
 
-interface ContinuousDistributionIfc : CDFIfc, PDFIfc, DomainIfc,
-    GetRVariableIfc, InverseCDFIfc, ParametersIfc, InvertibleCDFIfc {
+/**
+ * Example 2.15
+ *
+ * This example illustrates how to create and use a shifted random variable.
+ */
+fun main() {
+    val w = WeibullRV(shape = 3.0, scale = 5.0)
+    val rv = ShiftedRV(5.0, w)
+    print(String.format("%3s %15s %n", "n", "Values"))
+    for (i in 1..5) {
+        print(String.format("%3d %15f %n", i, rv.value))
+    }
 }

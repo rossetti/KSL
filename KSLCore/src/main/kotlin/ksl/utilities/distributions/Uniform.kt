@@ -22,21 +22,21 @@ import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.*
 
 /** Defines a uniform distribution over the given range.
- * @param theMinimum limit of the distribution
- * @param theMaximum limit of the distribution
+ * @param minimum limit of the distribution
+ * @param maximum limit of the distribution
  * @param name an optional name/label
  */
-class Uniform (theMinimum: Double = 0.0, theMaximum: Double = 1.0, name: String? = null) :
+class Uniform (minimum: Double = 0.0, maximum: Double = 1.0, name: String? = null) :
     Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Uniform {
 
     init {
-        require(theMinimum < theMaximum) { "Lower limit must be < upper limit. lower limit = $theMinimum upper limit = $theMaximum" }
+        require(minimum < maximum) { "Lower limit must be < upper limit. lower limit = $minimum upper limit = $maximum" }
     }
 
-    var minimum = theMinimum
+    var minimum = minimum
         private set
 
-    var maximum = theMaximum
+    var maximum = maximum
         private set
 
     val range : Double
