@@ -305,7 +305,8 @@ class PDFModeler(
         val statConfig = DisplayConfiguration.DEFAULT
         statConfig.rowsLimit = statDf.rowsCount()
         // box plot summary
-        val boxPlotDf = BoxPlotSummary(data).toDataFrame()
+        val bp = BoxPlotSummary(data)
+        val boxPlotDf = bp.toDataFrame()
         val boxConfig = DisplayConfiguration.DEFAULT
         boxConfig.rowsLimit = boxPlotDf.rowsCount()
         // histogram statistics
@@ -323,19 +324,35 @@ class PDFModeler(
             appendLine("Statistical Summary")
             appendLine("</h1>")
             appendLine("<div>")
-            appendLine(statDf.toStandaloneHTML(configuration = statConfig))
+//            appendLine(statDf.toStandaloneHTML(configuration = statConfig))
+            appendLine("<pre>")
+            val s = histogram.statisticsAsMap
+            for((key, value) in s) {
+                appendLine("$key = $value")
+            }
+//            appendLine(histogram.statisticsAsMap)
+            appendLine("</pre>")
             appendLine("</div>")
             appendLine("<h1>")
             appendLine("Box Plot Summary")
             appendLine("</h1>")
             appendLine("<div>")
-            appendLine(boxPlotDf.toStandaloneHTML(configuration = boxConfig))
+//            appendLine(boxPlotDf.toStandaloneHTML(configuration = boxConfig))
+            appendLine("<pre>")
+            val bs = bp.asMap()
+            for((key, value) in bs) {
+                appendLine("$key = $value")
+            }
+            appendLine("</pre>")
             appendLine("</div>")
             appendLine("<h1>")
             appendLine("Histogram Summary")
             appendLine("</h1>")
             appendLine("<div>")
-            appendLine(histDf.toStandaloneHTML(configuration = config))
+            appendLine("<pre>")
+            appendLine(histogram.asString())
+            appendLine("</pre>")
+//            appendLine(histDf.toStandaloneHTML(configuration = config))
             appendLine("</div>")
             appendLine("<div>")
             appendLine("<h1>")

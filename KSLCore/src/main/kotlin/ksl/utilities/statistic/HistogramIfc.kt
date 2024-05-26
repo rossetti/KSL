@@ -396,4 +396,41 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
         }
         return list
     }
+
+    fun asString() : String{
+        val sb = StringBuilder()
+        sb.append("Histogram: ").append(name)
+        sb.appendLine()
+        sb.append("-------------------------------------")
+        sb.appendLine()
+        sb.append("Number of bins = ").append(numberBins)
+        sb.appendLine()
+        sb.append("First bin starts at = ").append(firstBinLowerLimit)
+        sb.appendLine()
+        sb.append("Last bin ends at = ").append(lastBinUpperLimit)
+        sb.appendLine()
+        sb.append("Under flow count = ").append(underFlowCount)
+        sb.appendLine()
+        sb.append("Over flow count = ").append(overFlowCount)
+        sb.appendLine()
+        val n = count
+        sb.append("Total bin count = ").append(n)
+        sb.appendLine()
+        sb.append("Total count = ").append(totalCount)
+        sb.appendLine()
+        sb.append("-------------------------------------")
+        sb.appendLine()
+        sb.append(String.format("%3s %-12s %-5s %-5s %-5s %-6s", "Bin", "Range", "Count", "CumTot", "Frac", "CumFrac"))
+        sb.appendLine()
+        //        sb.append("Bin \t Range \t Count \t\t tc \t\t p \t\t cp\n");
+        var ct = 0.0
+        for (bin in bins) {
+            val c: Double = bin.count()
+            ct = ct + c
+            val s = String.format("%s %5.1f %5f %6f %n", bin, ct, c / n, ct / n)
+            sb.append(s)
+        }
+        sb.append("-------------------------------------")
+        return sb.toString()
+    }
 }
