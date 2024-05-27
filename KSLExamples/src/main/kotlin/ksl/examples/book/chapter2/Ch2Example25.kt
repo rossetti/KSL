@@ -19,23 +19,26 @@
 package ksl.examples.book.chapter2
 
 import ksl.utilities.distributions.Exponential
+import ksl.utilities.distributions.NegativeBinomial
 import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
+import ksl.utilities.distributions.fitting.DiscretePMFGoodnessOfFit
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.distributions.fitting.PMFModeler
 import ksl.utilities.distributions.fitting.estimators.NormalMLEParameterEstimator
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.BootstrapSampler
 
 /**
- *  Example 2.24
- *  Illustrates how to perform goodness of fit testing.
+ *  Example 2.25
+ *  Illustrates how to perform goodness of fit testing for a discrete distribution.
  */
 fun main() {
-    val d = Exponential(10.0)
-    val e = d.randomVariable
-    e.advanceToNextSubStream()
-    val n = 1000
-    val data = e.sample(n)
-    val gof = ContinuousCDFGoodnessOfFit(data, d)
-    println(gof)
+    val dist = NegativeBinomial(0.2, theNumSuccesses = 4.0)
+    val rv = dist.randomVariable
+    rv.advanceToNextSubStream()
+    val data = rv.sample(200)
+    val breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
+    val pf = DiscretePMFGoodnessOfFit(data, dist, breakPoints = breakPoints)
+    println(pf.chiSquaredTestResults())
 }
