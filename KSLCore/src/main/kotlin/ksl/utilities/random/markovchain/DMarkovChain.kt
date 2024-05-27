@@ -18,7 +18,6 @@
 
 package ksl.utilities.random.markovchain
 
-import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.KSLArrays
 import ksl.utilities.copyOf
 import ksl.utilities.hasElement
@@ -27,6 +26,8 @@ import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariable
 import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.statistic.IntegerFrequency
+
 
 /**
  *  Randomly generates the states of a discrete Markov Chain. Assumes that
@@ -63,7 +64,7 @@ open class DMarkovChain(
             myCDFs[r] = makeCDF(transMatrix[r])
             myStates[r] = r + 1
         }
-        require(myStates.hasElement(theInitialState)) { " The initial state, $theInitialState is not a valid state" }
+        require(myStates.hasElement(theInitialState)) { "The initial state, $theInitialState is not a valid state" }
     }
 
     private fun makeCDF(pmf: DoubleArray) : DoubleArray{
@@ -131,11 +132,73 @@ open class DMarkovChain(
 
     override fun toString(): String {
         val sb = StringBuilder()
+        sb.appendLine("States")
+        for((i, j) in myStates.withIndex()) {
+            sb.appendLine("state[$i] = $j")
+        }
         sb.appendLine("Transition Matrix")
         for(array in myTransProb){
             sb.appendLine(array.joinToString())
         }
         return sb.toString()
+    }
+
+    /**
+     *  Simulates the chain forward starting from the [startState] until
+     *  the desired state [desiredState] is reached for the first time and
+     *  returns the number of transition required to reach the desired state
+     *  for the first time.
+     *
+     *  The desired state may be unreachable from the starting state. The transition limit
+     *  [transitionLimit] represents the maximum number of transitions allowed
+     *  before returning. By default, this is 10000. The transition count
+     *  will be Int.MAX_VALUE in this case, essential infinity.
+     *
+     *  @return the returned value represents one observation of the first passage
+     *  time from the starting state to the desired state.
+     */
+    fun countTransitionsUntil(
+        startState: Int,
+        desiredState: Int,
+        transitionLimit: Int = 10000
+    ): Int {
+        initialState = startState
+        reset()
+        var n = 0
+        do {
+            n++
+            if (n == transitionLimit){
+                return Int.MAX_VALUE
+            }
+        } while (nextState() != desiredState)
+        return n
+    }
+
+    /**
+     *  Estimates the first passage time distribution from the
+     *  starting state to the desired state as an IntegerFrequency
+     *  based on the provided sample size [sampleSize].
+     *
+     *  The desired state may be unreachable from the starting state. The transition limit
+     *  [transitionLimit] represents the maximum number of transitions allowed
+     *  before returning. By default, this is 10000. The transition count
+     *  will be Int.MAX_VALUE in this case, essential infinity.
+     */
+    fun firstPassageFrequency(
+        sampleSize: Int,
+        startState: Int,
+        desiredState: Int,
+        transitionLimit: Int = 10000
+    ) : IntegerFrequency {
+        val f = IntegerFrequency(name = "FirstPassageTime from $startState to $desiredState")
+        for (i in 1..sampleSize){
+            val fpTime = countTransitionsUntil(startState, desiredState, transitionLimit)
+            f.collect(fpTime)
+            if (fpTime == Int.MAX_VALUE){
+                return f
+            }
+        }
+        return f
     }
 
 }

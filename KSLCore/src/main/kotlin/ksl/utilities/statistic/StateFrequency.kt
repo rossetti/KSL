@@ -28,20 +28,22 @@ import ksl.utilities.random.rvariable.DEmpiricalRV
  *
  * @param numStates the number of states to observe
  */
-class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Identity(name) {
+class StateFrequency(numStates: Int, name: String? = null) : IdentityIfc by Identity(name) {
     private val myFreq: IntegerFrequency
     private val myTransCnts: Array<IntArray>
-    private val myStates: MutableSet<State>
+    private val myStates: List<State>
 
     init {
         require(numStates > 1) { "The number of states must be > 1" }
-        myStates = LinkedHashSet()
+        val list = mutableListOf<State>()
         for (i in 0 until numStates) {
-            myStates.add(State(i))
+            list.add(State(i))
         }
+        myStates = list
         myFreq = IntegerFrequency(lowerLimit = 0, upperLimit = numStates - 1, name = name)
         myTransCnts = Array(numStates) { IntArray(numStates) }
     }
+
     /**
      *
      * @return the last state number observed
@@ -61,12 +63,20 @@ class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Ident
      * @return a copy of the list of states
      */
     val states: List<State>
-        get() = ArrayList(myStates)
+        get() = myStates
+
+    fun state(index: Int): State {
+        return myStates[index]
+    }
+
+    operator fun get(index: Int): State {
+        return myStates[index]
+    }
 
     val stateNames: List<String>
         get() {
             val names = mutableListOf<String>()
-            for (state in myStates){
+            for (state in myStates) {
                 names.add(state.name)
             }
             return names
@@ -301,7 +311,7 @@ class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Ident
      *  indicates whether proportions (true) or frequencies (false)
      *  will be shown on the plot. The default is false.
      */
-    fun frequencyPlot(proportions: Boolean = false) : StateFrequencyPlot {
+    fun frequencyPlot(proportions: Boolean = false): StateFrequencyPlot {
         return StateFrequencyPlot(this, proportions)
     }
 
@@ -319,42 +329,33 @@ class StateFrequency(numStates: Int, name: String?= null) : IdentityIfc by Ident
      */
     fun asString(): String {
         val sb = StringBuilder()
-        sb.append("State Frequency Tabulation for: ").append(name)
-        sb.append(System.lineSeparator())
-        sb.append("State Labels")
-        sb.append(System.lineSeparator())
+        sb.appendLine("State Frequency Tabulation for: $name")
+        sb.appendLine("State Labels")
         for (state in myStates) {
-            sb.append(state)
-            sb.append(System.lineSeparator())
+            sb.appendLine("state: number: ${state.number} label: ${state.label} name: ${state.name}")
         }
-        sb.append("State transition counts")
-        sb.append(System.lineSeparator())
+        sb.appendLine("State transition counts")
         for (row in myTransCnts) {
-            sb.append(row.contentToString())
-            sb.append(System.lineSeparator())
+            sb.appendLine(row.contentToString())
         }
-        sb.append("State transition proportions")
-        sb.append(System.lineSeparator())
+        sb.appendLine("State transition proportions")
         val transitionProportions = transitionProportions
         for (row in transitionProportions) {
-            sb.append(row.contentToString())
-            sb.append(System.lineSeparator())
+            sb.appendLine(row.contentToString())
         }
-        sb.append(System.lineSeparator())
-        sb.append(myFreq.toString())
-        sb.append(System.lineSeparator())
+        sb.appendLine()
+        sb.appendLine(myFreq.toString())
         return sb.toString()
     }
 
 }
 
-fun main(){
+fun main() {
     val rv = DEmpiricalRV(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(0.2, 0.7, 1.0))
     val sf = StateFrequency(3)
-    val states = sf.states
     for (i in 1..20000) {
         val x: Int = rv.value().toInt()
-        sf.collect(states[x-1])
+        sf.collect(sf.state(x - 1))
     }
     println(sf)
 }

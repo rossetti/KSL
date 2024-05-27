@@ -22,6 +22,12 @@ import ksl.utilities.io.StatisticReporter
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.Statistic
 
+/**
+ *  Example 3.8
+ *  This example illustrates how to collect statistics, including on
+ *  an indicator variable. It also illustrates how to estimate the
+ *  sample size needed to meet a desired half-width requirement.
+ */
 fun main() {
     val rv = NormalRV(10.0, 16.0)
     val estimateX = Statistic("Estimated X")
