@@ -23,6 +23,7 @@ import ksl.utilities.statistic.BatchStatistic
 import ksl.utilities.statistic.Statistic
 
 /**
+ * Example 3.5
  * This example illustrates how to create an instance of a
  * BatchStatistic.  A BatchStatistic will collect statistics on observations
  * and while doing so form batches on which batch average are computed.

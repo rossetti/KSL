@@ -672,6 +672,25 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
         }
 
         /**
+         * Estimate the sample size for a proportion based on a normal approximation
+         *
+         * @param desiredHW the desired half-width (must be bigger than 0)
+         * @param pEst    an estimate of the proportion (must be between 0 and 1)
+         * @param level     the confidence level (must be between 0 and 1)
+         * @return the estimated sample size
+         */
+        fun estimateProportionSampleSize(desiredHW: Double, pEst: Double = 0.5, level: Double = 0.95): Long {
+            require(desiredHW > 0.0) { "The desired half-width must be > 0" }
+            require(!(pEst <= 0.0 || pEst >= 1.0)) { "Estimated proportion must be (0,1)" }
+            require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+            val a = 1.0 - level
+            val a2 = a / 2.0
+            val z = Normal.stdNormalInvCDF(1.0 - a2)
+            val m = (z / desiredHW) * (z / desiredHW) * pEst * (1.0 - pEst)
+            return (m + .5).roundToLong()
+        }
+
+        /**
          * Estimate the sample size based on a normal approximation
          *
          * @param desiredHW the desired half-width (must be bigger than 0)
@@ -936,7 +955,7 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
          *  comes from the supplied distribution.
          */
         fun ksTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
-            if (data.isEmpty()){
+            if (data.isEmpty()) {
                 return Double.MAX_VALUE
             }
             val tp = data.orderStatistics()

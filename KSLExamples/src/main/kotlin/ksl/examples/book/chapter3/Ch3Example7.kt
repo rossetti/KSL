@@ -27,11 +27,31 @@ fun main() {
     val estimateX = Statistic("Estimated X")
     val estOfProb = Statistic("Pr(X>8)")
     val r = StatisticReporter(mutableListOf(estOfProb, estimateX))
-    val n = 20 // sample size
-    for (i in 1..n) {
+    val n0 = 20 // sample size
+    for (i in 1..n0) {
         val x = rv.value
         estimateX.collect(x)
         estOfProb.collect(x > 8)
     }
     println(r.halfWidthSummaryReport())
+    val desiredHW = 0.5
+    val s0 = estimateX.standardDeviation
+    val level = 0.99
+    val n = Statistic.estimateSampleSize(
+        desiredHW = desiredHW,
+        stdDev = s0,
+        level = level
+    )
+    println("Sample Size Determination")
+    println("desiredHW = $desiredHW")
+    println("stdDev = $s0")
+    println("Level = $level")
+    println("recommended sample size = $n")
+    println()
+    val m = Statistic.estimateProportionSampleSize(
+        desiredHW = 0.05,
+        pEst = estOfProb.average,
+        level = 0.95
+    )
+    println("Recommended sample size for proportion = $m")
 }
