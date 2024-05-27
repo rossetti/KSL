@@ -23,12 +23,12 @@ import ksl.utilities.io.StatisticReporter
 import ksl.utilities.statistic.Statistic
 
 /**
+ * Example 3.9
  * This example illustrates how to simulate the dice game "craps".
  * The example uses discrete random variables, statistics, and logic
  * to replicate the game outcomes. Statistics on the probability
  * of winning are reported.
  */
-
 fun main() {
     val d1 = DUniformRV(1, 6)
     val d2 = DUniformRV(1, 6)
