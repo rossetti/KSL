@@ -23,6 +23,8 @@ import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.Statistic
 
 /**
+ * Example 3.1
+ *
  * This example illustrates how to create instances of the Statistic
  * class and collect statistics on observations.  In addition, the basic
  * use of the StatisticReporter class is illustrated to show how to pretty

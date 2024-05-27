@@ -18,30 +18,24 @@
 
 package ksl.examples.book.chapter3
 
-import ksl.utilities.random.rvariable.UniformRV
-import ksl.utilities.statistic.Statistic
-import kotlin.math.sqrt
+import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.statistic.CachedHistogram
+import ksl.utilities.statistic.Histogram
 
 /**
- * Example 3.6
+ * Example 2.1a  This is the same as example 2.1 except using a CachedHistogram.
  *
- * This example illustrates how to perform simple Monte-Carlo
- * integration on the sqrt(x) over the range from 1 to 4.
+ * This example illustrates how to make an instance of a CachedHistogram
+ * and use it to collect statistics on a randomly generated sample.
  */
 fun main() {
-    val a = 1.0
-    val b = 4.0
-    val ucdf = UniformRV(a, b)
-    val stat = Statistic("Area Estimator")
-    val n = 100 // sample size
-    for (i in 1..n) {
-        val x = ucdf.value
-        val gx = sqrt(x)
-        val y = (b - a) * gx
-        stat.collect(y)
+    val d = ExponentialRV(2.0)
+    val data = d.sample(1000)
+    val ch = CachedHistogram()
+    for (x in data) {
+        ch.collect(x)
     }
-    System.out.printf("True Area = %10.3f %n", 14.0 / 3.0)
-    System.out.printf("Area estimate = %10.3f %n", stat.average)
-    println("Confidence Interval")
-    println(stat.confidenceInterval)
+    println(ch)
+    val plot = ch.histogramPlot()
+    plot.showInBrowser("Exponentially Distributed Data")
 }
