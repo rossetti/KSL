@@ -18,32 +18,56 @@
 
 package ksl.examples.book.chapter3
 
-import ksl.utilities.random.rvariable.DEmpiricalRV
+import ksl.utilities.random.rvariable.DUniformRV
+import ksl.utilities.io.StatisticReporter
 import ksl.utilities.statistic.Statistic
 
-
+/**
+ * Example 3.9
+ * This example illustrates how to simulate the dice game "craps".
+ * The example uses discrete random variables, statistics, and logic
+ * to replicate the game outcomes. Statistics on the probability
+ * of winning are reported.
+ */
 fun main() {
-    val q = 30.0 // order qty
-    val s = 0.25 //sales price
-    val c = 0.15 // unit cost
-    val u = 0.02 //salvage value
-    val values = doubleArrayOf(5.0, 10.0, 40.0, 45.0, 50.0, 55.0, 60.0)
-    val cdf = doubleArrayOf(0.1, 0.3, 0.6, 0.8, 0.9, 0.95, 1.0)
-    val dCDF = DEmpiricalRV(values, cdf)
-    val stat = Statistic("Profit")
-    val n = 100.0 // sample size
-    var i = 1
-    while (i <= n) {
-        val d = dCDF.value
-        val amtSold = minOf(d, q)
-        val amtLeft = maxOf(0.0, q - d)
-        val g = s * amtSold + u * amtLeft - c * q
-        stat.collect(g)
-        i++
+    val d1 = DUniformRV(1, 6)
+    val d2 = DUniformRV(1, 6)
+    val probOfWinning = Statistic("Prob of winning")
+    val numTosses = Statistic("Number of Toss Statistics")
+    val numGames = 5000
+    for (k in 1..numGames) {
+        var winner = false
+        val point = d1.value.toInt() + d2.value.toInt()
+        var numberoftoss = 1
+        if (point == 7 || point == 11) {
+            // automatic winner
+            winner = true
+        } else if (point == 2 || point == 3 || point == 12) {
+            // automatic loser
+            winner = false
+        } else { // now must roll to get point
+            var continueRolling = true
+            while (continueRolling) {
+                // increment number of tosses
+                numberoftoss++
+                // make next roll
+                val nextRoll = d1.value.toInt() + d2.value.toInt()
+                if (nextRoll == point) {
+                    // hit the point, stop rolling
+                    winner = true
+                    continueRolling = false
+                } else if (nextRoll == 7) {
+                    // crapped out, stop rolling
+                    winner = false
+                    continueRolling = false
+                }
+            }
+        }
+        probOfWinning.collect(winner)
+        numTosses.collect(numberoftoss.toDouble())
     }
-    print(String.format("%s \t %f %n", "Count = ", stat.count))
-    print(String.format("%s \t %f %n", "Average = ", stat.average))
-    print(String.format("%s \t %f %n", "Std. Dev. = ", stat.standardDeviation))
-    print(String.format("%s \t %f %n", "Half-width = ", stat.halfWidth))
-    println((stat.confidenceLevel * 100).toString() + "% CI = " + stat.confidenceInterval)
+    val reporter = StatisticReporter()
+    reporter.addStatistic(probOfWinning)
+    reporter.addStatistic(numTosses)
+    println(reporter.halfWidthSummaryReport())
 }
