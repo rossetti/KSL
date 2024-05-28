@@ -435,9 +435,9 @@ class DesignedExperiment(
         model.numberOfReplications = designPoint.numReplications
         model.experimentName = baseExperimentName
         // use SimulationRunner to run the simulation
-        Model.logger.info { "FactorialExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
+        Model.logger.info { "DesignedExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
         val sr = mySimulationRunner.simulate(inputs, model.extractRunParameters())
-        Model.logger.info { "FactorialExperiment: Completed design point $designPoint for experiment: ${model.experimentName} " }
+        Model.logger.info { "DesignedExperiment: Completed design point $designPoint for experiment: ${model.experimentName} " }
         // add SimulationRun to simulation run list
         if (addRuns) {
             mySimulationRuns[designPoint] = sr
