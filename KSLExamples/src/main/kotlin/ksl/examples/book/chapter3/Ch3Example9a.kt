@@ -18,32 +18,44 @@
 
 package ksl.examples.book.chapter3
 
+import ksl.utilities.random.rvariable.BernoulliRV
 import ksl.utilities.random.rvariable.DEmpiricalRV
+import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.statistic.Statistic
 
-
+/**
+ *
+ */
 fun main() {
-    val q = 30.0 // order qty
-    val s = 0.25 //sales price
-    val c = 0.15 // unit cost
-    val u = 0.02 //salvage value
-    val values = doubleArrayOf(5.0, 10.0, 40.0, 45.0, 50.0, 55.0, 60.0)
-    val cdf = doubleArrayOf(0.1, 0.3, 0.6, 0.8, 0.9, 0.95, 1.0)
-    val dCDF = DEmpiricalRV(values, cdf)
-    val stat = Statistic("Profit")
-    val n = 100.0 // sample size
-    var i = 1
-    while (i <= n) {
-        val d = dCDF.value
-        val amtSold = minOf(d, q)
-        val amtLeft = maxOf(0.0, q - d)
-        val g = s * amtSold + u * amtLeft - c * q
-        stat.collect(g)
-        i++
+    val itemRV = BernoulliRV(probOfSuccess = 0.15)
+    val itemsPerBox = 4
+    val stat = Statistic("Num Until Rejection")
+    val sampleSize = 100
+    for (i in 1..sampleSize) {
+        val countBoxes = numUntilFirstRejection(itemRV, itemsPerBox)
+        stat.collect(countBoxes)
     }
     print(String.format("%s \t %f %n", "Count = ", stat.count))
     print(String.format("%s \t %f %n", "Average = ", stat.average))
     print(String.format("%s \t %f %n", "Std. Dev. = ", stat.standardDeviation))
     print(String.format("%s \t %f %n", "Half-width = ", stat.halfWidth))
     println((stat.confidenceLevel * 100).toString() + "% CI = " + stat.confidenceInterval)
+}
+
+/**
+ *  This function counts the number of boxes inspected until the first
+ *  box is found that has a randomly selected item that is defective.
+ */
+fun numUntilFirstRejection(itemRV: BernoulliRV, itemsPerBox: Int): Double {
+    require(itemsPerBox >= 1) { "There must be at least 1 item per box" }
+    var count = 0.0
+    do {
+        count++
+        // randomly generate the box
+        val box = itemRV.sample(itemsPerBox)
+        // randomly sample from the box
+        val inspection = KSLRandom.randomlySelect(box)
+        // stops if bad = 1.0 is found, continues if good = 0.0 is found
+    } while (inspection != 1.0)
+    return count
 }
