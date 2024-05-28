@@ -1,48 +1,52 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package ksl.examples.book.chapter3
 
-import ksl.utilities.mcintegration.MCExperiment
-import ksl.utilities.mcintegration.MCReplicationIfc
 import ksl.utilities.random.rvariable.DEmpiricalRV
-import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.statistic.Statistic
 
+/**
+ *  Example 3.10
+ *  This example illustrates how to simulate a news vendor model
+ */
 fun main() {
+    val q = 30.0 // order qty
+    val s = 0.25 //sales price
+    val c = 0.15 // unit cost
+    val u = 0.02 //salvage value
     val values = doubleArrayOf(5.0, 10.0, 40.0, 45.0, 50.0, 55.0, 60.0)
     val cdf = doubleArrayOf(0.1, 0.3, 0.6, 0.8, 0.9, 0.95, 1.0)
     val dCDF = DEmpiricalRV(values, cdf)
-    val nv = NewsVendor(dCDF)
-    val exp = MCExperiment(nv)
-    exp.desiredHWErrorBound = 0.01
-    exp.runSimulation()
-    println(exp)
-}
-
-class NewsVendor(var demand: RVariableIfc) : MCReplicationIfc {
-    var orderQty = 30.0 // order qty
-        set(value) {
-            require(value > 0)
-            field = value
-        }
-    var salesPrice = 0.25 //sales price
-        set(value) {
-            require(value > 0)
-            field = value
-        }
-    var unitCost = 0.15 // unit cost
-        set(value) {
-            require(value > 0)
-            field = value
-        }
-    var salvageValue = 0.02 //salvage value
-        set(value) {
-            require(value > 0)
-            field = value
-        }
-
-    override fun replication(j: Int): Double {
-        val d = demand.value
-        val amtSold = minOf(d, orderQty)
-        val amtLeft = maxOf(0.0, orderQty - d)
-        return salesPrice * amtSold + salvageValue * amtLeft - unitCost * orderQty
+    val stat = Statistic("Profit")
+    val n = 100.0 // sample size
+    var i = 1
+    while (i <= n) {
+        val d = dCDF.value
+        val amtSold = minOf(d, q)
+        val amtLeft = maxOf(0.0, q - d)
+        val g = s * amtSold + u * amtLeft - c * q
+        stat.collect(g)
+        i++
     }
-
+    print(String.format("%s \t %f %n", "Count = ", stat.count))
+    print(String.format("%s \t %f %n", "Average = ", stat.average))
+    print(String.format("%s \t %f %n", "Std. Dev. = ", stat.standardDeviation))
+    print(String.format("%s \t %f %n", "Half-width = ", stat.halfWidth))
+    println((stat.confidenceLevel * 100).toString() + "% CI = " + stat.confidenceInterval)
 }
