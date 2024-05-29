@@ -97,15 +97,58 @@ interface ResponseCIfc : ResponseIfc {
     fun addCountLimitStoppingAction(initialCountLimit: Int) : CountActionIfc
 }
 
-// not subclassing from Variable, Response does not have an initial value, but does have limits
-// should be observable
-open class Response(
+/**
+ *  A response represents an observational type variable for which observational statistics
+ *  are automatically collected when the value of the response variable is assigned.
+ *  @param parent the parent model element containing this response
+ *  @param name the unique name of the response. If a name is not assigned (null), a name will be assigned.
+ *  A common naming convention would be to name the response based on the parent's name to ensure uniqueness within
+ *  the context of the parent. For example, "${this.name}:SomeResponseName", where "this" refers to the parent.
+ *  @param initialValue this is the intial value of the response variable. It is only used internally.
+ *  @param allowedDomain This is an interval that defines the set of legal values for the response. By default, this is
+ *  (NEGATIVE_INFINITY, POSITIVE_INFINITY). If supplied, this provides a method to check if invalid values are
+ *  assigned to the response. For example, if the response represents time, you might want to change the
+ *  allowed domain to not include negative values.
+ *  @param countLimit specifies a limit that when reached will cause counter actions to be invoked. By default, this is
+ *  POSITIVE_INFINITY. A common count action would be to stop the simulation when a particular number of observations
+ *  have been reached.  By default, there are no count actions. Thus, if a count limit is specified, the user
+ *  is responsible for providing what to do via the functions that add count actions. Otherwise, no actions occur
+ *  when the limit is reached.
+ */
+open class Response internal constructor(
     parent: ModelElement,
     name: String? = null,
     initialValue: Double = 0.0,
     allowedDomain: Interval = Interval(),
-    countLimit: Double = Double.POSITIVE_INFINITY,
+    countLimit: Double = Double.POSITIVE_INFINITY
 ) : Variable(parent, initialValue, allowedDomain, name), ResponseIfc, ResponseStatisticsIfc, ResponseCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
+
+    // subclassing from Variable, Response does not have an initial value, but does have limits
+    // this "fix" allows users to not have to see initial value when constructing a Response
+
+    /**
+     *  A response represents an observational type variable for which observational statistics
+     *  are automatically collected when the value of the response variable is assigned.
+     *  @param parent the parent model element containing this response
+     *  @param name the unique name of the response. If a name is not assigned (null), a name will be assigned.
+     *  A common naming convention would be to name the response based on the parent's name to ensure uniqueness within
+     *  the context of the parent. For example, "${this.name}:SomeResponseName", where "this" refers to the parent.
+     *  @param allowedDomain This is an interval that defines the set of legal values for the response. By default, this is
+     *  (NEGATIVE_INFINITY, POSITIVE_INFINITY). If supplied, this provides a method to check if invalid values are
+     *  assigned to the response. For example, if the response represents time, you might want to change the
+     *  allowed domain to not include negative values.
+     *  @param countLimit specifies a limit that when reached will cause counter actions to be invoked. By default, this is
+     *  POSITIVE_INFINITY. A common count action would be to stop the simulation when a particular number of observations
+     *  have been reached.  By default, there are no count actions. Thus, if a count limit is specified, the user
+     *  is responsible for providing what to do via the functions that add count actions. Otherwise, no actions occur
+     *  when the limit is reached.
+     */
+    constructor(
+        parent: ModelElement,
+        name: String? = null,
+        allowedDomain: Interval = Interval(),
+        countLimit: Double = Double.POSITIVE_INFINITY
+    ): this(parent, name, 0.0, allowedDomain, countLimit)
 
     override var emissionsOn: Boolean = false
 
