@@ -36,16 +36,34 @@ interface TWResponseCIfc : ResponseCIfc {
     var initialValue: Double
 }
 
+/**
+ *  A time-weighted response represents a time-persistent type variable for which time-based statistics
+ *  are automatically collected when the value of the response variable is assigned.
+ *  @param parent the parent model element containing this response
+ *  @param name the unique name of the response. If a name is not assigned (null), a name will be assigned.
+ *  A common naming convention would be to name the response based on the parent's name to ensure uniqueness within
+ *  the context of the parent. For example, "${this.name}:SomeResponseName", where "this" refers to the parent.
+ *  @param initialValue this is the intial value of the response variable. It is only used internally.
+ *  @param allowedDomain This is an interval that defines the set of legal values for the response. By default, this is
+ *  [0, POSITIVE_INFINITY). If supplied, this provides a method to check if invalid values are
+ *  assigned to the response. For example, if the response represents time, you might want to change the
+ *  allowed domain to not include negative values.
+ *  @param countLimit specifies a limit that when reached will cause counter actions to be invoked. By default, this is
+ *  POSITIVE_INFINITY. A common count action would be to stop the simulation when a particular number of observations
+ *  have been reached.  By default, there are no count actions. Thus, if a count limit is specified, the user
+ *  is responsible for providing what to do via the functions that add count actions. Otherwise, no actions occur
+ *  when the limit is reached.
+ */
 open class TWResponse(
     parent: ModelElement,
     name: String? = null,
-    theInitialValue: Double = 0.0,
+    initialValue: Double = 0.0,
     allowedDomain: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
     countLimit: Double = Double.POSITIVE_INFINITY,
-) : Response(parent, name, theInitialValue, allowedDomain, countLimit), TimeWeightedIfc, TWResponseCIfc {
+) : Response(parent, name, initialValue, allowedDomain, countLimit), TimeWeightedIfc, TWResponseCIfc {
     
     init {
-        require(allowedDomain.contains(theInitialValue)) { "The initial value $theInitialValue must be within the specified limits: $allowedDomain" }
+        require(allowedDomain.contains(initialValue)) { "The initial value $initialValue must be within the specified limits: $allowedDomain" }
     }
 
     /**
@@ -58,7 +76,7 @@ open class TWResponse(
         name = "initialValue",
         lowerBound = 0.0
     )
-    override var initialValue: Double = theInitialValue
+    override var initialValue: Double = initialValue
         set(value) {
             require(domain.contains(value)) { "The initial value, $value must be within the specified limits: $domain" }
             if (model.isRunning) {
@@ -70,7 +88,7 @@ open class TWResponse(
     /**
      *  The previous value, before the current value changed
      */
-    override var previousValue: Double = theInitialValue
+    override var previousValue: Double = initialValue
         protected set
 
     override var timeOfChange: Double = 0.0
