@@ -167,6 +167,7 @@ open class Response internal constructor(
         require(countLimit >= 0) { "The initial count limit value $countLimit must be >= 0" }
     }
 
+    //TODO initialCountLimit is a candidate control, but isn't annotated because it is not used often
     /**
      * Sets the initial value of the count limit. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next
@@ -215,15 +216,13 @@ open class Response internal constructor(
         set(newValue) = assignValue(newValue)
 
     override fun assignValue(newValue: Double){
-        //TODO NaN is never in range and thus cannot be observed
-        // observing a NaN can be like a missing value
+        // NaN is never in range and thus cannot be observed.
+        // We don't treat observing a NaN like a missing value. It is a bad value.
         require(domain.contains(newValue)) { "The value $newValue was not within the limits $domain" }
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue
         timeOfChange = time
-        //TODO  This is not calling the WeightedStatistic's collect method
-        // it is calling WeightedCollector
         myWithinReplicationStatistic.value = myValue
         notifyModelElementObservers(Status.UPDATE)
         if (emissionsOn){
