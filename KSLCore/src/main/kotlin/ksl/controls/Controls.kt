@@ -184,7 +184,7 @@ class Controls(aModel: Model) {
                 // cause intricate refactoring because TWResponse inherits from Response and TWResponse
                 // needs an initialValue property. Thus, I'm handling this edge case during annotation processing.
                 if (property.name == "initialValue") {
-                    logger.info { "Skipping property: ${property.name} for model element: ${modelElement.name}" }
+                    logger.info { "Skipping inherited property: ${property.name} for model element: ${modelElement.name}" }
                     continue
                 }
             }
