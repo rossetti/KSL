@@ -40,9 +40,9 @@ fun main() {
     println("mean = " + bnDF.mean())
     println("variance = " + bnDF.variance())
     // compute some values
-    System.out.printf("%3s %15s %15s %n", "k", "p(k)", "cdf(k)")
+    print(String.format("%3s %15s %15s %n", "k", "p(k)", "cdf(k)"))
     for (i in 0..10) {
-        System.out.printf("%3d %15.10f %15.10f %n", i, bnDF.pmf(i), bnDF.cdf(i))
+        print(String.format("%3d %15.10f %15.10f %n", i, bnDF.pmf(i), bnDF.cdf(i)))
     }
     println()
     // change the probability and number of trials
@@ -52,11 +52,11 @@ fun main() {
     println("variance = " + bnDF.variance())
     // make random variables based on the distributions
     val brv = bnDF.randomVariable
-    System.out.printf("%3s %15s %n", "n", "Values")
+    print(String.format("%3s %15s %n", "n", "Values"))
     // generate some values
     for (i in 1..5) {
         // value property returns generated values
         val x = brv.value.toInt()
-        System.out.printf("%3d %15d %n", i, x)
+        print(String.format("%3d %15d %n", i, x))
     }
 }
