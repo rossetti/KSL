@@ -39,8 +39,8 @@ import ksl.utilities.Interval
  *  this interval, then an exception will be thrown.  This facilitates validation of the model.
  *  @author rossetti@uark.edu
  *  @param parent the parent (containing) model element for this variable
- *  @param theInitialValue the initial value, default to 0.0
- *  @param allowedDomain the validity interval, defaults to [0.0, POSITIVE_INFINITY]
+ *  @param theInitialValue the initial value, defaults to 0.0
+ *  @param allowedDomain the validity interval, defaults to [NEGATIVE_INFINITY, POSITIVE_INFINITY]
  *  @param name the name of the variable, will be auto-defined if null
  */
 open class Variable(

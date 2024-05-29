@@ -146,13 +146,13 @@ open class DMarkovChain(
     /**
      *  Simulates the chain forward starting from the [startState] until
      *  the desired state [desiredState] is reached for the first time and
-     *  returns the number of transition required to reach the desired state
+     *  returns the number of transitions required to reach the desired state
      *  for the first time.
      *
      *  The desired state may be unreachable from the starting state. The transition limit
      *  [transitionLimit] represents the maximum number of transitions allowed
      *  before returning. By default, this is 10000. The transition count
-     *  will be Int.MAX_VALUE in this case, essential infinity.
+     *  will be Int.MAX_VALUE in this case, essentially infinity.
      *
      *  @return the returned value represents one observation of the first passage
      *  time from the starting state to the desired state.

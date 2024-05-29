@@ -20,6 +20,7 @@ package ksl.controls
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.controls.experiments.Factor
+import ksl.modeling.variable.Response
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.maps.KSLMaps
@@ -83,7 +84,7 @@ interface ControlIfc {
      *  Returns an array that has been mapped to legal values
      *  for the control
      */
-    fun limitToRange(values: DoubleArray) : DoubleArray {
+    fun limitToRange(values: DoubleArray): DoubleArray {
         return values.map { value -> limitToRange(value) }.toDoubleArray()
     }
 
@@ -175,6 +176,18 @@ class Controls(aModel: Model) {
         logger.info { "Extracting controls for model element: ${modelElement.name}" }
         for (property in properties) {
             logger.trace { "Reviewing member property: ${property.name}" }
+            if (modelElement::class == Response::class) {
+                // this is tested because Response inherits from Variable and Variable has an annotated property
+                // initialValue. The annotation is inherited and I can't find a way to stop the annotation inheritance.
+                // The initialValue property makes no sense for Response to be controlled.
+                // Another possible fix is to not have Response inherit from Variable, but this will
+                // cause intricate refactoring because TWResponse inherits from Response and TWResponse
+                // needs an initialValue property. Thus, I'm handling this edge case during annotation processing.
+                if (property.name == "initialValue") {
+                    logger.info { "Skipping property: ${property.name} for model element: ${modelElement.name}" }
+                    continue
+                }
+            }
             if (property is KMutableProperty<*>) {
                 logger.trace { "Member property, ${property.name}, is mutable property" }
                 if (hasControlAnnotation(property.setter)) {
@@ -328,7 +341,7 @@ class Controls(aModel: Model) {
      *  A JSON representation of the map of pairs (keyName, value) for the
      *  controls
      */
-    fun controlsMapAsJsonString() : String {
+    fun controlsMapAsJsonString(): String {
         return asMap().toJson()
     }
 
@@ -342,8 +355,18 @@ class Controls(aModel: Model) {
     fun controlData(): List<ControlData> {
         val list = ArrayList<ControlData>()
         for ((_, control) in myControls) {
-            with(control){
-                val cd = ControlData(keyName, value, lowerBound, upperBound, comment, type, elementType, elementName, modelName )
+            with(control) {
+                val cd = ControlData(
+                    keyName,
+                    value,
+                    lowerBound,
+                    upperBound,
+                    comment,
+                    type,
+                    elementType,
+                    elementName,
+                    modelName
+                )
                 list.add(cd)
             }
         }
