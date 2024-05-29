@@ -414,7 +414,7 @@ open class Resource(
         }
 
     protected val myCapacity =
-        TWResponse(this, name = "${this.name}:NumActiveUnits", theInitialValue = capacity.toDouble())
+        TWResponse(this, name = "${this.name}:NumActiveUnits", initialValue = capacity.toDouble())
 
     val numActiveUnits: TWResponseCIfc
         get() = myCapacity

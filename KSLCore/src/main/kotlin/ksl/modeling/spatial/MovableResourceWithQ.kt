@@ -44,7 +44,7 @@ class MovableResourceWithQ(
             myFracTimeMovingEmpty.value = field.toDouble()
         }
     private val myFracTimeMoving =
-        TWResponse(this, name = "${this.name}:FracTimeMoving", theInitialValue = mySpatialElement.isMoving.toDouble())
+        TWResponse(this, name = "${this.name}:FracTimeMoving", initialValue = mySpatialElement.isMoving.toDouble())
     private val myFracTimeTransporting = TWResponse(this, name = "${this.name}:FracTimeTransporting")
     private val myFracTimeMovingEmpty = TWResponse(this, name = "${this.name}:FracTimeMovingEmpty")
     override val isTracked: Boolean
