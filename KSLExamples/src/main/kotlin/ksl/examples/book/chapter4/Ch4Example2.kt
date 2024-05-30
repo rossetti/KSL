@@ -21,6 +21,8 @@ package ksl.examples.book.chapter4
 import ksl.simulation.Model
 
 /**
+ * Example 4.2
+ *
  * This example illustrates the simulation of a Poisson process
  * using the KSL Model class and a constructed ModelElement
  * (SimplePoissonProcess).

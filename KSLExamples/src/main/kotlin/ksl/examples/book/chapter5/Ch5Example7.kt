@@ -3,6 +3,11 @@ package ksl.examples.book.chapter5
 import ksl.simulation.Model
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
+/**
+ * Example 5.7
+ * This code illustrates how to perform an MCB comparison of three
+ * system configurations.
+ */
 fun main() {
     val model = Model("Pallet Model MCB")
 

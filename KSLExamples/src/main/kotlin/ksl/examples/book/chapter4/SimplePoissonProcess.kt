@@ -60,7 +60,7 @@ class SimplePoissonProcess (parent: ModelElement, name: String? = null) :
 /**
  * Same as SimplePoissonProcess except that it illustrates that because EventActionIfc is a
  * functional interface, we can use a method handle the matches the functional interface to
- * schedule actions for the events. Just a differen way to schedule events
+ * schedule actions for the events. Just a different way to schedule events
  */
 class SimplePoissonProcessV2 (parent: ModelElement, name: String? = null) :
     ModelElement(parent, name) {

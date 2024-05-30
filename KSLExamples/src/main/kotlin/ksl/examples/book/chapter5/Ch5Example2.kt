@@ -3,6 +3,10 @@ package ksl.examples.book.chapter5
 import ksl.observers.AcrossReplicationHalfWidthChecker
 import ksl.simulation.Model
 
+/**
+ *  Example 5.2
+ *  Illustrates how to perform sequential sampling.
+ */
 fun main() {
     val model = Model("Pallet Processing Ex 2")
     model.numberOfReplications = 10000
