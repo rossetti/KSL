@@ -22,6 +22,7 @@ import ksl.simulation.Model
 
 
 /**
+ * Example 4.3
  * This example illustrates the simulation of the up/down component model
  * and the turning on of event tracing and the log report.
  */

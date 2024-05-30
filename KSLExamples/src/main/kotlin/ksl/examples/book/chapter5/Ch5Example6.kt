@@ -4,6 +4,11 @@ import ksl.simulation.Model
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
+/**
+ * Example 5.6
+ * This code example illustrates how to perform a common random number analysis for two systems
+ * by running them within the same execution frame and setting the reset start stream option to true.
+ */
 fun main() {
 
     withoutCommonRandomNumbers()

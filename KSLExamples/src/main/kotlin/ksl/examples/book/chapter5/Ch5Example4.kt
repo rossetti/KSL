@@ -6,6 +6,11 @@ import ksl.simulation.Model
 import ksl.utilities.io.plotting.WelchPlot
 import ksl.utilities.random.rvariable.ExponentialRV
 
+/**
+ *  Example 5.4
+ *  This code illustrates how to capture Welch plot data and to show the Welch
+ * plot within a browser window.
+ */
 fun main(){
     val model = Model("Drive Through Pharmacy")
     // add DriveThroughPharmacy to the main model

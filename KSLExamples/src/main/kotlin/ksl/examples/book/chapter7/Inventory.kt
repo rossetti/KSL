@@ -26,7 +26,7 @@ abstract class Inventory(
         require(initialOnHand >= 0) { "The initial on-hand inventory must be >= 0" }
     }
 
-    protected val myOnHand = TWResponse(this, theInitialValue = initialOnHand.toDouble(),
+    protected val myOnHand = TWResponse(this, initialValue = initialOnHand.toDouble(),
         name = "${this.name}:OnHand")
 
     val onHand: Int

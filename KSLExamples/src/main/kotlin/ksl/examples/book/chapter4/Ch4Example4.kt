@@ -23,6 +23,8 @@ import ksl.utilities.random.rvariable.ExponentialRV
 
 
 /**
+ * Example 4.4
+ *
  * This example illustrates the running of the DriveThroughPharmacy instance.
  * The model is run for 30 replications, of length 20,000 minutes, with a
  * warmup of 5000.0 minutes. The number of servers can be supplied. In

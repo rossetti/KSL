@@ -8,6 +8,16 @@ import ksl.utilities.io.asMarkDownTable
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import org.jetbrains.kotlinx.dataframe.api.describe
 
+/**
+ *  Example 5.1
+ *  This example models the unloading of pallets for processing at a workcenter.
+ *  The key aspects of this example include
+ *   - automatically capturing results to csv files
+ *   - capturing replication data via the ReplicationDataCollector class
+ *   - tracing a response variable via the ResponseTrace class
+ *   - using a SimulationReporter class to output markdown formatted output
+ *   - capturing the simulation results within a database and illustrating how to extract data
+ */
 fun main() {
     val model = Model("Pallet Processing", autoCSVReports = true)
     model.numberOfReplications = 10

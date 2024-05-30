@@ -21,6 +21,18 @@ package ksl.examples.book.chapter4
 import ksl.simulation.Model
 import ksl.utilities.random.rvariable.ExponentialRV
 
+/**
+ * Example 4.5
+ *
+ * This example illustrates the running of the DriveThroughPharmacyWithQ instance.
+ * This example uses a Queue instance to report statistics on the time
+ * spent in the queue.
+ *
+ * The model is run for 30 replications, of length 20,000 minutes, with a
+ * warmup of 5000.0 minutes. The number of servers can be supplied. In
+ * addition, the user can supply the distribution associated with the time
+ * between arrivals and the service time distribution.
+ */
 fun main() {
     val sim = Model("Drive Through Pharmacy")
     sim.numberOfReplications = 30
@@ -33,4 +45,6 @@ fun main() {
     sim.simulate()
     sim.print()
     println(dtp.systemTimeHistogram)
+    val hp = dtp.systemTimeHistogram.histogramPlot()
+    hp.showInBrowser("System Time Histogram")
 }

@@ -4,6 +4,11 @@ import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
 import ksl.simulation.Model
 import ksl.utilities.random.rvariable.ExponentialRV
 
+/**
+ * Example 5.5
+ * This code illustrates how to perform a single run, batch means analysis, by
+ * adding a batching element to the model.
+ */
 fun main(){
     val model = Model("Drive Through Pharmacy")
     // add DriveThroughPharmacy to the main model
