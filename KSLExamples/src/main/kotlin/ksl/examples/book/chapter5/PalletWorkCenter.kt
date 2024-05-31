@@ -27,7 +27,6 @@ class PalletWorkCenter(
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
-        name = "numWorkers",
         lowerBound = 1.0
     )
     var numWorkers = numWorkers

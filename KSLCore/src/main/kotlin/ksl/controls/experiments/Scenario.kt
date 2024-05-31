@@ -25,15 +25,27 @@ import ksl.utilities.Identity
 /**
  *  A scenario represents the specification of a model to run, with some
  *  inputs.  Each scenario will produce a simulation run.
+ *  The name of the scenario is set equal to the name of the experiment from
+ *  the model. In the context of running multiple scenarios, it is important
+ *  that the experiment names be unique to permit automated storage within
+ *  a KSL database.
+ *
+ *  @param model The model to be simulated
+ *  @param inputs The map of inputs (based on control names) to apply to the model
+ *  @param numberReplications the number of replications for the scenario. By default,
+ *  this is the current setting of the model.
+ *  @param lengthOfReplication the length of each replication for the scenario. By default,
+ *  this is the current setting of the model.
+ *  @param lengthOfReplicationWarmUp the length of the warmup period for each replication for the scenario. By default,
+ *  this is the current setting of the model.
  */
 class Scenario(
-    name: String? = null,
     val model: Model,
     inputs: Map<String, Double>,
     numberReplications: Int = model.numberOfReplications,
     lengthOfReplication: Double = model.lengthOfReplication,
     lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
-) : Identity(name), ExperimentIfc by model {
+) : Identity(model.experimentName), ExperimentIfc by model {
 
     private val simulationRunner = SimulationRunner(model)
     private val myInputs = mutableMapOf<String, Double>()
@@ -51,7 +63,6 @@ class Scenario(
         model.numberOfReplications = numberReplications
         model.lengthOfReplication = lengthOfReplication
         model.lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
-        model.experimentName = "Scenario_${id}_${model.experimentName}"
     }
 
     /**

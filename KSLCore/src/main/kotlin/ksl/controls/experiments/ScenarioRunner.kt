@@ -48,10 +48,8 @@ class ScenarioRunner(
         get() = myDbObserversByName.values.toList()
 
     init {
-        myScenarios.addAll(scenarioList)
         for (scenario in scenarioList) {
-            myScenariosByName[scenario.name] = scenario
-            myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb)
+            addScenario(scenario)
         }
     }
 
@@ -85,20 +83,26 @@ class ScenarioRunner(
 
     /**
      *  Adds a scenario to the possible scenarios to simulate.
+     *  The name of the scenario (based on the model's experiment) must be
+     *  unique within the context of the list of scenarios to run.
      */
     fun addScenario(
-        name: String? = null,
         model: Model,
         inputs: Map<String, Double>,
         numberReplications: Int = model.numberOfReplications,
         lengthOfReplication: Double = model.lengthOfReplication,
         lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
     ): Scenario {
-        val s = Scenario(name, model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
-        myScenarios.add(s)
-        myScenariosByName[s.name] = s
-        myDbObserversByName[s.name] = KSLDatabaseObserver(model, kslDb)
+        val s = Scenario(model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
+        addScenario(s)
         return s
+    }
+
+    private fun addScenario(scenario: Scenario) {
+        require(!myScenariosByName.containsKey(scenario.name)) { "Scenario ${scenario.name} already exists" }
+        myScenarios.add(scenario)
+        myScenariosByName[scenario.name] = scenario
+        myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb)
     }
 
     /** Interprets the integer progression as the indices of the
