@@ -37,7 +37,7 @@ class GIGcQueue(
     sd: RandomIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) :
-    ModelElement(parent, theName = name) {
+    ModelElement(parent, name = name) {
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,

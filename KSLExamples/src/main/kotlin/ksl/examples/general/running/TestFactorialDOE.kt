@@ -35,7 +35,7 @@ fun main() {
 
 //    testFractionalDesign()
 
-//    simulateFactorialDesign()
+    simulateFactorialDesign()
 
 //    testCCD()
 
@@ -146,8 +146,8 @@ fun simulateFactorialDesign() {
     val fC = Factor("MeanTBA", doubleArrayOf(1.0, 5.0))
     val factors = mapOf(
         fA to "MM1Q.numServers",
-        fB to "MM1_Test:ServiceTime_PARAM_mean",
-        fC to "MM1_Test:TBA_PARAM_mean"
+        fB to "MM1_Test:ServiceTime.mean",
+        fC to "MM1_Test:TBA.mean"
     )
     val m = buildModel()
 

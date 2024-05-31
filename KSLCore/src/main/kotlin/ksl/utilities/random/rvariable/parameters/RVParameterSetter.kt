@@ -56,8 +56,12 @@ class RVParameterSetter(private val model: Model) {
      *  The key to this map is the unique name of the random variable
      *  within the model. The associated value is an instance of
      *  RVParameters which can be used to get the associated parameters
-     *  and to
-     */
+     *  and to change the parameter values.
+     *  The map cannot be modified, but the values can be retrieved and changed
+     *  as needed. Changing the values have no effect within the model until they are applied.
+     *
+     * @return parameters for every parameterized random variable within the model
+    */
     val rvParameters: Map<String, RVParameters>
 
     /**
@@ -165,14 +169,14 @@ class RVParameterSetter(private val model: Model) {
      * Uses parametersAsDoubles to get a map of map, then flattens the map
      * to a single map with the key as the concatenated key of the outer and inner keys
      * concatenated with the current value of the rvParamConCatString character string,
-     * which is "_PARAM_" by default.
+     * which is "." by default.
      *
      * The combined key needs to be unique and not be present within the random variable names.
      *
      * @return the flattened map
      */
     val flatParametersAsDoubles: Map<String, Double>
-        get() = flatParametersAsDoubles(rvParamConCatString)
+        get() = flatParametersAsDoubles(rvParamConCatRegEx)
 
     /**
      * Uses parametersAsDoubles to get a map of map, then flattens the map
@@ -252,14 +256,14 @@ class RVParameterSetter(private val model: Model) {
         return rvParameters[rvName]!!.containsParameter(paramName)
     }
 
-    /**
-     * The returned map cannot be modified, but the values can be retrieved and changed
-     * as needed. Changing the values have no effect within the model until they are applied.
-     *
-     * @return parameters for every parameterized random variable within the model
-     */
-    val allRVParameters: Map<String, RVParameters>
-        get() = rvParameters
+//    /**
+//     * The returned map cannot be modified, but the values can be retrieved and changed
+//     * as needed. Changing the values have no effect within the model until they are applied.
+//     *
+//     * @return parameters for every parameterized random variable within the model
+//     */
+//    val allRVParameters: Map<String, RVParameters>
+//        get() = rvParameters
 
     /**
      * Gets a parameters instance for the named random variable. This will be the current parameter settings being
@@ -293,7 +297,8 @@ class RVParameterSetter(private val model: Model) {
      *  automatically prior to running the experiment.
      *  This method could be used at any time to change the parameters of the model;
      *  however, changing the parameter setting during the execution of a model
-     *  is highly discouraged.
+     *  is highly discouraged.  The parameter changes ensure that the underlying
+     *  random number stream remains the same.
      *
      * @return the number of parameterized random variables that had their parameters changed in some way
      */
@@ -325,7 +330,7 @@ class RVParameterSetter(private val model: Model) {
 //                    println("current and toBe are different, make changes")
                     // change has occurred
                     countChanged++
-                    rv.initialRandomSource = toBe!!.createRVariable()
+                    rv.initialRandomSource = toBe!!.createRVariable(rv.streamNumber)
                 }
             }
         }
@@ -336,18 +341,19 @@ class RVParameterSetter(private val model: Model) {
     companion object {
         /**
          * The string used to flatten or un-flatten random variable parameters
-         * Assumed as "_PARAM_" by default
+         * Assumed as "." by default
          */
-        var rvParamConCatString = "_PARAM_"
+ //       var rvParamConCatString = "_PARAM_"
+        var rvParamConCatRegEx = "\\."
 
         /**
-         *  Splits the key into two strings based on the [catChars]. Since the
+         *  Splits the key into two strings based on the [catChars] regular expression. Since the
          *  flattened map of random variable parameters has a key that concatenates
          *  the name of the random variable with the parameter's name, this function
          *  can be used to separate them. The default concatenation string is held
-         *  in rvParamConCatString, which is "_PARAM_" by default.
+         *  in rvParamConCatString, which is "." by default.
          */
-        fun splitFlattenedRVKey(key: String, catChars: String = rvParamConCatString): Array<String> {
+        fun splitFlattenedRVKey(key: String, catChars: String = rvParamConCatRegEx): Array<String> {
             return key.split(catChars.toRegex(), limit = 2).toTypedArray()
         }
 

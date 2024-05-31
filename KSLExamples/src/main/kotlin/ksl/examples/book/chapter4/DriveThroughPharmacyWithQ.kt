@@ -23,7 +23,6 @@ import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
-import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -46,7 +45,7 @@ class DriveThroughPharmacyWithQ(
     ad: RandomIfc = ExponentialRV(1.0, 1),
     sd: RandomIfc = ExponentialRV(0.5, 2)
 ) :
-    ModelElement(parent, theName = null) {
+    ModelElement(parent, name = null) {
 
     var numPharmacists = numServers
         set(value) {

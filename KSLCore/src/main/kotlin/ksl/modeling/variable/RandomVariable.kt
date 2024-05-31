@@ -25,6 +25,8 @@ import ksl.utilities.PreviousValueIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.StreamOptionIfc
+import ksl.utilities.random.rvariable.ParameterizedRV
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  *  While RandomVariable instances should in general be declared as private within model
@@ -76,6 +78,18 @@ interface RandomSourceCIfc : StreamOptionIfc, IdentityIfc {
     var initialRandomSourceChangeWarning: Boolean
 
     fun asString(): String
+
+//    /**
+//     *  If the initial random source is a parameterized random variable,
+//     *  then its parameters are returned; otherwise, null is returned.
+//     */
+//    fun initialRandomSourceParameters(): RVParameters? {
+//        if (this.initialRandomSource is ParameterizedRV) {
+//            val me = this.initialRandomSource as ParameterizedRV
+//            return me.parameters
+//        }
+//        return null
+//    }
 }
 
 /**
@@ -177,12 +191,16 @@ open class RandomVariable(
     override fun asString(): String {
         val sb = StringBuilder()
         sb.append(toString())
+        sb.append(", ")
         sb.append(randomSource.toString())
         return sb.toString()
     }
 
     override fun toString(): String {
-        return super.toString() + " with stream ${randomSource.rnStream.id}"
+        val sb = StringBuilder()
+        sb.appendLine(super.toString())
+        sb.append("Initial random Source: $initialRandomSource with stream ${initialRandomSource.rnStream.id}")
+        return sb.toString()
     }
 
 }
