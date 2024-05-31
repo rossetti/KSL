@@ -67,7 +67,7 @@ class BinomialRV constructor(
         get() {
             val parameters: RVParameters = BinomialRVParameters()
             parameters.changeDoubleParameter("probOfSuccess", pSuccess)
-            parameters.changeIntegerParameter("numTrials", numTrials)
+            parameters.changeDoubleParameter("numTrials", numTrials.toDouble())
             return parameters
         }
 

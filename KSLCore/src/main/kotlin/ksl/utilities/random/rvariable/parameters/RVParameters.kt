@@ -416,22 +416,27 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.append("RV Type = ").append(rvType)
-        sb.appendLine()
-        sb.append("Double Parameters ")
-        sb.append(doubleParameters.toString())
-        sb.appendLine()
-        sb.append("Integer Parameters ")
-        sb.append(integerParameters.toString())
-        sb.appendLine()
-        sb.append("Double Array Parameters ")
-        sb.append("{")
-        for (key in doubleArrayParameters.keys) {
-            sb.append(System.lineSeparator())
-            sb.append(key).append(" = ").append(doubleArrayParameters[key].contentToString())
+        sb.appendLine("RV Type = $rvType")
+        if (hasDoubleParameters()){
+            sb.append("Double Parameters ")
+            sb.append(doubleParameters.toString())
         }
-        sb.append("}")
-        sb.appendLine()
+        if (hasIntegerParameter()){
+            sb.appendLine()
+            sb.append("Integer Parameters ")
+            sb.append(integerParameters.toString())
+        }
+        if (hasDoubleArrayParameter()){
+            sb.appendLine()
+            sb.append("Double Array Parameters ")
+            sb.append("{")
+            for (key in doubleArrayParameters.keys) {
+                sb.append(System.lineSeparator())
+                sb.append(key).append(" = ").append(doubleArrayParameters[key].contentToString())
+            }
+            sb.append("}")
+//            sb.appendLine()
+        }
         return sb.toString()
     }
 

@@ -37,7 +37,7 @@ import ksl.utilities.statistic.StatisticIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.observers.textfile.CSVExperimentReport
 import ksl.observers.textfile.CSVReplicationReport
-import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatString
+import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatRegEx
 import java.nio.file.Path
 import kotlin.time.Duration
 
@@ -1323,8 +1323,8 @@ class Model(
      *  rvParamConCatString from the companion object is concatenated between the name of the
      *  model element and the name of its parameter.  For example, suppose there is a
      *  random variable that has been named ServiceTimeRV that is exponentially distributed.
-     *  Also assume that rvParamConCatString is "_PARAM_", which is its default value. Then,
-     *  to access the mean of the service time random variable, we use "ServiceTimeRV_PARAM_mean".
+     *  Also assume that rvParamConCatString is ".", which is its default value. Then,
+     *  to access the mean of the service time random variable, we use "ServiceTimeRV.mean".
      *  Thus, it is important to note the name of the random variable within the model and the
      *  default names used by the KSL for the random variable parameters.  When random variables are
      *  not explicitly named by the modeler, the KSL will automatically provide a default
@@ -1336,10 +1336,10 @@ class Model(
      *
      *  @param inputKeys the set of keys to check
      *  @param conCatString the string used to concatenate random variables with their parameters.
-     *  By default, this is "_PARAM_"
+     *  By default, this is "."
      *  @return true if all provided input keys are valid
      */
-    fun validateInputKeys(inputKeys: Set<String>, conCatString: String = rvParamConCatString): Boolean {
+    fun validateInputKeys(inputKeys: Set<String>, conCatString: String = rvParamConCatRegEx): Boolean {
         val rvs = RVParameterSetter(this)
         val controls = Controls(this)
         for (key in inputKeys) {
@@ -1348,6 +1348,7 @@ class Model(
             } else {
                 // not a control, check for parameter
                 val rvKeys = RVParameterSetter.splitFlattenedRVKey(key, conCatString)
+//                println(rvKeys.joinToString())
                 if (rvs.containsParameter(rvKeys[0], rvKeys[1])) {
                     // it is a parameter
                     continue

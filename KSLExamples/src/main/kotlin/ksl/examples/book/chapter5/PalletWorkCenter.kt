@@ -17,9 +17,10 @@ class PalletWorkCenter(
     numWorkers: Int = 2,
     numPallets: RandomIfc = BinomialRV(0.8, 100, 1),
     transportTime: RandomIfc = ExponentialRV(5.0, 2),
-    processingTime: RandomIfc = TriangularRV(8.0, 12.0, 15.0, 3)
+    processingTime: RandomIfc = TriangularRV(8.0, 12.0, 15.0, 3),
+    name: String? = null
 ) :
-    ModelElement(parent, theName = null) {
+    ModelElement(parent, name = name) {
 
     init {
         require(numWorkers >= 1) { "The number of workers must be >= 1" }
@@ -36,13 +37,13 @@ class PalletWorkCenter(
             field = value
         }
 
-    private val myProcessingTimeRV: RandomVariable = RandomVariable(this, processingTime)
+    private val myProcessingTimeRV: RandomVariable = RandomVariable(this, processingTime, name = "ProcessingTimeRV")
     val processingTimeRV: RandomSourceCIfc
         get() = myProcessingTimeRV
-    private val myTransportTimeRV: RandomVariable = RandomVariable(parent, transportTime)
+    private val myTransportTimeRV: RandomVariable = RandomVariable(parent, transportTime, name = "TransportTimeRV")
     val transportTimeRV: RandomSourceCIfc
         get() = myTransportTimeRV
-    private val myNumPalletsRV: RandomVariable = RandomVariable(parent, numPallets)
+    private val myNumPalletsRV: RandomVariable = RandomVariable(parent, numPallets, name = "NumPalletsRV")
     val numPalletsRV: RandomSourceCIfc
         get() = myNumPalletsRV
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusyWorkers")

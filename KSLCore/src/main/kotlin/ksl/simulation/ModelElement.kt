@@ -39,7 +39,7 @@ private var elementCounter: Int = 0
  */
 private var qObjCounter: Long = 0
 
-abstract class ModelElement internal constructor(theName: String? = null) : IdentityIfc {
+abstract class ModelElement internal constructor(name: String? = null) : IdentityIfc {
     //TODO spatial model stuff
     //TODO change parent model element method, was in JSL, can/should it be in KSL
 
@@ -73,7 +73,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
 
     override val id: Int = elementCounter
 
-    final override val name: String = makeName(theName)
+    final override val name: String = makeName(name)
     private fun makeName(str: String?): String {
         return if (str == null) {
             // no name is being passed, construct a default name
@@ -84,7 +84,8 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             }
             s + "_" + id
         } else {
-            str
+            // the name of a model element cannot contain a "." character
+            str.replace(".", "_")
         }
     }
 
@@ -342,7 +343,7 @@ abstract class ModelElement internal constructor(theName: String? = null) : Iden
             field = value
         }
 
-    constructor(parent: ModelElement, theName: String? = null) : this(theName) {
+    constructor(parent: ModelElement, name: String? = null) : this(name) {
         // should not be leaking this
         // adds the model element to the parent and also set this element's parent
         parent.addModelElement(this)
