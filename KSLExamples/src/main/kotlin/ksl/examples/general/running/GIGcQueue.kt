@@ -78,24 +78,6 @@ class GIGcQueue(
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), myArrivalRV, myArrivalRV)
     private val endServiceEvent = this::endOfService
 
-//    override fun beforeExperiment() {
-//        super.beforeExperiment()
-//        println("Before experiment ${model.experimentName}")
-//        println("numServers = $numServers")
-//        println("TBA = ${myArrivalRV.initialRandomSource}")
-//        println("ST = ${myServiceRV.initialRandomSource}")
-//        println()
-//    }
-
-//    override fun beforeReplication() {
-//        super.beforeReplication()
-//        println("Before replication (${model.currentReplicationNumber}): ${model.experimentName}")
-//        println("numServers = $numServers")
-//        println("TBA = ${myArrivalRV.randomSource}")
-//        println("ST = ${myServiceRV.randomSource}")
-//        println()
-//    }
-
     private inner class Arrivals : GeneratorActionIfc {
         override fun generate(generator: EventGenerator) {
             myNS.increment() // new customer arrived
