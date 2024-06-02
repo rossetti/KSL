@@ -258,14 +258,9 @@ fun testHistogramPlot() {
 fun testStateVariablePlot() {
     val t = doubleArrayOf(0.0, 2.0, 5.0, 11.0, 14.0, 17.0, 22.0, 26.0, 28.0, 31.0, 35.0, 36.0)
     val n = doubleArrayOf(0.0, 1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0, 0.0, 0.0)
-
-    val plot = StateVariablePlot(n, t, "response")
-
+    val plot = StateVariablePlot(n, t, "Response")
     plot.showInBrowser()
-
-    plot.saveToFile("StateVariablePlot", plotTitle = "This is a test of StateVariablePlot plot")
-
-    println(plot)
+    plot.saveToFile("StateVariableDemo", plotTitle = "State Variable Plot")
 }
 
 fun testWelchPlotting() {
