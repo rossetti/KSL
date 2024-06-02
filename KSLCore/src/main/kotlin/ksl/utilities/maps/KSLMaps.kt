@@ -96,7 +96,7 @@ object KSLMaps {
      * @param catChars the concatenation character, must not be null
      * @return the un-flattened map
      */
-    fun unflattenMap(inMap: Map<String, Double>, catChars: String): LinkedHashMap<String, MutableMap<String, Double>> {
+    fun unflattenMap(inMap: Map<String, Double>, catChars: Char): LinkedHashMap<String, MutableMap<String, Double>> {
         Objects.requireNonNull(inMap, "The incoming map cannot be null")
         Objects.requireNonNull(catChars, "The concatenation string cannot be null")
         val outMap = LinkedHashMap<String, MutableMap<String, Double>>()
@@ -104,7 +104,7 @@ object KSLMaps {
             val theKey = e.key
             val value = e.value
             //split the key
-            val keys = theKey.split(catChars.toRegex(), limit = 2).toTypedArray()
+            val keys = theKey.split(catChars, limit = 2).toTypedArray()
             if (!outMap.containsKey(keys[0])) {
                 // make the inner map for first key occurrence
                 val innerMap = LinkedHashMap<String, Double>()

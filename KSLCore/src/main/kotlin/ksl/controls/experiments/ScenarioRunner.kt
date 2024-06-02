@@ -38,6 +38,9 @@ class ScenarioRunner(
         get() = myScenarios
 
     private val myScenariosByName = mutableMapOf<String, Scenario>()
+    val scenariosByName: Map<String, Scenario>
+        get() = myScenariosByName
+
     private val myDbObserversByName = mutableMapOf<String, KSLDatabaseObserver>()
 
     /**
@@ -89,21 +92,35 @@ class ScenarioRunner(
     fun addScenario(
         model: Model,
         inputs: Map<String, Double>,
+        name: String,
         numberReplications: Int = model.numberOfReplications,
         lengthOfReplication: Double = model.lengthOfReplication,
         lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
     ): Scenario {
-        val s = Scenario(model, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
+        val s = Scenario(model, inputs, name, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
         addScenario(s)
         return s
     }
 
+    private fun modelExists(model: Model): Boolean {
+        for(scenario in myScenarios) {
+            if (scenario.model == model) return true
+        }
+        return false
+    }
+
     private fun addScenario(scenario: Scenario) {
         require(!myScenariosByName.containsKey(scenario.name)) { "Scenario ${scenario.name} already exists" }
+        if (!modelExists(scenario.model)) {
+            // this is a scenario with a new model
+            // Because the default output directory for the model will not be needed, delete it.
+            // It will be given a new output directory within the scenario directory.
+            val modelCurrentDirectory = scenario.model.outputDirectory.outDir.toFile()
+            modelCurrentDirectory.deleteRecursively()
+        }
         myScenarios.add(scenario)
         myScenariosByName[scenario.name] = scenario
-        myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb)
-    }
+     }
 
     /** Interprets the integer progression as the indices of the
      *  contained scenarios that should be simulated. If the
@@ -124,14 +141,16 @@ class ScenarioRunner(
             if (scenarioIndex in myScenarios.indices) {
                 //TODO consider clearing data only if the experiment name already exists
                 val scenario = myScenarios[scenarioIndex]
-                // delete default output directory for the model
-                val modelCurrentDirectory = scenario.model.outputDirectory.outDir.toFile()
-                modelCurrentDirectory.deleteRecursively()
-                // now give the model a new directory within the scenarios
-                val modelDirName = scenario.model.name.replace(" ", "_") + "_OutputDir"
+                val modelDirName = scenario.name.replace(" ", "_") + "_OutputDir"
                 val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
                 scenario.model.outputDirectory = OutputDirectory(modelDir, outFileName  = "kslOutput.txt")
+                myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb)
                 scenario.simulate()
+                myDbObserversByName[scenario.name]!!.stopObserving()
+                // if the model has auto reports on, turn them off so that new reports are independently attached
+                if (scenario.model.autoCSVReports){
+                    scenario.model.turnOffCSVStatisticalReports()
+                }
             }
         }
     }

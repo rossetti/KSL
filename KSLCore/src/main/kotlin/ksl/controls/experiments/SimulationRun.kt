@@ -66,6 +66,9 @@ class SimulationRun private constructor(
     fun statisticalReporter(): StatisticReporter {
         val r = StatisticReporter()
         for ((key, value) in results.entries) {
+            if ((key == "repNumbers") || (key == "repTimings")){
+                continue
+            }
             r.addStatistic(Statistic(key, value))
         }
         return r
@@ -94,7 +97,7 @@ class SimulationRun private constructor(
         } else {
             for((key, value) in results){
                 sb.appendLine("key = $key")
-                sb.appendLine("value = $value")
+                sb.appendLine("value = ${value.joinToString(prefix = "[", postfix = "]", separator = ","  )}")
             }
         }
         return sb.toString()

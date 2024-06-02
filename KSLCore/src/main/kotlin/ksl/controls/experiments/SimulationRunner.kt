@@ -61,8 +61,8 @@ import java.io.StringWriter
  *  rvParamConCatString from the companion object is concatenated between the name of the
  *  model element and the name of its parameter.  For example, suppose there is a
  *  random variable that has been named ServiceTimeRV that is exponentially distributed.
- *  Also assume that rvParamConCatString is "_PARAM_", which is its default value. Then,
- *  to access the mean of the service time random variable, we use "ServiceTimeRV_PARAM_mean".
+ *  Also assume that rvParamConCatString is ".", which is its default value. Then,
+ *  to access the mean of the service time random variable, we use "ServiceTimeRV.mean".
  *  Thus, it is important to note the name of the random variable within the model and the
  *  KSL's default names for the random variable parameters.  When random variables are
  *  not explicitly named by the modeler, the KSL will automatically provide a default
@@ -161,7 +161,7 @@ class SimulationRunner(
             val controls: Controls = model.controls()
             // get the random variable parameters
             val tmpSetter = RVParameterSetter(model)
-            val rvParameters = tmpSetter.flatParametersAsDoubles(rvParamConCatString)
+            val rvParameters = tmpSetter.flatParametersAsDoubles(rvParamConCatChar)
             // now check supplied input key is a control or a rv parameter
             // and save them for application to the model
             val controlsMap = mutableMapOf<String, Double>()
@@ -182,7 +182,7 @@ class SimulationRunner(
             }
             if (rvParamMap.isNotEmpty()) {
                 // convert to form used by RVParameterSetter
-                val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatString)
+                val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatChar)
                 // tell the model to use the supplied parameter values
                 model.rvParameterSetter.changeParameters(unflattenMap)
                 Model.logger.info { "SimulationRunner: ${rvParamMap.size} parameters out of ${rvParameters.size} were applied." }
@@ -238,9 +238,9 @@ class SimulationRunner(
     companion object {
         /**
          * The string used to flatten or un-flatten random variable parameters
-         * Assumed as "_PARAM_" by default
+         * Assumed as "." by default
          */
-        var rvParamConCatString = RVParameterSetter.rvParamConCatRegEx
+        var rvParamConCatChar = RVParameterSetter.rvParamConCatChar
 
     }
 }

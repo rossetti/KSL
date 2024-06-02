@@ -4,8 +4,8 @@ import ksl.simulation.Model
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 
 /**
- *  Example 5.8
- *  Illustrate the basic use of controls.
+ *  Example 5.9
+ *  Illustrate the basic use of the RVParameterSetter class.
  */
 fun main() {
     val model = Model("Pallet Model MCB")
@@ -24,4 +24,10 @@ fun main() {
     tmpSetter.applyParameterChanges(model)
     println()
     println(palletWorkCenter.processingTimeRV)
+    println()
+    val flatMap = tmpSetter.flatParametersAsDoubles
+    println("Flat Map Representation:")
+    for ((key, value) in flatMap) {
+        println("$key -> $value")
+    }
 }

@@ -17,6 +17,8 @@
  */
 package ksl.examples.book.chapter4
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.queue.Queue
@@ -43,10 +45,15 @@ class DriveThroughPharmacyWithQ(
     parent: ModelElement,
     numServers: Int = 1,
     ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.5, 2)
+    sd: RandomIfc = ExponentialRV(0.5, 2),
+    name: String? = null
 ) :
-    ModelElement(parent, name = null) {
+    ModelElement(parent, name = name) {
 
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 1.0
+    )
     var numPharmacists = numServers
         set(value) {
             require(value > 0)

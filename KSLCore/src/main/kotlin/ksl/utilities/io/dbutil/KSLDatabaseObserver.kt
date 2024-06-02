@@ -65,6 +65,7 @@ class KSLDatabaseObserver(
             super.beforeExperiment(modelElement)
             val simName: String = model.simulationName
             val expName: String = model.experimentName
+            Model.logger.info { "KSLDatabaseObserver.beforeExperiment(${modelElement.name}):  $expName of simulation $simName" }
             //handle clearing of database here
             if (clearDataBeforeExperimentOption) {
                 db.clearSimulationData(model)

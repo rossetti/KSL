@@ -57,12 +57,22 @@ fun printControlsAndRVParameters() {
 
     val controls = m.controls()
     val rvp = m.rvParameterSetter
-
-    println("Controls")
-    println(controls)
+    println("Control keys:")
+    for (controlKey in controls.controlKeys()) {
+        println(controlKey)
+    }
     println()
     println("RV Parameters")
-    println(rvp)
+    println("Standard Map Representation:")
+    for ((key, value) in rvp.rvParameters) {
+        println("$key -> $value")
+    }
+    println()
+    println("Flat Map Representation:")
+    for ((key, value) in rvp.flatParametersAsDoubles) {
+        println("$key -> $value")
+    }
+    println()
 }
 
 fun testFD() {

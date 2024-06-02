@@ -176,7 +176,7 @@ class RVParameterSetter(private val model: Model) {
      * @return the flattened map
      */
     val flatParametersAsDoubles: Map<String, Double>
-        get() = flatParametersAsDoubles(rvParamConCatRegEx)
+        get() = flatParametersAsDoubles(rvParamConCatChar)
 
     /**
      * Uses parametersAsDoubles to get a map of map, then flattens the map
@@ -184,11 +184,11 @@ class RVParameterSetter(private val model: Model) {
      * concatenated with the supplied character string. The combined key needs to be unique
      * and not be present within the random variable names.
      *
-     * @param conCatString the string to form the common key
+     * @param conCatString the char to form the common key
      * @return the flattened map
      */
-    fun flatParametersAsDoubles(conCatString: String): Map<String, Double> {
-        return KSLMaps.flattenMap(parametersAsDoubles, conCatString)
+    fun flatParametersAsDoubles(conCatString: Char): Map<String, Double> {
+        return KSLMaps.flattenMap(parametersAsDoubles, conCatString.toString())
     }
 
     /**
@@ -344,17 +344,17 @@ class RVParameterSetter(private val model: Model) {
          * Assumed as "." by default
          */
  //       var rvParamConCatString = "_PARAM_"
-        var rvParamConCatRegEx = "\\."
+        var rvParamConCatChar = '.'
 
         /**
-         *  Splits the key into two strings based on the [catChars] regular expression. Since the
+         *  Splits the key into two strings based on the [catChar] regular expression. Since the
          *  flattened map of random variable parameters has a key that concatenates
          *  the name of the random variable with the parameter's name, this function
          *  can be used to separate them. The default concatenation string is held
          *  in rvParamConCatString, which is "." by default.
          */
-        fun splitFlattenedRVKey(key: String, catChars: String = rvParamConCatRegEx): Array<String> {
-            return key.split(catChars.toRegex(), limit = 2).toTypedArray()
+        fun splitFlattenedRVKey(key: String, catChar: Char = rvParamConCatChar): Array<String> {
+            return key.split(catChar, limit = 2).toTypedArray()
         }
 
     }

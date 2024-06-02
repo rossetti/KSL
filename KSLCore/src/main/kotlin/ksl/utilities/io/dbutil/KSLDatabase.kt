@@ -325,6 +325,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     internal fun beforeExperiment(model: Model) {
         val experimentRecord = fetchExperimentData(model.experimentName)
         if (experimentRecord == null) {
+//            println("**** The experiment record was null. Insert new experiment record: Database: ${db.label} Experiment: ${model.experimentName}")
             // this is a new experiment
             // create and insert the new experiment
             currentExp = createExperimentData(model)
@@ -353,6 +354,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 insertDbRvParameterRecords(ps.rvParametersData)
             }
         } else {
+//            println("**** The experiment record was not null. Database: ${db.label} Experiment: ${model.experimentName}")
             // there was already and existing record for this experiment
             // the experiment must be chunked or there is a potential user error
             if (model.numChunks > 1) {
@@ -367,6 +369,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 currentSimRun = createSimulationRunData(model)
                 db.insertDbDataIntoTable(currentSimRun!!)
             } else {
+                println(experimentRecord)
                 // not a chunk, same experiment but not chunked, this is a potential user error
                 reportExistingExperimentRecordError(model)
             }
