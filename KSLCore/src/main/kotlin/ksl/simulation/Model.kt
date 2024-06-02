@@ -37,7 +37,7 @@ import ksl.utilities.statistic.StatisticIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.observers.textfile.CSVExperimentReport
 import ksl.observers.textfile.CSVReplicationReport
-import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatRegEx
+import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatChar
 import java.nio.file.Path
 import kotlin.time.Duration
 
@@ -56,8 +56,8 @@ class Model(
      */
     var outputDirectory: OutputDirectory = OutputDirectory(pathToOutputDirectory, "kslOutput.txt")
 
-    private lateinit var myCSVRepReport: CSVReplicationReport
-    private lateinit var myCSVExpReport: CSVExperimentReport
+    private var myCSVRepReport: CSVReplicationReport? = null
+    private var myCSVExpReport: CSVExperimentReport? = null
 
     var autoPrintSummaryReport: Boolean = false
 
@@ -216,11 +216,11 @@ class Model(
      *
      */
     fun turnOnReplicationCSVStatisticReporting() {
-        if (!this::myCSVRepReport.isInitialized){
+        if (myCSVRepReport == null){
             myCSVRepReport = CSVReplicationReport(model)
         }
-        if (!isModelElementObserverAttached(myCSVRepReport)){
-            attachModelElementObserver(myCSVRepReport)
+        if (!isModelElementObserverAttached(myCSVRepReport!!)){
+            attachModelElementObserver(myCSVRepReport!!)
         }
     }
 
@@ -229,10 +229,11 @@ class Model(
      *
      */
     fun turnOffReplicationCSVStatisticReporting() {
-        if (!this::myCSVRepReport.isInitialized){
+        if (myCSVRepReport == null){
             return
         }
-        detachModelElementObserver(myCSVRepReport)
+        detachModelElementObserver(myCSVRepReport!!)
+        myCSVRepReport = null
     }
 
     /**
@@ -240,11 +241,11 @@ class Model(
      *
      */
     fun turnOnAcrossReplicationStatisticReporting(){
-        if (!this::myCSVExpReport.isInitialized){
+        if (myCSVExpReport == null){
             myCSVExpReport = CSVExperimentReport(model)
         }
-        if (!isModelElementObserverAttached(myCSVExpReport)){
-            attachModelElementObserver(myCSVExpReport)
+        if (!isModelElementObserverAttached(myCSVExpReport!!)){
+            attachModelElementObserver(myCSVExpReport!!)
         }
     }
 
@@ -253,10 +254,11 @@ class Model(
      *
      */
     fun turnOffAcrossReplicationStatisticReporting() {
-        if (!this::myCSVExpReport.isInitialized){
+        if (myCSVExpReport == null){
             return
         }
-        detachModelElementObserver(myCSVExpReport)
+        detachModelElementObserver(myCSVExpReport!!)
+        myCSVExpReport = null
     }
 
     /**
@@ -1335,11 +1337,11 @@ class Model(
      *  property.
      *
      *  @param inputKeys the set of keys to check
-     *  @param conCatString the string used to concatenate random variables with their parameters.
+     *  @param conCatChar the character used to concatenate random variables with their parameters.
      *  By default, this is "."
      *  @return true if all provided input keys are valid
      */
-    fun validateInputKeys(inputKeys: Set<String>, conCatString: String = rvParamConCatRegEx): Boolean {
+    fun validateInputKeys(inputKeys: Set<String>, conCatString: Char = rvParamConCatChar): Boolean {
         val rvs = RVParameterSetter(this)
         val controls = Controls(this)
         for (key in inputKeys) {

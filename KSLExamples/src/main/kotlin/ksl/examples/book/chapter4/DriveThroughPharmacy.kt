@@ -41,17 +41,18 @@ class DriveThroughPharmacy(
     init{
         require(numServers >= 1) {"The number of pharmacists must be >= 1"}
     }
+
     var numPharmacists = numServers
         set(value) {
             require(value >= 1){"The number of pharmacists must be >= 1"}
             field = value
         }
 
-    private val myServiceRV: RandomVariable = RandomVariable(this, serviceTime, "Service RV")
+    private val myServiceRV: RandomVariable = RandomVariable(this, serviceTime, "ServiceRV")
     val serviceRV: RandomSourceCIfc
         get() = myServiceRV
 
-    private val myArrivalRV: RandomVariable = RandomVariable(this, timeBtwArrivals, "Arrival RV")
+    private val myArrivalRV: RandomVariable = RandomVariable(this, timeBtwArrivals, "ArrivalRV")
     val arrivalRV: RandomSourceCIfc
         get() = myArrivalRV
 

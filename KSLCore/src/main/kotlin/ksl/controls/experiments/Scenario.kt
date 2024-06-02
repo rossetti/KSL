@@ -21,17 +21,22 @@ package ksl.controls.experiments
 import ksl.simulation.ExperimentIfc
 import ksl.simulation.Model
 import ksl.utilities.Identity
+import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.OutputDirectory
 
 /**
  *  A scenario represents the specification of a model to run, with some
  *  inputs.  Each scenario will produce a simulation run.
- *  The name of the scenario is set equal to the name of the experiment from
- *  the model. In the context of running multiple scenarios, it is important
- *  that the experiment names be unique to permit automated storage within
- *  a KSL database.
+ *  In the context of running multiple scenarios, it is important
+ *  that the scenario names be unique to permit automated storage within
+ *  a KSL database.  The name of the scenario is used to assign the
+ *  name of the model's experiment prior to simulating the model.
+ *  In this manner, each experiment can have a unique name.
  *
  *  @param model The model to be simulated
  *  @param inputs The map of inputs (based on control names) to apply to the model
+ *  @param name The name of the scenario. It should be unique within the context of a
+ *  set of scenario being executed by a ScenarioRunner.
  *  @param numberReplications the number of replications for the scenario. By default,
  *  this is the current setting of the model.
  *  @param lengthOfReplication the length of each replication for the scenario. By default,
@@ -42,10 +47,11 @@ import ksl.utilities.Identity
 class Scenario(
     val model: Model,
     inputs: Map<String, Double>,
+    name: String,
     numberReplications: Int = model.numberOfReplications,
     lengthOfReplication: Double = model.lengthOfReplication,
     lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
-) : Identity(model.experimentName), ExperimentIfc by model {
+) : Identity(name), ExperimentIfc by model {
 
     private val simulationRunner = SimulationRunner(model)
     private val myInputs = mutableMapOf<String, Double>()
@@ -55,8 +61,15 @@ class Scenario(
      */
     var simulationRun: SimulationRun? = null
 
+    /**
+     *  Can be used to supply a function that will set up the model
+     *  prior to being run. This would allow for the assignment properties or invoking
+     *  of additional logic prior to simulating the model.
+     */
+    var setup: ScenarioSetupIfc? = null
+
     init {
-        require(model.validateInputKeys(inputs.keys)) { "The inputs contained invalid input names" }
+        require(model.validateInputKeys(inputs.keys)) { "The inputs, ${inputs.keys.joinToString(prefix = "[", postfix = "]")} contained invalid input names" }
         for ((n, v) in inputs) {
             myInputs[n] = v
         }
@@ -71,8 +84,22 @@ class Scenario(
      *  with each execution.
      */
     fun simulate() {
+        // store the current name
+        val experimentName = model.experimentName
+        // change the name for the run to the name of the scenario
+        model.experimentName = name
+        setup?.setup(model)
         simulationRun = simulationRunner.simulate(myInputs, model.extractRunParameters())
+        // put the name back to its original value
+        model.experimentName = experimentName
     }
 
+}
+
+/**
+ *  Can be used to supply logic to configure a model prior to simulating a scenario.
+ */
+fun interface ScenarioSetupIfc {
+    fun setup(model: Model)
 }
 
