@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.general.running
+package ksl.examples.book.appendixD
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl

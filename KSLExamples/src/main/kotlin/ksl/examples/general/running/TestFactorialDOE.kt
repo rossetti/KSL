@@ -19,13 +19,11 @@
 package ksl.examples.general.running
 
 import ksl.controls.experiments.*
+import ksl.examples.book.appendixD.GIGcQueue
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.*
-import org.jetbrains.kotlinx.dataframe.DataColumn
-import org.jetbrains.kotlinx.dataframe.api.getColumn
 import org.jetbrains.kotlinx.dataframe.api.print
-import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 fun main() {
 

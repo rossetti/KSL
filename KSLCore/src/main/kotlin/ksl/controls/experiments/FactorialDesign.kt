@@ -150,7 +150,7 @@ open class FactorialDesign(
         for ((name, factor) in factors) {
             sb.appendLine(factor)
         }
-        sb.appendLine("First few Design Points")
+        sb.appendLine("First Four Design Points")
         iterator().asSequence().take(4)
             .forEach { sb.appendLine("\t${it.number} : ${it.values().joinToString()}") }
         return sb.toString()
