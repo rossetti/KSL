@@ -44,8 +44,8 @@ data class DesignPointInfo(val point: Int, val exp_name: String, val rep_id: Int
  *  rvParamConCatString from the companion object is concatenated between the name of the
  *  model element and the name of its parameter.  For example, suppose there is a
  *  random variable that has been named ServiceTimeRV that is exponentially distributed.
- *  Also assume that rvParamConCatString is "_PARAM_", which is its default value. Then,
- *  to access the mean of the service time random variable, we use "ServiceTimeRV_PARAM_mean".
+ *  Also assume that rvParamConCatString is ".", which is its default value. Then,
+ *  to access the mean of the service time random variable, we use "ServiceTimeRV.mean".
  *  Thus, it is important to note the name of the random variable within the model and the
  *  KSL's default names for the random variable parameters.  When random variables are
  *  not explicitly named by the modeler, the KSL will automatically provide a default
@@ -57,7 +57,7 @@ data class DesignPointInfo(val point: Int, val exp_name: String, val rep_id: Int
  *
  *  Suppose factor A was associated with the worker's initial capacity and factor B was
  *  associated with the mean of the service time distribution, then the factor settings map
- *  would be mapOf(factorA to "Worker.initialCapacity", factorB to "ServiceTimeRV_PARAM_mean")
+ *  would be mapOf(factorA to "Worker.initialCapacity", factorB to "ServiceTimeRV.mean")
  *  where factorA and factorB are references to the associated Factor instances.
  *
  *  @param name the name of the experiment for saving simulation results
@@ -73,7 +73,8 @@ class DesignedExperiment(
     private val model: Model,
     private val factorSettings: Map<Factor, String>,
     val design: ExperimentalDesignIfc,
-    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
+    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"),
+        model.outputDirectory.dbDir)
 ) : Identity(name) {
 
     /**
@@ -90,7 +91,8 @@ class DesignedExperiment(
         model: Model,
         twoLevelSettings: Map<TwoLevelFactor, String>,
         design: TwoLevelFactorialDesign,
-        kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), KSL.dbDir)
+        kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"),
+            model.outputDirectory.dbDir)
     ) : this(name, model, twoLevelFactorSetting(twoLevelSettings), design, kslDb)
 
     private val mySimulationRunner = SimulationRunner(model)
@@ -138,7 +140,7 @@ class DesignedExperiment(
         }
         // check if supplied control or parameter keys make sense for this model
         require(model.validateInputKeys(factorSettings.values.toSet())) {
-            "The factor settings contained invalid input names"
+            "The factor settings, ${factorSettings.values.toSet().joinToString(prefix = "[", postfix = "]")} , contained invalid input names"
         }
     }
 
@@ -457,7 +459,7 @@ class DesignedExperiment(
      */
     fun resultsToCSV(
         fileName: String = name.replace(" ", "_") + ".csv",
-        directory: Path = KSL.csvDir,
+        directory: Path = model.outputDirectory.csvDir,
         coded: Boolean = false
     ) {
         val df = replicatedDesignPointsWithResponses(coded = coded)

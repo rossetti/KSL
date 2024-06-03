@@ -2,6 +2,7 @@ package ksl.examples.general.running
 
 import ksl.controls.experiments.Scenario
 import ksl.controls.experiments.ScenarioRunner
+import ksl.examples.book.appendixD.GIGcQueue
 import ksl.simulation.Model
 
 

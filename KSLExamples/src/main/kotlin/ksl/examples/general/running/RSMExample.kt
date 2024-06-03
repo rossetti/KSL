@@ -36,8 +36,8 @@ fun runRQModel(m: Model){
 }
 
 fun rQModel(): Model {
-    val m = Model()
-    val rqModel = RQInventorySystem(m, name = "RQInventoryModel")
+    val m = Model("ResponseSurfaceDemo")
+    val rqModel = RQInventorySystem(m, name = "RQInventory")
     rqModel.costPerOrder = 0.15 //$ per order
     rqModel.unitHoldingCost = 0.25 //$ per unit per month
     rqModel.unitBackorderCost = 1.75 //$ per unit per month
@@ -64,24 +64,23 @@ fun rQExperiment(m: Model) {
     val df = design.designPointsAsDataframe()
     df.print(rowsLimit = 36)
     val settings = mapOf(
-        r to "RQInventoryModel:Item.initialReorderPoint",
-        q to "RQInventoryModel:Item.initialReorderQty",
+        r to "RQInventory:Item.initialReorderPoint",
+        q to "RQInventory:Item.initialReorderQty",
     )
     val de = DesignedExperiment("R-Q Inventory Experiment", m, settings, design)
     de.simulateAll(numRepsPerDesignPoint = 20)
     println("Simulation of the design is completed")
     println()
-    val resultsDf = de.replicatedDesignPointsWithResponse("RQInventoryModel:Item:TotalCost", coded = true)
+    val resultsDf = de.replicatedDesignPointsWithResponse("RQInventory:Item:TotalCost", coded = true)
     resultsDf.print(rowsLimit = 80)
     println()
     val lm = design.linearModel(type = LinearModel.Type.AllTerms)
     println(lm.asString())
+    println()
     val lmDF = resultsDf.addColumnsFor(lm)
     lmDF.print(rowsLimit = 80)
-
-    val regressionResults = de.regressionResults("RQInventoryModel:Item:TotalCost", lm)
+    val regressionResults = de.regressionResults("RQInventory:Item:TotalCost", lm)
     println()
     println(regressionResults)
     regressionResults.showResultsInBrowser()
-
 }
