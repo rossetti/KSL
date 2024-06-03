@@ -35,9 +35,9 @@ fun main() {
 
 //    demoTwoLevelFactorialDesignCreation()
 
-//    demoCentralCompositeDesignCreation()
-
 //    demoFractionalDesignCreation()
+
+//    demoCentralCompositeDesignCreation()
 
 //    demoSimulationOfDesignedExperiment()
 
