@@ -22,13 +22,34 @@ import ksl.modeling.entity.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
-class BlockingQExample(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+/**
+ *  Example 6.5
+ *  This example illustrates how to use a blocking queue.  A blocking queue can
+ *  cause an entity to wait until an item is available in the channel or cause an
+ *  entity to wait until there is space in the channel.
+ */
+fun main(){
+    val m = Model()
+    val test = BlockingQExample(m)
+
+    m.lengthOfReplication = 100.0
+    m.numberOfReplications = 1
+    m.simulate()
+    m.print()
+}
+
+class BlockingQExample(
+    parent: ModelElement,
+    name: String? = null
+) : ProcessModel(parent, name) {
 
 //    val blockingQ: BlockingQueue<QObject> = BlockingQueue(this)
     val blockingQ: BlockingQueue<QObject> = BlockingQueue(this, capacity = 10)
+
     init {
 //        blockingQ.waitTimeStatisticsOption(false)
     }
+
     private inner class Receiver: Entity() {
         val receiving : KSLProcess = process("receiving") {
             for (i in 1..15) {
@@ -65,14 +86,4 @@ class BlockingQExample(parent: ModelElement, name: String? = null) : ProcessMode
         activate(s.sending)
     }
 
-}
-
-fun main(){
-    val m = Model()
-    val test = BlockingQExample(m)
-
-    m.lengthOfReplication = 100.0
-    m.numberOfReplications = 1
-    m.simulate()
-    m.print()
 }

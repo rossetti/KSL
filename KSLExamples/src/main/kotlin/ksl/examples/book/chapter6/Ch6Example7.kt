@@ -28,7 +28,15 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.*
 
-class StemFairMixer(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+/**
+ *  Example 6.7
+ *  This model illustrates process view modeling via the STEM Career Fair Mixer system
+ *  described in Chapter 6.
+ */
+class StemFairMixer(
+    parent: ModelElement,
+    name: String? = null
+) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(2.0, 1)
     private val myNameTagTimeRV = RandomVariable(this, UniformRV((15.0 / 60.0), (45.0 / 60.0), 2))

@@ -34,3 +34,4 @@ fun nhppThinning(rateFunc: RateFunctionIfc, maxTime: Double) : DoubleArray {
     }
     return list.toDoubleArray()
 }
+
