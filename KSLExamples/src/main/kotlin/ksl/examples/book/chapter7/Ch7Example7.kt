@@ -43,6 +43,5 @@ fun scheduledCase(){
     m.print()
     val r = m.simulationReporter
     r.writeHalfWidthSummaryReportAsMarkDown(KSL.out, df = MarkDown.D3FORMAT)
-
 }
 

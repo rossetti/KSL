@@ -25,6 +25,20 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
+/**
+ *  Example 6.4
+ *  This example illustrates how to use the Signal class to hold entities until a signal is sent.
+ *  Once the signal is received the entity continues its processing.
+ */
+fun main(){
+    val m = Model()
+    SignalExample(m)
+    m.numberOfReplications = 1
+    m.lengthOfReplication = 50.0
+    m.simulate()
+    m.print()
+}
+
 class SignalExample(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val signal = Signal(this, "SignalExample")
@@ -53,11 +67,3 @@ class SignalExample(parent: ModelElement, name: String? = null) : ProcessModel(p
     }
 }
 
-fun main(){
-    val m = Model()
-    SignalExample(m)
-    m.numberOfReplications = 1
-    m.lengthOfReplication = 50.0
-    m.simulate()
-    m.print()
-}

@@ -199,14 +199,14 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
             delay(walkToNameTags)
             // at name tag station
             if (isClosed) {
-                // mixture closed during walking
+                // mixer closed during walking
                 delay(walkFromNameTagsToExit)
                 departMixer(this@Student)
             } else {
                 // get name tags
                 delay(myNameTagTimeRV)
                 if (isClosed) {
-                    // mixture closed during name tag
+                    // mixer closed during name tag
                     delay(walkFromNameTagsToExit)
                     departMixer(this@Student)
                 } else {
@@ -258,13 +258,13 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
             delay(walkToNameTags)
             // at name tag station
             if (isClosed) {
-                // mixture closed during walking
+                // mixer closed during walking
                 delay(walkFromNameTagsToExit)
                 departMixer(this@Student)
             } else {
                 delay(myNameTagTimeRV)
                 if (isClosed) {
-                    // mixture closed during name tag
+                    // mixer closed during name tag
                     delay(walkFromNameTagsToExit)
                     departMixer(this@Student)
                 } else {

@@ -26,7 +26,16 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.*
 
-class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessModel(parent, theName) {
+/**
+ *  Example 6.8
+ *  This example illustrates process view modeling for a simple production system that
+ *  produces T-Shirts. A blocking queue is an important part of the implementation
+ *  for this model.
+ */
+class TieDyeTShirts(
+    parent: ModelElement,
+    name: String? = null
+) : ProcessModel(parent, name) {
 
     private val myTBOrders: RVariableIfc = ExponentialRV(60.0)
     private val myType: RVariableIfc = DEmpiricalRV(doubleArrayOf(1.0, 2.0), doubleArrayOf(0.7, 1.0))
@@ -41,19 +50,19 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
     private val myNumInSystem = TWResponse(this, "Num in System")
 
     private val myShirtMakers: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "ShirtMakers_R")
-    private val myOrderQ : RequestQ = RequestQ(this, name = "OrderQ")
+    private val myOrderQ: RequestQ = RequestQ(this, name = "OrderQ")
     private val myPackager: ResourceWithQ = ResourceWithQ(this, "Packager_R")
     private val generator = EntityGenerator(::Order, myTBOrders, myTBOrders)
     private val completedShirtQ: BlockingQueue<Shirt> = BlockingQueue(this, name = "Completed Shirt Q")
 
-    private inner class Order: Entity() {
+    private inner class Order : Entity() {
         val type: Int = myOrderType.value.toInt() // in the problem, but not really used
         val size: Int = myOrderSize.value.toInt()
-        var completedShirts : List<Shirt> = emptyList() // not really necessary
+        var completedShirts: List<Shirt> = emptyList() // not really necessary
 
-        val orderMaking : KSLProcess = process("Order Making") {
+        val orderMaking: KSLProcess = process("Order Making") {
             myNumInSystem.increment()
-            for(i in 1..size){
+            for (i in 1..size) {
                 val shirt = Shirt(this@Order.id)
                 activate(shirt.shirtMaking)
             }
@@ -61,7 +70,7 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
             delay(myPaperWorkTime)
             release(a)
             // wait for shirts
-            completedShirts = waitForItems(completedShirtQ, size, {it.orderNum == this@Order.id})
+            completedShirts = waitForItems(completedShirtQ, size, { it.orderNum == this@Order.id })
             a = seize(myPackager)
             delay(myPackagingTime)
             release(a)
@@ -70,8 +79,8 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
         }
     }
 
-    private inner class Shirt(val orderNum: Long): Entity() {
-        val shirtMaking: KSLProcess = process( "Shirt Making"){
+    private inner class Shirt(val orderNum: Long) : Entity() {
+        val shirtMaking: KSLProcess = process("Shirt Making") {
             val a = seize(myShirtMakers)
             delay(myShirtMakingTime)
             release(a)
@@ -81,7 +90,7 @@ class TieDyeTShirts(parent: ModelElement, theName: String? = null) : ProcessMode
     }
 }
 
-fun main(){
+fun main() {
     val m = Model()
     TieDyeTShirts(m, "Tie-Dye Shirts")
     m.lengthOfReplication = 480.0

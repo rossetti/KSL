@@ -1,5 +1,5 @@
 /*
- *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -18,51 +18,56 @@
 
 package ksl.examples.book.chapter6
 
-import ksl.modeling.entity.HoldQueue
-import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
-import ksl.simulation.KSLEvent
+import ksl.modeling.entity.KSLProcess
+import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.variable.Counter
+import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.random.rvariable.ExponentialRV
 
-class Example2(parent: ModelElement) : ProcessModel(parent, null)  {
-
-    private val myHoldQueue: HoldQueue = HoldQueue(this, "hold")
-
-    private val myEventActionOne: EventActionOne = EventActionOne()
-
-    private inner class Customer: ProcessModel.Entity() {
-        val holdProcess : KSLProcess = process() {
-            println("time = $time : before being held customer = ${this@Customer.name}")
-            hold(myHoldQueue)
-            println("time = $time : after being held customer = ${this@Customer.name}")
-            delay(10.0)
-            println("time = $time after the first delay for customer = ${this@Customer.name}")
-            delay(20.0)
-            println("time = $time after the second delay for customer = ${this@Customer.name}")
-        }
-    }
-
-    override fun initialize() {
-        val e = Customer()
-        activate(e.holdProcess)
-        val c = Customer()
-        activate(c.holdProcess, 1.0)
-        schedule(myEventActionOne, 5.0)
-    }
-
-    private inner class EventActionOne : ModelElement.EventAction<Nothing>() {
-        override fun action(event: KSLEvent<Nothing>) {
-            println("Removing and resuming held entities at time : $time")
-            myHoldQueue.removeAllAndResume()
-        }
-    }
-}
-
+/**
+ *  Example 6.2
+ *  This example illustrates how to set up and use an entity generator instance to generate
+ *  and activate customers in a simple process.
+ */
 fun main(){
     val m = Model()
-    Example2(m)
-    m.lengthOfReplication = 50.0
-    m.numberOfReplications = 1
+    val test = EntityGeneratorExample(m, "System")
+    m.numberOfReplications = 30
+    m.lengthOfReplication = 20000.0
+    m.lengthOfReplicationWarmUp = 5000.0
     m.simulate()
+    m.print()
 }
+
+class EntityGeneratorExample(
+    parent: ModelElement,
+    name: String? = null
+) : ProcessModel(parent, name) {
+
+    private val worker: ResourceWithQ = ResourceWithQ(this, "worker")
+    private val tba = ExponentialRV(6.0, 1)
+    private val st = RandomVariable(this, ExponentialRV(3.0, 2))
+    private val wip = TWResponse(this, "${this.name}:WIP")
+    private val tip = Response(this, "${this.name}:TimeInSystem")
+    private val generator = EntityGenerator(::Customer, tba, tba)
+    private val counter = Counter(this, "${this.name}:NumServed" )
+
+    private inner class Customer: Entity() {
+        val mm1: KSLProcess = process{
+            wip.increment()
+            timeStamp = time
+            val a  = seize(worker)
+            delay(st)
+            release(a)
+            tip.value = time - timeStamp
+            wip.decrement()
+            counter.increment()
+        }
+    }
+}
+

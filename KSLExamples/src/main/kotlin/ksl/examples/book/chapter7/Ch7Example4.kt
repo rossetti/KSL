@@ -6,12 +6,26 @@ import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.*
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.KSL
+import ksl.utilities.io.MarkDown
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
+
+fun main() {
+    val m = Model()
+    val tq = TestAndRepairShop(m, name = "TestAndRepair")
+    m.numberOfReplications = 10
+    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
+    m.simulate()
+    m.print()
+    val r = m.simulationReporter
+    r.writeHalfWidthSummaryReportAsMarkDown(KSL.out, df = MarkDown.D3FORMAT)
+}
 
 class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
@@ -19,20 +33,20 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     private val tba = ExponentialRV(20.0)
 
     // test plan 1, distribution j
-    private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1*4.1))
-    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2*4.2))
-    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.3*4.3))
-    private val t14 = RandomVariable(this, LognormalRV(16.0, 4.0*4.0))
+    private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1 * 4.1))
+    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2 * 4.2))
+    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.3 * 4.3))
+    private val t14 = RandomVariable(this, LognormalRV(16.0, 4.0 * 4.0))
     // test plan 2, distribution j
-    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.0*4.0))
-    private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0*4.0))
+    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.0 * 4.0))
+    private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0 * 4.0))
     // test plan 3, distribution j
-    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.2*4.2))
-    private val t32 = RandomVariable(this, LognormalRV(14.0, 4.4*4.4))
-    private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3*4.3))
+    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.2 * 4.2))
+    private val t32 = RandomVariable(this, LognormalRV(14.0, 4.4 * 4.4))
+    private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3 * 4.3))
     // test plan 4, distribution j
-    private val t41 = RandomVariable(this, LognormalRV(24.0, 4.0*4.0))
-    private val t42 = RandomVariable(this, LognormalRV(30.0, 4.0*4.0))
+    private val t41 = RandomVariable(this, LognormalRV(24.0, 4.0 * 4.0))
+    private val t42 = RandomVariable(this, LognormalRV(30.0, 4.0 * 4.0))
 
     private val r1 = RandomVariable(this, TriangularRV(30.0, 60.0, 80.0))
     private val r2 = RandomVariable(this, TriangularRV(45.0, 55.0, 70.0))
@@ -85,7 +99,8 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     private val timeInSystem: Response = Response(this, "${this.name}:TimeInSystem")
     val systemTime: ResponseCIfc
         get() = timeInSystem
-    private val myContractLimit: IndicatorResponse = IndicatorResponse({ x -> x <= 480.0 }, timeInSystem, "ProbWithinLimit")
+    private val myContractLimit: IndicatorResponse =
+        IndicatorResponse({ x -> x <= 480.0 }, timeInSystem, "ProbWithinLimit")
     val probWithinLimit: ResponseCIfc
         get() = myContractLimit
 
