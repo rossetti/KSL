@@ -20,10 +20,7 @@ package ksl.utilities.distributions.fitting
 import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.estimators.*
-import ksl.utilities.distributions.fitting.scoring.AndersonDarlingScoringModel
-import ksl.utilities.distributions.fitting.scoring.KSScoringModel
-import ksl.utilities.distributions.fitting.scoring.PDFScoringModel
-import ksl.utilities.distributions.fitting.scoring.PPSSEScoringModel
+import ksl.utilities.distributions.fitting.scoring.*
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.BoxPlot
@@ -647,6 +644,7 @@ class PDFModeler(
                 AndersonDarlingScoringModel(),
                 PPSSEScoringModel(),
                 KSScoringModel(),
+                PPCorrelationScoringModel()
             )
 
         /**
