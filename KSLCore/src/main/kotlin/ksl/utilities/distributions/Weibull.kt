@@ -22,6 +22,7 @@ import ksl.utilities.countLessEqualTo
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.*
+import ksl.utilities.statistic.Statistic
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.pow
@@ -33,7 +34,8 @@ import kotlin.math.sqrt
  * @param name an optional name/label
  */
 class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
-    Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Weibull {
+    Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
+    RVParametersTypeIfc by RVType.Weibull {
     init {
         require(theShape > 0) { "Shape parameter must be positive" }
         require(theScale > 0) { "Scale parameter must be positive" }
@@ -231,7 +233,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
          */
         fun initialShapeEstimate(data: DoubleArray): Double {
             require(data.size >= 2) { "There must be at least two observations" }
-            require(data.countLessEqualTo(0.0) == 0) {"There were negative or zero values in the data."}
+            require(data.countLessEqualTo(0.0) == 0) { "There were negative or zero values in the data." }
             val n = data.size.toDouble()
             var sumlnx = 0.0
             var sumlnxsq = 0.0
@@ -242,8 +244,28 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
             }
             val coefficient = 6.0 / (Math.PI * Math.PI)
             val diff = sumlnxsq - (sumlnx * sumlnx / n)
+            if (diff <= 0.0){
+                // diff <=0.0 will cause shape estimate to be NaN, replace with another starting point
+                return approximateInitialShapeEstimate(data)
+            }
             val f = sqrt(coefficient * diff / (n - 1.0))
             return (1.0 / f)
+        }
+
+        /**
+         *  This approximation is based on a MOM argument.
+         *  Pobocikova, Ivana, and Zuzana Sedliackova.
+         * “Comparison of Four Methods for Estimating the Weibull Distribution Parameters.”
+         *  Applied Mathematical Sciences 8 (2014): 4137–49. https://doi.org/10.12988/ams.2014.45389.
+         */
+        fun approximateInitialShapeEstimate(data: DoubleArray): Double {
+            require(data.size >= 2) { "There must be at least two observations" }
+            require(data.countLessEqualTo(0.0) == 0) { "There were negative or zero values in the data." }
+            val stat = Statistic(data)
+            val m = stat.average
+            val s = stat.standardDeviation
+            val shape = (m/s).pow(1.086)
+            return shape
         }
 
         /**
@@ -252,16 +274,16 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
          *  than 0.0. The data must not be empty and there should not be any negative
          *  or zero values in the data.
          */
-        fun estimateScale(shape: Double, data: DoubleArray) : Double {
-            require(shape > 0.0) {"The shape parameter must be > 0.0. It was $shape"}
+        fun estimateScale(shape: Double, data: DoubleArray): Double {
+            require(shape > 0.0) { "The shape parameter must be > 0.0. It was $shape" }
             require(data.isNotEmpty()) { "There must be at least one observation." }
-            require(data.countLessEqualTo(0.0) == 0) {"There were negative or zero values in the data."}
+            require(data.countLessEqualTo(0.0) == 0) { "There were negative or zero values in the data." }
             var sumB = 0.0
             for (x in data) {
                 sumB = sumB + x.pow(shape)
             }
             val n = data.size.toDouble()
-            return (sumB/n).pow(shape)
+            return (sumB / n).pow(shape)
         }
 
     }

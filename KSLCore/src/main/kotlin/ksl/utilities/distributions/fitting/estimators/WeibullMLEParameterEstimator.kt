@@ -123,8 +123,8 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
         }
         // get an initial estimate of the shape parameter
         var shape = estimateInitialShape(data)
-        // unfortunately I can't figure a way to ensure a strictly positive initial estimate of the shape
-        if (shape <= 0.0) {
+        // I think that the shape can't be bad, but just in case, catch it here
+        if ((shape <= 0.0) || (shape.isNaN() || shape.isInfinite())) {
             return EstimationResult(
                 originalData = data,
                 statistics = statistics,
@@ -206,11 +206,11 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
     private fun estimateInitialShape(data: DoubleArray): Double {
         var shape = Weibull.initialShapeEstimate(data)
         // if initial shape was negative, can't take newton steps, try the percentile method
-        if (shape <= 0.0) {
+        if ((shape <= 0.0) || (shape.isNaN()) || (shape.isInfinite())){
             val wppe = WeibullPercentileParameterEstimator()
             val params = wppe.estimate(data)
             if (params.isNotEmpty()) {
-                if (params[0] > 0.0) {
+                if ((params[0] > 0.0) && (params[0].isFinite()) && (!params[0].isNaN())){
                     return params[0]
                 } else {
                     // no viable estimate of the shape was available
@@ -229,7 +229,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
         // unfortunately newton steps may result in a negative shape estimate
         // if negative go back to original shape and adjust it using the
         // percentile estimate of shape
-        if (shape <= 0.0) {
+        if ((shape <= 0.0) || (shape.isNaN()) || (shape.isInfinite())) {
             // fix it
             shape = Weibull.initialShapeEstimate(data)
             // this shape must be positive because of initial check
@@ -237,7 +237,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
             val params = wppe.estimate(data)
             if (params.isNotEmpty()) {
                 val estShape = params[0]
-                if (estShape <= 0.0) {
+                if ((estShape <= 0.0) || (estShape.isNaN()) || (estShape.isInfinite())) {
                     return shape // should be positive
                 } else {
                     return (shape + estShape) / 2.0 // the avg of 2 positives is positive
