@@ -29,7 +29,7 @@ import ksl.utilities.statistic.StatisticIfc
  * The procedure requires that at least 10 observations are available. The user can
  * adjust the percentiles used through the fields reducedPercentileSet or expandedPercentileSet.
  * Alternative, the user can directly provide the lower half of the percentile set via the
- * property percentileSet. After executing the estimation process on some date, the
+ * property percentileSet. After executing the estimation process on some data, the
  * jackKnifeEstimator field can be used to access the computed shape estimates.
  *
  * The supplied data cannot be negative or zero and must not all be equal in value.

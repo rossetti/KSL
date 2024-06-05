@@ -3,6 +3,7 @@ package ksl.utilities.distributions.fitting.estimators
 import ksl.utilities.*
 import ksl.utilities.distributions.Weibull
 import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.PearsonType5RV
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
@@ -121,12 +122,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
             )
         }
         // get an initial estimate of the shape parameter
-        var shape = Weibull.initialShapeEstimate(data)
-        // take some newton iteration steps to refine estimated shape
-        // on average 3.5 steps gets to within 4 place accuracy, page 280 Law(2007)
-        for (i in 1..defaultNumNewtonSteps){
-            shape = newtonStep(shape, data)
-        }
+        var shape = estimateInitialShape(data)
         // compute the initial scale
         var scale = Weibull.estimateScale(shape, data)
         // prepare for bi-section search to converge to root after newton steps
@@ -188,6 +184,36 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
         )
     }
 
+    /**
+     *   Uses the recommendation on page 280 Law(2007) to find an initial
+     *   starting shape by trying some Newton-Raphson steps.  If the steps
+     *   result in a negative shape, the approach reverts to an adhoc method
+     *   that combines an initial estimate of the shape with an estimate
+     *   from the percentile method.
+     */
+    private fun estimateInitialShape(data: DoubleArray): Double {
+        var shape = Weibull.initialShapeEstimate(data)
+        // take some newton iteration steps to refine estimated shape
+        // on average 3.5 steps gets to within 4 place accuracy, page 280 Law(2007)
+        for (i in 1..defaultNumNewtonSteps) {
+            shape = newtonStep(shape, data)
+        }
+        // unfortunately newton steps may result in a negative shape estimate
+        // if negative go back to original shape and adjust it using the
+        // percentile estimate of shape
+        if (shape <= 0.0) {
+            // fix it
+            shape = Weibull.initialShapeEstimate(data)
+            val wppe = WeibullPercentileParameterEstimator()
+            val params = wppe.estimate(data)
+            if (params.isNotEmpty()) {
+                val estShape = params[0]
+                shape = (shape + estShape) / 2.0
+            }
+        }
+        return shape
+    }
+
     private fun rootFunction(shape: Double, data: DoubleArray) : Double {
         var sumB = 0.0
         var sumC = 0.0
@@ -225,4 +251,13 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
         val denominator = (1.0 / (previousShape * previousShape)) + (((sumB * sumH) - sumC * sumC) / (sumB * sumB))
         return previousShape + (numerator / denominator)
     }
+}
+
+fun main() {
+    val rv = PearsonType5RV(7.0, 15.0)
+    var data = rv.sample(40)
+    data = rv.sample(40)
+    val pe = WeibullMLEParameterEstimator()
+    val stat = Statistic(data)
+    val est = pe.estimateParameters(data, stat)
 }
