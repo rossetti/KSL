@@ -123,6 +123,16 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
         }
         // get an initial estimate of the shape parameter
         var shape = estimateInitialShape(data)
+        // unfortunately I can't figure a way to ensure a strictly positive initial estimate of the shape
+        if (shape <= 0.0) {
+            return EstimationResult(
+                originalData = data,
+                statistics = statistics,
+                message = "Cannot estimate parameters.  No viable initial shape estimate could be found!",
+                success = false,
+                estimator = this
+            )
+        }
         // compute the initial scale
         var scale = Weibull.estimateScale(shape, data)
         // prepare for bi-section search to converge to root after newton steps
@@ -132,9 +142,9 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
         // define the search interval
         val searchInterval = Interval(ll, shape + defaultBiSectionSearchIntervalWidth)
         // need to test interval
-        if (!RootFinder.hasRoot(fn, searchInterval)){
+        if (!RootFinder.hasRoot(fn, searchInterval)) {
             // expand to find interval
-            if (!RootFinder.findInterval(fn, searchInterval)){
+            if (!RootFinder.findInterval(fn, searchInterval)) {
                 // a suitable interval was not found via iterations, return the initial estimator with a new message
                 val parameters = WeibullRVParameters()
                 parameters.changeDoubleParameter("shape", shape)
@@ -145,7 +155,8 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
                     parameters = parameters,
                     message = "MLE search failed to find suitable search interval. Returned initial estimate.",
                     success = false,
-                    estimator = this)
+                    estimator = this
+                )
             }
             // if a suitable interval was found, the search interval object was changed to reflect the search
         }
@@ -158,7 +169,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
         // need to check for convergence
         shape = solver.result
         scale = Weibull.estimateScale(shape, data)
-        if (!solver.hasConverged()){
+        if (!solver.hasConverged()) {
             // a suitable root was not found via bi-section iterations, return the current estimate with a new message
             val parameters = WeibullRVParameters()
             parameters.changeDoubleParameter("shape", shape)
@@ -169,7 +180,8 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
                 parameters = parameters,
                 message = "MLE search failed to converge. Returned the current estimates based on failed search.",
                 success = false,
-                estimator = this)
+                estimator = this
+            )
         }
         val parameters = WeibullRVParameters()
         parameters.changeDoubleParameter("shape", shape)
@@ -193,6 +205,22 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
      */
     private fun estimateInitialShape(data: DoubleArray): Double {
         var shape = Weibull.initialShapeEstimate(data)
+        // if initial shape was negative, can't take newton steps, try the percentile method
+        if (shape <= 0.0) {
+            val wppe = WeibullPercentileParameterEstimator()
+            val params = wppe.estimate(data)
+            if (params.isNotEmpty()) {
+                if (params[0] > 0.0) {
+                    return params[0]
+                } else {
+                    // no viable estimate of the shape was available
+                    return shape
+                }
+            } else {
+                // no viable estimate of the shape was available
+                return shape
+            }
+        }
         // take some newton iteration steps to refine estimated shape
         // on average 3.5 steps gets to within 4 place accuracy, page 280 Law(2007)
         for (i in 1..defaultNumNewtonSteps) {
@@ -204,17 +232,23 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
         if (shape <= 0.0) {
             // fix it
             shape = Weibull.initialShapeEstimate(data)
+            // this shape must be positive because of initial check
             val wppe = WeibullPercentileParameterEstimator()
             val params = wppe.estimate(data)
             if (params.isNotEmpty()) {
                 val estShape = params[0]
-                shape = (shape + estShape) / 2.0
+                if (estShape <= 0.0) {
+                    return shape // should be positive
+                } else {
+                    return (shape + estShape) / 2.0 // the avg of 2 positives is positive
+                }
             }
+            // if we get here shape must be positive and will be returned at the end
         }
         return shape
     }
 
-    private fun rootFunction(shape: Double, data: DoubleArray) : Double {
+    private fun rootFunction(shape: Double, data: DoubleArray): Double {
         var sumB = 0.0
         var sumC = 0.0
         var sumH = 0.0
@@ -229,7 +263,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
         }
         val n = data.size.toDouble()
         val avgLnX = sumLnX / n
-        return (sumC/sumB) - (1.0/shape) - avgLnX
+        return (sumC / sumB) - (1.0 / shape) - avgLnX
     }
 
     private fun newtonStep(previousShape: Double, data: DoubleArray): Double {
