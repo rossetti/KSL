@@ -30,7 +30,7 @@ plugins {
     id("org.jetbrains.dokka") version "1.9.10"
 }
 group = "io.github.rossetti"
-version = "R1.0.8"
+version = "R1.0.9"
 
 repositories {
 
@@ -54,7 +54,7 @@ dependencies {
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
     implementation("org.apache.logging.log4j:log4j-to-slf4j:2.23.1")
 
-    api("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
+    api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.6.3")
@@ -168,7 +168,7 @@ publishing {
             groupId = "io.github.rossetti"
             artifactId = "KSLCore"
             // update this field when generating new release
-            version = "R1.0.8"
+            version = "R1.0.9"
             from(components["java"])
             versionMapping {
                 usage("java-api") {
