@@ -22,17 +22,26 @@
     "ksl.utilities.random.robj.*",
     "ksl.utilities.random.*",
     "ksl.utilities.KSLArrays",
+    "ksl.utilities.maps.*",
     "ksl.simulation.*",
     "ksl.modeling.variable.*",
     "ksl.modeling.queue.*",
     "ksl.modeling.entity.*",
+    "ksl.modeling.elements.*",
+    "ksl.modeling.nhpp.*",
+    "ksl.modeling.spatial.*",
     "ksl.utilities.plotting.*",
     "ksl.utilities.moda.*",
     "ksl.utilities.distributions.*",
     "ksl.utilities.distributions.fitting.*",
+    "ksl.utilities.distributions.fitting.estimators.*",
+    "ksl.utilities.distributions.fitting.scoring.*",
     "ksl.observers.*",
     "ksl.observers.welch.*",
-    "ksl.random.mcmc.*",
-    "ksl.random.rvariable.parameters.*"
+    "ksl.utilities.random.mcmc.*",
+    "ksl.utilities.random.rvariable.parameters.*",
+    "ksl.utilities.random.robj.*",
+    "ksl.controls.*",
+    "ksl.controls.experiments.*"
   ]
 }
