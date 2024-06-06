@@ -515,7 +515,8 @@ class PDFModeler(
             appendLine("</h2>")
             appendLine("<div>")
             appendLine("<p>")
-            appendLine(pdfModelingResults.topResult.name)
+            val top = pdfModelingResults.topResult
+            appendLine(top.name)
             appendLine("</p>")
             appendLine("</div>")
         }
@@ -555,6 +556,18 @@ class PDFModeler(
             appendLine("<p>")
             appendLine(result.name)
             appendLine("</p>")
+            appendLine("</div>")
+            val bs = bootStrapParameterEstimates(result.estimationResult)
+            appendLine("<div>")
+            appendLine("<h2>")
+            appendLine("Bootstrap Results for Parameter Estimation:")
+            appendLine("</h2>")
+            appendLine("<div>")
+            appendLine("<pre>")
+            for(bse in bs){
+                appendLine(bse.toString())
+            }
+            appendLine("</pre>")
             appendLine("</div>")
             appendLine("<div>")
             appendLine("<h2>")
