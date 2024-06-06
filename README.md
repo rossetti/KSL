@@ -97,11 +97,18 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.0.8"
+version = "R1.0.9"
 
 ## Release Notes
+Latest Release: R1.0.9
+- Bug fixes and improvements in ksl.utilities.distributions.fitting package
+  - fixed Weibull estimation edge cases
+  - added additional output to html distribution fitting results
+- Added capability in ksl.controls.experiments package to run many scenarios and perform designed experiments
+- Improved support for data frame processing
+- Updates to documentation and examples to be consistent with textbook
 
-Latest Release: R1.0.8
+Release: R1.0.8
 - Addressed new issue with search interval for MLE computation of gamma shape parameter
 
 Release: R1.0.7
@@ -109,7 +116,7 @@ Release: R1.0.7
 - Fixed interval search issue for Gamma MLE parameter estimation
 - Added 1-D discrete Metropolis-Hasting Markov Chain, improved properties of DMarkovChain
 - Allow PMF to CDF with 0 probability on mass points
-- Updates to documentation, examples, 
+- Updates to documentation, examples
 
 Release: R1.0.6
 - Fixed AcceptanceRejectRV to correctly use majorizing function
