@@ -15,6 +15,13 @@ abstract class MODAModel(
     metricDefinitions: Map<MetricIfc, ValueFunctionIfc>
 ) {
 
+    //TODO capture data in long form
+    /*
+       (aid, alternativeName, scoreName, scoreValue)
+       (aid, alternativeName, metricName, metricValue, metricRank)
+       (aid, alternativeName, weightedValue)
+     */
+
     protected val metricFunctionMap: MutableMap<MetricIfc, ValueFunctionIfc> = mutableMapOf()
     protected val myAlternatives: MutableMap<String, Map<MetricIfc, Score>> = mutableMapOf()
 
