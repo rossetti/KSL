@@ -27,7 +27,7 @@ import java.nio.file.Path
  *  DbTableData, a CREATE TABLE specification can be obtained and the database created.
  *  Then the database can be used to insert data from instances of
  *  the DbTableData subclasses.
- *  
+ *
  *  @param tableDefinitions an example set of table definitions based on DbTableData specifications
  *  @param db the underlying database
  */
