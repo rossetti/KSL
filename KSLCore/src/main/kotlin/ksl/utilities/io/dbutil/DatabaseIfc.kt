@@ -817,6 +817,32 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *  Deletes all data from tables within the specified schema. If there
+     *  is null, then the tables in the property [userDefinedTables] are used.
+     *
+     *  @param schemaName the name of the schema containing the table
+     */
+    fun deleteAllFrom(schemaName: String? = defaultSchemaName){
+        val tables = if (schemaName != null) {
+            tableNames(schemaName)
+        } else {
+            userDefinedTables
+        }
+        deleteAllFrom(tables, defaultSchemaName)
+    }
+
+    /**
+     *  Deletes all data from the tables in the list
+     *  @param tableNames the table to delete from
+     *  @param schemaName the name of the schema containing the table
+     */
+    fun deleteAllFrom(tableNames: List<String>, schemaName: String? = defaultSchemaName){
+        for(tableName in tableNames){
+            deleteAllFrom(tableName, schemaName)
+        }
+    }
+
+    /**
      *  Deletes all data from the named table
      *  @param tableName the table to delete from
      *  @param schemaName the name of the schema containing the table
@@ -1707,6 +1733,26 @@ interface DatabaseIfc : DatabaseIOIfc {
             logger.warn { "SQLException: $e" }
             return 0
         }
+    }
+
+    fun asString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("Database: $label")
+        sb.appendLine("The database was connected via url $dbURL")
+        sb.appendLine("The database has the following schemas:")
+        sb.append("\t")
+        sb.append(schemas.toString())
+        sb.appendLine()
+        sb.appendLine("The default schema is $defaultSchemaName")
+        sb.appendLine("The database has the following user defined tables:")
+        sb.append("\t")
+        sb.append(userDefinedTables.toString())
+        sb.appendLine()
+        sb.appendLine("The database has the following views:")
+        sb.append("\t")
+        sb.append(views.toString())
+        sb.appendLine()
+        return sb.toString()
     }
 
     //TODO select * from table where field = ?, updatable RowSet
