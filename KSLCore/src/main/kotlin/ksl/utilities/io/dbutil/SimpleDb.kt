@@ -31,7 +31,7 @@ import java.nio.file.Path
  *  @param tableDefinitions an example set of table definitions based on DbTableData specifications
  *  @param db the underlying database
  */
-class SimpleDb(
+open class SimpleDb(
     tableDefinitions: Set<DbTableData>,
     private val db: Database
 ) : DatabaseIfc by db {
