@@ -25,7 +25,7 @@ import java.nio.file.Path
  *  The purpose of this class is to allow the creation of a quick and dirty database solution
  *  based on the DbTableData data classes.  By defining data classes that are subclasses of
  *  DbTableData, a CREATE TABLE specification can be obtained and the database created.
- *  Then the database can be used to insert, update, and delete data from instances of
+ *  Then the database can be used to insert data from instances of
  *  the DbTableData subclasses.
  *  
  *  @param tableDefinitions an example set of table definitions based on DbTableData specifications
