@@ -486,9 +486,10 @@ abstract class MODAModel(
         val list = mutableListOf<ValueData>()
         var id = 1
         val alternativeValuesByMetric = alternativeValuesByMetric()
+        val ranksByMetricMap = ranksByMetric()
         for((alternative, metricMap) in alternativeValuesByMetric){
             for ((m, v) in metricMap) {
-                list.add(ValueData(id, alternative, m.name, v))
+                list.add(ValueData(id, alternative, m.name, v, ranksByMetricMap[m]!![id-1]))
             }
             id = id + 1
         }
@@ -639,7 +640,8 @@ data class ValueData(
     var id: Int = 0,
     var alternative: String = "",
     var metricName: String = "",
-    var metricValue: Double = 0.0
+    var metricValue: Double = 0.0,
+    var rank: Double = 0.0
 ) : DbTableData("tblValues", listOf("id", "alternative", "metricName"))
 
 data class OverallValueData(
