@@ -340,8 +340,8 @@ abstract class MODAModel(
         val columns = mutableListOf<DataColumn<*>>()
         columns.add(alternativeColumn)
         val metrics = ranksByMetric(rankingMethod)
-        for ((metric, score) in metrics) {
-            val dataColumn = score.toColumn("${metric.name}_Rank")
+        for ((metric, ranks) in metrics) {
+            val dataColumn = ranks.toColumn("${metric.name}_Rank")
             columns.add(dataColumn)
         }
         return dataFrameOf(columns)
