@@ -2,6 +2,7 @@ package ksl.utilities.moda
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
@@ -557,3 +558,24 @@ abstract class MODAModel(
         }
     }
 }
+
+data class ScoreData(
+    var id: Int = 0,
+    var alternative: String = "",
+    var scoreName: String = "",
+    var scoreValue: Double = 0.0
+) : DbTableData("MODA_Scores", listOf("id"))
+
+data class MetricData(
+    var id: Int = 0,
+    var alternative: String = "",
+    var metricName: String = "",
+    var metricValue: Double = 0.0,
+    var metricRank: Int = 0
+) : DbTableData("MODA_Metrics", listOf("id"))
+
+data class MODAOverallData(
+    var id: Int = 0,
+    var alternative: String = "",
+    var weightedValue: Double = 0.0
+) : DbTableData("MODA_Overall", listOf("id"))
