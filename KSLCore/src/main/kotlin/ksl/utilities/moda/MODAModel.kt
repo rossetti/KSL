@@ -1,13 +1,11 @@
 package ksl.utilities.moda
 
 import ksl.utilities.Interval
-import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.dbutil.SimpleDb
-import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
@@ -339,8 +337,8 @@ abstract class MODAModel(
         // then make columns for each metric
         val columns = mutableListOf<DataColumn<*>>()
         columns.add(alternativeColumn)
-        val metrics = ranksByMetric(rankingMethod)
-        for ((metric, ranks) in metrics) {
+        val ranksByMetricMap = ranksByMetric(rankingMethod)
+        for ((metric, ranks) in ranksByMetricMap) {
             val dataColumn = ranks.toColumn("${metric.name}_Rank")
             columns.add(dataColumn)
         }
