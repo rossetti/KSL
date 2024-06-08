@@ -1,13 +1,19 @@
 package ksl.utilities.moda
 
 import ksl.utilities.Interval
+import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.DbTableData
+import ksl.utilities.io.dbutil.SimpleDb
+import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.impl.asList
+import java.nio.file.Path
 
 /**
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
@@ -361,7 +367,7 @@ abstract class MODAModel(
             val dataColumn = score.toColumn(metric.name)
             columns.add(dataColumn)
         }
-        // no add the overall value for each alternative
+        // now add the overall value for each alternative
         val valuesByAlternative = multiObjectiveValuesByAlternative()
         val overallValue = valuesByAlternative.values.toColumn("Overall Value")
         columns.add(overallValue)
@@ -456,6 +462,71 @@ abstract class MODAModel(
             map[alternative] = multiObjectiveValue(alternative)
         }
         return map
+    }
+
+    /**
+     *  Returns a list of ScoreData which holds for each alternative-metric raw score combination.
+     *  (id, alternativeName, scoreName, scoreValue)
+     */
+    fun alternativeScoreData(): List<ScoreData> {
+        val list = mutableListOf<ScoreData>()
+        var id = 1
+        for ( (alternative, metric) in myAlternatives) {
+            for ((m, v) in metric) {
+                list.add(ScoreData(id, alternative, m.name, v.value))
+            }
+            id = id + 1
+        }
+        return list
+    }
+
+    /**
+     *  Returns a list of ValueData which holds for each alternative-metric value combination.
+     *  (id, alternativeName, metricName, metricValue)
+     */
+    fun alternativeValueData(): List<ValueData> {
+        val list = mutableListOf<ValueData>()
+        var id = 1
+        val alternativeValuesByMetric = alternativeValuesByMetric()
+        for((alternative, metricMap) in alternativeValuesByMetric){
+            for ((m, v) in metricMap) {
+                list.add(ValueData(id, alternative, m.name, v))
+            }
+            id = id + 1
+        }
+        return list
+    }
+
+    /**
+     *  Returns a list of OverallValueData which holds for each alternative overall value combination.
+     *  (id, alternativeName, overall value)
+     */
+    fun alternativeOverallValueData(): List<OverallValueData> {
+        val list = mutableListOf<OverallValueData>()
+        val valuesByAlternative = multiObjectiveValuesByAlternative()
+        var id = 1
+        for((alternative, v) in valuesByAlternative){
+            list.add(OverallValueData(id, alternative, v))
+            id = id + 1
+        }
+        return list
+    }
+
+    /**
+     *  Returns the results as a database holding ScoreData, ValueData, and OverallValueData
+     *  tables (tblScores, tblValues, tblOverall).
+     *  @param dbName the name of the database on the disk
+     *  @param dir the directory to hold the database on the disk
+     */
+    fun resultsAsDatabase(dbName: String, dir: Path = KSL.dbDir): DatabaseIfc {
+        val db = SimpleDb(setOf(ScoreData(), ValueData(), OverallValueData()), dbName, dir)
+        val scores = alternativeScoreData()
+        val values = alternativeValueData()
+        val overall = alternativeOverallValueData()
+        db.insertDbDataIntoTable(scores, "tblScores")
+        db.insertDbDataIntoTable(values, "tblValues")
+        db.insertDbDataIntoTable(overall, "tblOverall")
+        return db
     }
 
     companion object {
@@ -564,18 +635,17 @@ data class ScoreData(
     var alternative: String = "",
     var scoreName: String = "",
     var scoreValue: Double = 0.0
-) : DbTableData("MODA_Scores", listOf("id"))
+) : DbTableData("tblScores", listOf("id", "alternative", "scoreName"))
 
-data class MetricData(
+data class ValueData(
     var id: Int = 0,
     var alternative: String = "",
     var metricName: String = "",
-    var metricValue: Double = 0.0,
-    var metricRank: Int = 0
-) : DbTableData("MODA_Metrics", listOf("id"))
+    var metricValue: Double = 0.0
+) : DbTableData("tblValues", listOf("id", "alternative", "metricName"))
 
-data class MODAOverallData(
+data class OverallValueData(
     var id: Int = 0,
     var alternative: String = "",
     var weightedValue: Double = 0.0
-) : DbTableData("MODA_Overall", listOf("id"))
+) : DbTableData("tblOverall", listOf("id", "alternative"))
