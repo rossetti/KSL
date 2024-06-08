@@ -16,6 +16,13 @@ import kotlin.reflect.KType
  * data class Person(var id: Int, var name:String, var age:Int): DbTableData("Persons", listOf("id"), true)
  * db.selectDbDataInto(::Person)
  * ```
+ *
+ * Ideally, the data class should be defined with 'var' properties that have default
+ * values. This facilitates the creation of instances.  Any 'val' properties are
+ * not recognized as table fields because they are not mutable.  You can have
+ * 'val' properties in the primary constructor or in the class body; however, they
+ * will not be processed as table fields.
+ * 
  * Assume that db holds an instance to a database that has a table called, Persons,
  * with the fields (id, name and age) as the sole columns, in that order. The data will be extracted
  * from the database table and instances of the data class created and filled
