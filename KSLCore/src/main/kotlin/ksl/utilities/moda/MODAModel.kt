@@ -29,6 +29,12 @@ abstract class MODAModel(
     }
 
     /**
+     *  For rank based evaluation, this specifies the default parameter value
+     *  for those methods the perform rank based evaluation calculations.
+     */
+    var defaultRankingMethod = Statistic.Companion.Ranking.Ordinal
+
+    /**
      *  The list of metrics defined for the model. The order of the metrics
      *  is defined by the order entered into the map that was supplied by
      *  the defineMetrics() function.
@@ -197,7 +203,7 @@ abstract class MODAModel(
      *  that the alternatives are listed. The default ranking method is Ordinal.
      */
     fun ranksByMetric(
-        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): Map<MetricIfc, List<Double>> {
         val map = mutableMapOf<MetricIfc, List<Double>>()
         for (metric in metrics) {
@@ -236,7 +242,7 @@ abstract class MODAModel(
      */
     fun metricRanks(
         metric: MetricIfc,
-        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): List<Double> {
         val mv = metricValues(metric).toDoubleArray()
         return Statistic.ranks(mv, rankingMethod, true).toList()
@@ -324,7 +330,7 @@ abstract class MODAModel(
      */
     fun alternativeRanksAsDataFrame(
         firstColumnName: String = "Alternatives",
-        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): AnyFrame {
         // make the alternative column
         val alternativeColumn = alternatives.toColumn(firstColumnName)
@@ -504,7 +510,7 @@ abstract class MODAModel(
      *  (id, alternativeName, metricName, metricValue)
      */
     fun alternativeValueData(
-        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): List<ValueData> {
         val list = mutableListOf<ValueData>()
         var id = 1
@@ -523,7 +529,7 @@ abstract class MODAModel(
      *  Collects the ranking frequencies across all metrics for each alternative
      */
     fun alternativeMetricRankFrequencies(
-        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): Map<String, IntegerFrequency> {
          // make frequencies
         val altFreqMap = mutableMapOf<String, IntegerFrequency>()
@@ -542,7 +548,7 @@ abstract class MODAModel(
      *   frequency distribution.
      */
     fun alternativeFirstRankMetricFrequencies(
-        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): Map<String, IntegerFrequency> {
         val altSubMap = mutableMapOf<String, IntegerFrequency>()
         val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
@@ -558,7 +564,7 @@ abstract class MODAModel(
      *  Captures the alternative metric rank frequency data to a list.
      */
     fun alternativeRankFrequencyData(
-        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ) : List<AlternativeRankFrequencyData> {
         val list = mutableListOf<AlternativeRankFrequencyData>()
         val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
@@ -581,7 +587,7 @@ abstract class MODAModel(
      *  of pairs (alternative, first rank count) is ordered based on the counts in descending order.
      */
     fun alternativeFirstRankCounts(
-        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ) : List<Pair<String, Int>> {
         val map = mutableMapOf<String, Int>()
         val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
@@ -598,7 +604,7 @@ abstract class MODAModel(
      *  the count rankings.
      */
     fun topAlternativesByFirstRankCounts(
-        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): Set<String> {
         val set = mutableSetOf<String>()
         val altList = alternativeFirstRankCounts(rankingMethod)
