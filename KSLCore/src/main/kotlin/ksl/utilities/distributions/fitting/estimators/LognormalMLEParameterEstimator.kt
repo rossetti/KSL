@@ -22,6 +22,8 @@ import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.countLessEqualTo
 import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -39,6 +41,9 @@ import kotlin.math.ln
  */
 object LognormalMLEParameterEstimator : ParameterEstimatorIfc,
     MVBSEstimatorIfc, IdentityIfc by Identity("LognormalMLEParameterEstimator")  {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.Lognormal
 
     override val checkRange: Boolean = true
 

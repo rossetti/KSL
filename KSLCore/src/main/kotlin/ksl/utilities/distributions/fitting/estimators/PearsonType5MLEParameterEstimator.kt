@@ -3,6 +3,8 @@ package ksl.utilities.distributions.fitting.estimators
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.PearsonType5RVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -24,6 +26,9 @@ import ksl.utilities.statistic.StatisticIfc
  */
 class PearsonType5MLEParameterEstimator(name: String? = "PearsonType5MLEParameterEstimator") : ParameterEstimatorIfc,
     MVBSEstimatorIfc, IdentityIfc by Identity(name) {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.PearsonType5
 
     override val checkRange: Boolean = true
 

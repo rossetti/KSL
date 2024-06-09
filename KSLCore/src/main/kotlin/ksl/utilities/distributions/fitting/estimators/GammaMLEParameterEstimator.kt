@@ -6,6 +6,8 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.Gamma
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
@@ -27,6 +29,9 @@ import kotlin.math.sqrt
  */
 class GammaMLEParameterEstimator(name: String? = "GammaMLEParameterEstimator") :
     ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity(name) {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.Gamma
 
     override val names: List<String> = listOf("shape", "scale")
 

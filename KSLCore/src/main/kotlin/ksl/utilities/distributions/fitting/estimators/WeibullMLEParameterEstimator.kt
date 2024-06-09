@@ -4,6 +4,8 @@ import ksl.utilities.*
 import ksl.utilities.distributions.Weibull
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.random.rvariable.PearsonType5RV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 import ksl.utilities.rootfinding.BisectionRootFinder
 import ksl.utilities.rootfinding.RootFinder
@@ -25,6 +27,9 @@ import kotlin.math.pow
  */
 class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator") : ParameterEstimatorIfc,
     MVBSEstimatorIfc, IdentityIfc by Identity(name) {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.Weibull
 
     override val checkRange: Boolean = true
 

@@ -23,6 +23,8 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.isAllEqual
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -36,6 +38,9 @@ import ksl.utilities.statistic.StatisticIfc
  */
 object TriangularParameterEstimator : ParameterEstimatorIfc,
     MVBSEstimatorIfc, IdentityIfc by Identity("TriangularParameterEstimator") {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.Triangular
 
     override val checkRange: Boolean = false
 

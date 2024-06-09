@@ -20,6 +20,7 @@ package ksl.utilities.distributions.fitting.estimators
 
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
@@ -33,6 +34,11 @@ import ksl.utilities.statistic.StatisticIfc
  *
  */
 interface ParameterEstimatorIfc : IdentityIfc {
+
+    /**
+     *  The type of random variable for which this estimator estimates parameters.
+     */
+    val rvType: RVParametersTypeIfc
 
     /**
      *  Indicates if the estimator requires that the range of the data be checked for a shift

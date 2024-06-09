@@ -17,6 +17,7 @@
  */
 package ksl.utilities.distributions.fitting
 
+import com.google.common.collect.HashBiMap
 import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.estimators.*
@@ -33,6 +34,7 @@ import ksl.utilities.moda.MODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
@@ -1081,14 +1083,69 @@ class PDFModeler(
                 else -> null
             }
         }
+
+        /**
+         *  Constructs a frequency tabulation of the top distributions for each
+         *  bootstrap sample of the original data.  This function can be used
+         *  to explore the set of distributions that may best-fit the data.
+         *
+         *  @param data the original data
+         *  @param estimators the set of estimators to use during the estimation process
+         *  @param scoringModels the scoring models used during the estimation process
+         *  @param numBootstrapSamples the number of bootstrap samples of the original data
+         *  @param automaticShifting if true automatic shifting occurs, true is the default
+         *  @param stream the random number stream to use for the bootstrapping process
+         */
+        fun bootstrapFamilyFrequency(
+            data: DoubleArray,
+            estimators: Set<ParameterEstimatorIfc> = allEstimators,
+            scoringModels: Set<PDFScoringModel> = defaultScoringModels,
+            numBootstrapSamples: Int = 100,
+            automaticShifting: Boolean = true,
+            stream: RNStreamIfc = KSLRandom.nextRNStream()
+        ) : IntegerFrequency {
+            val cdfFreq = IntegerFrequency(name="Distribution Frequency")
+            val estMap = HashBiMap.create<RVParametersTypeIfc, Int>()
+            var cnt = 1
+            for(estimator in estimators) {
+                estMap[estimator.rvType] = cnt
+                cnt = cnt + 1
+            }
+            val cellLabels = mutableMapOf<Int, String>()
+            val invMap = estMap.inverse()
+            for ((i, rv) in invMap){
+                cellLabels[i] = rv.toString()
+            }
+            val bsPop = DPopulation(data, stream)
+            for(i in 1..numBootstrapSamples) {
+                val d = bsPop.sample(data.size)
+                val pdfModeler = PDFModeler(d, scoringModels)
+                val results = pdfModeler.estimateAndEvaluateScores(estimators, automaticShifting)
+                val topRVType = results.topRVType
+                val distNum = estMap[topRVType]!!
+                cdfFreq.collect(distNum)
+            }
+            cdfFreq.assignCellLabels(cellLabels)
+            return cdfFreq
+        }
     }
 
 }
 
 fun main() {
 //     val rv = ShiftedRV(5.0, LognormalRV(20.0, 2.0))
-    val rv = LognormalRV(20.0, 2.0)
+//    val rv = LognormalRV(20.0, 2.0)
+    val rv = ExponentialRV(mean = 10.0)
     //   val rv = TriangularRV(3.0, 6.0, 10.0)
-    val pdfModeler = PDFModeler(rv.sample(1000))
-    pdfModeler.showAllResultsInBrowser()
+    val data = rv.sample(50)
+//    val pdfModeler = PDFModeler(rv.sample(1000))
+//    pdfModeler.showAllResultsInBrowser()
+
+    val freq = PDFModeler.bootstrapFamilyFrequency(data,
+        numBootstrapSamples = 100, automaticShifting = false)
+    val cells = freq.cellsSortedByCount()
+    for(cell in cells){
+        println(cell)
+    }
+    println(freq.toDataFrame())
 }

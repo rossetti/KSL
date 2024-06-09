@@ -5,6 +5,8 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.countGreaterThan
 import ksl.utilities.countLessThan
 import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.BetaRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -24,6 +26,9 @@ import ksl.utilities.statistic.StatisticIfc
  */
 class BetaMOMParameterEstimator(name: String? = "BetaMOMParameterEstimator") :
     ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity(name) {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.Beta
 
     override val checkRange: Boolean = true
 
