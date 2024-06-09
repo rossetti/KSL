@@ -243,6 +243,7 @@ class PDFModeler(
             alternatives[sr.name] = sr.scores
         }
         model.defineAlternatives(alternatives)//this can cause metric domain rescaling
+        //TODO this is where I can capture the ranking recommendation into the scoring result
         for (sr in scoringResults) {
             sr.values = model.valuesByAlternative(sr.name)
             sr.weightedValue = model.multiObjectiveValue(sr.name)
