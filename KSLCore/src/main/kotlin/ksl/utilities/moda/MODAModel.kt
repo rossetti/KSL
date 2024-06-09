@@ -503,11 +503,13 @@ abstract class MODAModel(
      *  Returns a list of ValueData which holds for each alternative-metric value combination.
      *  (id, alternativeName, metricName, metricValue)
      */
-    fun alternativeValueData(): List<ValueData> {
+    fun alternativeValueData(
+        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+    ): List<ValueData> {
         val list = mutableListOf<ValueData>()
         var id = 1
         val alternativeValuesByMetric = alternativeValuesByMetric()
-        val ranksByMetricMap = ranksByMetric()
+        val ranksByMetricMap = ranksByMetric(rankingMethod)
         for((alternative, metricMap) in alternativeValuesByMetric){
             for ((m, v) in metricMap) {
                 list.add(ValueData(id, alternative, m.name, v, ranksByMetricMap[m]!![id-1]))
@@ -520,13 +522,15 @@ abstract class MODAModel(
     /**
      *  Collects the ranking frequencies across all metrics for each alternative
      */
-    fun alternativeMetricRankFrequencies(): Map<String, IntegerFrequency> {
+    fun alternativeMetricRankFrequencies(
+        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+    ): Map<String, IntegerFrequency> {
          // make frequencies
         val altFreqMap = mutableMapOf<String, IntegerFrequency>()
         for(alternative in alternatives){
             altFreqMap[alternative] = IntegerFrequency(name = "$alternative Metric Rank Frequencies")
         }
-        val vdList = alternativeValueData()
+        val vdList = alternativeValueData(rankingMethod)
         for(vd in vdList){
             altFreqMap[vd.alternative]!!.collect(vd.rank)
         }
@@ -537,9 +541,11 @@ abstract class MODAModel(
      *   The alternatives that were ranked first by some metric along with the metric
      *   frequency distribution.
      */
-    fun alternativeFirstRankMetricFrequencies(): Map<String, IntegerFrequency> {
+    fun alternativeFirstRankMetricFrequencies(
+        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+    ): Map<String, IntegerFrequency> {
         val altSubMap = mutableMapOf<String, IntegerFrequency>()
-        val altFreqMap = alternativeMetricRankFrequencies()
+        val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
         for ( (alternative, freq) in altFreqMap){
             if (freq.closedRange.contains(1)){
                 altSubMap[alternative] = freq
@@ -551,9 +557,11 @@ abstract class MODAModel(
     /**
      *  Captures the alternative metric rank frequency data to a list.
      */
-    fun alternativeRankFrequencyData() : List<AlternativeRankFrequencyData> {
+    fun alternativeRankFrequencyData(
+        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+    ) : List<AlternativeRankFrequencyData> {
         val list = mutableListOf<AlternativeRankFrequencyData>()
-        val altFreqMap = alternativeMetricRankFrequencies()
+        val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
         var id = 0
         for ( (alternative, freq) in altFreqMap){
             val fData = freq.frequencyData()
@@ -572,9 +580,11 @@ abstract class MODAModel(
      *  ranked the alternative first based on the value scores. The returned list
      *  of pairs (alternative, first rank count) is ordered based on the counts in descending order.
      */
-    fun alternativeFirstRankCounts() : List<Pair<String, Int>> {
+    fun alternativeFirstRankCounts(
+        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+    ) : List<Pair<String, Int>> {
         val map = mutableMapOf<String, Int>()
-        val altFreqMap = alternativeMetricRankFrequencies()
+        val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
         for ( (alternative, freq) in altFreqMap){
             map[alternative] = freq.frequency(1).toInt()
         }
@@ -587,9 +597,11 @@ abstract class MODAModel(
      *  The set may have more than one alternative if the alternatives tie based on
      *  the count rankings.
      */
-    fun topAlternativesByFirstRankCounts(): Set<String> {
+    fun topAlternativesByFirstRankCounts(
+        rankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
+    ): Set<String> {
         val set = mutableSetOf<String>()
-        val altList = alternativeFirstRankCounts()
+        val altList = alternativeFirstRankCounts(rankingMethod)
         val first = altList.first()
         for ((alternative, value) in altList){
             if (value == first.second){
