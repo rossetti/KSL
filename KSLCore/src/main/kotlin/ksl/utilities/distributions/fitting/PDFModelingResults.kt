@@ -19,10 +19,17 @@ data class PDFModelingResults(
         get() = scoringResults.sorted()
 
     /**
-     *  The top result according to the scoring evaluation model
+     *  The top result according to the scoring evaluation model.
      */
     val topResult
         get() = sortedScoringResults.first()
+
+    /**
+     *  The top result according to the scoring evaluation model
+     *  specified as the type of random variable.
+     */
+    val topRVType
+        get() = topResult.rvType
 
     /**
      *  Returns the scores in the form of a data frame.
