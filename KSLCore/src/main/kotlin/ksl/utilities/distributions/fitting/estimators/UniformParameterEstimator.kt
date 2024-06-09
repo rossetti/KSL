@@ -23,6 +23,8 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.isAllEqual
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.UniformRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -38,6 +40,9 @@ import ksl.utilities.statistic.StatisticIfc
  */
 object UniformParameterEstimator : ParameterEstimatorIfc,
     MVBSEstimatorIfc, IdentityIfc by Identity("UniformParameterEstimator") {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.Uniform
 
     override val checkRange: Boolean = false
 

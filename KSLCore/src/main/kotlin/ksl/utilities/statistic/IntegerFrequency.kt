@@ -35,11 +35,12 @@ import ksl.utilities.toDoubles
 data class FrequencyData(
     var id: Int = 1,
     var name: String = "",
+    var cellLabel: String = "",
     var value: Int = 0,
     var count: Double = 0.0,
     var proportion: Double = 0.0,
     var cumProportion: Double = 0.0
-) : DbTableData("Frequency", listOf("id"))
+) //: DbTableData("Frequency", listOf("id"))
 
 /**
  * This class tabulates the frequency associated with
@@ -444,15 +445,43 @@ class IntegerFrequency(
     }
 
     /**
+     * Returns a copy of the cells in a list
+     * ordered by the count of each cell, 0th element
+     * is cell with the largest count, etc
+     *
+     * @return the list
+     */
+    fun cellsSortedByCount(): List<Cell> {
+        val cells = cellList()
+        return cells.sortedByDescending { it.count }
+    }
+
+    /**
+     *   Assigns a string label to each observed integer value.
+     *   If the integer values in the [labels] map is not
+     *   one of the observed values then no assignment occurs and
+     *   the default label is used.  This should be done
+     *   after collection because cells are created during the
+     *   collection process.
+     */
+    fun assignCellLabels(labels: Map<Int, String>){
+        for ((value, cell) in myCells){
+            if (labels.containsKey(value)) {
+                cell.label = labels[value]!!
+            }
+        }
+    }
+
+    /**
      *  Returns the data associated with the tabulation.
      */
     fun frequencyData() : List<FrequencyData> {
         val list = mutableListOf<FrequencyData>()
-        val cList = cellList()
+        val cList = cells()
         var cp = 0.0
         for (c in cList) {
             cp = cp + c.proportion
-            list.add(FrequencyData(id, name, c.value, c.count, c.proportion, cp))
+            list.add(FrequencyData(id, name, c.label, c.value, c.count, c.proportion, cp))
         }
         return list
     }
@@ -465,9 +494,9 @@ class IntegerFrequency(
     }
 
     /**
-     * Returns a sorted set containing the cells
+     * Returns a sorted list containing the cells
      *
-     * @return the sorted set of cells
+     * @return the sorted list of cells
      */
     private fun cells(): List<Cell> {
         val list: MutableList<Cell> = ArrayList()
@@ -549,6 +578,9 @@ class IntegerFrequency(
      * Holds the values and their counts
      */
     inner class Cell(val value: Int) : Comparable<Cell> {
+
+        var label: String = "label: $value"
+
         var count = 1.0
             private set
 

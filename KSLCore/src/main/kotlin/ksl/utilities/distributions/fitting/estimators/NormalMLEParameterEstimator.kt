@@ -21,6 +21,8 @@ package ksl.utilities.distributions.fitting.estimators
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.NormalRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -32,6 +34,9 @@ import ksl.utilities.statistic.StatisticIfc
  */
 object NormalMLEParameterEstimator :
     ParameterEstimatorIfc, MVBSEstimatorIfc, IdentityIfc by Identity("NormalMLEParameterEstimator")  {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.Normal
 
     override val checkRange: Boolean = false
 

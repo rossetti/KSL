@@ -21,6 +21,8 @@ package ksl.utilities.distributions.fitting.estimators
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.LaplaceRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -34,6 +36,9 @@ import kotlin.math.abs
  */
 object LaplaceMLEParameterEstimator : ParameterEstimatorIfc,
     MVBSEstimatorIfc, IdentityIfc by Identity("LaplaceMLEParameterEstimator") {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.Laplace
 
     override val checkRange: Boolean = false
 

@@ -4,6 +4,8 @@ import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.countLessThan
 import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.NegativeBinomialRVParameters
 import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.Statistic
@@ -20,6 +22,9 @@ import ksl.utilities.statistic.StatisticIfc
  */
 object NegBinomialMOMParameterEstimator : ParameterEstimatorIfc,
     MVBSEstimatorIfc, IdentityIfc by Identity("NegBinomialMOMParameterEstimator")  {
+
+    override val rvType: RVParametersTypeIfc
+        get() = RVType.NegativeBinomial
 
     override val checkRange: Boolean = true
 
