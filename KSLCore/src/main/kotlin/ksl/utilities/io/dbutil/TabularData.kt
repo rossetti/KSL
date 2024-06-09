@@ -35,8 +35,17 @@ import kotlin.reflect.full.*
  * If used within the context of a database, the [tableName] should be a valid table name or view name
  * within the database.
  */
-abstract class TabularData(val tableName: String) {
+abstract class TabularData(tableName: String) {
 
+    init {
+        require(tableName.isNotBlank()) { "tableName cannot be blank" }
+    }
+
+    var tableName: String = tableName
+        set(value) {
+            require(value.isNotBlank()) { "tableName cannot be blank" }
+            field = value
+        }
     /**
      *  The optional name of the schema holding the table for the related data
      */

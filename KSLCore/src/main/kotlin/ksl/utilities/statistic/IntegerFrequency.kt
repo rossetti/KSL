@@ -24,6 +24,7 @@ package ksl.utilities.statistic
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.DEmpiricalCDF
+import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.plotting.IntegerFrequencyPlot
 import ksl.utilities.io.toDataFrame
@@ -32,13 +33,13 @@ import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.toDoubles
 
 data class FrequencyData(
-    val id: Int,
-    val name: String,
-    val value: Int,
-    val count: Double,
-    val proportion: Double,
-    val cumProportion: Double
-)
+    var id: Int = 1,
+    var name: String = "",
+    var value: Int = 0,
+    var count: Double = 0.0,
+    var proportion: Double = 0.0,
+    var cumProportion: Double = 0.0
+) : DbTableData("Frequency", listOf("id"))
 
 /**
  * This class tabulates the frequency associated with
@@ -374,6 +375,18 @@ class IntegerFrequency(
      */
     val max: Int
         get() = myStatistic.max.toInt()
+
+    /**
+     *  The range of integer values observed (max - min)
+     */
+    val range: Int
+        get() = max - min
+
+    /**
+     *  Returns a closed range over the observed integer values
+     */
+    val  closedRange: ClosedRange<Int>
+        get() = min..max
 
     /**
      * Returns the current frequency for the provided integer

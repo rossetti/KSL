@@ -6,6 +6,7 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.dbutil.SimpleDb
+import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
@@ -19,13 +20,6 @@ import java.nio.file.Path
 abstract class MODAModel(
     metricDefinitions: Map<MetricIfc, ValueFunctionIfc>
 ) {
-
-    //TODO capture data in long form
-    /*
-       (aid, alternativeName, scoreName, scoreValue)
-       (aid, alternativeName, metricName, metricValue, metricRank)
-       (aid, alternativeName, weightedValue)
-     */
 
     protected val metricFunctionMap: MutableMap<MetricIfc, ValueFunctionIfc> = mutableMapOf()
     protected val myAlternatives: MutableMap<String, Map<MetricIfc, Score>> = mutableMapOf()
@@ -463,6 +457,33 @@ abstract class MODAModel(
     }
 
     /**
+     *  The list of alternatives sorted by their multi-objective value
+     *  The returned list has pairs (alternative name, multi-objective value)
+     */
+    fun sortedMultiObjectiveValuesByAlternative(): List<Pair<String, Double>> {
+        val map = multiObjectiveValuesByAlternative()
+        val result = map.toList().sortedByDescending { it.second }
+        return result
+    }
+
+    /**
+     *  The names of the alternatives that are considered first based on the multi-objective values.
+     *  The set may have more than one alternative if the alternatives tie based on
+     *  multi-objective values.
+     */
+    fun topAlternativesByMultiObjectiveValue(): Set<String> {
+        val set = mutableSetOf<String>()
+        val altList = sortedMultiObjectiveValuesByAlternative()
+        val first = altList.first()
+        for ((alternative, value) in altList){
+            if (value == first.second){
+                set.add(alternative)
+            }
+        }
+        return set
+    }
+
+    /**
      *  Returns a list of ScoreData which holds for each alternative-metric raw score combination.
      *  (id, alternativeName, scoreName, scoreValue)
      */
@@ -497,6 +518,88 @@ abstract class MODAModel(
     }
 
     /**
+     *  Collects the ranking frequencies across all metrics for each alternative
+     */
+    fun alternativeMetricRankFrequencies(): Map<String, IntegerFrequency> {
+         // make frequencies
+        val altFreqMap = mutableMapOf<String, IntegerFrequency>()
+        for(alternative in alternatives){
+            altFreqMap[alternative] = IntegerFrequency(name = "$alternative Metric Rank Frequencies")
+        }
+        val vdList = alternativeValueData()
+        for(vd in vdList){
+            altFreqMap[vd.alternative]!!.collect(vd.rank)
+        }
+        return altFreqMap
+    }
+
+    /**
+     *   The alternatives that were ranked first by some metric along with the metric
+     *   frequency distribution.
+     */
+    fun alternativeFirstRankMetricFrequencies(): Map<String, IntegerFrequency> {
+        val altSubMap = mutableMapOf<String, IntegerFrequency>()
+        val altFreqMap = alternativeMetricRankFrequencies()
+        for ( (alternative, freq) in altFreqMap){
+            if (freq.closedRange.contains(1)){
+                altSubMap[alternative] = freq
+            }
+        }
+        return altSubMap
+    }
+
+    /**
+     *  Captures the alternative metric rank frequency data to a list.
+     */
+    fun alternativeRankFrequencyData() : List<AlternativeRankFrequencyData> {
+        val list = mutableListOf<AlternativeRankFrequencyData>()
+        val altFreqMap = alternativeMetricRankFrequencies()
+        var id = 0
+        for ( (alternative, freq) in altFreqMap){
+            val fData = freq.frequencyData()
+            for(fd in fData){
+                val arfd = AlternativeRankFrequencyData(
+                    id, alternative, fd.value, fd.count, fd.proportion, fd.cumProportion)
+                list.add(arfd)
+            }
+            id = id + 1
+        }
+        return list
+    }
+
+    /**
+     *  Returns the alternatives with the count of the number of times some metric
+     *  ranked the alternative first based on the value scores. The returned list
+     *  of pairs (alternative, first rank count) is ordered based on the counts in descending order.
+     */
+    fun alternativeFirstRankCounts() : List<Pair<String, Int>> {
+        val map = mutableMapOf<String, Int>()
+        val altFreqMap = alternativeMetricRankFrequencies()
+        for ( (alternative, freq) in altFreqMap){
+            map[alternative] = freq.frequency(1).toInt()
+        }
+        return map.toList().sortedByDescending { it.second }
+    }
+
+    /**
+     *  The names of the alternatives that are considered first based on the number
+     *  of times the metrics ranked the alternative first.
+     *  The set may have more than one alternative if the alternatives tie based on
+     *  the count rankings.
+     */
+    fun topAlternativesByFirstRankCounts(): Set<String> {
+        val set = mutableSetOf<String>()
+        val altList = alternativeFirstRankCounts()
+        val first = altList.first()
+        for ((alternative, value) in altList){
+            if (value == first.second){
+                set.add(alternative)
+            }
+        }
+        return set
+    }
+
+    /**
      *  Returns a list of OverallValueData which holds for each alternative overall value combination.
      *  (id, alternativeName, overall value)
      */
@@ -518,13 +621,16 @@ abstract class MODAModel(
      *  @param dir the directory to hold the database on the disk
      */
     fun resultsAsDatabase(dbName: String, dir: Path = KSL.dbDir): DatabaseIfc {
-        val db = SimpleDb(setOf(ScoreData(), ValueData(), OverallValueData()), dbName, dir)
+        val db = SimpleDb(setOf(ScoreData(), ValueData(),
+            OverallValueData(), AlternativeRankFrequencyData()), dbName, dir)
         val scores = alternativeScoreData()
         val values = alternativeValueData()
         val overall = alternativeOverallValueData()
+        val ranks = alternativeRankFrequencyData()
         db.insertDbDataIntoTable(scores, "tblScores")
         db.insertDbDataIntoTable(values, "tblValues")
         db.insertDbDataIntoTable(overall, "tblOverall")
+        db.insertDbDataIntoTable(ranks, "tblRankFrequency")
         return db
     }
 
@@ -649,3 +755,12 @@ data class OverallValueData(
     var alternative: String = "",
     var weightedValue: Double = 0.0
 ) : DbTableData("tblOverall", listOf("id", "alternative"))
+
+data class AlternativeRankFrequencyData(
+    var id: Int = 0,
+    var alternative: String = "",
+    var value: Int = 0,
+    var count: Double = 0.0,
+    var proportion: Double = 0.0,
+    var cumProportion: Double = 0.0
+) : DbTableData("tblRankFrequency", listOf("id", "alternative", "value"))
