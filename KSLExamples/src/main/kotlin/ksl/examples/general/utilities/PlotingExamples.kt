@@ -49,7 +49,7 @@ fun main() {
 //    testPPandQQ_Plots()
 //    testFunctionPlot()
 //    testHistogramPlot()
-    testStateVariablePlot()
+//    testStateVariablePlot()
 //    testWelchPlotting()
 //          testObservationPlot()
 //    testACFPlot()
@@ -67,6 +67,19 @@ fun main() {
 //    temp()
 
 //    temp2()
+
+//    testShowPlot()
+}
+
+fun testShowPlot(){
+    // only works if this dependency is added, plots can be shown in a plot viewer
+    // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-batik
+   // implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.3")
+    val n = NormalRV()
+    val h = CachedHistogram(n.sample(1000))
+    val hp = h.histogramPlot()
+    val p = hp.buildPlot()
+ //   p.show()
 }
 
 fun testPlot() {

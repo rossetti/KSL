@@ -61,6 +61,10 @@ dependencies {
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
     api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.2")
+    // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-batik
+    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.3")
+    // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-kernel
+//    implementation("org.jetbrains.lets-plot:lets-plot-kotlin-kernel:4.7.3")
 
 // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-common
 //    implementation("org.jetbrains.lets-plot:lets-plot-common:4.0.0")
