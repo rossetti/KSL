@@ -541,15 +541,6 @@ class PDFModeler(
             appendLine(ranks.toStandaloneHTML(configuration))
             appendLine("</div>")
             appendLine("<div>")
-//            appendLine("<h2>")
-//            appendLine("Recommended Distribution:")
-//            appendLine("</h2>")
-//            appendLine("<div>")
-//            appendLine("<p>")
-//            val top = pdfModelingResults.topResultByScore
-//            appendLine(top.name)
-//            appendLine("</p>")
-//            appendLine("</div>")
         }
         return sb.toString()
     }
@@ -561,11 +552,16 @@ class PDFModeler(
      */
     fun htmlGoodnessOfFitSummary(
         pdfModelingResults: PDFModelingResults,
+        evaluationMethod: EvaluationMethod = EvaluationMethod.Scoring,
         plotFileName: String? = null
     ): String {
         // produce html results
         // distribution quad evaluation plot
-        val result = pdfModelingResults.topResultByScore
+        val result = if (evaluationMethod == EvaluationMethod.Scoring) {
+            pdfModelingResults.topResultByScore
+        } else {
+            pdfModelingResults.topResultByRanking
+        }
         val distPlot = result.distributionFitPlot()
         if (plotFileName != null) {
             distPlot.saveToFile("${plotFileName}_PDF_Plot")
@@ -636,6 +632,7 @@ class PDFModeler(
         automaticShifting: Boolean = true,
         pdfModelingResults: PDFModelingResults = estimateAndEvaluateScores(estimators, automaticShifting),
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod,
+        evaluationMethod: EvaluationMethod = EvaluationMethod.Scoring,
         statResultsFileName: String = "PDF_Modeling_Statistical_Summary",
         visualizationResultsFileName: String = "PDF_Modeling_Visualization_Summary",
         scoringResultsFileName: String = "PDF_Modeling_Scoring_Summary",
@@ -655,7 +652,7 @@ class PDFModeler(
         )
         KSLFileUtil.openInBrowser(
             fileName = goodnessOfFitResultsFileName,
-            htmlGoodnessOfFitSummary(pdfModelingResults)
+            htmlGoodnessOfFitSummary(pdfModelingResults, evaluationMethod)
         )
     }
 
