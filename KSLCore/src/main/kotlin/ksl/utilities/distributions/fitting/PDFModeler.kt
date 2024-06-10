@@ -341,7 +341,7 @@ class PDFModeler(
 //            appendLine(statDf.toStandaloneHTML(configuration = statConfig))
             appendLine("<pre>")
             val s = histogram.statisticsAsMap
-            for((key, value) in s) {
+            for ((key, value) in s) {
                 appendLine("$key = $value")
             }
 //            appendLine(histogram.statisticsAsMap)
@@ -354,7 +354,7 @@ class PDFModeler(
 //            appendLine(boxPlotDf.toStandaloneHTML(configuration = boxConfig))
             appendLine("<pre>")
             val bs = bp.asMap()
-            for((key, value) in bs) {
+            for ((key, value) in bs) {
                 appendLine("$key = $value")
             }
             appendLine("</pre>")
@@ -501,12 +501,16 @@ class PDFModeler(
      *  Produces a html representation of the scoring and metric evaluation
      *  results including the recommended distribution.
      */
-    fun htmlScoringSummary(pdfModelingResults: PDFModelingResults): String {
+    fun htmlScoringSummary(
+        pdfModelingResults: PDFModelingResults,
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
+    ): String {
         // produce html results
         // scoring data frame
         val scores = pdfModelingResults.scoresAsDataFrame()
         // values data frame
         val values = pdfModelingResults.metricsAsDataFrame()
+        val ranks = pdfModelingResults.ranksAsDataFrame(rankingMethod)
         val configuration: DisplayConfiguration = DisplayConfiguration.DEFAULT
         configuration.cellContentLimit = 120
         configuration.rowsLimit = scores.rowsCount()
@@ -522,20 +526,27 @@ class PDFModeler(
             appendLine("</div>")
             appendLine("<div>")
             appendLine("<h2>")
-            appendLine("Metric Evaluation:")
+            appendLine("Metric Evaluations:")
             appendLine("</h2>")
             appendLine(values.toStandaloneHTML(configuration))
             appendLine("</div>")
             appendLine("<div>")
-            appendLine("<h2>")
-            appendLine("Recommended Distribution:")
-            appendLine("</h2>")
             appendLine("<div>")
-            appendLine("<p>")
-            val top = pdfModelingResults.topResultByScore
-            appendLine(top.name)
-            appendLine("</p>")
+            appendLine("<h2>")
+            appendLine("Rank Evaluations:")
+            appendLine("</h2>")
+            appendLine(ranks.toStandaloneHTML(configuration))
             appendLine("</div>")
+            appendLine("<div>")
+//            appendLine("<h2>")
+//            appendLine("Recommended Distribution:")
+//            appendLine("</h2>")
+//            appendLine("<div>")
+//            appendLine("<p>")
+//            val top = pdfModelingResults.topResultByScore
+//            appendLine(top.name)
+//            appendLine("</p>")
+//            appendLine("</div>")
         }
         return sb.toString()
     }
@@ -581,7 +592,7 @@ class PDFModeler(
             appendLine("</h2>")
             appendLine("<div>")
             appendLine("<pre>")
-            for(bse in bs){
+            for (bse in bs) {
                 appendLine(bse.toString())
             }
             appendLine("</pre>")
@@ -607,6 +618,7 @@ class PDFModeler(
      *  @param estimators the estimators to apply, by default (allEstimators)
      *  @param automaticShifting true by default, if true applies automatic shifting to the estimation process
      *  @param pdfModelingResults the results of applying the estimators and evaluating the scores
+     *  @param rankingMethod the ranking method to use when calculating the ranks
      *  @param statResultsFileName a file name for statistical results
      *  Default = "PDF_Modeling_Statistical_Summary"
      *  @param visualizationResultsFileName a file name for visualization results
@@ -620,15 +632,20 @@ class PDFModeler(
         estimators: Set<ParameterEstimatorIfc> = allEstimators,
         automaticShifting: Boolean = true,
         pdfModelingResults: PDFModelingResults = estimateAndEvaluateScores(estimators, automaticShifting),
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod,
         statResultsFileName: String = "PDF_Modeling_Statistical_Summary",
         visualizationResultsFileName: String = "PDF_Modeling_Visualization_Summary",
         scoringResultsFileName: String = "PDF_Modeling_Scoring_Summary",
         goodnessOfFitResultsFileName: String = "PDF_Modeling_GoodnessOfFit_Summary",
-    ){
-        KSLFileUtil.openInBrowser(fileName = statResultsFileName, htmlStatisticalSummary())
-        KSLFileUtil.openInBrowser(fileName = visualizationResultsFileName, htmlVisualizationSummary())
-        KSLFileUtil.openInBrowser(fileName = scoringResultsFileName, htmlScoringSummary(pdfModelingResults))
-        KSLFileUtil.openInBrowser(fileName = goodnessOfFitResultsFileName, htmlGoodnessOfFitSummary(pdfModelingResults))
+    ) {
+        KSLFileUtil.openInBrowser(fileName = statResultsFileName,
+            htmlStatisticalSummary())
+        KSLFileUtil.openInBrowser(fileName = visualizationResultsFileName,
+            htmlVisualizationSummary())
+        KSLFileUtil.openInBrowser(fileName = scoringResultsFileName,
+            htmlScoringSummary(pdfModelingResults, rankingMethod))
+        KSLFileUtil.openInBrowser(fileName = goodnessOfFitResultsFileName,
+            htmlGoodnessOfFitSummary(pdfModelingResults))
     }
 
     companion object {
@@ -1130,25 +1147,25 @@ class PDFModeler(
             numBootstrapSamples: Int = 400,
             automaticShifting: Boolean = true,
             stream: RNStreamIfc = KSLRandom.nextRNStream()
-        ) : IntegerFrequency {
-            val cdfFreq = IntegerFrequency(name="Distribution Frequency")
+        ): IntegerFrequency {
+            val cdfFreq = IntegerFrequency(name = "Distribution Frequency")
             val estMap = HashBiMap.create<RVParametersTypeIfc, Int>()
             var cnt = 1
-            for(estimator in estimators) {
+            for (estimator in estimators) {
                 estMap[estimator.rvType] = cnt
                 cnt = cnt + 1
             }
             val cellLabels = mutableMapOf<Int, String>()
             val invMap = estMap.inverse()
-            for ((i, rv) in invMap){
+            for ((i, rv) in invMap) {
                 cellLabels[i] = rv.toString()
             }
             val bsPop = DPopulation(data, stream)
-            for(i in 1..numBootstrapSamples) {
+            for (i in 1..numBootstrapSamples) {
                 val d = bsPop.sample(data.size)
                 val pdfModeler = PDFModeler(d, scoringModels)
                 val results = pdfModeler.estimateAndEvaluateScores(estimators, automaticShifting)
-                val topRVType = if (evaluationMethod == EvaluationMethod.Scoring){
+                val topRVType = if (evaluationMethod == EvaluationMethod.Scoring) {
                     results.topRVTypeByScore
                 } else {
                     results.topRVTypeByRanking

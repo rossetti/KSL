@@ -2,6 +2,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 
 /**
@@ -68,6 +69,18 @@ data class PDFModelingResults(
      */
     fun metricsAsDataFrame() : AnyFrame {
         return evaluationModel.alternativeValuesAsDataFrame("Distributions")
+    }
+
+    /**
+     *  Returns a data frame with the first column being the distributions
+     *  by name, a column of ranks for each metric for each distribution.
+     *  The metric ranking columns are labeled as "${metric.name}_Rank"
+     *  @param rankingMethod provides the type of ranking. By default, it is ordinal.
+     */
+    fun ranksAsDataFrame(
+        rankingMethod: Statistic.Companion.Ranking = evaluationModel.defaultRankingMethod
+    ) : AnyFrame {
+        return evaluationModel.alternativeRanksAsDataFrame("Distributions", rankingMethod)
     }
 
     /**
