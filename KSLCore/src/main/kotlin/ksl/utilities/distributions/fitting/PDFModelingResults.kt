@@ -15,21 +15,40 @@ data class PDFModelingResults(
     val scoringResults: List<ScoringResult>,
     val evaluationModel: AdditiveMODAModel
 ) {
-    val sortedScoringResults
+    val resultsSortedByScoring
         get() = scoringResults.sorted()
 
     /**
      *  The top result according to the scoring evaluation model.
      */
-    val topResult
-        get() = sortedScoringResults.first()
+    val topResultByScore
+        get() = resultsSortedByScoring.first()
 
     /**
      *  The top result according to the scoring evaluation model
      *  specified as the type of random variable.
      */
-    val topRVType
-        get() = topResult.rvType
+    val topRVTypeByScore
+        get() = topResultByScore.rvType
+
+    /**
+     *  The results sorted by the average ranking of the metrics
+     */
+    val resultsSortedByRanking
+            get() = scoringResults.sortedBy { it.averageRanking }
+
+    /**
+     *  The top result based on the average ranking of metrics
+     */
+    val topResultByRanking : ScoringResult
+        get() = resultsSortedByRanking.first()
+
+    /**
+     *  The top result according to the average ranking of the metrics
+     *  specified as the type of random variable.
+     */
+    val topRVTypeByRanking
+        get() = topResultByRanking.rvType
 
     /**
      *  Returns the scores in the form of a data frame.
@@ -79,7 +98,7 @@ data class PDFModelingResults(
      */
     fun rank(estimationResult: EstimationResult): Int {
         // get the ranked results, save to do sort only once
-        val rankedResults = sortedScoringResults
+        val rankedResults = resultsSortedByScoring
         // find the result for the specified estimation result
         val scoringResult: ScoringResult? = rankedResults.find { it.estimationResult == estimationResult }
         return if (scoringResult == null) {
@@ -100,7 +119,7 @@ data class PDFModelingResults(
      */
     fun rank(rvType: RVType): Int {
         // get the ranked results, save to do sort only once
-        val rankedResults = sortedScoringResults
+        val rankedResults = resultsSortedByScoring
         // find the result for the specified random variable type
         val scoringResult: ScoringResult? = rankedResults.find { it.rvType == rvType }
         return if (scoringResult == null) {

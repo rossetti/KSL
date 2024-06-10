@@ -230,6 +230,7 @@ class PDFModeler(
      */
     fun evaluateScoringResults(
         scoringResults: List<ScoringResult>,
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod,
         model: AdditiveMODAModel = createDefaultEvaluationModel(scoringResults)
     ): AdditiveMODAModel {
         if (scoringResults.isEmpty()) {
@@ -244,10 +245,15 @@ class PDFModeler(
         }
         model.defineAlternatives(alternatives)//this can cause metric domain rescaling
         //TODO this is where I can capture the ranking recommendation into the scoring result
+        //TODO need to specify the ranking method as a parameter of the function
+        val firstCounts = model.alternativeFirstRankCounts().toMap()
+        val avgRankings = model.alternativeAverageRanking().toMap()
         for (sr in scoringResults) {
             sr.values = model.valuesByAlternative(sr.name)
             sr.weightedValue = model.multiObjectiveValue(sr.name)
             sr.weights = model.weights
+            sr.firstRankCount = firstCounts[sr.name]!!
+            sr.averageRanking = avgRankings[sr.name]!!
         }
         return model
     }
@@ -518,7 +524,7 @@ class PDFModeler(
             appendLine("</h2>")
             appendLine("<div>")
             appendLine("<p>")
-            val top = pdfModelingResults.topResult
+            val top = pdfModelingResults.topResultByScore
             appendLine(top.name)
             appendLine("</p>")
             appendLine("</div>")
@@ -537,7 +543,7 @@ class PDFModeler(
     ): String {
         // produce html results
         // distribution quad evaluation plot
-        val result = pdfModelingResults.topResult
+        val result = pdfModelingResults.topResultByScore
         val distPlot = result.distributionFitPlot()
         if (plotFileName != null) {
             distPlot.saveToFile("${plotFileName}_PDF_Plot")
@@ -620,6 +626,12 @@ class PDFModeler(
     companion object {
 
         /**
+         *  For rank based evaluation, this specifies the default parameter value
+         *  for those methods the perform rank based evaluation calculations.
+         */
+        var defaultRankingMethod = Statistic.Companion.Ranking.Ordinal
+
+        /**
          *  This set contains all the known estimators for estimating continuous
          *  distributions. This is the union of nonRestrictedEstimators and positiveRestrictedEstimators
          */
@@ -694,11 +706,16 @@ class PDFModeler(
          *  scoring results that has linear value functions for the metrics.
          *  The list of scoring results must not be empty.
          */
-        fun createDefaultEvaluationModel(scoringResults: List<ScoringResult>): AdditiveMODAModel {
+        fun createDefaultEvaluationModel(
+            scoringResults: List<ScoringResult>,
+            rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod,
+        ): AdditiveMODAModel {
             require(scoringResults.isNotEmpty()) { "The list of scoring results was empty" }
             val metrics = scoringResults[0].metrics
             val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
-            return AdditiveMODAModel(metricValueFunctionMap)
+            val model = AdditiveMODAModel(metricValueFunctionMap)
+            model.defaultRankingMethod = rankingMethod
+            return model
         }
 
         /**
@@ -1122,7 +1139,7 @@ class PDFModeler(
                 val d = bsPop.sample(data.size)
                 val pdfModeler = PDFModeler(d, scoringModels)
                 val results = pdfModeler.estimateAndEvaluateScores(estimators, automaticShifting)
-                val topRVType = results.topRVType
+                val topRVType = results.topRVTypeByScore
                 val distNum = estMap[topRVType]!!
                 cdfFreq.collect(distNum)
             }

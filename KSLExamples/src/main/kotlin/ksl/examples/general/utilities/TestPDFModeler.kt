@@ -191,12 +191,12 @@ fun testAllInOne(data: DoubleArray) {
     println()
     val d = PDFModeler(data)
     val results = d.estimateAndEvaluateScores()
-    results.sortedScoringResults.forEach(::println)
+    results.resultsSortedByScoring.forEach(::println)
 
-    val topResult = results.sortedScoringResults[0]
+    val topResult = results.resultsSortedByScoring[0]
     topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
 
-    val secondResult = results.sortedScoringResults[1]
+    val secondResult = results.resultsSortedByScoring[1]
     secondResult.distributionFitPlot().showInBrowser("Second Distribution ${secondResult.name}")
     val gResult = secondResult.estimationResult
 
@@ -221,7 +221,7 @@ fun testGammaCase(shape: Double, scale: Double) {
             try {
                 val d = PDFModeler(data)
                 val result: PDFModelingResults = d.estimateAndEvaluateScores(automaticShifting = false)
-                s.collect(result.sortedScoringResults[0].rvType == RVType.Gamma)
+                s.collect(result.resultsSortedByScoring[0].rvType == RVType.Gamma)
             } catch (e: IllegalArgumentException) {
                 data.writeToFile("ErrorData_n_${i}_sample_${j}.txt")
                 throw e
@@ -272,7 +272,7 @@ fun testGammaCaseV2(shape: Double, scale: Double) {
             try {
                 val d = PDFModeler(data)
                 val result: PDFModelingResults = d.estimateAndEvaluateScores(automaticShifting = false)
-                val firstScoringResult = result.sortedScoringResults.first()
+                val firstScoringResult = result.resultsSortedByScoring.first()
                 if (firstScoringResult.rvType == RVType.Gamma){
                     s.collect(1.0)
                     val er = firstScoringResult.estimationResult

@@ -59,8 +59,8 @@ fun scriptedResults(){
         val results  = d.estimateAndEvaluateScores()
         println("PDF Estimation Results for each Distribution:")
         println("------------------------------------------------------")
-        results.sortedScoringResults.forEach(::println)
-        val topResult = results.topResult
+        results.resultsSortedByScoring.forEach(::println)
+        val topResult = results.topResultByScore
         val scores = results.scoresAsDataFrame()
         println()
         println(scores)

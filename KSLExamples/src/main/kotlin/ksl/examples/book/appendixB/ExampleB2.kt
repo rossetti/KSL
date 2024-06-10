@@ -51,9 +51,9 @@ fun main() {
         val results = d.estimateAndEvaluateScores()
         println("PDF Estimation Results for each Distribution:")
         println("------------------------------------------------------")
-        results.sortedScoringResults.forEach(::println)
+        results.resultsSortedByScoring.forEach(::println)
 
-        val topResult = results.sortedScoringResults.first()
+        val topResult = results.resultsSortedByScoring.first()
         topResult.distributionFitPlot().showInBrowser("Recommended Distribution ${topResult.name}")
         println()
         println("** Recommended Distribution** ${topResult.name}")
