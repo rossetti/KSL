@@ -526,7 +526,8 @@ abstract class MODAModel(
     }
 
     /**
-     *  Collects the ranking frequencies across all metrics for each alternative
+     *  Collects the ranking frequencies across all metrics for each alternative.
+     *  The resulting map is sorted by the average frequency across the observed ranks.
      */
     fun alternativeMetricRankFrequencies(
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
@@ -540,12 +541,15 @@ abstract class MODAModel(
         for(vd in vdList){
             altFreqMap[vd.alternative]!!.collect(vd.rank)
         }
-        return altFreqMap
+        val sortedMap = altFreqMap.toList().sortedBy {
+            (_, freq) -> freq.average }.toMap()
+        return sortedMap
     }
 
     /**
      *   The alternatives that were ranked first by some metric along with the metric
      *   frequency distribution.
+     *  The resulting map is sorted by the average frequency across the observed ranks.
      */
     fun alternativeFirstRankMetricFrequencies(
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
@@ -598,6 +602,21 @@ abstract class MODAModel(
     }
 
     /**
+     *  Returns the alternatives with the average across the observed ranks. The returned list
+     *  of pairs (alternative, average rank) is ordered based on the averages smallest to largest.
+     */
+    fun alternativeAverageRanking(
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
+    ): List<Pair<String, Double>> {
+        val list = mutableListOf<Pair<String, Double>>()
+        val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
+        for ( (alternative, freq) in altFreqMap){
+            list.add(Pair(alternative, freq.average))
+        }
+        return list
+    }
+
+    /**
      *  The names of the alternatives that are considered first based on the number
      *  of times the metrics ranked the alternative first.
      *  The set may have more than one alternative if the alternatives tie based on
@@ -619,14 +638,20 @@ abstract class MODAModel(
 
     /**
      *  Returns a list of OverallValueData which holds for each alternative overall value combination.
-     *  (id, alternativeName, overall value)
+     *  (id, alternativeName, overall value, first rank count, average ranking)
      */
-    fun alternativeOverallValueData(): List<OverallValueData> {
+    fun alternativeOverallValueData(
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
+    ): List<OverallValueData> {
         val list = mutableListOf<OverallValueData>()
         val valuesByAlternative = multiObjectiveValuesByAlternative()
+        val counts = alternativeFirstRankCounts().toMap()
+        val averages = alternativeAverageRanking(rankingMethod).toMap()
         var id = 1
         for((alternative, v) in valuesByAlternative){
-            list.add(OverallValueData(id, alternative, v))
+            val cnt = counts[alternative]!!
+            val avg = averages[alternative]!!
+            list.add(OverallValueData(id, alternative, v, cnt, avg))
             id = id + 1
         }
         return list
@@ -771,7 +796,9 @@ data class ValueData(
 data class OverallValueData(
     var id: Int = 0,
     var alternative: String = "",
-    var weightedValue: Double = 0.0
+    var weightedValue: Double = 0.0,
+    var firstRankCount: Int = 0,
+    var averageRank: Double = 0.0,
 ) : DbTableData("tblOverall", listOf("id", "alternative"))
 
 data class AlternativeRankFrequencyData(

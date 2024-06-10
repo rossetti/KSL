@@ -38,6 +38,12 @@ data class ScoringResult(
     var weightedValue: Double = 0.0
         internal set
 
+    var firstRankCount: Int = 0
+        internal set
+
+    var averageRanking: Double = 0.0
+        internal set
+
     var weights: Map<MetricIfc, Double> = emptyMap()
         internal set
 
@@ -47,13 +53,13 @@ data class ScoringResult(
         return "weighted value = $weightedValue \t distribution = $name \t rv type = $rvType"
     }
 
-    fun distributionFitPlot() : FitDistPlot {
-        val data = if (estimationResult.shiftedData != null){
+    fun distributionFitPlot(): FitDistPlot {
+        val data = if (estimationResult.shiftedData != null) {
             estimationResult.shiftedData!!.shiftedData
         } else {
             estimationResult.originalData
         }
-        return  FitDistPlot(data, distribution, distribution)
+        return FitDistPlot(data, distribution, distribution)
     }
 
 }

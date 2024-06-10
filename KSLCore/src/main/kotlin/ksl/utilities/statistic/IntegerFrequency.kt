@@ -80,7 +80,7 @@ class IntegerFrequency(
 
     init {
         require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
-        if (data != null){
+        if (data != null) {
             collect(data)
         }
     }
@@ -92,7 +92,7 @@ class IntegerFrequency(
             name: String? = null,
             lowerLimit: Int = Int.MIN_VALUE,
             upperLimit: Int = Int.MAX_VALUE
-        ): IntegerFrequency{
+        ): IntegerFrequency {
             return IntegerFrequency(data?.toIntArray(), name, lowerLimit, upperLimit)
         }
 
@@ -101,7 +101,7 @@ class IntegerFrequency(
             name: String? = null,
             lowerLimit: Int = Int.MIN_VALUE,
             upperLimit: Int = Int.MAX_VALUE
-        ): IntegerFrequency{
+        ): IntegerFrequency {
             return IntegerFrequency(data?.toIntArray(), name, lowerLimit, upperLimit)
         }
 
@@ -386,8 +386,14 @@ class IntegerFrequency(
     /**
      *  Returns a closed range over the observed integer values
      */
-    val  closedRange: ClosedRange<Int>
+    val closedRange: ClosedRange<Int>
         get() = min..max
+
+    /**
+     *  The statistical average of the observed integers.
+     */
+    val average: Double
+        get() = myStatistic.average
 
     /**
      * Returns the current frequency for the provided integer
@@ -464,8 +470,8 @@ class IntegerFrequency(
      *   after collection because cells are created during the
      *   collection process.
      */
-    fun assignCellLabels(labels: Map<Int, String>){
-        for ((value, cell) in myCells){
+    fun assignCellLabels(labels: Map<Int, String>) {
+        for ((value, cell) in myCells) {
             if (labels.containsKey(value)) {
                 cell.label = labels[value]!!
             }
@@ -475,7 +481,7 @@ class IntegerFrequency(
     /**
      *  Returns the data associated with the tabulation.
      */
-    fun frequencyData() : List<FrequencyData> {
+    fun frequencyData(): List<FrequencyData> {
         val list = mutableListOf<FrequencyData>()
         val cList = cells()
         var cp = 0.0
@@ -513,7 +519,7 @@ class IntegerFrequency(
         return list
     }
 
-    fun freqTabulation() : String {
+    fun freqTabulation(): String {
         val sb = StringBuilder()
         sb.append("Frequency Tabulation ").append(name).appendLine()
         sb.append("----------------------------------------").appendLine()
@@ -570,7 +576,7 @@ class IntegerFrequency(
      *  indicates whether proportions (true) or frequencies (false)
      *  will be shown on the plot. The default is false.
      */
-    fun frequencyPlot(proportions: Boolean = false) : IntegerFrequencyPlot {
+    fun frequencyPlot(proportions: Boolean = false): IntegerFrequencyPlot {
         return IntegerFrequencyPlot(this, proportions)
     }
 

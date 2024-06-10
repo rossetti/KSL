@@ -45,7 +45,7 @@ import java.nio.file.Path
  */
 fun PDFModelingResults.rank(rvType: RVType): Int {
     // get the ranked results, save to do sort only once
-    val rankedResults = sortedScoringResults
+    val rankedResults = resultsSortedByScoring
     // find the result for the specified random variable type
     val scoringResult: ScoringResult? = rankedResults.find { it.rvType == rvType }
     return if (scoringResult == null) {
@@ -83,7 +83,7 @@ fun PDFModelingResults.rank(rvType: RVType): Int {
  */
 fun PDFModelingResults.rank(estimationResult: EstimationResult): Int {
     // get the ranked results, save to do sort only once
-    val rankedResults = sortedScoringResults
+    val rankedResults = resultsSortedByScoring
     // find the result for the specified estimation result
     val scoringResult: ScoringResult? = rankedResults.find { it.estimationResult == estimationResult }
     return if (scoringResult == null) {
@@ -196,7 +196,7 @@ fun evaluation(
     val pdfModeler = PDFModeler(data)
     val pdfModelingResults = pdfModeler.estimateAndEvaluateScores(automaticShifting = automaticShifting)
     // still need to make sure that the top performer was of the correct type
-    val er: EstimationResult = pdfModelingResults.sortedScoringResults.first().estimationResult
+    val er: EstimationResult = pdfModelingResults.resultsSortedByScoring.first().estimationResult
     val estimatedParameters = er.parameters()
     val parameterCI = er.percentileBootstrapCI()
     // now the closeness of the estimated parameters to the true values can be checked
@@ -270,9 +270,9 @@ class PDFModelingExperiment(
         rowData.distribution = distribution
         rowData.trueParam1 = trueParam1
         rowData.trueParam2 = trueParam2
-        val firstResult = pdfModelingResults.sortedScoringResults[0]
-        val secondResult = pdfModelingResults.sortedScoringResults[1]
-        val thirdResult = pdfModelingResults.sortedScoringResults[2]
+        val firstResult = pdfModelingResults.resultsSortedByScoring[0]
+        val secondResult = pdfModelingResults.resultsSortedByScoring[1]
+        val thirdResult = pdfModelingResults.resultsSortedByScoring[2]
         pdfModelingResults.estimationResults[0]
 
     }
