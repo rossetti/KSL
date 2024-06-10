@@ -30,7 +30,7 @@
     "ksl.modeling.elements.*",
     "ksl.modeling.nhpp.*",
     "ksl.modeling.spatial.*",
-    "ksl.utilities.plotting.*",
+    "ksl.utilities.io.plotting.*",
     "ksl.utilities.moda.*",
     "ksl.utilities.distributions.*",
     "ksl.utilities.distributions.fitting.*",
