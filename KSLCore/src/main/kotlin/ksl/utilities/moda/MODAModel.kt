@@ -342,11 +342,17 @@ abstract class MODAModel(
             val dataColumn = ranks.toColumn("${metric.name}_Rank")
             columns.add(dataColumn)
         }
-        return dataFrameOf(columns)
+        val rankCounts = alternativeFirstRankCounts(false).toMap()
+        val countsCol = rankCounts.values.toColumn("First Rank Counts")
+        val rankAvgs = alternativeAverageRanking(false, rankingMethod).toMap()
+        val rankAvgCol = rankAvgs.values.toColumn("Avg Rank")
+        columns.add(countsCol)
+        columns.add(rankAvgCol)
+        return dataFrameOf(columns).sortBy(rankAvgCol)
     }
 
     /**
-     *  Returns a data framed with the first column being the alternatives
+     *  Returns a data frame with the first column being the alternatives
      *  by name, a column of values for each metric for each alternative,
      *  and a final column representing the overall value for the alternative.
      *  The parameter [firstColumnName] can be used to name the first column of the
@@ -370,6 +376,32 @@ abstract class MODAModel(
         val overallValue = valuesByAlternative.values.toColumn("Overall Value")
         columns.add(overallValue)
         return dataFrameOf(columns).sortByDesc(overallValue)
+    }
+
+    /**
+     *  Returns a data frame with the first column being the alternatives
+     *  by name, a column of rank counts for each alternative,
+     *  and a final column representing the average rank for the alternative.
+     *  The parameter [firstColumnName] can be used to name the first column of the
+     *  returned data frame. By default, the first column name is "Alternatives".
+     *  The resulting data frame will be sorted by average rank column with
+     *  lower value being preferred.
+     */
+    fun alternativeRankingsAsDataFrame(
+        firstColumnName: String = "Alternatives",
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
+    ): AnyFrame {
+        // make the alternative column
+        val rankCounts = alternativeFirstRankCounts(false).toMap()
+        val altCol = rankCounts.keys.toColumn(firstColumnName)
+        val countsCol = rankCounts.values.toColumn("First Rank Counts")
+        val rankAvgs = alternativeAverageRanking(false, rankingMethod).toMap()
+        val rankAvgCol = rankAvgs.values.toColumn("Avg Rank")
+        val columns = mutableListOf<DataColumn<*>>()
+        columns.add(altCol)
+        columns.add(countsCol)
+        columns.add(rankAvgCol)
+        return dataFrameOf(columns).sortBy(rankAvgCol)
     }
 
     /**
@@ -527,9 +559,12 @@ abstract class MODAModel(
 
     /**
      *  Collects the ranking frequencies across all metrics for each alternative.
-     *  The resulting map is sorted by the average frequency across the observed ranks.
+     *
+     *  @param sortByAvgRanking If true, the resulting map is sorted by the average frequency
+     *  across the observed ranks. The default is true.
      */
     fun alternativeMetricRankFrequencies(
+        sortByAvgRanking: Boolean = true,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): Map<String, IntegerFrequency> {
          // make frequencies
@@ -541,6 +576,9 @@ abstract class MODAModel(
         for(vd in vdList){
             altFreqMap[vd.alternative]!!.collect(vd.rank)
         }
+        if (!sortByAvgRanking){
+            return altFreqMap
+        }
         val sortedMap = altFreqMap.toList().sortedBy {
             (_, freq) -> freq.average }.toMap()
         return sortedMap
@@ -549,13 +587,15 @@ abstract class MODAModel(
     /**
      *   The alternatives that were ranked first by some metric along with the metric
      *   frequency distribution.
-     *  The resulting map is sorted by the average frequency across the observed ranks.
+     *  @param sortByAvgRanking If true, the resulting map is sorted by the average frequency
+     *  across the observed ranks. The default is true.
      */
     fun alternativeFirstRankMetricFrequencies(
+        sortByAvgRanking: Boolean = true,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): Map<String, IntegerFrequency> {
         val altSubMap = mutableMapOf<String, IntegerFrequency>()
-        val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
+        val altFreqMap = alternativeMetricRankFrequencies(sortByAvgRanking, rankingMethod)
         for ( (alternative, freq) in altFreqMap){
             if (freq.closedRange.contains(1)){
                 altSubMap[alternative] = freq
@@ -566,12 +606,15 @@ abstract class MODAModel(
 
     /**
      *  Captures the alternative metric rank frequency data to a list.
+     *  @param sortByAvgRanking If true, the resulting map is sorted by the average frequency
+     *  across the observed ranks. The default is true.
      */
     fun alternativeRankFrequencyData(
+        sortByAvgRanking: Boolean = true,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ) : List<AlternativeRankFrequencyData> {
         val list = mutableListOf<AlternativeRankFrequencyData>()
-        val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
+        val altFreqMap = alternativeMetricRankFrequencies(sortByAvgRanking, rankingMethod)
         var id = 0
         for ( (alternative, freq) in altFreqMap){
             val fData = freq.frequencyData()
@@ -587,16 +630,22 @@ abstract class MODAModel(
 
     /**
      *  Returns the alternatives with the count of the number of times some metric
-     *  ranked the alternative first based on the value scores. The returned list
-     *  of pairs (alternative, first rank count) is ordered based on the counts in descending order.
+     *  ranked the alternative first based on the value scores.
+     *
+     *  @param sortByCounts If true, the resulting list is sorted by based on the counts in descending order.
+     *  The default is true.
      */
     fun alternativeFirstRankCounts(
+        sortByCounts: Boolean = true,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ) : List<Pair<String, Int>> {
         val map = mutableMapOf<String, Int>()
-        val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
+        val altFreqMap = alternativeMetricRankFrequencies(false, rankingMethod)
         for ( (alternative, freq) in altFreqMap){
             map[alternative] = freq.frequency(1).toInt()
+        }
+        if (!sortByCounts){
+            return map.toList()
         }
         return map.toList().sortedByDescending { it.second }
     }
@@ -604,12 +653,16 @@ abstract class MODAModel(
     /**
      *  Returns the alternatives with the average across the observed ranks. The returned list
      *  of pairs (alternative, average rank) is ordered based on the averages smallest to largest.
+     *
+     *  @param sortByAvgRanking If true, the resulting list is sorted by the average frequency
+     *  across the observed ranks. The default is true.
      */
     fun alternativeAverageRanking(
+        sortByAvgRanking: Boolean = true,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): List<Pair<String, Double>> {
         val list = mutableListOf<Pair<String, Double>>()
-        val altFreqMap = alternativeMetricRankFrequencies(rankingMethod)
+        val altFreqMap = alternativeMetricRankFrequencies(sortByAvgRanking, rankingMethod)
         for ( (alternative, freq) in altFreqMap){
             list.add(Pair(alternative, freq.average))
         }
@@ -626,7 +679,7 @@ abstract class MODAModel(
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): Set<String> {
         val set = mutableSetOf<String>()
-        val altList = alternativeFirstRankCounts(rankingMethod)
+        val altList = alternativeFirstRankCounts(true, rankingMethod)
         val first = altList.first()
         for ((alternative, value) in altList){
             if (value == first.second){
@@ -646,7 +699,7 @@ abstract class MODAModel(
         val list = mutableListOf<OverallValueData>()
         val valuesByAlternative = multiObjectiveValuesByAlternative()
         val counts = alternativeFirstRankCounts().toMap()
-        val averages = alternativeAverageRanking(rankingMethod).toMap()
+        val averages = alternativeAverageRanking(true, rankingMethod).toMap()
         var id = 1
         for((alternative, v) in valuesByAlternative){
             val cnt = counts[alternative]!!
