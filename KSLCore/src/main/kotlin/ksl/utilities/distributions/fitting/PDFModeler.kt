@@ -44,6 +44,14 @@ import org.jetbrains.kotlinx.dataframe.io.DisplayConfiguration
 import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 
 /**
+ *  Can be used to indicate if the recommended distribution should be
+ *  based on the MODA scoring model or the first rank frequency across metrics.
+ */
+enum class EvaluationMethod {
+    Scoring, Ranking
+}
+
+/**
  *  @param data the data to analyze for fitting a probability distribution
  *  @param scoringModels the scoring models to use to evaluate the fitting process
  *  and recommend a distribution. By default, this is defaultScoringModels
@@ -1116,9 +1124,10 @@ class PDFModeler(
          */
         fun bootstrapFamilyFrequency(
             data: DoubleArray,
+            evaluationMethod: EvaluationMethod = EvaluationMethod.Scoring,
             estimators: Set<ParameterEstimatorIfc> = allEstimators,
             scoringModels: Set<PDFScoringModel> = defaultScoringModels,
-            numBootstrapSamples: Int = 100,
+            numBootstrapSamples: Int = 400,
             automaticShifting: Boolean = true,
             stream: RNStreamIfc = KSLRandom.nextRNStream()
         ) : IntegerFrequency {
@@ -1139,7 +1148,11 @@ class PDFModeler(
                 val d = bsPop.sample(data.size)
                 val pdfModeler = PDFModeler(d, scoringModels)
                 val results = pdfModeler.estimateAndEvaluateScores(estimators, automaticShifting)
-                val topRVType = results.topRVTypeByScore
+                val topRVType = if (evaluationMethod == EvaluationMethod.Scoring){
+                    results.topRVTypeByScore
+                } else {
+                    results.topRVTypeByRanking
+                }
                 val distNum = estMap[topRVType]!!
                 cdfFreq.collect(distNum)
             }
@@ -1147,23 +1160,4 @@ class PDFModeler(
             return cdfFreq
         }
     }
-
-}
-
-fun main() {
-//     val rv = ShiftedRV(5.0, LognormalRV(20.0, 2.0))
-//    val rv = LognormalRV(20.0, 2.0)
-    val rv = ExponentialRV(mean = 10.0)
-    //   val rv = TriangularRV(3.0, 6.0, 10.0)
-    val data = rv.sample(50)
-//    val pdfModeler = PDFModeler(rv.sample(1000))
-//    pdfModeler.showAllResultsInBrowser()
-
-    val freq = PDFModeler.bootstrapFamilyFrequency(data,
-        numBootstrapSamples = 100, automaticShifting = false)
-    val cells = freq.cellsSortedByCount()
-    for(cell in cells){
-        println(cell)
-    }
-    println(freq.toDataFrame())
 }
