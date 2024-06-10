@@ -25,6 +25,7 @@ import ksl.utilities.distributions.fitting.estimators.WeibullMLEParameterEstimat
 import ksl.utilities.distributions.fitting.scoring.ChiSquaredScoringModel
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.writeToFile
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.GammaRV
@@ -48,12 +49,14 @@ fun main() {
 //    testEvaluationModel(data)
 //    testAllInOne(data)
 
-    testGammaCaseV2(7.5, 1.1)
+//    testGammaCaseV2(7.5, 1.1)
 
 
     //   testSampleFile()
 
 //    testAndersonDarling()
+
+    testBootStrappingOfFamily()
 }
 
 private fun testSampleFile() {
@@ -302,4 +305,22 @@ fun testGammaCaseV2(shape: Double, scale: Double) {
 
     println("Done!")
 
+}
+
+fun testBootStrappingOfFamily(){
+    //     val rv = ShiftedRV(5.0, LognormalRV(20.0, 2.0))
+//    val rv = LognormalRV(20.0, 2.0)
+    val rv = ExponentialRV(mean = 10.0)
+    //   val rv = TriangularRV(3.0, 6.0, 10.0)
+    val data = rv.sample(100)
+//    val pdfModeler = PDFModeler(rv.sample(1000))
+//    pdfModeler.showAllResultsInBrowser()
+
+    val freq = PDFModeler.bootstrapFamilyFrequency(data, EvaluationMethod.Scoring,
+        automaticShifting = true)
+//    val cells = freq.cellsSortedByCount()
+//    for(cell in cells){
+//        println(cell)
+//    }
+    println(freq.toDataFrame())
 }
