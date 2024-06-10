@@ -39,7 +39,10 @@ import ksl.utilities.random.rvariable.*
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.*
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.api.into
 import org.jetbrains.kotlinx.dataframe.api.remove
+import org.jetbrains.kotlinx.dataframe.api.rename
 import org.jetbrains.kotlinx.dataframe.io.DisplayConfiguration
 import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 
@@ -638,14 +641,22 @@ class PDFModeler(
         scoringResultsFileName: String = "PDF_Modeling_Scoring_Summary",
         goodnessOfFitResultsFileName: String = "PDF_Modeling_GoodnessOfFit_Summary",
     ) {
-        KSLFileUtil.openInBrowser(fileName = statResultsFileName,
-            htmlStatisticalSummary())
-        KSLFileUtil.openInBrowser(fileName = visualizationResultsFileName,
-            htmlVisualizationSummary())
-        KSLFileUtil.openInBrowser(fileName = scoringResultsFileName,
-            htmlScoringSummary(pdfModelingResults, rankingMethod))
-        KSLFileUtil.openInBrowser(fileName = goodnessOfFitResultsFileName,
-            htmlGoodnessOfFitSummary(pdfModelingResults))
+        KSLFileUtil.openInBrowser(
+            fileName = statResultsFileName,
+            htmlStatisticalSummary()
+        )
+        KSLFileUtil.openInBrowser(
+            fileName = visualizationResultsFileName,
+            htmlVisualizationSummary()
+        )
+        KSLFileUtil.openInBrowser(
+            fileName = scoringResultsFileName,
+            htmlScoringSummary(pdfModelingResults, rankingMethod)
+        )
+        KSLFileUtil.openInBrowser(
+            fileName = goodnessOfFitResultsFileName,
+            htmlGoodnessOfFitSummary(pdfModelingResults)
+        )
     }
 
     companion object {
@@ -1133,6 +1144,10 @@ class PDFModeler(
          *  to explore the set of distributions that may best-fit the data.
          *
          *  @param data the original data
+         *  @param evaluationMethod the evaluation method used to recommend a best-fitting family
+         *  {Scoring, Ranking} Scoring is the default and uses the MODA highest overall value
+         *  to make the recommendation. Ranking uses the average ranking across metrics to
+         *  make the recommendation.  Lower (first) place ranks are preferred.
          *  @param estimators the set of estimators to use during the estimation process
          *  @param scoringModels the scoring models used during the estimation process
          *  @param numBootstrapSamples the number of bootstrap samples of the original data
@@ -1175,6 +1190,42 @@ class PDFModeler(
             }
             cdfFreq.assignCellLabels(cellLabels)
             return cdfFreq
+        }
+
+        /**
+         *  Constructs a frequency tabulation of the top distributions for each
+         *  bootstrap sample of the original data.  This function can be used
+         *  to explore the set of distributions that may best-fit the data.
+         *
+         *  @param data the original data
+         *  @param evaluationMethod the evaluation method used to recommend a best-fitting family
+         *  {Scoring, Ranking} Scoring is the default and uses the MODA highest overall value
+         *  to make the recommendation. Ranking uses the average ranking across metrics to
+         *  make the recommendation.  Lower (first) place ranks are preferred.
+         *  @param estimators the set of estimators to use during the estimation process
+         *  @param scoringModels the scoring models used during the estimation process
+         *  @param numBootstrapSamples the number of bootstrap samples of the original data
+         *  @param automaticShifting if true automatic shifting occurs, true is the default
+         *  @param stream the random number stream to use for the bootstrapping process
+         */
+        fun bootstrapFamilyFrequencyAsDataFrame(
+            data: DoubleArray,
+            evaluationMethod: EvaluationMethod = EvaluationMethod.Scoring,
+            estimators: Set<ParameterEstimatorIfc> = allEstimators,
+            scoringModels: Set<PDFScoringModel> = defaultScoringModels,
+            numBootstrapSamples: Int = 400,
+            automaticShifting: Boolean = true,
+            stream: RNStreamIfc = KSLRandom.nextRNStream()
+        ): AnyFrame {
+            val freq = bootstrapFamilyFrequency(
+                data, evaluationMethod,
+                estimators, scoringModels, numBootstrapSamples, automaticShifting, stream
+            )
+            var df = freq.toDataFrame()
+            df = df.remove("id", "name", "value")
+            df = df.rename(Pair("cellLabel", "Distribution"))
+            df = df.rename(Pair("count", "Ranked First"))
+            return df
         }
     }
 }

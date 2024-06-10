@@ -313,14 +313,14 @@ fun testBootStrappingOfFamily(){
     val rv = ExponentialRV(mean = 10.0)
     //   val rv = TriangularRV(3.0, 6.0, 10.0)
     val data = rv.sample(100)
-    val pdfModeler = PDFModeler(data)
-    pdfModeler.showAllResultsInBrowser()
+//    val pdfModeler = PDFModeler(data)
+//    pdfModeler.showAllResultsInBrowser()
 
-    val freq = PDFModeler.bootstrapFamilyFrequency(data, EvaluationMethod.Scoring,
+    val freq = PDFModeler.bootstrapFamilyFrequencyAsDataFrame(data, EvaluationMethod.Scoring,
         automaticShifting = true)
 //    val cells = freq.cellsSortedByCount()
 //    for(cell in cells){
 //        println(cell)
 //    }
-    println(freq.toDataFrame())
+    println(freq)
 }
