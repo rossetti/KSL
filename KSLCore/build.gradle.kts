@@ -24,10 +24,10 @@ plugins {
     `maven-publish`
     // uncomment for signing the jars during publishing task
     signing
-    kotlin("jvm") version "1.9.0"
+    kotlin("jvm") version "1.9.20"
     kotlin("plugin.serialization") version "1.9.0"
  //   id("org.jetbrains.kotlinx.dataframe") version "0.11.0"
-    id("org.jetbrains.dokka") version "1.9.10"
+    id("org.jetbrains.dokka") version "1.9.20"
 }
 group = "io.github.rossetti"
 version = "R1.0.9"
@@ -40,10 +40,9 @@ repositories {
 dependencies {
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
-//    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2") //TODO delete
     api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "6.0.9")
 
-    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.12")
+    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.13")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
     implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.6")
@@ -55,7 +54,7 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-to-slf4j:2.23.1")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.6.3")
 
@@ -77,7 +76,7 @@ dependencies {
     api("org.jetbrains.kotlinx:dataframe-core:0.13.1")
 
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.9.23")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.0")
 
     // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
 //    implementation("org.ktorm:ktorm-core:3.5.0")

@@ -1558,9 +1558,10 @@ class Conveyor(
             require(numCellsNeeded >= 1) { "The number of cells requested must be >= 1" }
             require(numCellsNeeded <= maxEntityCellsAllowed) {
                 "The entity requested more cells ($numCellsNeeded) than " +
-                        "the allowed maximum ($maxEntityCellsAllowed) for for conveyor (${this.name})"
+                        "the allowed maximum ($maxEntityCellsAllowed) for for conveyor (${this@Conveyor.name})"
             }
-            require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) of requested cells is not on conveyor (${conveyor.name})" }
+            require(entryLocations.contains(entryLocation))
+                { "The location (${entryLocation.name}) of requested cells is not on conveyor (${this@Conveyor.name})" }
             priority = entity.priority
         }
 
