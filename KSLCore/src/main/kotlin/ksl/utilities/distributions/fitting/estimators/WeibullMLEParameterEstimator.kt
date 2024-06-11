@@ -295,7 +295,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
 fun main() {
     val rv = PearsonType5RV(7.0, 15.0)
     var data = rv.sample(40)
-    data = rv.sample(40)
+//    data = rv.sample(40)
     val pe = WeibullMLEParameterEstimator()
     val stat = Statistic(data)
     val est = pe.estimateParameters(data, stat)

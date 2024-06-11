@@ -19,9 +19,12 @@
 package ksl.examples.general.utilities
 
 import ksl.utilities.distributions.ChiSquaredDistribution
+import ksl.utilities.distributions.PearsonType5
 import ksl.utilities.distributions.fitting.*
 import ksl.utilities.distributions.fitting.estimators.ExponentialMLEParameterEstimator
+import ksl.utilities.distributions.fitting.estimators.PearsonType5MLEParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.WeibullMLEParameterEstimator
+import ksl.utilities.distributions.fitting.scoring.AndersonDarlingScoringModel
 import ksl.utilities.distributions.fitting.scoring.ChiSquaredScoringModel
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
@@ -34,6 +37,7 @@ import ksl.utilities.random.rvariable.parameters.GeneralizedBetaRVParameters
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
+import ksl.utilities.statistic.U01Test
 import org.jetbrains.letsPlot.commons.intern.math.ipow
 
 fun main() {
@@ -323,4 +327,37 @@ fun testBootStrappingOfFamily(){
 //        println(cell)
 //    }
     println(freq)
+}
+
+fun testPearsonType5(){
+
+    val d = PearsonType5(shape = 0.40677819273863525, scale = 2.816753701768571)
+     val rv = d.randomVariable
+
+ //   val e = ExponentialRV(10.0)
+    //   val se = ShiftedRV(5.0, e)
+    val n = 1000
+    val data = rv.sample(n)
+    println(Statistic(data))
+    println()
+
+    val pe = PearsonType5MLEParameterEstimator()
+    val result = pe.estimateParameters(data, Statistic(data))
+    println(result)
+    // val sm = ChiSquaredScoringModel()
+    val cdf = PDFModeler.createDistribution(result.parameters!!)
+    println(cdf)
+
+    val p = U01Test.recommendedU01BreakPoints(1000, PDFModeler.defaultConfidenceLevel)
+    println()
+    println(p.joinToString())
+
+    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf!!)
+
+    println()
+    println(bp.joinToString())
+
+    val sm = AndersonDarlingScoringModel()
+
+    sm.score(data, result.parameters!!)
 }

@@ -171,37 +171,3 @@ class PearsonType5 (shape: Double = 1.0, scale: Double = 1.0, name: String? = nu
     }
 
 }
-
-fun main(){
-
-    val d = PearsonType5(shape = 0.40677819273863525, scale = 2.816753701768571)
-   // val rv = d.randomVariable
-
-    val e = ExponentialRV(10.0)
-    //   val se = ShiftedRV(5.0, e)
-    val n = 1000
-    val data = e.sample(n)
-    println(Statistic(data))
-    println()
-
-    val pe = PearsonType5MLEParameterEstimator()
-    val result = pe.estimateParameters(data, Statistic(data))
-    println(result)
-   // val sm = ChiSquaredScoringModel()
-    val cdf = PDFModeler.createDistribution(result.parameters!!)
-    println(cdf)
-
-    val p = U01Test.recommendedU01BreakPoints(1000, PDFModeler.defaultConfidenceLevel)
-    println()
-    println(p.joinToString())
-
-    var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf!!)
-
-    println()
-    println(bp.joinToString())
-
-    val sm = AndersonDarlingScoringModel()
-
-    sm.score(data, result.parameters)
-
-}

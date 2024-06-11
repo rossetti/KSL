@@ -242,7 +242,7 @@ class PDFModeler(
     fun evaluateScoringResults(
         scoringResults: List<ScoringResult>,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod,
-        model: AdditiveMODAModel = createDefaultEvaluationModel(scoringResults)
+        model: AdditiveMODAModel = createDefaultEvaluationModel(scoringResults, rankingMethod)
     ): AdditiveMODAModel {
         if (scoringResults.isEmpty()) {
             return model
@@ -257,8 +257,8 @@ class PDFModeler(
         model.defineAlternatives(alternatives)//this can cause metric domain rescaling
         //TODO this is where I can capture the ranking recommendation into the scoring result
         //TODO need to specify the ranking method as a parameter of the function
-        val firstCounts = model.alternativeFirstRankCounts().toMap()
-        val avgRankings = model.alternativeAverageRanking().toMap()
+        val firstCounts = model.alternativeFirstRankCounts(false, rankingMethod).toMap()
+        val avgRankings = model.alternativeAverageRanking(false, rankingMethod).toMap()
         for (sr in scoringResults) {
             sr.values = model.valuesByAlternative(sr.name)
             sr.weightedValue = model.multiObjectiveValue(sr.name)
@@ -327,10 +327,10 @@ class PDFModeler(
         val boxConfig = DisplayConfiguration.DEFAULT
         boxConfig.rowsLimit = boxPlotDf.rowsCount()
         // histogram statistics
-        var histDf = histogram.toDataFrame()
-        histDf = histDf.remove("id")
-        histDf = histDf.remove("name")
-        histDf = histDf.remove("binLabel")
+//        var histDf = histogram.toDataFrame()
+//        histDf = histDf.remove("id")
+//        histDf = histDf.remove("name")
+//        histDf = histDf.remove("binLabel")
         val config = DisplayConfiguration.DEFAULT
         config.rowsLimit = histogram.numberBins + 1
         // estimate left shift parameter
@@ -416,7 +416,7 @@ class PDFModeler(
         // KSL histogram
         val hPlot = histogram.histogramPlot()
         // histogram with density overlay
-        val hdPlot = HistogramDensityPlot(data)
+ //       val hdPlot = HistogramDensityPlot(data)
         // box plot
         val bp = BoxPlot(data)
         // observation plot
