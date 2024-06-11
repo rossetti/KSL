@@ -96,7 +96,7 @@ object SQLiteDb : EmbeddedDbIfc {
         config.setTempStore(SQLiteConfig.TempStore.MEMORY) // Hold indices in memory
         config.setCacheSize(cacheSize)
         config.setPageSize(pageSize)
-        config.setJounalSizeLimit(cacheSize * pageSize)
+        config.setJournalSizeLimit(cacheSize * pageSize)
         config.setOpenMode(SQLiteOpenMode.NOMUTEX)
         config.setLockingMode(SQLiteConfig.LockingMode.NORMAL)
         config.transactionMode = SQLiteConfig.TransactionMode.IMMEDIATE
