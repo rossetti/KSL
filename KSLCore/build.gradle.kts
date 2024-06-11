@@ -41,14 +41,14 @@ dependencies {
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
 //    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.2") //TODO delete
-    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "6.0.3")
+    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "6.0.9")
 
     api(group = "org.slf4j", name = "slf4j-api", version = "2.0.12")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.3")
+    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.6")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.3")
+    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.6")
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
@@ -85,20 +85,26 @@ dependencies {
  //   implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
     // replacement for apache math commons
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
-    api("org.hipparchus:hipparchus-core:3.0")
+    api("org.hipparchus:hipparchus-core:3.1")
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
-    api("org.hipparchus:hipparchus-stat:3.0")
+    api("org.hipparchus:hipparchus-stat:3.1")
 
-    implementation("com.google.guava:guava:33.1.0-jre")
+    implementation("com.google.guava:guava:33.2.1-jre")
 
     // https://mvnrepository.com/artifact/org.knowm.xchart/xchart
 //    implementation("org.knowm.xchart:xchart:3.8.2")
     
     // https://mvnrepository.com/artifact/com.opencsv/opencsv
+    //Dependency maven:commons-collections:commons-collections:3.2.2 is vulnerable Cx78f40514-81ff,  Score: 7.5
+    //This requires opencsv to update their dependency
     implementation("com.opencsv:opencsv:5.9") //TODO vulnerability not showing on maven
+
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-csv
+//    implementation("org.apache.commons:commons-csv:1.11.0")
 
     // https://db.apache.org/derby/releases
     // 10.16.1.1 is only compatible with Java 17
+    // upgrade to Java 21 and 10.17.1.0 or higher to avoid this vulnerability.
     implementation(group = "org.apache.derby", name = "derby", version = "10.15.2.0")
     implementation(group = "org.apache.derby", name = "derbyshared", version = "10.15.2.0")
     implementation(group = "org.apache.derby", name = "derbyclient", version = "10.15.2.0")
@@ -106,11 +112,11 @@ dependencies {
 
     implementation(group = "org.postgresql", name = "postgresql", version = "42.7.3")
 
-    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.42.0.0")
+    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.46.0.0")
 
     // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
  //   implementation("org.duckdb:duckdb_jdbc:0.10.0")
-    implementation(group = "com.zaxxer", name = "HikariCP", version = "5.0.1")
+    implementation(group = "com.zaxxer", name = "HikariCP", version = "5.1.0")
 
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
 //    implementation("org.dhatim:fastexcel-reader:0.14.0")
@@ -120,7 +126,8 @@ dependencies {
     // https://mvnrepository.com/artifact/org.apache.poi/poi
     api(group = "org.apache.poi", name = "poi", version = "5.2.5")
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
-    api(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.5")
+    api(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.5")// this vulnerability is not on maven
+    // required POI to update their dependencies to remove the vulnerability
 
     implementation(kotlin("stdlib-jdk8"))
 }
