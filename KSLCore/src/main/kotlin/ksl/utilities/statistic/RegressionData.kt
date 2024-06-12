@@ -134,9 +134,11 @@ data class RegressionData(
             for (name in predictorNames) {
                 require(df[name].type().classifier == Double::class) { "There predictor ($name) was not a Double" }
             }
+            @Suppress("UNCHECKED_CAST")
             val y = (df[responseName].toList() as List<Double>).toDoubleArray()
             val x = mutableListOf<DoubleArray>()
             for (name in predictorNames) {
+                @Suppress("UNCHECKED_CAST")
                 x.add((df[name].toList() as List<Double>).toDoubleArray())
             }
             return RegressionData(y, x.toTypedArray().transpose(), hasIntercept, responseName, predictorNames)

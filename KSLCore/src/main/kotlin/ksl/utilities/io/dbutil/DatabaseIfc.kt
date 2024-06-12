@@ -18,12 +18,12 @@
 
 package ksl.utilities.io.dbutil
 
-import com.opencsv.CSVWriterBuilder
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import ksl.utilities.io.*
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.apache.commons.csv.CSVFormat
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -1779,8 +1779,8 @@ interface DatabaseIfc : DatabaseIOIfc {
             require(!resultSet.isClosed) { "The supplied ResultSet is closed when trying to write workbook ${sheet.sheetName} " }
             // write the header
             var rowCnt = 0
+            val names = columnNames(resultSet)
             if (writeHeader) {
-                val names = columnNames(resultSet)
                 val header = sheet.createRow(0)
                 for (col in names.indices) {
                     val cell = header.createCell(col)
@@ -2006,10 +2006,15 @@ interface DatabaseIfc : DatabaseIOIfc {
         fun writeAsCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer) {
 //            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }
             //okay because resultSet is only read from
-            val builder = CSVWriterBuilder(writer)
-            val csvWriter = builder.build()
-            csvWriter.writeAll(resultSet, header, false, true)
-            csvWriter.flushQuietly()
+            val printer = if (header){
+                CSVFormat.DEFAULT.builder()
+                    .setHeader(resultSet).build().print(writer)
+            } else {
+                CSVFormat.DEFAULT.builder().build().print(writer)
+            }
+            //TODO this is not working OR data is bad to start
+            printer.printRecords(resultSet)
+            printer.close(true)
         }
 
         /**

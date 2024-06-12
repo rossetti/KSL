@@ -18,22 +18,21 @@
 
 package ksl.utilities.io
 
-
-import com.opencsv.CSVReader
-import com.opencsv.CSVWriter
-import com.opencsv.exceptions.CsvException
 import ksl.utilities.KSLArrays
 import ksl.utilities.toStrings
 import io.github.oshai.kotlinlogging.KotlinLogging
-import ksl.utilities.io.tabularfiles.DataType
-import ksl.utilities.io.tabularfiles.TabularFile
-import ksl.utilities.io.tabularfiles.TabularOutputFile
 import java.io.Closeable
 import java.io.FileReader
 import java.io.FileWriter
 import java.io.IOException
 import java.nio.file.Path
 import java.util.*
+import org.apache.commons.csv.CSVFormat
+import org.apache.commons.csv.CSVParser
+import org.apache.commons.csv.CSVPrinter
+import org.apache.commons.csv.CSVRecord
+import org.checkerframework.checker.units.qual.C
+
 
 /**
  * Returns an iterator to the rows of a csv file that may have the first row as a header
@@ -50,8 +49,8 @@ import java.util.*
  */
 class CSVRowIterator(
     val pathToFile: Path,
-    private val csvReader: CSVReader = CSVReader(FileReader(pathToFile.toFile())),
-) : Iterator<Array<String>> by csvReader.iterator(), Closeable by csvReader
+    private val csvParser: CSVParser = CSVParser(FileReader(pathToFile.toFile()), CSVFormat.DEFAULT),
+) : Iterator<CSVRecord> by csvParser.iterator(), Closeable by csvParser
 
 /**
  * A class to facilitate some basic CSV processing without having to worry about underlying csv library.
@@ -76,56 +75,60 @@ object CSVUtil {
      * @param pathToFile the path to the file
      * @return the filled list
      */
-    fun readRows(pathToFile: Path, skipLines: Int = 0): List<Array<String>> {
-        Objects.requireNonNull(pathToFile, "The path to the file must not be null")
+    fun readRows(pathToFile: Path, skipLines: Int = 0): List<CSVRecord> {
         try {
-            CSVReader(FileReader(pathToFile.toFile())).use { reader ->
-                val list: List<Array<String>> = reader.readAll()
-                return if (skipLines > 0) {
-                    list.subList(skipLines, list.size)
-                } else {
-                    list
-                }
+            val parser = CSVParser(FileReader(pathToFile.toFile()), CSVFormat.DEFAULT)
+            val list = parser.records
+            return if (skipLines == 0) {
+                list
+            } else if (skipLines >= list.size){
+                emptyList()
+            } else {
+                // 0 < skipLines < list.size, for subList
+                list.subList(skipLines, list.size)
             }
         } catch (e: IOException) {
-            logger.warn { "There was a problem reading the rows from file $pathToFile" }
-        } catch (e: CsvException) {
             logger.warn { "There was a problem reading the rows from file $pathToFile" }
         }
         return emptyList()
     }
 
-//    /**
-//     * Returns an iterator to the rows of a csv file that may have the first row as a header
-//     * of column labels and each subsequent row as the data for
-//     * each column, e.g.
-//     * "x", "y"
-//     * 1.1, 2.0
-//     * 4.3, 6.4
-//     * etc.
-//     * This method squelches any IOExceptions. An iterator with no elements is returned if there is a problem.
-//     *
-//     * @param pathToFile the path to the file
-//     * @return the filled list
-//     */
-//    fun csvIterator(pathToFile: Path): Iterator<Array<String>> {
-//
-//        try {
-//           // CSVReader(FileReader(pathToFile.toFile())).use { reader -> return reader.iterator() }
-//            val csvReader: CSVReader = CSVReader(FileReader(pathToFile.toFile()))
-//            return csvReader.iterator()
-//        } catch (e: IOException) {
-//            logger.warn { "There was a problem getting an iterator from file $pathToFile" }
-//        }
-//        return LinkedList<Array<String>>().iterator()
-//    }
+    /**
+     * Reads all rows from a csv file that may have the first row as a header
+     * of column labels and each subsequent row as the data for
+     * each column, e.g.
+     * "x", "y"
+     * 1.1, 2.0
+     * 4.3, 6.4
+     * etc.
+     * This method squelches any IOExceptions. Writes warning to log. If there was a problem
+     * an empty list is returned.
+     *
+     * @param skipLines  the number of lines to skip from the top of the file
+     * @param pathToFile the path to the file
+     * @return the filled list
+     */
+    fun readRowsToListOfStringArrays(pathToFile: Path, skipLines: Int = 0): List<Array<String>> {
+        return readRows(pathToFile, skipLines).toListOfStringArrays()
+    }
 
     /**
-     *  Returns a CSVReader. If there is a problem (e.g. IOException) null is returned.
+     *  For compatibility purposes converts the list of CSV records to a list of string arrays
      */
-    fun csvReader(pathToFile: Path) : CSVReader? {
+    fun List<CSVRecord>.toListOfStringArrays(): List<Array<String>> {
+        val list = mutableListOf<Array<String>>()
+        for (record in this) {
+            list.add(record.values())
+        }
+        return list
+    }
+
+    /**
+     *  Returns a CSVParser based on CSVFormat.DEFAULT. If there is a problem (e.g. IOException) null is returned.
+     */
+    fun csvReader(pathToFile: Path): CSVParser? {
         try {
-            return CSVReader(FileReader(pathToFile.toFile()))
+            return CSVParser(FileReader(pathToFile.toFile()), CSVFormat.DEFAULT)
         } catch (e: IOException) {
             logger.warn { "There was a problem getting the reader from file $pathToFile" }
         }
@@ -158,12 +161,13 @@ object CSVUtil {
             return Array(0) { DoubleArray(0) }
         }
         // size at least 1
-        names.addAll(listOf(*entries[0]))
+        names.addAll(listOf(*entries[0].values()))
         return if (entries.size == 1) {
             // only header, no data
             Array(0) { DoubleArray(0) }
         } else {
-            val list: List<Array<String>> = entries.subList(1, entries.size)
+            val subList: List<CSVRecord> = entries.subList(1, entries.size)
+            val list: List<Array<String>> = subList.map { it.values() }
             KSLArrays.parseTo2DArray(list)
         }
         // was header and at least 1 other row
@@ -203,7 +207,6 @@ object CSVUtil {
     fun writeArrayToCSVFile(
         array: Array<DoubleArray>,
         header: MutableList<String> = mutableListOf(),
-        applyQuotesToData: Boolean = false,
         pathToFile: Path = KSL.outDir.resolve("arrayData.csv")
     ) {
         // if header is empty or null get size from array and make col names
@@ -216,12 +219,13 @@ object CSVUtil {
             }
         }
         try {
-            CSVWriter(FileWriter(pathToFile.toFile())).use { writer ->
-                writer.writeNext(header.toTypedArray())
-                for (i in array.indices) {
-                    writer.writeNext(array[i].toStrings(), applyQuotesToData)
-                }
+            val out = FileWriter(pathToFile.toFile())
+            val printer = CSVFormat.DEFAULT.builder()
+                .setHeader(*header.toTypedArray()).build().print(out)
+            for (a in array) {
+                printer.printRecord(a.asList())
             }
+            printer.close(true)
         } catch (e: IOException) {
             logger.warn { "There was a problem writing an array to csv file $pathToFile" }
         }

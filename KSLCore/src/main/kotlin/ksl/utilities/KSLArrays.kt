@@ -2287,8 +2287,8 @@ object KSLArrays {
     fun matrixOfDoubles(nRows: Int, nCols: Int, value: Double = 0.0): Array<DoubleArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
-        return Array(nRows) { i ->
-            DoubleArray(nCols) { j -> value }
+        return Array(nRows) {
+            DoubleArray(nCols) { value }
         }
     }
 
@@ -2299,8 +2299,8 @@ object KSLArrays {
     fun matrixOfInts(nRows: Int, nCols: Int, value: Int = 0): Array<IntArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
-        return Array(nRows) { i ->
-            IntArray(nCols) { j -> value }
+        return Array(nRows) {
+            IntArray(nCols) { value }
         }
     }
 
@@ -2311,8 +2311,8 @@ object KSLArrays {
     fun matrixOfLongs(nRows: Int, nCols: Int, value: Long = 0): Array<LongArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
-        return Array(nRows) { i ->
-            LongArray(nCols) { j -> value }
+        return Array(nRows) {
+            LongArray(nCols) { value }
         }
     }
 
@@ -2323,8 +2323,8 @@ object KSLArrays {
     fun matrixOfDoubles(nRows: Int, nCols: Int, x: GetValueIfc): Array<DoubleArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
-        return Array(nRows) { i ->
-            DoubleArray(nCols) { j -> x.value }
+        return Array(nRows) {
+            DoubleArray(nCols) { x.value }
         }
     }
 

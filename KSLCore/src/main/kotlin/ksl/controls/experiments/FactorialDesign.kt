@@ -147,7 +147,7 @@ open class FactorialDesign(
         sb.appendLine("name: $name")
         sb.appendLine("number of design points: $numDesignPoints")
         sb.appendLine("Factors")
-        for ((name, factor) in factors) {
+        for ((_, factor) in factors) {
             sb.appendLine(factor)
         }
         sb.appendLine("First Four Design Points")

@@ -96,7 +96,7 @@ dependencies {
     // https://mvnrepository.com/artifact/com.opencsv/opencsv
     //Dependency maven:commons-collections:commons-collections:3.2.2 is vulnerable Cx78f40514-81ff,  Score: 7.5
     //This requires opencsv to update their dependency
-    implementation("com.opencsv:opencsv:5.9") //TODO vulnerability not showing on maven
+//    implementation("com.opencsv:opencsv:5.9") //TODO vulnerability not showing on maven
 
     // https://mvnrepository.com/artifact/org.apache.commons/commons-csv
 //    implementation("org.apache.commons:commons-csv:1.11.0")

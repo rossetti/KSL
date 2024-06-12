@@ -68,7 +68,7 @@ class LinearModel(val mainEffects: Set<String>, type: Type = Type.FirstOrder) {
     val termsAsList: List<List<String>>
         get() {
             val list = mutableListOf<List<String>>()
-            for ((key, term) in myTerms) {
+            for ((_, term) in myTerms) {
                 list.add(term)
             }
             return list

@@ -20,6 +20,7 @@ package ksl.examples.book.appendixD
 
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.*
+import ksl.utilities.io.CSVUtil.toListOfStringArrays
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.tabularfiles.*
 import ksl.utilities.random.rvariable.NormalRV
@@ -33,7 +34,7 @@ import java.nio.file.Paths
  */
 fun main() {
 //    demoOutputDirectory()
- //   demoKSLClass()
+ //   demoKSLObject()
 //    demoCSVUtil()
 //    val file =  KSLFileUtil.chooseFile()
 //    println("The chosen file path was $file")
@@ -66,7 +67,7 @@ fun demoOutputDirectory() {
  *  This function illustrates how to use the singleton KSL class for
  *  creating directories, files, and for general purpose output.
  */
-fun demoKSLClass() {
+fun demoKSLObject() {
     // use KSL like you use OutputDirectory but with some added functionality
     // The PW_File.txt file with be within the kslOutput directory within the working directory
     val pw = KSL.createPrintWriter("PW_File.txt")
@@ -91,12 +92,12 @@ fun demoCSVUtil(){
     }
     val h = listOf("col1", "col2", "col3", "col4")
     val p = KSL.csvDir.resolve("data.csv")
-    CSVUtil.writeArrayToCSVFile(matrix, header = h.toMutableList(), applyQuotesToData = false, pathToFile = p)
+    CSVUtil.writeArrayToCSVFile(matrix, header = h.toMutableList(), pathToFile = p)
     println()
-    val dataAsList: List<Array<String>> = CSVUtil.readRows(p, skipLines = 1)
+    val dataAsList: List<Array<String>> = CSVUtil.readRowsToListOfStringArrays(p, skipLines = 1)
     val m = KSLArrays.parseTo2DArray(dataAsList)
     for(i in matrix.indices){
-        println(m[i].contentToString())
+        println(m[i].joinToString(prefix = "[", postfix = "]"))
     }
 }
 
@@ -209,6 +210,7 @@ fun demoReadingTabularFile() {
     // You can pretty print rows of the data
     tif.printAsText(1, 5)
 
+    //TODO not working
     // You can write the data to CSV
     val printWriter: PrintWriter = KSL.createPrintWriter("data.csv")
     tif.exportToCSV(printWriter, true)

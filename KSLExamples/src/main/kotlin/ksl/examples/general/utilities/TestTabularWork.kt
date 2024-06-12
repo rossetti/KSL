@@ -95,8 +95,8 @@ private fun writeTabularData(){
 
     // TabularInputFile is Iterable and foreach construct works across rows
     println("Printing all rows from an iterator")
-    for (row in tif.iterator()) {
-        println(row)
+    for (r in tif.iterator()) {
+        println(r)
     }
     println()
     println()

@@ -228,6 +228,7 @@ open class BootstrapSampler(
      *  quantities from the current bootstrap sample, [bSample]. For example,
      *  this function could be used to bootstrap on the bootstrap sample.
      */
+    @Suppress("UNUSED_PARAMETER")
     protected fun innerBoot(estimate: DoubleArray, bSample: DoubleArray){
 
     }

@@ -18,11 +18,8 @@
 
 package ksl.utilities.io
 
-import com.opencsv.CSVWriterBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
-import ksl.utilities.io.dbutil.DatabaseIfc
-import ksl.utilities.io.dbutil.DatabaseIfc.Companion
-import ksl.utilities.io.dbutil.DatabaseIfc.Companion.exportAsWorkSheet
+import org.apache.commons.csv.CSVFormat
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException
 import org.apache.poi.openxml4j.opc.OPCPackage
 import org.apache.poi.openxml4j.opc.PackageAccess
@@ -367,11 +364,11 @@ object ExcelUtil  {
             }
         }
         val fileWriter = FileWriter(pathToCSV.toFile())
-        val writer = CSVWriterBuilder(fileWriter).build()
+        val writer = CSVFormat.DEFAULT.builder().build().print(fileWriter)
         while (rowIterator.hasNext()) {
             val row = rowIterator.next()
             val strings = readRowAsStringArray(row, numCol, maxChar)
-            writer.writeNext(strings)
+            writer.printRecord(strings)
         }
         writer.close()
     }
