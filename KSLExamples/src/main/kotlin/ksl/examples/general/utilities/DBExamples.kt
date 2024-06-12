@@ -24,9 +24,9 @@ fun main() {
 
 //    DBExamples.createKSLDatabases()
 
-//    DBExamples.testKSLDatabase()
+    DBExamples.testKSLDatabase()
 
-    DBExamples.exampleExcelDbImport()
+//    DBExamples.exampleExcelDbImport()
 }
 
 object DBExamples {
