@@ -99,6 +99,7 @@ dependencies {
 //    implementation("com.opencsv:opencsv:5.9") //TODO vulnerability not showing on maven
 
     // https://mvnrepository.com/artifact/org.apache.commons/commons-csv
+    // not needed because kotlinx:dataframe-core has this library as api
 //    implementation("org.apache.commons:commons-csv:1.11.0")
 
     // https://db.apache.org/derby/releases
