@@ -175,7 +175,7 @@ abstract class MODAModel(
     fun metricScores(metric: MetricIfc): List<Double> {
         require(metrics.contains(metric)) { "The metric (${metric.name} is not part of the model" }
         val list = mutableListOf<Double>()
-        for ((alternative, map) in myAlternatives) {
+        for ((_, map) in myAlternatives) {
             val score = map[metric]!!
             list.add(score.value)
         }
@@ -220,7 +220,7 @@ abstract class MODAModel(
     fun metricValues(metric: MetricIfc): List<Double> {
         require(metrics.contains(metric)) { "The metric (${metric.name} is not part of the model" }
         val list = mutableListOf<Double>()
-        for ((alternative, map) in myAlternatives) {
+        for ((_, map) in myAlternatives) {
             val score = map[metric]!!
             val vf = metricFunctionMap[metric]!!
             // apply the value function to the score

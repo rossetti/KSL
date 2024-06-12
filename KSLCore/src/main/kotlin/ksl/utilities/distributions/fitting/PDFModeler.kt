@@ -274,7 +274,7 @@ class PDFModeler(
      */
     private fun metricsMatch(m1: List<MetricIfc>, m2: List<MetricIfc>): Boolean {
         require(m1.size == m2.size) { "The number of metrics in the model is not the same as the scoring metrics" }
-        for ((i, m) in m1.withIndex()) {
+        for ((i, _) in m1.withIndex()) {
             if (m1[i] != m2[i]) return false
         }
         return true

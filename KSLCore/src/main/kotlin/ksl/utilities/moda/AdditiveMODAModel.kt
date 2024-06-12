@@ -43,7 +43,7 @@ class AdditiveMODAModel(
 
     private fun sumWeights(weights: Map<MetricIfc, Double>): Double {
         var sum = 0.0
-        for ((metric, weight) in weights) {
+        for ((_, weight) in weights) {
             sum = sum + weight
         }
         return sum

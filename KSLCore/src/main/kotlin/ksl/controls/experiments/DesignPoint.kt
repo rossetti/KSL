@@ -64,7 +64,7 @@ class DesignPoint internal constructor(
      */
     fun values(): DoubleArray {
         val list = mutableListOf<Double>()
-        for ((f, v) in settings.entries) {
+        for ((_, v) in settings.entries) {
             list.add(v)
         }
         return list.toDoubleArray()

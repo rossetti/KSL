@@ -19,18 +19,17 @@
 package ksl.utilities.io.tabularfiles
 
 import ksl.utilities.io.CSVRowIterator
-import ksl.utilities.io.CSVUtil
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.SQLiteDb
 import ksl.utilities.maps.HashBiMap
 import ksl.utilities.maps.MutableBiMap
+import org.apache.commons.csv.CSVRecord
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import kotlin.io.path.name
 import kotlin.reflect.KType
 
 enum class DataType {
@@ -569,9 +568,9 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
             var row = 0
             if (hasHeader) {
                 if (itr.hasNext()) {
-                    val data = itr.next()
+                    val data: CSVRecord = itr.next()
                     row++
-                    require(data.size == columnTypes.size) { "Row ($row) had (${data.size}) columns: expected (${columnTypes.size} columns." }
+                    require(data.size() == columnTypes.size) { "Row ($row) had (${data.size()}) columns: expected (${columnTypes.size}) columns." }
                 }
             }
             val tof = TabularOutputFile(columnTypes, pathToOutputFile)
@@ -579,8 +578,8 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
             while (itr.hasNext()) {
                 val data = itr.next()
                 row++
-                require(data.size == columnTypes.size) { "Row ($row) had (${data.size}) columns: expected (${columnTypes.size} columns." }
-                for (i in data.indices) {
+                require(data.size() == columnTypes.size) { "Row ($row) had (${data.size()}) columns: expected (${columnTypes.size} columns." }
+                for (i in 0..<data.size()) {
                     if (tof.dataType(i) == DataType.NUMERIC) {
                         val d = data[i].toDouble()
                         rs.setElement(i, TabularFile.asDouble(d))

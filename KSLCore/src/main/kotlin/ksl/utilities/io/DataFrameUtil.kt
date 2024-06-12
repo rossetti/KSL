@@ -444,6 +444,7 @@ internal fun List<AnyCol>.toDoubleColumns(): List<DataColumn<Double>> {
     val list = mutableListOf<DataColumn<Double>>()
     for (col in this) {
         // this cast should be safe because of the column type test
+        @Suppress("UNCHECKED_CAST")
         if (col.isDoubleColumn()) list.add(col as DataColumn<Double>)
     }
     return list
@@ -500,6 +501,7 @@ fun AnyFrame.multiplyColumns(columnNames: List<String>): AnyFrame {
         require(containsColumn(name)) { "column $name was not in the data frame" }
         val col = getColumn(name)
         require(col.typeClass == Double::class) { "column ${col.name()} is not a double column" }
+        @Suppress("UNCHECKED_CAST")
         list.add(col as DataColumn<Double>)
     }
     return multiply(list)
@@ -569,6 +571,7 @@ fun AnyFrame.statistics(): DataFrame<StatisticData> {
     val list = mutableListOf<StatisticData>()
     for (c in columns()) {
         if (c.typeClass == Double::class) {
+            @Suppress("UNCHECKED_CAST")
             val ct = c as DataColumn<Double>
             list.add(ct.statistics().statisticData())
         }
@@ -584,6 +587,7 @@ fun AnyFrame.boxPlotSummaryData(): DataFrame<BoxPlotDataIfc> {
     val list = mutableListOf<BoxPlotDataIfc>()
     for (c in columns()) {
         if (c.typeClass == Double::class) {
+            @Suppress("UNCHECKED_CAST")
             val ct = c as DataColumn<Double>
             list.add(ct.boxPlotSummary())
         }
@@ -607,6 +611,7 @@ fun AnyFrame.summaryStatistics(): DataFrame<SummaryStatisticsIfc> {
     val list = mutableListOf<SummaryStatisticsIfc>()
     for (c in columns()) {
         if (c.typeClass == Double::class) {
+            @Suppress("UNCHECKED_CAST")
             val ct = c as DataColumn<Double>
             list.add(ct.statistics())
         }
