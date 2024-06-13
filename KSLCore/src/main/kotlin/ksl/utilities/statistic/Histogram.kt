@@ -100,7 +100,7 @@ class Histogram(
     /**
      * Collects statistical information
      */
-    private val myStatistic: Statistic = Statistic("$name Histogram")
+    private val myStatistic: Statistic = Statistic("${this.name}_Statistics")
 
     override val totalCount: Double
         get() = myStatistic.count + overFlowCount + underFlowCount
@@ -624,7 +624,7 @@ fun main() {
     val d = ExponentialRV(2.0)
     val points = Histogram.createBreakPoints(0.0, 10, 0.25)
     val h1: HistogramIfc = Histogram(points)
-    val h2: HistogramIfc = Histogram(Histogram.addPositiveInfinity(points))
+    val h2: HistogramIfc = Histogram(Histogram.addPositiveInfinity(points), name = "TestHistogram")
     for (i in 1..100) {
         val x = d.value
         h1.collect(x)

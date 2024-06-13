@@ -44,6 +44,7 @@ fun main() {
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
     sim.simulate()
     sim.print()
+    println()
     println(dtp.systemTimeHistogram)
     val hp = dtp.systemTimeHistogram.histogramPlot()
     hp.showInBrowser("System Time Histogram")

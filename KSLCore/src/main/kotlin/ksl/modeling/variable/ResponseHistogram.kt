@@ -20,16 +20,22 @@ package ksl.modeling.variable
 
 import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
+import ksl.utilities.statistic.CachedHistogram
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.HistogramIfc
 
 /**
- * The user can supply a histogram to use for the tabulation or a minimum data criteria.
- * If no minimum data criteria (theBreakPointMinDataSize) is supplied, then the histogram
- * is assumed to be configured properly to observe the response.  If a minimum data
- * criteria (greater than 0) is supplied, then the supplied histogram is used to collect
- * observations during the first replication in order to recommend desirable breakpoints.
- * The histogram and prior data are replaced when the new breakpoints are determined.
+ * Tabulates a histogram for the indicated response.
+ *
+ * The [cacheSize] represents the amount of data used to configure the break points
+ * of the histogram [CachedHistogram][ksl.utilities.statistic.CachedHistogram].
+ *
+ * If the amount of data observed is less than cache size and greater
+ * than or equal to 2, the returned histogram will be configured on whatever data
+ * was available in the cache. Thus, bin settings may change as more
+ * data is collected until the cache is full. Once the cache is full the returned histogram
+ * is permanently configured based on all data in the cache.
+ * The default cache size is 512 observations.
  *
  * The histogram tabulates all within replication observations regardless of replication.
  * That is, the histogram is based on every observation for every replication.  It observes
@@ -37,20 +43,15 @@ import ksl.utilities.statistic.HistogramIfc
  * a warmup period.
  *
  * @param theResponse the response variable to form a histogram on
- * @param theHistogram the histogram to use to collect the observations
- * @param theBreakPointMinDataSize the minimum about of data needed in the first replication
- * to approximate good breakpoints. Supplying a value greater than 0 will cause the
- * histogram's breakpoints to be formed based on the observations of the first replication
+ * @param cacheSize the minimum amount of data needed to configure the break points
  * @param name the name of the model element
  */
 class ResponseHistogram(
     theResponse: Response,
-    theHistogram: Histogram = Histogram(doubleArrayOf(0.0), "${theResponse.name}:Histogram"),
-    theBreakPointMinDataSize: Int = 0,
+    val cacheSize: Int = 512,
     name: String? = "${theResponse.name}:Histogram"
 ) : ModelElement(theResponse, name) {
 
-    val breakPointMinDataSize = theBreakPointMinDataSize
     private val response = theResponse
     private val myObserver = ResponseObserver()
 
@@ -58,16 +59,12 @@ class ResponseHistogram(
         response.attachModelElementObserver(myObserver)
     }
 
-    private var myHistogram: Histogram = theHistogram
+    private var myHistogram: CachedHistogram = CachedHistogram(cacheSize, name = this.name)
     val histogram: HistogramIfc
         get() = myHistogram
 
-    var selfConfigureBreakPoints: Boolean = (theBreakPointMinDataSize > 0)
-        private set
-
     override fun beforeExperiment() {
         myHistogram.reset()
-        selfConfigureBreakPoints = (breakPointMinDataSize > 0)
     }
 
     private inner class ResponseObserver : ModelElementObserver() {
@@ -75,17 +72,6 @@ class ResponseHistogram(
             // must be a response because only attached to responses
             val response = modelElement as Response
             myHistogram.collect(response.value)
-            // user said to use data to set break points
-            if (selfConfigureBreakPoints) {
-                if (myHistogram.count >= breakPointMinDataSize) {
-                    selfConfigureBreakPoints = false
-                    // enough data to set break points
-                    var breakPoints = Histogram.recommendBreakPoints(myHistogram)
-                    breakPoints = Histogram.addPositiveInfinity(breakPoints)
-                    myHistogram.reset()
-                    myHistogram = Histogram(breakPoints, "${response.name}:Histogram")
-                }
-            }
         }
     }
 
