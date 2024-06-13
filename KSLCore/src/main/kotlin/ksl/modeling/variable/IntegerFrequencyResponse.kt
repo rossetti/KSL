@@ -17,6 +17,11 @@ import ksl.utilities.statistic.IntegerFrequencyIfc
  * are counted as underflow and values greater than the upper limit
  * are counted as overflow.
  *
+ * The frequency tabulates all within replication observations regardless of replication.
+ * That is, the frequency is based on every observation for every replication.  It observes
+ * observations that may have been within a warmup period even if the modeler specifies
+ * a warmup period.
+ *
  * This class can be useful for tabulating a
  * discrete histogram over the values (integers) presented.
  *
@@ -53,7 +58,15 @@ class IntegerFrequencyResponse(
      * are counted as underflow and values greater than the upper limit
      * are counted as overflow.
      *
+     * The frequency tabulates all within replication observations regardless of replication.
+     * That is, the frequency is based on every observation for every replication.  It observes
+     * observations that may have been within a warmup period even if the modeler specifies
+     * a warmup period.
+     *
+     * @param variable the variable to observe
+     * @param intRange the defined integer range for observations
      * @param name a name for the instance
+     * @author rossetti
      */
     constructor(
         variable: Variable,
