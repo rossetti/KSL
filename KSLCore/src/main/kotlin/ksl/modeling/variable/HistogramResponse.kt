@@ -21,7 +21,6 @@ package ksl.modeling.variable
 import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.CachedHistogram
-import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.HistogramIfc
 
 /**
@@ -46,7 +45,7 @@ import ksl.utilities.statistic.HistogramIfc
  * @param cacheSize the minimum amount of data needed to configure the break points
  * @param name the name of the model element
  */
-class ResponseHistogram(
+class HistogramResponse(
     theResponse: Response,
     val cacheSize: Int = 512,
     name: String? = "${theResponse.name}:Histogram"
@@ -65,6 +64,23 @@ class ResponseHistogram(
 
     override fun beforeExperiment() {
         myHistogram.reset()
+    }
+
+    /**
+     *  Causes the histogram response to stop observing the underlying
+     *  response.
+     */
+    fun stopCollecting(){
+        response.detachModelElementObserver(myObserver)
+    }
+
+    /**
+     *  Causes the histogram response to start observing the underlying response
+     */
+    fun startCollecting(){
+        if (!response.isModelElementObserverAttached(myObserver)){
+            response.attachModelElementObserver(myObserver)
+        }
     }
 
     private inner class ResponseObserver : ModelElementObserver() {
