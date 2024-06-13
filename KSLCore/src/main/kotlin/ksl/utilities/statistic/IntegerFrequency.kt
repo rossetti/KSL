@@ -59,7 +59,7 @@ data class FrequencyRecord(
     var count: Double = 0.0,
     var proportion: Double = 0.0,
     var cumProportion: Double = 0.0
-) : DbTableData("tblFrequency", listOf("id"))
+) : DbTableData("tblFrequency", listOf("id","name"))
 
 /**
  * This class tabulates the frequency associated with

@@ -86,11 +86,11 @@ class DriveThroughPharmacyWithQ(
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
-    private val mySysTimeHistogram: ResponseHistogram = ResponseHistogram(mySysTime, theBreakPointMinDataSize = 200)
+    private val mySysTimeHistogram: ResponseHistogram = ResponseHistogram(mySysTime)
     val systemTimeHistogram: HistogramIfc
         get() = mySysTimeHistogram.histogram
 
-    private val mySTGT4: IndicatorResponse = IndicatorResponse({ x -> x >= 4.0 }, mySysTime, "SysTime > 4.0 minutes")
+    private val mySTGT4: IndicatorResponse = IndicatorResponse({ x -> x >= 4.0 }, mySysTime, "SysTime >= 4 minutes")
     val probSystemTimeGT4Minutes: ResponseCIfc
         get() = mySTGT4
 

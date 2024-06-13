@@ -19,6 +19,7 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.Interval
+import ksl.utilities.io.dbutil.DbTableData
 
 /**
  *  Holds the data associated with a histogram bin
@@ -34,7 +35,28 @@ data class HistogramBinData(
     val cumCount: Double,
     val proportion: Double,
     val cumProportion: Double
-)
+){
+    fun HistogramBinRecord(): HistogramBinRecord {
+        return HistogramBinRecord(id, name, binNum, binLabel, binLowerLimit, binUpperLimit,
+            binCount, cumCount, proportion, cumProportion)
+    }
+}
+
+/**
+ *   Histogram Bin data suitable for a database table
+ */
+data class HistogramBinRecord(
+    val id: Int,
+    val name: String,
+    val binNum: Int,
+    val binLabel: String,
+    val binLowerLimit: Double,
+    val binUpperLimit: Double,
+    val binCount: Int,
+    val cumCount: Double,
+    val proportion: Double,
+    val cumProportion: Double
+): DbTableData("tblHistogram", listOf("id","binNum"))
 
 /**
  * @param theBinNumber the bin number

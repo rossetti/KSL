@@ -36,7 +36,7 @@ class CachedHistogram(
     val cacheData: DoubleArray
         get() = myCache.savedData()
 
-    private var myHistogram: Histogram = Histogram(doubleArrayOf(0.0), name)
+    private var myHistogram: Histogram = Histogram(doubleArrayOf(0.0), this.name)
 
     /**
      *  Returns a histogram configured with break points based on the cached observed
@@ -209,7 +209,7 @@ class CachedHistogram(
                 //  turn off saving
                 myCache.saveOption = false
                 // replace the current histogram with the one based on the saved data
-                myHistogram = Histogram.create(myCache.savedData())
+                myHistogram = Histogram.create(myCache.savedData(), name = this.name)
             }
         }
     }
