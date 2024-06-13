@@ -32,6 +32,9 @@ import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.toDoubles
 
+/**
+ *  A data class holding the summary frequency data
+ */
 data class FrequencyData(
     var id: Int = 1,
     var name: String = "",
@@ -40,7 +43,24 @@ data class FrequencyData(
     var count: Double = 0.0,
     var proportion: Double = 0.0,
     var cumProportion: Double = 0.0
-) //: DbTableData("Frequency", listOf("id"))
+) {
+    fun asTable(): FrequencyDataTable {
+        return FrequencyDataTable(id, name, cellLabel, value, count, proportion, cumProportion)
+    }
+}
+
+/**
+ *  A data table class suitable for insertion into a database
+ */
+data class FrequencyDataTable(
+    var id: Int = 1,
+    var name: String = "",
+    var cellLabel: String = "",
+    var value: Int = 0,
+    var count: Double = 0.0,
+    var proportion: Double = 0.0,
+    var cumProportion: Double = 0.0
+) : DbTableData("tblFrequency", listOf("id"))
 
 /**
  * This class tabulates the frequency associated with
