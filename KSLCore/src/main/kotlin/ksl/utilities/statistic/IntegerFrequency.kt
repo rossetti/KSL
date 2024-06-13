@@ -59,7 +59,7 @@ data class FrequencyRecord(
     var count: Double = 0.0,
     var proportion: Double = 0.0,
     var cumProportion: Double = 0.0
-) : DbTableData("tblFrequency", listOf("id","name"))
+) : DbTableData("tblFrequency", listOf("id","value"))
 
 /**
  * This class tabulates the frequency associated with
@@ -68,7 +68,10 @@ data class FrequencyRecord(
  * For every value presented a count is maintained.
  * There could be space/time performance issues if
  * the number of different values presented is large.
- *
+ * Use [lowerLimit] and [upperLimit] to limit the values
+ * that can be observed. Values lower than the lower limit
+ * are counted as underflow and values greater than the upper limit
+ * are counted as overflow.
  *
  * This class can be useful for tabulating a
  * discrete histogram over the values (integers) presented.
@@ -97,6 +100,27 @@ class IntegerFrequency(
      */
     private val myCells: MutableMap<Int, Cell> = HashMap()
 
+    /**
+     * This class tabulates the frequency associated with
+     * the integers presented to it via the collect() method
+     * Every value presented is interpreted as an integer
+     * For every value presented a count is maintained.
+     * There could be space/time performance issues if
+     * the number of different values presented is large.
+     * Use [intRange] to limit the values within the specified range
+     * that can be observed. Values lower than the lower limit
+     * are counted as underflow and values greater than the upper limit
+     * are counted as overflow.
+     *
+     * @param name a name for the instance
+     * @param data an array of data to tabulate
+     */
+    constructor(
+        data: IntArray? = null,
+        name: String? = null,
+        intRange: IntRange = Int.MIN_VALUE..Int.MAX_VALUE
+    ) : this(data, name, intRange.first, intRange.last)
+
     init {
         require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
         if (data != null) {
@@ -116,12 +140,28 @@ class IntegerFrequency(
         }
 
         fun create(
+            data: Array<Int>? = null,
+            name: String? = null,
+            intRange: IntRange = Int.MIN_VALUE..Int.MAX_VALUE
+        ): IntegerFrequency {
+            return IntegerFrequency(data?.toIntArray(), name, intRange)
+        }
+
+        fun create(
             data: Collection<Int>? = null,
             name: String? = null,
             lowerLimit: Int = Int.MIN_VALUE,
             upperLimit: Int = Int.MAX_VALUE
         ): IntegerFrequency {
             return IntegerFrequency(data?.toIntArray(), name, lowerLimit, upperLimit)
+        }
+
+        fun create(
+            data: Collection<Int>? = null,
+            name: String? = null,
+            intRange: IntRange = Int.MIN_VALUE..Int.MAX_VALUE
+        ): IntegerFrequency {
+            return IntegerFrequency(data?.toIntArray(), name, intRange)
         }
 
     }
