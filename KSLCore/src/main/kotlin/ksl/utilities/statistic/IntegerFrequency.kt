@@ -27,7 +27,6 @@ import ksl.utilities.distributions.DEmpiricalCDF
 import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.plotting.IntegerFrequencyPlot
-import ksl.utilities.io.toDataFrame
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.toDoubles
@@ -44,15 +43,15 @@ data class FrequencyData(
     var proportion: Double = 0.0,
     var cumProportion: Double = 0.0
 ) {
-    fun asTable(): FrequencyDataTable {
-        return FrequencyDataTable(id, name, cellLabel, value, count, proportion, cumProportion)
+    fun asFrequencyRecord(): FrequencyRecord {
+        return FrequencyRecord(id, name, cellLabel, value, count, proportion, cumProportion)
     }
 }
 
 /**
  *  A data table class suitable for insertion into a database
  */
-data class FrequencyDataTable(
+data class FrequencyRecord(
     var id: Int = 1,
     var name: String = "",
     var cellLabel: String = "",
