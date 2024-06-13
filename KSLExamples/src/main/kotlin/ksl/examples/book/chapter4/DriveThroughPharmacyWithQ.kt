@@ -86,7 +86,7 @@ class DriveThroughPharmacyWithQ(
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
-    private val mySysTimeHistogram: ResponseHistogram = ResponseHistogram(mySysTime)
+    private val mySysTimeHistogram: HistogramResponse = HistogramResponse(mySysTime)
     val systemTimeHistogram: HistogramIfc
         get() = mySysTimeHistogram.histogram
 

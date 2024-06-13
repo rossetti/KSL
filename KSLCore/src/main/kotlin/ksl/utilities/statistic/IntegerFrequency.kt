@@ -61,6 +61,222 @@ data class FrequencyRecord(
     var cumProportion: Double = 0.0
 ) : DbTableData("tblFrequency", listOf("id","value"))
 
+interface IntegerFrequencyIfc {
+
+    /**
+     *  The lower limit that defines values that will not be observed, but
+     *  counted as underflow.
+     */
+    val lowerLimit: Int
+
+    /**
+     *  The upper limit that defines values that will not be observed, but
+     *  counted as overflow.
+     */
+    val upperLimit: Int
+
+    /**
+     * The number of observations that fell below the first bin's lower limit
+     */
+    val underFlowCount: Int
+
+    /**
+     * The number of observations that fell past the last bin's upper limit
+     *
+     */
+    val overFlowCount: Int
+
+    /**
+     * Returns an array of size numberOfCells containing
+     * the observed values increasing by value. The 0th element
+     * of the array contains the smallest value observed, 1st element
+     * the next bigger value, etc.
+     *
+     * @return the array of values observed or an empty array
+     */
+    val values: IntArray
+
+    /**
+     * Returns an array of size numberOfCells containing
+     * the frequencies for each value observed. The 0th element
+     * is the frequency for the value stored at element 0 of the
+     * array returned by the values property
+     *
+     * @return the array of frequencies observed or an empty array
+     */
+    val frequencies: IntArray
+
+    /**
+     * Returns an array of size numberOfCells containing
+     * the proportion by value. The 0th element
+     * is the proportion for the value stored at element 0 of the
+     * array returned by the values property, etc.
+     *
+     * @return the array of proportions observed or an empty array
+     */
+    val proportions: DoubleArray
+
+    /**
+     * Returns Map holding the values and frequencies as arrays with
+     * keys "values" and "frequencies"
+     *
+     * @return the Map
+     */
+    val valueFrequencies: Map<String, IntArray>
+
+    /**
+     * Returns Map holding the values and proportions as arrays with
+     * keys "values" and "proportions"
+     *
+     * @return the Map
+     */
+    val valueProportions: Map<String, DoubleArray>
+
+    /**
+     * Returns Map holding the values and cumulative proportions as arrays with
+     * keys "values" and "cumulativeProportions"
+     *
+     * @return the Map
+     */
+    val valueCumulativeProportions: Map<String, DoubleArray>
+
+    /**
+     * Returns the number of cells tabulated
+     * This is also the total number of different integers observed
+     *
+     * @return the number of cells tabulated
+     */
+    val numberOfValues: Int
+
+    /**
+     * The total count associated with the values
+     *  The total number of values observed
+     *
+     * @return total count associated with the values
+     */
+    val totalCount: Double
+
+    /**
+     *  The smallest integer observed
+     */
+    val min: Int
+
+    /**
+     *  The largest integer observed
+     */
+    val max: Int
+
+    /**
+     *  The range of integer values observed (max - min)
+     */
+    val range: Int
+
+    /**
+     *  Returns a closed range over the observed integer values
+     */
+    val closedRange: ClosedRange<Int>
+
+    /**
+     * Returns the cumulative frequency up to an including i
+     *
+     * @param i the integer for the desired frequency
+     * @return the cumulative frequency
+     */
+    fun cumulativeFrequency(i: Int): Double
+
+    /**
+     * Returns the cumulative proportion up to an including i
+     *
+     * @param i the integer for the desired proportion
+     * @return the cumulative proportion
+     */
+    fun cumulativeProportion(i: Int): Double
+
+    /**
+     * Returns the current frequency for the provided integer
+     *
+     * @param x the provided integer
+     * @return the frequency
+     */
+    fun frequency(x: Int): Double
+
+    /**
+     * Gets the proportion of the observations that
+     * are equal to the supplied integer
+     *
+     * @param x the integer
+     * @return the proportion
+     */
+    fun proportion(x: Int): Double
+
+    /**
+     * Interprets the elements of x[] as values
+     * and returns an array representing the frequency
+     * for each value
+     *
+     * @param x the values for the frequencies
+     * @return the returned frequencies
+     */
+    fun frequencies(x: IntArray): DoubleArray
+
+    /**
+     * Returns a copy of the cells in a list
+     * ordered by the value of each cell, 0th element
+     * is cell with the smallest value (integer) observed, etc
+     *
+     * @return the list
+     */
+    fun cellList(): List<IntegerFrequency.Cell>
+
+    /**
+     * Returns a copy of the cells in a list
+     * ordered by the count of each cell, 0th element
+     * is cell with the largest count, etc
+     *
+     * @return the list
+     */
+    fun cellsSortedByCount(): List<IntegerFrequency.Cell>
+
+    /**
+     *   Assigns a string label to each observed integer value.
+     *   If the integer values in the [labels] map is not
+     *   one of the observed values then no assignment occurs and
+     *   the default label is used.  This should be done
+     *   after collection because cells are created during the
+     *   collection process.
+     */
+    fun assignCellLabels(labels: Map<Int, String>)
+
+    /**
+     *  Returns the data associated with the tabulation.
+     */
+    fun frequencyData(): List<FrequencyData>
+
+    /**
+     * @return a DEmpirical based on the frequencies
+     */
+    fun createDEmpiricalCDF(): DEmpiricalCDF
+
+    /**
+     * Returns a sorted list containing the cells
+     *
+     * @return the sorted list of cells
+     */
+    fun cells(): List<IntegerFrequency.Cell>
+
+    /**
+     *  Text output for the frequency without the summary statistics.
+     */
+    fun freqTabulation(): String
+
+    /**
+     *  Creates a plot for the integer frequencies. The parameter, [proportions]
+     *  indicates whether proportions (true) or frequencies (false)
+     *  will be shown on the plot. The default is false.
+     */
+    fun frequencyPlot(proportions: Boolean = false): IntegerFrequencyPlot
+}
+
 /**
  * This class tabulates the frequency associated with
  * the integers presented to it via the collect() method
@@ -86,9 +302,9 @@ data class FrequencyRecord(
 class IntegerFrequency(
     data: IntArray? = null,
     name: String? = null,
-    val lowerLimit: Int = Int.MIN_VALUE,
-    val upperLimit: Int = Int.MAX_VALUE
-) : IdentityIfc by Identity(name) {
+    override val lowerLimit: Int = Int.MIN_VALUE,
+    override val upperLimit: Int = Int.MAX_VALUE
+) : IdentityIfc by Identity(name), IntegerFrequencyIfc {
 
     /**
      * Collects statistical information
@@ -169,14 +385,14 @@ class IntegerFrequency(
     /**
      * The number of observations that fell below the first bin's lower limit
      */
-    var underFlowCount = 0
+    override var underFlowCount = 0
         private set
 
     /**
      * The number of observations that fell past the last bin's upper limit
      *
      */
-    var overFlowCount = 0
+    override var overFlowCount = 0
         private set
 
     /**
@@ -247,7 +463,7 @@ class IntegerFrequency(
      *
      * @return the array of values observed or an empty array
      */
-    val values: IntArray
+    override val values: IntArray
         get() {
             if (myCells.isEmpty()) {
                 return IntArray(0)
@@ -273,7 +489,7 @@ class IntegerFrequency(
      *
      * @return the array of frequencies observed or an empty array
      */
-    val frequencies: IntArray
+    override val frequencies: IntArray
         get() {
             if (myCells.isEmpty()) {
                 return IntArray(0)
@@ -299,7 +515,7 @@ class IntegerFrequency(
      *
      * @return the array of proportions observed or an empty array
      */
-    val proportions: DoubleArray
+    override val proportions: DoubleArray
         get() {
             if (myCells.isEmpty()) {
                 return DoubleArray(0)
@@ -323,7 +539,7 @@ class IntegerFrequency(
      * @param i the integer for the desired frequency
      * @return the cumulative frequency
      */
-    fun cumulativeFrequency(i: Int): Double {
+    override fun cumulativeFrequency(i: Int): Double {
         if (myCells.isEmpty()) {
             return 0.0
         }
@@ -345,7 +561,7 @@ class IntegerFrequency(
      * @param i the integer for the desired proportion
      * @return the cumulative proportion
      */
-    fun cumulativeProportion(i: Int): Double {
+    override fun cumulativeProportion(i: Int): Double {
         if (myCells.isEmpty()) {
             return 0.0
         }
@@ -358,7 +574,7 @@ class IntegerFrequency(
      *
      * @return the Map
      */
-    val valueFrequencies: Map<String, IntArray>
+    override val valueFrequencies: Map<String, IntArray>
         get() {
             if (myCells.isEmpty()) {
                 return emptyMap()
@@ -376,7 +592,7 @@ class IntegerFrequency(
      *
      * @return the Map
      */
-    val valueProportions: Map<String, DoubleArray>
+    override val valueProportions: Map<String, DoubleArray>
         get() {
             if (myCells.isEmpty()) {
                 return emptyMap()
@@ -394,7 +610,7 @@ class IntegerFrequency(
      *
      * @return the Map
      */
-    val valueCumulativeProportions: Map<String, DoubleArray>
+    override val valueCumulativeProportions: Map<String, DoubleArray>
         get() {
             if (myCells.isEmpty()) {
                 return emptyMap()
@@ -412,7 +628,7 @@ class IntegerFrequency(
      *
      * @return the number of cells tabulated
      */
-    val numberOfValues: Int
+    override val numberOfValues: Int
         get() = myCells.size
 
     /**
@@ -421,31 +637,31 @@ class IntegerFrequency(
      *
      * @return total count associated with the values
      */
-    val totalCount: Double
+    override val totalCount: Double
         get() = myStatistic.count
 
     /**
      *  The smallest integer observed
      */
-    val min: Int
+    override val min: Int
         get() = myStatistic.min.toInt()
 
     /**
      *  The largest integer observed
      */
-    val max: Int
+    override val max: Int
         get() = myStatistic.max.toInt()
 
     /**
      *  The range of integer values observed (max - min)
      */
-    val range: Int
+    override val range: Int
         get() = max - min
 
     /**
      *  Returns a closed range over the observed integer values
      */
-    val closedRange: ClosedRange<Int>
+    override val closedRange: ClosedRange<Int>
         get() = min..max
 
     /**
@@ -460,7 +676,7 @@ class IntegerFrequency(
      * @param x the provided integer
      * @return the frequency
      */
-    fun frequency(x: Int): Double {
+    override fun frequency(x: Int): Double {
         val c = myCells[x]
         return c?.count ?: 0.0
     }
@@ -472,7 +688,7 @@ class IntegerFrequency(
      * @param x the integer
      * @return the proportion
      */
-    fun proportion(x: Int): Double {
+    override fun proportion(x: Int): Double {
         val c = myCells[x]
         return c?.proportion ?: 0.0
     }
@@ -485,7 +701,7 @@ class IntegerFrequency(
      * @param x the values for the frequencies
      * @return the returned frequencies
      */
-    fun frequencies(x: IntArray): DoubleArray {
+    override fun frequencies(x: IntArray): DoubleArray {
         val f = DoubleArray(x.size)
         for (j in x.indices) {
             f[j] = frequency(x[j])
@@ -500,7 +716,7 @@ class IntegerFrequency(
      *
      * @return the list
      */
-    fun cellList(): List<Cell> {
+    override fun cellList(): List<Cell> {
         val cellSet = cells()
         val list: MutableList<Cell> = ArrayList()
         for (c in cellSet) {
@@ -516,7 +732,7 @@ class IntegerFrequency(
      *
      * @return the list
      */
-    fun cellsSortedByCount(): List<Cell> {
+    override fun cellsSortedByCount(): List<Cell> {
         val cells = cellList()
         return cells.sortedByDescending { it.count }
     }
@@ -529,7 +745,7 @@ class IntegerFrequency(
      *   after collection because cells are created during the
      *   collection process.
      */
-    fun assignCellLabels(labels: Map<Int, String>) {
+    override fun assignCellLabels(labels: Map<Int, String>) {
         for ((value, cell) in myCells) {
             if (labels.containsKey(value)) {
                 cell.label = labels[value]!!
@@ -540,7 +756,7 @@ class IntegerFrequency(
     /**
      *  Returns the data associated with the tabulation.
      */
-    fun frequencyData(): List<FrequencyData> {
+    override fun frequencyData(): List<FrequencyData> {
         val list = mutableListOf<FrequencyData>()
         val cList = cells()
         var cp = 0.0
@@ -554,7 +770,7 @@ class IntegerFrequency(
     /**
      * @return a DEmpirical based on the frequencies
      */
-    fun createDEmpiricalCDF(): DEmpiricalCDF {
+    override fun createDEmpiricalCDF(): DEmpiricalCDF {
         return DEmpiricalCDF(values.toDoubles(), KSLRandom.makeCDF(proportions))
     }
 
@@ -563,7 +779,7 @@ class IntegerFrequency(
      *
      * @return the sorted list of cells
      */
-    private fun cells(): List<Cell> {
+    override fun cells(): List<Cell> {
         val list: MutableList<Cell> = ArrayList()
         // go through the integers from smallest observed to biggest
         for (i in min..max) {
@@ -578,7 +794,7 @@ class IntegerFrequency(
         return list
     }
 
-    fun freqTabulation(): String {
+    override fun freqTabulation(): String {
         val sb = StringBuilder()
         sb.append("Frequency Tabulation ").append(name).appendLine()
         sb.append("----------------------------------------").appendLine()
@@ -635,7 +851,7 @@ class IntegerFrequency(
      *  indicates whether proportions (true) or frequencies (false)
      *  will be shown on the plot. The default is false.
      */
-    fun frequencyPlot(proportions: Boolean = false): IntegerFrequencyPlot {
+    override fun frequencyPlot(proportions: Boolean): IntegerFrequencyPlot {
         return IntegerFrequencyPlot(this, proportions)
     }
 
