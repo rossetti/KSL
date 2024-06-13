@@ -48,17 +48,17 @@ import ksl.utilities.statistic.HistogramIfc
 class HistogramResponse(
     theResponse: Response,
     val cacheSize: Int = 512,
-    name: String? = "${theResponse.name}:Histogram"
+    name: String? = "${theResponse.name}:Histogram",
 ) : ModelElement(theResponse, name) {
 
-    private val response = theResponse
+    internal val response = theResponse
     private val myObserver = ResponseObserver()
 
     init {
         response.attachModelElementObserver(myObserver)
     }
 
-    private var myHistogram: CachedHistogram = CachedHistogram(cacheSize, name = this.name)
+    private val myHistogram: CachedHistogram = CachedHistogram(cacheSize, name = this.name)
     val histogram: HistogramIfc
         get() = myHistogram
 

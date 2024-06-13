@@ -95,6 +95,20 @@ class Model(
         get() = myCounters
 
     /**
+     * A list of all the HistogramResponses within the model
+     */
+    private var myHistograms: MutableList<HistogramResponse> = ArrayList()
+    val histograms: List<HistogramResponse>
+        get() = myHistograms
+
+    /**
+     * A list of all the IntegerFrequencyResponses within the model
+     */
+    private var myFrequencies: MutableList<IntegerFrequencyResponse> = ArrayList()
+    val frequencies: List<IntegerFrequencyResponse>
+        get() = myFrequencies
+
+    /**
      *  The names of all the response variables and counters in the model
      */
     val responseNames: List<String>
@@ -686,6 +700,14 @@ class Model(
 
         if (modelElement is Counter) {
             myCounters.add(modelElement)
+        }
+
+        if (modelElement is HistogramResponse){
+            myHistograms.add(modelElement)
+        }
+
+        if (modelElement is IntegerFrequencyResponse){
+            myFrequencies.add(modelElement)
         }
 
         if (modelElement is RandomElementIfc) {

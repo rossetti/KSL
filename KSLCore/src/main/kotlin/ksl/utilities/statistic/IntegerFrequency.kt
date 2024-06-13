@@ -40,6 +40,7 @@ data class FrequencyData(
     var cellLabel: String = "",
     var value: Int = 0,
     var count: Double = 0.0,
+    var cum_count: Double = 0.0,
     var proportion: Double = 0.0,
     var cumProportion: Double = 0.0
 ) {
@@ -57,6 +58,7 @@ data class FrequencyRecord(
     var cellLabel: String = "",
     var value: Int = 0,
     var count: Double = 0.0,
+    var cum_count: Double = 0.0,
     var proportion: Double = 0.0,
     var cumProportion: Double = 0.0
 ) : DbTableData("tblFrequency", listOf("id","value"))
@@ -760,9 +762,11 @@ class IntegerFrequency(
         val list = mutableListOf<FrequencyData>()
         val cList = cells()
         var cp = 0.0
+        var ct = 0.0
         for (c in cList) {
             cp = cp + c.proportion
-            list.add(FrequencyData(id, name, c.label, c.value, c.count, c.proportion, cp))
+            ct = ct + c.count
+            list.add(FrequencyData(id, name, c.label, c.value, c.count, ct, c.proportion, cp))
         }
         return list
     }

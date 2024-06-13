@@ -39,7 +39,7 @@ class IntegerFrequencyResponse(
     private val myIntegerFrequency: IntegerFrequency = IntegerFrequency(name = name, lowerLimit = lowerLimit, upperLimit = upperLimit)
 ) : ModelElement(variable, name), IntegerFrequencyIfc by myIntegerFrequency {
 
-    private val myVariable = variable
+    internal val myVariable = variable
     private val myObserver = VariableObserver()
 
     init {
