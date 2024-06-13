@@ -22,17 +22,13 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.toJavaInstant
 import ksl.controls.ControlIfc
 import ksl.controls.Controls
-import ksl.modeling.variable.Counter
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.parameters.RVParameterData
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
-import ksl.utilities.statistic.BatchStatisticIfc
-import ksl.utilities.statistic.MultipleComparisonAnalyzer
-import ksl.utilities.statistic.StatisticIfc
+import ksl.utilities.statistic.*
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import java.io.IOException
 import java.nio.file.Files
@@ -440,6 +436,97 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         insertAcrossRepResponses(model.responses)
         // insert across replication counter statistics
         insertAcrossRepResponsesForCounters(model.counters)
+        // insert the histogram data
+        insertHistogramResponses(model.histograms)
+        // insert the frequency data
+        insertFrequencyResponses(model.frequencies)
+    }
+
+    private fun insertFrequencyResponses(frequencies: List<IntegerFrequencyResponse>) {
+        val list = mutableListOf<FrequencyTableData>()
+        for (freq in frequencies) {
+            val freqRecords = createFrequencyDataRecords(freq, currentSimRun!!.run_id)
+            list.addAll(freqRecords)
+        }
+       // println("db.insertDbDataIntoTable(list, \"frequency\")")
+        db.insertDbDataIntoTable(list, "frequency")
+    }
+
+    private fun createFrequencyDataRecords(
+        freq: IntegerFrequencyResponse,
+        simId: Int
+    ): List<FrequencyTableData> {
+        val list = mutableListOf<FrequencyTableData>()
+        val freqData = freq.frequencyData()
+        for (fd in freqData) {
+            val record = FrequencyTableData()
+            record.element_id_fk = freq.id
+            record.sim_run_id_fk = simId
+            record.variable_id_fk = freq.myVariable.id
+            record.variable_name = freq.myVariable.name
+            record.cell_label = fd.cellLabel
+            record.value = fd.value
+            if (!fd.count.isNaN() && fd.count.isFinite()) {
+                record.count = fd.count
+            }
+            if (!fd.cum_count.isNaN() && fd.cum_count.isFinite()) {
+                record.cum_count = fd.cum_count
+            }
+            if (!fd.proportion.isNaN() && fd.proportion.isFinite()) {
+                record.proportion = fd.proportion
+            }
+            if (!fd.cumProportion.isNaN() && fd.cumProportion.isFinite()) {
+                record.cum_proportion = fd.cumProportion
+            }
+            list.add(record)
+        }
+        return list;
+    }
+
+    private fun insertHistogramResponses(histograms: List<HistogramResponse>) {
+        val list = mutableListOf<HistogramTableData>()
+        for (h in histograms) {
+            val histRecords = createHistogramDataRecords(h, currentSimRun!!.run_id)
+            list.addAll(histRecords)
+        }
+        db.insertDbDataIntoTable(list, "histogram")
+    }
+
+    private fun createHistogramDataRecords(
+        histResponse: HistogramResponse,
+        simId: Int
+    ): List<HistogramTableData> {
+        val list = mutableListOf<HistogramTableData>()
+        val histData = histResponse.histogram.histogramData()
+        for (hd in histData) {
+            val record = HistogramTableData()
+            record.element_id_fk = histResponse.id
+            record.sim_run_id_fk = simId
+            record.response_id_fk = histResponse.response.id
+            record.response_name = histResponse.response.name
+            record.bin_label = hd.binLabel
+            record.bin_num = hd.binNum
+            if (!hd.binLowerLimit.isNaN() && hd.binLowerLimit.isFinite()) {
+                record.bin_lower_limit = hd.binLowerLimit
+            }
+            if (!hd.binUpperLimit.isNaN() && hd.binUpperLimit.isFinite()) {
+                record.bin_upper_limit = hd.binUpperLimit
+            }
+            if (!hd.binCount.isNaN() && hd.binCount.isFinite()) {
+                record.bin_count = hd.binCount
+            }
+            if (!hd.cumCount.isNaN() && hd.cumCount.isFinite()) {
+                record.bin_cum_count = hd.cumCount
+            }
+            if (!hd.proportion.isNaN() && hd.proportion.isFinite()) {
+                record.bin_proportion = hd.proportion
+            }
+            if (!hd.cumProportion.isNaN() && hd.cumProportion.isFinite()) {
+                record.bin_cum_proportion = hd.cumProportion
+            }
+            list.add(record)
+        }
+        return list;
     }
 
     private fun finalizeCurrentSimulationRun(model: Model) {
@@ -875,7 +962,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     companion object {
-        val TableNames = listOf(
+        val TableNames = listOf("frequency", "histogram",
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
             "rv_parameter", "control", "model_element", "simulation_run", "experiment"
         )
@@ -1205,6 +1292,36 @@ data class BatchStatTableData(
     var amt_unbatched: Double? = null,
     var total_num_obs: Double? = null
 ) : DbTableData("batch_stat", keyFields = listOf("id"), autoIncField = true)
+
+data class HistogramTableData(
+    var id: Int = -1,
+    var element_id_fk: Int = -1,
+    var sim_run_id_fk: Int = -1,
+    var response_id_fk: Int = -1,
+    var response_name: String = "",
+    var bin_label: String = "",
+    var bin_num: Int = -1,
+    var bin_lower_limit: Double? = null,
+    var bin_upper_limit: Double? = null,
+    var bin_count: Double? = null,
+    var bin_cum_count: Double? = null,
+    var bin_proportion: Double? = null,
+    var bin_cum_proportion: Double? = null
+) : DbTableData("histogram", keyFields = listOf("id"), autoIncField = true)
+
+data class FrequencyTableData(
+    var id: Int = -1,
+    var element_id_fk: Int = -1,
+    var sim_run_id_fk: Int = -1,
+    var variable_id_fk: Int = -1,
+    var variable_name: String = "",
+    var cell_label: String = "",
+    var value: Int = -1,
+    var count: Double? = null,
+    var cum_count: Double? = null,
+    var proportion: Double? = null,
+    var cum_proportion: Double? = null
+) : DbTableData("frequency", keyFields = listOf("id"), autoIncField = true)
 
 data class WithinRepResponseViewData(
     var exp_name: String = "",

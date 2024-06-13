@@ -97,6 +97,8 @@ class DriveThroughPharmacyWithQ(
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), myArrivalRV, myArrivalRV)
     private val endServiceEvent = this::endOfService
 
+//    private val myNSFreq = IntegerFrequencyResponse(myNS)
+
     private inner class Arrivals : GeneratorActionIfc {
         override fun generate(generator: EventGenerator) {
             myNS.increment() // new customer arrived

@@ -31,7 +31,7 @@ data class HistogramBinData(
     val binLabel: String,
     val binLowerLimit: Double,
     val binUpperLimit: Double,
-    val binCount: Int,
+    val binCount: Double,
     val cumCount: Double,
     val proportion: Double,
     val cumProportion: Double
@@ -52,7 +52,7 @@ data class HistogramBinRecord(
     val binLabel: String,
     val binLowerLimit: Double,
     val binUpperLimit: Double,
-    val binCount: Int,
+    val binCount: Double,
     val cumCount: Double,
     val proportion: Double,
     val cumProportion: Double

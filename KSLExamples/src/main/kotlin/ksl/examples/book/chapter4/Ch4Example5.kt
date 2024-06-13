@@ -19,6 +19,7 @@
 package ksl.examples.book.chapter4
 
 import ksl.simulation.Model
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.rvariable.ExponentialRV
 
 /**
@@ -34,7 +35,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
  * between arrivals and the service time distribution.
  */
 fun main() {
-    val sim = Model("Drive Through Pharmacy")
+    val sim = Model("Drive Through PharmacyQ")
     sim.numberOfReplications = 30
     sim.lengthOfReplication = 20000.0
     sim.lengthOfReplicationWarmUp = 5000.0
@@ -42,6 +43,8 @@ fun main() {
     val dtp = DriveThroughPharmacyWithQ(sim, 1)
     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
+//    val kslDatabaseObserver = KSLDatabaseObserver(sim)
+//    val testDb = KSLDatabaseObserver.createDerbyKSLDatabaseObserver(sim)
     sim.simulate()
     sim.print()
     println()

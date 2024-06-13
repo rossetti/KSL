@@ -25,7 +25,9 @@
 --
 -- Revised: Jan 30, 2023
 -- Updated script to represent experiments as separate data from runs (executions) of the experiment
---
+
+-- Revised: June 13, 2024
+-- Updated script to store IntegerFrequencyResponse and HistogramResponse data
 
 -- An experiment represents a set of 1 or more simulation runs and the experimental parameters
 -- that were used during the runs
@@ -244,6 +246,42 @@ CREATE TABLE BATCH_STAT
 );
 
 CREATE INDEX BS_ME_FK_INDEX ON BATCH_STAT (SIM_RUN_ID_FK, ELEMENT_ID_FK);
+
+CREATE TABLE HISTOGRAM
+(
+    ID                 INTEGER          NOT NULL PRIMARY KEY,
+    ELEMENT_ID_FK      INTEGER          NOT NULL,
+    SIM_RUN_ID_FK      INTEGER          NOT NULL,
+    RESPONSE_ID_FK     INTEGER          NOT NULL,
+    RESPONSE_NAME      VARCHAR(510)     NOT NULL,
+    BIN_LABEL          VARCHAR(510)     NOT NULL,
+    BIN_NUM            INTEGER          NOT NULL,
+    BIN_LOWER_LIMIT    DOUBLE PRECISION,
+    BIN_UPPER_LIMIT    DOUBLE PRECISION,
+    BIN_COUNT          DOUBLE PRECISION,
+    BIN_CUM_COUNT      DOUBLE PRECISION,
+    BIN_PROPORTION     DOUBLE PRECISION,
+    BIN_CUM_PROPORTION DOUBLE PRECISION,
+    FOREIGN KEY (SIM_RUN_ID_FK) REFERENCES SIMULATION_RUN (RUN_ID) ON DELETE CASCADE,
+    UNIQUE (ELEMENT_ID_FK, SIM_RUN_ID_FK, BIN_NUM)
+);
+
+CREATE TABLE FREQUENCY
+(
+    ID             INTEGER          NOT NULL PRIMARY KEY,
+    ELEMENT_ID_FK  INTEGER          NOT NULL,
+    SIM_RUN_ID_FK  INTEGER          NOT NULL,
+    VARIABLE_ID_FK INTEGER          NOT NULL,
+    VARIABLE_NAME  VARCHAR(510)     NOT NULL,
+    CELL_LABEL     VARCHAR(510)     NOT NULL,
+    VALUE          INTEGER          NOT NULL,
+    COUNT          DOUBLE PRECISION,
+    CUM_COUNT      DOUBLE PRECISION,
+    PROPORTION     DOUBLE PRECISION,
+    CUM_PROPORTION DOUBLE PRECISION,
+    FOREIGN KEY (SIM_RUN_ID_FK) REFERENCES SIMULATION_RUN (RUN_ID) ON DELETE CASCADE,
+    UNIQUE (ELEMENT_ID_FK, SIM_RUN_ID_FK, VALUE)
+);
 
 -- WITHIN_REP_RESPONSE_VIEW represents a reduced view of within replication statistics containing only the average for the replication
 

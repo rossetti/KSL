@@ -392,7 +392,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
             val c: Double = bin.count()
             ct = ct + c
             list.add(HistogramBinData(this.id, this.name, bin.binNumber, bin.binLabel, bin.lowerLimit, bin.upperLimit,
-                bin.count, ct, c / n, ct/n))
+                c, ct, c / n, ct/n))
         }
         return list
     }
