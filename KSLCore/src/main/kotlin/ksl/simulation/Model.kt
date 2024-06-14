@@ -37,7 +37,9 @@ import ksl.utilities.statistic.StatisticIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.observers.textfile.CSVExperimentReport
 import ksl.observers.textfile.CSVReplicationReport
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatChar
+import org.jetbrains.kotlinx.dataframe.api.remove
 import java.nio.file.Path
 import kotlin.time.Duration
 
@@ -1252,11 +1254,21 @@ class Model(
         }
     }
 
-    fun print() {
+    /**
+     *  Prints basic text results to the console.
+     *  @param histAndFreq If true, any histogram and integer frequency results are also printed.
+     *  The default is true.
+     */
+    fun print(histAndFreq: Boolean = true) {
         println()
         println(this)
         println()
         simulationReporter.printHalfWidthSummaryReport()
+        println()
+        if (histAndFreq){
+            println(simulationReporter.histogramTextResults())
+            println(simulationReporter.frequencyTextResults())
+        }
     }
 
     /**

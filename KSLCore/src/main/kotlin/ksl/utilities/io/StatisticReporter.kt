@@ -82,12 +82,13 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
 
     /**
      * Converts the statistics in the reporter to a data frame
-     * containing the statistical data
+     * containing the statistical data with confidence intervals
+     * specified the supplied [level]. The default level is 0.95.
      */
-    fun asDataFrame() : DataFrame<StatisticData> {
+    fun asDataFrame(level: Double = 0.95) : DataFrame<StatisticData> {
         val list = mutableListOf<StatisticData>()
         for(element in myStats){
-            list.add(element.statisticData())
+            list.add(element.statisticData(level))
         }
         return list.toDataFrame()
     }

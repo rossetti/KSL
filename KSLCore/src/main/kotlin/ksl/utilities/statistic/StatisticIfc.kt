@@ -21,6 +21,9 @@ import ksl.modeling.variable.LastValueIfc
 import ksl.modeling.variable.ValueIfc
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
+import ksl.utilities.distributions.StudentT
+import kotlin.math.floor
+import kotlin.math.log10
 
 /**
  * The StatisticIfc interface presents a read-only view of a Statistic
@@ -121,7 +124,17 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      * @return A double representing the half-width or Double.NaN if &lt; 1
      * observation
      */
-    fun halfWidth(level: Double): Double
+    fun halfWidth(level: Double): Double{
+        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+        if (count <= 1.0) {
+            return Double.NaN
+        }
+        val dof = count - 1.0
+        val alpha = 1.0 - level
+        val p = 1.0 - alpha / 2.0
+        val t = StudentT.invCDF(dof, p)
+        return t * standardError
+    }
 
     /**
      * @param  level the confidence level
@@ -259,10 +272,16 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      * @param multiplier the std error multiplier
      * @return the meaningful digit
      */
-    fun leadingDigitRule(multiplier: Double): Int
+    fun leadingDigitRule(multiplier: Double): Int{
+        return floor(log10(multiplier * standardError)).toInt()
+    }
 
-    fun statisticData(): StatisticData {
-        val ci = confidenceInterval
+    /**
+     *  Returns a data class holding the statistical data with the confidence
+     *  interval specified by the given [level].
+     */
+    fun statisticData(level: Double = 0.95): StatisticData {
+        val ci = confidenceInterval(level)
         return StatisticData(
             name,
             count,

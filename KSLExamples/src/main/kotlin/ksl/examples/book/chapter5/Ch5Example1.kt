@@ -8,6 +8,7 @@ import ksl.simulation.Model
 import ksl.utilities.io.asMarkDownTable
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import org.jetbrains.kotlinx.dataframe.api.describe
+import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 
 /**
  *  Example 5.1
@@ -58,11 +59,13 @@ fun main() {
     println()
 
     // use the database to create a Kotlin DataFrame
-    val dataFrame = kslDatabaseObserver.db.acrossReplicationStatistics
+//    val dataFrame = kslDatabaseObserver.db.acrossReplicationStatistics
+    val dataFrame = kslDatabaseObserver.db.acrossReplicationViewStatistics
 
     println(dataFrame)
     println()
     println(dataFrame.asMarkDownTable())
+    dataFrame.toStandaloneHTML().openInBrowser()
 
     model.experimentName = "Three Workers"
     palletWorkCenter.numWorkers = 3

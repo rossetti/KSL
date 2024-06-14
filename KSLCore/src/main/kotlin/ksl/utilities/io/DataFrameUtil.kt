@@ -566,14 +566,15 @@ fun AnyFrame.toTabularFile(pathToFile: Path): TabularFile {
 /**
  *  Creates a dataframe that holds the statistical data for
  *  any column that holds Double type within the original dataframe.
+ *  The confidence interval [level] is by default 0.95.
  */
-fun AnyFrame.statistics(): DataFrame<StatisticData> {
+fun AnyFrame.statistics(level: Double = 0.95): DataFrame<StatisticData> {
     val list = mutableListOf<StatisticData>()
     for (c in columns()) {
         if (c.typeClass == Double::class) {
             @Suppress("UNCHECKED_CAST")
             val ct = c as DataColumn<Double>
-            list.add(ct.statistics().statisticData())
+            list.add(ct.statistics().statisticData(level))
         }
     }
     return list.toDataFrame()
@@ -686,7 +687,7 @@ fun StatisticIfc.toStatDataFrame(): DataFrame<StatSchema> {
 /**
  *  Converts the integer frequency data into a dataframe representation
  */
-fun IntegerFrequency.toDataFrame(): DataFrame<FrequencyData> {
+fun IntegerFrequencyIfc.toDataFrame(): DataFrame<FrequencyData> {
     return this.frequencyData().toDataFrame()
 }
 

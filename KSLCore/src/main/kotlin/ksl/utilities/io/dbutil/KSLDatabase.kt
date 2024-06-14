@@ -269,7 +269,15 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return dm
     }
 
-    val acrossReplicationStatistics: DataFrame<AcrossRepViewData>
+    val acrossReplicationStatistics: DataFrame<AcrossRepStatTableData>
+        get() {
+            var df = db.selectTableDataIntoDbData(::AcrossRepStatTableData).toDataFrame()
+            df = df.remove("numColumns", "schemaName", "tableName", "autoIncField",
+                "keyFields", "numInsertFields", "numUpdateFields")
+            return df
+        }
+
+    val acrossReplicationViewStatistics: DataFrame<AcrossRepViewData>
         get() {
             var df = db.selectTableDataIntoDbData(::AcrossRepViewData).toDataFrame()
             df = df.remove("numColumns", "schemaName", "tableName")

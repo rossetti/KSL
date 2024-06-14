@@ -285,29 +285,6 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
     }
 
     /**
-     * Returns the half-width for a confidence interval on the mean with
-     * confidence level  based on StudentT distribution
-     *
-     * @param level the confidence level
-     * @return the half-width
-     */
-    override fun halfWidth(level: Double): Double {
-        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
-        if (count <= 1.0) {
-            return Double.NaN
-        }
-        val dof = count - 1.0
-        val alpha = 1.0 - level
-        val p = 1.0 - alpha / 2.0
-        val t = StudentT.invCDF(dof, p)
-        return t * standardError
-    }
-
-    override fun leadingDigitRule(multiplier: Double): Int {
-        return floor(log10(multiplier * standardError)).toInt()
-    }
-
-    /**
      * @return the p-value associated with the current Von Neumann Lag 1 Test Statistic, or Double.NaN
      */
     fun vonNeumannLag1TestStatisticPValue(): Double {
