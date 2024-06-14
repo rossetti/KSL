@@ -48,7 +48,7 @@ fun main() {
     sim.simulate()
     sim.print()
     println()
-    println(dtp.systemTimeHistogram)
+//    println(dtp.systemTimeHistogram)
     val hp = dtp.systemTimeHistogram.histogramPlot()
     hp.showInBrowser("System Time Histogram")
 }

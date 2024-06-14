@@ -25,7 +25,11 @@ import ksl.observers.textfile.CSVExperimentReport
 import ksl.observers.textfile.CSVReplicationReport
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
+import ksl.utilities.io.toDataFrame
+import ksl.utilities.statistic.StatisticData
 import ksl.utilities.statistic.StatisticIfc
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.remove
 import java.io.PrintWriter
 import java.nio.file.Path
 import java.text.DecimalFormat
@@ -73,7 +77,7 @@ class SimulationReporter(theModel: Model) {
     }
 
     /**
-     * A convenience method for subclasses. Gets the response variables from
+     * A convenience method. Gets the response variables from
      * the model
      *
      * @return the list
@@ -82,12 +86,52 @@ class SimulationReporter(theModel: Model) {
         get() = model.responses
 
     /**
-     * A convenience method for subclasses. Gets the counters from the model
+     * A convenience method. Gets the counters from the model
      *
      * @return the list
      */
     val counters
         get() = model.counters
+
+    /**
+     * A convenience method. Gets the histograms from the model
+     *
+     * @return the list
+     */
+    val histograms
+        get() = model.histograms
+
+    /**
+     * A convenience method. Gets the frequencies from the model
+     *
+     * @return the list
+     */
+    val frequencies
+        get() = model.frequencies
+
+    /**
+     *  Returns all histogram results as a string
+     */
+    fun histogramTextResults(): String {
+        val sb = StringBuilder()
+        for(h in histograms){
+            sb.appendLine(h.name)
+            sb.appendLine(h.histogram.toDataFrame().remove("id", "name"))
+        }
+        return sb.toString()
+    }
+
+    /**
+     *  Returns all frequency response results as a string
+     */
+    fun frequencyTextResults(): String {
+        val sb = StringBuilder()
+        for(h in frequencies){
+            sb.appendLine(h.name)
+            sb.appendLine(h.toDataFrame().remove("id", "name"))
+        }
+        return sb.toString()
+    }
 
     /**
      * Uses a StringBuilder to hold the across replication statistics formatted
@@ -765,5 +809,15 @@ class SimulationReporter(theModel: Model) {
         val sr = StatisticReporter(list)
         out.print(sr.halfWidthSummaryReportAsMarkDown(title, confLevel, df))
         out.flush()
+    }
+
+    /**
+     *  Returns the across replication statistics as a data frame
+     *  with confidence intevals specified by the provided [level].
+     */
+    fun acrossReplicationStatisticsAsDataFrame(level: Double = 0.95): DataFrame<StatisticData> {
+        val list = acrossReplicationStatisticsList().toMutableList()
+        val sr = StatisticReporter(list)
+        return sr.asDataFrame(level)
     }
 }

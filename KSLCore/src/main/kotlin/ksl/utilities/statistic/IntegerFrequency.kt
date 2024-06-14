@@ -30,6 +30,7 @@ import ksl.utilities.io.plotting.IntegerFrequencyPlot
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.toDoubles
+import org.jetbrains.kotlinx.dataframe.DataFrame
 
 /**
  *  A data class holding the summary frequency data
