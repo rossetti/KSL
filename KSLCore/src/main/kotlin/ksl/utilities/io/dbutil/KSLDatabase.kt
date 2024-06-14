@@ -318,6 +318,20 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             return df
         }
 
+    val histogramResults: DataFrame<HistogramTableData>
+        get() {
+            var df = db.selectTableDataIntoDbData(::HistogramTableData).toDataFrame()
+            df = df.remove("numColumns", "schemaName", "tableName")
+            return df
+        }
+
+    val frequencyResults: DataFrame<FrequencyTableData>
+        get() {
+            var df = db.selectTableDataIntoDbData(::FrequencyTableData).toDataFrame()
+            df = df.remove("numColumns", "schemaName", "tableName")
+            return df
+        }
+
     internal fun beforeExperiment(model: Model) {
         val experimentRecord = fetchExperimentData(model.experimentName)
         if (experimentRecord == null) {
