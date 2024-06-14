@@ -48,7 +48,10 @@ import kotlin.math.max
  * @see ksl.utilities.io.tabularfiles.TabularFile
  * @see ksl.examples.utilities.TestTabularWork  For example code
  */
-class TabularOutputFile(columnTypes: Map<String, DataType>, path: Path) : TabularFile(columnTypes, path) {
+class TabularOutputFile(
+    columnTypes: Map<String, DataType>,
+    path: Path
+) : TabularFile(columnTypes, path) {
 
     /**
      * Uses [tabularData] as the schema pattern for defining the columns and their data types
