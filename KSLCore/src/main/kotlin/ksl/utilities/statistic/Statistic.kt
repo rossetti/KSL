@@ -1121,24 +1121,24 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
             var sum = 0.0
             for (k in orderStats.indices) {
                 val i = k + 1
-                var fk = fn.cdf(orderStats[k])
+                val fk = fn.cdf(orderStats[k])
                 // control for CDF values outside (0,1). That is when they are 0.0 or 1.0
                 // because natural logarithm will produce infinities
                 val lnfk = KSLMath.safeNaturalLog(fk)
-                if (fk <= 0.0) {
-                    fk = Double.MIN_VALUE
-                }
-                if (fk >= 1.0) {
-                    fk = 1.0 - Double.MIN_VALUE //TODO need to delete
-                }
-                var fnmkp1 = fn.cdf(orderStats[n - (k + 1)])
+//                if (fk <= 0.0) {
+//                    fk = Double.MIN_VALUE
+//                }
+//                if (fk >= 1.0) {
+//                    fk = 1.0 - Double.MIN_VALUE //TODO need to delete
+//                }
+                val fnmkp1 = fn.cdf(orderStats[n - (k + 1)])
                 val lnFnmkp1 = KSLMath.safeNaturalLog(1.0 - fnmkp1)
-                if (fnmkp1 <= 0.0) {
-                    fnmkp1 = Double.MIN_VALUE
-                }
-                if (fnmkp1 >= 1.0) {
-                    fnmkp1 = 1.0 - Double.MIN_VALUE //TODO need to delete
-                }
+//                if (fnmkp1 <= 0.0) {
+//                    fnmkp1 = Double.MIN_VALUE
+//                }
+//                if (fnmkp1 >= 1.0) {
+//                    fnmkp1 = 1.0 - Double.MIN_VALUE //TODO need to delete
+//                }
                 sum = sum + (2.0 * i - 1.0) * (lnfk + lnFnmkp1)
                 //               sum = sum + (2.0 * i - 1.0) * (ln(fk) + ln(1.0 - fnmkp1))
             }
