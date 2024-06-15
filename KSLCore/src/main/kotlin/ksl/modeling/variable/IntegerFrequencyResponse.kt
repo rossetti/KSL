@@ -25,26 +25,23 @@ import ksl.utilities.statistic.IntegerFrequencyIfc
  * This class can be useful for tabulating a
  * discrete histogram over the values (integers) presented.
  *
- * @param variable the variable to observe
+ * @param parent the parent of this model element
  * @param lowerLimit the defined lower limit of the integers, values less than this are not tabulated
  * @param upperLimit the defined upper limit of the integers, values less than this are not tabulated
  * @param name a name for the instance
  * @author rossetti
  */
 class IntegerFrequencyResponse(
-    variable: Variable,
-    name: String? = "${variable.name}_Frequency",
+    parent: ModelElement,
+    name: String,
     lowerLimit: Int = Int.MIN_VALUE,
     upperLimit: Int = Int.MAX_VALUE,
-    private val myIntegerFrequency: IntegerFrequency = IntegerFrequency(name = name, lowerLimit = lowerLimit, upperLimit = upperLimit)
-) : ModelElement(variable, name), IntegerFrequencyIfc by myIntegerFrequency {
-
-    internal val myVariable = variable
-    private val myObserver = VariableObserver()
-
-    init {
-        myVariable.attachModelElementObserver(myObserver)
-    }
+    private val myIntegerFrequency: IntegerFrequency = IntegerFrequency(
+        name = "${name}_Frequency",
+        lowerLimit = lowerLimit,
+        upperLimit = upperLimit
+    )
+) : ModelElement(parent, name), IntegerFrequencyIfc by myIntegerFrequency {
 
     /**
      * This class tabulates the frequency associated with
@@ -63,43 +60,37 @@ class IntegerFrequencyResponse(
      * observations that may have been within a warmup period even if the modeler specifies
      * a warmup period.
      *
-     * @param variable the variable to observe
+     * @param parent the variable to observe
      * @param intRange the defined integer range for observations
      * @param name a name for the instance
      * @author rossetti
      */
     constructor(
-        variable: Variable,
-        name: String? = null,
+        parent: ModelElement,
+        name: String,
         intRange: IntRange = Int.MIN_VALUE..Int.MAX_VALUE
-    ) : this(variable, name, intRange.first, intRange.last)
+    ) : this(parent, name, intRange.first, intRange.last)
 
-    private inner class VariableObserver : ModelElementObserver() {
-        override fun update(modelElement: ModelElement) {
-            // must be a response because only attached to responses
-            val v = modelElement as Variable
-            myIntegerFrequency.collect(v.value)
+    var collectionOn = true
+
+    var value: Int = 0
+        set(value) {
+            field = value
+            if (collectionOn){
+                myIntegerFrequency.collect(value)
+            }
         }
+
+    fun collect(value: Int) {
+        this.value = value
     }
 
-    /**
-     *  Causes the histogram response to stop observing the underlying
-     *  response.
-     */
-    fun stopCollecting(){
-        myVariable.detachModelElementObserver(myObserver)
-    }
-
-    /**
-     *  Causes the histogram response to start observing the underlying response
-     */
-    fun startCollecting(){
-        if (!myVariable.isModelElementObserverAttached(myObserver)){
-            myVariable.attachModelElementObserver(myObserver)
-        }
+    fun collect(value: Double) {
+        this.value = value.toInt()
     }
 
     override fun beforeExperiment() {
+        collectionOn = true
         myIntegerFrequency.reset()
     }
 

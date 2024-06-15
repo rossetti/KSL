@@ -484,8 +484,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val record = FrequencyTableData()
             record.element_id_fk = freq.id
             record.sim_run_id_fk = simId
-            record.variable_id_fk = freq.myVariable.id
-            record.variable_name = freq.myVariable.name
+            record.name = freq.name
             record.cell_label = fd.cellLabel
             record.value = fd.value
             if (!fd.count.isNaN() && fd.count.isFinite()) {
@@ -1335,8 +1334,7 @@ data class FrequencyTableData(
     var id: Int = -1,
     var element_id_fk: Int = -1,
     var sim_run_id_fk: Int = -1,
-    var variable_id_fk: Int = -1,
-    var variable_name: String = "",
+    var name: String = "",
     var cell_label: String = "",
     var value: Int = -1,
     var count: Double? = null,

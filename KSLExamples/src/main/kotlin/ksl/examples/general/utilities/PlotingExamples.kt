@@ -53,8 +53,8 @@ fun main() {
 //    testWelchPlotting()
 //          testObservationPlot()
 //    testACFPlot()
-//    testPMFPlot()
-//    testCDFPlot()
+    testPMFPlot()
+    testCDFPlot()
 //
 //    testECDFPlot()
 //
