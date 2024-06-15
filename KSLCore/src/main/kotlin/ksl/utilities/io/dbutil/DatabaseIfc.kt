@@ -1979,7 +1979,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             val commentMatcher = COMMENT_PATTERN.matcher(trimmedLine)
             if (delimiterMatcher.find()) {
                 // a) Delimiter change
-                delimiter = delimiterMatcher.group(1)
+//                delimiter = delimiterMatcher.group(1)
                 //LOGGER.log(Level.INFO, "SQL (new delimiter): {0}", delimiter);
             } else if (commentMatcher.find()) {
                 // b) Comment
