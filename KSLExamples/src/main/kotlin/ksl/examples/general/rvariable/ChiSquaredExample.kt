@@ -1,7 +1,6 @@
 package ksl.examples.general.rvariable
 
 import ksl.utilities.distributions.Gamma
-import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.ObservationsPlot
@@ -16,19 +15,20 @@ import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 
 fun main() {
-    val n = NormalRV()
+    val normalRV = NormalRV()
     val dof = 5
-    val data = makeSample(1000, dof, n)
+    val sampleSize = 1000
+    val data = sampleChiSquared(sampleSize, dof, normalRV)
     val statistics = Statistic(data)
     println(statistics)
     val sr = StatisticReporter(mutableListOf(statistics))
     println(sr.halfWidthSummaryReport())
     statistics.toStatDataFrame().toStandaloneHTML().openInBrowser()
-//    makePlots(data, dof)
+//    makeAndDisplayPlots(data, dof)
     data.writeToFile("TheChiSquares.txt")
 }
 
-fun genChiSquared(normalRV: NormalRV, dof: Int): Double {
+fun generateChiSquared(normalRV: NormalRV, dof: Int): Double {
     var sum = 0.0
     for (i in 1..dof){
         val z  = normalRV.value
@@ -37,15 +37,15 @@ fun genChiSquared(normalRV: NormalRV, dof: Int): Double {
     return sum
 }
 
-fun makeSample(sampleSize: Int, dof: Int, normalRV: NormalRV) : DoubleArray {
+fun sampleChiSquared(sampleSize: Int, dof: Int, normalRV: NormalRV) : DoubleArray {
     val sample = mutableListOf<Double>()
     for (i in 1..sampleSize) {
-        sample.add(genChiSquared(normalRV, dof))
+        sample.add(generateChiSquared(normalRV, dof))
     }
     return sample.toDoubleArray()
 }
 
-fun makePlots(data: DoubleArray, dof: Int) {
+fun makeAndDisplayPlots(data: DoubleArray, dof: Int) {
     val histogram = CachedHistogram(data)
     println(histogram)
     val hp = histogram.histogramPlot()
