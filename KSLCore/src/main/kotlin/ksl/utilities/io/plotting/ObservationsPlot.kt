@@ -12,6 +12,12 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
+/**
+ *  This class displays the [data] array in the order list. The [interval] parameter
+ *  can be used to display a lower limit and upper limit line on the plot.
+ *  @param data the data to plot
+ *  @param interval the interval to show on the plot
+ */
 class ObservationsPlot(
     data: DoubleArray,
     var interval: Interval? = null,
