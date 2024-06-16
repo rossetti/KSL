@@ -275,6 +275,9 @@ abstract class DbTableData(
      *   more advanced SQL work.
      */
     fun createTableSQLStatement(): String {
+        if (autoIncField){
+            DatabaseIfc.logger.warn { "Created a CREATE SQL statement for $tableName but auto-increment field was true." }
+        }
         val start = if (!schemaName.isNullOrEmpty()) {
             "CREATE TABLE ${schemaName}.$tableName ("
         } else {

@@ -45,12 +45,14 @@ open class SimpleDb(
      * @return an empty embedded SQLite database
      */
     constructor(tableDefinitions: Set<DbTableData>, dbName: String, dbDirectory: Path = KSL.dbDir) : this(
-        tableDefinitions, SQLiteDb.createDatabase(dbName, dbDirectory))
+        tableDefinitions, SQLiteDb.createDatabase(dbName, dbDirectory)
+    )
 
     init {
         for (tableData in tableDefinitions) {
+            require(!tableData.autoIncField) { "The autoIncField for table (${tableData.tableName}) in the SimpleDb must be false" }
             val worked = executeCommand(tableData.createTableSQLStatement())
-            if (worked){
+            if (worked) {
                 DatabaseIfc.logger.info { "SimpleDb($label): table ${tableData.tableName} has been created." }
             } else {
                 DatabaseIfc.logger.info { "SimpleDb($label): table ${tableData.tableName} was not created." }
