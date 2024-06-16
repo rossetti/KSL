@@ -93,6 +93,10 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
         return list.toDataFrame()
     }
 
+    override fun toString(): String {
+        return summaryReport().toString()
+    }
+
     /**
      *
      * @param name the name of the statistic to add to the reporter
@@ -308,7 +312,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
             if (reportTitle != null) {
                 formatter.format("%s %n", reportTitle)
             }
-            formatter.format("**Statistical Summary Report**%n")
+            formatter.format("Statistical Summary Report%n")
         }
         if (timeDateFlag) {
             formatter.format("%tc%n%n", Calendar.getInstance().timeInMillis)

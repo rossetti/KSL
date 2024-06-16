@@ -27,11 +27,11 @@ import kotlin.math.*
 /** Models random variables that have gamma distribution
  * For more information on the gamma distribution and its related functions, see
  * "Object-Oriented Numerical Methods" by D. Besset
- * @param theShape The shape parameter of the distribution, must be greater than 0
- * @param theScale The scale parameter of the distribution, must be greater than 0
+ * @param shape The shape parameter of the distribution, must be greater than 0
+ * @param scale The scale parameter of the distribution, must be greater than 0
  * @param name an optional name/label
  */
-class Gamma(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
+class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     Distribution(name),
     ContinuousDistributionIfc,
     LossFunctionDistributionIfc,
@@ -41,14 +41,14 @@ class Gamma(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null
 {
 
     init {
-        require(theShape > 0) { "Shape parameter must be positive" }
-        require(theScale > 0) { "Scale parameter must be positive" }
+        require(shape > 0) { "Shape parameter must be positive" }
+        require(scale > 0) { "Scale parameter must be positive" }
     }
 
     /**
      *  the shape must be greater than 0.0
      */
-    var shape = theShape
+    var shape = shape
         set(value) {
             require(value > 0) { "Shape parameter must be positive" }
             field = value
@@ -57,7 +57,7 @@ class Gamma(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null
     /**
      *  the scale must be greater than 0.0
      */
-    var scale = theScale
+    var scale = scale
         set(value) {
             require(value > 0) { "Scale parameter must be positive" }
             field = value
