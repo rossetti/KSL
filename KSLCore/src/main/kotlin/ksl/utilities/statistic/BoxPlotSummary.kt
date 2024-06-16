@@ -19,6 +19,7 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.*
+import ksl.utilities.io.plotting.BoxPlot
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -298,6 +299,10 @@ class BoxPlotSummary(
     fun pointsBtwUpperInnerAndOuterFences(): DoubleArray {
         val i = Interval(upperInnerFence, upperOuterFence)
         return KSLArrays.dataInInterval(orderStatistics, i)
+    }
+
+    fun boxPlot(): BoxPlot {
+        return BoxPlot(this)
     }
 
     /**

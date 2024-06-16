@@ -675,12 +675,14 @@ fun BoxPlotSummary.toDataFrame(): DataFrame<BoxPlotDataIfc> {
 /**
  *  Converts a statistic to a data frame with two columns.
  *  The first column holds the names of the statistics and the
- *  second column holds the values.
+ *  second column holds the values. The [valueLabel] can be used
+ *  to provide a column name for the value columns. By default,
+ *  it is "Value".
  */
-fun StatisticIfc.toStatDataFrame(): DataFrame<StatSchema> {
+fun StatisticIfc.toStatDataFrame(valueLabel: String = "Value"): DataFrame<StatSchema> {
     val map = this.statisticsAsMap
     val c1 = column(map.keys) named "Statistic"
-    val c2 = column(map.values) named "Value"
+    val c2 = column(map.values) named valueLabel
     return dataFrameOf(c1, c2).cast()
 }
 
