@@ -60,7 +60,22 @@ fun main() {
 
 //    testAndersonDarling()
 
-    testBootStrappingOfFamily()
+//    testBootStrappingOfFamily()
+
+    splitAnalysis(80.0)
+}
+
+fun splitAnalysis(splitCriteria: Double){
+    // select file: ch6problem4.txt
+    val myFile = KSLFileUtil.chooseFile()
+    if (myFile != null){
+        val data = KSLFileUtil.scanToArray(myFile.toPath())
+        val (bottom, top) = data.partition { it<= splitCriteria }
+        val bottomAnalysis = PDFModeler(bottom.toDoubleArray())
+        bottomAnalysis.showAllResultsInBrowser()
+        val topAnalysis = PDFModeler(top.toDoubleArray())
+        topAnalysis.showAllResultsInBrowser()
+    }
 }
 
 private fun testSampleFile() {
