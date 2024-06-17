@@ -518,10 +518,10 @@ class PDFModeler(
         configuration.cellContentLimit = 120
         configuration.rowsLimit = scores.rowsCount()
         val sb = StringBuilder().apply {
+            appendLine("<div>")
             appendLine("<h1>")
             appendLine("PDF Modeling Results")
             appendLine("</h1>")
-            appendLine("<div>")
             appendLine("<h2>")
             appendLine("Scores:")
             appendLine("</h2>")
@@ -534,13 +534,11 @@ class PDFModeler(
             appendLine(values.toStandaloneHTML(configuration))
             appendLine("</div>")
             appendLine("<div>")
-            appendLine("<div>")
             appendLine("<h2>")
             appendLine("Rank Evaluations:")
             appendLine("</h2>")
             appendLine(ranks.toStandaloneHTML(configuration))
             appendLine("</div>")
-            appendLine("<div>")
         }
         return sb.toString()
     }
@@ -573,13 +571,13 @@ class PDFModeler(
             numEstimatedParameters = result.numberOfParameters
         )
         val sb = StringBuilder().apply {
+            appendLine("<div>")
             appendLine("<h1>")
             appendLine("PDF Goodness of Fit Results")
             appendLine("</h1>")
             appendLine("<h2>")
             appendLine("Recommended Distribution:")
             appendLine("</h2>")
-            appendLine("<div>")
             appendLine("<p>")
             appendLine(result.name)
             appendLine("</p>")
@@ -589,7 +587,6 @@ class PDFModeler(
             appendLine("<h2>")
             appendLine("Bootstrap Results for Parameter Estimation:")
             appendLine("</h2>")
-            appendLine("<div>")
             appendLine("<pre>")
             for (bse in bs) {
                 appendLine(bse.toString())
