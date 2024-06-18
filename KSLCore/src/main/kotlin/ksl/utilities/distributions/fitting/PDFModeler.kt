@@ -25,7 +25,6 @@ import ksl.utilities.distributions.fitting.scoring.*
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.BoxPlot
-import ksl.utilities.io.plotting.HistogramDensityPlot
 import ksl.utilities.io.plotting.ObservationsPlot
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.toStatDataFrame
@@ -40,7 +39,6 @@ import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.*
 import org.jetbrains.kotlinx.dataframe.AnyFrame
-import org.jetbrains.kotlinx.dataframe.api.into
 import org.jetbrains.kotlinx.dataframe.api.remove
 import org.jetbrains.kotlinx.dataframe.api.rename
 import org.jetbrains.kotlinx.dataframe.io.DisplayConfiguration
@@ -55,16 +53,21 @@ enum class EvaluationMethod {
 }
 
 /**
- *  @param data the data to analyze for fitting a probability distribution
+ *  @param observations the data to analyze for fitting a probability distribution
  *  @param scoringModels the scoring models to use to evaluate the fitting process
  *  and recommend a distribution. By default, this is defaultScoringModels
  */
 class PDFModeler(
-    private val data: DoubleArray,
+    observations: DoubleArray,
     private val scoringModels: Set<PDFScoringModel> = defaultScoringModels,
 ) {
+    private val myData: DoubleArray = observations.copyOf()
+
+    val originalData
+         get() = myData.copyOf()
+
     private val myHistogram: Histogram by lazy {
-        Histogram.create(data, name = "PDF Modeler Default Histogram")
+        Histogram.create(myData, name = "PDF Modeler Default Histogram")
     }
 
     val histogram: HistogramIfc
@@ -93,7 +96,7 @@ class PDFModeler(
      *  Uses bootstrapping to estimate a confidence interval for the minimum
      */
     fun confidenceIntervalForMinimum(numBootstrapSamples: Int = 399, level: Double = 0.95): Interval {
-        return PDFModeler.confidenceIntervalForMinimum(data, numBootstrapSamples, level)
+        return confidenceIntervalForMinimum(myData, numBootstrapSamples, level)
     }
 
     /**
@@ -120,7 +123,7 @@ class PDFModeler(
         stream: RNStreamIfc = KSLRandom.nextRNStream(),
         label: String? = null
     ): List<BootstrapEstimate> {
-        val bss = BootstrapSampler(data, estimator, stream)
+        val bss = BootstrapSampler(myData, estimator, stream)
         val list = bss.bootStrapEstimates(numBootstrapSamples)
         for (e in list) {
             e.defaultCILevel = level
@@ -137,7 +140,7 @@ class PDFModeler(
      *  that is less that the defaultZeroTolerance will be set to 0.0.
      */
     val leftShift: Double
-        get() = estimateLeftShiftParameter(data, defaultZeroTolerance)
+        get() = estimateLeftShiftParameter(myData, defaultZeroTolerance)
 
     /**
      *  Estimates the parameters for all estimators represented by
@@ -169,7 +172,7 @@ class PDFModeler(
         if (automaticShifting) {
             val minCI = confidenceIntervalForMinimum()
             if (defaultZeroTolerance < minCI.lowerLimit) {
-                shiftedData = PDFModeler.leftShiftData(data)
+                shiftedData = PDFModeler.leftShiftData(myData)
             }
         }
         val shiftedStats = shiftedData?.shiftedData?.statistics()
@@ -180,7 +183,7 @@ class PDFModeler(
                 r.shiftedData = shiftedData
                 r
             } else {
-                estimator.estimateParameters(data, statistics)
+                estimator.estimateParameters(myData, statistics)
             }
             estimatedParameters.add(result)
         }
@@ -322,7 +325,7 @@ class PDFModeler(
         val statConfig = DisplayConfiguration.DEFAULT
         statConfig.rowsLimit = statDf.rowsCount()
         // box plot summary
-        val bp = BoxPlotSummary(data)
+        val bp = BoxPlotSummary(myData)
         val boxPlotDf = bp.toDataFrame()
         val boxConfig = DisplayConfiguration.DEFAULT
         boxConfig.rowsLimit = boxPlotDf.rowsCount()
@@ -334,8 +337,8 @@ class PDFModeler(
         val config = DisplayConfiguration.DEFAULT
         config.rowsLimit = histogram.numberBins + 1
         // estimate left shift parameter
-        val leftShift = estimateLeftShiftParameter(data)
-        val minCI = confidenceIntervalForMinimum(data)
+        val leftShift = estimateLeftShiftParameter(myData)
+        val minCI = confidenceIntervalForMinimum(myData)
         val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("Statistical Summary")
@@ -418,11 +421,11 @@ class PDFModeler(
         // histogram with density overlay
  //       val hdPlot = HistogramDensityPlot(data)
         // box plot
-        val bp = BoxPlot(data)
+        val bp = BoxPlot(myData)
         // observation plot
-        val op = ObservationsPlot(data)
+        val op = ObservationsPlot(myData)
         // acf plot
-        val acf = ACFPlot(data)
+        val acf = ACFPlot(myData)
         val sb = StringBuilder().apply {
             appendLine("<h1>")
             appendLine("Visualization Results")
@@ -464,7 +467,7 @@ class PDFModeler(
      *  a PNG file to be saved to the plot directory.
      */
     fun htmlObservationPlot(plotFileName: String? = null): String {
-        val op = ObservationsPlot(data)
+        val op = ObservationsPlot(myData)
         if (plotFileName != null) {
             op.saveToFile("${plotFileName}_Obs_Plot")
         }
@@ -485,7 +488,7 @@ class PDFModeler(
      *  a PNG file to be saved to the plot directory.
      */
     fun htmlACFPlot(plotFileName: String? = null): String {
-        val acf = ACFPlot(data)
+        val acf = ACFPlot(myData)
         if (plotFileName != null) {
             acf.saveToFile("${plotFileName}_ACF_Plot")
         }

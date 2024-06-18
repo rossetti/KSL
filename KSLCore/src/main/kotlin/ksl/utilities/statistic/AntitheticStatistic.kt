@@ -82,6 +82,10 @@ class AntitheticStatistic(theName: String = "AntitheticStatistic_${++StatCounter
         }
     }
 
+    override fun copyOfAsStatistic(): Statistic {
+        return myStatistic.instance()
+    }
+
     override fun toString(): String {
         return myStatistic.toString()
     }

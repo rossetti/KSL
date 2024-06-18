@@ -1585,7 +1585,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *
      *  @return the number of rows inserted
      */
-    fun <T : DbTableData> insertDbDataIntoTable(
+    fun <T : DbTableData> insertAllDbDataIntoTable(
         data: T,
         tableName: String = data.tableName,
         schemaName: String? = defaultSchemaName
@@ -1632,7 +1632,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *
      *  @return the number of rows inserted
      */
-    fun <T : DbTableData> insertDbDataIntoTable(
+    fun <T : DbTableData> insertAllDbDataIntoTable(
         data: List<T>,
         tableName: String,
         schemaName: String? = defaultSchemaName

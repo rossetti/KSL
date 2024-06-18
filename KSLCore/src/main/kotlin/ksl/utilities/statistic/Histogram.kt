@@ -145,6 +145,10 @@ class Histogram(
         return myStatistic.leadingDigitRule(multiplier)
     }
 
+    override fun copyOfAsStatistic(): Statistic {
+        return myStatistic.instance()
+    }
+
     override fun collect(obs: Double) {
         if (obs.isMissing()) {
             numberMissing++
