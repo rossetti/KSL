@@ -347,14 +347,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             // this is a new experiment
             // create and insert the new experiment
             currentExp = createExperimentData(model)
-            val k = db.insertDbDataIntoTable(currentExp)
+            val k = db.insertAllDbDataIntoTable(currentExp)
             if (k == 0) {
                 throw DataAccessException("The experiment was not inserted")
             }
             // create the simulation run associated with the new experiment
             // start simulation run record
             currentSimRun = createSimulationRunData(model)
-            db.insertDbDataIntoTable(currentSimRun!!)
+            db.insertAllDbDataIntoTable(currentSimRun!!)
             // a new experiment requires capturing the model elements, controls, and rv parameters
             // capture the model elements associated with the experiment
             val modelElements: List<ModelElement> = model.getModelElements()
@@ -385,7 +385,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 // because if it was there by mistake, we just deleted it
                 // start simulation run record
                 currentSimRun = createSimulationRunData(model)
-                db.insertDbDataIntoTable(currentSimRun!!)
+                db.insertAllDbDataIntoTable(currentSimRun!!)
             } else {
                 println(experimentRecord)
                 // not a chunk, same experiment but not chunked, this is a potential user error
@@ -471,7 +471,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             list.addAll(freqRecords)
         }
        // println("db.insertDbDataIntoTable(list, \"frequency\")")
-        db.insertDbDataIntoTable(list, "frequency")
+        db.insertAllDbDataIntoTable(list, "frequency")
     }
 
     private fun createFrequencyDataRecords(
@@ -510,7 +510,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val histRecords = createHistogramDataRecords(h, currentSimRun!!.run_id)
             list.addAll(histRecords)
         }
-        db.insertDbDataIntoTable(list, "histogram")
+        db.insertAllDbDataIntoTable(list, "histogram")
     }
 
     private fun createHistogramDataRecords(
@@ -834,7 +834,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val dbModelElement = createDbModelElement(element, currentExp.exp_id)
             list.add(dbModelElement)
         }
-        db.insertDbDataIntoTable(list, "model_element")
+        db.insertAllDbDataIntoTable(list, "model_element")
     }
 
     private fun insertDbControlRecords(controls: List<ControlIfc>) {
@@ -843,7 +843,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val cr = createDbControlRecord(c, currentExp.exp_id)
             list.add(cr)
         }
-        db.insertDbDataIntoTable(list, "control")
+        db.insertAllDbDataIntoTable(list, "control")
     }
 
     private fun insertDbRvParameterRecords(pData: List<RVParameterData>) {
@@ -852,7 +852,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val r = createDbRvParameterRecord(param, currentExp.exp_id)
             list.add(r)
         }
-        db.insertDbDataIntoTable(list, "rv_parameter")
+        db.insertAllDbDataIntoTable(list, "rv_parameter")
     }
 
     private fun insertWithinRepResponses(responses: List<Response>) {
@@ -861,7 +861,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val withinRepStatRecord = createWithinRepStatRecord(response, currentSimRun!!.run_id)
             list.add(withinRepStatRecord)
         }
-        db.insertDbDataIntoTable(list, "within_rep_stat")
+        db.insertAllDbDataIntoTable(list, "within_rep_stat")
     }
 
     private fun insertWithinRepCounters(counters: List<Counter>) {
@@ -870,7 +870,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val withinRepCounterRecord = createWithinRepCounterRecord(counter, currentSimRun!!.run_id)
             list.add(withinRepCounterRecord)
         }
-        db.insertDbDataIntoTable(list, "within_rep_counter_stat")
+        db.insertAllDbDataIntoTable(list, "within_rep_counter_stat")
     }
 
     private fun insertAcrossRepResponses(responses: List<Response>) {
@@ -880,7 +880,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val acrossRepStatRecord = createAcrossRepStatRecord(response, currentSimRun!!.run_id, s)
             list.add(acrossRepStatRecord)
         }
-        db.insertDbDataIntoTable(list, "across_rep_stat")
+        db.insertAllDbDataIntoTable(list, "across_rep_stat")
     }
 
     private fun insertAcrossRepResponsesForCounters(counters: List<Counter>) {
@@ -890,7 +890,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val acrossRepCounterRecord = createAcrossRepStatRecord(counter, currentSimRun!!.run_id, s)
             list.add(acrossRepCounterRecord)
         }
-        db.insertDbDataIntoTable(list, "across_rep_stat")
+        db.insertAllDbDataIntoTable(list, "across_rep_stat")
     }
 
     private fun insertResponseVariableBatchStatistics(rMap: Map<Response, BatchStatisticIfc>) {
@@ -901,7 +901,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val batchStatRecord = createBatchStatRecord(r, currentSimRun!!.run_id, bs)
             list.add(batchStatRecord)
         }
-        db.insertDbDataIntoTable(list, "batch_stat")
+        db.insertAllDbDataIntoTable(list, "batch_stat")
     }
 
     private fun insertTimeWeightedBatchStatistics(twMap: Map<TWResponse, BatchStatisticIfc>) {
@@ -912,7 +912,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val batchStatRecord = createBatchStatRecord(tw, currentSimRun!!.run_id, bs)
             list.add(batchStatRecord)
         }
-        db.insertDbDataIntoTable(list, "batch_stat")
+        db.insertAllDbDataIntoTable(list, "batch_stat")
     }
 
     /**

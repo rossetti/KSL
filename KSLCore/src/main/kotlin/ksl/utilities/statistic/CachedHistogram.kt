@@ -119,6 +119,10 @@ class CachedHistogram(
     override val zeroCount: Double
         get() = currentHistogram.zeroCount
 
+    override fun copyOfAsStatistic(): Statistic {
+        return currentHistogram.copyOfAsStatistic()
+    }
+
     override fun bin(x: Double): HistogramBin {
         return currentHistogram.bin(x)
     }

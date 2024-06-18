@@ -52,7 +52,7 @@ interface MeanEstimateIfc : EstimateIfc {
      * Gets the sample variance of the observations.
      *
      * @return A double representing the computed variance or Double.NaN if 1 or
-     * less observations.
+     * fewer observations.
      */
     val variance: Double
 
@@ -61,7 +61,7 @@ interface MeanEstimateIfc : EstimateIfc {
      * the square root of getVariance()
      *
      * @return A double representing the computed standard deviation or Double.NaN
-     * if 1 or less observations.
+     * if 1 or fewer observations.
      */
     val standardDeviation: Double
         get() = sqrt(variance)

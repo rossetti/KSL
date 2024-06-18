@@ -307,6 +307,11 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
     }
 
     /**
+     *  Return a copy of the information as an instance of a statistic
+     */
+    fun copyOfAsStatistic() : Statistic
+
+    /**
      * Returns a String representation of the Statistic
      *
      * @return A String with basic summary statistics

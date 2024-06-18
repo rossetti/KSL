@@ -403,6 +403,10 @@ class BatchStatistic constructor(
         return myBMStatistic.leadingDigitRule(multiplier)
     }
 
+    override fun copyOfAsStatistic(): Statistic {
+        return myBMStatistic.instance()
+    }
+
     fun asString(): String {
         val sb = StringBuilder("BatchStatistic{")
         sb.append("name='").append(name).append('\'')
@@ -472,7 +476,7 @@ class BatchStatistic constructor(
         get() = myStatistic.instance()
 
     override fun instance(): BatchStatistic {
-        return BatchStatistic.instance(this)
+        return instance(this)
     }
 
     companion object {

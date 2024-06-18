@@ -723,10 +723,10 @@ abstract class MODAModel(
         val values = alternativeValueData()
         val overall = alternativeOverallValueData()
         val ranks = alternativeRankFrequencyData()
-        db.insertDbDataIntoTable(scores, "tblScores")
-        db.insertDbDataIntoTable(values, "tblValues")
-        db.insertDbDataIntoTable(overall, "tblOverall")
-        db.insertDbDataIntoTable(ranks, "tblRankFrequency")
+        db.insertAllDbDataIntoTable(scores, "tblScores")
+        db.insertAllDbDataIntoTable(values, "tblValues")
+        db.insertAllDbDataIntoTable(overall, "tblOverall")
+        db.insertAllDbDataIntoTable(ranks, "tblRankFrequency")
         return db
     }
 

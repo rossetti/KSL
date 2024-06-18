@@ -205,6 +205,10 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
         return s
     }
 
+    override fun copyOfAsStatistic(): Statistic {
+        return instance()
+    }
+
     /**
      * Returns the 2nd statistical central moment
      *
