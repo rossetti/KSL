@@ -46,7 +46,6 @@ class TestResponseVariable(parent: ModelElement, name: String? = null) : ModelEl
 fun main() {
     val sim = Model("test RS")
     TestResponseVariable(sim)
-    val reporter: SimulationReporter = sim.simulationReporter
     sim.turnOnReplicationCSVStatisticReporting()
     sim.numberOfReplications = 5
     sim.lengthOfReplication = 25.0

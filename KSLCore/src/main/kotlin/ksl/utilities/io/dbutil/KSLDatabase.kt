@@ -347,14 +347,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             // this is a new experiment
             // create and insert the new experiment
             currentExp = createExperimentData(model)
-            val k = db.insertAllDbDataIntoTable(currentExp)
+            val k = db.insertDbDataIntoTable(currentExp)
             if (k == 0) {
                 throw DataAccessException("The experiment was not inserted")
             }
             // create the simulation run associated with the new experiment
             // start simulation run record
             currentSimRun = createSimulationRunData(model)
-            db.insertAllDbDataIntoTable(currentSimRun!!)
+            db.insertDbDataIntoTable(currentSimRun!!)
             // a new experiment requires capturing the model elements, controls, and rv parameters
             // capture the model elements associated with the experiment
             val modelElements: List<ModelElement> = model.getModelElements()
@@ -385,7 +385,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 // because if it was there by mistake, we just deleted it
                 // start simulation run record
                 currentSimRun = createSimulationRunData(model)
-                db.insertAllDbDataIntoTable(currentSimRun!!)
+                db.insertDbDataIntoTable(currentSimRun!!)
             } else {
                 println(experimentRecord)
                 // not a chunk, same experiment but not chunked, this is a potential user error

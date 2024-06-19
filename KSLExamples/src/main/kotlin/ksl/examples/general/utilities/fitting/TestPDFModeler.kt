@@ -1,6 +1,6 @@
 /*
- *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2024  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.general.utilities
+package ksl.examples.general.utilities.fitting
 
 import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.PearsonType5
@@ -28,7 +28,6 @@ import ksl.utilities.distributions.fitting.scoring.AndersonDarlingScoringModel
 import ksl.utilities.distributions.fitting.scoring.ChiSquaredScoringModel
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
-import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.writeToFile
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.GammaRV
@@ -41,10 +40,10 @@ import ksl.utilities.statistic.U01Test
 import org.jetbrains.letsPlot.commons.intern.math.ipow
 
 fun main() {
-    val e = ExponentialRV(10.0)
+//    val e = ExponentialRV(10.0)
     //   val se = ShiftedRV(5.0, e)
-    val n = 1000
-    val data = e.sample(n)
+//    val n = 1000
+//    val data = e.sample(n)
 //    data.write(KSL.out)
     //   testModeler(data)
     //      testExponentialEstimation(data)
@@ -54,7 +53,6 @@ fun main() {
 //    testAllInOne(data)
 
 //    testGammaCaseV2(7.5, 1.1)
-
 
     //   testSampleFile()
 
@@ -112,7 +110,6 @@ private fun testModeler(data: DoubleArray) {
 }
 
 private fun testExponentialEstimation(data: DoubleArray) {
-    val estimator = ExponentialMLEParameterEstimator
 
     val result = ExponentialMLEParameterEstimator.estimateParameters(data)
 
@@ -122,9 +119,6 @@ private fun testExponentialEstimation(data: DoubleArray) {
 
     val d = PDFModeler.createDistribution(result.parameters!!)!!
     println(d)
-    val params = result.parameters
-    val mean = params?.doubleParameter("mean")
-    //val d = Exponential(mean)
     var bp = PDFModeler.equalizedCDFBreakPoints(data.size, d)
     bp = Histogram.addLowerLimit(0.0, bp)
     bp = Histogram.addPositiveInfinity(bp)
@@ -158,7 +152,6 @@ private fun testWeibullEstimation(data: DoubleArray) {
     val d = PDFModeler.createDistribution(result.parameters!!)!!
     println(d)
     println()
-    val params = result.parameters
 
     var bp = PDFModeler.equalizedCDFBreakPoints(data.size, d)
     // println(bp.joinToString())
