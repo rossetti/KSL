@@ -1,6 +1,5 @@
 package ksl.examples.general.utilities.fitting
 
-import ksl.utilities.distributions.fitting.PDFModelingResults
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.dbutil.SimpleDb
@@ -96,37 +95,7 @@ data class CaseSampleStatistics(
     var rawMoment4: Double = 0.0,
     var min: Double = 0.0,
     var max: Double = 0.0
-) : DbTableData("CaseSampleResults", listOf("caseID", "sampleSize", "sampleID")) {
-
-    companion object {
-
-        fun create(
-            caseID: Int,
-            sampleSize: Int,
-            sampleID: Int,
-            statistic: Statistic
-        ): CaseSampleStatistics {
-            val s = CaseSampleStatistics()
-            s.caseID = caseID
-            s.sampleSize = sampleSize
-            s.sampleID = sampleID
-            s.avg = statistic.average
-            s.sd = statistic.standardDeviation
-            s.cv = s.sd / s.avg
-            s.kurtosis = statistic.kurtosis
-            s.skewness = statistic.skewness
-            s.centralMoment2 = statistic.centralMoment2
-            s.centralMoment3 = statistic.centralMoment3
-            s.centralMoment4 = statistic.centralMoment4
-            s.rawMoment2 = statistic.rawMoment2
-            s.rawMoment3 = statistic.rawMoment3
-            s.rawMoment4 = statistic.rawMoment4
-            s.min = statistic.min
-            s.max = statistic.max
-            return s
-        }
-    }
-}
+) : DbTableData("CaseSampleResults", listOf("caseID", "sampleSize", "sampleID"))
 
 /**
  *  For every (caseID, sampleSize, sampleID) combination one of the possible
@@ -166,34 +135,10 @@ data class CaseScoringResults(
     var estimatedDistribution: String = "",
     var resultName: String = "",
     var resultValue: Double = 0.0
-) : DbTableData("CaseScoringResults",
+) : DbTableData(
+    "CaseScoringResults",
     listOf("caseID", "sampleSize", "sampleID", "estimatedDistribution", "resultName")
-) {
-
-    companion object {
-
-        fun create(
-            dfTestCase: DFTestCase,
-            sampleID: Int,
-            results: PDFModelingResults
-        ) : List<CaseScoringResults> {
-            val list = mutableListOf<CaseScoringResults>()
-            // need to get estimation results, this will have the parameters
-            for (er in results.estimationResults){
-                val nc = CaseScoringResults()
-                nc.caseID = dfTestCase.case.caseID
-                nc.sampleSize = er.testData.size
-                for (param in er.parameters()){
-
-                }
-            }
-            results.estimationResults
-            results.scoringResults
-            results.evaluationModel
-            return list
-        }
-    }
-}
+)
 
 class ResultsDb(
     dbName: String,
@@ -201,7 +146,7 @@ class ResultsDb(
     dbDirectory: Path = KSL.dbDir
 ) : SimpleDb(tableDefinitions, dbName, dbDirectory) {
 
-    fun saveCase(dfTestCase: DFTestCase){
+    fun saveCase(dfTestCase: DFTestCase) {
         insertDbDataIntoTable(dfTestCase.case)
     }
 
@@ -210,8 +155,29 @@ class ResultsDb(
         insertAllDbDataIntoTable(caseParameters, caseParameters.first().tableName)
     }
 
-    fun saveStatistics(caseID: Int, sampleSize: Int, sampleID: Int, statistic: Statistic){
-        val cs = CaseSampleStatistics.create(caseID, sampleSize, sampleID, statistic)
+    fun saveScoringResults(list: List<CaseScoringResults>){
+        val tblName = list.first().tableName
+        insertAllDbDataIntoTable(list, tblName)
+    }
+
+    fun saveStatistics(caseID: Int, sampleSize: Int, sampleID: Int, statistic: Statistic) {
+        val cs = CaseSampleStatistics()
+        cs.caseID = caseID
+        cs.sampleSize = sampleSize
+        cs.sampleID = sampleID
+        cs.avg = statistic.average
+        cs.sd = statistic.standardDeviation
+        cs.cv = cs.sd / cs.avg
+        cs.kurtosis = statistic.kurtosis
+        cs.skewness = statistic.skewness
+        cs.centralMoment2 = statistic.centralMoment2
+        cs.centralMoment3 = statistic.centralMoment3
+        cs.centralMoment4 = statistic.centralMoment4
+        cs.rawMoment2 = statistic.rawMoment2
+        cs.rawMoment3 = statistic.rawMoment3
+        cs.rawMoment4 = statistic.rawMoment4
+        cs.min = statistic.min
+        cs.max = statistic.max
         insertDbDataIntoTable(cs)
     }
 
@@ -238,8 +204,8 @@ class DFTestCase(
     numSamples: Int = 200
 ) {
     init {
-        require(sampleSizes.size >= 2) {"There must be at least two sample sizes to test."}
-        require(sampleSizes.min() >=2) {"The minimum sample size must be >= 2"}
+        require(sampleSizes.size >= 2) { "There must be at least two sample sizes to test." }
+        require(sampleSizes.min() >= 2) { "The minimum sample size must be >= 2" }
         require(numSamples >= 2) { "The number of samples to generate must be >= 2" }
         id = id + 1
     }
@@ -248,7 +214,7 @@ class DFTestCase(
 
     val case: CaseData = CaseData(id, rv.toString(), rv.parameters.rvType.toString(), numSamples)
 
-    fun caseParameters() : List<CaseParameters> {
+    fun caseParameters(): List<CaseParameters> {
         return CaseParameters.create(this)
     }
 

@@ -22,36 +22,37 @@ import java.nio.file.Path
 class DFExperiment(
     val name: String,
     val cases: List<DFTestCase>,
-    estimators : Set<ParameterEstimatorIfc> = defaultEstimators,
-    scoringModels : Set<PDFScoringModel> = defaultScoringModels,
+    estimators: Set<ParameterEstimatorIfc> = defaultEstimators,
+    scoringModels: Set<PDFScoringModel> = defaultScoringModels,
     val outputDirectory: Path = KSL.createSubDirectory(name)
 ) {
     val resultsDb: ResultsDb = ResultsDb(dbName = "${name}_ResultsDb", dbDirectory = outputDirectory)
 
     var messageOutput: Boolean = false
+
     /**
      *  Can be supplied to provide output after each case is executed.
      */
     var byCaseOutput: ((DFTestCase, Int) -> String)? = this::messageOutput
 
     private fun messageOutput(dfTestCase: DFTestCase, sampleSize: Int): String {
-      return "ID = ${dfTestCase.case.caseID}; label = ${dfTestCase.case.label}; sample size = ${sampleSize}; num samples = ${dfTestCase.case.numSamples} "
+        return "ID = ${dfTestCase.case.caseID}; label = ${dfTestCase.case.label}; sample size = ${sampleSize}; num samples = ${dfTestCase.case.numSamples} "
 
     }
 
-    private val myEstimators : Set<ParameterEstimatorIfc> = estimators
+    private val myEstimators: Set<ParameterEstimatorIfc> = estimators
         get() {
             val set = mutableSetOf<ParameterEstimatorIfc>()
-            for (element in field){
+            for (element in field) {
                 set.add(element)
             }
             return set
         }
 
-    private val myScoringModels : Set<PDFScoringModel> = scoringModels
+    private val myScoringModels: Set<PDFScoringModel> = scoringModels
         get() {
             val set = mutableSetOf<PDFScoringModel>()
-            for (element in field){
+            for (element in field) {
                 set.add(element)
             }
             return set
@@ -59,7 +60,7 @@ class DFExperiment(
 
     fun runCases() {
         for (case in cases) {
-            for (sampleSize in case.sampleSizes){
+            for (sampleSize in case.sampleSizes) {
                 runCase(case, sampleSize)
                 if (messageOutput) {
                     println(byCaseOutput?.invoke(case, sampleSize))
@@ -80,64 +81,96 @@ class DFExperiment(
                 automaticShifting = dfTestCase.automaticShifting,
             )
             saveStatistics(dfTestCase.case.caseID, sampleSize, i, Statistic(data))
-            saveFittingResults(dfTestCase, sampleSize, i, pdfModelingResults)
+            saveFittingResults(dfTestCase, i, pdfModelingResults)
         }
     }
 
-    private fun saveCaseToDb(dfTestCase: DFTestCase){
+    private fun saveCaseToDb(dfTestCase: DFTestCase) {
         resultsDb.saveCase(dfTestCase)
         resultsDb.saveCaseParameters(dfTestCase)
     }
 
-    private fun saveStatistics(caseID : Int, sampleSize: Int, sampleID: Int, statistic: Statistic){
+    private fun saveStatistics(caseID: Int, sampleSize: Int, sampleID: Int, statistic: Statistic) {
         resultsDb.saveStatistics(caseID, sampleSize, sampleID, statistic)
     }
 
-    private fun saveFittingResults(dfTestCase: DFTestCase, sampleSize: Int,
-                                   sampleID: Int, results: PDFModelingResults){
+    private fun saveFittingResults(
+        dfTestCase: DFTestCase,
+        sampleID: Int, results: PDFModelingResults
+    ) {
         //TODO need to capture case results, need data and modeling results
-
+        val list = mutableListOf<CaseScoringResults>()
+        // need to get estimation results, this will have the parameters
+        val paramData = captureParameters(dfTestCase.case.caseID,
+            sampleID, results.estimationResults)
+        list.addAll(paramData)
+        // need to capture the scoring evaluation
+        //        results.scoringResults
+        //        results.evaluationModel
+        
+        resultsDb.saveScoringResults(list)
     }
 
-    companion object{
-         /**
-          *  This set holds predefined scoring models for evaluating
-          *  the distribution goodness of fit.
-          */
-         val defaultScoringModels: Set<PDFScoringModel>  //TODO remove unneeded models
-             get() = setOf(
+    private fun captureParameters(
+        caseID: Int,
+        sampleID: Int,
+        estimationResults: List<EstimationResult>
+    ): List<CaseScoringResults> {
+        val list = mutableListOf<CaseScoringResults>()
+        for (er in estimationResults) {
+            for ((paramName, paramValue) in er.parameters()) {
+                val nc = CaseScoringResults()
+                nc.caseID = caseID
+                nc.sampleSize = er.testData.size
+                nc.sampleID = sampleID
+                nc.estimatedDistribution = er.parameters?.rvType.toString()
+                nc.resultName = paramName
+                nc.resultValue = paramValue
+                list.add(nc)
+            }
+        }
+        return list
+    }
+
+    companion object {
+        /**
+         *  This set holds predefined scoring models for evaluating
+         *  the distribution goodness of fit.
+         */
+        val defaultScoringModels: Set<PDFScoringModel>  //TODO remove unneeded models
+            get() = setOf(
 //            ChiSquaredScoringModel(),
-                 KSScoringModel(),
+                KSScoringModel(),
 //            SquaredErrorScoringModel(),
-                 AndersonDarlingScoringModel(),
+                AndersonDarlingScoringModel(),
 //            CramerVonMisesScoringModel(),
-                 PPCorrelationScoringModel(),
+                PPCorrelationScoringModel(),
 //            QQCorrelationMetric(),
-                 PPSSEScoringModel(),
+                PPSSEScoringModel(),
 //            QQSSEScoringModel(),
 //            MallowsL2ScoringModel()
-             )
+            )
 
-         /**
-          *  Can be used to specify the estimators that are applied
-          *  during the PDF distribution modeling process
-          */
-         val defaultEstimators: MutableSet<ParameterEstimatorIfc>
-             get() = mutableSetOf(
-             UniformParameterEstimator,
-             TriangularParameterEstimator,
-             NormalMLEParameterEstimator,
-             GeneralizedBetaMOMParameterEstimator,
-             ExponentialMLEParameterEstimator,
-             LognormalMLEParameterEstimator,
-             GammaMLEParameterEstimator(),
-             WeibullMLEParameterEstimator(),
-             PearsonType5MLEParameterEstimator()
-         )
-     }
+        /**
+         *  Can be used to specify the estimators that are applied
+         *  during the PDF distribution modeling process
+         */
+        val defaultEstimators: MutableSet<ParameterEstimatorIfc>
+            get() = mutableSetOf(
+                UniformParameterEstimator,
+                TriangularParameterEstimator,
+                NormalMLEParameterEstimator,
+                GeneralizedBetaMOMParameterEstimator,
+                ExponentialMLEParameterEstimator,
+                LognormalMLEParameterEstimator,
+                GammaMLEParameterEstimator(),
+                WeibullMLEParameterEstimator(),
+                PearsonType5MLEParameterEstimator()
+            )
+    }
 }
 
-fun main(){
+fun main() {
 
     val sampleSizes = (40..4000 step 20).toSet()
 
