@@ -35,12 +35,12 @@ class TestTimeWeighted(parent: ModelElement, name: String? = null) : ModelElemen
     protected fun handleEvent(e: KSLEvent<Nothing>) {
         println("$time >")
         myX.value = 2.0
-        System.out.println(myX.withinReplicationStatistic)
+        println(myX.withinReplicationStatistic)
     }
 
     override fun replicationEnded() {
         println("replicationEnded()")
-        System.out.println(myX.withinReplicationStatistic)
+        println(myX.withinReplicationStatistic)
     }
 
 }

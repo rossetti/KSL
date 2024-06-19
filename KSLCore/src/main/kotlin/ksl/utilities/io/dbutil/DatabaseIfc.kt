@@ -1585,7 +1585,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *
      *  @return the number of rows inserted
      */
-    fun <T : DbTableData> insertAllDbDataIntoTable(
+    fun <T : DbTableData> insertDbDataIntoTable(
         data: T,
         tableName: String = data.tableName,
         schemaName: String? = defaultSchemaName
