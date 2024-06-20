@@ -61,6 +61,8 @@ object TriangularParameterEstimator : ParameterEstimatorIfc,
             er.parameters.doubleParameter("max")
         )
     }
+
+    //TODO consider restricting to positive values
     override fun estimateParameters(data: DoubleArray, statistics: StatisticIfc): EstimationResult {
         if (data.size < 2){
             return EstimationResult(

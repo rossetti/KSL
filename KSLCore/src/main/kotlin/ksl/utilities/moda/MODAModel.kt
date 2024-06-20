@@ -1,5 +1,6 @@
 package ksl.utilities.moda
 
+import com.google.common.collect.HashBasedTable
 import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
@@ -210,6 +211,27 @@ abstract class MODAModel(
             map[metric] = metricRanks(metric, rankingMethod)
         }
         return map
+    }
+
+    /**
+     *   Constructs a map of maps with the key to the outer map
+     *   being the alternative name and the inner map holding the rank
+     *   of the associated metric. Allows the lookup of the rank for
+     *   a metric by alternative.
+     */
+    fun metricRankByAlternative(
+        rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
+    ): Map<String, Map<MetricIfc, Double>> {
+        val table = HashBasedTable.create<String, MetricIfc, Double>()
+        val ranksByMetric = ranksByMetric(rankingMethod)
+        val alternatives = alternatives
+        for ((metric, ranks) in ranksByMetric){
+            for ((i, rank) in ranks.withIndex()){
+                val alternative = alternatives[i]
+                table.put(alternative, metric, rank)
+            }
+        }
+        return table.rowMap()
     }
 
     /**

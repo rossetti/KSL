@@ -18,6 +18,12 @@ import ksl.utilities.random.rvariable.RVType
  *  in the list. If there are no values, then the weighted
  *  value will be zero.  The weighting is determined
  *  by the scoring method.
+ *  @param name a string representation of the fitted distribution with parameters and shift (if applicable).
+ *  @param distribution the object representing the continuous distribution that was fit and scored
+ *  @param estimationResult the estimation results for the parameter estimation of the fitted distribution
+ *  @param rvType the type of the associated random variable (its family)
+ *  @param scores a list containing the scores for each metric that the distribution was evaluated on. This
+ *  is the raw (untransformed) value of the metric (not on a common scale).
  */
 data class ScoringResult(
     val name: String,
@@ -32,6 +38,10 @@ data class ScoringResult(
     val numberOfParameters: Int
         get() = rvType.rvParameters.numberOfParameters
 
+    /**
+     *  This holds the metric and is value based on the transformed
+     *  score to the value function domain.
+     */
     var values: Map<MetricIfc, Double> = emptyMap()
         internal set
 
