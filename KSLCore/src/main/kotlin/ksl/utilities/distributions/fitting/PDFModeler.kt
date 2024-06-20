@@ -204,7 +204,7 @@ class PDFModeler(
 
     /**
      *  Estimation results in the list of [results] are scored by each scoring model in
-     *  the supplied set [scoringModels].  Any estimation results within the supplied list
+     *  the supplied set scoring models.  Any estimation results within the supplied list
      *  that were not successfully estimated or had no parameters estimated will
      *  not be scored.  The returned list contains instances holding the scoring
      *  results for each successfully estimated distribution.
@@ -219,7 +219,7 @@ class PDFModeler(
             if (!result.success || (result.parameters == null)) {
                 continue
             }
-            val distribution = PDFModeler.createDistribution(result.parameters) ?: continue
+            val distribution = createDistribution(result.parameters) ?: continue
             val name = if (result.shiftedData != null) {
                 "${result.shiftedData!!.shift} + $distribution"
             } else {

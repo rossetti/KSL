@@ -4,10 +4,11 @@ import ksl.utilities.distributions.fitting.*
 import ksl.utilities.distributions.fitting.estimators.*
 import ksl.utilities.distributions.fitting.scoring.*
 import ksl.utilities.io.KSL
+import ksl.utilities.moda.MetricIfc
+import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.GammaRV
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
-
 
 /**
  * @param name the name of the experiment for file tagging
@@ -96,19 +97,168 @@ class DFExperiment(
 
     private fun saveFittingResults(
         dfTestCase: DFTestCase,
-        sampleID: Int, results: PDFModelingResults
+        sampleID: Int,
+        results: PDFModelingResults
     ) {
-        //TODO need to capture case results, need data and modeling results
         val list = mutableListOf<CaseScoringResults>()
         // need to get estimation results, this will have the parameters
-        val paramData = captureParameters(dfTestCase.case.caseID,
-            sampleID, results.estimationResults)
+        val paramData = captureParameters(dfTestCase.case.caseID, sampleID, results.estimationResults)
         list.addAll(paramData)
         // need to capture the scoring evaluation
-        //        results.scoringResults
-        //        results.evaluationModel
-        
+        val scoreData = captureScores(dfTestCase.case.caseID, sampleID, results.scoringResults)
+        list.addAll(scoreData)
+        // need to capture ranks
+        val rankData = captureRanks(dfTestCase.case.caseID, sampleID, results)
+        list.addAll(rankData)
         resultsDb.saveScoringResults(list)
+    }
+
+    private fun captureRanks(
+        caseID: Int,
+        sampleID: Int,
+        results: PDFModelingResults
+    ): List<CaseScoringResults> {
+        val list = mutableListOf<CaseScoringResults>()
+        val metricRanks = metricRankByScoringResult(results)
+        for((sr, metricMap) in metricRanks){
+            for((metric, rank) in metricMap){
+                val nc = CaseScoringResults()
+                nc.caseID = caseID
+                nc.sampleSize = sr.estimationResult.originalData.size
+                nc.sampleID = sampleID
+                nc.estimatedDistribution = sr.rvType.toString()
+                nc.resultName = "${metric.name}_Rank"
+                nc.resultValue = rank
+                list.add(nc)
+            }
+        }
+        return list
+    }
+
+    /**
+     *   Constructs a map of maps with the key to the outer map
+     *   being the scoring result  and the inner map holding the rank
+     *   of the associated metric. Allows the lookup of the rank for
+     *   a metric by scoring result.
+     */
+    private fun metricRankByScoringResult(
+        results: PDFModelingResults
+    ): Map<ScoringResult, Map<MetricIfc, Double>> {
+        val rankingMethod = results.evaluationModel.defaultRankingMethod
+        val mapOfMaps = mutableMapOf<ScoringResult, MutableMap<MetricIfc, Double>>()
+        val ranksByMetric = results.evaluationModel.ranksByMetric(rankingMethod)
+        val scoringResults = results.scoringResults
+        for ((metric, ranks) in ranksByMetric){
+            for ((i, rank) in ranks.withIndex()){
+                if (!mapOfMaps.containsKey(scoringResults[i])){
+                    // create the inner map
+                    mapOfMaps[scoringResults[i]] = mutableMapOf()
+                }
+                // get the inner map, it must be there
+                val map = mapOfMaps[scoringResults[i]]!!
+                // now fill it
+                map[metric] = rank
+            }
+        }
+        return mapOfMaps
+    }
+
+    private fun captureScores(
+        caseID: Int,
+        sampleID: Int,
+        scoringResults: List<ScoringResult>
+    ) : List<CaseScoringResults> {
+        val list = mutableListOf<CaseScoringResults>()
+        for (sr in scoringResults){
+            for (score in sr.scores){
+                // first get the raw score
+                list.add(makeScoreResult(caseID, sampleID, sr, score))
+                // now get the transformed score as a value
+                list.add(makeMetricResult(caseID, sampleID, sr, score))
+            }
+            // now get the overall evaluation metrics
+            list.add(makeWeightedValueResult(caseID, sampleID, sr))
+            list.add(makeFirstRankCountResult(caseID, sampleID, sr))
+            list.add(makeAverageRankResult(caseID, sampleID, sr))
+        }
+        return list
+    }
+
+    private fun makeScoreResult(
+        caseID: Int,
+        sampleID: Int,
+        sr: ScoringResult,
+        score : Score
+    ) : CaseScoringResults {
+        val nc = CaseScoringResults()
+        nc.caseID = caseID
+        nc.sampleSize = sr.estimationResult.originalData.size
+        nc.sampleID = sampleID
+        nc.estimatedDistribution = sr.rvType.toString()
+        nc.resultName = "${score.metric.name}_Score"
+        nc.resultValue = score.value
+        return nc
+    }
+
+    private fun makeMetricResult(
+        caseID: Int,
+        sampleID: Int,
+        sr: ScoringResult,
+        score : Score
+    ) : CaseScoringResults {
+        val nc = CaseScoringResults()
+        nc.caseID = caseID
+        nc.sampleSize = sr.estimationResult.originalData.size
+        nc.sampleID = sampleID
+        nc.estimatedDistribution = sr.rvType.toString()
+        nc.resultName = "${score.metric.name}_Value"
+        nc.resultValue = sr.values[score.metric]!!
+        return nc
+    }
+
+    private fun makeWeightedValueResult(
+        caseID: Int,
+        sampleID: Int,
+        sr: ScoringResult,
+    ) : CaseScoringResults {
+        val nc = CaseScoringResults()
+        nc.caseID = caseID
+        nc.sampleSize = sr.estimationResult.originalData.size
+        nc.sampleID = sampleID
+        nc.estimatedDistribution = sr.rvType.toString()
+        nc.resultName = "Weighted Value"
+        nc.resultValue = sr.weightedValue
+        return nc
+    }
+
+    private fun makeFirstRankCountResult(
+        caseID: Int,
+        sampleID: Int,
+        sr: ScoringResult,
+    ) : CaseScoringResults {
+        val nc = CaseScoringResults()
+        nc.caseID = caseID
+        nc.sampleSize = sr.estimationResult.originalData.size
+        nc.sampleID = sampleID
+        nc.estimatedDistribution = sr.rvType.toString()
+        nc.resultName = "First Rank Count"
+        nc.resultValue = sr.firstRankCount.toDouble()
+        return nc
+    }
+
+    private fun makeAverageRankResult(
+        caseID: Int,
+        sampleID: Int,
+        sr: ScoringResult,
+    ) : CaseScoringResults {
+        val nc = CaseScoringResults()
+        nc.caseID = caseID
+        nc.sampleSize = sr.estimationResult.originalData.size
+        nc.sampleID = sampleID
+        nc.estimatedDistribution = sr.rvType.toString()
+        nc.resultName = "Average Ranking"
+        nc.resultValue = sr.averageRanking
+        return nc
     }
 
     private fun captureParameters(

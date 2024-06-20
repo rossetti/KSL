@@ -40,12 +40,12 @@ import ksl.utilities.statistic.U01Test
 import org.jetbrains.letsPlot.commons.intern.math.ipow
 
 fun main() {
-//    val e = ExponentialRV(10.0)
+    val e = ExponentialRV(10.0)
     //   val se = ShiftedRV(5.0, e)
-//    val n = 1000
-//    val data = e.sample(n)
+    val n = 1000
+    val data = e.sample(n)
 //    data.write(KSL.out)
-    //   testModeler(data)
+       testModeler(data)
     //      testExponentialEstimation(data)
     //   testWeibullEstimation(data)
 
@@ -60,7 +60,7 @@ fun main() {
 
 //    testBootStrappingOfFamily()
 
-    splitAnalysis(80.0)
+//    splitAnalysis(80.0)
 }
 
 fun splitAnalysis(splitCriteria: Double){
