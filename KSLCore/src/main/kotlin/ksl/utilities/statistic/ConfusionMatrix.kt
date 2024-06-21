@@ -4,53 +4,31 @@ import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.io.plotting.StringFrequencyPlot
 import ksl.utilities.random.robj.DEmpiricalList
+import ksl.utilities.random.rvariable.toDouble
+import ksl.utilities.statistic.ConfusionResult.*
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import kotlin.math.sqrt
 
+/**
+ *  There are two classes class 1 (positive) and class 0 (negative)
+ *  An instance (exemplar) must be in one of the classes.
+ */
 enum class ConfusionResult {
-    TP, FP, FN, TN;
+    TP, FP, FN, TN
+}
 
-    fun classify(actual: Boolean, predicted: Boolean): ConfusionResult {
-        return if (actual) {
-            if (predicted) {
-                TP
-            } else {
-                FN
-            }
-        } else {
-            if (predicted) {
-                FP
-            } else {
-                TN
-            }
-        }
-    }
-
-    fun classify(actual: Int, predicted: Int): ConfusionResult {
-        require((actual == 0) || (actual == 1)) { "actual must be 0 or 1" }
-        require((predicted == 0) || (predicted == 1)) { "actual must be 0 or 1" }
-        return if (actual == 1) {
-            if (predicted == 1) {
-                TP
-            } else {
-                FN
-            }
-        } else {
-            if (predicted == 1) {
-                FP
-            } else {
-                TN
-            }
-        }
-    }
-
-    fun classify(actual: Double, predicted: Double): ConfusionResult {
-        return classify(actual.toInt(), predicted.toInt())
-    }
+data class ClassificationCase (val actual: Double, val predicted: Double) {
+    constructor(actual: Int, predicted: Int) : this(actual.toDouble(), predicted.toDouble())
+    constructor(predicted: Boolean, actual: Boolean) : this(predicted.toDouble(), actual.toDouble())
+    val classification
+        get() = ConfusionMatrix.classify(actual,predicted)
 }
 
 /**
- *   Computes the [confusion matrix](https://en.wikipedia.org/wiki/Confusion_matrix)
+ *  Computes the [confusion matrix](https://en.wikipedia.org/wiki/Confusion_matrix)
+ *
+ *  There are two classes class 1 (positive) and class 0 (negative)
+ *  An instance (exemplar) must be in one of the classes.
  */
 class ConfusionMatrix(
     data: Collection<ConfusionResult>? = null,
@@ -70,8 +48,64 @@ class ConfusionMatrix(
         }
     }
 
-    fun collect(confusionResults: ConfusionResult) {
-        stringFrequency.collect(confusionResults.toString())
+    /**
+     *  Present the case to the matrix for tabulation
+     *  first = actual, second = predicted
+     */
+    fun collect(case : ClassificationCase) {
+        collect(case.classification)
+    }
+    
+    /**
+     *  Present the case to the matrix for tabulation
+     *  first = actual, second = predicted
+     */
+    fun collect(case : Pair<Int, Int>) {
+        collect(classify(case.first, case.second))
+    }
+
+    /**
+     *  Present the case to the matrix for tabulation
+     *  first = actual, second = predicted
+     */
+    fun collect(case : Pair<Boolean, Boolean>) {
+        collect(classify(case.first, case.second))
+    }
+
+    /**
+     *  Present the case to the matrix for tabulation
+     *  first = actual, second = predicted
+     */
+    fun collect(case : Pair<Double, Double>) {
+        collect(classify(case.first, case.second))
+    }
+
+    /**
+     *  Present the case to the matrix for tabulation
+     */
+    fun collect(actual: Boolean, predicted: Boolean) {
+        collect(classify(actual, predicted))
+    }
+
+    /**
+     *  Present the case to the matrix for tabulation
+     */
+    fun collect(actual: Int, predicted: Int) {
+        collect(classify(actual, predicted))
+    }
+
+    /**
+     *  Present the case to the matrix for tabulation
+     */
+    fun collect(actual: Double, predicted: Double) {
+        collect(classify(actual, predicted))
+    }
+
+    /**
+     *  Present the case to the matrix for tabulation
+     */
+    fun collect(confusionResult: ConfusionResult) {
+        stringFrequency.collect(confusionResult.toString())
     }
 
     fun reset() {
@@ -246,6 +280,66 @@ class ConfusionMatrix(
       fun frequencyPlot(proportions: Boolean = false): StringFrequencyPlot {
           return stringFrequency.frequencyPlot(proportions)
       }
+
+    companion object {
+        /**
+         *  actual true means that the instance belongs to class 1 (positive)
+         *  actual false means that the instance belongs to class 0 (negative)
+         *  predicted true means that the instance was predicted to be in class 1 (positive)
+         *  predicted false means that the instance was predicted to be in class 0 (negative)
+         */
+        fun classify(actual: Boolean, predicted: Boolean): ConfusionResult {
+            return if (actual) {
+                if (predicted) {
+                    TP
+                } else {
+                    FN
+                }
+            } else {
+                if (predicted) {
+                    FP
+                } else {
+                    TN
+                }
+            }
+        }
+
+        /**
+         *  actual = 1 means that the instance belongs to class 1 (positive)
+         *  actual = 0 means that the instance belongs to class 0 (negative)
+         *  predicted = 1 means that the instance was predicted to be in class 1 (positive)
+         *  predicted = 0 means that the instance was predicted to be in class 0 (negative)
+         *  actual and predicted must be 1 or 0
+         */
+        fun classify(actual: Int, predicted: Int): ConfusionResult {
+            require((actual == 0) || (actual == 1)) { "actual must be 0 or 1" }
+            require((predicted == 0) || (predicted == 1)) { "actual must be 0 or 1" }
+            return if (actual == 1) {
+                if (predicted == 1) {
+                    TP
+                } else {
+                    FN
+                }
+            } else {
+                if (predicted == 1) {
+                    FP
+                } else {
+                    TN
+                }
+            }
+        }
+
+        /**
+         *  actual = 1.0 means that the instance belongs to class 1 (positive)
+         *  actual = 0.0 means that the instance belongs to class 0 (negative)
+         *  predicted = 1.0 means that the instance was predicted to be in class 1 (positive)
+         *  predicted = 0.0 means that the instance was predicted to be in class 0 (negative)
+         *  actual and predicted must be 1.0 or 0.0
+         */
+        fun classify(actual: Double, predicted: Double): ConfusionResult {
+            return classify(actual.toInt(), predicted.toInt())
+        }
+    }
 }
 
 fun main() {
