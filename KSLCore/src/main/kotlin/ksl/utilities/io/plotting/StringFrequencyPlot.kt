@@ -1,6 +1,5 @@
 package ksl.utilities.io.plotting
 
-import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.StringFrequency
 import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.asDiscrete
@@ -23,7 +22,7 @@ class StringFrequencyPlot(
     ) : this(StringFrequency(data = data), proportions)
 
     init {
-        data["strings"] = frequency.values
+        data["strings"] = frequency.strings
         if (proportions) {
             dataType = "proportions"
             data[dataType] = frequency.proportions.asList()
