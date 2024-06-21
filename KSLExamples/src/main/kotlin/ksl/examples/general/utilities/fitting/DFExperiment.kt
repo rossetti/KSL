@@ -9,6 +9,7 @@ import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.GammaRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.statistic.ClassificationCase
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
 
@@ -133,26 +134,11 @@ class DFExperiment(
                 nc.resultName = metric.name
                 nc.resultValue = rank
                 nc.classification = classifyRank(rank, dfTestCase.rvType(), sr.rvType)
+          //      nc.classification = classifyCase(rank, dfTestCase.rvType(), sr.rvType).classification.name
                 list.add(nc)
             }
         }
         return list
-    }
-
-    private fun classifyRank(rank: Double, actual: RVParametersTypeIfc, fitted: RVParametersTypeIfc): String {
-        return if (actual != fitted) {
-            if (rank != 1.0) {
-                "TN"
-            } else {
-                "FP"
-            }
-        } else { // actual == fitted
-            if (rank != 1.0) {
-                "FN"
-            } else {
-                "TP"
-            }
-        }
     }
 
     /**
@@ -309,6 +295,39 @@ class DFExperiment(
     }
 
     companion object {
+
+        fun classifyRank(rank: Double, actual: RVParametersTypeIfc, fitted: RVParametersTypeIfc): String {
+            return if (actual != fitted) {
+                if (rank != 1.0) {
+                    "TN"
+                } else {
+                    "FP"
+                }
+            } else { // actual == fitted
+                if (rank != 1.0) {
+                    "FN"
+                } else {
+                    "TP"
+                }
+            }
+        }
+
+        fun classifyCase(rank: Double, actual: RVParametersTypeIfc, fitted: RVParametersTypeIfc): ClassificationCase {
+            return if (actual != fitted) {
+                if (rank != 1.0) {
+                    ClassificationCase(0,0)
+                } else {
+                    ClassificationCase(0, 1)
+                }
+            } else { // actual == fitted
+                if (rank != 1.0) {
+                    ClassificationCase(1, 0)
+                } else {
+                    ClassificationCase(1, 1)
+                }
+            }
+        }
+
         /**
          *  This set holds predefined scoring models for evaluating
          *  the distribution goodness of fit.

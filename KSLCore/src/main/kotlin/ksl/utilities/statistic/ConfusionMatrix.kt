@@ -55,14 +55,14 @@ class ConfusionMatrix(
     fun collect(case : ClassificationCase) {
         collect(case.classification)
     }
-    
-    /**
-     *  Present the case to the matrix for tabulation
-     *  first = actual, second = predicted
-     */
-    fun collect(case : Pair<Int, Int>) {
-        collect(classify(case.first, case.second))
-    }
+
+//    /**
+//     *  Present the case to the matrix for tabulation
+//     *  first = actual, second = predicted
+//     */
+//    fun collect(case : Pair<Int, Int>) {
+//        collect(classify(case.first, case.second))
+//    }
 
     /**
      *  Present the case to the matrix for tabulation
@@ -72,13 +72,13 @@ class ConfusionMatrix(
         collect(classify(case.first, case.second))
     }
 
-    /**
-     *  Present the case to the matrix for tabulation
-     *  first = actual, second = predicted
-     */
-    fun collect(case : Pair<Double, Double>) {
-        collect(classify(case.first, case.second))
-    }
+//    /**
+//     *  Present the case to the matrix for tabulation
+//     *  first = actual, second = predicted
+//     */
+//    fun collect(case : Pair<Double, Double>) {
+//        collect(classify(case.first, case.second))
+//    }
 
     /**
      *  Present the case to the matrix for tabulation

@@ -143,7 +143,7 @@ class StringFrequency(
                 return IntArray(0)
             }
             val list = mutableListOf<Int>()
-            for ((string, cell) in myCells) {
+            for ((_, cell) in myCells) {
                 list.add(cell.count.toInt())
             }
             return list.toIntArray()
@@ -163,7 +163,7 @@ class StringFrequency(
                 return DoubleArray(0)
             }
             val list = mutableListOf<Double>()
-            for ((string, cell) in myCells) {
+            for ((_, cell) in myCells) {
                 list.add(cell.proportion)
             }
             return list.toDoubleArray()
