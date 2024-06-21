@@ -2,14 +2,16 @@ package ksl.utilities.statistic
 
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.distributions.DEmpiricalCDF
 import ksl.utilities.io.dbutil.DbTableData
-import ksl.utilities.io.plotting.IntegerFrequencyPlot
 import ksl.utilities.io.plotting.StringFrequencyPlot
 import ksl.utilities.random.robj.DEmpiricalList
 import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.toDoubles
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+import kotlin.reflect.full.isSubclassOf
+
+fun Any?.isEnum(): Boolean {
+    return this != null && this::class.isSubclassOf(Enum::class)
+}
 
 /**
  * This class tabulates the frequency associated with
@@ -81,9 +83,9 @@ class StringFrequency(
     fun collect(string: String) {
         if (limitSet != null) {
             if (!limitSet.contains(string)) {
-                otherCount += 1
+                otherCount = otherCount + 1
+                return
             }
-            return
         }
         totalCount = totalCount + 1
         val c = myCells[string]
@@ -92,6 +94,14 @@ class StringFrequency(
         } else {
             c.increment()
         }
+    }
+
+    /**
+     *  Converts the [thing] via toString() and
+     *  tabulates the observed string.
+     */
+    fun collect(thing: Any){
+        collect(thing.toString())
     }
 
     /**
@@ -111,7 +121,7 @@ class StringFrequency(
      *
      * @return the array of strings observed or an empty array
      */
-    val values: List<String>
+    val strings: List<String>
         get() {
             if (myCells.isEmpty()) {
                 return emptyList()
@@ -351,21 +361,22 @@ class StringFrequency(
      * @return a DEmpiricalList based on the frequencies
      */
     fun createDEmpiricalList(): DEmpiricalList<String> {
-        return DEmpiricalList(values, KSLRandom.makeCDF(proportions))
+        return DEmpiricalList(strings, KSLRandom.makeCDF(proportions))
     }
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.append("Frequency Tabulation ").append(name).appendLine()
-        sb.append("----------------------------------------").appendLine()
-        sb.append("Number of cells = ").append(numberOfStrings).appendLine()
-        sb.append("Total count = ").append(totalCount).appendLine()
-        sb.append("----------------------------------------").appendLine()
-        sb.append("Value \t Count \t Proportion\n")
+        sb.appendLine("Frequency Tabulation: $name ")
+        sb.appendLine("----------------------------------------")
+        sb.appendLine("Number of cells = $numberOfStrings")
+        sb.appendLine("Total count = $totalCount")
+        sb.appendLine("Other Count = $otherCount")
+        sb.appendLine("----------------------------------------")
+        sb.appendLine("Value \t Count \t Proportion")
         for ((_, cell) in myCells) {
-            sb.append(cell).appendLine()
+            sb.appendLine(cell)
         }
-        sb.append("----------------------------------------").appendLine()
+        sb.appendLine("----------------------------------------")
         return sb.toString()
     }
 
@@ -460,7 +471,7 @@ fun main() {
     val rList = DEmpiricalList<String>(possibilities, doubleArrayOf(0.20, 0.7, 0.8, 1.0 ))
     val data = rList.sample(100)
     println(data.joinToString())
-    val sf = StringFrequency(data = data)
+    val sf = StringFrequency(data = data, limitSet = possibilities.toSet())
     println(sf)
 //    sf.frequencyPlot().showInBrowser()
     println(sf.frequencyData().toDataFrame())
