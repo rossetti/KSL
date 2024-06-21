@@ -24,4 +24,7 @@ import ksl.utilities.random.rvariable.parameters.RVParametersIfc
 /**
  * @param stream the source of the randomness
  */
-abstract class ParameterizedRV (stream: RNStreamIfc, name: String? = null) : RVariable(stream, name), RVParametersIfc
+abstract class ParameterizedRV (
+    stream: RNStreamIfc,
+    name: String? = null
+) : RVariable(stream, name), RVParametersIfc
