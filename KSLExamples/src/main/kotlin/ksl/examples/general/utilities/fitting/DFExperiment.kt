@@ -7,6 +7,8 @@ import ksl.utilities.io.KSL
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.GammaRV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
 
@@ -108,31 +110,49 @@ class DFExperiment(
         val scoreData = captureScores(dfTestCase.case.caseID, sampleID, results.scoringResults)
         list.addAll(scoreData)
         // need to capture ranks
-        val rankData = captureRanks(dfTestCase.case.caseID, sampleID, results)
+        val rankData = captureRanks(dfTestCase, sampleID, results)
         list.addAll(rankData)
         resultsDb.saveScoringResults(list)
     }
 
     private fun captureRanks(
-        caseID: Int,
+        dfTestCase: DFTestCase,
         sampleID: Int,
         results: PDFModelingResults
     ): List<CaseScoringResults> {
         val list = mutableListOf<CaseScoringResults>()
         val metricRanks = metricRankByScoringResult(results)
-        for((sr, metricMap) in metricRanks){
-            for((metric, rank) in metricMap){
+        for ((sr, metricMap) in metricRanks) {
+            for ((metric, rank) in metricMap) {
                 val nc = CaseScoringResults()
-                nc.caseID = caseID
+                nc.caseID = dfTestCase.case.caseID
                 nc.sampleSize = sr.estimationResult.originalData.size
                 nc.sampleID = sampleID
                 nc.estimatedDistribution = sr.rvType.toString()
-                nc.resultName = "${metric.name}_Rank"
+                nc.resultType = "Metric Rank"
+                nc.resultName = metric.name
                 nc.resultValue = rank
+                nc.classification = classifyRank(rank, dfTestCase.rvType(), sr.rvType)
                 list.add(nc)
             }
         }
         return list
+    }
+
+    private fun classifyRank(rank: Double, actual: RVParametersTypeIfc, fitted: RVParametersTypeIfc): String {
+        return if (actual != fitted) {
+            if (rank != 1.0) {
+                "TN"
+            } else {
+                "FP"
+            }
+        } else { // actual == fitted
+            if (rank != 1.0) {
+                "FN"
+            } else {
+                "TP"
+            }
+        }
     }
 
     /**
@@ -148,9 +168,9 @@ class DFExperiment(
         val mapOfMaps = mutableMapOf<ScoringResult, MutableMap<MetricIfc, Double>>()
         val ranksByMetric = results.evaluationModel.ranksByMetric(rankingMethod)
         val scoringResults = results.scoringResults
-        for ((metric, ranks) in ranksByMetric){
-            for ((i, rank) in ranks.withIndex()){
-                if (!mapOfMaps.containsKey(scoringResults[i])){
+        for ((metric, ranks) in ranksByMetric) {
+            for ((i, rank) in ranks.withIndex()) {
+                if (!mapOfMaps.containsKey(scoringResults[i])) {
                     // create the inner map
                     mapOfMaps[scoringResults[i]] = mutableMapOf()
                 }
@@ -167,10 +187,10 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         scoringResults: List<ScoringResult>
-    ) : List<CaseScoringResults> {
+    ): List<CaseScoringResults> {
         val list = mutableListOf<CaseScoringResults>()
-        for (sr in scoringResults){
-            for (score in sr.scores){
+        for (sr in scoringResults) {
+            for (score in sr.scores) {
                 // first get the raw score
                 list.add(makeScoreResult(caseID, sampleID, sr, score))
                 // now get the transformed score as a value
@@ -188,14 +208,15 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         sr: ScoringResult,
-        score : Score
-    ) : CaseScoringResults {
+        score: Score
+    ): CaseScoringResults {
         val nc = CaseScoringResults()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
         nc.estimatedDistribution = sr.rvType.toString()
-        nc.resultName = "${score.metric.name}_Score"
+        nc.resultType = "Metric Score"
+        nc.resultName = score.metric.name
         nc.resultValue = score.value
         return nc
     }
@@ -204,14 +225,15 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         sr: ScoringResult,
-        score : Score
-    ) : CaseScoringResults {
+        score: Score
+    ): CaseScoringResults {
         val nc = CaseScoringResults()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
         nc.estimatedDistribution = sr.rvType.toString()
-        nc.resultName = "${score.metric.name}_Value"
+        nc.resultType = "Metric Value"
+        nc.resultName = score.metric.name
         nc.resultValue = sr.values[score.metric]!!
         return nc
     }
@@ -220,13 +242,14 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         sr: ScoringResult,
-    ) : CaseScoringResults {
+    ): CaseScoringResults {
         val nc = CaseScoringResults()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
         nc.estimatedDistribution = sr.rvType.toString()
-        nc.resultName = "Weighted Value"
+        nc.resultType = "Overall Value"
+        nc.resultName = "Weighted"
         nc.resultValue = sr.weightedValue
         return nc
     }
@@ -235,13 +258,14 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         sr: ScoringResult,
-    ) : CaseScoringResults {
+    ): CaseScoringResults {
         val nc = CaseScoringResults()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
         nc.estimatedDistribution = sr.rvType.toString()
-        nc.resultName = "First Rank Count"
+        nc.resultType = "Ranking"
+        nc.resultName = "First Count"
         nc.resultValue = sr.firstRankCount.toDouble()
         return nc
     }
@@ -250,13 +274,14 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         sr: ScoringResult,
-    ) : CaseScoringResults {
+    ): CaseScoringResults {
         val nc = CaseScoringResults()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
         nc.estimatedDistribution = sr.rvType.toString()
-        nc.resultName = "Average Ranking"
+        nc.resultType = "Ranking"
+        nc.resultName = "Average"
         nc.resultValue = sr.averageRanking
         return nc
     }
@@ -274,6 +299,7 @@ class DFExperiment(
                 nc.sampleSize = er.testData.size
                 nc.sampleID = sampleID
                 nc.estimatedDistribution = er.parameters?.rvType.toString()
+                nc.resultType = "Parameter"
                 nc.resultName = paramName
                 nc.resultValue = paramValue
                 list.add(nc)

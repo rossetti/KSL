@@ -45,6 +45,7 @@ class DEmpiricalList<T>(
 
     override val randomElement: T
         get() = KSLRandom.randomlySelect(elements, cdf, rnStream)
+
 }
 
 fun main() {

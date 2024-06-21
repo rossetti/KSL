@@ -4,6 +4,8 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.dbutil.SimpleDb
 import ksl.utilities.random.rvariable.ParameterizedRV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
 
@@ -133,11 +135,13 @@ data class CaseScoringResults(
     var sampleSize: Int = 1,
     var sampleID: Int = 1,
     var estimatedDistribution: String = "",
+    var resultType: String = "",
     var resultName: String = "",
-    var resultValue: Double = 0.0
+    var resultValue: Double = 0.0,
+    var classification: String? = null,
 ) : DbTableData(
     "CaseScoringResults",
-    listOf("caseID", "sampleSize", "sampleID", "estimatedDistribution", "resultName")
+    listOf("caseID", "sampleSize", "sampleID", "estimatedDistribution", "resultType", "resultName")
 )
 
 class ResultsDb(
@@ -208,11 +212,14 @@ class DFTestCase(
         require(sampleSizes.min() >= 2) { "The minimum sample size must be >= 2" }
         require(numSamples >= 2) { "The number of samples to generate must be >= 2" }
         id = id + 1
+        rv.parameters.rvType
     }
 
     var automaticShifting: Boolean = false
 
-    val case: CaseData = CaseData(id, rv.toString(), rv.parameters.rvType.toString(), numSamples)
+    fun rvType() : RVParametersTypeIfc = rv.parameters.rvType
+
+    val case: CaseData = CaseData(id, rv.toString(), rvType().toString(), numSamples)
 
     fun caseParameters(): List<CaseParameters> {
         return CaseParameters.create(this)
