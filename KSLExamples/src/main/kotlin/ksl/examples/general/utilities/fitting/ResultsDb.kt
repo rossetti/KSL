@@ -8,6 +8,7 @@ import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
+import kotlin.math.sqrt
 
 /**
  *   Each case has an ID for identification. The label represents
@@ -48,6 +49,58 @@ data class CaseStatistics(
     var statName: String = "",
     var statValue: Double = 0.0,
 ) : DbTableData("CaseStatistics", listOf("caseID", "sampleSize", "statName"))
+
+/**
+ *  These error matrix measures are collected across the samples generated for each
+ *  case for each metric used to score the distributions. This data represents
+ *  the performance of the metric in correctly classifying the case distribution's family.
+ *  If the metric ranks the estimated distribution as rank 1, then that distribution
+ *  will be classified either correctly or incorrectly. If the metric ranks the
+ *  estimated distribution 2 or higher, then the metric would not recommend the distribution
+ *  and thus, it is classifying the distribution as not the recommended distribution. This
+ *  classification can be either correct or incorrect. This data tabulates the
+ *  error matrix (or [confusion matrix](https://en.wikipedia.org/wiki/Confusion_matrix)
+ *  for the classification by the metric.
+ */
+data class CaseMetricErrorMatrix(
+    var caseID: Int = -1,
+    var sampleSize: Int = 1,
+    var metricName: String = "",
+    var numTP: Int = 1,
+    var numFP: Int = 1,
+    var numTN: Int = 1,
+    var numFN: Int = 1,
+    var numP: Int = numTP + numFN,
+    var numN: Int = numFP + numTN,
+    var total: Int = numP + numN,
+    var numPP: Int = numTP + numFP,
+    var numPN: Int = numFN + numTN,
+    var prevalence: Double = if (total == 0) Double.NaN else numPP / total.toDouble(),
+    var accuracy: Double = if (total == 0) Double.NaN else (numTP + numTN) / total.toDouble(),
+    var truePositiveRate: Double = if (numP == 0) Double.NaN else numTP / numP.toDouble(),
+    var falseNegativeRate: Double = if (numP == 0) Double.NaN else numFN / numP.toDouble(),
+    var falsePositiveRate: Double = if (numN == 0) Double.NaN else numFP / numN.toDouble(),
+    var trueNegativeRate: Double = if (numN == 0) Double.NaN else numTN / numN.toDouble(),
+    var falseOmissionRate: Double = if (numPN == 0) Double.NaN else numFN / numPN.toDouble(),
+    var precision: Double = if (numPP == 0) Double.NaN else numTP / numPP.toDouble(),
+    var positivePredictiveValue: Double = precision,
+    var falseDiscoveryRate: Double = if (numPP == 0) Double.NaN else numFP / numPP.toDouble(),
+    var negativePredictiveValue: Double = if (numPN == 0) Double.NaN else numTN / numPN.toDouble(),
+    var positiveLikelihoodRatio: Double = truePositiveRate / falsePositiveRate,
+    var negativeLikelihoodRatio: Double = falseNegativeRate / trueNegativeRate,
+    var markedness: Double = positivePredictiveValue + negativePredictiveValue - 1.0,
+    var diagnosticOddsRatio: Double = positiveLikelihoodRatio / negativeLikelihoodRatio,
+    var balancedAccuracy: Double = (truePositiveRate + trueNegativeRate) / 2.0,
+    var f1Score: Double = (2.0 * positivePredictiveValue * truePositiveRate) / (positivePredictiveValue + truePositiveRate),
+    var fowlkesMallowsIndex: Double = sqrt(positivePredictiveValue * truePositiveRate),
+    var mathhewsCorrelationCoefficient: Double = sqrt(truePositiveRate * trueNegativeRate * positivePredictiveValue * negativePredictiveValue)
+            - sqrt(falseNegativeRate * falsePositiveRate * falseOmissionRate * falseDiscoveryRate),
+    var threatScore: Double = if (total == 0) Double.NaN else numTP / (numTP + numFN + numFP).toDouble(),
+    var informedness: Double = truePositiveRate + trueNegativeRate - 1.0,
+    var prevalenceThreshold: Double = (sqrt(truePositiveRate * falsePositiveRate) - falsePositiveRate) /
+            (truePositiveRate - falsePositiveRate)
+): DbTableData("CaseMetricErrorMatrix",
+    listOf("caseID", "sampleSize", "metricName"))
 
 /**
  *  Each case identifies the distribution being fitting. The distribution can have
