@@ -5,7 +5,7 @@ import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.dbutil.SimpleDb
 import ksl.utilities.random.rvariable.ParameterizedRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
-import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.statistic.ErrorMatrixData
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
 import kotlin.math.sqrt
@@ -62,7 +62,7 @@ data class CaseStatistics(
  *  error matrix (or [confusion matrix](https://en.wikipedia.org/wiki/Confusion_matrix)
  *  for the classification by the metric.
  */
-data class CaseMetricErrorMatrix(
+data class CaseMetricErrorMatrixData(
     var caseID: Int = -1,
     var sampleSize: Int = 1,
     var metricName: String = "",
@@ -217,6 +217,11 @@ class ResultsDb(
         insertAllDbDataIntoTable(list, tblName)
     }
 
+    fun saveErrorMatrixData(list: List<CaseMetricErrorMatrixData>){
+        val tblName = list.first().tableName
+        insertAllDbDataIntoTable(list, tblName)
+    }
+
     fun saveStatistics(caseID: Int, sampleSize: Int, sampleID: Int, statistic: Statistic) {
         val cs = CaseSampleStatistics()
         cs.caseID = caseID
@@ -244,7 +249,8 @@ class ResultsDb(
             CaseStatistics(),
             CaseParameters(),
             CaseSampleStatistics(),
-            CaseScoringResults()
+            CaseScoringResults(),
+            CaseMetricErrorMatrixData()
         )
     }
 }
