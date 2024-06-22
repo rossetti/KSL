@@ -401,16 +401,18 @@ class DFExperiment(
          */
         val defaultScoringModels: Set<PDFScoringModel>  //TODO remove unneeded models
             get() = setOf(
-//            ChiSquaredScoringModel(),
+                ChiSquaredScoringModel(),
                 KSScoringModel(),
-//            SquaredErrorScoringModel(),
+                SquaredErrorScoringModel(),
                 AndersonDarlingScoringModel(),
-//            CramerVonMisesScoringModel(),
+                CramerVonMisesScoringModel(),
                 PPCorrelationScoringModel(),
-//            QQCorrelationMetric(),
+                QQCorrelationScoringModel(),
                 PPSSEScoringModel(),
-//            QQSSEScoringModel(),
-//            MallowsL2ScoringModel()
+                QQSSEScoringModel(),
+                MallowsL2ScoringModel(),
+                BayesianInfoCriterionScoringModel(),
+                AkaikeInfoCriterionScoringModel()
             )
 
         /**

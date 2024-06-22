@@ -43,6 +43,11 @@ interface PDFIfc : DomainIfc, LogLikelihoodIfc {
      *  formulas for this function.
      */
     override fun logLikelihood(x: Double): Double {
+        // pdf(x) needs to be >= 0, it is non-negative, what happens if it is 0.0
+        //TODO
+        val y = pdf(x)
+        //TODO catch the numerical edge?
+        // use Double.MIN_VALUE somehow
         return ln(pdf(x))
     }
 

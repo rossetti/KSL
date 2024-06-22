@@ -18,8 +18,6 @@
 
 package ksl.utilities.distributions
 
-import ksl.utilities.countLessEqualTo
-
 fun interface LogLikelihoodIfc {
 
     /**

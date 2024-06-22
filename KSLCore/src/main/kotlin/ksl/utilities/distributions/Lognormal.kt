@@ -20,6 +20,7 @@ package ksl.utilities.distributions
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.*
+import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.sqrt
@@ -163,7 +164,10 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
             return 0.0
         }
         val z = (ln(x) - normalMean) / normalStdDev
-        return Normal.stdNormalPDF(z) / x
+        val ePart = exp(-0.5 * z * z)
+        val cPart = 1.0 / (normalStdDev * sqrt(2.0 * PI))
+        return cPart * ePart / x
+//        return Normal.stdNormalPDF(z) / x
     }
 
     /** Gets the skewness of the distribution

@@ -39,6 +39,8 @@ class BayesianInfoCriterionScoringModel : PDFScoringModel("BIC") {
         }
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
+        //TODO some problem with lm again??  lm is > 0.0
+        println("BIC scoring of $cdf  lm = $lm")
         val score = Statistic.bayesianInfoCriterion(data.size, k, lm)
         return Score(this, score, true)
     }

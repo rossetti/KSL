@@ -111,7 +111,7 @@ class GeneralizedBeta(
 
     override fun pdf(x: Double): Double {
         val y = (x - min) / range
-        return myBeta.pdf(y)
+        return (myBeta.pdf(y)/range) //TODO check this
     }
 
     override fun mean(): Double {
