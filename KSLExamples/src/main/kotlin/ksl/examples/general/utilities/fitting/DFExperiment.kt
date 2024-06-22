@@ -62,11 +62,12 @@ class DFExperiment(
             return set
         }
 
-    private val myMetricErrorMatrix = mutableMapOf<MetricIfc, ErrorMatrix>()
+    private val myMetricErrorMatrix = mutableMapOf<String, ErrorMatrix>()
 
     fun runCases() {
         myMetricErrorMatrix.clear()
         for (case in cases) {
+            saveCaseToDb(case)
             for (sampleSize in case.sampleSizes) {
                 runCase(case, sampleSize)
                 if (messageOutput) {
@@ -78,7 +79,6 @@ class DFExperiment(
 
     private fun runCase(dfTestCase: DFTestCase, sampleSize: Int) {
         // run each case for the specified number of samples
-        saveCaseToDb(dfTestCase)
         myMetricErrorMatrix.clear()
         val caseRankingData = mutableListOf<CaseScoringResults>()
         for (i in 1..dfTestCase.case.numSamples) {
@@ -90,13 +90,12 @@ class DFExperiment(
                 automaticShifting = dfTestCase.automaticShifting,
             )
             // set up for metric error tabulation
-            if (myMetricErrorMatrix.isEmpty()){
+            if (myMetricErrorMatrix.isEmpty()) {
                 val metrics = pdfModelingResults.topResultByRanking.metrics
                 for (metric in metrics) {
-                    println("Making ErrorMatrix for metric ${metric.name} for case = ${dfTestCase.case.caseID} for sample size = $sampleSize")
-                    myMetricErrorMatrix[metric] = ErrorMatrix()
+//                    println("Making ErrorMatrix for metric ${metric.name} for case = ${dfTestCase.case.caseID} for sample size = $sampleSize")
+                    myMetricErrorMatrix[metric.name] = ErrorMatrix()
                 }
-                println()
             }
             saveStatistics(dfTestCase.case.caseID, sampleSize, i, Statistic(data))
             val rankData = saveFittingResults(dfTestCase, i, pdfModelingResults)
@@ -112,16 +111,43 @@ class DFExperiment(
 
     private fun saveMetricPerformanceToDb(dfTestCase: DFTestCase, sampleSize: Int) {
         val list = mutableListOf<CaseMetricErrorMatrixData>()
-        for((metric, em) in myMetricErrorMatrix) {
-            val errorMatrixData = em.asErrorMatrixData()
+        for ((metric, em) in myMetricErrorMatrix) {
+            val emd = em.asErrorMatrixData()
             val caseMetricError = CaseMetricErrorMatrixData()
             caseMetricError.caseID = dfTestCase.case.caseID
             caseMetricError.sampleSize = sampleSize
-            caseMetricError.metricName = metric.name
-            caseMetricError.numTP = errorMatrixData.numTP
-            caseMetricError.numFN = errorMatrixData.numFN
-            caseMetricError.numFP = errorMatrixData.numFP
-            caseMetricError.numTN = errorMatrixData.numTN
+            caseMetricError.metricName = metric
+            caseMetricError.numTP = emd.numTP
+            caseMetricError.numFN = emd.numFN
+            caseMetricError.numFP = emd.numFP
+            caseMetricError.numTN = emd.numTN
+            caseMetricError.numP = emd.numP
+            caseMetricError.numN = emd.numN
+            caseMetricError.total = emd.total
+            caseMetricError.numPP = emd.numPP
+            caseMetricError.numPN = emd.numPN
+            caseMetricError.prevalence = emd.prevalence
+            caseMetricError.accuracy = emd.accuracy
+            caseMetricError.truePositiveRate = emd.truePositiveRate
+            caseMetricError.falseNegativeRate = emd.falseNegativeRate
+            caseMetricError.falsePositiveRate = emd.falsePositiveRate
+            caseMetricError.trueNegativeRate = emd.trueNegativeRate
+            caseMetricError.falseOmissionRate = emd.falseOmissionRate
+            caseMetricError.positivePredictiveValue = emd.positivePredictiveValue
+            caseMetricError.falseDiscoveryRate = emd.falseDiscoveryRate
+            caseMetricError.falseDiscoveryRate = emd.falseDiscoveryRate
+            caseMetricError.negativePredictiveValue = emd.negativePredictiveValue
+            caseMetricError.positiveLikelihoodRatio = emd.positiveLikelihoodRatio
+            caseMetricError.negativeLikelihoodRatio = emd.negativeLikelihoodRatio
+            caseMetricError.markedness = emd.markedness
+            caseMetricError.diagnosticOddsRatio = emd.diagnosticOddsRatio
+            caseMetricError.balancedAccuracy = emd.balancedAccuracy
+            caseMetricError.f1Score = emd.f1Score
+            caseMetricError.fowlkesMallowsIndex = emd.fowlkesMallowsIndex
+            caseMetricError.mathhewsCorrelationCoefficient = emd.mathhewsCorrelationCoefficient
+            caseMetricError.threatScore = emd.threatScore
+            caseMetricError.informedness = emd.informedness
+            caseMetricError.prevalenceThreshold = emd.prevalenceThreshold
             list.add(caseMetricError)
         }
         resultsDb.saveErrorMatrixData(list)
@@ -140,7 +166,7 @@ class DFExperiment(
         dfTestCase: DFTestCase,
         sampleID: Int,
         results: PDFModelingResults
-    ) : List<CaseScoringResults> {
+    ): List<CaseScoringResults> {
         val list = mutableListOf<CaseScoringResults>()
         // need to get estimation results, this will have the parameters
         val paramData = captureParameters(dfTestCase.case.caseID, sampleID, results.estimationResults)
@@ -172,9 +198,10 @@ class DFExperiment(
                 nc.resultType = "Metric Rank"
                 nc.resultName = metric.name
                 nc.resultValue = rank
+                //TODO
                 val c = classifyCase(rank, dfTestCase.rvType(), sr.rvType)
                 nc.classification = c.classification.name
-                myMetricErrorMatrix[metric]!!.collect(c)
+                myMetricErrorMatrix[metric.name]!!.collect(c)
                 list.add(nc)
             }
         }
@@ -355,7 +382,7 @@ class DFExperiment(
         fun classifyCase(rank: Double, actual: RVParametersTypeIfc, fitted: RVParametersTypeIfc): Classification {
             return if (actual != fitted) {
                 if (rank != 1.0) {
-                    Classification(0,0)
+                    Classification(0, 0)
                 } else {
                     Classification(0, 1)
                 }
@@ -410,9 +437,12 @@ fun main() {
     val sampleSizes = (40..4000 step 20).toSet()
 
     val testCases = listOf(
-        DFTestCase(GammaRV(2.0, 2.0), setOf(40, 400), 10),
-        DFTestCase(GammaRV(3.0, 2.0), setOf(40, 400), 10),
-        DFTestCase(GammaRV(5.0, 2.0), setOf(40, 400), 10)
+        DFTestCase(GammaRV(2.0, 2.0), setOf(40, 400), 200),
+        DFTestCase(GammaRV(3.0, 2.0), setOf(40, 400), 200),
+        DFTestCase(GammaRV(5.0, 1.0), setOf(40, 400), 200),
+        DFTestCase(GammaRV(9.0, 0.5), setOf(40, 400), 200),
+        DFTestCase(GammaRV(7.5, 1.1), setOf(40, 400), 200),
+        DFTestCase(GammaRV(0.5, 1.0), setOf(40, 400), 200),
     )
 
     val dfExperiment = DFExperiment("Test_Cases", testCases)

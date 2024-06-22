@@ -20,7 +20,7 @@ enum class ErrorResult {
 
 data class Classification(val actual: Double, val predicted: Double) {
     constructor(actual: Int, predicted: Int) : this(actual.toDouble(), predicted.toDouble())
-    constructor(predicted: Boolean, actual: Boolean) : this(predicted.toDouble(), actual.toDouble())
+    constructor(actual: Boolean, predicted: Boolean) : this(actual.toDouble(), predicted.toDouble())
 
     val classification
         get() = ErrorMatrix.classify(actual, predicted)
@@ -122,7 +122,6 @@ class ErrorMatrix(
         sb.appendLine("falsePositiveRate = $falsePositiveRate")
         sb.appendLine("trueNegativeRate = $trueNegativeRate")
         sb.appendLine("falseOmissionRate = $falseOmissionRate")
-        sb.appendLine("precision = $precision")
         sb.appendLine("positivePredictiveValue = $positivePredictiveValue")
         sb.appendLine("falseDiscoveryRate = $falseDiscoveryRate")
         sb.appendLine("negativePredictiveValue = $negativePredictiveValue")
@@ -193,14 +192,11 @@ class ErrorMatrix(
             return numFN / numPN.toDouble()
         }
 
-    val precision: Double
+    val positivePredictiveValue: Double
         get() {
             if (numPP == 0) return Double.NaN
             return numTP / numPP.toDouble()
         }
-
-    val positivePredictiveValue: Double
-        get() = precision
 
     val falseDiscoveryRate: Double
         get() {
@@ -266,12 +262,168 @@ class ErrorMatrix(
         return stringFrequency.frequencyPlot(proportions)
     }
 
-    fun asErrorMatrixData() : ErrorMatrixData {
-        return ErrorMatrixData(id = id, name = name, numTP, numFP, numTN, numFN)
+    fun asErrorMatrixData(): ErrorMatrixData {
+        val emd = ErrorMatrixData()
+        emd.id = this.id
+        emd.name = this.name
+        emd.numTP = this.numTP
+        emd.numFP = this.numFP
+        emd.numFN = this.numFN
+        emd.numTN = this.numTN
+        emd.numP = this.numP
+        emd.numN = this.numN
+        emd.total = this.total
+        emd.numPP = this.numPP
+        emd.numPN = this.numPN
+        if (!prevalence.isNaN() && prevalence.isFinite()) {
+            emd.prevalence = this.prevalence
+        }
+        if (!accuracy.isNaN() && accuracy.isFinite()) {
+            emd.accuracy = this.accuracy
+        }
+        if (!truePositiveRate.isNaN() && truePositiveRate.isFinite()) {
+            emd.truePositiveRate = this.truePositiveRate
+        }
+        if (!falseNegativeRate.isNaN() && falseNegativeRate.isFinite()) {
+            emd.falseNegativeRate = this.falseNegativeRate
+        }
+        if (!falsePositiveRate.isNaN() && falsePositiveRate.isFinite()) {
+            emd.falsePositiveRate = this.falsePositiveRate
+        }
+        if (!trueNegativeRate.isNaN() && trueNegativeRate.isFinite()) {
+            emd.trueNegativeRate = this.trueNegativeRate
+        }
+        if (!falseOmissionRate.isNaN() && falseOmissionRate.isFinite()) {
+            emd.falseOmissionRate = this.falseOmissionRate
+        }
+        if (!positivePredictiveValue.isNaN() && positivePredictiveValue.isFinite()) {
+            emd.positivePredictiveValue = this.positivePredictiveValue
+        }
+        if (!falseDiscoveryRate.isNaN() && falseDiscoveryRate.isFinite()) {
+            emd.falseDiscoveryRate = this.falseDiscoveryRate
+        }
+        if (!falseDiscoveryRate.isNaN() && falseDiscoveryRate.isFinite()) {
+            emd.falseDiscoveryRate = this.falseDiscoveryRate
+        }
+        if (!negativePredictiveValue.isNaN() && negativePredictiveValue.isFinite()) {
+            emd.negativePredictiveValue = this.negativePredictiveValue
+        }
+        if (!positiveLikelihoodRatio.isNaN() && positiveLikelihoodRatio.isFinite()) {
+            emd.positiveLikelihoodRatio = this.positiveLikelihoodRatio
+        }
+        if (!negativeLikelihoodRatio.isNaN() && negativeLikelihoodRatio.isFinite()) {
+            emd.negativeLikelihoodRatio = this.negativeLikelihoodRatio
+        }
+        if (!markedness.isNaN() && markedness.isFinite()) {
+            emd.markedness = this.markedness
+        }
+        if (!diagnosticOddsRatio.isNaN() && diagnosticOddsRatio.isFinite()) {
+            emd.diagnosticOddsRatio = this.diagnosticOddsRatio
+        }
+        if (!balancedAccuracy.isNaN() && balancedAccuracy.isFinite()) {
+            emd.balancedAccuracy = this.balancedAccuracy
+        }
+        if (!f1Score.isNaN() && f1Score.isFinite()) {
+            emd.f1Score = this.f1Score
+        }
+        if (!fowlkesMallowsIndex.isNaN() && fowlkesMallowsIndex.isFinite()) {
+            emd.fowlkesMallowsIndex = this.fowlkesMallowsIndex
+        }
+        if (!mathhewsCorrelationCoefficient.isNaN() && mathhewsCorrelationCoefficient.isFinite()) {
+            emd.mathhewsCorrelationCoefficient = this.mathhewsCorrelationCoefficient
+        }
+        if (!threatScore.isNaN() && threatScore.isFinite()) {
+            emd.threatScore = this.threatScore
+        }
+        if (!informedness.isNaN() && informedness.isFinite()) {
+            emd.informedness = this.informedness
+        }
+        if (!prevalenceThreshold.isNaN() && prevalenceThreshold.isFinite()) {
+            emd.prevalenceThreshold = this.prevalenceThreshold
+        }
+        return emd
     }
 
-    fun asErrorMatrixRecord() : ErrorMatrixRecord {
-        return ErrorMatrixRecord(id = id, name = name, numTP, numFP, numTN, numFN)
+    fun asErrorMatrixRecord(): ErrorMatrixRecord {
+        val emd = ErrorMatrixRecord()
+        emd.id = this.id
+        emd.name = this.name
+        emd.numTP = this.numTP
+        emd.numFP = this.numFP
+        emd.numFN = this.numFN
+        emd.numTN = this.numTN
+        emd.numP = this.numP
+        emd.numN = this.numN
+        emd.total = this.total
+        emd.numPP = this.numPP
+        emd.numPN = this.numPN
+        if (!prevalence.isNaN() && prevalence.isFinite()) {
+            emd.prevalence = this.prevalence
+        }
+        if (!accuracy.isNaN() && accuracy.isFinite()) {
+            emd.accuracy = this.accuracy
+        }
+        if (!truePositiveRate.isNaN() && truePositiveRate.isFinite()) {
+            emd.truePositiveRate = this.truePositiveRate
+        }
+        if (!falseNegativeRate.isNaN() && falseNegativeRate.isFinite()) {
+            emd.falseNegativeRate = this.falseNegativeRate
+        }
+        if (!falsePositiveRate.isNaN() && falsePositiveRate.isFinite()) {
+            emd.falsePositiveRate = this.falsePositiveRate
+        }
+        if (!trueNegativeRate.isNaN() && trueNegativeRate.isFinite()) {
+            emd.trueNegativeRate = this.trueNegativeRate
+        }
+        if (!falseOmissionRate.isNaN() && falseOmissionRate.isFinite()) {
+            emd.falseOmissionRate = this.falseOmissionRate
+        }
+        if (!positivePredictiveValue.isNaN() && positivePredictiveValue.isFinite()) {
+            emd.positivePredictiveValue = this.positivePredictiveValue
+        }
+        if (!falseDiscoveryRate.isNaN() && falseDiscoveryRate.isFinite()) {
+            emd.falseDiscoveryRate = this.falseDiscoveryRate
+        }
+        if (!falseDiscoveryRate.isNaN() && falseDiscoveryRate.isFinite()) {
+            emd.falseDiscoveryRate = this.falseDiscoveryRate
+        }
+        if (!negativePredictiveValue.isNaN() && negativePredictiveValue.isFinite()) {
+            emd.negativePredictiveValue = this.negativePredictiveValue
+        }
+        if (!positiveLikelihoodRatio.isNaN() && positiveLikelihoodRatio.isFinite()) {
+            emd.positiveLikelihoodRatio = this.positiveLikelihoodRatio
+        }
+        if (!negativeLikelihoodRatio.isNaN() && negativeLikelihoodRatio.isFinite()) {
+            emd.negativeLikelihoodRatio = this.negativeLikelihoodRatio
+        }
+        if (!markedness.isNaN() && markedness.isFinite()) {
+            emd.markedness = this.markedness
+        }
+        if (!diagnosticOddsRatio.isNaN() && diagnosticOddsRatio.isFinite()) {
+            emd.diagnosticOddsRatio = this.diagnosticOddsRatio
+        }
+        if (!balancedAccuracy.isNaN() && balancedAccuracy.isFinite()) {
+            emd.balancedAccuracy = this.balancedAccuracy
+        }
+        if (!f1Score.isNaN() && f1Score.isFinite()) {
+            emd.f1Score = this.f1Score
+        }
+        if (!fowlkesMallowsIndex.isNaN() && fowlkesMallowsIndex.isFinite()) {
+            emd.fowlkesMallowsIndex = this.fowlkesMallowsIndex
+        }
+        if (!mathhewsCorrelationCoefficient.isNaN() && mathhewsCorrelationCoefficient.isFinite()) {
+            emd.mathhewsCorrelationCoefficient = this.mathhewsCorrelationCoefficient
+        }
+        if (!threatScore.isNaN() && threatScore.isFinite()) {
+            emd.threatScore = this.threatScore
+        }
+        if (!informedness.isNaN() && informedness.isFinite()) {
+            emd.informedness = this.informedness
+        }
+        if (!prevalenceThreshold.isNaN() && prevalenceThreshold.isFinite()) {
+            emd.prevalenceThreshold = this.prevalenceThreshold
+        }
+        return emd
     }
 
     companion object {
@@ -306,7 +458,7 @@ class ErrorMatrix(
          */
         fun classify(actual: Int, predicted: Int): ErrorResult {
             require((actual == 0) || (actual == 1)) { "actual must be 0 or 1" }
-            require((predicted == 0) || (predicted == 1)) { "actual must be 0 or 1" }
+            require((predicted == 0) || (predicted == 1)) { "predicted must be 0 or 1" }
             return if (actual == 1) {
                 if (predicted == 1) {
                     TP
@@ -338,78 +490,72 @@ class ErrorMatrix(
 data class ErrorMatrixData(
     var id: Int = 1,
     var name: String = "",
-    var numTP: Int = 1,
-    var numFP: Int = 1,
-    var numTN: Int = 1,
-    var numFN: Int = 1,
-    var numP: Int = numTP + numFN,
-    var numN: Int = numFP + numTN,
-    var total: Int = numP + numN,
-    var numPP: Int = numTP + numFP,
-    var numPN: Int = numFN + numTN,
-    var prevalence: Double = if (total == 0) Double.NaN else numPP / total.toDouble(),
-    var accuracy: Double = if (total == 0) Double.NaN else (numTP + numTN) / total.toDouble(),
-    var truePositiveRate: Double = if (numP == 0) Double.NaN else numTP / numP.toDouble(),
-    var falseNegativeRate: Double = if (numP == 0) Double.NaN else numFN / numP.toDouble(),
-    var falsePositiveRate: Double = if (numN == 0) Double.NaN else numFP / numN.toDouble(),
-    var trueNegativeRate: Double = if (numN == 0) Double.NaN else numTN / numN.toDouble(),
-    var falseOmissionRate: Double = if (numPN == 0) Double.NaN else numFN / numPN.toDouble(),
-    var precision: Double = if (numPP == 0) Double.NaN else numTP / numPP.toDouble(),
-    var positivePredictiveValue: Double = precision,
-    var falseDiscoveryRate: Double = if (numPP == 0) Double.NaN else numFP / numPP.toDouble(),
-    var negativePredictiveValue: Double = if (numPN == 0) Double.NaN else numTN / numPN.toDouble(),
-    var positiveLikelihoodRatio: Double = truePositiveRate / falsePositiveRate,
-    var negativeLikelihoodRatio: Double = falseNegativeRate / trueNegativeRate,
-    var markedness: Double = positivePredictiveValue + negativePredictiveValue - 1.0,
-    var diagnosticOddsRatio: Double = positiveLikelihoodRatio / negativeLikelihoodRatio,
-    var balancedAccuracy: Double = (truePositiveRate + trueNegativeRate) / 2.0,
-    var f1Score: Double = (2.0 * positivePredictiveValue * truePositiveRate) / (positivePredictiveValue + truePositiveRate),
-    var fowlkesMallowsIndex: Double = sqrt(positivePredictiveValue * truePositiveRate),
-    var mathhewsCorrelationCoefficient: Double = sqrt(truePositiveRate * trueNegativeRate * positivePredictiveValue * negativePredictiveValue)
-            - sqrt(falseNegativeRate * falsePositiveRate * falseOmissionRate * falseDiscoveryRate),
-    var threatScore: Double = if (total == 0) Double.NaN else numTP / (numTP + numFN + numFP).toDouble(),
-    var informedness: Double = truePositiveRate + trueNegativeRate - 1.0,
-    var prevalenceThreshold: Double = (sqrt(truePositiveRate * falsePositiveRate) - falsePositiveRate) /
-            (truePositiveRate - falsePositiveRate)
+    var numTP: Int = 0,
+    var numFP: Int = 0,
+    var numTN: Int = 0,
+    var numFN: Int = 0,
+    var numP: Int =0,
+    var numN: Int = 0,
+    var total: Int = 0,
+    var numPP: Int = 0,
+    var numPN: Int = 0,
+    var prevalence: Double? = null,
+    var accuracy: Double? = null,
+    var truePositiveRate: Double? = null,
+    var falseNegativeRate: Double? = null,
+    var falsePositiveRate: Double? = null,
+    var trueNegativeRate: Double? = null,
+    var falseOmissionRate: Double? = null,
+    var positivePredictiveValue: Double? = null,
+    var falseDiscoveryRate: Double? = null,
+    var negativePredictiveValue: Double? = null,
+    var positiveLikelihoodRatio: Double? = null,
+    var negativeLikelihoodRatio: Double? = null,
+    var markedness: Double? = null,
+    var diagnosticOddsRatio: Double? = null,
+    var balancedAccuracy: Double? = null,
+    var f1Score: Double? = null,
+    var fowlkesMallowsIndex: Double? = null,
+    var mathhewsCorrelationCoefficient: Double? = null,
+    var threatScore: Double? = null,
+    var informedness: Double? = null,
+    var prevalenceThreshold: Double? = null
 )
 
 data class ErrorMatrixRecord(
     var id: Int = 1,
     var name: String = "",
-    var numTP: Int = 1,
-    var numFP: Int = 1,
-    var numTN: Int = 1,
-    var numFN: Int = 1,
-    var numP: Int = numTP + numFN,
-    var numN: Int = numFP + numTN,
-    var total: Int = numP + numN,
-    var numPP: Int = numTP + numFP,
-    var numPN: Int = numFN + numTN,
-    var prevalence: Double = if (total == 0) Double.NaN else numPP / total.toDouble(),
-    var accuracy: Double = if (total == 0) Double.NaN else (numTP + numTN) / total.toDouble(),
-    var truePositiveRate: Double = if (numP == 0) Double.NaN else numTP / numP.toDouble(),
-    var falseNegativeRate: Double = if (numP == 0) Double.NaN else numFN / numP.toDouble(),
-    var falsePositiveRate: Double = if (numN == 0) Double.NaN else numFP / numN.toDouble(),
-    var trueNegativeRate: Double = if (numN == 0) Double.NaN else numTN / numN.toDouble(),
-    var falseOmissionRate: Double = if (numPN == 0) Double.NaN else numFN / numPN.toDouble(),
-    var precision: Double = if (numPP == 0) Double.NaN else numTP / numPP.toDouble(),
-    var positivePredictiveValue: Double = precision,
-    var falseDiscoveryRate: Double = if (numPP == 0) Double.NaN else numFP / numPP.toDouble(),
-    var negativePredictiveValue: Double = if (numPN == 0) Double.NaN else numTN / numPN.toDouble(),
-    var positiveLikelihoodRatio: Double = truePositiveRate / falsePositiveRate,
-    var negativeLikelihoodRatio: Double = falseNegativeRate / trueNegativeRate,
-    var markedness: Double = positivePredictiveValue + negativePredictiveValue - 1.0,
-    var diagnosticOddsRatio: Double = positiveLikelihoodRatio / negativeLikelihoodRatio,
-    var balancedAccuracy: Double = (truePositiveRate + trueNegativeRate) / 2.0,
-    var f1Score: Double = (2.0 * positivePredictiveValue * truePositiveRate) / (positivePredictiveValue + truePositiveRate),
-    var fowlkesMallowsIndex: Double = sqrt(positivePredictiveValue * truePositiveRate),
-    var mathhewsCorrelationCoefficient: Double = sqrt(truePositiveRate * trueNegativeRate * positivePredictiveValue * negativePredictiveValue)
-            - sqrt(falseNegativeRate * falsePositiveRate * falseOmissionRate * falseDiscoveryRate),
-    var threatScore: Double = if (total == 0) Double.NaN else numTP / (numTP + numFN + numFP).toDouble(),
-    var informedness: Double = truePositiveRate + trueNegativeRate - 1.0,
-    var prevalenceThreshold: Double = (sqrt(truePositiveRate * falsePositiveRate) - falsePositiveRate) /
-            (truePositiveRate - falsePositiveRate)
-): DbTableData("tblErrorMatrix", listOf("id"))
+    var numTP: Int = 0,
+    var numFP: Int = 0,
+    var numTN: Int = 0,
+    var numFN: Int = 0,
+    var numP: Int = 0,
+    var numN: Int = 0,
+    var total: Int = 0,
+    var numPP: Int = 0,
+    var numPN: Int = 0,
+    var prevalence: Double? = null,
+    var accuracy: Double? = null,
+    var truePositiveRate: Double? = null,
+    var falseNegativeRate: Double? = null,
+    var falsePositiveRate: Double? = null,
+    var trueNegativeRate: Double? = null,
+    var falseOmissionRate: Double? = null,
+    var positivePredictiveValue: Double? = null,
+    var falseDiscoveryRate: Double? = null,
+    var negativePredictiveValue: Double? = null,
+    var positiveLikelihoodRatio: Double? = null,
+    var negativeLikelihoodRatio: Double? = null,
+    var markedness: Double? = null,
+    var diagnosticOddsRatio: Double? = null,
+    var balancedAccuracy: Double? = null,
+    var f1Score: Double? = null,
+    var fowlkesMallowsIndex: Double? = null,
+    var mathhewsCorrelationCoefficient: Double? = null,
+    var threatScore: Double? = null,
+    var informedness: Double? = null,
+    var prevalenceThreshold: Double? = null
+) : DbTableData("tblErrorMatrix", listOf("id"))
 
 fun main() {
     val possibilities = listOf(TP, FP, FN, TN)
