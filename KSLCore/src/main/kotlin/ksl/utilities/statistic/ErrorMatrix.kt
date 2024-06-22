@@ -6,7 +6,7 @@ import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.plotting.StringFrequencyPlot
 import ksl.utilities.random.robj.DEmpiricalList
 import ksl.utilities.random.rvariable.toDouble
-import ksl.utilities.statistic.ConfusionResult.*
+import ksl.utilities.statistic.ErrorResult.*
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import kotlin.math.sqrt
 
@@ -14,11 +14,11 @@ import kotlin.math.sqrt
  *  There are two classes class 1 (positive) and class 0 (negative)
  *  An instance (exemplar) must be in one of the classes.
  */
-enum class ConfusionResult {
+enum class ErrorResult {
     TP, FP, FN, TN
 }
 
-data class ClassificationCase(val actual: Double, val predicted: Double) {
+data class Classification(val actual: Double, val predicted: Double) {
     constructor(actual: Int, predicted: Int) : this(actual.toDouble(), predicted.toDouble())
     constructor(predicted: Boolean, actual: Boolean) : this(predicted.toDouble(), actual.toDouble())
 
@@ -33,14 +33,14 @@ data class ClassificationCase(val actual: Double, val predicted: Double) {
  *  An instance (exemplar) must be in one of the classes.
  */
 class ErrorMatrix(
-    data: Collection<ConfusionResult>? = null,
+    data: Collection<ErrorResult>? = null,
     name: String? = null,
 ) : IdentityIfc by Identity(name) {
 
     val stringFrequency: StringFrequency
 
     init {
-        val limitSet = ConfusionResult.entries.map { it.toString() }.toSet()
+        val limitSet = ErrorResult.entries.map { it.toString() }.toSet()
         stringFrequency = StringFrequency(name = name, limitSet = limitSet)
         if (data != null) {
             for (result in data) {
@@ -53,7 +53,7 @@ class ErrorMatrix(
      *  Present the case to the matrix for tabulation
      *  first = actual, second = predicted
      */
-    fun collect(case: ClassificationCase) {
+    fun collect(case: Classification) {
         collect(case.classification)
     }
 
@@ -89,16 +89,16 @@ class ErrorMatrix(
     /**
      *  Present the case to the matrix for tabulation
      */
-    fun collect(confusionResult: ConfusionResult) {
-        stringFrequency.collect(confusionResult.toString())
+    fun collect(errorResult: ErrorResult) {
+        stringFrequency.collect(errorResult.toString())
     }
 
     fun reset() {
         stringFrequency.reset()
     }
 
-    fun count(confusionResult: ConfusionResult): Int {
-        return stringFrequency.frequency(confusionResult.toString()).toInt()
+    fun count(errorResult: ErrorResult): Int {
+        return stringFrequency.frequency(errorResult.toString()).toInt()
     }
 
     override fun toString(): String {
@@ -281,7 +281,7 @@ class ErrorMatrix(
          *  predicted true means that the instance was predicted to be in class 1 (positive)
          *  predicted false means that the instance was predicted to be in class 0 (negative)
          */
-        fun classify(actual: Boolean, predicted: Boolean): ConfusionResult {
+        fun classify(actual: Boolean, predicted: Boolean): ErrorResult {
             return if (actual) {
                 if (predicted) {
                     TP
@@ -304,7 +304,7 @@ class ErrorMatrix(
          *  predicted = 0 means that the instance was predicted to be in class 0 (negative)
          *  actual and predicted must be 1 or 0
          */
-        fun classify(actual: Int, predicted: Int): ConfusionResult {
+        fun classify(actual: Int, predicted: Int): ErrorResult {
             require((actual == 0) || (actual == 1)) { "actual must be 0 or 1" }
             require((predicted == 0) || (predicted == 1)) { "actual must be 0 or 1" }
             return if (actual == 1) {
@@ -329,7 +329,7 @@ class ErrorMatrix(
          *  predicted = 0.0 means that the instance was predicted to be in class 0 (negative)
          *  actual and predicted must be 1.0 or 0.0
          */
-        fun classify(actual: Double, predicted: Double): ConfusionResult {
+        fun classify(actual: Double, predicted: Double): ErrorResult {
             return classify(actual.toInt(), predicted.toInt())
         }
     }
@@ -413,7 +413,7 @@ data class ErrorMatrixRecord(
 
 fun main() {
     val possibilities = listOf(TP, FP, FN, TN)
-    val rList = DEmpiricalList<ConfusionResult>(possibilities, doubleArrayOf(0.20, 0.7, 0.8, 1.0))
+    val rList = DEmpiricalList<ErrorResult>(possibilities, doubleArrayOf(0.20, 0.7, 0.8, 1.0))
     val data = rList.sample(100)
     val sf = ErrorMatrix(data = data)
     println(sf)

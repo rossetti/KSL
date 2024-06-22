@@ -8,8 +8,8 @@ import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.GammaRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
-import ksl.utilities.random.rvariable.RVType
-import ksl.utilities.statistic.ClassificationCase
+import ksl.utilities.statistic.Classification
+import ksl.utilities.statistic.ErrorMatrix
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
 
@@ -62,7 +62,10 @@ class DFExperiment(
             return set
         }
 
+    private val myMetricErrorMatrix = mutableMapOf<MetricIfc, ErrorMatrix>()
+
     fun runCases() {
+        myMetricErrorMatrix.clear()
         for (case in cases) {
             for (sampleSize in case.sampleSizes) {
                 runCase(case, sampleSize)
@@ -76,6 +79,7 @@ class DFExperiment(
     private fun runCase(dfTestCase: DFTestCase, sampleSize: Int) {
         // run each case for the specified number of samples
         saveCaseToDb(dfTestCase)
+        myMetricErrorMatrix.clear()
         val caseRankingData = mutableListOf<CaseScoringResults>()
         for (i in 1..dfTestCase.case.numSamples) {
             val data = dfTestCase.rv.sample(sampleSize)
@@ -85,15 +89,42 @@ class DFExperiment(
                 estimators = myEstimators,
                 automaticShifting = dfTestCase.automaticShifting,
             )
+            // set up for metric error tabulation
+            if (myMetricErrorMatrix.isEmpty()){
+                val metrics = pdfModelingResults.topResultByRanking.metrics
+                for (metric in metrics) {
+                    println("Making ErrorMatrix for metric ${metric.name} for case = ${dfTestCase.case.caseID} for sample size = $sampleSize")
+                    myMetricErrorMatrix[metric] = ErrorMatrix()
+                }
+                println()
+            }
             saveStatistics(dfTestCase.case.caseID, sampleSize, i, Statistic(data))
             val rankData = saveFittingResults(dfTestCase, i, pdfModelingResults)
-            // these are the ranking results for (caseID, sampleSize, sampleID)
-            // need to collect metric performance across the samples for the (caseID, sampleSize) combination
-            // we have finished the ith run (sampleID = i) of caseID with given sample size
             caseRankingData.addAll(rankData)
+            // the metric error tabulation for this sample has been completed (internally) and stored
+            // in myMetricErrorMatrix, need to continue across all samples
+            // these are the ranking results for (caseID, sampleSize, sampleID)
         }
         // we have finished all numSamples of size (sample size) of caseID
-        //TODO compute metric performance here???
+        // need to save metric performance across the samples for the (caseID, sampleSize) combination
+        saveMetricPerformanceToDb(dfTestCase, sampleSize)
+    }
+
+    private fun saveMetricPerformanceToDb(dfTestCase: DFTestCase, sampleSize: Int) {
+        val list = mutableListOf<CaseMetricErrorMatrixData>()
+        for((metric, em) in myMetricErrorMatrix) {
+            val errorMatrixData = em.asErrorMatrixData()
+            val caseMetricError = CaseMetricErrorMatrixData()
+            caseMetricError.caseID = dfTestCase.case.caseID
+            caseMetricError.sampleSize = sampleSize
+            caseMetricError.metricName = metric.name
+            caseMetricError.numTP = errorMatrixData.numTP
+            caseMetricError.numFN = errorMatrixData.numFN
+            caseMetricError.numFP = errorMatrixData.numFP
+            caseMetricError.numTN = errorMatrixData.numTN
+            list.add(caseMetricError)
+        }
+        resultsDb.saveErrorMatrixData(list)
     }
 
     private fun saveCaseToDb(dfTestCase: DFTestCase) {
@@ -141,8 +172,9 @@ class DFExperiment(
                 nc.resultType = "Metric Rank"
                 nc.resultName = metric.name
                 nc.resultValue = rank
-                nc.classification = classifyRank(rank, dfTestCase.rvType(), sr.rvType)
-          //      nc.classification = classifyCase(rank, dfTestCase.rvType(), sr.rvType).classification.name
+                val c = classifyCase(rank, dfTestCase.rvType(), sr.rvType)
+                nc.classification = c.classification.name
+                myMetricErrorMatrix[metric]!!.collect(c)
                 list.add(nc)
             }
         }
@@ -320,18 +352,18 @@ class DFExperiment(
             }
         }
 
-        fun classifyCase(rank: Double, actual: RVParametersTypeIfc, fitted: RVParametersTypeIfc): ClassificationCase {
+        fun classifyCase(rank: Double, actual: RVParametersTypeIfc, fitted: RVParametersTypeIfc): Classification {
             return if (actual != fitted) {
                 if (rank != 1.0) {
-                    ClassificationCase(0,0)
+                    Classification(0,0)
                 } else {
-                    ClassificationCase(0, 1)
+                    Classification(0, 1)
                 }
             } else { // actual == fitted
                 if (rank != 1.0) {
-                    ClassificationCase(1, 0)
+                    Classification(1, 0)
                 } else {
-                    ClassificationCase(1, 1)
+                    Classification(1, 1)
                 }
             }
         }
