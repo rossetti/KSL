@@ -273,7 +273,7 @@ class ErrorMatrix(
     fun asErrorMatrixRecord() : ErrorMatrixRecord {
         return ErrorMatrixRecord(id = id, name = name, numTP, numFP, numTN, numFN)
     }
-    
+
     companion object {
         /**
          *  actual true means that the instance belongs to class 1 (positive)
