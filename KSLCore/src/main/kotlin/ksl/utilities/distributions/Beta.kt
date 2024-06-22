@@ -53,8 +53,8 @@ class Beta(
     var beta: Double = betaShape
         private set
 
-    private var betaA1A2 = betaFunction(alpha, beta)
-    private var lnBetaA1A2 = logBetaFunction(alpha, beta)
+    private var betaAlphaBeta = betaFunction(alpha, beta)
+    private var lnBetaAlphaBeta = logBetaFunction(alpha, beta)
 
     /**
      * Changes the parameters to the supplied values
@@ -67,8 +67,8 @@ class Beta(
         require(betaShape > 0) { "The 2nd shape parameter must be > 0" }
         alpha = alphaShape
         beta = betaShape
-        betaA1A2 = betaFunction(alpha, beta)
-        lnBetaA1A2 = logBetaFunction(alpha, beta)
+        betaAlphaBeta = betaFunction(alpha, beta)
+        lnBetaAlphaBeta = logBetaFunction(alpha, beta)
     }
 
     /**
@@ -101,14 +101,14 @@ class Beta(
     }
 
     override fun cdf(x: Double): Double {
-        return stdBetaCDF(x, alpha, beta, lnBetaA1A2)
+        return stdBetaCDF(x, alpha, beta, lnBetaAlphaBeta)
     }
 
     override fun pdf(x: Double): Double {
         return if (0.0 < x && x < 1.0) {
             val f1 = x.pow(alpha - 1.0)
             val f2 = (1.0 - x).pow(beta - 1.0)
-            f1 * f2 / betaA1A2
+            f1 * f2 / betaAlphaBeta
         } else {
             0.0
         }
@@ -117,7 +117,7 @@ class Beta(
     override fun domain(): Interval = Interval(0.0, 1.0)
 
     override fun invCDF(p: Double): Double {
-        return stdBetaInvCDF(p, alpha, beta, lnBetaA1A2)
+        return stdBetaInvCDF(p, alpha, beta, lnBetaAlphaBeta)
     }
 
     override fun instance(): Beta {

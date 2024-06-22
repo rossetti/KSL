@@ -18,6 +18,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.exp
@@ -30,7 +31,8 @@ import kotlin.math.pow
  * @param name an optional label/name
  */
 class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name),
-    LossFunctionDistributionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Exponential {
+    LossFunctionDistributionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
+    RVParametersTypeIfc by RVType.Exponential {
 
     /** Constructs an exponential distribution where parameter[0] is the
      * mean of the distribution
@@ -89,8 +91,10 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
     }
 
     override fun pdf(x: Double): Double {
-        return if (x >= 0) {
+        return if (x > 0.0) {
             exp(-x / mean) / mean
+        } else if (KSLMath.equal(x, 0.0)) {
+            1.0 / mean
         } else {
             0.0
         }

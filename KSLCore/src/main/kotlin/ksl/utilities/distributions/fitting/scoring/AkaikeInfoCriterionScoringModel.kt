@@ -44,6 +44,8 @@ class AkaikeInfoCriterionScoringModel : PDFScoringModel("AIC") {
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
         val score = Statistic.akaikeInfoCriterion(data.size, k, lm)
+       // println("AIC scoring of $cdf")
+        //TODO need to check on likelihood function for generalized beta
         return Score(this, score, true)
     }
 }
