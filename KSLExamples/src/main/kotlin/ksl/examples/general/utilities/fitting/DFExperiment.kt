@@ -76,6 +76,7 @@ class DFExperiment(
     private fun runCase(dfTestCase: DFTestCase, sampleSize: Int) {
         // run each case for the specified number of samples
         saveCaseToDb(dfTestCase)
+        val caseRankingData = mutableListOf<CaseScoringResults>()
         for (i in 1..dfTestCase.case.numSamples) {
             val data = dfTestCase.rv.sample(sampleSize)
             val pdfModeler = PDFModeler(data, scoringModels = myScoringModels)
@@ -85,8 +86,12 @@ class DFExperiment(
                 automaticShifting = dfTestCase.automaticShifting,
             )
             saveStatistics(dfTestCase.case.caseID, sampleSize, i, Statistic(data))
-            saveFittingResults(dfTestCase, i, pdfModelingResults)
+            val rankData = saveFittingResults(dfTestCase, i, pdfModelingResults)
+            // these are the ranking results for (caseID, sampleSize, sampleID)
+            // need to collect metric performance across the samples for the (caseID, sampleSize) combination
+            caseRankingData.addAll(rankData)
         }
+        //TODO compute metric performance here???
     }
 
     private fun saveCaseToDb(dfTestCase: DFTestCase) {
@@ -102,7 +107,7 @@ class DFExperiment(
         dfTestCase: DFTestCase,
         sampleID: Int,
         results: PDFModelingResults
-    ) {
+    ) : List<CaseScoringResults> {
         val list = mutableListOf<CaseScoringResults>()
         // need to get estimation results, this will have the parameters
         val paramData = captureParameters(dfTestCase.case.caseID, sampleID, results.estimationResults)
@@ -114,6 +119,7 @@ class DFExperiment(
         val rankData = captureRanks(dfTestCase, sampleID, results)
         list.addAll(rankData)
         resultsDb.saveScoringResults(list)
+        return rankData
     }
 
     private fun captureRanks(
