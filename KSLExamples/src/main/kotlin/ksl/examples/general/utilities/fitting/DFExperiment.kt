@@ -89,8 +89,10 @@ class DFExperiment(
             val rankData = saveFittingResults(dfTestCase, i, pdfModelingResults)
             // these are the ranking results for (caseID, sampleSize, sampleID)
             // need to collect metric performance across the samples for the (caseID, sampleSize) combination
+            // we have finished the ith run (sampleID = i) of caseID with given sample size
             caseRankingData.addAll(rankData)
         }
+        // we have finished all numSamples of size (sample size) of caseID
         //TODO compute metric performance here???
     }
 
