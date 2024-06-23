@@ -11,6 +11,7 @@ import ksl.utilities.statistic.Classification
 import ksl.utilities.statistic.ErrorMatrix
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
+import kotlin.time.TimeSource
 
 /**
  * @param name the name of the experiment for file tagging
@@ -69,12 +70,16 @@ class DFExperiment(
         myMetricErrorMatrix.clear()
         myOverallScoringErrorMatrix.clear()
         for (case in cases) {
+            val mark = TimeSource.Monotonic.markNow()
             saveCaseToDb(case)
             for (sampleSize in case.sampleSizes) {
                 runCase(case, sampleSize)
                 if (messageOutput) {
                     println(byCaseOutput?.invoke(case, sampleSize))
                 }
+            }
+            if (messageOutput){
+                println("Case: elapsed time = ${mark.elapsedNow()}")
             }
         }
     }
