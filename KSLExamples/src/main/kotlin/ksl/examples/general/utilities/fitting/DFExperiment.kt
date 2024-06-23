@@ -64,8 +64,11 @@ class DFExperiment(
 
     private val myMetricErrorMatrix = mutableMapOf<String, ErrorMatrix>()
 
+    private val myOverallScoringErrorMatrix = mutableMapOf<String, ErrorMatrix>()
+
     fun runCases() {
         myMetricErrorMatrix.clear()
+        myOverallScoringErrorMatrix.clear()
         for (case in cases) {
             saveCaseToDb(case)
             for (sampleSize in case.sampleSizes) {
@@ -80,6 +83,7 @@ class DFExperiment(
     private fun runCase(dfTestCase: DFTestCase, sampleSize: Int) {
         // run each case for the specified number of samples
         myMetricErrorMatrix.clear()
+        myOverallScoringErrorMatrix.clear()
         val caseRankingData = mutableListOf<CaseScoringResults>()
         for (i in 1..dfTestCase.case.numSamples) {
             val data = dfTestCase.rv.sample(sampleSize)
@@ -97,6 +101,10 @@ class DFExperiment(
                     myMetricErrorMatrix[metric.name] = ErrorMatrix()
                 }
             }
+            if (myOverallScoringErrorMatrix.isEmpty()){
+                myOverallScoringErrorMatrix["Rank By Score"] = ErrorMatrix()
+                myOverallScoringErrorMatrix["Rank By Avg Rank"] = ErrorMatrix()
+            }
             saveStatistics(dfTestCase.case.caseID, sampleSize, i, Statistic(data))
             val rankData = saveFittingResults(dfTestCase, i, pdfModelingResults)
             caseRankingData.addAll(rankData)
@@ -107,6 +115,54 @@ class DFExperiment(
         // we have finished all numSamples of size (sample size) of caseID
         // need to save metric performance across the samples for the (caseID, sampleSize) combination
         saveMetricPerformanceToDb(dfTestCase, sampleSize)
+        saveOverallRecommendationPerformanceToDb(dfTestCase, sampleSize)
+    }
+
+    private fun saveOverallRecommendationPerformanceToDb(
+        dfTestCase: DFTestCase,
+        sampleSize: Int
+    ) {
+        val list = mutableListOf<CaseMetricErrorMatrixData>()
+        for((name, em) in myOverallScoringErrorMatrix){
+            val emd = em.asErrorMatrixData()
+            val caseMetricError = CaseMetricErrorMatrixData()
+            caseMetricError.caseID = dfTestCase.case.caseID
+            caseMetricError.sampleSize = sampleSize
+            caseMetricError.metricName = name
+            caseMetricError.numTP = emd.numTP
+            caseMetricError.numFN = emd.numFN
+            caseMetricError.numFP = emd.numFP
+            caseMetricError.numTN = emd.numTN
+            caseMetricError.numP = emd.numP
+            caseMetricError.numN = emd.numN
+            caseMetricError.total = emd.total
+            caseMetricError.numPP = emd.numPP
+            caseMetricError.numPN = emd.numPN
+            caseMetricError.prevalence = emd.prevalence
+            caseMetricError.accuracy = emd.accuracy
+            caseMetricError.truePositiveRate = emd.truePositiveRate
+            caseMetricError.falseNegativeRate = emd.falseNegativeRate
+            caseMetricError.falsePositiveRate = emd.falsePositiveRate
+            caseMetricError.trueNegativeRate = emd.trueNegativeRate
+            caseMetricError.falseOmissionRate = emd.falseOmissionRate
+            caseMetricError.positivePredictiveValue = emd.positivePredictiveValue
+            caseMetricError.falseDiscoveryRate = emd.falseDiscoveryRate
+            caseMetricError.falseDiscoveryRate = emd.falseDiscoveryRate
+            caseMetricError.negativePredictiveValue = emd.negativePredictiveValue
+            caseMetricError.positiveLikelihoodRatio = emd.positiveLikelihoodRatio
+            caseMetricError.negativeLikelihoodRatio = emd.negativeLikelihoodRatio
+            caseMetricError.markedness = emd.markedness
+            caseMetricError.diagnosticOddsRatio = emd.diagnosticOddsRatio
+            caseMetricError.balancedAccuracy = emd.balancedAccuracy
+            caseMetricError.f1Score = emd.f1Score
+            caseMetricError.fowlkesMallowsIndex = emd.fowlkesMallowsIndex
+            caseMetricError.mathhewsCorrelationCoefficient = emd.mathhewsCorrelationCoefficient
+            caseMetricError.threatScore = emd.threatScore
+            caseMetricError.informedness = emd.informedness
+            caseMetricError.prevalenceThreshold = emd.prevalenceThreshold
+            list.add(caseMetricError)
+        }
+        resultsDb.saveErrorMatrixData(list)
     }
 
     private fun saveMetricPerformanceToDb(dfTestCase: DFTestCase, sampleSize: Int) {
@@ -177,8 +233,60 @@ class DFExperiment(
         // need to capture ranks
         val rankData = captureRanks(dfTestCase, sampleID, results)
         list.addAll(rankData)
+        val overAllByScoreData = captureOverallRankByScoring(dfTestCase, sampleID, results)
+        list.addAll(overAllByScoreData)
+        val overAllByAvgRankData = captureOverallRankByAvgRanking(dfTestCase, sampleID, results)
+        list.addAll(overAllByAvgRankData)
         resultsDb.saveScoringResults(list)
         return rankData
+    }
+
+    private fun captureOverallRankByScoring(
+        dfTestCase: DFTestCase,
+        sampleID: Int,
+        results: PDFModelingResults
+    ): List<CaseScoringResults> {
+        val list = mutableListOf<CaseScoringResults>()
+        val resultsAndRanksByScore: Map<ScoringResult, Int> = results.resultsAndRanksByScore()
+        for ((sr, rank) in resultsAndRanksByScore){
+            val nc = CaseScoringResults()
+            nc.caseID = dfTestCase.case.caseID
+            nc.sampleSize = sr.estimationResult.originalData.size
+            nc.sampleID = sampleID
+            nc.estimatedDistribution = sr.rvType.toString()
+            nc.resultType = "Ranking"
+            nc.resultName = "Rank By Score"
+            nc.resultValue = rank.toDouble()
+            val c = classifyCase(rank.toDouble(), dfTestCase.rvType(), sr.rvType)
+            nc.classification = c.classification.name
+            myOverallScoringErrorMatrix[nc.resultName]!!.collect(c)
+            list.add(nc)
+        }
+        return list
+    }
+
+    private fun captureOverallRankByAvgRanking(
+        dfTestCase: DFTestCase,
+        sampleID: Int,
+        results: PDFModelingResults
+    ): List<CaseScoringResults> {
+        val list = mutableListOf<CaseScoringResults>()
+        val resultsAndRanksByScore: Map<ScoringResult, Int> = results.resultsAndRanksByAvgRanking()
+        for ((sr, rank) in resultsAndRanksByScore){
+            val nc = CaseScoringResults()
+            nc.caseID = dfTestCase.case.caseID
+            nc.sampleSize = sr.estimationResult.originalData.size
+            nc.sampleID = sampleID
+            nc.estimatedDistribution = sr.rvType.toString()
+            nc.resultType = "Ranking"
+            nc.resultName = "Rank By Avg Rank"
+            nc.resultValue = rank.toDouble()
+            val c = classifyCase(rank.toDouble(), dfTestCase.rvType(), sr.rvType)
+            nc.classification = c.classification.name
+            myOverallScoringErrorMatrix[nc.resultName]!!.collect(c)
+            list.add(nc)
+        }
+        return list
     }
 
     private fun captureRanks(
@@ -198,7 +306,6 @@ class DFExperiment(
                 nc.resultType = "Metric Rank"
                 nc.resultName = metric.name
                 nc.resultValue = rank
-                //TODO
                 val c = classifyCase(rank, dfTestCase.rvType(), sr.rvType)
                 nc.classification = c.classification.name
                 myMetricErrorMatrix[metric.name]!!.collect(c)
