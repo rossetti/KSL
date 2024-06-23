@@ -57,9 +57,9 @@ val pearsonType5 = listOf(
     PearsonType5RV(3.0, 20.0),
 )
 
-fun buildCases(rvTypes: Set<RVCases>, sampleSizes: Set<Int>, numSamples: Int = 200) : List<DFTestCase> {
+fun buildCases(rvCases: Set<RVCases>, sampleSizes: Set<Int>, numSamples: Int = 200) : List<DFTestCase> {
     val rvList: MutableList<List<ParameterizedRV>> = mutableListOf()
-    for(rvType in rvTypes) {
+    for(rvType in rvCases) {
         when(rvType) {
             RVCases.G -> {
                 rvList.add(gamma)
@@ -109,7 +109,7 @@ fun setUpSampleSizes(
 }
 
 fun main(){
-    val allRVs = RVType.entries.toSet()
+    val allRVs = RVCases.entries.toSet()
     val subSet = setOf(RVCases.G)
     val testCases = buildCases(subSet, setUpSampleSizes(ExpType.SCREENING))
     val dfExperiment = DFExperiment("Test_Cases", testCases)
