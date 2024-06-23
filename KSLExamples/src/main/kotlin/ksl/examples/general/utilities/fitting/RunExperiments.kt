@@ -10,9 +10,9 @@ val gamma = listOf(
     GammaRV(2.0, 2.0),
     GammaRV(3.0, 2.0),
     GammaRV(5.0, 1.0),
-    GammaRV(9.0, 0.5),
-    GammaRV(7.5, 1.1),
-    GammaRV(0.5, 1.0)
+//    GammaRV(9.0, 0.5),
+//    GammaRV(7.5, 1.1),
+//    GammaRV(0.5, 1.0)
 )
 
 val weibull = listOf(
@@ -110,8 +110,8 @@ fun setUpSampleSizes(
 
 fun main(){
     val allRVs = RVType.entries.toSet()
-    val subSet = setOf(RVCases.LN)
-    val testCases = buildCases(subSet, setUpSampleSizes(ExpType.SCREENING))
+    val subSet = setOf(RVCases.G)
+    val testCases = buildCases(subSet, setUpSampleSizes(ExpType.SCREENING), 10)
     val dfExperiment = DFExperiment("Test_Cases", testCases)
     dfExperiment.messageOutput = true
     println("Running experiments...")

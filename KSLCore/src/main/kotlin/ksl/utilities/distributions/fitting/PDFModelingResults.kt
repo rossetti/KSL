@@ -20,6 +20,19 @@ data class PDFModelingResults(
         get() = scoringResults.sorted()
 
     /**
+     *  The results and their overall rank based on the value
+     *  scoring model.
+     */
+    fun resultsAndRanksByScore() : Map<ScoringResult, Int> {
+        val resultsByScoring = resultsSortedByScoring
+        val map = mutableMapOf<ScoringResult, Int>()
+        for(sr in scoringResults){
+            map[sr] = resultsByScoring.indexOf(sr) + 1
+        }
+        return map
+    }
+
+    /**
      *  The top result according to the scoring evaluation model.
      */
     val topResultByScore
@@ -35,14 +48,27 @@ data class PDFModelingResults(
     /**
      *  The results sorted by the average ranking of the metrics
      */
-    val resultsSortedByRanking
+    val resultsSortedByAvgRanking
             get() = scoringResults.sortedBy { it.averageRanking }
+
+    /**
+     *  The results and their overall rank based on the average of their
+     *  metric ranks
+     */
+    fun resultsAndRanksByAvgRanking() : Map<ScoringResult, Int> {
+        val resultsByScoring = resultsSortedByAvgRanking
+        val map = mutableMapOf<ScoringResult, Int>()
+        for(sr in scoringResults){
+            map[sr] = resultsByScoring.indexOf(sr) + 1
+        }
+        return map
+    }
 
     /**
      *  The top result based on the average ranking of metrics
      */
     val topResultByRanking : ScoringResult
-        get() = resultsSortedByRanking.first()
+        get() = resultsSortedByAvgRanking.first()
 
     /**
      *  The top result according to the average ranking of the metrics
