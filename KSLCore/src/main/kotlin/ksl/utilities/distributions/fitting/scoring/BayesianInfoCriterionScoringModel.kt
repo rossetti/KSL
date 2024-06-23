@@ -42,6 +42,8 @@ class BayesianInfoCriterionScoringModel(
         }
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
+        require(lm != Double.NEGATIVE_INFINITY) {"Sum of Log-Likelihood was negative $lm for distribution: $cdf"}
+        require(lm != Double.POSITIVE_INFINITY) {"Sum of Log-Likelihood was positive $lm for distribution: $cdf"}
         val score = Statistic.bayesianInfoCriterion(data.size, k, lm)
         return Score(this, score, true)
     }

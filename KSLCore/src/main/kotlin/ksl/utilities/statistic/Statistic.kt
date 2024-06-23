@@ -1199,6 +1199,9 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
         fun bayesianInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
             require(sampleSize > 0) { "The size of the sample must be > 0" }
             require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
+            require(lnMax != Double.NEGATIVE_INFINITY) {"Log-Likelihood Max was negative $lnMax in BIC calculation"}
+            require(lnMax != Double.POSITIVE_INFINITY) {"Log-Likelihood Max was positive $lnMax in BIC calculation"}
+            require(lnMax.isFinite()) {"Log-Likelihood Max was $lnMax in BIC calculation"}
             return numParameters * ln(sampleSize.toDouble()) - 2.0 * lnMax
         }
 
@@ -1211,6 +1214,9 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
             require(sampleSize > 0) { "The size of the sample must be > 0" }
             require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
             require(sampleSize - numParameters + 1 > 0) { "The sample size must be > (the number of parameters - 1)" }
+            require(lnMax != Double.NEGATIVE_INFINITY) {"Log-Likelihood Max was negative $lnMax in BIC calculation"}
+            require(lnMax != Double.POSITIVE_INFINITY) {"Log-Likelihood Max was positive $lnMax in BIC calculation"}
+            require(lnMax.isFinite()) {"Log-Likelihood Max was $lnMax in AIC calculation."}
             val n = sampleSize.toDouble()
             val k = numParameters.toDouble()
             val num = n - 2.0 * k + 2

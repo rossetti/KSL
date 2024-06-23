@@ -401,7 +401,7 @@ class DFExperiment(
          */
         val defaultScoringModels: Set<PDFScoringModel>  //TODO remove unneeded models
             get() = setOf(
-                ChiSquaredScoringModel(),
+                //ChiSquaredScoringModel(),
                 KSScoringModel(),
                 SquaredErrorScoringModel(),
                 AndersonDarlingScoringModel(),
@@ -409,8 +409,8 @@ class DFExperiment(
                 PPCorrelationScoringModel(),
                 QQCorrelationScoringModel(),
                 PPSSEScoringModel(),
-                QQSSEScoringModel(),
-                MallowsL2ScoringModel(),
+                //QQSSEScoringModel(),
+                //MallowsL2ScoringModel(),
                 BayesianInfoCriterionScoringModel(),
                 AkaikeInfoCriterionScoringModel()
             )
@@ -432,25 +432,4 @@ class DFExperiment(
                 PearsonType5MLEParameterEstimator()
             )
     }
-}
-
-fun main() {
-
-    val sampleSizes = (40..4000 step 20).toSet()
-
-    val testCases = listOf(
-        DFTestCase(GammaRV(2.0, 2.0), setOf(40, 400), 200),
-        DFTestCase(GammaRV(3.0, 2.0), setOf(40, 400), 200),
-        DFTestCase(GammaRV(5.0, 1.0), setOf(40, 400), 200),
-        DFTestCase(GammaRV(9.0, 0.5), setOf(40, 400), 200),
-        DFTestCase(GammaRV(7.5, 1.1), setOf(40, 400), 200),
-        DFTestCase(GammaRV(0.5, 1.0), setOf(40, 400), 200),
-    )
-
-    val dfExperiment = DFExperiment("Test_Cases", testCases)
-    dfExperiment.messageOutput = true
-
-    dfExperiment.runCases()
-
-    println("Done")
 }

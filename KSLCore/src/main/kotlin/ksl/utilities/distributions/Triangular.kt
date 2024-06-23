@@ -18,8 +18,14 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.*
+import ksl.utilities.random.rvariable.GetRVariableIfc
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.TriangularRV
+import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -137,37 +143,69 @@ class Triangular(
     }
 
     override fun pdf(x: Double): Double {
-
-        // Right triangular, mode = max
-        if (mode == maximum) {
-            return if (x in minimum..maximum) {
-                2.0 * (x - minimum) / (range * range)
-            } else {
-                0.0
-            }
+        if (x < minimum) {
+            return 0.0
         }
-
-        // Left triangular, min = mode
-        if (minimum == mode) {
-            return if (x in minimum..maximum) {
-                2.0 * (maximum - x) / (range * range)
-            } else {
-                0.0
-            }
+        if (x > maximum) {
+            return 0.0
         }
-
-        // regular triangular min < mode < max
-        return if (x in minimum..mode) {
-            2.0 * (x - minimum) / (range * (mode - minimum))
-        } else if (mode < x && x <= maximum) {
-            2.0 * (maximum - x) / (range * (maximum - mode))
-        } else {
-            0.0
+        //  x is in [minimum, maximum]
+        if (KSLMath.equal(x, mode)){
+            return 2.0/range
         }
+        //  x is in [minimum, maximum] and not equal to the mode
+        if ((minimum <= x) && (x < mode)) {
+            return (2.0*(x-minimum))/(range*(mode-minimum))
+        }
+        if ((mode < x) && (x <= maximum)) {
+            return (2.0*(maximum-x))/(range*(maximum-mode))
+        }
+        return 0.0
+
+//        // Right triangular, mode = max
+//        if (mode == maximum) {
+//            return if (x in minimum..maximum) {
+//                2.0 * (x - minimum) / (range * range)
+//            } else {
+//                0.0
+//            }
+//        }
+//
+//        // Left triangular, min = mode
+//        if (minimum == mode) {
+//            return if (x in minimum..maximum) {
+//                2.0 * (maximum - x) / (range * range)
+//            } else {
+//                0.0
+//            }
+//        }
+//
+//        // regular triangular min < mode < max
+//        return if (x in minimum..mode) {
+//            2.0 * (x - minimum) / (range * (mode - minimum))
+//        } else if (mode < x && x <= maximum) {
+//            2.0 * (maximum - x) / (range * (maximum - mode))
+//        } else {
+//            0.0
+//        }
+    }
+
+    override fun logLikelihood(x: Double): Double {
+        // get the base calculation
+        // the maximum height of the pdf is at the mode, 2/range
+        // thus, the maximum log-likelihood is ln(2/range)
+        // no log-likelihood can be individually higher that this value
+        val lmh = ln(2.0) - ln(range)
+        require(lmh != Double.NEGATIVE_INFINITY) {"Triangular: Log-Likelihood was negative $lmh"}
+        require(lmh != Double.POSITIVE_INFINITY) {"Triangular: Log-Likelihood was positive $lmh"}
+        val ll = super.logLikelihood(x)
+        if (ll > lmh){
+            return lmh
+        }
+        return ll
     }
 
     override fun cdf(x: Double): Double {
-
         // Right triangular, mode = max
         if (mode == maximum) {
             return if (x < minimum) {
