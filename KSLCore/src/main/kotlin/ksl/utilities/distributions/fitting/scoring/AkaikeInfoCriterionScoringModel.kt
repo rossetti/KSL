@@ -42,13 +42,21 @@ class AkaikeInfoCriterionScoringModel(
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
-            return Score(this, Double.MAX_VALUE, true)
+            return Score(this, domain.upperLimit, true)
         }
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
-        require(lm != Double.NEGATIVE_INFINITY) {"Sum of Log-Likelihood was negative $lm for distribution: $cdf"}
-        require(lm != Double.POSITIVE_INFINITY) {"Sum of Log-Likelihood was positive $lm for distribution: $cdf"}
+        // if there is a problem, just return bad score.
+        if (!lm.isFinite()) {
+            return Score(this, domain.upperLimit, true)
+        }
+//        require(lm != Double.NEGATIVE_INFINITY) {"Sum of Log-Likelihood was negative $lm for distribution: $cdf"}
+//        require(lm != Double.POSITIVE_INFINITY) {"Sum of Log-Likelihood was positive $lm for distribution: $cdf"}
         val score = Statistic.akaikeInfoCriterion(data.size, k, lm)
+        // if there is a problem, just return bad score.
+        if (!score.isFinite() || score.isNaN()) {
+            return Score(this, domain.upperLimit, true)
+        }
         return Score(this, score, true)
     }
 }
