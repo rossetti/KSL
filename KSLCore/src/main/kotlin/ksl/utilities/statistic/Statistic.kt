@@ -1213,11 +1213,8 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
             require(sampleSize - numParameters + 1 > 0) { "The sample size must be > (the number of parameters - 1)" }
             val n = sampleSize.toDouble()
             val k = numParameters.toDouble()
-            //TODO This has a problem. It is producing negative values
             val num = n - 2.0 * k + 2
             val deNom = n - k + 1.0
-         //   println("lnMax = $lnMax, k = $k, num = $num")
-            // When lnMax is > 0, this is bad. How can lnMax > 0
             return (num / deNom) - 2.0 * lnMax
         }
 

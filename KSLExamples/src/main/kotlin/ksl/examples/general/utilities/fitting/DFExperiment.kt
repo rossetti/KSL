@@ -57,7 +57,7 @@ class DFExperiment(
         get() {
             val set = mutableSetOf<PDFScoringModel>()
             for (element in field) {
-                set.add(element)
+                set.add(element.newInstance())
             }
             return set
         }

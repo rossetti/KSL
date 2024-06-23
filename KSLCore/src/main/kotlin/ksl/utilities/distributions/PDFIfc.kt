@@ -18,6 +18,7 @@
 
 package ksl.utilities.distributions
 
+import ksl.utilities.math.KSLMath
 import kotlin.math.exp
 import kotlin.math.ln
 
@@ -46,9 +47,11 @@ interface PDFIfc : DomainIfc, LogLikelihoodIfc {
         // pdf(x) needs to be >= 0, it is non-negative, what happens if it is 0.0
         //TODO
         val y = pdf(x)
-        //TODO catch the numerical edge?
+        // catch the numerical edge?
         // use Double.MIN_VALUE somehow
-        return ln(pdf(x))
+        if (y < 0) return ln(Double.MIN_VALUE)
+        if (KSLMath.equal(y, 0.0)) return ln(Double.MIN_VALUE)
+        return ln(y)
     }
 
     /**
