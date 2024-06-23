@@ -5,10 +5,8 @@ import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.dbutil.SimpleDb
 import ksl.utilities.random.rvariable.ParameterizedRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
-import ksl.utilities.statistic.ErrorMatrixData
 import ksl.utilities.statistic.Statistic
 import java.nio.file.Path
-import kotlin.math.sqrt
 
 /**
  *   Each case has an ID for identification. The label represents
@@ -18,12 +16,12 @@ import kotlin.math.sqrt
  *   same sample size.  That is, all experiments of different sample sizes
  *   use the same number of repeated samples [numSamples]
  */
-data class CaseData(
+data class Case(
     var caseID: Int = -1,
     var label: String = "",
     var family: String = "",
     var numSamples: Int = 1
-) : DbTableData("Cases", listOf("caseID"))
+) : DbTableData("tblCase", listOf("caseID"))
 
 /**
  *  See csv file _Statistical_Results.csv
@@ -43,12 +41,12 @@ data class CaseData(
  *
  *  These statistics could be computed/derived from CaseScoringResults
  */
-data class CaseStatistics(
+data class CaseStatistic(
     var caseID: Int = -1,
     var sampleSize: Int = 1,
     var statName: String = "",
     var statValue: Double = 0.0,
-) : DbTableData("CaseStatistics", listOf("caseID", "sampleSize", "statName"))
+) : DbTableData("tblStatistic", listOf("caseID", "sampleSize", "statName"))
 
 /**
  *  These error matrix measures are collected across the samples generated for each
@@ -96,7 +94,7 @@ data class CaseMetricErrorMatrixData(
     var threatScore: Double? = null,
     var informedness: Double? = null,
     var prevalenceThreshold: Double? = null
-): DbTableData("CaseMetricErrorMatrix",
+): DbTableData("tblMetricErrorMatrix",
     listOf("caseID", "sampleSize", "metricName"))
 
 /**
@@ -104,20 +102,20 @@ data class CaseMetricErrorMatrixData(
  *  one or more parameters. This data class captures the name of each parameter
  *  and its true value for the case.
  */
-data class CaseParameters(
+data class CaseParameter(
     var caseID: Int = -1,
     var parameterName: String = "",
     var parameterValue: Double = 0.0
-) : DbTableData("CaseParameters", listOf("caseID", "parameterName")) {
+) : DbTableData("tblParameter", listOf("caseID", "parameterName")) {
 
     companion object {
 
-        fun create(dfTestCase: DFTestCase): List<CaseParameters> {
-            val list = mutableListOf<CaseParameters>()
+        fun create(dfTestCase: DFTestCase): List<CaseParameter> {
+            val list = mutableListOf<CaseParameter>()
             val parameters = dfTestCase.rv.parameters
             val pm = parameters.asDoubleMap()
             for ((paramName, paramValue) in pm) {
-                val cp = CaseParameters(dfTestCase.case.caseID, paramName, paramValue)
+                val cp = CaseParameter(dfTestCase.case.caseID, paramName, paramValue)
                 list.add(cp)
             }
             return list
@@ -130,7 +128,7 @@ data class CaseParameters(
  *  sample of the various sample sizes for each case.  This holds the sample
  *  data in wide-format.
  */
-data class CaseSampleStatistics(
+data class CaseSampleResult(
     var caseID: Int = -1,
     var sampleSize: Int = 1,
     var sampleID: Int = 1,
@@ -147,7 +145,7 @@ data class CaseSampleStatistics(
     var rawMoment4: Double = 0.0,
     var min: Double = 0.0,
     var max: Double = 0.0
-) : DbTableData("CaseSampleResults", listOf("caseID", "sampleSize", "sampleID"))
+) : DbTableData("tblSampleResult", listOf("caseID", "sampleSize", "sampleID"))
 
 /**
  *  For every (caseID, sampleSize, sampleID) combination one of the possible
@@ -180,7 +178,7 @@ data class CaseSampleStatistics(
  *  that was estimated from the data.
  *  @param resultValue This represents the value associated with the supplied result name.
  */
-data class CaseScoringResults(
+data class CaseScoringResult(
     var caseID: Int = -1,
     var sampleSize: Int = 1,
     var sampleID: Int = 1,
@@ -190,7 +188,7 @@ data class CaseScoringResults(
     var resultValue: Double = 0.0,
     var classification: String? = null,
 ) : DbTableData(
-    "CaseScoringResults",
+    "tblScoringResult",
     listOf("caseID", "sampleSize", "sampleID", "estimatedDistribution", "resultType", "resultName")
 )
 
@@ -205,11 +203,11 @@ class ResultsDb(
     }
 
     fun saveCaseParameters(dfTestCase: DFTestCase) {
-        val caseParameters: List<CaseParameters> = dfTestCase.caseParameters()
+        val caseParameters: List<CaseParameter> = dfTestCase.caseParameters()
         insertAllDbDataIntoTable(caseParameters, caseParameters.first().tableName)
     }
 
-    fun saveScoringResults(list: List<CaseScoringResults>){
+    fun saveScoringResults(list: List<CaseScoringResult>){
         val tblName = list.first().tableName
         insertAllDbDataIntoTable(list, tblName)
     }
@@ -220,7 +218,7 @@ class ResultsDb(
     }
 
     fun saveStatistics(caseID: Int, sampleSize: Int, sampleID: Int, statistic: Statistic) {
-        val cs = CaseSampleStatistics()
+        val cs = CaseSampleResult()
         cs.caseID = caseID
         cs.sampleSize = sampleSize
         cs.sampleID = sampleID
@@ -242,11 +240,10 @@ class ResultsDb(
 
     companion object {
         val resultTables = setOf(
-            CaseData(),
-            CaseStatistics(),
-            CaseParameters(),
-            CaseSampleStatistics(),
-            CaseScoringResults(),
+            Case(),
+            CaseParameter(),
+            CaseSampleResult(),
+            CaseScoringResult(),
             CaseMetricErrorMatrixData()
         )
     }
@@ -275,10 +272,10 @@ class DFTestCase(
 
     fun rvType() : RVParametersTypeIfc = rv.parameters.rvType
 
-    val case: CaseData = CaseData(id, rv.toString(), rvType().toString(), numSamples)
+    val case: Case = Case(id, rv.toString(), rvType().toString(), numSamples)
 
-    fun caseParameters(): List<CaseParameters> {
-        return CaseParameters.create(this)
+    fun caseParameters(): List<CaseParameter> {
+        return CaseParameter.create(this)
     }
 
     companion object {

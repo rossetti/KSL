@@ -6,7 +6,6 @@ import ksl.utilities.distributions.fitting.scoring.*
 import ksl.utilities.io.KSL
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
-import ksl.utilities.random.rvariable.GammaRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.statistic.Classification
 import ksl.utilities.statistic.ErrorMatrix
@@ -84,7 +83,7 @@ class DFExperiment(
         // run each case for the specified number of samples
         myMetricErrorMatrix.clear()
         myOverallScoringErrorMatrix.clear()
-        val caseRankingData = mutableListOf<CaseScoringResults>()
+        val caseRankingData = mutableListOf<CaseScoringResult>()
         for (i in 1..dfTestCase.case.numSamples) {
             val data = dfTestCase.rv.sample(sampleSize)
             val pdfModeler = PDFModeler(data, scoringModels = myScoringModels)
@@ -222,10 +221,10 @@ class DFExperiment(
         dfTestCase: DFTestCase,
         sampleID: Int,
         results: PDFModelingResults
-    ): List<CaseScoringResults> {
-        val list = mutableListOf<CaseScoringResults>()
+    ): List<CaseScoringResult> {
+        val list = mutableListOf<CaseScoringResult>()
         // need to get estimation results, this will have the parameters
-        val paramData = captureParameters(dfTestCase.case.caseID, sampleID, results.estimationResults)
+        val paramData = captureParameters(dfTestCase, sampleID, results.estimationResults)
         list.addAll(paramData)
         // need to capture the scoring evaluation
         val scoreData = captureScores(dfTestCase.case.caseID, sampleID, results.scoringResults)
@@ -245,11 +244,11 @@ class DFExperiment(
         dfTestCase: DFTestCase,
         sampleID: Int,
         results: PDFModelingResults
-    ): List<CaseScoringResults> {
-        val list = mutableListOf<CaseScoringResults>()
+    ): List<CaseScoringResult> {
+        val list = mutableListOf<CaseScoringResult>()
         val resultsAndRanksByScore: Map<ScoringResult, Int> = results.resultsAndRanksByScore()
         for ((sr, rank) in resultsAndRanksByScore){
-            val nc = CaseScoringResults()
+            val nc = CaseScoringResult()
             nc.caseID = dfTestCase.case.caseID
             nc.sampleSize = sr.estimationResult.originalData.size
             nc.sampleID = sampleID
@@ -269,11 +268,11 @@ class DFExperiment(
         dfTestCase: DFTestCase,
         sampleID: Int,
         results: PDFModelingResults
-    ): List<CaseScoringResults> {
-        val list = mutableListOf<CaseScoringResults>()
+    ): List<CaseScoringResult> {
+        val list = mutableListOf<CaseScoringResult>()
         val resultsAndRanksByScore: Map<ScoringResult, Int> = results.resultsAndRanksByAvgRanking()
         for ((sr, rank) in resultsAndRanksByScore){
-            val nc = CaseScoringResults()
+            val nc = CaseScoringResult()
             nc.caseID = dfTestCase.case.caseID
             nc.sampleSize = sr.estimationResult.originalData.size
             nc.sampleID = sampleID
@@ -293,12 +292,12 @@ class DFExperiment(
         dfTestCase: DFTestCase,
         sampleID: Int,
         results: PDFModelingResults
-    ): List<CaseScoringResults> {
-        val list = mutableListOf<CaseScoringResults>()
+    ): List<CaseScoringResult> {
+        val list = mutableListOf<CaseScoringResult>()
         val metricRanks = metricRankByScoringResult(results)
         for ((sr, metricMap) in metricRanks) {
             for ((metric, rank) in metricMap) {
-                val nc = CaseScoringResults()
+                val nc = CaseScoringResult()
                 nc.caseID = dfTestCase.case.caseID
                 nc.sampleSize = sr.estimationResult.originalData.size
                 nc.sampleID = sampleID
@@ -347,8 +346,8 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         scoringResults: List<ScoringResult>
-    ): List<CaseScoringResults> {
-        val list = mutableListOf<CaseScoringResults>()
+    ): List<CaseScoringResult> {
+        val list = mutableListOf<CaseScoringResult>()
         for (sr in scoringResults) {
             for (score in sr.scores) {
                 // first get the raw score
@@ -369,8 +368,8 @@ class DFExperiment(
         sampleID: Int,
         sr: ScoringResult,
         score: Score
-    ): CaseScoringResults {
-        val nc = CaseScoringResults()
+    ): CaseScoringResult {
+        val nc = CaseScoringResult()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
@@ -386,8 +385,8 @@ class DFExperiment(
         sampleID: Int,
         sr: ScoringResult,
         score: Score
-    ): CaseScoringResults {
-        val nc = CaseScoringResults()
+    ): CaseScoringResult {
+        val nc = CaseScoringResult()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
@@ -402,8 +401,8 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         sr: ScoringResult,
-    ): CaseScoringResults {
-        val nc = CaseScoringResults()
+    ): CaseScoringResult {
+        val nc = CaseScoringResult()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
@@ -418,8 +417,8 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         sr: ScoringResult,
-    ): CaseScoringResults {
-        val nc = CaseScoringResults()
+    ): CaseScoringResult {
+        val nc = CaseScoringResult()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
@@ -434,8 +433,8 @@ class DFExperiment(
         caseID: Int,
         sampleID: Int,
         sr: ScoringResult,
-    ): CaseScoringResults {
-        val nc = CaseScoringResults()
+    ): CaseScoringResult {
+        val nc = CaseScoringResult()
         nc.caseID = caseID
         nc.sampleSize = sr.estimationResult.originalData.size
         nc.sampleID = sampleID
@@ -447,15 +446,15 @@ class DFExperiment(
     }
 
     private fun captureParameters(
-        caseID: Int,
+        dfTestCase: DFTestCase,
         sampleID: Int,
         estimationResults: List<EstimationResult>
-    ): List<CaseScoringResults> {
-        val list = mutableListOf<CaseScoringResults>()
+    ): List<CaseScoringResult> {
+        val list = mutableListOf<CaseScoringResult>()
         for (er in estimationResults) {
             for ((paramName, paramValue) in er.parameters()) {
-                val nc = CaseScoringResults()
-                nc.caseID = caseID
+                val nc = CaseScoringResult()
+                nc.caseID = dfTestCase.case.caseID
                 nc.sampleSize = er.testData.size
                 nc.sampleID = sampleID
                 nc.estimatedDistribution = er.parameters?.rvType.toString()
