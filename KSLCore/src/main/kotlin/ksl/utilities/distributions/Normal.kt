@@ -83,8 +83,6 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
         return z * standardDeviation() + mean
     }
 
-
-
     override fun sumLogLikelihood(data: DoubleArray): Double {
         if (data.isEmpty()) {
             return 0.0
@@ -95,7 +93,10 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
         for (x in data) {
             sumSQDev = sumSQDev + (x - mean) * (x - mean)
         }
-        return -no2 * (ln2pi + ln(variance)) - sumSQDev / (2.0 * variance)
+        val sumLL = -no2 * (ln2pi + ln(variance)) - (sumSQDev / (2.0 * variance))
+        require(sumLL != Double.NEGATIVE_INFINITY) {"${this} : Log-Likelihood was negative $sumLL"}
+        require(sumLL != Double.POSITIVE_INFINITY) {"${this} : Log-Likelihood was positive $sumLL"}
+        return sumLL
     }
 
     /** Gets the kurtosis of the distribution

@@ -46,9 +46,9 @@ class AkaikeInfoCriterionScoringModel(
         }
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
+        require(lm != Double.NEGATIVE_INFINITY) {"Sum of Log-Likelihood was negative $lm for distribution: $cdf"}
+        require(lm != Double.POSITIVE_INFINITY) {"Sum of Log-Likelihood was positive $lm for distribution: $cdf"}
         val score = Statistic.akaikeInfoCriterion(data.size, k, lm)
-       // println("AIC scoring of $cdf")
-        //TODO need to check on likelihood function for generalized beta
         return Score(this, score, true)
     }
 }

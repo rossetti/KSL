@@ -18,15 +18,15 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
-import ksl.utilities.distributions.fitting.scoring.AndersonDarlingScoringModel
-import ksl.utilities.distributions.fitting.PDFModeler
-import ksl.utilities.distributions.fitting.estimators.PearsonType5MLEParameterEstimator
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.*
-import ksl.utilities.statistic.Statistic
-import ksl.utilities.statistic.U01Test
+import ksl.utilities.random.rvariable.GetRVariableIfc
+import ksl.utilities.random.rvariable.PearsonType5RV
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.exp
 import kotlin.math.pow
+import kotlin.math.ln
 
 /** Represents a Pearson Type V distribution,
  * see Law (2007) Simulation Modeling and Analysis, McGraw-Hill, pg 293
@@ -35,13 +35,15 @@ import kotlin.math.pow
  * @param scale must be &gt; 0
  * @param name an optional label/name
  */
-class PearsonType5 (shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
-    Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.PearsonType5 {
+class PearsonType5(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
+    Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
+    RVParametersTypeIfc by RVType.PearsonType5 {
 
     init {
         require(shape > 0) { "Alpha (shape parameter) should be > 0" }
         require(scale > 0) { "Beta (scale parameter) should > 0" }
     }
+
     /** Gets the shape parameter
      *
      * @return the shape parameter
@@ -98,10 +100,10 @@ class PearsonType5 (shape: Double = 1.0, scale: Double = 1.0, name: String? = nu
         if (x > 0.0) {
             val f = 1.0 - myGammaCDF.cdf(1.0 / x)
             // the accuracy of the gamma computation may cause value outside (0,1)
-            if (f >= 1.0){
+            if (f >= 1.0) {
                 return 1.0 - Double.MIN_VALUE
             }
-            if (f <= 0.0){
+            if (f <= 0.0) {
                 return Double.MIN_VALUE
             }
             return f
@@ -147,8 +149,16 @@ class PearsonType5 (shape: Double = 1.0, scale: Double = 1.0, name: String? = nu
 
     override fun pdf(x: Double): Double {
         return if (x > 0.0) {
-            x.pow(-(shape + 1.0)) * exp(-scale / x) / (scale.pow(-shape) * myGAlpha)
+            ((x.pow(-(shape + 1.0)) * exp(-scale / x)) * scale.pow(shape)) / (myGAlpha)
         } else 0.0
+    }
+
+    override fun logLikelihood(x: Double): Double {
+//        val part1 = -(shape + 1.0)*ln(x)
+//        val part2 = shape*ln(scale)
+//        val part3 = -scale/x
+//        val part4 = - Gamma.logGammaFunction(this.shape)
+        return shape * ln(scale) - (shape + 1.0) * ln(x) - (scale / x) - Gamma.logGammaFunction(this.shape)
     }
 
     /** Sets the parameters of the distribution

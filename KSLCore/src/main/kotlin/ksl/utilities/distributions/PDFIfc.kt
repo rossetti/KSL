@@ -45,7 +45,6 @@ interface PDFIfc : DomainIfc, LogLikelihoodIfc {
      */
     override fun logLikelihood(x: Double): Double {
         // pdf(x) needs to be >= 0, it is non-negative, what happens if it is 0.0
-        //TODO
         val y = pdf(x)
         // catch the numerical edge?
         // use Double.MIN_VALUE somehow
