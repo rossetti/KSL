@@ -18,6 +18,7 @@
 
 package ksl.utilities.distributions.fitting.scoring
 
+import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
@@ -30,7 +31,11 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  *  Computes a score to indicate the quality of fit for the proposed
  *  continuous distribution for the supplied data
  */
-abstract class PDFScoringModel(name: String) : Metric(name){
+abstract class PDFScoringModel(
+    name: String,
+    domain: Interval = Interval(0.0, Double.MAX_VALUE)
+) : Metric(name, domain){
+
     //TODO a scoring model should probably not be a sub-class of metric
     // it should have an instance of one, but not be one
     // if necessary consider using delegation, but that may not even be necessary.
@@ -75,5 +80,10 @@ abstract class PDFScoringModel(name: String) : Metric(name){
         } else {
             Score(this, domain.upperLimit, false)
         }
+    }
+
+    companion object{
+
+        var DEFAULT_BIG_RANGE = Interval(-1000000.0, 1000000.0)
     }
 }

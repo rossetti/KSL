@@ -18,6 +18,7 @@
 
 package ksl.utilities.distributions.fitting.scoring
 
+import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
@@ -31,7 +32,9 @@ import ksl.utilities.statistic.Statistic
  *   the distribution are not assumed to have been estimated from
  *   a maximum likelihood approach.
  */
-class BayesianInfoCriterionScoringModel : PDFScoringModel("BIC") {
+class BayesianInfoCriterionScoringModel(
+    domain : Interval = DEFAULT_BIG_RANGE
+) : PDFScoringModel("BIC", domain ) {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
@@ -39,8 +42,6 @@ class BayesianInfoCriterionScoringModel : PDFScoringModel("BIC") {
         }
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
-        //TODO some problem with lm again??  lm is > 0.0
-        println("BIC scoring of $cdf  lm = $lm")
         val score = Statistic.bayesianInfoCriterion(data.size, k, lm)
         return Score(this, score, true)
     }

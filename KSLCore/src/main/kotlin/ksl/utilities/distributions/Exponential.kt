@@ -100,6 +100,15 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
         }
     }
 
+    override fun logLikelihood(x: Double): Double {
+        return -ln(mean) + x / mean
+    }
+
+    override fun sumLogLikelihood(data: DoubleArray): Double {
+        val sum = data.sum()
+        return -1.0 * data.size.toDouble() * ln(mean) - (sum / mean)
+    }
+
     override fun variance(): Double {
         return mean * mean
     }
