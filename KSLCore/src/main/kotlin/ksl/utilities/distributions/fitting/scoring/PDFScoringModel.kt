@@ -84,6 +84,10 @@ abstract class PDFScoringModel(
 
     companion object{
 
-        var DEFAULT_BIG_RANGE = Interval(-1000000.0, 1000000.0)
+        var LOWER_LIMIT = -1000000.0
+        var UPPER_LIMIT =  1000000.0
+
+        val DEFAULT_BIG_RANGE
+            get () = Interval(LOWER_LIMIT, UPPER_LIMIT)
     }
 }
