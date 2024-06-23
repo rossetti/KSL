@@ -111,7 +111,7 @@ fun setUpSampleSizes(
 fun main(){
     val allRVs = RVType.entries.toSet()
     val subSet = setOf(RVCases.G)
-    val testCases = buildCases(subSet, setUpSampleSizes(ExpType.SCREENING), 10)
+    val testCases = buildCases(subSet, setUpSampleSizes(ExpType.SCREENING))
     val dfExperiment = DFExperiment("Test_Cases", testCases)
     dfExperiment.messageOutput = true
     println("Running experiments...")
