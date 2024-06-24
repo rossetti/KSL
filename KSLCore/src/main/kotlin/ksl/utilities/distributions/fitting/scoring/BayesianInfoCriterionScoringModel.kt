@@ -20,6 +20,7 @@ package ksl.utilities.distributions.fitting.scoring
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.io.KSL
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
@@ -44,13 +45,22 @@ class BayesianInfoCriterionScoringModel(
         val lm = cdf.sumLogLikelihood(data)
         // if there is a problem, just return bad score.
         if (!lm.isFinite()) {
+            KSL.logger.warn { "BIC scoring model: Bounded score: ${domain.upperLimit}  made for $cdf : log-likelihood was not finite" }
             return Score(this, domain.upperLimit, true)
         }
-//        require(lm != Double.NEGATIVE_INFINITY) {"Sum of Log-Likelihood was negative $lm for distribution: $cdf"}
-//        require(lm != Double.POSITIVE_INFINITY) {"Sum of Log-Likelihood was positive $lm for distribution: $cdf"}
         val score = Statistic.bayesianInfoCriterion(data.size, k, lm)
         // if there is a problem, just return bad score.
         if (!score.isFinite() || score.isNaN()) {
+            KSL.logger.warn { "BIC scoring model: Bounded score: ${domain.upperLimit} made for $cdf : BIC score was infinite/NaN" }
+            return Score(this, domain.upperLimit, true)
+        }
+        // bound the score within the domain
+        if (score <= domain.lowerLimit){
+            KSL.logger.warn { "BIC scoring model: Bounded score: ${domain.upperLimit} made for $cdf : BIC score was outside lower domain" }
+            return Score(this, domain.lowerLimit, true)
+        }
+        if (score >= domain.upperLimit){
+            KSL.logger.warn { "BIC scoring model: Bounded score: ${domain.upperLimit} made for $cdf : BIC score was outside upper domain" }
             return Score(this, domain.upperLimit, true)
         }
         return Score(this, score, true)
