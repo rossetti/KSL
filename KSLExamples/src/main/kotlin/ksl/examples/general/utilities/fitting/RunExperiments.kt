@@ -93,9 +93,9 @@ fun buildCases(rvCases: Set<RVCases>, sampleSizes: Set<Int>, numSamples: Int = 2
 
 fun setUpSampleSizes(
     expType: ExpType,
-    low:Int = 40,
+    low:Int = 20,
     high:Int = 400,
-    max: Int = 4000,
+    max: Int = 2000,
     stepSize: Int = 20)
         : Set<Int> {
     return when (expType) {
