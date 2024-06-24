@@ -318,6 +318,7 @@ class Beta(
             }
             require(!(p < 0.0 || p > 1.0)) { "Supplied probability was $p Probability must be (0,1)" }
             // set up the search for the root
+            //TODO catch edge case of initialX = 0.0 or 1.0
             var xL = Math.max(0.0, initialX - searchDelta)
             var xU = Math.min(1.0, initialX + searchDelta)
             val interval = Interval(xL, xU)
@@ -387,6 +388,8 @@ class Beta(
                     }
                 }
             }
+            if (x >= 1.0) return 1.0
+            if (x <= 0.0) return 0.0
             return x
         }
     }
