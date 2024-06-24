@@ -306,7 +306,7 @@ class Beta(
             initialX: Double = approximateInvCDF(alpha, beta, p, lnBetaA1A2),
             searchDelta: Double = delta
         ): Double {
-            require(!(initialX < 0.0 || initialX > 1.0)) { "Supplied initial x was $initialX  must be [0,1]" }
+//            require(!(initialX < 0.0 || initialX > 1.0)) { "Supplied initial x was $initialX  must be [0,1]" }
             require(searchDelta > 0) { "The search delta must be > 0" }
             require(alpha > 0) { "The 1st shape parameter must be > 0" }
             require(beta > 0) { "The 2nd shape parameter must be > 0" }
@@ -318,9 +318,19 @@ class Beta(
             }
             require(!(p < 0.0 || p > 1.0)) { "Supplied probability was $p Probability must be (0,1)" }
             // set up the search for the root
-            //TODO catch edge case of initialX = 0.0 or 1.0
-            var xL = Math.max(0.0, initialX - searchDelta)
-            var xU = Math.min(1.0, initialX + searchDelta)
+            // catch edge case of initialX = 0.0 or 1.0
+            var xU = if (initialX >= 1.0) {
+                1.0 // 0.9999999
+            } else {
+                Math.min(1.0, initialX + searchDelta)
+            }
+            var xL = if (initialX <= 0.0) {
+                0.0 //0.0000001
+            } else {
+                Math.max(0.0, initialX - searchDelta)
+            }
+//            var xL = Math.max(0.0, initialX - searchDelta)
+//            var xU = Math.min(1.0, initialX + searchDelta)
             val interval = Interval(xL, xU)
 
             //TODO should RootFunction and BisectionRootFinder be encapsulated in a class, made once and used many times?
