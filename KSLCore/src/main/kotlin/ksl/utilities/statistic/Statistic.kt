@@ -1209,6 +1209,7 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
          *  Computes the AIC based on the sample size [sampleSize], the number of parameters
          *  estimated for the model [numParameters], and the maximized value [lnMax] of the log-likelihood
          *  function of the model.
+         *  Implementation based on [Vose](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=19631811c7fd08cac567a4ee886acae6d82e8f3f)
          */
         fun akaikeInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
             require(sampleSize > 0) { "The size of the sample must be > 0" }
@@ -1225,9 +1226,10 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
         }
 
         /**
-         *  Computes the AIC based on the sample size [sampleSize], the number of parameters
+         *  Computes the Hannan-Quinn criterion based on the sample size [sampleSize], the number of parameters
          *  estimated for the model [numParameters], and the maximized value [lnMax] of the log-likelihood
          *  function of the model.
+         *  Implementation based on [Vose](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=19631811c7fd08cac567a4ee886acae6d82e8f3f)
          */
         fun hannanQuinnInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
             require(sampleSize > 0) { "The size of the sample must be > 0" }
