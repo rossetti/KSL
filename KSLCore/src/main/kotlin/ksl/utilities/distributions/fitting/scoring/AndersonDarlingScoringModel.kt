@@ -24,6 +24,9 @@ import ksl.utilities.statistic.Statistic
 
 class AndersonDarlingScoringModel : PDFScoringModel("Anderson-Darling") {
 
+    override val allowLowerLimitAdjustment: Boolean = false
+    override val allowUpperLimitAdjustment: Boolean = true
+
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
             return Score(this, Double.MAX_VALUE, true)

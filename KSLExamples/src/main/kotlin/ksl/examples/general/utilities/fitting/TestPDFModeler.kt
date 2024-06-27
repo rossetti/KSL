@@ -336,7 +336,7 @@ fun testBootStrappingOfFamily(){
 //    for(cell in cells){
 //        println(cell)
 //    }
-    println(freq.sortByDesc("Ranked First"))
+    println(freq)
 }
 
 fun testPearsonType5(){

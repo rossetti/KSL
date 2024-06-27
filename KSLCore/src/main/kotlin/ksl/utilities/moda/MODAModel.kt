@@ -92,17 +92,15 @@ abstract class MODAModel(
      *  The supplied scores may not encompass the entire domain of the related metrics.
      *  It may be useful to adjust the domain limits (of the metrics) based on the actual (realized)
      *  scores that were supplied.
-     *  @param adjustMetricLowerLimits indicates that the metric domain's lower limits should be
-     *  rescaled if true. The default is false.
-     *  @param adjustMetricUpperLimits indicates that the metric domain's upper limits should be
-     *  rescaled if true. The default is true.
+     *  Metrics specify whether their domain limits may be adjusted based on realized scores.
+     *
+     *  @param allowRescalingByMetrics indicates if rescaling is permitted by metrics or not.
+     *  True is the default.
      */
     fun defineAlternatives(
         alternatives: Map<String, List<Score>>,
-        adjustMetricLowerLimits: Boolean = false,
-        adjustMetricUpperLimits: Boolean = true
+        allowRescalingByMetrics: Boolean = true
     ) {
-        //TODO need to rethink this. rescaling process
         if (metricFunctionMap.isEmpty()) {
             throw IllegalStateException("There were no metrics defined for the model")
         }
@@ -114,18 +112,14 @@ abstract class MODAModel(
         // actual scores may not encompass entire domain of metric
         // it may be useful to adjust domain limits based on realized scores
         // to improve scalability. Only rescale if requested.
-        if (adjustMetricLowerLimits || adjustMetricUpperLimits) {
+        if (allowRescalingByMetrics) {
             //TODO this causes the side-effect that the domain of the metrics for the scores are changed.
-            rescaleMetricDomains(adjustMetricLowerLimits, adjustMetricUpperLimits)
+            rescaleMetricDomains()
         }
     }
 
-    private fun rescaleMetricDomains(
-        adjustMetricLowerLimits: Boolean,
-        adjustMetricUpperLimits: Boolean
-    ) {
-        //TODO this needs to be done by metric. That is the metric should indicate
-        // if it should be rescaled and how.
+    private fun rescaleMetricDomains() {
+        // this needs to be done by metric. That is the metric should indicate if it should be rescaled.
         // need statistics for each alternative's metrics
         val statisticsByMetric = scoreStatisticsByMetric()
         for ((metric, stat) in statisticsByMetric) {
@@ -134,10 +128,10 @@ abstract class MODAModel(
             } else {
                 Interval(stat.min, stat.max)
             }
-            if (!adjustMetricLowerLimits && adjustMetricUpperLimits) {
+            if (!metric.allowLowerLimitAdjustment && metric.allowUpperLimitAdjustment) {
                 // no lower limit but yes on upper limit
                 metric.domain.setInterval(metric.domain.lowerLimit, interval.upperLimit)
-            } else if (adjustMetricLowerLimits && !adjustMetricUpperLimits) {
+            } else if (metric.allowLowerLimitAdjustment && !metric.allowUpperLimitAdjustment) {
                 // yes on lower limit, no on upper limit
                 metric.domain.setInterval(interval.lowerLimit, metric.domain.upperLimit)
             } else {

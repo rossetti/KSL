@@ -1,5 +1,6 @@
 package ksl.utilities.distributions.fitting.scoring
 
+import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
@@ -15,11 +16,16 @@ import ksl.utilities.statistic.StatisticXY
  *  for the data set is computed and returned as the score.
  */
 class PPCorrelationScoringModel(
-    var empDistType: EmpDistType = EmpDistType.Continuity1
-) : PDFScoringModel("PPCorrelation") {
+    var empDistType: EmpDistType = EmpDistType.Continuity1,
+    domain: Interval = Interval(-1.0, 1.0)
+) : PDFScoringModel("PPCorrelation", domain) {
     init {
         direction = MetricIfc.Direction.BiggerIsBetter
     }
+
+    override val allowLowerLimitAdjustment: Boolean = false
+    override val allowUpperLimitAdjustment: Boolean = false
+
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
             return Score(this, 0.0, true)

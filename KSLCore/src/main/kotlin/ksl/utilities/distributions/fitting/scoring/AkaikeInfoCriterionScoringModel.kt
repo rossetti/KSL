@@ -34,15 +34,18 @@ import ksl.utilities.statistic.Statistic
  *   a maximum likelihood approach.
  */
 class AkaikeInfoCriterionScoringModel(
-    domain : Interval = DEFAULT_BIG_RANGE
+    domain: Interval = DEFAULT_BIG_RANGE
 ) : PDFScoringModel("AIC", domain) {
+
+    override val allowLowerLimitAdjustment: Boolean = true
+    override val allowUpperLimitAdjustment: Boolean = true
 
     override fun newInstance(): AkaikeInfoCriterionScoringModel {
         return AkaikeInfoCriterionScoringModel()
     }
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
-        if (data.isEmpty()){
+        if (data.isEmpty()) {
             return Score(this, domain.upperLimit, true)
         }
         val k = cdf.parameters().size
@@ -59,11 +62,11 @@ class AkaikeInfoCriterionScoringModel(
             return Score(this, domain.upperLimit, true)
         }
         // bound the score within the domain
-        if (score <= domain.lowerLimit){
+        if (score <= domain.lowerLimit) {
             KSL.logger.warn { "AIC scoring model: Bounded score: ${domain.upperLimit} made for $cdf : AIC score was outside lower domain" }
             return Score(this, domain.lowerLimit, true)
         }
-        if (score >= domain.upperLimit){
+        if (score >= domain.upperLimit) {
             KSL.logger.warn { "AIC scoring model: Bounded score: ${domain.upperLimit} made for $cdf : AIC score was outside upper domain" }
             return Score(this, domain.upperLimit, true)
         }

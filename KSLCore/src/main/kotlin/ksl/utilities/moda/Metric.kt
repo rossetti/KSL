@@ -44,6 +44,18 @@ interface MetricIfc {
     val unitsOfMeasure: String?
     val description: String?
 
+    /**
+     *  Indicates if the lower limit of the domain may be
+     *  adjusted during scaling processes
+     */
+    val allowLowerLimitAdjustment: Boolean
+
+    /**
+     *  Indicates if the upper limit of the domain may be
+     *  adjusted during scaling processes
+     */
+    val allowUpperLimitAdjustment: Boolean
+
 }
 
 /**
@@ -68,6 +80,9 @@ open class Metric(
         require(domain.width > 0.0) { "The width of the domain must be > 0.0. It was $domain" }
         require(domain.width.isFinite()) { "The width of the domain must be finite. It was $domain" }
     }
+
+    override val allowLowerLimitAdjustment: Boolean = true
+    override val allowUpperLimitAdjustment: Boolean = true
 
     override var direction = MetricIfc.Direction.SmallerIsBetter
 
