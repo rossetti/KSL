@@ -350,7 +350,7 @@ class Beta(
                 interval.setInterval(xL, xU)
             }
             val rootFinder = BisectionRootFinder(rootFunction, interval)
-            rootFinder.maximumIterations = 200
+            rootFinder.maximumIterations = 300
             rootFinder.evaluate()
             if (!rootFinder.hasConverged()) {
                 throw KSLTooManyIterationsException("Unable to invert CDF for Beta: Beta(x,$alpha,$beta)=$p")

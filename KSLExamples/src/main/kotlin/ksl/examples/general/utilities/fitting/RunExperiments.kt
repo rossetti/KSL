@@ -109,13 +109,13 @@ fun setUpSampleSizes(
 }
 
 fun main(){
- //   val allRVs = RVCases.entries.toSet()
-    val subSet = setOf(RVCases.G)
+    val allRVs = RVCases.entries.toSet()
+//    val subSet = setOf(RVCases.G)
     val eType = ExpType.FULL
 //    val eType = ExpType.SCREENING
 //    val testCases = buildCases(allRVs, setUpSampleSizes(eType))
-    val testCases = buildCases(subSet, setUpSampleSizes(eType))
-    val dfExperiment = DFExperiment("${eType}_Gamma", testCases)
+    val testCases = buildCases(allRVs, setUpSampleSizes(eType))
+    val dfExperiment = DFExperiment("${eType}", testCases)
     dfExperiment.messageOutput = true
     println("Running experiments...")
     val mark = TimeSource.Monotonic.markNow()
