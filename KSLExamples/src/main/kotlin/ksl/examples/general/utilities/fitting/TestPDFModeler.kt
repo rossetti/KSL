@@ -37,6 +37,8 @@ import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.statistic.U01Test
+import org.jetbrains.kotlinx.dataframe.api.sortBy
+import org.jetbrains.kotlinx.dataframe.api.sortByDesc
 import org.jetbrains.letsPlot.commons.intern.math.ipow
 
 fun main() {
@@ -45,7 +47,7 @@ fun main() {
     val n = 1000
     val data = e.sample(n)
 //    data.write(KSL.out)
-       testModeler(data)
+//       testModeler(data)
     //      testExponentialEstimation(data)
     //   testWeibullEstimation(data)
 
@@ -58,7 +60,7 @@ fun main() {
 
 //    testAndersonDarling()
 
-//    testBootStrappingOfFamily()
+    testBootStrappingOfFamily()
 
 //    splitAnalysis(80.0)
 }
@@ -334,7 +336,7 @@ fun testBootStrappingOfFamily(){
 //    for(cell in cells){
 //        println(cell)
 //    }
-    println(freq)
+    println(freq.sortByDesc("Ranked First"))
 }
 
 fun testPearsonType5(){
