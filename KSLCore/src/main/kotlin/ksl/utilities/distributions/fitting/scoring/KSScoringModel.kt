@@ -24,6 +24,9 @@ import ksl.utilities.statistic.Statistic
 
 class KSScoringModel : PDFScoringModel("K-S") {
 
+    override val allowLowerLimitAdjustment: Boolean = false
+    override val allowUpperLimitAdjustment: Boolean = true
+
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         val score = Statistic.ksTestStatistic(data, cdf)
         return Score(this, score, true)

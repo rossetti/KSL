@@ -26,6 +26,9 @@ import ksl.utilities.statistic.Statistic
 
 class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared") {
 
+    override val allowLowerLimitAdjustment: Boolean = false
+    override val allowUpperLimitAdjustment: Boolean = true
+
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
             return Score(this, Double.MAX_VALUE, true)
