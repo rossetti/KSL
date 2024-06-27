@@ -102,6 +102,7 @@ abstract class MODAModel(
         adjustMetricLowerLimits: Boolean = false,
         adjustMetricUpperLimits: Boolean = true
     ) {
+        //TODO need to rethink this. rescaling process
         if (metricFunctionMap.isEmpty()) {
             throw IllegalStateException("There were no metrics defined for the model")
         }
@@ -123,6 +124,8 @@ abstract class MODAModel(
         adjustMetricLowerLimits: Boolean,
         adjustMetricUpperLimits: Boolean
     ) {
+        //TODO this needs to be done by metric. That is the metric should indicate
+        // if it should be rescaled and how.
         // need statistics for each alternative's metrics
         val statisticsByMetric = scoreStatisticsByMetric()
         for ((metric, stat) in statisticsByMetric) {

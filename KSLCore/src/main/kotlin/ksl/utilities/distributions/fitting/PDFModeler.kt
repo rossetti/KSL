@@ -257,7 +257,9 @@ class PDFModeler(
         for (sr in scoringResults) {
             alternatives[sr.name] = sr.scores
         }
-        model.defineAlternatives(alternatives)//this can cause metric domain rescaling
+      //  model.defineAlternatives(alternatives)//this can cause metric domain rescaling
+
+        model.defineAlternatives(alternatives, true, true)//this can cause metric domain rescaling
         //TODO this is where I can capture the ranking recommendation into the scoring result
         //TODO need to specify the ranking method as a parameter of the function
         val firstCounts = model.alternativeFirstRankCounts(false, rankingMethod).toMap()
@@ -703,7 +705,6 @@ class PDFModeler(
         val defaultScoringModels: Set<PDFScoringModel>
             get() = setOf(
                 BayesianInfoCriterionScoringModel(),
-                AkaikeInfoCriterionScoringModel(),
                 AndersonDarlingScoringModel(),
                 PPSSEScoringModel(),
                 QQCorrelationScoringModel()
