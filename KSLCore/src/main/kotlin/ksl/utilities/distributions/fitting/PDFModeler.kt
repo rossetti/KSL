@@ -702,10 +702,10 @@ class PDFModeler(
          */
         val defaultScoringModels: Set<PDFScoringModel>
             get() = setOf(
+                BayesianInfoCriterionScoringModel(),
                 AndersonDarlingScoringModel(),
                 PPSSEScoringModel(),
-                KSScoringModel(),
-                PPCorrelationScoringModel()
+                QQCorrelationScoringModel()
             )
 
         /**
