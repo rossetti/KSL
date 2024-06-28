@@ -18,7 +18,7 @@ import kotlin.math.sqrt
  *  See: http://luthuli.cs.uiuc.edu/~daf/courses/Opt-2017/Combinatorialpapers/EMD.pdf
  *
  */
-class MallowsL2ScoringModel : PDFScoringModel("MallowsL2") {
+class MallowsL2ScoringModel : PDFScoringModel("ML2") {
 
     override val allowLowerLimitAdjustment: Boolean = false
     override val allowUpperLimitAdjustment: Boolean = true

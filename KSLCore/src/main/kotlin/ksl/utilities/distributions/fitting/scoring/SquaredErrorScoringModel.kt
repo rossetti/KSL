@@ -29,7 +29,7 @@ import ksl.utilities.statistic.Histogram
  *  and the observed probabilities. The break points for the histogram
  *  are specified by PDFModeler.equalizedCDFBreakPoints()
  */
-class SquaredErrorScoringModel : PDFScoringModel("Squared-Error") {
+class SquaredErrorScoringModel : PDFScoringModel("SSE") {
 
     override val allowLowerLimitAdjustment: Boolean = false
     override val allowUpperLimitAdjustment: Boolean = true

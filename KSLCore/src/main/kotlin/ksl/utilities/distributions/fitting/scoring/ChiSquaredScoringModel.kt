@@ -24,7 +24,7 @@ import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 
-class ChiSquaredScoringModel : PDFScoringModel("Chi-Squared") {
+class ChiSquaredScoringModel : PDFScoringModel("CSQ") {
 
     override val allowLowerLimitAdjustment: Boolean = false
     override val allowUpperLimitAdjustment: Boolean = true

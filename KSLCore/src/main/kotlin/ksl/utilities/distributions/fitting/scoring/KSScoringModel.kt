@@ -22,7 +22,7 @@ import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
-class KSScoringModel : PDFScoringModel("K-S") {
+class KSScoringModel : PDFScoringModel("KS") {
 
     override val allowLowerLimitAdjustment: Boolean = false
     override val allowUpperLimitAdjustment: Boolean = true

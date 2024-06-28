@@ -22,7 +22,7 @@ import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
-class AndersonDarlingScoringModel : PDFScoringModel("Anderson-Darling") {
+class AndersonDarlingScoringModel : PDFScoringModel("AD") {
 
     override val allowLowerLimitAdjustment: Boolean = false
     override val allowUpperLimitAdjustment: Boolean = true
