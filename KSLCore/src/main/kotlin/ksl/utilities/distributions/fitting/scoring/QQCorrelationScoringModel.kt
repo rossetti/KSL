@@ -18,7 +18,7 @@ import ksl.utilities.statistic.StatisticXY
 class QQCorrelationScoringModel(
     var empDistType: EmpDistType = EmpDistType.Continuity1,
     domain: Interval = Interval(-1.0, 1.0)
-) : PDFScoringModel("QQCorrelation", domain) {
+) : PDFScoringModel("QQC", domain) {
 
     init {
         direction = MetricIfc.Direction.BiggerIsBetter

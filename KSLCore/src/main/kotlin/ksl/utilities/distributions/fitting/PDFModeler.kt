@@ -704,7 +704,7 @@ class PDFModeler(
             get() = setOf(
                 BayesianInfoCriterionScoringModel(),
                 AndersonDarlingScoringModel(),
-                PPSSEScoringModel(),
+                CramerVonMisesScoringModel(),
                 QQCorrelationScoringModel()
             )
 
