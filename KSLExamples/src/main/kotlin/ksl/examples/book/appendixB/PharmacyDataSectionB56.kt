@@ -39,6 +39,8 @@ fun asBrowserResults(){
         val data = KSLFileUtil.scanToArray(myFile.toPath())
         val d = PDFModeler(data)
         d.showAllResultsInBrowser()
+        val df = PDFModeler.bootstrapFamilyFrequencyAsDataFrame(data)
+        println(df)
     }
 }
 

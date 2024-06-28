@@ -51,6 +51,14 @@ interface CollectorIfc : LastValueIfc, ValueIfc {
     }
 
     /**
+     *  Collect on the double value return by the function
+     *  @param fn the function to invoke to collect doubles
+     */
+    fun collect(fn : () -> Double){
+        collect(fn.invoke())
+    }
+
+    /**
      * Collects on the Int value
      *
      * @param obs the observation to collect on
