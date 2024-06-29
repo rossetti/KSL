@@ -1004,7 +1004,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 val dbCreate = classLoader.getResourceAsStream("KSL_Db.sql")
                 val dbDrop = classLoader.getResourceAsStream("KSL_DbDropScript.sql")
                 val dbSQLiteCreate = classLoader.getResourceAsStream("KSL_SQLite.sql")
-                val dbDuckDbCreate = classLoader.getResourceAsStream("KSL_DuckDb.sql")
                 if (dbCreate != null) {
                     Files.copy(
                         dbCreate, dbScriptsDir.resolve("KSL_Db.sql"),
@@ -1026,13 +1025,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                     )
                     DatabaseIfc.logger.trace { "Copied KSL_SQLite.sql to $dbScriptsDir" }
                 }
-                if (dbDuckDbCreate != null) {
-                    Files.copy(
-                        dbDuckDbCreate, dbScriptsDir.resolve("KSL_DuckDb.sql"),
-                        StandardCopyOption.REPLACE_EXISTING
-                    )
-                    DatabaseIfc.logger.trace { "Copied KSL_DuckDb.sql to $dbScriptsDir" }
-                }
             } catch (e: IOException) {
                 e.printStackTrace()
             }
@@ -1051,24 +1043,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             if (!executed) {
                 DatabaseIfc.logger.error { "Unable to execute KSL_SQLite.sql creation script" }
                 throw DataAccessException("The execution script KSL_SQLite.sql did not fully execute")
-            }
-            return database
-        }
-
-        /** This method creates the database on disk and configures it to hold KSL simulation data.
-         *
-         * @param dbName the name of the database
-         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
-         * @return an empty embedded DuckDb database configured to hold KSL simulation results
-         */
-        fun createDuckDbKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
-            val database = DuckDb.createDatabase(dbName, dbDirectory)
-            val executed = database.executeScript(dbScriptsDir.resolve("KSL_DuckDb.sql"))
-            // database.defaultSchemaName = "main"
-            database.defaultSchemaName = SCHEMA_NAME
-            if (!executed) {
-                DatabaseIfc.logger.error { "Unable to execute KSL_DuckDb.sql creation script" }
-                throw DataAccessException("The execution script KSL_DuckDb.sql did not fully execute")
             }
             return database
         }
