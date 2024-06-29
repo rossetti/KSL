@@ -27,6 +27,7 @@
 -- Revised: June 28, 2024
 -- Changed to support DuckDb which has no cascade delete option on foreign keys
 -- and no GENERATED key word
+-- CANNOT proceed because DuckDb does not support cascade delete
 
 CREATE SCHEMA KSL_DB;
 
