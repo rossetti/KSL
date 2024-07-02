@@ -50,14 +50,6 @@ open class SimpleDb(
     )
 
     init {
-        for (tableData in tableDefinitions) {
-            require(!tableData.autoIncField) { "The autoIncField for table (${tableData.tableName}) in the SimpleDb must be false" }
-            val worked = executeCommand(tableData.createTableSQLStatement())
-            if (worked) {
-                DatabaseIfc.logger.info { "SimpleDb($label): table ${tableData.tableName} has been created." }
-            } else {
-                DatabaseIfc.logger.info { "SimpleDb($label): table ${tableData.tableName} was not created." }
-            }
-        }
+        createSimpleDbTables(tableDefinitions)
     }
 }

@@ -1735,6 +1735,46 @@ interface DatabaseIfc : DatabaseIOIfc {
         }
     }
 
+    /**
+     *  The purpose of this function is to allow the creation of a simple database table
+     *  based on a DbTableData data class.  By defining a data class that is a subclasses of
+     *  DbTableData, a limited CREATE TABLE specification can be obtained and the table created.
+     *  Then, the database can be used to insert data from instances of
+     *  the DbTableData subclass.  The DbTableData data class cannot have a auto-increment type primary key.
+     *  In addition, the table will not have foreign key specifications nor referential integrity specifications.
+     *  If supported by the underlying database engine, additional specifications could be added via
+     *  alter table DDL specifications.
+     *
+     *  @param tableDefinition an example table definition based on DbTableData specifications
+     */
+    fun <T : DbTableData> createSimpleDbTable(tableDefinition: T){
+        createSimpleDbTables(setOf(tableDefinition))
+    }
+
+    /**
+     *  The purpose of this function is to allow the creation of simple database tables
+     *  based on the DbTableData data classes.  By defining data classes that are subclasses of
+     *  DbTableData, a limited CREATE TABLE specification can be obtained and the table created.
+     *  Then, the database can be used to insert data from instances of
+     *  the DbTableData subclasses.  The DbTableData data classes cannot have auto-increment type primary keys.
+     *  In addition, the tables will not have foreign key specifications nor referential integrity specifications.
+     *  If supported by the underlying database engine, additional specifications could be added via
+     *  alter table DDL specifications.
+     *
+     *  @param tableDefinitions an example set of table definitions based on DbTableData specifications
+     */
+    fun <T : DbTableData> createSimpleDbTables(tableDefinitions: Set<T>){
+        for (tableData in tableDefinitions) {
+            require(!tableData.autoIncField) { "The autoIncField for table (${tableData.tableName}) in the simple table must be false." }
+            val worked = executeCommand(tableData.createTableSQLStatement())
+            if (worked) {
+                logger.info { "Db($label): table ${tableData.tableName} has been created." }
+            } else {
+                logger.info { "Db($label): table ${tableData.tableName} was not created." }
+            }
+        }
+    }
+
     fun asString(): String {
         val sb = StringBuilder()
         sb.appendLine("Database: $label")
