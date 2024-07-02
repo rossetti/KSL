@@ -31,7 +31,7 @@ import java.nio.file.Path
  *  @param tableDefinitions an example set of table definitions based on DbTableData specifications
  *  @param db the underlying database
  */
-@Suppress("LeakingThis")
+//@Suppress("LeakingThis")
 open class SimpleDb(
     tableDefinitions: Set<DbTableData>,
     private val db: Database
@@ -52,4 +52,5 @@ open class SimpleDb(
     init {
         createSimpleDbTables(tableDefinitions)
     }
+
 }

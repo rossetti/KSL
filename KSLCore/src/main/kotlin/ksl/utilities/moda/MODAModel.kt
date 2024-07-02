@@ -4,6 +4,7 @@ import com.google.common.collect.HashBasedTable
 import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.Database
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.io.dbutil.SimpleDb
@@ -736,7 +737,7 @@ abstract class MODAModel(
      *  @param dir the directory to hold the database on the disk
      */
     fun resultsAsDatabase(dbName: String, dir: Path = KSL.dbDir): DatabaseIfc {
-        val db = SimpleDb(setOf(ScoreData(), ValueData(),
+        val db = Database.createSimpleDb(setOf(ScoreData(), ValueData(),
             OverallValueData(), AlternativeRankFrequencyData()), dbName, dir)
         val scores = alternativeScoreData()
         val values = alternativeValueData()

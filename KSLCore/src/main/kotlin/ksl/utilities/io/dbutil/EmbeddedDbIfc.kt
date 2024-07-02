@@ -5,7 +5,12 @@ import java.io.File
 import java.nio.file.Path
 import javax.sql.DataSource
 
+enum class EmbeddedTypes{
+    SQLITE, DERBY
+}
+
 interface EmbeddedDbIfc {
+
     /**
      * Checks if a file is an embedded database
      *

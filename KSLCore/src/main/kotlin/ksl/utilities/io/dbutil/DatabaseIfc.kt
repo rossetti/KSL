@@ -565,7 +565,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      *  Retrieves the table and schema information from the database meta data
      */
-    fun tableInfo() : List<TableInfo>{
+    fun tableInfo(): List<TableInfo> {
         val list = mutableListOf<TableInfo>()
         try {
             logger.trace { "Getting a connection to retrieve the list of user defined table names in database $label" }
@@ -850,7 +850,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *
      *  @param schemaName the name of the schema containing the table
      */
-    fun deleteAllFrom(schemaName: String? = defaultSchemaName){
+    fun deleteAllFrom(schemaName: String? = defaultSchemaName) {
         val tables = if (schemaName != null) {
             tableNames(schemaName)
         } else {
@@ -864,8 +864,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  @param tableNames the table to delete from
      *  @param schemaName the name of the schema containing the table
      */
-    fun deleteAllFrom(tableNames: List<String>, schemaName: String? = defaultSchemaName){
-        for(tableName in tableNames){
+    fun deleteAllFrom(tableNames: List<String>, schemaName: String? = defaultSchemaName) {
+        for (tableName in tableNames) {
             deleteAllFrom(tableName, schemaName)
         }
     }
@@ -1055,7 +1055,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      *  This is needed because SQLite has no schemas
      */
-    private fun sqliteExportToExcel(wbName: String, wbDirectory: Path){
+    private fun sqliteExportToExcel(wbName: String, wbDirectory: Path) {
         val list = mutableListOf<String>()
         list.addAll(userDefinedTables)
         list.addAll(views)
@@ -1783,7 +1783,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     fun <T : DbTableData> createSimpleDbTable(
         tableDefinition: T,
         autoCreateSchema: Boolean = false
-    ){
+    ) {
         createSimpleDbTables(setOf(tableDefinition), autoCreateSchema)
     }
 
@@ -1807,22 +1807,27 @@ interface DatabaseIfc : DatabaseIOIfc {
     fun <T : DbTableData> createSimpleDbTables(
         tableDefinitions: Set<T>,
         autoCreateSchema: Boolean = false
-    ){
+    ) {
         // need to check for table name conflict with existing tables
         // need to check schema specification
         val tableInfo = tableInfo()
-        for(td in tableDefinitions){
-            if (td.schemaName == null){
+        for (td in tableDefinitions) {
+            if (td.schemaName == null) {
                 // table is not specified in a schema, just check if table exists
-                require(!tableInfo.containsTable(td.tableName)) {"Table ${td.tableName} already exists in database $label" }
+                require(!tableInfo.containsTable(td.tableName)) { "Table ${td.tableName} already exists in database $label" }
             } else {
                 // schema was not null, check if schema exists
-                if (tableInfo.containsSchema(td.schemaName!!)){
+                if (tableInfo.containsSchema(td.schemaName!!)) {
                     // The schema exists, make sure that the table doesn't already exist
-                    require(!tableInfo.containsSchemaAndTable(td.schemaName!!, td.tableName)) {"Table ${td.tableName} already exists in schema ${td.schemaName} in database $label" }
+                    require(
+                        !tableInfo.containsSchemaAndTable(
+                            td.schemaName!!,
+                            td.tableName
+                        )
+                    ) { "Table ${td.tableName} already exists in schema ${td.schemaName} in database $label" }
                 } else {
                     // The schema does not exist. Table can be made, but no schema to hold it.
-                    if (autoCreateSchema){
+                    if (autoCreateSchema) {
                         val worked = executeCommand("CREATE SCHEMA ${td.schemaName}")
                         if (worked) {
                             logger.info { "Db($label): schema ${td.schemaName} has been created." }
@@ -1849,21 +1854,21 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     private fun List<TableInfo>.containsTable(tableName: String): Boolean {
-        for(ti in this){
+        for (ti in this) {
             if (ti.tableName == tableName) return true
         }
         return false
     }
 
     private fun List<TableInfo>.containsSchema(schemaName: String): Boolean {
-        for(ti in this){
+        for (ti in this) {
             if (ti.schemaName == schemaName) return true
         }
         return false
     }
 
     private fun List<TableInfo>.containsSchemaAndTable(schemaName: String, tableName: String): Boolean {
-        for(ti in this){
+        for (ti in this) {
             if ((ti.schemaName == schemaName) && (ti.tableName == tableName)) return true
         }
         return false
@@ -1950,7 +1955,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             try {
                 connection.createStatement().use { statement ->
                     statement.execute(command)
-                    logger.info{"Executed SQL: $command"}
+                    logger.info { "Executed SQL: $command" }
                     statement.close()
                     flag = true
                 }
@@ -2059,7 +2064,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             var warning: SQLWarning? = conn.warnings
             if (warning != null) {
                 while (warning != null) {
-                    logger.warn{"Message: ${warning!!.message}"}
+                    logger.warn { "Message: ${warning!!.message}" }
                     warning = warning.nextWarning
                 }
             }
@@ -2124,7 +2129,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 // End of statement
                 if (trimmedLine.endsWith(delimiter)) {
                     command.delete(command.length - delimiter.length - 1, command.length)
-                    logger.trace{"Parsed SQL: $command"}
+                    logger.trace { "Parsed SQL: $command" }
                     return true
                 }
             }
@@ -2140,7 +2145,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         fun writeAsCSV(resultSet: ResultSet, header: Boolean = true, writer: Writer) {
 //            require(!resultSet.isClosed) { "The supplied ResultSet is closed!" }
             //okay because resultSet is only read from
-            val printer = if (header){
+            val printer = if (header) {
                 CSVFormat.DEFAULT.builder()
                     .setHeader(resultSet).build().print(writer)
             } else {
@@ -2217,7 +2222,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             if (md != null) {
                 val nc = md.columnCount
                 for (c in 1..nc) {
-                    val catalogName: String = md.getCatalogName(c)?.toString()?:""
+                    val catalogName: String = md.getCatalogName(c)?.toString() ?: ""
                     val className: String = md.getColumnClassName(c)
                     val label: String = md.getColumnLabel(c)
                     val name: String = md.getColumnName(c)
