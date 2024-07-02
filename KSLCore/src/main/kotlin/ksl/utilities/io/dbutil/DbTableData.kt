@@ -270,11 +270,11 @@ abstract class DbTableData(
      *   does not specify them.  Also, since there is no SQL standard for
      *   an auto-increment primary key, the [autoIncField] specification is ignored.
      *   The purpose here is to get a quick and dirty table representation.
-     *   If additional specifications are required user could formulate ALTER TABLE
+     *   If additional specifications are required the user could formulate ALTER TABLE
      *   statements or better yet use one of the many libraries available for
      *   more advanced SQL work. If [schemaName] is supplied, then the CREATE TABLE
-     *   statement will be "CREATE TABLE schemaName.tableName ". If the schema name
-     *   is not supplied, the statement is "CREATE TABLE tableName "
+     *   statement begins with "CREATE TABLE schemaName.tableName ". If the schema name
+     *   is not specified, the statement begins with "CREATE TABLE tableName "
      */
     fun createTableSQLStatement(): String {
         if (autoIncField){

@@ -52,6 +52,25 @@ open class Database(
     }
 
     companion object {
+
+        /** This constructs a database on disk.
+         * The database will contain empty tables based on the table definitions.
+         *
+         * @param tableDefinitions an example set of table definitions based on DbTableData specifications
+         * @param dbName the name of the database
+         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+         * @return a database
+         */
+        fun createSimpleDb(
+            tableDefinitions: Set<DbTableData>,
+            dbName: String,
+            dbDirectory: Path = KSL.dbDir
+        ): Database {
+            val db = SQLiteDb(dbName, dbDirectory)
+            db.createSimpleDbTables(tableDefinitions)
+            return db
+        }
+
         /** Helper method for making a database
          *
          * @param dBProperties the properties, must not be null
@@ -85,6 +104,7 @@ open class Database(
             val config = HikariConfig(pathToPropertiesFile.toString())
             return HikariDataSource(config)
         }
+
     }
 
 }
