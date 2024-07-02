@@ -42,6 +42,10 @@ import javax.sql.rowset.CachedRowSet
 import javax.sql.rowset.RowSetProvider
 import kotlin.reflect.*
 
+/**
+ *  A data class to hold meta data information about the tables and the containing schema
+ */
+data class TableInfo(var schemaName: String?, var tableName: String)
 
 interface DatabaseIOIfc {
 
@@ -556,6 +560,30 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     fun containsTable(schemaName: String, table: String): Boolean {
         return tableNames(schemaName).contains(table)
+    }
+
+    /**
+     *  Retrieves the table and schema information from the database meta data
+     */
+    fun tableInfo() : List<TableInfo>{
+        val list = mutableListOf<TableInfo>()
+        try {
+            logger.trace { "Getting a connection to retrieve the list of user defined table names in database $label" }
+            getConnection().use { connection ->
+                val metaData = connection.metaData
+                val rs = metaData.getTables(null, null, null, arrayOf("TABLE"))
+                while (rs.next()) {
+                    val t = rs.getString("TABLE_NAME")
+                    val s = rs.getString("TABLE_SCHEM")
+                    list.add(TableInfo(s, t))
+                }
+                rs.close()
+            }
+        } catch (e: SQLException) {
+            logger.warn { "Unable to get database user defined tables. The meta data was not available for database $label" }
+            logger.warn { "$e" }
+        }
+        return list
     }
 
     /**
@@ -1592,7 +1620,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     ): Int {
         require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
         require(data.tableName == tableName) { "The supplied data was not from table $tableName" }
-        data.schemaName = schemaName
+        data.schemaName = schemaName // needed to make the insert statement correctly
         val sql = data.insertDataSQLStatement()
         try {
             getConnection().use { con ->
@@ -1645,7 +1673,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         // use first to set up the prepared statement
-        first.schemaName = schemaName
+        first.schemaName = schemaName // needed to make the insert statement correctly
         val sql = first.insertDataSQLStatement()
         try {
             getConnection().use { con ->
@@ -1704,7 +1732,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         // use first to set up the prepared statement
-        first.schemaName = schemaName
+        first.schemaName = schemaName // needed to make the update statement correctly
         val sql = first.updateDataSQLStatement()
         val nc = first.numUpdateFields
         try {
@@ -1745,10 +1773,18 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  If supported by the underlying database engine, additional specifications could be added via
      *  alter table DDL specifications.
      *
-     *  @param tableDefinition an example table definition based on DbTableData specifications
+     *  @param tableDefinition a table definition based on DbTableData specifications. The specified
+     *  table must not already exist in its specified schema.
+     *  @param autoCreateSchema if true, if a table is in a schema that does not exist, the schema
+     *  will automatically be created. The default is false. In which case, an error may occur if
+     *  the schema does not exist to hold the table. Some databases do not support schemas. In that case,
+     *  do not specify a schema for the table. Leave the schema null.
      */
-    fun <T : DbTableData> createSimpleDbTable(tableDefinition: T){
-        createSimpleDbTables(setOf(tableDefinition))
+    fun <T : DbTableData> createSimpleDbTable(
+        tableDefinition: T,
+        autoCreateSchema: Boolean = false
+    ){
+        createSimpleDbTables(setOf(tableDefinition), autoCreateSchema)
     }
 
     /**
@@ -1761,11 +1797,46 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  If supported by the underlying database engine, additional specifications could be added via
      *  alter table DDL specifications.
      *
-     *  @param tableDefinitions an example set of table definitions based on DbTableData specifications
+     *  @param tableDefinitions an example set of table definitions based on DbTableData specifications. The specified
+     *  table must not already exist in its specified schema.
+     *  @param autoCreateSchema if true, if a table is in a schema that does not exist, the schema
+     *  will automatically be created. The default is false. In which case, an error may occur if
+     *  the schema does not exist to hold the table. Some databases do not support schemas. In that case,
+     *  do not specify a schema for the table. Leave the schema null.
      */
-    fun <T : DbTableData> createSimpleDbTables(tableDefinitions: Set<T>){
-        //TODO need to check for table name conflict with existing tables
-        // need to provide schema option?? would need to check if it exists, etc
+    fun <T : DbTableData> createSimpleDbTables(
+        tableDefinitions: Set<T>,
+        autoCreateSchema: Boolean = false
+    ){
+        // need to check for table name conflict with existing tables
+        // need to check schema specification
+        val tableInfo = tableInfo()
+        for(td in tableDefinitions){
+            if (td.schemaName == null){
+                // table is not specified in a schema, just check if table exists
+                require(!tableInfo.containsTable(td.tableName)) {"Table ${td.tableName} already exists in database $label" }
+            } else {
+                // schema was not null, check if schema exists
+                if (tableInfo.containsSchema(td.schemaName!!)){
+                    // The schema exists, make sure that the table doesn't already exist
+                    require(!tableInfo.containsSchemaAndTable(td.schemaName!!, td.tableName)) {"Table ${td.tableName} already exists in schema ${td.schemaName} in database $label" }
+                } else {
+                    // The schema does not exist. Table can be made, but no schema to hold it.
+                    if (autoCreateSchema){
+                        val worked = executeCommand("CREATE SCHEMA ${td.schemaName}")
+                        if (worked) {
+                            logger.info { "Db($label): schema ${td.schemaName} has been created." }
+                        } else {
+                            logger.info { "Db($label): schema ${td.schemaName} was not created." }
+                        }
+                    } else {
+                        val msg = "Database $label does not contain ${td.schemaName} to hold table $td.tableName"
+                        logger.error { msg }
+                        throw IllegalStateException(msg)
+                    }
+                }
+            }
+        }
         for (tableData in tableDefinitions) {
             require(!tableData.autoIncField) { "The autoIncField for table (${tableData.tableName}) in the simple table must be false." }
             val worked = executeCommand(tableData.createTableSQLStatement())
@@ -1775,6 +1846,27 @@ interface DatabaseIfc : DatabaseIOIfc {
                 logger.info { "Db($label): table ${tableData.tableName} was not created." }
             }
         }
+    }
+
+    private fun List<TableInfo>.containsTable(tableName: String): Boolean {
+        for(ti in this){
+            if (ti.tableName == tableName) return true
+        }
+        return false
+    }
+
+    private fun List<TableInfo>.containsSchema(schemaName: String): Boolean {
+        for(ti in this){
+            if (ti.schemaName == schemaName) return true
+        }
+        return false
+    }
+
+    private fun List<TableInfo>.containsSchemaAndTable(schemaName: String, tableName: String): Boolean {
+        for(ti in this){
+            if ((ti.schemaName == schemaName) && (ti.tableName == tableName)) return true
+        }
+        return false
     }
 
     fun asString(): String {

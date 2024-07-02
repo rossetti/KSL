@@ -5,12 +5,18 @@ import ksl.utilities.random.rvariable.PearsonType5RV
 import ksl.utilities.random.rvariable.WeibullRV
 import ksl.utilities.statistic.CachedHistogram
 import org.jetbrains.letsPlot.commons.intern.math.ipow
+import org.jetbrains.letsPlot.commons.testing.assertContentEquals
 
 fun main(){
 //    val twos = IntArray(10){ (2).ipow(it+3).toInt() }
 //    println(twos.joinToString())
 //    testPearson()
-    testWeibull()
+//    testWeibull()
+
+    val example = "House     Of The Dragon"
+    val withOutSpaces = example.replace("\\p{Zs}+".toRegex(), "_")
+    println(withOutSpaces)
+
 }
 
 fun chunky(){

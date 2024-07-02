@@ -33,7 +33,8 @@ import kotlin.reflect.full.*
  * the instances will be created and filled.
  *
  * If used within the context of a database, the [tableName] should be a valid table name or view name
- * within the database.
+ * within the database.  Any white space in the table name is replaced with an underscore character.
+ * For example, "My Table Name" becomes "My_Table_Name"
  */
 abstract class TabularData(tableName: String) {
 
@@ -41,16 +42,29 @@ abstract class TabularData(tableName: String) {
         require(tableName.isNotBlank()) { "tableName cannot be blank" }
     }
 
-    var tableName: String = tableName
+    /**
+     *  White space in the string is replaced by an underscore
+     */
+    var tableName: String = tableName.replace("\\p{Zs}+".toRegex(), "_")
         set(value) {
-            require(value.isNotBlank()) { "tableName cannot be blank" }
-            field = value
+            require(value.isNotBlank()) { "the table name cannot be blank" }
+            field = value.replace("\\p{Zs}+".toRegex(), "_")
         }
 
     /**
-     *  The optional name of the schema holding the table for the related data
+     *  The optional name of the schema holding the table for the related data.
+     *  If supplied it cannot be empty/blank and any white space will be replaced
+     *  with underscore characters.
      */
     var schemaName: String? = null
+        set(value) {
+            if (value != null) {
+                require(value.isNotBlank()) { "schema name cannot be blank if not null" }
+                field = value.replace("\\p{Zs}+".toRegex(), "_")
+            } else {
+                field = value
+            }
+        }
 
     /**
      *  The number of columns of data. The number of public mutable properties
