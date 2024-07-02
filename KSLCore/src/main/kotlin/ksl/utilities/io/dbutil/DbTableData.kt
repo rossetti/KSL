@@ -272,7 +272,9 @@ abstract class DbTableData(
      *   The purpose here is to get a quick and dirty table representation.
      *   If additional specifications are required user could formulate ALTER TABLE
      *   statements or better yet use one of the many libraries available for
-     *   more advanced SQL work.
+     *   more advanced SQL work. If [schemaName] is supplied, then the CREATE TABLE
+     *   statement will be "CREATE TABLE schemaName.tableName ". If the schema name
+     *   is not supplied, the statement is "CREATE TABLE tableName "
      */
     fun createTableSQLStatement(): String {
         if (autoIncField){
