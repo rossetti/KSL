@@ -22,7 +22,8 @@ import javax.sql.DataSource
  */
 @Suppress("LeakingThis")
 open class SQLiteDb(
-    dbName: String, dbDirectory: Path = KSL.dbDir
+    dbName: String,
+    dbDirectory: Path = KSL.dbDir
 ) : Database(dataSource = createDataSource(dbDirectory.resolve(dbName)), label = dbName) {
 
     /** This constructs a SQLite database on disk.
@@ -34,9 +35,12 @@ open class SQLiteDb(
      * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
      * @return an empty embedded SQLite database
      */
-    constructor(tableDefinitions: Set<DbTableData>, dbName: String, dbDirectory: Path = KSL.dbDir) : this(
-        dbName, dbDirectory
-    ) {
+    constructor(
+        tableDefinitions: Set<DbTableData>,
+        dbName: String,
+        dbDirectory: Path = KSL.dbDir
+    ) : this(dbName, dbDirectory) {
+        TODO("Not ready yet!")
         createSimpleDbTables(tableDefinitions)
     }
 
@@ -164,14 +168,14 @@ open class SQLiteDb(
          * @param dbDir  a path to the directory to hold the database. Must not be null
          * @return the created database
          */
-        override fun createDatabase(dbName: String, dbDir: Path): SQLiteDb {
+        override fun createDatabase(dbName: String, dbDir: Path): Database {
             val pathToDb = dbDir.resolve(dbName)
             // if it exists, delete it
             if (Files.exists(pathToDb)) {
                 deleteDatabase(pathToDb)
             }
-            //           val ds: DataSource = createDataSource(pathToDb)
-            return SQLiteDb(dbName, dbDir)
+            val ds: DataSource = createDataSource(pathToDb)
+            return Database(ds, dbName)
         }
 
         /**
