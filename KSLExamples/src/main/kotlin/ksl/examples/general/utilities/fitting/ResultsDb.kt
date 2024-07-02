@@ -2,6 +2,7 @@ package ksl.examples.general.utilities.fitting
 
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DbTableData
+import ksl.utilities.io.dbutil.SQLiteDb
 import ksl.utilities.io.dbutil.SimpleDb
 import ksl.utilities.random.rvariable.ParameterizedRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
@@ -196,7 +197,7 @@ class ResultsDb(
     dbName: String,
     tableDefinitions: Set<DbTableData> = resultTables,
     dbDirectory: Path = KSL.dbDir
-) : SimpleDb(tableDefinitions, dbName, dbDirectory) {
+) : SQLiteDb(tableDefinitions, dbName, dbDirectory) {
 
     fun saveCase(dfTestCase: DFTestCase) {
         insertDbDataIntoTable(dfTestCase.case)
