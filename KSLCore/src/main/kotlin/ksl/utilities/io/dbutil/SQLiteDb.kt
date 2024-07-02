@@ -26,6 +26,10 @@ open class SQLiteDb(
     dbDirectory: Path = KSL.dbDir
 ) : Database(dataSource = createDataSource(dbDirectory.resolve(dbName)), label = dbName) {
 
+    init {
+        println("In SQLiteDB first init block: Creating database $dbName")
+    }
+
     /** This constructs a SQLite database on disk.
      * The database will contain empty tables based on the table definitions.
      *  If the database already exists on disk, it will be deleted and recreated.

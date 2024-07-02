@@ -42,6 +42,7 @@ open class Database(
     override val dbURL: String? = getConnection().use { it.metaData?.url }
 
     init {
+        println("In Database first init block")
         DatabaseIfc.logger.info { "Constructed DatabaseImp $label via $dbURL" }
     }
 
