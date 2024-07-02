@@ -46,6 +46,7 @@ abstract class TabularData(tableName: String) {
             require(value.isNotBlank()) { "tableName cannot be blank" }
             field = value
         }
+
     /**
      *  The optional name of the schema holding the table for the related data
      */

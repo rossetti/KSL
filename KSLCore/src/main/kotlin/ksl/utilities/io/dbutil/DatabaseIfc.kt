@@ -1764,6 +1764,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  @param tableDefinitions an example set of table definitions based on DbTableData specifications
      */
     fun <T : DbTableData> createSimpleDbTables(tableDefinitions: Set<T>){
+        //TODO need to check for table name conflict with existing tables
+        // need to provide schema option?? would need to check if it exists, etc
         for (tableData in tableDefinitions) {
             require(!tableData.autoIncField) { "The autoIncField for table (${tableData.tableName}) in the simple table must be false." }
             val worked = executeCommand(tableData.createTableSQLStatement())
