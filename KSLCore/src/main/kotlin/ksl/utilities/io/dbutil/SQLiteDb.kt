@@ -20,14 +20,31 @@ import javax.sql.DataSource
  * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
  * @return an SQLite configured database
  */
-class SQLiteDb(
+@Suppress("LeakingThis")
+open class SQLiteDb(
     dbName: String, dbDirectory: Path = KSL.dbDir
 ) : Database(dataSource = createDataSource(dbDirectory.resolve(dbName)), label = dbName) {
+
+    /** This constructs a SQLite database on disk.
+     * The database will contain empty tables based on the table definitions.
+     *  If the database already exists on disk, it will be deleted and recreated.
+     *
+     * @param tableDefinitions an example set of table definitions based on DbTableData specifications
+     * @param dbName the name of the database
+     * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+     * @return an empty embedded SQLite database
+     */
+    constructor(tableDefinitions: Set<DbTableData>, dbName: String, dbDirectory: Path = KSL.dbDir) : this(
+        dbName, dbDirectory
+    ) {
+        createSimpleDbTables(tableDefinitions)
+    }
 
     companion object : EmbeddedDbIfc {
 
         /** This constructs a SQLite database on disk.
-         * The database will contain empty tables based on the table definitions.
+         *  The database will contain empty tables based on the table definitions.
+         *  If the database already exists on disk, it will be deleted and recreated.
          *
          * @param tableDefinitions an example set of table definitions based on DbTableData specifications
          * @param dbName the name of the database
@@ -147,14 +164,14 @@ class SQLiteDb(
          * @param dbDir  a path to the directory to hold the database. Must not be null
          * @return the created database
          */
-        override fun createDatabase(dbName: String, dbDir: Path): Database {
+        override fun createDatabase(dbName: String, dbDir: Path): SQLiteDb {
             val pathToDb = dbDir.resolve(dbName)
             // if it exists, delete it
             if (Files.exists(pathToDb)) {
                 deleteDatabase(pathToDb)
             }
-            val ds: DataSource = createDataSource(pathToDb)
-            return Database(ds, dbName)
+            //           val ds: DataSource = createDataSource(pathToDb)
+            return SQLiteDb(dbName, dbDir)
         }
 
         /**
