@@ -1,16 +1,14 @@
 package ksl.examples.general.utilities
 
-import ksl.utilities.io.dbutil.DatabaseIfc
-import ksl.utilities.io.dbutil.DbTableData
-import ksl.utilities.io.dbutil.ExperimentTableData
-import ksl.utilities.io.dbutil.SimpleDb
+import ksl.utilities.io.dbutil.*
 
 fun main() {
- //   testDbDataCreateString()
-    testSimpleDb()
+    //   testDbDataCreateString()
+   // testSimpleDb()
+    testDerbyDb()
 }
 
-fun testDbData(){
+fun testDbData() {
     val e = ExperimentTableData()
     val names = e.extractPropertyNames()
     println(names)
@@ -33,11 +31,11 @@ fun testDbData(){
     println(e.updateDataSQLStatement())
 }
 
-fun testDbDataCreateString(){
+fun testDbDataCreateString() {
     val e = ExperimentTableData()
 
     val names = e.extractPropertyNames()
-    for(name in names ){
+    for (name in names) {
         println(name)
     }
     println()
@@ -45,12 +43,12 @@ fun testDbDataCreateString(){
     println(cs)
 }
 
-fun testSimpleDb(){
+fun testSimpleDb() {
     val p = Person(1, "manuel", age = 10)
     println(p.createTableSQLStatement())
     val c = City(1, "London", population = 1000)
     println(c.createTableSQLStatement())
-    val db = SimpleDb(setOf(p, c), "TestSimpleDb")
+    val db = Database.createSimpleDb(setOf(p, c), "TestSimpleDb")
     db.insertDbDataIntoTable(p)
     db.insertDbDataIntoTable(c)
     println(db.asString())
@@ -58,13 +56,24 @@ fun testSimpleDb(){
 }
 
 data class Person(
-    var id: Int,
-    var name: String,
-    var age: Int
+    var id: Int = 1,
+    var name: String = "",
+    var age: Int = 1
 ) : DbTableData("Persons", listOf("id"))
 
 data class City(
-    var id: Int,
-    var name: String,
-    var population: Int
+    var id: Int = 1,
+    var name: String = "",
+    var population: Int = 1
 ) : DbTableData("Cities", listOf("id"))
+
+fun testDerbyDb(){
+    val td = setOf(Person(), City())
+    val db = DerbyDb(td, "TestDerbyDb")
+    db.userDefinedTables.forEach(::println)
+    val p = Person(1, "manuel", age = 10)
+    val c = City(1, "London", population = 1000)
+    db.insertDbDataIntoTable(p)
+    db.insertDbDataIntoTable(c)
+    db.printAllTablesAsText()
+}

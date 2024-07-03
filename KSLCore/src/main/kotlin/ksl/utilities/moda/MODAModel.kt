@@ -7,7 +7,6 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.Database
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.DbTableData
-import ksl.utilities.io.dbutil.SimpleDb
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
@@ -736,9 +735,13 @@ abstract class MODAModel(
      *  @param dbName the name of the database on the disk
      *  @param dir the directory to hold the database on the disk
      */
-    fun resultsAsDatabase(dbName: String, dir: Path = KSL.dbDir): DatabaseIfc {
+    fun resultsAsDatabase(
+        dbName: String,
+        dir: Path = KSL.dbDir,
+        deleteIfExists: Boolean = true
+    ): DatabaseIfc {
         val db = Database.createSimpleDb(setOf(ScoreData(), ValueData(),
-            OverallValueData(), AlternativeRankFrequencyData()), dbName, dir)
+            OverallValueData(), AlternativeRankFrequencyData()), dbName, dir, deleteIfExists)
         val scores = alternativeScoreData()
         val values = alternativeValueData()
         val overall = alternativeOverallValueData()
