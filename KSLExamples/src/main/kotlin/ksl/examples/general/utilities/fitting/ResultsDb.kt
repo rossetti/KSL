@@ -196,8 +196,9 @@ data class CaseScoringResult(
 class ResultsDb(
     dbName: String,
     tableDefinitions: Set<DbTableData> = resultTables,
-    dbDirectory: Path = KSL.dbDir
-) : SQLiteDb(tableDefinitions, dbName, dbDirectory) {
+    dbDirectory: Path = KSL.dbDir,
+    deleteIfExists: Boolean = true
+) : SQLiteDb(tableDefinitions, dbName, dbDirectory, deleteIfExists) {
 
     fun saveCase(dfTestCase: DFTestCase) {
         insertDbDataIntoTable(dfTestCase.case)

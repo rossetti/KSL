@@ -42,8 +42,7 @@ open class Database(
     override val dbURL: String? = getConnection().use { it.metaData?.url }
 
     init {
-        println("In Database first init block")
-        DatabaseIfc.logger.info { "Constructed DatabaseImp $label via $dbURL" }
+        DatabaseIfc.logger.info { "Initialized Database $label with URL = $dbURL" }
     }
 
 //    val db = Database.connect(dataSource, logger = Slf4jLoggerAdapter(DatabaseIfc.logger))

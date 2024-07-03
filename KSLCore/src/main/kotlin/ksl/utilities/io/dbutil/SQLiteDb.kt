@@ -18,56 +18,48 @@ import javax.sql.DataSource
  *
  * @param dbName the name of the database
  * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+ * @param deleteIfExists If true, an existing database in the supplied directory with
+ * the same name will be deleted and an empty database will be constructed.
  * @return an SQLite configured database
  */
 @Suppress("LeakingThis")
 open class SQLiteDb(
     dbName: String,
-    dbDirectory: Path = KSL.dbDir
+    dbDirectory: Path = KSL.dbDir,
+    deleteIfExists: Boolean = true
 ) : Database(dataSource = createDataSource(dbDirectory.resolve(dbName)), label = dbName) {
 
     init {
-        println("In SQLiteDB first init block: Creating database $dbName")
+        if (deleteIfExists) {
+            val pathToDb = dbDirectory.resolve(dbName)
+            // if it exists, delete it
+            if (Files.exists(pathToDb)) {
+                deleteDatabase(pathToDb)
+            }
+        }
     }
 
-    /** This constructs a SQLite database on disk.
+    /** This constructs a simple SQLite database on disk.
      * The database will contain empty tables based on the table definitions.
      *  If the database already exists on disk, it will be deleted and recreated.
      *
      * @param tableDefinitions an example set of table definitions based on DbTableData specifications
      * @param dbName the name of the database
      * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+     * @param deleteIfExists If true, an existing database in the supplied directory with
+     * the same name will be deleted and an empty database will be constructed.
      * @return an empty embedded SQLite database
      */
     constructor(
         tableDefinitions: Set<DbTableData>,
         dbName: String,
-        dbDirectory: Path = KSL.dbDir
-    ) : this(dbName, dbDirectory) {
-        TODO("Not ready yet!")
+        dbDirectory: Path = KSL.dbDir,
+        deleteIfExists: Boolean = true
+    ) : this(dbName, dbDirectory, deleteIfExists) {
         createSimpleDbTables(tableDefinitions)
     }
 
     companion object : EmbeddedDbIfc {
-
-        /** This constructs a SQLite database on disk.
-         *  The database will contain empty tables based on the table definitions.
-         *  If the database already exists on disk, it will be deleted and recreated.
-         *
-         * @param tableDefinitions an example set of table definitions based on DbTableData specifications
-         * @param dbName the name of the database
-         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
-         * @return an SQLite database
-         */
-        fun createSimpleDb(
-            tableDefinitions: Set<DbTableData>,
-            dbName: String,
-            dbDirectory: Path = KSL.dbDir
-        ): SQLiteDb {
-            val db = SQLiteDb(dbName, dbDirectory)
-            db.createSimpleDbTables(tableDefinitions)
-            return db
-        }
 
         /**
          * Checks if a file is a valid SQLite database
@@ -115,7 +107,7 @@ open class SQLiteDb(
         override fun deleteDatabase(pathToDb: Path) {
             try {
                 Files.deleteIfExists(pathToDb)
-                DatabaseIfc.logger.info { "Deleting SQLite database $pathToDb" }
+                DatabaseIfc.logger.info { "Deleting existing SQLite database $pathToDb" }
             } catch (e: IOException) {
                 DatabaseIfc.logger.error { "Unable to delete SQLite database $pathToDb" }
                 throw DataAccessException("Unable to delete SQLite database$pathToDb")

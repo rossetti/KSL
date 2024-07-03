@@ -1358,7 +1358,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     fun executeCommand(command: String): Boolean {
         var flag = false
         try {
-            logger.info { "Getting connection to execute command $command on database $label" }
+            logger.info { "Getting connection to execute command on database $label \n$command" }
             getConnection().use { con -> flag = executeCommand(con, command) }
         } catch (ex: SQLException) {
             logger.error(ex) { "SQLException when executing $command" }
@@ -1846,11 +1846,12 @@ interface DatabaseIfc : DatabaseIOIfc {
             require(!tableData.autoIncField) { "The autoIncField for table (${tableData.tableName}) in the simple table must be false." }
             val worked = executeCommand(tableData.createTableSQLStatement())
             if (worked) {
-                logger.info { "Db($label): table ${tableData.tableName} has been created." }
+                logger.info { "Database: $label: table ${tableData.tableName} has been created." }
             } else {
-                logger.info { "Db($label): table ${tableData.tableName} was not created." }
+                logger.info { "Database: $label: table ${tableData.tableName} was not created." }
             }
         }
+        logger.info {"Database: $label: table definitions have been processed."}
     }
 
     private fun List<TableInfo>.containsTable(tableName: String): Boolean {
@@ -1955,7 +1956,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             try {
                 connection.createStatement().use { statement ->
                     statement.execute(command)
-                    logger.info { "Executed SQL: $command" }
+                    logger.info { "Executed SQL:\n$command" }
                     statement.close()
                     flag = true
                 }
