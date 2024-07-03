@@ -28,7 +28,7 @@ open class DerbyDb(
     dbName: String,
     dbDirectory: Path = KSL.dbDir,
     create: Boolean = true
-): Database(dataSource = createDataSource(dbDirectory.resolve(dbName), create = create), label = dbName) {
+) : Database(dataSource = createDataSource(dbDirectory.resolve(dbName), create = create), label = dbName) {
 
     /** This constructs a simple Derby database on disk.
      * The database will contain empty tables based on the table definitions.
