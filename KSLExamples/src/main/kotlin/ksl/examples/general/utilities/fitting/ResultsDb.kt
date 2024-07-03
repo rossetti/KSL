@@ -2,8 +2,8 @@ package ksl.examples.general.utilities.fitting
 
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DbTableData
+import ksl.utilities.io.dbutil.DerbyDb
 import ksl.utilities.io.dbutil.SQLiteDb
-import ksl.utilities.io.dbutil.SimpleDb
 import ksl.utilities.random.rvariable.ParameterizedRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.statistic.Statistic

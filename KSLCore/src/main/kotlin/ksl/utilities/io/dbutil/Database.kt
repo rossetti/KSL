@@ -59,16 +59,18 @@ open class Database(
          * @param tableDefinitions an example set of table definitions based on DbTableData specifications
          * @param dbName the name of the database
          * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+         * @param deleteIfExists If true, an existing database in the supplied directory with
+         * the same name will be deleted and an empty database will be constructed.
          * @return a database
          */
         fun createSimpleDb(
             tableDefinitions: Set<DbTableData>,
             dbName: String,
-            dbDirectory: Path = KSL.dbDir
+            dbDirectory: Path = KSL.dbDir,
+            deleteIfExists: Boolean = true
         ): Database {
-            val db = SQLiteDb(dbName, dbDirectory)
-            db.createSimpleDbTables(tableDefinitions)
-            return db
+            //TODO make based on type
+            return SQLiteDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
         }
 
         /** Helper method for making a database
