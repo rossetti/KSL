@@ -5,7 +5,8 @@ import ksl.utilities.io.dbutil.*
 fun main() {
     //   testDbDataCreateString()
    // testSimpleDb()
-    testDerbyDb()
+//    testDerbyDb()
+    testDuckDb()
 }
 
 fun testDbData() {
@@ -77,3 +78,15 @@ fun testDerbyDb(){
     db.insertDbDataIntoTable(c)
     db.printAllTablesAsText()
 }
+
+fun testDuckDb(){
+    val td = setOf(Person(), City())
+    val db = DuckDb(td, "TestDuckDb")
+    db.userDefinedTables.forEach(::println)
+    val p = Person(1, "manuel", age = 10)
+    val c = City(1, "London", population = 1000)
+    db.insertDbDataIntoTable(p)
+    db.insertDbDataIntoTable(c)
+    db.printAllTablesAsText()
+}
+
