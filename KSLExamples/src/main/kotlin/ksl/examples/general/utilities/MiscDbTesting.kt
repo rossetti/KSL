@@ -1,12 +1,20 @@
 package ksl.examples.general.utilities
 
 import ksl.utilities.io.dbutil.*
+import java.nio.file.Path
+import javax.sql.DataSource
 
 fun main() {
     //   testDbDataCreateString()
    // testSimpleDb()
+
+//    testSQLiteDb()
 //    testDerbyDb()
-    testDuckDb()
+
+    testPostgres()
+//    testDuckDb()
+
+
 }
 
 fun testDbData() {
@@ -68,25 +76,81 @@ data class City(
     var population: Int = 1
 ) : DbTableData("Cities", listOf("id"))
 
-fun testDerbyDb(){
+fun testSQLiteDb(){
     val td = setOf(Person(), City())
-    val db = DerbyDb(td, "TestDerbyDb")
+    val db = SQLiteDb(td, "TestSQLiteDb")
+    println("schema names:")
+    db.schemas.forEach(::println)
+    println("tableNames:")
     db.userDefinedTables.forEach(::println)
+    db.dbTablesFromMetaData().forEach(::println)
     val p = Person(1, "manuel", age = 10)
     val c = City(1, "London", population = 1000)
     db.insertDbDataIntoTable(p)
     db.insertDbDataIntoTable(c)
     db.printAllTablesAsText()
+    println()
+    db.tableNames(null).forEach(::println)
+}
+
+fun testDerbyDb(){
+    val td = setOf(Person(), City())
+    val db = DerbyDb(td, "TestDerbyDb")
+    println("schema names:")
+    db.schemas.forEach(::println)
+    println("tableNames:")
+    db.userDefinedTables.forEach(::println)
+    db.dbTablesFromMetaData().forEach(::println)
+    val p = Person(1, "manuel", age = 10)
+    val c = City(1, "London", population = 1000)
+    db.insertDbDataIntoTable(p)
+    db.insertDbDataIntoTable(c)
+    db.printAllTablesAsText()
+    println()
+    db.tableNames("APP").forEach(::println)
 }
 
 fun testDuckDb(){
     val td = setOf(Person(), City())
     val db = DuckDb(td, "TestDuckDb")
+    println("schema names:")
+    db.schemas.forEach(::println)
+    println("tableNames:")
+    db.tableNames("main").forEach(::println)
+    println()
     db.userDefinedTables.forEach(::println)
-    val p = Person(1, "manuel", age = 10)
-    val c = City(1, "London", population = 1000)
-    db.insertDbDataIntoTable(p)
-    db.insertDbDataIntoTable(c)
-    db.printAllTablesAsText()
+    println()
+    db.dbTablesFromMetaData().forEach(::println)
+    println()
+    db.tableNames("main").forEach(::println)
+//    val p = Person(1, "manuel", age = 10)
+//    val c = City(1, "London", population = 1000)
+//    db.insertDbDataIntoTable(p)
+//    db.insertDbDataIntoTable(c)
+//    db.printAllTablesAsText()
+}
+
+fun testPostgres(){
+//    val ds = PostgresDb.createDataSourceWithLocalHost("rossetti")
+    val dbName = "test"
+    val user = "test"
+    val pw = "test"
+    val dataSource: DataSource = PostgresDb.createDataSourceWithLocalHost(dbName, user, pw)
+    // make the database
+    val db = Database(dataSource, dbName)
+    // builder the creation task
+    val pathToCreationScript: Path = pathToDbExamples.resolve("SPDatabase_Postgres.sql")
+    val task = db.create().withCreationScript(pathToCreationScript).execute()
+//    System.out.println(task)
+//    task.creationScriptCommands.forEach(System.out::println)
+//    db.printTableAsText("s")
+    println("schema names:")
+    db.schemas.forEach(::println)
+    println("tableNames:")
+    db.userDefinedTables.forEach(::println)
+    println()
+    db.dbTablesFromMetaData().forEach(::println)
+    println()
+    db.tableNames("public").forEach(::println)
 }
 

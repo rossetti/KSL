@@ -48,6 +48,7 @@ class DuckDbDataSource(var databaseName: String = "") : DataSource {
 
     private var logger: PrintWriter = KSLFileUtil.createPrintWriter(
         KSLFileUtil.programLaunchDirectory.resolve("logs/DuckDb.log"))
+
     private var loginTimeout = 1
 
     val url: String
