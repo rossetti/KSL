@@ -27,6 +27,7 @@ import org.apache.commons.csv.CSVFormat
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import org.duckdb.DuckDBDatabaseMetaData
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.*
@@ -43,10 +44,13 @@ import javax.sql.rowset.RowSetProvider
 import kotlin.reflect.*
 
 /**
- *  A data class to hold meta data information about the tables and the containing schema
+ *  A data class to hold meta-data information about the tables and the containing schema
  */
-data class TableInfo(var schemaName: String?, var tableName: String)
+data class DbSchemaInfo(var catalogName: String?, var schemaName: String?, var tableName: String)
 
+/**
+ *  An interface that defines basic I/O capabilities for a database.
+ */
 interface DatabaseIOIfc {
 
     var outputDirectory: OutputDirectory
@@ -371,28 +375,52 @@ interface DatabaseIfc : DatabaseIOIfc {
     val dbURL: String?
 
     /**
-     * @param schemaName the name of the schema that should contain the tables
-     * @return a list of table names within the schema
+     * @param schemaName the name of the schema that should contain the tables. If null,
+     * then a list of table names not associated with a schema is returned. Or, if
+     * the schema concept does not exist for the database, then the names of any user-defined
+     * tables are returned.
+     * @return a list of table names within the schema. The list may be empty if no tables
+     * are defined within the schema.
      */
-    fun tableNames(schemaName: String): List<String> {
+    fun tableNames(schemaName: String?): List<String> {
         val list = mutableListOf<String>()
-        if (containsSchema(schemaName)) {
-            try {
-                logger.trace { "Getting a connection to retrieve the list of table names for schema $schemaName in database $label" }
-                getConnection().use { connection ->
-                    val metaData = connection.metaData
-                    val rs = metaData.getTables(null, schemaName, null, arrayOf("TABLE"))
-                    while (rs.next()) {
-                        list.add(rs.getString("TABLE_NAME"))
-                    }
-                    rs.close()
-                }
-            } catch (e: SQLException) {
-                logger.warn(e) { "Unable to get table names for schema $schemaName. The meta data was not available for database $label" }
+        val dbSchemas = dbSchemas() // this makes a connection to the db and gets the metadata
+        for ((dbSchema, tblNames) in dbSchemas) {
+            if (dbSchema == schemaName) {
+                list.addAll(tblNames)
+                break
+            } else if (dbSchema.equals(schemaName, ignoreCase = true)) {
+                list.addAll(tblNames)
+                break
             }
         }
         return list
+//        val list = mutableListOf<String>()
+//        if (containsSchema(schemaName)) {
+//            try {
+//                logger.trace { "Getting a connection to retrieve the list of table names for schema $schemaName in database $label" }
+//                getConnection().use { connection ->
+//                    val metaData = connection.metaData
+//                    val rs = metaData.getTables(null, schemaName, null, arrayOf("TABLE"))
+//                    while (rs.next()) {
+//                        list.add(rs.getString("TABLE_NAME"))
+//                    }
+//                    rs.close()
+//                }
+//            } catch (e: SQLException) {
+//                logger.warn(e) { "Unable to get table names for schema $schemaName. The meta data was not available for database $label" }
+//            }
+//        }
+//        return list
     }
+
+//    /**
+//     * @param schemaName the name of the schema that should contain the tables
+//     * @return a list of table names within the schema
+//     */
+//    fun tableNames2(schemaName: String? = null): List<String> {
+//        return dbSchemas()[schemaName]?.toList() ?: emptyList()
+//    }
 
     /**
      * @param schemaName the name of the schema that should contain the tables
@@ -447,20 +475,24 @@ interface DatabaseIfc : DatabaseIOIfc {
     override val schemas: List<String>
         get() {
             val list = mutableListOf<String>()
-            try {
-                logger.trace { "Getting a connection to retrieve the list of schema names in database $label" }
-                getConnection().use { connection ->
-                    val metaData = connection.metaData
-                    val rs = metaData.schemas
-                    while (rs.next()) {
-                        list.add(rs.getString("TABLE_SCHEM"))
-                    }
-                    rs.close()
-                }
-            } catch (e: SQLException) {
-                logger.warn { "Unable to get database schemas. The meta data was not available for database $label" }
-                logger.warn { "$e" }
+            val dbSchema = dbSchemas()
+            for (s in dbSchema.keys) {
+                if (s != null) list.add(s)
             }
+//            try {
+//                logger.trace { "Getting a connection to retrieve the list of schema names in database $label" }
+//                getConnection().use { connection ->
+//                    val metaData = connection.metaData
+//                    val rs = metaData.schemas
+//                    while (rs.next()) {
+//                        list.add(rs.getString("TABLE_SCHEM"))
+//                    }
+//                    rs.close()
+//                }
+//            } catch (e: SQLException) {
+//                logger.warn { "Unable to get database schemas. The meta data was not available for database $label" }
+//                logger.warn { "$e" }
+//            }
             return list
         }
 
@@ -563,24 +595,54 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     *  Retrieves the table and schema information from the database meta data
+     *  Returns the user-defined schema names and the table names within each schema,
      */
-    fun tableInfo(): List<TableInfo> {
-        val list = mutableListOf<TableInfo>()
+    fun dbSchemas(): Map<String?, Set<String>> {
+        val map = mutableMapOf<String?, MutableSet<String>>()
+        val dbs = dbTablesFromMetaData()
+        for (info in dbs) {
+            // skip non-user defined schemas for derby and postgres
+//            if (info.tableName.equals("sqlite_schema")){
+//                continue
+//            }
+//            if (info.schemaName in Database.nonUserDefinedSysSchemas){
+//                continue
+//            }
+            // null is okay for a schema to represent db's that don't have schema concepts
+            if (!map.containsKey(info.schemaName)) {
+                map[info.schemaName] = mutableSetOf()
+            }
+            map[info.schemaName]!!.add(info.tableName)
+        }
+        return map
+    }
+
+    /**
+     *  Retrieves the table and schema information from the database meta-data
+     */
+    fun dbTablesFromMetaData(): List<DbSchemaInfo> {
+        val list = mutableListOf<DbSchemaInfo>()
         try {
-            logger.trace { "Getting a connection to retrieve the list of user defined table names in database $label" }
+            logger.trace { "Getting a connection to retrieve the catalog and schema information in database $label" }
             getConnection().use { connection ->
                 val metaData = connection.metaData
-                val rs = metaData.getTables(null, null, null, arrayOf("TABLE"))
+                // fix for duck db due to their bad table type naming
+                val type = if (metaData is DuckDBDatabaseMetaData) {
+                    "BASE TABLE"
+                } else {
+                    "TABLE"
+                }
+                val rs = metaData.getTables(null, null, null, arrayOf(type))
                 while (rs.next()) {
+                    val c = rs.getString("TABLE_CAT")
                     val t = rs.getString("TABLE_NAME")
                     val s = rs.getString("TABLE_SCHEM")
-                    list.add(TableInfo(s, t))
+                    list.add(DbSchemaInfo(c, s, t))
                 }
                 rs.close()
             }
         } catch (e: SQLException) {
-            logger.warn { "Unable to get database user defined tables. The meta data was not available for database $label" }
+            logger.warn { "Unable to get database catalog and schema information. The meta data was not available for database $label" }
             logger.warn { "$e" }
         }
         return list
@@ -1618,10 +1680,20 @@ interface DatabaseIfc : DatabaseIOIfc {
         tableName: String = data.tableName,
         schemaName: String? = defaultSchemaName
     ): Int {
-        require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
+        if (schemaName == null) {
+            require(containsTable(tableName)) { "Database $label does not contain table $tableName in schema $schemaName for inserting data!" }
+        } else {
+            require(
+                containsTable(
+                    schemaName,
+                    tableName
+                )
+            ) { "Database $label does not contain table $tableName in schema $schemaName for inserting data!" }
+        }
         require(data.tableName == tableName) { "The supplied data was not from table $tableName" }
         data.schemaName = schemaName // needed to make the insert statement correctly
         val sql = data.insertDataSQLStatement()
+        //insert into main.Persons (id, name, age) values (?, ?, ?)
         try {
             getConnection().use { con ->
                 con.autoCommit = false
@@ -1810,7 +1882,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     ) {
         // need to check for table name conflict with existing tables
         // need to check schema specification
-        val tableInfo = tableInfo()
+        val tableInfo = dbTablesFromMetaData()
         for (td in tableDefinitions) {
             if (td.schemaName == null) {
                 // table is not specified in a schema, just check if table exists
@@ -1851,24 +1923,24 @@ interface DatabaseIfc : DatabaseIOIfc {
                 logger.info { "Database: $label: table ${tableData.tableName} was not created." }
             }
         }
-        logger.info {"Database: $label: table definitions have been processed."}
+        logger.info { "Database: $label: table definitions have been processed." }
     }
 
-    private fun List<TableInfo>.containsTable(tableName: String): Boolean {
+    private fun List<DbSchemaInfo>.containsTable(tableName: String): Boolean {
         for (ti in this) {
             if (ti.tableName == tableName) return true
         }
         return false
     }
 
-    private fun List<TableInfo>.containsSchema(schemaName: String): Boolean {
+    private fun List<DbSchemaInfo>.containsSchema(schemaName: String): Boolean {
         for (ti in this) {
             if (ti.schemaName == schemaName) return true
         }
         return false
     }
 
-    private fun List<TableInfo>.containsSchemaAndTable(schemaName: String, tableName: String): Boolean {
+    private fun List<DbSchemaInfo>.containsSchemaAndTable(schemaName: String, tableName: String): Boolean {
         for (ti in this) {
             if ((ti.schemaName == schemaName) && (ti.tableName == tableName)) return true
         }

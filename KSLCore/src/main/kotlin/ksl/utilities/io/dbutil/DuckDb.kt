@@ -35,6 +35,7 @@ class DuckDb(
                 deleteDatabase(pathToDb)
             }
         }
+        this.defaultSchemaName = "main"
     }
 
     /** This constructs a simple DuckDb database on disk.

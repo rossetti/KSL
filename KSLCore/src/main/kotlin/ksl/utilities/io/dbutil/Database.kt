@@ -53,6 +53,8 @@ open class Database(
 
     companion object {
 
+    //    val nonUserDefinedSysSchemas = setOf("SYS", "SYSIBM", "pg_catalog", "information_schema", "pg_toast" )
+
         /** This constructs a database on disk.
          * The database will contain empty tables based on the table definitions.
          *
