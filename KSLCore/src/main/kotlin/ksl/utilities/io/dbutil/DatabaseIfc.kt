@@ -76,12 +76,12 @@ interface DatabaseIOIfc {
     /**
      * @return a list of all view names within the database
      */
-    val views: List<String>
+    val views: List<String> //TODO should be Map<String,List<String>>
 
     /**
      * @return a list of all table names within the database
      */
-    val userDefinedTables: List<String>
+    val userDefinedTables: List<String>  //TODO should be Map<String,List<String>>
 
     /**
      * Writes the table as comma separated values
@@ -395,38 +395,14 @@ interface DatabaseIfc : DatabaseIOIfc {
             }
         }
         return list
-//        val list = mutableListOf<String>()
-//        if (containsSchema(schemaName)) {
-//            try {
-//                logger.trace { "Getting a connection to retrieve the list of table names for schema $schemaName in database $label" }
-//                getConnection().use { connection ->
-//                    val metaData = connection.metaData
-//                    val rs = metaData.getTables(null, schemaName, null, arrayOf("TABLE"))
-//                    while (rs.next()) {
-//                        list.add(rs.getString("TABLE_NAME"))
-//                    }
-//                    rs.close()
-//                }
-//            } catch (e: SQLException) {
-//                logger.warn(e) { "Unable to get table names for schema $schemaName. The meta data was not available for database $label" }
-//            }
-//        }
-//        return list
     }
-
-//    /**
-//     * @param schemaName the name of the schema that should contain the tables
-//     * @return a list of table names within the schema
-//     */
-//    fun tableNames2(schemaName: String? = null): List<String> {
-//        return dbSchemas()[schemaName]?.toList() ?: emptyList()
-//    }
 
     /**
      * @param schemaName the name of the schema that should contain the views
      * @return a list of view names within the schema
      */
     fun viewNames(schemaName: String): List<String> {
+        //TODO what about a null schemaName???
         val list = mutableListOf<String>()
         if (containsSchema(schemaName)) { //TODO this check should be unnecessary
             try {
@@ -547,6 +523,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if the database contains the named table
      */
     fun containsTable(tableName: String): Boolean {
+        //TODO remove dependence on userDefinedTables
+        // should the table names be qualified?
         val tableNames = userDefinedTables
         for (name in tableNames) {
             if (name == tableName) {
@@ -741,11 +719,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param out        the PrintWriter to write to
      */
     override fun writeAllTablesAsText(out: PrintWriter, schemaName: String?) {
-        val tables = if (schemaName != null) {
-            tableNames(schemaName)
-        } else {
-            userDefinedTables
-        }
+        //removed dependence on userDefinedTables, tableNames() handles null schemaName
+        val tables = tableNames(schemaName)
         for (table in tables) {
             writeTableAsText(table, out, schemaName)
         }
@@ -819,11 +794,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param out        the PrintWriter to write to
      */
     override fun writeAllTablesAsMarkdown(out: PrintWriter, schemaName: String?) {
-        val tables = if (schemaName != null) {
-            tableNames(schemaName)
-        } else {
-            userDefinedTables
-        }
+        //removed dependence on userDefinedTables; tableNames() handles null schemaName
+        val tables = tableNames(schemaName)
         for (table in tables) {
             writeTableAsMarkdown(table, out, schemaName)
         }
@@ -844,11 +816,8 @@ interface DatabaseIfc : DatabaseIOIfc {
         header: Boolean
     ) {
         Files.createDirectories(pathToOutPutDirectory)
-        val tables = if (schemaName != null) {
-            tableNames(schemaName)
-        } else {
-            userDefinedTables
-        }
+        //removed dependence on userDefinedTables; tableNames() handles null schemaName
+        val tables = tableNames(schemaName)
         for (table in tables) {
             val path: Path = pathToOutPutDirectory.resolve("$table.csv")
             val writer = KSLFileUtil.createPrintWriter(path)
@@ -908,17 +877,14 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      *  Deletes all data from tables within the specified schema. If there
-     *  is null, then the tables in the property [userDefinedTables] are used.
+     *  is null, then the tables not associated with a schema are deleted.
      *
      *  @param schemaName the name of the schema containing the table
      */
     fun deleteAllFrom(schemaName: String? = defaultSchemaName) {
-        val tables = if (schemaName != null) {
-            tableNames(schemaName)
-        } else {
-            userDefinedTables
-        }
-        deleteAllFrom(tables, defaultSchemaName)
+        //removed dependence on userDefinedTables; tableNames() handles null schemaName
+        val tables = tableNames(schemaName)
+        deleteAllFrom(tables, schemaName)
     }
 
     /**
@@ -1009,7 +975,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if all user defined tables are empty in the schema
      */
     fun areAllTablesEmpty(schemaName: String? = defaultSchemaName): Boolean {
-        val tables = if (schemaName != null) {
+        val tables = if (schemaName != null) {//TODO remove dependence on userDefinedTables
             tableNames(schemaName)
         } else {
             userDefinedTables
@@ -1078,11 +1044,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param out        the PrintWriter to write to
      */
     override fun exportAllTablesAsInsertQueries(schemaName: String?, out: PrintWriter) {
-        val tables = if (schemaName == null) {
-            userDefinedTables
-        } else {
-            tableNames(schemaName)
-        }
+        //removed dependence on userDefinedTables; tableNames() handles null schemaName
+        val tables = tableNames(schemaName)
         for (t in tables) {
             exportInsertQueries(t, out, schemaName)
         }
@@ -1093,6 +1056,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         wbName: String,
         wbDirectory: Path
     ) {
+        //TODO remove dependence on userDefinedTables
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.warn {
@@ -1118,6 +1082,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  This is needed because SQLite has no schemas
      */
     private fun sqliteExportToExcel(wbName: String, wbDirectory: Path) {
+        //TODO where is this called from?
         val list = mutableListOf<String>()
         list.addAll(userDefinedTables)
         list.addAll(views)
