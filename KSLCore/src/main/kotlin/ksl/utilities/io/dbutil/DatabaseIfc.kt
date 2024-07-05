@@ -388,10 +388,10 @@ interface DatabaseIfc : DatabaseIOIfc {
         for ((dbSchema, tblNames) in dbSchemas) {
             if (dbSchema == schemaName) {
                 list.addAll(tblNames)
-                break
+                return list
             } else if (dbSchema.equals(schemaName, ignoreCase = true)) {
                 list.addAll(tblNames)
-                break
+                return list
             }
         }
         return list
@@ -423,12 +423,12 @@ interface DatabaseIfc : DatabaseIOIfc {
 //    }
 
     /**
-     * @param schemaName the name of the schema that should contain the tables
-     * @return a list of table names within the schema
+     * @param schemaName the name of the schema that should contain the views
+     * @return a list of view names within the schema
      */
     fun viewNames(schemaName: String): List<String> {
         val list = mutableListOf<String>()
-        if (containsSchema(schemaName)) {
+        if (containsSchema(schemaName)) { //TODO this check should be unnecessary
             try {
                 logger.trace { "Getting a connection to retrieve the list of view names for schema $schemaName in database $label" }
                 getConnection().use { connection ->
@@ -447,10 +447,11 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * @return a list of all table names within the database
+     * @return a list of all table names within the database regardless of schema
      */
     override val userDefinedTables: List<String>
         get() {
+            //TODO what if multiple schemas contain the same table name
             val list = mutableListOf<String>()
             try {
                 logger.trace { "Getting a connection to retrieve the list of user defined table names in database $label" }
@@ -475,7 +476,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     override val schemas: List<String>
         get() {
             val list = mutableListOf<String>()
-            val dbSchema = dbSchemas()
+            val dbSchema = dbSchemas() // this connects to the database to get the meta data
             for (s in dbSchema.keys) {
                 if (s != null) list.add(s)
             }
@@ -587,11 +588,17 @@ interface DatabaseIfc : DatabaseIOIfc {
      * Checks if the supplied table exists in the schema
      *
      * @param schemaName the name of the schema that should contain the table
-     * @param table      a string representing the unqualified name of the table
+     * @param tableName      a string representing the unqualified name of the table
      * @return true if it exists
      */
-    fun containsTable(schemaName: String, table: String): Boolean {
-        return tableNames(schemaName).contains(table)
+    fun containsTable(schemaName: String, tableName: String): Boolean {
+        val tNames = tableNames(schemaName)
+        for (n in tNames) {
+            if ((n == tableName) || n.equals(tableName, ignoreCase = true)) {
+                return true
+            }
+        }
+        return false
     }
 
     /**
@@ -601,13 +608,6 @@ interface DatabaseIfc : DatabaseIOIfc {
         val map = mutableMapOf<String?, MutableSet<String>>()
         val dbs = dbTablesFromMetaData()
         for (info in dbs) {
-            // skip non-user defined schemas for derby and postgres
-//            if (info.tableName.equals("sqlite_schema")){
-//                continue
-//            }
-//            if (info.schemaName in Database.nonUserDefinedSysSchemas){
-//                continue
-//            }
             // null is okay for a schema to represent db's that don't have schema concepts
             if (!map.containsKey(info.schemaName)) {
                 map[info.schemaName] = mutableSetOf()
