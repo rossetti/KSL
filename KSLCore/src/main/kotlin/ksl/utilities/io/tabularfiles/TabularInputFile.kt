@@ -395,7 +395,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param header true means the file will contain a header of column names
      */
     fun exportToCSV(out: PrintWriter, header: Boolean = true){
-        myDb.exportTableAsCSV(dataTableName, out, schemaName = null, header)
+        myDb.exportTableAsCSV(dataTableName, schemaName = null, out, header)
     }
 
     /**

@@ -92,11 +92,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         //check if supplied database is configured as KSL database
         // by checking if the names of the tables match with the KSL table names
         // an admittedly poor test, but it is something
-        val tableNames = if (db.defaultSchemaName != null) {
-            db.tableNames(db.defaultSchemaName!!)
-        } else {
-            db.userDefinedTables
-        }
+        val tableNames = db.tableNames(defaultSchemaName)
         for (name in TableNames) {
             if (!containsTableName(name, tableNames)) {
                 return false
