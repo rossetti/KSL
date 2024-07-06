@@ -49,9 +49,9 @@ fun testSQLite() {
     database.executeCommand("drop table if exists person")
     database.executeCommand("create table person (id integer, name string)")
     println(database)
-    val allTableNames: List<String> = database.userDefinedTables
-    for (s in allTableNames) {
-        println("Table: $s")
+    val allTableNames = database.userDefinedTables
+    for ((s, t) in allTableNames) {
+        println("Schema: $s Table: ${t.joinToString(prefix = "[", postfix = "]", separator = ", ")}")
     }
     database.executeCommand("insert into person values(1, 'PersonA')")
     database.executeCommand("insert into person values(2, 'PersonB')")

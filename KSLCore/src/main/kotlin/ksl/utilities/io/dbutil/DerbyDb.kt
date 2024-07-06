@@ -30,6 +30,10 @@ open class DerbyDb(
     create: Boolean = true
 ) : Database(dataSource = createDataSource(dbDirectory.resolve(dbName), create = create), label = dbName) {
 
+    init {
+        defaultSchemaName = "APP"
+    }
+
     /** This constructs a simple Derby database on disk.
      * The database will contain empty tables based on the table definitions.
      *  If the database already exists on disk, it will be deleted and recreated.

@@ -11,8 +11,8 @@ fun main() {
 //    testSQLiteDb()
 //    testDerbyDb()
 
-    testPostgres()
-//    testDuckDb()
+//    testPostgres()
+    testDuckDb()
 
 
 }
@@ -79,9 +79,6 @@ data class City(
 fun testSQLiteDb(){
     val td = setOf(Person(), City())
     val db = SQLiteDb(td, "TestSQLiteDb")
-    println("schema names:")
-    db.schemas.forEach(::println)
-    println("tableNames:")
     db.userDefinedTables.forEach(::println)
     db.dbTablesFromMetaData().forEach(::println)
     val p = Person(1, "manuel", age = 10)
@@ -96,9 +93,6 @@ fun testSQLiteDb(){
 fun testDerbyDb(){
     val td = setOf(Person(), City())
     val db = DerbyDb(td, "TestDerbyDb")
-    println("schema names:")
-    db.schemas.forEach(::println)
-    println("tableNames:")
     db.userDefinedTables.forEach(::println)
     db.dbTablesFromMetaData().forEach(::println)
     val p = Person(1, "manuel", age = 10)
@@ -113,21 +107,17 @@ fun testDerbyDb(){
 fun testDuckDb(){
     val td = setOf(Person(), City())
     val db = DuckDb(td, "TestDuckDb")
-    println("schema names:")
-    db.schemas.forEach(::println)
-    println("tableNames:")
-    db.tableNames("main").forEach(::println)
-    println()
     db.userDefinedTables.forEach(::println)
     println()
     db.dbTablesFromMetaData().forEach(::println)
     println()
+    val p = Person(1, "manuel", age = 10)
+    val c = City(1, "London", population = 1000)
+    db.insertDbDataIntoTable(p)
+    db.insertDbDataIntoTable(c)
+    db.printAllTablesAsText()
+    println()
     db.tableNames("main").forEach(::println)
-//    val p = Person(1, "manuel", age = 10)
-//    val c = City(1, "London", population = 1000)
-//    db.insertDbDataIntoTable(p)
-//    db.insertDbDataIntoTable(c)
-//    db.printAllTablesAsText()
 }
 
 fun testPostgres(){
@@ -144,9 +134,6 @@ fun testPostgres(){
 //    System.out.println(task)
 //    task.creationScriptCommands.forEach(System.out::println)
 //    db.printTableAsText("s")
-    println("schema names:")
-    db.schemas.forEach(::println)
-    println("tableNames:")
     db.userDefinedTables.forEach(::println)
     println()
     db.dbTablesFromMetaData().forEach(::println)
