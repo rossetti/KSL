@@ -482,6 +482,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     fun selectAllIntoOpenResultSet(tableName: String, schemaName: String? = defaultSchemaName): ResultSet? {
         //TODO this is even more checking of metadata, why
+        // make one call for checking
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return null
@@ -994,19 +995,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return the results of the query or null if there was a problem
      */
     fun fetchCachedRowSet(sql: String): CachedRowSet? {
-        try {
-            logger.trace { "Database $label: Getting connection to fetch CachedRowSet for $sql" }
-            getConnection().use { connection ->
-                val query = connection.prepareStatement(sql)
-                val rs = query.executeQuery()
-                val crs = createCachedRowSet(rs)
-                query.close()
-                return crs
-            }
-        } catch (e: SQLException) {
-            logger.warn(e) { "The query $sql was not executed for database $label" }
-        }
-        return null
+        return Companion.fetchCachedRowSet(longLastingConnection, sql)
     }
 
     /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
@@ -1019,16 +1008,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return the results of the query or null
      */
     fun fetchOpenResultSet(sql: String): ResultSet? {
-        var query: PreparedStatement? = null
-        try {
-            logger.trace { "Database $label: Getting connection to fetch open ResultSet for $sql" }
-            query = getConnection().prepareStatement(sql)
-            return query.executeQuery()
-        } catch (e: SQLException) {
-            logger.warn(e) { "The query $sql was not executed for database $label" }
-            query?.close()
-        }
-        return null
+        return Companion.fetchOpenResultSet(longLastingConnection, sql)
     }
 
     /**
@@ -1132,6 +1112,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     fun tableMetaData(tableName: String, schemaName: String? = defaultSchemaName): List<ColumnMetaData> {
         //TODO this is even more checking of metadata, why
+        // fix to make only one db call
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return emptyList()
@@ -1820,6 +1801,58 @@ interface DatabaseIfc : DatabaseIOIfc {
                 }
             }
             return list
+        }
+
+        /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
+         * form of a JDBC ResultSet that is TYPE_FORWARD_ONLY and CONCUR_READ_ONLY .
+         * Errors in the SQL are the user's responsibility. Any exceptions
+         * are logged and squashed. It is the user's responsibility to close the ResultSet.  That is,
+         * the statement used to create the ResultSet is not automatically closed.
+         *
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *
+         *  @param connection A valid and open connection to a database.
+         * @param sql an SQL text string that is valid
+         * @return the results of the query or null
+         */
+        fun fetchOpenResultSet(connection: Connection, sql: String): ResultSet? {
+            var query: PreparedStatement? = null
+            try {
+                logger.trace { "Fetching open ResultSet for $sql" }
+                query = connection.prepareStatement(sql)
+                return query.executeQuery()
+            } catch (e: SQLException) {
+                logger.warn(e) { "The query $sql was not executed." }
+                query?.close()
+            }
+            return null
+        }
+
+        /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
+         * form of a JDBC CachedRowSet. Errors in the SQL are the user's responsibility. Any exceptions
+         * are logged and squashed.  The underlying query is closed.
+         *
+         *
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *
+         *  @param connection A valid and open connection to a database.
+         * @param sql an SQL text string that is valid
+         * @return the results of the query or null if there was a problem
+         */
+        fun fetchCachedRowSet(connection: Connection, sql: String): CachedRowSet? {
+            try {
+                logger.trace { "Fetching CachedRowSet for $sql" }
+                val query = connection.prepareStatement(sql)
+                val rs = query.executeQuery()
+                val crs = createCachedRowSet(rs)
+                query.close()
+                return crs
+            } catch (e: SQLException) {
+                logger.warn(e) { "The query $sql was not executed." }
+            }
+            return null
         }
 
         /**
