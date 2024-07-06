@@ -41,7 +41,7 @@ class KSLDatabaseObserver(
     init {
         model.attachModelElementObserver(myObserver)
 //        db.label = model.simulationName.replace(" ", "_").plus("_KSL_DB")
-//        db.outputDirectory = model.outputDirectory
+        db.outputDirectory = model.outputDirectory
     }
 
     /**

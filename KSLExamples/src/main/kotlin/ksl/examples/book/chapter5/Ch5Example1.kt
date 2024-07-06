@@ -72,11 +72,12 @@ fun main() {
     model.simulate()
 
     out = model.outputDirectory.createPrintWriter("AcrossExperimentResults.md")
-    kslDatabaseObserver.db.writeTableAsMarkdown("ACROSS_REP_VIEW", out)
+    kslDatabaseObserver.db.writeTableAsMarkdown("ACROSS_REP_VIEW", out = out)
 
-//    println("Exporting database to Excel")
-//    kslDatabaseObserver.db.exportToExcel()
-//    derby.db.exportToExcel()
+    println("Exporting database to Excel")
+    println(kslDatabaseObserver.db.outputDirectory)
+    kslDatabaseObserver.db.exportToExcel()
+    derby.db.exportToExcel()
 
     val mcb = expDataCollector.multipleComparisonAnalyzerFor(
         listOf("Two Workers", "Three Workers"), palletWorkCenter.totalProcessingTime.name)
