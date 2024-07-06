@@ -64,7 +64,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     val dataSource: DataSource
 
     /**
-     *  A connection that is meant to be used many times before closing.
+     *  A connection that is meant to be used many times before manual closing.
      */
     val longLastingConnection: Connection
 
@@ -880,14 +880,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if the command executed without an SQLException
      */
     fun executeCommand(command: String): Boolean {
-        var flag = false
-        try {
-            logger.trace { "Getting connection to execute command on database $label" }
-            getConnection().use { con -> flag = executeCommand(con, command) }
-        } catch (ex: SQLException) {
-            logger.error(ex) { "SQLException when executing $command" }
-        }
-        return flag
+        return Companion.executeCommand(longLastingConnection, command)
     }
 
     /**
@@ -898,30 +891,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if all commands were executed
      */
     fun executeCommands(commands: List<String>): Boolean {
-        var executed = true
-        try {
-            getConnection().use { con ->
-                con.autoCommit = false
-                for (cmd in commands) {
-                    executed = executeCommand(con, cmd)
-                    if (!executed) {
-                        logger.trace { "Rolling back command on database $label" }
-                        con.rollback()
-                        break
-                    }
-                }
-                if (executed) {
-                    logger.trace { "Committing commands on database $label" }
-                    con.commit()
-                }
-                con.autoCommit = true
-            }
-        } catch (ex: SQLException) {
-            executed = false
-            logger.trace { "The commands were not executed for database $label" }
-            logger.error(ex) { "SQLException: " }
-        }
-        return executed
+        return Companion.executeCommands(longLastingConnection, commands)
     }
 
     /**
@@ -978,23 +948,21 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param viewNames  the view names in the order that they must be dropped, must not be null
      */
     fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
-        //TODO this is even more checking of metadata, why
         if (containsSchema(schemaName)) {
             // need to delete the schema and any tables/data
             logger.debug { "The database $label contains the schema $schemaName" }
             logger.debug { "Attempting to drop the schema $schemaName...." }
-
-            //first drop any views, then the tables
             val tables = tableNames(schemaName)
             logger.debug { "Schema $schemaName has tables ... " }
             for (t in tables) {
-                logger.debug { "table $t" }
+                logger.debug { "table: $t" }
             }
             val views = viewNames(schemaName)
             logger.debug { "Schema $schemaName has views ... " }
             for (v in views) {
-                logger.debug { "table $v" }
+                logger.debug { "view: $v" }
             }
+            //first drop any views, then the tables
             for (name in viewNames) {
                 logger.debug { "Checking for view $name " }
                 if (views.contains(name)) {
@@ -1018,7 +986,6 @@ interface DatabaseIfc : DatabaseIOIfc {
                         logger.debug { "Unable to drop table $name " }
                     }
                 }
-
             }
             val sql = "drop schema $schemaName cascade"
             val b = executeCommand(sql)
@@ -1460,6 +1427,40 @@ interface DatabaseIfc : DatabaseIOIfc {
                 logger.error(ex) { "SQLException when executing command $command" }
             }
             return flag
+        }
+
+        /**
+         * Consecutively executes the list of SQL queries supplied as a list of
+         * strings The strings must not have ";" semicolon at the end.
+         * The caller is responsible for closing the connection
+         *
+         * @param connection a connection for preparing the statement
+         * @param commands the commands
+         * @return true if all commands were executed
+         */
+        fun executeCommands(connection: Connection, commands: List<String>): Boolean {
+            var executed = true
+            try {
+                connection.autoCommit = false
+                    for (cmd in commands) {
+                        executed = executeCommand(connection, cmd)
+                        if (!executed) {
+                            logger.trace { "Rolling back command on database: $cmd" }
+                            connection.rollback()
+                            break
+                        }
+                    }
+                    if (executed) {
+                        logger.trace { "Committing commands on database." }
+                        connection.commit()
+                    }
+                connection.autoCommit = true
+            } catch (ex: SQLException) {
+                executed = false
+                logger.trace { "The commands were not executed for database" }
+                logger.error(ex) { "SQLException: " }
+            }
+            return executed
         }
 
         /**
