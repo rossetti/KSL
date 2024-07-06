@@ -197,14 +197,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         out: PrintWriter,
         header: Boolean
     ) {
-        //TODO this is even more checking of metadata, why
-        if (schemaName != null) {
-            if (!containsSchema(schemaName)) {
-                logger.trace { "Schema: $schemaName does not exist in database $label" }
-                return
-            }
-        }
-        if (!containsTable(tableName) && !containsView(tableName)) {
+        if (!containsTable(tableName, schemaName) && !containsView(tableName, schemaName)) {
             logger.trace { "Table or View: $tableName does not exist in database $label" }
             return
         }
@@ -232,14 +225,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
     override fun writeTableAsText(tableName: String, schemaName: String?, out: PrintWriter) {
-        //TODO this is even more checking of metadata, why
-        if (schemaName != null) {
-            if (!containsSchema(schemaName)) {
-                logger.info { "Schema: $schemaName does not exist in database $label" }
-                return
-            }
-        }
-        if (!containsTable(tableName) && !containsView(tableName)) {
+        if (!containsTable(tableName, schemaName) && !containsView(tableName, schemaName)) {
             logger.info { "Table or View: $tableName does not exist in database $label" }
             return
         }
@@ -292,14 +278,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
     override fun writeTableAsMarkdown(tableName: String, schemaName: String?, out: PrintWriter) {
-        //TODO this is even more checking of metadata, why
-        if (schemaName != null) {
-            if (!containsSchema(schemaName)) {
-                logger.info { "Schema: $schemaName does not exist in database $label" }
-                return
-            }
-        }
-        if (!containsTable(tableName) && !containsView(tableName)) {
+        if (!containsTable(tableName, schemaName) && !containsView(tableName, schemaName)) {
             logger.info { "Table or View: $tableName does not exist in database $label" }
             return
         }
@@ -410,13 +389,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return a result holding all the records from the table
      */
     fun selectAll(tableName: String, schemaName: String? = defaultSchemaName): CachedRowSet? {
-        //TODO this is even more checking of metadata, why
-        if (schemaName != null) {
-            if (!containsSchema(schemaName)) {
-                return null
-            }
-        }
         if (!containsTable(tableName) && !containsView(tableName)) {
+            logger.trace { "Table or View: $tableName does not exist in database $label" }
             return null
         }
         return if (schemaName != null) {
@@ -456,13 +430,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  @return true if the command executed successfully.
      */
     fun deleteAllFrom(tableName: String, schemaName: String? = defaultSchemaName): Boolean {
-        //TODO this is even more checking of metadata, why
-        if (schemaName != null) {
-            if (!containsSchema(schemaName)) {
-                return false
-            }
-        }
-        if (!containsTable(tableName)) {
+        if (!containsTable(tableName, schemaName)) {
             return false
         }
         val sql = deleteAllFromTableSQL(tableName, schemaName)
@@ -481,14 +449,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName qualified or unqualified name of an existing table in the database
      */
     fun selectAllIntoOpenResultSet(tableName: String, schemaName: String? = defaultSchemaName): ResultSet? {
-        //TODO this is even more checking of metadata, why
-        // make one call for checking
-        if (schemaName != null) {
-            if (!containsSchema(schemaName)) {
-                return null
-            }
-        }
         if (!containsTable(tableName) && !containsView(tableName)) {
+            logger.trace { "Table or View: $tableName does not exist in database $label" }
             return null
         }
         val sql: String = if (schemaName == null) {
@@ -615,18 +577,6 @@ interface DatabaseIfc : DatabaseIOIfc {
             exportToExcel(tables, schemaName, wbName, wbDirectory)
         }
     }
-
-//    /**
-//     *  This is needed because SQLite has no schemas
-//     */
-//    private fun sqliteExportToExcel(wbName: String, wbDirectory: Path) {
-//        //TODO where is this called from?
-//        val list = mutableListOf<String>()
-//        list.addAll(userDefinedTables)
-//        list.addAll(views)
-//        logger.info { "SQLite: Exporting user defined tables and views to $wbName at $wbDirectory" }
-//        exportToExcel(list, null, wbName, wbDirectory)
-//    }
 
     /** Writes each table in the list to an Excel workbook with each table being placed
      *  in a new sheet with the sheet name equal to the name of the table. The column names
@@ -1093,14 +1043,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return the list of the table's metadata or an empty list if the table or schema is not found
      */
     fun tableMetaData(tableName: String, schemaName: String? = defaultSchemaName): List<ColumnMetaData> {
-        //TODO this is even more checking of metadata, why
-        // fix to make only one db call
-        if (schemaName != null) {
-            if (!containsSchema(schemaName)) {
-                return emptyList()
-            }
-        }
-        if (!containsTable(tableName) && !containsView(tableName)) {
+        if (!containsTable(tableName, schemaName) && !containsView(tableName, schemaName)) {
             return emptyList()
         }
         val sql = if (schemaName != null) {
