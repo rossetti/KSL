@@ -1017,25 +1017,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return the number of rows in the table
      */
     fun numRows(tableName: String, schemaName: String? = defaultSchemaName): Long {
-        val tblName = if (schemaName != null) {
-            "${schemaName}.${tableName}"
-        } else {
-            tableName
-        }
-        try {
-            getConnection().use { connection ->
-                val stmt: Statement = connection.createStatement()
-                val sql = "select count(*) from $tblName"
-                val rs: ResultSet = stmt.executeQuery(sql)
-                rs.next()
-                val count = rs.getLong(1)
-                stmt.close()
-                return count
-            }
-        } catch (e: SQLException) {
-            logger.warn { "Could not count the number of rows in $tableName" }
-        }
-        return 0
+        return Companion.numRows(longLastingConnection, tableName, schemaName)
     }
 
     /**
@@ -1833,7 +1815,6 @@ interface DatabaseIfc : DatabaseIOIfc {
          * form of a JDBC CachedRowSet. Errors in the SQL are the user's responsibility. Any exceptions
          * are logged and squashed.  The underlying query is closed.
          *
-         *
          *  The connection should be open and is not closed during this function.
          *  It is the caller's responsibility to close the connection when appropriate.
          *
@@ -1853,6 +1834,39 @@ interface DatabaseIfc : DatabaseIOIfc {
                 logger.warn(e) { "The query $sql was not executed." }
             }
             return null
+        }
+
+        /**
+         *  Determines the number of rows in the table within the schema based on
+         *  the supplied connection.
+         *
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *
+         *  @param connection A valid and open connection to a database.
+         *
+         * @param schemaName the schema containing the table
+         * @param tableName the name of the table within the schema
+         * @return the number of rows in the table
+         */
+        fun numRows(connection: Connection, tableName: String, schemaName: String?): Long {
+            val tblName = if (schemaName != null) {
+                "${schemaName}.${tableName}"
+            } else {
+                tableName
+            }
+            try {
+                val stmt: Statement = connection.createStatement()
+                val sql = "select count(*) from $tblName"
+                val rs: ResultSet = stmt.executeQuery(sql)
+                rs.next()
+                val count = rs.getLong(1)
+                stmt.close()
+                return count
+            } catch (e: SQLException) {
+                logger.warn { "Could not count the number of rows in $tableName" }
+            }
+            return 0
         }
 
         /**
