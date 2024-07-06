@@ -35,11 +35,15 @@ open class Database(
     final override var defaultSchemaName: String? = null
 ) : DatabaseIfc {
 
-    override var outputDirectory: OutputDirectory = KSL.myOutputDir
+    final override var outputDirectory: OutputDirectory = KSL.myOutputDir
+
+    final override val longLastingConnection: Connection by lazy {
+        getConnection()
+    }
 
     final override fun getConnection(): Connection = super.getConnection()
 
-    override val dbURL: String? = getConnection().use { it.metaData?.url }
+    final override val dbURL: String? = getConnection().use { it.metaData?.url }
 
     init {
         DatabaseIfc.logger.info { "Initialized Database $label with URL = $dbURL" }

@@ -24,6 +24,7 @@ fun main() {
 
 //    DBExamples.createKSLDatabases()
 
+//    DBExamples.createDerbyDatabase("TestDerby")
     DBExamples.testKSLDatabase()
 
 //    DBExamples.exampleExcelDbImport()
@@ -40,8 +41,9 @@ object DBExamples {
     fun createDerbyDatabase(dbName: String){
         val ds = DerbyDb.createDataSource(dbName, create = true)
         val db = Database(ds, dbName)
+  //      db.defaultSchemaName = "APP"
 
-        val list = db.tableNames("SQLJ")
+        val list = db.tableNames("APP")
         println(list.toString())
 
         println(db)
@@ -64,18 +66,22 @@ object DBExamples {
 
         // this creates and attaches a KSLDatabase
 //        val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
-        val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb", model.outputDirectory.dbDir)
-//        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
+//        val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb", model.outputDirectory.dbDir)
+        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
         val kdb = KSLDatabase(sdb)
         KSLDatabaseObserver(model, kdb)
         // this also creates and attached another KSLDatabase, using the defaults
-        KSLDatabaseObserver(model)
+        val adb = KSLDatabaseObserver(model)
 
         model.simulate()
         model.print()
 
+        println("Exporting from sqlite to Excel")
+//        adb.db.exportToExcel()
+
         sdb.writeAllTablesAsMarkdown()
 
+        println()
         val df = kdb.withinRepViewStatistics
         println(df.schema())
         println(df)
@@ -98,8 +104,9 @@ object DBExamples {
             println(r)
         }
 
+        println("Exporting from postgres to csv")
         sdb.exportAllTablesAsCSV()
-
+        println("Exporting from postgres to Excel")
         sdb.exportToExcel()
 
         println("Done!")
