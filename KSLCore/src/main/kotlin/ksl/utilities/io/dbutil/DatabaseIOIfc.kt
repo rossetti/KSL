@@ -28,16 +28,18 @@ interface DatabaseIOIfc {
     /**
      * @return a list of all schemas within the database
      */
-    val schemas: List<String>
-
-    /**
-     * @return a list of all view names within the database
-     */
-    val views: List<String> //TODO should be Map<String,List<String>>
+    val schemaNames: List<String>
 
     /**
      *  The returned map may have a null key because not all databases support
-     *  the schema concept. There can be table name associated with null as the key.
+     *  the schema concept. There can be view names associated with null as the key.
+     * @return a list of all view names within the database
+     */
+    val views: Map<String?,List<String>>
+
+    /**
+     *  The returned map may have a null key because not all databases support
+     *  the schema concept. There can be table names associated with null as the key.
      *
      * @return a map of all table names by schema within the database
      */
