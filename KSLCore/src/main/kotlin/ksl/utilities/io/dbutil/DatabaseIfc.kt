@@ -758,39 +758,27 @@ interface DatabaseIfc : DatabaseIOIfc {
         wbName: String,
         wbDirectory: Path
     ) {
-        //TODO remove dependence on userDefinedTables
-        if (schemaName != null) {
-            if (!containsSchema(schemaName)) {
-                logger.warn {
-                    "Attempting to write to Excel: The supplied schema name $schemaName is not in " +
-                            "database $label. No workbook named $wbName at $wbDirectory was created"
-                }
-                return
-            }
-            val tables = tableNames(schemaName).toMutableList()
-            tables.addAll(viewNames(schemaName))
-            logger.info { "Exporting $schemaName to $wbName at $wbDirectory" }
-            exportToExcel(tables, schemaName, wbName, wbDirectory)
+        val tables = tableNames(schemaName).toMutableList()
+        tables.addAll(viewNames(schemaName))
+        if (tables.isEmpty()){
+            logger.info { "There were no tables or views when exporting $schemaName to Excel workbook $wbName at $wbDirectory" }
         } else {
-            logger.info { "The supplied schema to write was null. Exporting all user defined tables and views to $wbName at $wbDirectory" }
-            val list = mutableListOf<String>()
-            list.addAll(userDefinedTables)
-            list.addAll(views)
-            exportToExcel(list, null, wbName, wbDirectory)
+            logger.info { "Exporting $schemaName to Excel workbook $wbName at $wbDirectory" }
+            exportToExcel(tables, schemaName, wbName, wbDirectory)
         }
-    }
+      }
 
-    /**
-     *  This is needed because SQLite has no schemas
-     */
-    private fun sqliteExportToExcel(wbName: String, wbDirectory: Path) {
-        //TODO where is this called from?
-        val list = mutableListOf<String>()
-        list.addAll(userDefinedTables)
-        list.addAll(views)
-        logger.info { "SQLite: Exporting user defined tables and views to $wbName at $wbDirectory" }
-        exportToExcel(list, null, wbName, wbDirectory)
-    }
+//    /**
+//     *  This is needed because SQLite has no schemas
+//     */
+//    private fun sqliteExportToExcel(wbName: String, wbDirectory: Path) {
+//        //TODO where is this called from?
+//        val list = mutableListOf<String>()
+//        list.addAll(userDefinedTables)
+//        list.addAll(views)
+//        logger.info { "SQLite: Exporting user defined tables and views to $wbName at $wbDirectory" }
+//        exportToExcel(list, null, wbName, wbDirectory)
+//    }
 
     /** Writes each table in the list to an Excel workbook with each table being placed
      *  in a new sheet with the sheet name equal to the name of the table. The column names
