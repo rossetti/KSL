@@ -25,6 +25,7 @@ import ksl.utilities.io.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.csv.CSVFormat
 import org.apache.poi.ss.usermodel.Sheet
+import org.apache.poi.xssf.streaming.SXSSFSheet
 import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.duckdb.DuckDBDatabaseMetaData
@@ -52,6 +53,7 @@ import kotlin.reflect.*
  * the information that it needs to access the database.
  */
 interface DatabaseIfc : DatabaseIOIfc {
+
     enum class LineOption {
         COMMENT, CONTINUED, END
     }
@@ -60,6 +62,11 @@ interface DatabaseIfc : DatabaseIOIfc {
      * the DataSource backing the database
      */
     val dataSource: DataSource
+
+    /**
+     *  A connection that is meant to be used many times before closing.
+     */
+    val longLastingConnection: Connection
 
     /**
      * It is best to use this function within a try-with-resource construct
@@ -97,18 +104,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * are defined within the schema.
      */
     fun tableNames(schemaName: String?): List<String> {
-        val list = mutableListOf<String>()
-        val dbSchemas = dbTableNamesBySchema() // this makes a connection to the db and gets the metadata
-        for ((dbSchema, tblNames) in dbSchemas) {
-            if (dbSchema == schemaName) {
-                list.addAll(tblNames)
-                return list
-            } else if (dbSchema.equals(schemaName, ignoreCase = true)) {
-                list.addAll(tblNames)
-                return list
-            }
-        }
-        return list
+        return Companion.tableNames(longLastingConnection, schemaName)
     }
 
     /**
@@ -120,45 +116,27 @@ interface DatabaseIfc : DatabaseIOIfc {
      * are defined within the schema.
      */
     fun viewNames(schemaName: String?): List<String> {
-        val list = mutableListOf<String>()
-        val dbSchemas = dbViewNamesBySchema() // this makes a connection to the db and gets the metadata
-        for ((dbSchema, viewNames) in dbSchemas) {
-            if (dbSchema == schemaName) {
-                list.addAll(viewNames)
-                return list
-            } else if (dbSchema.equals(schemaName, ignoreCase = true)) {
-                list.addAll(viewNames)
-                return list
-            }
-        }
-        return list
+        return Companion.viewNames(longLastingConnection, schemaName)
     }
 
     /**
      * @return a list of all table names within the database regardless of schema
      */
     override val userDefinedTables: Map<String?, List<String>>
-        get() = dbTableNamesBySchema()
+        get() = dbTableNamesBySchema(longLastingConnection)
 
     /** The list may be empty if the database does not support the schema concept.
      *
      * @return a list of all schema names within the database
      */
     override val schemaNames: List<String>
-        get() {
-            val list = mutableListOf<String>()
-            val dbSchema = dbTableNamesBySchema() // this connects to the database to get the metadata
-            for (s in dbSchema.keys) {
-                if (s != null) list.add(s)
-            }
-            return list
-        }
+        get() = schemaNames(longLastingConnection)
 
     /**
      * @return a list of all view names within the database
      */
     override val views: Map<String?, List<String>>
-        get() = dbViewNamesBySchema()
+        get() = dbViewNamesBySchema(longLastingConnection)
 
     /**
      * The name of the schema is first checked for an exact lexicographical match.
@@ -171,49 +149,18 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if the database contains a schema with the provided name
      */
     fun containsSchema(schemaName: String): Boolean {
-        val schemaNames = schemaNames  // causes a db connection to occur
-        for (name in schemaNames) {
-            if (name == schemaName) {
-                return true
-            } else if (name.equals(schemaName, ignoreCase = true)) {
-                return true
-            }
-        }
-        return false
+        return Companion.containsSchema(longLastingConnection, schemaName)
     }
-
-    /**
-     * @param tableName the unqualified table name to find as a string
-     * @return true if the database contains the named table
-     */
-//    fun containsTable(tableName: String): Boolean {
-//        //TODO remove dependence on userDefinedTables
-//        // should the table names be qualified?
-//        val tableNames = userDefinedTables
-//        for (name in tableNames) {
-//            if (name == tableName) {
-//                return true
-//            } else if (name.equals(tableName, ignoreCase = true)) {
-//                return true
-//            }
-//        }
-//        return false
-//    }
 
     /**
      * @param viewName the unqualified view name to find as a string
      * @return true if the database contains the named view
      */
-    fun containsView(viewName: String, schemaName: String? = defaultSchemaName): Boolean { //TODO should delete like containsTable()
-        val vNames = viewNames(schemaName)
-        for (name in vNames) {
-            if (name == viewName) {
-                return true
-            } else if (name.equals(viewName, ignoreCase = true)) {
-                return true
-            }
-        }
-        return false
+    fun containsView(
+        viewName: String,
+        schemaName: String? = defaultSchemaName
+    ): Boolean {
+        return Companion.containsView(longLastingConnection, viewName, schemaName)
     }
 
     /**
@@ -222,7 +169,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @return true if at least one table exists in the schema
      */
-    fun hasTables(schemaName: String): Boolean {
+    fun hasTables(schemaName: String? = defaultSchemaName): Boolean {
         return tableNames(schemaName).isNotEmpty()
     }
 
@@ -234,113 +181,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if it exists
      */
     fun containsTable(tableName: String, schemaName: String? = defaultSchemaName): Boolean {
-        val tNames = tableNames(schemaName)
-        for (n in tNames) {
-            if ((n == tableName) || n.equals(tableName, ignoreCase = true)) {
-                return true
-            }
-        }
-        return false
-    }
-
-    /**
-     *  Returns the user-defined schema names and the table names within each schema,
-     *  The key can be null because the database might not support the schema concept.
-     *  There can be table names associated with the key "null"
-     */
-    fun dbTableNamesBySchema(): Map<String?, List<String>> {
-        val map = mutableMapOf<String?, MutableList<String>>()
-        val dbs = dbTablesFromMetaData() // this makes a connection for the db meta-data
-        for (info in dbs) {
-            // null is okay for a schema to represent db's that don't have schema concepts
-            if (!map.containsKey(info.schemaName)) {
-                map[info.schemaName] = mutableListOf()
-            }
-            map[info.schemaName]!!.add(info.tableName)
-        }
-        return map
-    }
-
-    /**
-     *  Retrieves the table and schema information from the database meta-data
-     */
-    fun dbTablesFromMetaData(): List<DbSchemaInfo> {
-        try {
-            logger.trace { "Getting a connection to retrieve the catalog and schema information in database $label" }
-            getConnection().use { connection ->
-                val metaData = connection.metaData
-                // fix for duck db due to their bad table type naming
-                val type = if (metaData is DuckDBDatabaseMetaData) {
-                    "BASE TABLE"
-                } else {
-                    "TABLE"
-                }
-                // because schema name pattern is null and table name pattern is null,
-                // and type is TABLE we get ALL non-system tables (user defined) and the schema that
-                // they are within
-                val list = mutableListOf<DbSchemaInfo>()
-                val rs = metaData.getTables(null, null, null, arrayOf(type))
-                while (rs.next()) {
-                    val c = rs.getString("TABLE_CAT")
-                    val t = rs.getString("TABLE_NAME")
-                    val s = rs.getString("TABLE_SCHEM")
-                    list.add(DbSchemaInfo(c, s, t))
-                }
-                rs.close()
-                return list
-            }
-        } catch (e: SQLException) {
-            logger.warn { "Unable to get database catalog and schema information. The meta data was not available for database $label" }
-            logger.warn { "$e" }
-        }
-        return emptyList()
-    }
-
-    /**
-     *  Retrieves the views and schema information from the database meta-data
-     */
-    fun dbViewsFromMetaData(): List<DbSchemaInfo> {
-        try {
-            logger.trace { "Getting a connection to retrieve the catalog and schema information in database $label" }
-            getConnection().use { connection ->
-                val metaData = connection.metaData
-                // because schema name pattern is null and table name pattern is null,
-                // and type is TABLE we get ALL non-system tables (user defined) and the schema that
-                // they are within
-                val list = mutableListOf<DbSchemaInfo>()
-                val rs = metaData.getTables(null, null, null, arrayOf("VIEW"))
-                while (rs.next()) {
-                    val c = rs.getString("TABLE_CAT")
-                    val t = rs.getString("TABLE_NAME")
-                    val s = rs.getString("TABLE_SCHEM")
-                    list.add(DbSchemaInfo(c, s, t))
-                }
-                rs.close()
-                return list
-            }
-        } catch (e: SQLException) {
-            logger.warn { "Unable to get database catalog and schema information. The meta data was not available for database $label" }
-            logger.warn { "$e" }
-        }
-        return emptyList()
-    }
-
-    /**
-     *  Returns the user-defined schema names and the view names within each schema,
-     *  The key can be null because the database might not support the schema concept.
-     *  There can be view names associated with the key "null"
-     */
-    fun dbViewNamesBySchema(): Map<String?, List<String>> {
-        val map = mutableMapOf<String?, MutableList<String>>()
-        val dbs = dbViewsFromMetaData() // this makes a connection for the db meta-data
-        for (info in dbs) {
-            // null is okay for a schema to represent db's that don't have schema concepts
-            if (!map.containsKey(info.schemaName)) {
-                map[info.schemaName] = mutableListOf()
-            }
-            map[info.schemaName]!!.add(info.tableName)
-        }
-        return map
+        return Companion.containsTable(longLastingConnection, tableName, schemaName)
     }
 
     /**
@@ -356,6 +197,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         out: PrintWriter,
         header: Boolean
     ) {
+        //TODO this is even more checking of metadata, why
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.trace { "Schema: $schemaName does not exist in database $label" }
@@ -390,6 +232,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
     override fun writeTableAsText(tableName: String, schemaName: String?, out: PrintWriter) {
+        //TODO this is even more checking of metadata, why
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.info { "Schema: $schemaName does not exist in database $label" }
@@ -434,11 +277,11 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    override fun writeAllTablesAsText( schemaName: String?, out: PrintWriter,) {
+    override fun writeAllTablesAsText(schemaName: String?, out: PrintWriter) {
         //removed dependence on userDefinedTables, tableNames() handles null schemaName
         val tables = tableNames(schemaName)
         for (table in tables) {
-            writeTableAsText(table, schemaName,  out)
+            writeTableAsText(table, schemaName, out)
         }
     }
 
@@ -449,6 +292,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
     override fun writeTableAsMarkdown(tableName: String, schemaName: String?, out: PrintWriter) {
+        //TODO this is even more checking of metadata, why
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.info { "Schema: $schemaName does not exist in database $label" }
@@ -495,7 +339,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     override fun writeAllViewsAsMarkdown(schemaName: String?, out: PrintWriter) {
         val viewList = viewNames(schemaName)
         for (view in viewList) {
-            writeTableAsMarkdown(view, schemaName, out )
+            writeTableAsMarkdown(view, schemaName, out)
         }
     }
 
@@ -566,6 +410,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return a result holding all the records from the table
      */
     fun selectAll(tableName: String, schemaName: String? = defaultSchemaName): CachedRowSet? {
+        //TODO this is even more checking of metadata, why
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return null
@@ -611,6 +456,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  @return true if the command executed successfully.
      */
     fun deleteAllFrom(tableName: String, schemaName: String? = defaultSchemaName): Boolean {
+        //TODO this is even more checking of metadata, why
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return false
@@ -635,6 +481,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName qualified or unqualified name of an existing table in the database
      */
     fun selectAllIntoOpenResultSet(tableName: String, schemaName: String? = defaultSchemaName): ResultSet? {
+        //TODO this is even more checking of metadata, why
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return null
@@ -760,13 +607,13 @@ interface DatabaseIfc : DatabaseIOIfc {
     ) {
         val tables = tableNames(schemaName).toMutableList()
         tables.addAll(viewNames(schemaName))
-        if (tables.isEmpty()){
+        if (tables.isEmpty()) {
             logger.info { "There were no tables or views when exporting $schemaName to Excel workbook $wbName at $wbDirectory" }
         } else {
             logger.info { "Exporting $schemaName to Excel workbook $wbName at $wbDirectory" }
             exportToExcel(tables, schemaName, wbName, wbDirectory)
         }
-      }
+    }
 
 //    /**
 //     *  This is needed because SQLite has no schemas
@@ -795,7 +642,18 @@ interface DatabaseIfc : DatabaseIOIfc {
         wbName: String,
         wbDirectory: Path
     ) {
-        if (tableNames.isEmpty()) {
+        // check the table names
+        val dbTables = tableNames(schemaName).toMutableList()
+        dbTables.addAll(viewNames(schemaName))
+        val finalList = mutableListOf<String>()
+        for (tableName in tableNames) {
+            if (dbTables.contains(tableName)) {
+                finalList.add(tableName)
+            } else {
+                logger.warn { "The table name, $tableName was was not part of the schema ($schemaName) when writing to Excel in database $label" }
+            }
+        }
+        if (finalList.isEmpty()) {
             logger.warn { "The supplied list of table names was empty when writing to Excel in database $label" }
             return
         }
@@ -809,17 +667,15 @@ interface DatabaseIfc : DatabaseIOIfc {
             ExcelUtil.logger.info { "Opened workbook $path for writing database $label output" }
             logger.info { "Writing database $label to workbook at $path" }
             val workbook = SXSSFWorkbook(100)
-            for (tableName in tableNames) {
-                if (containsTable(tableName) || containsView(tableName)) {
-                    // get result set
-                    val rs = selectAllIntoOpenResultSet(tableName, schemaName)
-                    if (rs != null) {
-                        // write result set to workbook
-                        val sheet = ExcelUtil.createSheet(workbook, tableName)
-                        exportAsWorkSheet(rs, sheet)
-                        // close result set
-                        rs.close()
-                    }
+            for (tableName in finalList) {
+                // get result set
+                val rs = selectAllIntoOpenResultSet(tableName, schemaName)
+                if (rs != null) {
+                    // write result set to workbook
+                    val sheet = ExcelUtil.createSheet(workbook, tableName)
+                    exportAsWorkSheet(rs, sheet)
+                    // close result set
+                    rs.close()
                 }
             }
             workbook.write(it)
@@ -1075,7 +931,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     fun executeCommand(command: String): Boolean {
         var flag = false
         try {
-            logger.info { "Getting connection to execute command on database $label \n$command" }
+            logger.trace { "Getting connection to execute command on database $label" }
             getConnection().use { con -> flag = executeCommand(con, command) }
         } catch (ex: SQLException) {
             logger.error(ex) { "SQLException when executing $command" }
@@ -1210,6 +1066,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param viewNames  the view names in the order that they must be dropped, must not be null
      */
     fun dropSchema(schemaName: String, tableNames: List<String>, viewNames: List<String>) {
+        //TODO this is even more checking of metadata, why
         if (containsSchema(schemaName)) {
             // need to delete the schema and any tables/data
             logger.debug { "The database $label contains the schema $schemaName" }
@@ -1274,6 +1131,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return the list of the table's metadata or an empty list if the table or schema is not found
      */
     fun tableMetaData(tableName: String, schemaName: String? = defaultSchemaName): List<ColumnMetaData> {
+        //TODO this is even more checking of metadata, why
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 return emptyList()
@@ -1335,6 +1193,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         tableName: String = data.tableName,
         schemaName: String? = defaultSchemaName
     ): Int {
+        //TODO this is even more checking of metadata, why
         if (schemaName == null) {
             require(containsTable(tableName)) { "Database $label does not contain table $tableName in schema $schemaName for inserting data!" }
         } else {
@@ -1395,6 +1254,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (data.isEmpty()) {
             return 0
         }
+        //TODO this is even more checking of metadata, why
         require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
         // data should come from the table
         val first = data.first()
@@ -1454,6 +1314,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (data.isEmpty()) {
             return 0
         }
+        //TODO this is even more checking of metadata, why
         require(containsTable(tableName)) { "Database $label does not contain table $tableName for updating data!" }
         // data should come from the table
         val first = data.first()
@@ -1537,7 +1398,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     ) {
         // need to check for table name conflict with existing tables
         // need to check schema specification
-        val tableInfo = dbTablesFromMetaData()
+        val tableInfo = dbTablesFromMetaData(longLastingConnection)
         for (td in tableDefinitions) {
             if (td.schemaName == null) {
                 // table is not specified in a schema, just check if table exists
@@ -1667,6 +1528,8 @@ interface DatabaseIfc : DatabaseIOIfc {
                 rowCnt++
             }
             resultSet.close()
+            val s = sheet as SXSSFSheet
+            s.flushRows()
             logger.info { "Completed exporting ResultSet to Excel worksheet ${sheet.sheetName}" }
         }
 
@@ -1683,7 +1546,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             try {
                 connection.createStatement().use { statement ->
                     statement.execute(command)
-                    logger.info { "Executed SQL:\n$command" }
+                    logger.trace { "Executed SQL:\n$command" }
                     statement.close()
                     flag = true
                 }
@@ -1694,19 +1557,282 @@ interface DatabaseIfc : DatabaseIOIfc {
         }
 
         /**
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *  Retrieves the table and schema information from the database meta-data.
+         *  @param connection A valid and open connection to a database.
+         */
+        fun dbTablesFromMetaData(connection: Connection): List<DbSchemaInfo> {
+            try {
+                logger.trace { "Getting the metadata for a database" }
+                val metaData = connection.metaData
+                // fix for duck db due to their bad table type naming
+                val type = if (metaData is DuckDBDatabaseMetaData) {
+                    "BASE TABLE"
+                } else {
+                    "TABLE"
+                }
+                // because schema name pattern is null and table name pattern is null,
+                // and type is TABLE we get ALL non-system tables (user defined) and the schema that
+                // they are within
+                val list = mutableListOf<DbSchemaInfo>()
+                val rs = metaData.getTables(null, null, null, arrayOf(type))
+                while (rs.next()) {
+                    val c = rs.getString("TABLE_CAT")
+                    val t = rs.getString("TABLE_NAME")
+                    val s = rs.getString("TABLE_SCHEM")
+                    list.add(DbSchemaInfo(c, s, t))
+                }
+                rs.close()
+                return list
+            } catch (e: SQLException) {
+                logger.error { "Unable to get database catalog and schema information. The meta data was not available." }
+                logger.error { "$e" }
+                throw e
+            }
+        }
+
+        /**
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *  Retrieves the view information from the database meta-data.
+         *  @param connection A valid and open connection to a database.
+         */
+        fun dbViewsFromMetaData(connection: Connection): List<DbSchemaInfo> {
+            try {
+                logger.trace { "Getting the metadata for a database" }
+                val metaData = connection.metaData
+                // because schema name pattern is null and table name pattern is null,
+                // and type is VIEW we get ALL non-system views (user defined) and the schema that
+                // they are within
+                val list = mutableListOf<DbSchemaInfo>()
+                val rs = metaData.getTables(null, null, null, arrayOf("VIEW"))
+                while (rs.next()) {
+                    val c = rs.getString("TABLE_CAT")
+                    val t = rs.getString("TABLE_NAME")
+                    val s = rs.getString("TABLE_SCHEM")
+                    list.add(DbSchemaInfo(c, s, t))
+                }
+                rs.close()
+                return list
+            } catch (e: SQLException) {
+                logger.error { "Unable to get the meta data was not available for a database." }
+                logger.error { "$e" }
+                throw e
+            }
+        }
+
+        /**
+         *  Retrieves the names of the schemas from the database meta-data.
+         *  The connection should be open and is not closed during this function.
+         *
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *  @param connection A valid and open connection to a database.
+         */
+        fun schemaNames(connection: Connection): List<String> {
+            try {
+                logger.trace { "Retrieving the list of schema names in database metadata" }
+                val list = mutableListOf<String>()
+                val metaData = connection.metaData
+                val rs = metaData.schemas
+                while (rs.next()) {
+                    list.add(rs.getString("TABLE_SCHEM"))
+                }
+                rs.close()
+                return list
+            } catch (e: SQLException) {
+                logger.error { "Unable to get database schemas. The meta data was not available." }
+                logger.error { "$e" }
+                throw e
+            }
+        }
+
+        /**
+         * The name of the schema is first checked for an exact lexicographical match.
+         * If a match occurs, the schema is returned.  If a lexicographical match fails,
+         * then a check for a match ignoring the case of the string is performed.
+         * This is done because SQL identifier names should be case-insensitive.
+         * If neither matches then false is returned.
+         *
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *
+         *  @param connection A valid and open connection to a database.
+         * @param schemaName the schema name to check
+         * @return true if the database contains a schema with the provided name
+         */
+        fun containsSchema(connection: Connection, schemaName: String): Boolean {
+            val schemaNames = schemaNames(connection)
+            for (name in schemaNames) {
+                if (name == schemaName) {
+                    return true
+                } else if (name.equals(schemaName, ignoreCase = true)) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        /**  Checks if the named view is within the schema based on the connection.
+         *
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *
+         *  @param connection A valid and open connection to a database.
+         * @param viewName the unqualified view name to find as a string
+         * @return true if the database contains the named view
+         */
+        fun containsView(
+            connection: Connection,
+            viewName: String,
+            schemaName: String?
+        ): Boolean {
+            val vNames = viewNames(connection, schemaName)
+            for (name in vNames) {
+                if (name == viewName) {
+                    return true
+                } else if (name.equals(viewName, ignoreCase = true)) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        /**  Checks if the named table is within the schema based on the connection.
+         *
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *
+         *  @param connection A valid and open connection to a database.
+         * @param schemaName the name of the schema that should contain the table
+         * @param tableName  a string representing the unqualified name of the table
+         * @return true if it exists
+         */
+        fun containsTable(connection: Connection, tableName: String, schemaName: String?): Boolean {
+            val tNames = tableNames(connection, schemaName)
+            for (n in tNames) {
+                if ((n == tableName) || n.equals(tableName, ignoreCase = true)) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        /**
+         *  Returns the user-defined schema names and the table names within each schema,
+         *  The key can be null because the database might not support the schema concept.
+         *  There can be table names associated with the key "null".
+         *
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *  @param connection A valid and open connection to a database.
+         */
+        fun dbTableNamesBySchema(connection: Connection): Map<String?, List<String>> {
+            val map = mutableMapOf<String?, MutableList<String>>()
+            val dbs = dbTablesFromMetaData(connection)
+            for (info in dbs) {
+                // null is okay for a schema to represent db's that don't have schema concepts
+                if (!map.containsKey(info.schemaName)) {
+                    map[info.schemaName] = mutableListOf()
+                }
+                map[info.schemaName]!!.add(info.tableName)
+            }
+            return map
+        }
+
+        /**
+         * Returns a list of table names associated with the schema based on the
+         * supplied connection.
+         *
+         * The connection should be open and is not closed during this function.
+         * It is the caller's responsibility to close the connection when appropriate.
+         *
+         * @param connection A valid and open connection to a database.
+         * @param schemaName the name of the schema that should contain the tables. If null,
+         * then a list of table names not associated with a schema may be returned. Or, if
+         * the schema concept does not exist for the database, then the names of any user-defined
+         * tables may be returned.
+         * @return a list of table names within the schema. The list may be empty if no tables
+         * are defined within the schema.
+         */
+        fun tableNames(connection: Connection, schemaName: String?): List<String> {
+            val list = mutableListOf<String>()
+            val dbSchemas = dbTableNamesBySchema(connection)
+            for ((dbSchema, tblNames) in dbSchemas) {
+                if (dbSchema == schemaName) {
+                    list.addAll(tblNames)
+                    return list
+                } else if (dbSchema.equals(schemaName, ignoreCase = true)) {
+                    list.addAll(tblNames)
+                    return list
+                }
+            }
+            return list
+        }
+
+        /**
+         *  Returns the user-defined schema names and the view names within each schema,
+         *  The key can be null because the database might not support the schema concept.
+         *  There can be view names associated with the key "null".
+         *
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *  @param connection A valid and open connection to a database.
+         */
+        fun dbViewNamesBySchema(connection: Connection): Map<String?, List<String>> {
+            val map = mutableMapOf<String?, MutableList<String>>()
+            val dbs = dbViewsFromMetaData(connection) // causes a db connection to occur
+            for (info in dbs) {
+                // null is okay for a schema to represent db's that don't have schema concepts
+                if (!map.containsKey(info.schemaName)) {
+                    map[info.schemaName] = mutableListOf()
+                }
+                map[info.schemaName]!!.add(info.tableName)
+            }
+            return map
+        }
+
+        /**
+         *  Returns a list of views associated with the schema based on the supplied
+         *  connection.
+         *
+         *  The connection should be open and is not closed during this function.
+         *  It is the caller's responsibility to close the connection when appropriate.
+         *
+         *  @param connection A valid and open connection to a database.
+         *  @param schemaName the name of the schema that should contain the views. If null,
+         *  then a list of view names not associated with a schema may be returned. Or, if
+         *  the schema concept does not exist for the database, then the names of any views
+         *  may be returned.
+         * @return a list of view names within the schema. The list may be empty if no views
+         * are defined within the schema.
+         */
+        fun viewNames(connection: Connection, schemaName: String?): List<String> {
+            val list = mutableListOf<String>()
+            val dbSchemas = dbViewNamesBySchema(connection)
+            for ((dbSchema, viewNames) in dbSchemas) {
+                if (dbSchema == schemaName) {
+                    list.addAll(viewNames)
+                    return list
+                } else if (dbSchema.equals(schemaName, ignoreCase = true)) {
+                    list.addAll(viewNames)
+                    return list
+                }
+            }
+            return list
+        }
+
+        /**
          * Method to parse a SQL script for the database. The script honors SQL
          * comments and separates each SQL command into a list of strings, 1 string
          * for each command. The list of queries is returned.
-         *
          *
          * The script should have each command end in a semicolon, ; The best
          * comment to use is #. All characters on a line after # will be stripped.
          * Best to put # as the first character of a line with no further SQL on the
          * line
          *
-         *
          * Based on the work described here:
-         *
          *
          * https://blog.heckel.xyz/2014/06/22/run-sql-scripts-from-java-on-hsqldb-derby-mysql/
          *
