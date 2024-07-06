@@ -44,292 +44,6 @@ import javax.sql.rowset.RowSetProvider
 import kotlin.reflect.*
 
 /**
- *  A data class to hold meta-data information about the tables and the containing schema
- */
-data class DbSchemaInfo(var catalogName: String?, var schemaName: String?, var tableName: String)
-
-/**
- *  An interface that defines basic I/O capabilities for a database.
- */
-interface DatabaseIOIfc {
-
-    var outputDirectory: OutputDirectory
-
-    /**
-     * identifying string representing the database. This has no relation to
-     * the name of the database on disk or in the dbms. The sole purpose is for labeling of output
-     */
-    var label: String
-
-    /**
-     * Sets the name of the default schema
-     *
-     *  name for the default schema, may be null
-     */
-    var defaultSchemaName: String?
-
-    /**
-     * @return a list of all schemas within the database
-     */
-    val schemas: List<String>
-
-    /**
-     * @return a list of all view names within the database
-     */
-    val views: List<String> //TODO should be Map<String,List<String>>
-
-    /**
-     * @return a list of all table names within the database
-     */
-    val userDefinedTables: List<String>  //TODO should be Map<String,List<String>>
-
-    /**
-     * Writes the table as comma separated values
-     * @param schemaName the name of the schema that should contain the tables
-     * @param tableName the name of the table to write
-     * @param header true means column names as the header included
-     * @param out       the PrintWriter to write to.  The print writer is not closed.
-     */
-    fun exportTableAsCSV(
-        tableName: String,
-        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.csv"),
-        schemaName: String? = defaultSchemaName,
-        header: Boolean = true
-    )
-
-    /**
-     * Prints the table as comma separated values to the console
-     * @param schemaName the name of the schema that should contain the table
-     * @param tableName the name of the table to print
-     */
-    fun printTableAsCSV(tableName: String, schemaName: String? = defaultSchemaName, header: Boolean = true)
-
-    /**
-     * Writes the table as prettified text.
-     * @param schemaName the name of the schema that should contain the tables
-     * @param tableName the unqualified name of the table to write
-     * @param out       the PrintWriter to write to.  The print writer is not closed
-     */
-    fun writeTableAsText(
-        tableName: String,
-        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.txt"),
-        schemaName: String? = defaultSchemaName
-    )
-
-    /**
-     * Prints the table as prettified text to the console
-     * @param schemaName the name of the schema that should contain the tables
-     * @param tableName the unqualified name of the table to write
-     */
-    fun printTableAsText(tableName: String, schemaName: String? = defaultSchemaName)
-
-    /**
-     * Prints all tables as text to the console
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     */
-    fun printAllTablesAsText(schemaName: String? = defaultSchemaName)
-
-    /**
-     * Writes all tables as text
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     * @param out        the PrintWriter to write to
-     */
-    fun writeAllTablesAsText(
-        out: PrintWriter = outputDirectory.createPrintWriter("${label}.txt"),
-        schemaName: String? = defaultSchemaName
-    )
-
-    /**
-     * Writes the table as prettified text.
-     * @param schemaName the name of the schema that should contain the tables
-     * @param tableName the unqualified name of the table to write
-     * @param out       the PrintWriter to write to.  The print writer is not closed
-     */
-    fun writeTableAsMarkdown(
-        tableName: String,
-        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.md"),
-        schemaName: String? = defaultSchemaName
-    )
-
-    /**
-     * Prints the table as prettified text to the console
-     * @param schemaName the name of the schema that should contain the tables
-     * @param tableName the unqualified name of the table to write
-     */
-    fun printTableAsMarkdown(tableName: String, schemaName: String? = defaultSchemaName)
-
-    /**
-     * Prints all tables as text to the console
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     */
-    fun printAllTablesAsMarkdown(schemaName: String? = defaultSchemaName)
-
-    /**
-     * Writes all tables as text
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     * @param out        the PrintWriter to write to
-     */
-    fun writeAllTablesAsMarkdown(
-        out: PrintWriter = outputDirectory.createPrintWriter("${label}.md"),
-        schemaName: String? = defaultSchemaName
-    )
-
-    /**
-     * Writes all tables as text
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     * @param out        the PrintWriter to write to
-     */
-    fun writeAllViewsAsMarkdown(out: PrintWriter, schemaName: String?)
-
-    /**
-     * Writes all tables as separate comma separated value files into the supplied
-     * directory. The files are written to text files using the same name as
-     * the tables in the database
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     * @param pathToOutPutDirectory the path to the output directory to hold the csv files
-     * @param header  true means all files will have the column headers
-     */
-    fun exportAllTablesAsCSV(
-        pathToOutPutDirectory: Path = outputDirectory.csvDir,
-        schemaName: String? = defaultSchemaName,
-        header: Boolean = true
-    )
-
-    /**
-     * Writes all tables as separate comma separated value files into the supplied
-     * directory. The files are written to text files using the same name as
-     * the tables in the database
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     * @param pathToOutPutDirectory the path to the output directory to hold the csv files
-     * @param header  true means all files will have the column headers
-     */
-    fun exportAllViewsAsCSV(
-        pathToOutPutDirectory: Path,
-        schemaName: String?,
-        header: Boolean
-    )
-
-    /**
-     * Prints the insert queries associated with the supplied table to the console
-     * @param schemaName the name of the schema that should contain the table
-     * @param tableName the unqualified name of the table
-     */
-    fun printInsertQueries(tableName: String, schemaName: String? = defaultSchemaName)
-
-    /**
-     * Writes the insert queries associated with the supplied table to the PrintWriter
-     * @param schemaName the name of the schema that should contain the table
-     * @param tableName the unqualified name of the table
-     * @param out       the PrintWriter to write to
-     */
-    fun exportInsertQueries(
-        tableName: String,
-        out: PrintWriter = outputDirectory.createPrintWriter("${tableName}.sql"),
-        schemaName: String? = defaultSchemaName
-    )
-
-    /**
-     * Prints all table data as insert queries to the console
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     */
-    fun printAllTablesAsInsertQueries(schemaName: String? = defaultSchemaName)
-
-    /**
-     * Writes all table data as insert queries to the PrintWriter
-     *
-     * @param schemaName the name of the schema that should contain the tables
-     * @param out        the PrintWriter to write to
-     */
-    fun exportAllTablesAsInsertQueries(schemaName: String? = defaultSchemaName, out: PrintWriter)
-
-    /** Writes each table in the schema to an Excel workbook with each table being placed
-     *  in a new sheet with the sheet name equal to the name of the table. The column names
-     *  for each table are written as the first row of each sheet.
-     *
-     * @param schemaName the name of the schema containing the tables or null
-     * @param wbName the name of the workbook
-     * @param wbDirectory the directory to store the workbook
-     */
-    fun exportToExcel(
-        schemaName: String? = defaultSchemaName,
-        wbName: String = label,
-        wbDirectory: Path = outputDirectory.excelDir
-    )
-
-    /** Writes each table in the list to an Excel workbook with each table being placed
-     *  in a new sheet with the sheet name equal to the name of the table. The column names
-     *  for each table are written as the first row of each sheet.
-     *
-     * @param schemaName the name of the schema containing the tables or null
-     * @param tableNames the names of the tables to write to a workbook
-     * @param wbName the name of the workbook
-     * @param wbDirectory the directory to store the workbook
-     */
-    fun exportToExcel(
-        tableNames: List<String>,
-        schemaName: String? = defaultSchemaName,
-        wbName: String = label.substringBeforeLast("."),
-        wbDirectory: Path = outputDirectory.excelDir
-    )
-
-    /**
-     * Opens the workbook for reading only and writes the sheets of the workbook into database tables.
-     * The list of names is the names of the
-     * sheets in the workbook and the names of the tables that need to be written. They are in the
-     * order that is required for entering data so that no integrity constraints are violated. The
-     * underlying workbook is closed after the operation.
-     *
-     * @param pathToWorkbook the path to the workbook. Must be valid workbook with .xlsx extension
-     * @param skipFirstRow   if true the first row of each sheet is skipped
-     * @param schemaName the name of the schema containing the named tables
-     * @param tableNames     the names of the sheets and tables in the order that needs to be written
-     * @throws IOException an io exception
-     */
-    fun importWorkbookToSchema(
-        pathToWorkbook: Path,
-        skipFirstRow: Boolean = true,
-        schemaName: String? = defaultSchemaName,
-        tableNames: List<String>
-    )
-
-    /** Copies the rows from the sheet to the table.  The copy is assumed to start
-     * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
-     * table and the number of rows of the sheet.  The copy is from the perspective of the table.
-     * That is, all columns of a row of the table are attempted to be filled from a corresponding
-     * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
-     * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
-     * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
-     * in the table.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
-     *
-     * @param sheet the sheet that has the data to transfer to the ResultSet
-     * @param tableName the table to copy into
-     * @param numColumns the number of columns in the sheet to copy into the table
-     * @param schemaName the name of the schema containing the tabel
-     * @param numRowsToSkip indicates the number of rows to skip from the top of the sheet. Use 1 (default) if the sheet has
-     * a header row
-     *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
-     *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
-     */
-    fun importSheetToTable(
-        sheet: Sheet,
-        tableName: String,
-        numColumns: Int,
-        schemaName: String? = defaultSchemaName,
-        numRowsToSkip: Int = 1,
-        rowBatchSize: Int = 100,
-        unCompatibleRows: PrintWriter = outputDirectory.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
-    ): Boolean
-}
-
-/**
  * Many databases define database, user, schema in a variety of ways. This abstraction
  * defines this concept as the userSchema.  It is the name of the organizational construct for
  * which the user defined database object are contained. These are not the system abstractions.
@@ -376,15 +90,15 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      * @param schemaName the name of the schema that should contain the tables. If null,
-     * then a list of table names not associated with a schema is returned. Or, if
+     * then a list of table names not associated with a schema may be returned. Or, if
      * the schema concept does not exist for the database, then the names of any user-defined
-     * tables are returned.
+     * tables may be returned.
      * @return a list of table names within the schema. The list may be empty if no tables
      * are defined within the schema.
      */
     fun tableNames(schemaName: String?): List<String> {
         val list = mutableListOf<String>()
-        val dbSchemas = dbSchemas() // this makes a connection to the db and gets the metadata
+        val dbSchemas = dbTableNamesBySchema() // this makes a connection to the db and gets the metadata
         for ((dbSchema, tblNames) in dbSchemas) {
             if (dbSchema == schemaName) {
                 list.addAll(tblNames)
@@ -402,7 +116,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return a list of view names within the schema
      */
     fun viewNames(schemaName: String): List<String> {
-        //TODO what about a null schemaName???
+        //TODO what about a null schemaName??? write a dbViewsBySchema() function like the dbTablesBySchema() function
         val list = mutableListOf<String>()
         if (containsSchema(schemaName)) { //TODO this check should be unnecessary
             try {
@@ -425,58 +139,27 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      * @return a list of all table names within the database regardless of schema
      */
-    override val userDefinedTables: List<String>
-        get() {
-            //TODO what if multiple schemas contain the same table name
-            val list = mutableListOf<String>()
-            try {
-                logger.trace { "Getting a connection to retrieve the list of user defined table names in database $label" }
-                getConnection().use { connection ->
-                    val metaData = connection.metaData
-                    val rs = metaData.getTables(null, null, null, arrayOf("TABLE"))
-                    while (rs.next()) {
-                        list.add(rs.getString("TABLE_NAME"))
-                    }
-                    rs.close()
-                }
-            } catch (e: SQLException) {
-                logger.warn { "Unable to get database user defined tables. The meta data was not available for database $label" }
-                logger.warn { "$e" }
-            }
-            return list
-        }
+    override val userDefinedTables: Map<String?, List<String>>
+        get() = dbTableNamesBySchema()
 
-    /**
-     * @return a list of all schemas within the database
+    /** The list may be empty if the database does not support the schema concept.
+     *
+     * @return a list of all schema names within the database
      */
     override val schemas: List<String>
         get() {
             val list = mutableListOf<String>()
-            val dbSchema = dbSchemas() // this connects to the database to get the meta data
+            val dbSchema = dbTableNamesBySchema() // this connects to the database to get the metadata
             for (s in dbSchema.keys) {
                 if (s != null) list.add(s)
             }
-//            try {
-//                logger.trace { "Getting a connection to retrieve the list of schema names in database $label" }
-//                getConnection().use { connection ->
-//                    val metaData = connection.metaData
-//                    val rs = metaData.schemas
-//                    while (rs.next()) {
-//                        list.add(rs.getString("TABLE_SCHEM"))
-//                    }
-//                    rs.close()
-//                }
-//            } catch (e: SQLException) {
-//                logger.warn { "Unable to get database schemas. The meta data was not available for database $label" }
-//                logger.warn { "$e" }
-//            }
             return list
         }
 
     /**
      * @return a list of all view names within the database
      */
-    override val views: List<String>
+    override val views: List<String> //TODO re-write like userDefinedTables
         get() {
             val list = mutableListOf<String>()
             try {
@@ -507,7 +190,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if the database contains a schema with the provided name
      */
     fun containsSchema(schemaName: String): Boolean {
-        val schemaNames = schemas
+        val schemaNames = schemas  // causes a db connection to occur
         for (name in schemaNames) {
             if (name == schemaName) {
                 return true
@@ -522,25 +205,25 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName the unqualified table name to find as a string
      * @return true if the database contains the named table
      */
-    fun containsTable(tableName: String): Boolean {
-        //TODO remove dependence on userDefinedTables
-        // should the table names be qualified?
-        val tableNames = userDefinedTables
-        for (name in tableNames) {
-            if (name == tableName) {
-                return true
-            } else if (name.equals(tableName, ignoreCase = true)) {
-                return true
-            }
-        }
-        return false
-    }
+//    fun containsTable(tableName: String): Boolean {
+//        //TODO remove dependence on userDefinedTables
+//        // should the table names be qualified?
+//        val tableNames = userDefinedTables
+//        for (name in tableNames) {
+//            if (name == tableName) {
+//                return true
+//            } else if (name.equals(tableName, ignoreCase = true)) {
+//                return true
+//            }
+//        }
+//        return false
+//    }
 
     /**
      * @param viewName the unqualified view name to find as a string
      * @return true if the database contains the named view
      */
-    fun containsView(viewName: String): Boolean {
+    fun containsView(viewName: String): Boolean { //TODO should delete like containsTable()
         val viewNames = views
         for (name in viewNames) {
             if (name == viewName) {
@@ -569,7 +252,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName      a string representing the unqualified name of the table
      * @return true if it exists
      */
-    fun containsTable(schemaName: String, tableName: String): Boolean {
+    fun containsTable(tableName: String, schemaName: String? = defaultSchemaName): Boolean {
         val tNames = tableNames(schemaName)
         for (n in tNames) {
             if ((n == tableName) || n.equals(tableName, ignoreCase = true)) {
@@ -581,14 +264,16 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      *  Returns the user-defined schema names and the table names within each schema,
+     *  The key can be null because the database might not support the schema concept.
+     *  There can be table names associated with the key "null"
      */
-    fun dbSchemas(): Map<String?, Set<String>> {
-        val map = mutableMapOf<String?, MutableSet<String>>()
-        val dbs = dbTablesFromMetaData()
+    fun dbTableNamesBySchema(): Map<String?, List<String>> {
+        val map = mutableMapOf<String?, MutableList<String>>()
+        val dbs = dbTablesFromMetaData() // this makes a connection for the db meta-data
         for (info in dbs) {
             // null is okay for a schema to represent db's that don't have schema concepts
             if (!map.containsKey(info.schemaName)) {
-                map[info.schemaName] = mutableSetOf()
+                map[info.schemaName] = mutableListOf()
             }
             map[info.schemaName]!!.add(info.tableName)
         }
@@ -598,7 +283,7 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      *  Retrieves the table and schema information from the database meta-data
      */
-    fun dbTablesFromMetaData(): List<DbSchemaInfo> {
+    fun dbTablesFromMetaData(): List<DbSchemaInfo> {//TODO write a dbViewsFromMetaData() function
         val list = mutableListOf<DbSchemaInfo>()
         try {
             logger.trace { "Getting a connection to retrieve the catalog and schema information in database $label" }
@@ -610,6 +295,9 @@ interface DatabaseIfc : DatabaseIOIfc {
                 } else {
                     "TABLE"
                 }
+                // because schema name pattern is null and table name pattern is null,
+                // and type is TABLE we get ALL non-system tables (user defined) and the schema that
+                // they are within
                 val rs = metaData.getTables(null, null, null, arrayOf(type))
                 while (rs.next()) {
                     val c = rs.getString("TABLE_CAT")
@@ -635,8 +323,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     override fun exportTableAsCSV(
         tableName: String,
-        out: PrintWriter,
         schemaName: String?,
+        out: PrintWriter,
         header: Boolean
     ) {
         if (schemaName != null) {
@@ -655,7 +343,6 @@ interface DatabaseIfc : DatabaseIOIfc {
             out.flush()
             resultSet.close()
         }
-
     }
 
     /**
@@ -664,7 +351,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName the name of the table to print
      */
     override fun printTableAsCSV(tableName: String, schemaName: String?, header: Boolean) {
-        exportTableAsCSV(tableName, PrintWriter(System.out), schemaName, header)
+        exportTableAsCSV(tableName, schemaName, PrintWriter(System.out), header)
     }
 
     /**
@@ -673,7 +360,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    override fun writeTableAsText(tableName: String, out: PrintWriter, schemaName: String?) {
+    override fun writeTableAsText(tableName: String, schemaName: String?, out: PrintWriter) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.info { "Schema: $schemaName does not exist in database $label" }
@@ -700,7 +387,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName the unqualified name of the table to write
      */
     override fun printTableAsText(tableName: String, schemaName: String?) {
-        writeTableAsText(tableName, PrintWriter(System.out), schemaName)
+        writeTableAsText(tableName, schemaName, PrintWriter(System.out))
     }
 
     /**
@@ -709,7 +396,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      */
     override fun printAllTablesAsText(schemaName: String?) {
-        writeAllTablesAsText(PrintWriter(System.out), schemaName)
+        writeAllTablesAsText(schemaName, PrintWriter(System.out))
     }
 
     /**
@@ -718,11 +405,11 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    override fun writeAllTablesAsText(out: PrintWriter, schemaName: String?) {
+    override fun writeAllTablesAsText( schemaName: String?, out: PrintWriter,) {
         //removed dependence on userDefinedTables, tableNames() handles null schemaName
         val tables = tableNames(schemaName)
         for (table in tables) {
-            writeTableAsText(table, out, schemaName)
+            writeTableAsText(table, schemaName,  out)
         }
     }
 
@@ -732,7 +419,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
      */
-    override fun writeTableAsMarkdown(tableName: String, out: PrintWriter, schemaName: String?) {
+    override fun writeTableAsMarkdown(tableName: String, schemaName: String?, out: PrintWriter) {
         if (schemaName != null) {
             if (!containsSchema(schemaName)) {
                 logger.info { "Schema: $schemaName does not exist in database $label" }
@@ -758,7 +445,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName the unqualified name of the table to write
      */
     override fun printTableAsMarkdown(tableName: String, schemaName: String?) {
-        writeTableAsMarkdown(tableName, PrintWriter(System.out), schemaName)
+        writeTableAsMarkdown(tableName, schemaName, PrintWriter(System.out))
     }
 
     /**
@@ -767,7 +454,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      */
     override fun printAllTablesAsMarkdown(schemaName: String?) {
-        writeAllTablesAsMarkdown(PrintWriter(System.out), schemaName)
+        writeAllTablesAsMarkdown(schemaName, PrintWriter(System.out))
     }
 
     /**
@@ -776,14 +463,14 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    override fun writeAllViewsAsMarkdown(out: PrintWriter, schemaName: String?) {
+    override fun writeAllViewsAsMarkdown(schemaName: String?, out: PrintWriter) {
         val viewList = if (schemaName != null) {
             viewNames(schemaName)
         } else {
             views
         }
         for (view in viewList) {
-            writeTableAsMarkdown(view, out, schemaName)
+            writeTableAsMarkdown(view, schemaName, out )
         }
     }
 
@@ -793,11 +480,11 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
      */
-    override fun writeAllTablesAsMarkdown(out: PrintWriter, schemaName: String?) {
+    override fun writeAllTablesAsMarkdown(schemaName: String?, out: PrintWriter) {
         //removed dependence on userDefinedTables; tableNames() handles null schemaName
         val tables = tableNames(schemaName)
         for (table in tables) {
-            writeTableAsMarkdown(table, out, schemaName)
+            writeTableAsMarkdown(table, schemaName, out)
         }
     }
 
@@ -811,8 +498,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param header  true means all files will have the column headers
      */
     override fun exportAllTablesAsCSV(
-        pathToOutPutDirectory: Path,
         schemaName: String?,
+        pathToOutPutDirectory: Path,
         header: Boolean
     ) {
         Files.createDirectories(pathToOutPutDirectory)
@@ -821,7 +508,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         for (table in tables) {
             val path: Path = pathToOutPutDirectory.resolve("$table.csv")
             val writer = KSLFileUtil.createPrintWriter(path)
-            exportTableAsCSV(table, writer, schemaName, header)
+            exportTableAsCSV(table, schemaName, writer, header)
             writer.close()
         }
     }
@@ -836,8 +523,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param header  true means all files will have the column headers
      */
     override fun exportAllViewsAsCSV(
-        pathToOutPutDirectory: Path,
         schemaName: String?,
+        pathToOutPutDirectory: Path,
         header: Boolean
     ) {
         Files.createDirectories(pathToOutPutDirectory)
@@ -849,7 +536,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         for (view in viewList) {
             val path: Path = pathToOutPutDirectory.resolve("$view.csv")
             val writer = KSLFileUtil.createPrintWriter(path)
-            exportTableAsCSV(view, writer, schemaName, header)
+            exportTableAsCSV(view, schemaName, writer, header)
             writer.close()
         }
     }
@@ -996,7 +683,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName the unqualified name of the table
      */
     override fun printInsertQueries(tableName: String, schemaName: String?) {
-        exportInsertQueries(tableName, PrintWriter(System.out), schemaName)
+        exportInsertQueries(tableName, schemaName, PrintWriter(System.out))
     }
 
     /**
@@ -1005,7 +692,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName the unqualified name of the table
      * @param out       the PrintWriter to write to
      */
-    override fun exportInsertQueries(tableName: String, out: PrintWriter, schemaName: String?) {
+    override fun exportInsertQueries(tableName: String, schemaName: String?, out: PrintWriter) {
         val rowSet = selectAll(tableName, schemaName)
         if (rowSet != null) {
             logger.info { "Exporting insert queries for table $tableName in schema $schemaName" }
@@ -1047,7 +734,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         //removed dependence on userDefinedTables; tableNames() handles null schemaName
         val tables = tableNames(schemaName)
         for (t in tables) {
-            exportInsertQueries(t, out, schemaName)
+            exportInsertQueries(t, schemaName, out)
         }
     }
 
@@ -1155,9 +842,9 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     override fun importWorkbookToSchema(
         pathToWorkbook: Path,
-        skipFirstRow: Boolean,
+        tableNames: List<String>,
         schemaName: String?,
-        tableNames: List<String>
+        skipFirstRow: Boolean
     ) {
         val workbook: XSSFWorkbook = ExcelUtil.openExistingXSSFWorkbookReadOnly(pathToWorkbook)
             ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
@@ -1650,8 +1337,8 @@ interface DatabaseIfc : DatabaseIOIfc {
         } else {
             require(
                 containsTable(
-                    schemaName,
-                    tableName
+                    tableName,
+                    schemaName
                 )
             ) { "Database $label does not contain table $tableName in schema $schemaName for inserting data!" }
         }
@@ -2501,133 +2188,4 @@ interface DatabaseIfc : DatabaseIOIfc {
 
 }
 
-data class ColumnMetaData(
-    val catalogName: String,
-    val className: String,
-    val label: String,
-    val name: String,
-    val typeName: String,
-    val type: Int,
-    val tableName: String,
-    val schemaName: String,
-    val isAutoIncrement: Boolean,
-    val isCaseSensitive: Boolean,
-    val isCurrency: Boolean,
-    val isDefiniteWritable: Boolean,
-    val isReadOnly: Boolean,
-    val isSearchable: Boolean,
-    val isReadable: Boolean,
-    val isSigned: Boolean,
-    val isWritable: Boolean,
-    val nullable: Int
-)
 
-/**
- * The user can convert the returned rows based on ColumnMetaData
- *
- * @param resultSet the result set to iterate. It must be open and will be closed after iteration.
- */
-class ResultSetRowIterator(private val resultSet: ResultSet) : Iterator<List<Any?>> {
-    init {
-//TODO cause SQL not supported error        require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
-    }
-
-    var currentRow: Int = 0
-        private set
-    private var didNext: Boolean = false
-    private var hasNext: Boolean = false
-    val columnCount = resultSet.metaData?.columnCount ?: 0
-
-    override fun hasNext(): Boolean {
-        if (!didNext) {
-            hasNext = resultSet.next()
-            if (!hasNext) resultSet.close()
-            didNext = true
-        }
-        return hasNext
-    }
-
-    override fun next(): List<Any?> {
-        if (!didNext) {
-            resultSet.next()
-        }
-        didNext = false
-        currentRow++
-        return makeRow(resultSet)
-    }
-
-    private fun makeRow(resultSet: ResultSet): List<Any?> {
-        val list = mutableListOf<Any?>()
-        for (i in 1..columnCount) {
-            try {
-                list.add(resultSet.getObject(i))
-            } catch (e: RuntimeException) {
-                list.add(null)
-                DatabaseIfc.logger.warn { "There was a problem accessing column $i of the result set. Set value to null" }
-            }
-        }
-        return list
-    }
-
-}
-
-
-/**
- * The user can convert the returned rows based on ColumnMetaData.
- * The rows contain a map that is indexed by the column name and the value of the column
- *
- * @param resultSet the result set to iterate. It must be open and will be closed after iteration.
- */
-class ResultSetRowMapIterator(private val resultSet: ResultSet) : Iterator<Map<String, Any?>> {
-    init {
-//TODO cause SQL not supported error       require(!resultSet.isClosed) { "Cannot iterate. The ResultSet is closed" }
-    }
-
-    var currentRow: Int = 0
-        private set
-    private var didNext: Boolean = false
-    private var hasNext: Boolean = false
-    val columnCount: Int
-    val columnNames: List<String>
-
-    init {
-        val metaData: ResultSetMetaData = resultSet.metaData
-        columnCount = metaData.columnCount
-        val list = mutableListOf<String>()
-        for (i in 1..columnCount) {
-            list.add(metaData.getColumnName(i))
-        }
-        columnNames = list.toList()
-    }
-
-    override fun hasNext(): Boolean {
-        if (!didNext) {
-            hasNext = resultSet.next()
-            if (!hasNext) resultSet.close()
-            didNext = true
-        }
-        return hasNext
-    }
-
-    override fun next(): Map<String, Any?> {
-        if (!didNext) {
-            resultSet.next()
-        }
-        didNext = false
-        currentRow++
-        return makeRow(resultSet)
-    }
-
-    private fun makeRow(resultSet: ResultSet): Map<String, Any?> {
-        val map = mutableMapOf<String, Any?>()
-        for (i in 1..columnCount) {
-            try {
-                map[columnNames[i - 1]] = resultSet.getObject(i)
-            } catch (e: RuntimeException) {
-                DatabaseIfc.logger.warn { "There was a problem accessing column $i of the result set. Set value to null" }
-            }
-        }
-        return map
-    }
-
-}
