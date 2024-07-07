@@ -15,7 +15,7 @@ fun main() {
 
 //    testPostgres()
 //    testDuckDb()
-    testConvertToDuckDb()
+ //   testConvertToDuckDb()
 
 }
 
