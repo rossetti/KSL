@@ -60,13 +60,22 @@ class DuckDb(
         createSimpleDbTables(tableDefinitions)
     }
 
+    /**
+     *  Exports the database to a directory with loadable default CSV
+     *  format. See DuckDb [documentation](https://duckdb.org/docs/sql/statements/export).
+     *  @param dirName the name of the export directory within KSL.dbDir
+     */
     fun exportAsLoadableCSV(dirName: String): Path {
         require(dirName.isNotBlank()) { "dirName must not be blank" }
         val path = KSL.dbDir.resolve(dirName)
         exportAsLoadableCSV(path)
         return path
     }
-
+    /**
+     *  Exports the database to a directory with loadable default CSV
+     *  format. See DuckDb [documentation](https://duckdb.org/docs/sql/statements/export).
+     *  @param exportDir the path to the export directory
+     */
     fun exportAsLoadableCSV(exportDir: Path = KSL.dbDir){
         val exportCmd = "EXPORT DATABASE '$exportDir'"
         executeCommand(exportCmd)
@@ -75,6 +84,18 @@ class DuckDb(
 
     companion object : EmbeddedDbIfc {
 
+        /**
+         *  Facilitates the creation of a database backed by DuckDb. The database
+         *  will be loaded based on the load scripts found in the exported database
+         *  directory
+         *
+         * @param exportedDbDir the directory holding the import data and scripts
+         * @param dbName the name of the database
+         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+         * @param deleteIfExists If true, an existing database in the supplied directory with
+         * the same name will be deleted and an empty database will be constructed.
+         * @return a DuckDb configured database
+         */
         fun importFromLoadableCSV(
             exportedDbDir: Path,
             dbName: String,
