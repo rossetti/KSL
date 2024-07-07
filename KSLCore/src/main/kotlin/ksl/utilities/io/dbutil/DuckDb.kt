@@ -8,6 +8,7 @@ import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.sql.Connection
+import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Statement
 import javax.sql.DataSource
@@ -58,6 +59,26 @@ class DuckDb(
         deleteIfExists: Boolean = true
     ) : this(dbName, dbDirectory, deleteIfExists) {
         createSimpleDbTables(tableDefinitions)
+    }
+
+    /**
+     *  Applies DuckDb's [summarize](https://duckdb.org/docs/guides/meta/summarize.html)
+     *  query to the table/view
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
+     * @param schemaName the name of the schema that should contain the table
+     * @param tableName      a string representing the unqualified name of the table
+     * @return the summary result set
+     */
+    fun summarize(tableName: String, schemaName:String? = defaultSchemaName): ResultSet? {
+        require(containsTable(tableName, schemaName)){"The table/view $tableName does not exist in schema $schemaName the database."}
+        val sql = if (schemaName == null) {
+            "SUMMARIZE SELECT * FROM $tableName"
+        } else {
+            "SUMMARIZE SELECT * FROM ${schemaName}.${tableName}"
+        }
+        return fetchOpenResultSet(sql)
     }
 
     /**
