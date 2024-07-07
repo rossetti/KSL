@@ -1128,7 +1128,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             return 0
         }
         //TODO this is even more checking of metadata, why
-        require(containsTable(tableName)) { "Database $label does not contain table $tableName for inserting data!" }
+        require(containsTable(tableName, schemaName)) { "Database $label does not contain table $tableName for inserting data!" }
         // data should come from the table
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
@@ -1188,7 +1188,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             return 0
         }
         //TODO this is even more checking of metadata, why
-        require(containsTable(tableName)) { "Database $label does not contain table $tableName for updating data!" }
+        require(containsTable(tableName, schemaName)) { "Database $label does not contain table $tableName for updating data!" }
         // data should come from the table
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
