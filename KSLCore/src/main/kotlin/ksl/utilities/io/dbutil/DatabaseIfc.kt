@@ -877,50 +877,6 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     *
-     *  Uses the longLastingConnection property for the connection for metadata checking.
-     *
-     * @param con an active connection to the database
-     * @param tableName the name of the table to be inserted into
-     * @param numColumns the number of columns starting from the left to insert into
-     * @param schemaName the schema containing the table
-     * @return a prepared statement that can perform the insert if given the appropriate column values
-     */
-    fun makeInsertPreparedStatement(
-        con: Connection,
-        tableName: String,
-        numColumns: Int,
-        schemaName: String?
-    ): PreparedStatement {
-        //TODO use the incoming connection for metadata checking and move to companion
-        require(containsTable(tableName)) { "The database $label does not contain table $tableName" }
-        val sql = insertIntoTableStatementSQL(tableName, numColumns, schemaName)
-        return con.prepareStatement(sql)
-    }
-
-    /**
-     *
-     *  Uses the longLastingConnection property for the connection for metadata checking.
-     *
-     * @param con an active connection to the database
-     * @param tableName the name of the table to be inserted into
-     * @param fieldName the field name controlling the where clause
-     * @param schemaName the schema containing the table
-     * @return a prepared statement that can perform the deletion if given the appropriate condition value
-     */
-    fun makeDeleteFromPreparedStatement(
-        con: Connection,
-        tableName: String,
-        fieldName: String,
-        schemaName: String?
-    ): PreparedStatement {
-        //TODO use the incoming connection for metadata checking and move to companion
-        require(containsTable(tableName)) { "The database $label does not contain table $tableName" }
-        val sql = deleteFromTableWhereSQL(tableName, fieldName, schemaName)
-        return con.prepareStatement(sql)
-    }
-
-    /**
      * @return returns a DbCreateTask that can be configured to execute on the database
      */
     fun create(): DbCreateTask.DbCreateTaskFirstStepIfc {
@@ -2233,6 +2189,46 @@ interface DatabaseIfc : DatabaseIOIfc {
             } catch (e: SQLException) {
                 false
             }
+        }
+
+        /**
+         *
+         * @param con an active connection to the database
+         * @param tableName the name of the table to be inserted into
+         * @param numColumns the number of columns starting from the left to insert into
+         * @param schemaName the schema containing the table
+         * @return a prepared statement that can perform the insert if given the appropriate column values
+         */
+        fun makeInsertPreparedStatement(
+            con: Connection,
+            tableName: String,
+            numColumns: Int,
+            schemaName: String?
+        ): PreparedStatement {
+            require(containsTable(con, tableName, schemaName)) { "The database does not contain table $tableName in schema $schemaName" }
+            val sql = insertIntoTableStatementSQL(tableName, numColumns, schemaName)
+            return con.prepareStatement(sql)
+        }
+
+        /**
+         *
+         *  Uses the longLastingConnection property for the connection for metadata checking.
+         *
+         * @param con an active connection to the database
+         * @param tableName the name of the table to be inserted into
+         * @param fieldName the field name controlling the where clause
+         * @param schemaName the schema containing the table
+         * @return a prepared statement that can perform the deletion if given the appropriate condition value
+         */
+        fun makeDeleteFromPreparedStatement(
+            con: Connection,
+            tableName: String,
+            fieldName: String,
+            schemaName: String?
+        ): PreparedStatement {
+            require(containsTable(con, tableName,schemaName)) { "The database does not contain table $tableName in schema $schemaName" }
+            val sql = deleteFromTableWhereSQL(tableName, fieldName, schemaName)
+            return con.prepareStatement(sql)
         }
 
         enum class ColumnType {
