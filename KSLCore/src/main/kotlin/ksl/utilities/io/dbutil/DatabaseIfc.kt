@@ -96,6 +96,9 @@ interface DatabaseIfc : DatabaseIOIfc {
         }
     }
 
+    /**
+     *  The URL used to establish the connection to the database.
+     */
     val dbURL: String?
 
     /**
@@ -537,6 +540,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the schema containing the table
      * @param tableName the name of the table within the schema
      * @return true if the table contains no records (rows)
@@ -554,6 +560,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the tables
      * @return true if at least one user defined table in the schema has data
      */
@@ -562,6 +571,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the tables
      * @return true if all user defined tables are empty in the schema
      */
@@ -587,7 +599,10 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Writes the insert queries associated with the supplied table to the PrintWriter
+     * Writes the insert queries associated with the supplied table to the PrintWriter.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the unqualified name of the table
      * @param out       the PrintWriter to write to
@@ -618,6 +633,8 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      * Prints all table data as insert queries to the console
      *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the tables
      */
     override fun printAllTablesAsInsertQueries(schemaName: String?) {
@@ -626,6 +643,8 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      * Writes all table data as insert queries to the PrintWriter
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
@@ -637,7 +656,6 @@ interface DatabaseIfc : DatabaseIOIfc {
             exportInsertQueries(t, schemaName, out)
         }
     }
-
     override fun exportToExcel(
         schemaName: String?,
         wbName: String,
@@ -656,6 +674,8 @@ interface DatabaseIfc : DatabaseIOIfc {
     /** Writes each table in the list to an Excel workbook with each table being placed
      *  in a new sheet with the sheet name equal to the name of the table. The column names
      *  for each table are written as the first row of each sheet.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema containing the tables or null
      * @param tableNames the names of the tables to write to a workbook
@@ -718,6 +738,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * sheets in the workbook and the names of the tables that need to be written. They are in the
      * order that is required for entering data so that no integrity constraints are violated. The
      * underlying workbook is closed after the operation.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param pathToWorkbook the path to the workbook. Must be valid workbook with .xlsx extension
      * @param skipFirstRow   if true the first row of each sheet is skipped
