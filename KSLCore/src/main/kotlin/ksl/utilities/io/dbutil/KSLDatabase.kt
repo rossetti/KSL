@@ -176,7 +176,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete experiment $expName in database: $label" }
             db.getConnection().use { connection ->
-                val ps = db.makeDeleteFromPreparedStatement(connection, "experiment", "exp_name", defaultSchemaName)
+                val ps = DatabaseIfc.makeDeleteFromPreparedStatement(connection, "experiment", "exp_name", defaultSchemaName)
                 ps.setString(1, expName)
                 ps.execute()
                 //val deleted = ps.execute()
