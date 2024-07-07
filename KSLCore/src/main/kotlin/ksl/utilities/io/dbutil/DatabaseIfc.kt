@@ -656,6 +656,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             exportInsertQueries(t, schemaName, out)
         }
     }
+
     override fun exportToExcel(
         schemaName: String?,
         wbName: String,
@@ -739,7 +740,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * order that is required for entering data so that no integrity constraints are violated. The
      * underlying workbook is closed after the operation.
      *
-     *  Uses the longLastingConnection property for the connection.
+     *  Uses the longLastingConnection property for the connection for metadata checking.
      *
      * @param pathToWorkbook the path to the workbook. Must be valid workbook with .xlsx extension
      * @param skipFirstRow   if true the first row of each sheet is skipped
@@ -876,6 +877,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection for metadata checking.
+     *
      * @param con an active connection to the database
      * @param tableName the name of the table to be inserted into
      * @param numColumns the number of columns starting from the left to insert into
@@ -888,12 +892,16 @@ interface DatabaseIfc : DatabaseIOIfc {
         numColumns: Int,
         schemaName: String?
     ): PreparedStatement {
+        //TODO use the incoming connection for metadata checking and move to companion
         require(containsTable(tableName)) { "The database $label does not contain table $tableName" }
         val sql = insertIntoTableStatementSQL(tableName, numColumns, schemaName)
         return con.prepareStatement(sql)
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection for metadata checking.
+     *
      * @param con an active connection to the database
      * @param tableName the name of the table to be inserted into
      * @param fieldName the field name controlling the where clause
@@ -906,61 +914,10 @@ interface DatabaseIfc : DatabaseIOIfc {
         fieldName: String,
         schemaName: String?
     ): PreparedStatement {
+        //TODO use the incoming connection for metadata checking and move to companion
         require(containsTable(tableName)) { "The database $label does not contain table $tableName" }
         val sql = deleteFromTableWhereSQL(tableName, fieldName, schemaName)
         return con.prepareStatement(sql)
-    }
-
-    /** This method inserts the data into the prepared statement as a batch insert.
-     *  The statement is not executed.
-     *
-     * @param rowData the data to be inserted
-     * @param numColumns the column metadata for the row set
-     * @param preparedStatement the prepared statement to use
-     * @return returns true if the data was inserted false if something went wrong and no insert made
-     */
-    fun addBatch(
-        rowData: List<Any?>,
-        numColumns: Int,
-        preparedStatement: PreparedStatement
-    ): Boolean {
-        return try {
-            for (colIndex in 1..numColumns) {
-                //looks like it does the updates
-                preparedStatement.setObject(colIndex, rowData[colIndex - 1])
-                logger.trace { "Updated column $colIndex with data ${rowData[colIndex - 1]}" }
-            }
-            preparedStatement.addBatch()
-            true
-        } catch (e: SQLException) {
-            false
-        }
-    }
-
-    /** This method inserts the data into the prepared statement as a batch insert.
-     *  The statement is not executed.
-     *
-     * @param rowData the data to be inserted
-     * @param numColumns the column metadata for the row set
-     * @param preparedStatement the prepared statement to use
-     * @return returns true if the data was inserted false if something went wrong and no insert made
-     */
-    fun addBatch(
-        rowData: Array<Any?>,
-        numColumns: Int,
-        preparedStatement: PreparedStatement
-    ): Boolean {
-        return try {
-            for (colIndex in 1..numColumns) {
-                //looks like it does the updates
-                preparedStatement.setObject(colIndex, rowData[colIndex - 1])
-                logger.trace { "Updated column $colIndex with data ${rowData[colIndex - 1]}" }
-            }
-            preparedStatement.addBatch()
-            true
-        } catch (e: SQLException) {
-            false
-        }
     }
 
     /**
@@ -1176,7 +1133,12 @@ interface DatabaseIfc : DatabaseIOIfc {
         schemaName: String? = defaultSchemaName
     ): Int {
         require(data.tableName == tableName) { "The supplied data was not from table $tableName" }
-        require(containsTable(tableName, schemaName)) { "Database $label does not contain table $tableName for inserting data!" }
+        require(
+            containsTable(
+                tableName,
+                schemaName
+            )
+        ) { "Database $label does not contain table $tableName for inserting data!" }
         data.schemaName = schemaName // needed to make the insert statement correctly
         val sql = data.insertDataSQLStatement()
         //e.g. insert into main.Persons (id, name, age) values (?, ?, ?)
@@ -1198,7 +1160,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 // if necessary, this updates the in-memory data item with the assigned generated key
                 if (data.autoIncField) {
                     val rs = stmt.generatedKeys
-                    if (rs.next()){
+                    if (rs.next()) {
                         val autoId = rs.getInt(1)
                         data.setAutoIncField(autoId)
                     }
@@ -1227,7 +1189,12 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (data.isEmpty()) {
             return 0
         }
-        require(containsTable(tableName, schemaName)) { "Database $label does not contain table $tableName for inserting data!" }
+        require(
+            containsTable(
+                tableName,
+                schemaName
+            )
+        ) { "Database $label does not contain table $tableName for inserting data!" }
         // data should come from the table
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
@@ -1288,8 +1255,8 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (data.isEmpty()) {
             return 0
         }
-        if (!containsTable(tableName, schemaName)){
-            logger.warn { "Database $label does not contain table $tableName for updating data!"  }
+        if (!containsTable(tableName, schemaName)) {
+            logger.warn { "Database $label does not contain table $tableName for updating data!" }
             return 0
         }
         // data should come from the table
@@ -1547,18 +1514,18 @@ interface DatabaseIfc : DatabaseIOIfc {
             var executed = true
             try {
                 connection.autoCommit = false
-                    for (cmd in commands) {
-                        executed = executeCommand(connection, cmd)
-                        if (!executed) {
-                            logger.trace { "Rolling back command on database: $cmd" }
-                            connection.rollback()
-                            break
-                        }
+                for (cmd in commands) {
+                    executed = executeCommand(connection, cmd)
+                    if (!executed) {
+                        logger.trace { "Rolling back command on database: $cmd" }
+                        connection.rollback()
+                        break
                     }
-                    if (executed) {
-                        logger.trace { "Committing commands on database." }
-                        connection.commit()
-                    }
+                }
+                if (executed) {
+                    logger.trace { "Committing commands on database." }
+                    connection.commit()
+                }
                 connection.autoCommit = true
             } catch (ex: SQLException) {
                 executed = false
@@ -2214,6 +2181,58 @@ interface DatabaseIfc : DatabaseIOIfc {
                 list.add(cmd.label)
             }
             return list
+        }
+
+        /** This method inserts the data into the prepared statement as a batch insert.
+         *  The statement is not executed.
+         *
+         * @param rowData the data to be inserted
+         * @param numColumns the column metadata for the row set
+         * @param preparedStatement the prepared statement to use
+         * @return returns true if the data was inserted false if something went wrong and no insert made
+         */
+        fun addBatch(
+            rowData: List<Any?>,
+            numColumns: Int,
+            preparedStatement: PreparedStatement
+        ): Boolean {
+            return try {
+                for (colIndex in 1..numColumns) {
+                    //looks like it does the updates
+                    preparedStatement.setObject(colIndex, rowData[colIndex - 1])
+                    logger.trace { "Updated column $colIndex with data ${rowData[colIndex - 1]}" }
+                }
+                preparedStatement.addBatch()
+                true
+            } catch (e: SQLException) {
+                false
+            }
+        }
+
+        /** This method inserts the data into the prepared statement as a batch insert.
+         *  The statement is not executed.
+         *
+         * @param rowData the data to be inserted
+         * @param numColumns the column metadata for the row set
+         * @param preparedStatement the prepared statement to use
+         * @return returns true if the data was inserted false if something went wrong and no insert made
+         */
+        fun addBatch(
+            rowData: Array<Any?>,
+            numColumns: Int,
+            preparedStatement: PreparedStatement
+        ): Boolean {
+            return try {
+                for (colIndex in 1..numColumns) {
+                    //looks like it does the updates
+                    preparedStatement.setObject(colIndex, rowData[colIndex - 1])
+                    logger.trace { "Updated column $colIndex with data ${rowData[colIndex - 1]}" }
+                }
+                preparedStatement.addBatch()
+                true
+            } catch (e: SQLException) {
+                false
+            }
         }
 
         enum class ColumnType {
