@@ -71,8 +71,13 @@ class DuckDb(
      * @param tableName      a string representing the unqualified name of the table
      * @return the summary result set
      */
-    fun summarize(tableName: String, schemaName:String? = defaultSchemaName): ResultSet? {
-        require(containsTable(tableName, schemaName)){"The table/view $tableName does not exist in schema $schemaName the database."}
+    fun summarize(tableName: String, schemaName: String? = defaultSchemaName): ResultSet? {
+        require(
+            containsTable(
+                tableName,
+                schemaName
+            )
+        ) { "The table/view $tableName does not exist in schema $schemaName the database." }
         val sql = if (schemaName == null) {
             "SUMMARIZE SELECT * FROM $tableName"
         } else {
@@ -92,18 +97,74 @@ class DuckDb(
         exportAsLoadableCSV(path)
         return path
     }
+
     /**
      *  Exports the database to a directory with loadable default CSV
      *  format. See DuckDb [documentation](https://duckdb.org/docs/sql/statements/export).
      *  @param exportDir the path to the export directory
      */
-    fun exportAsLoadableCSV(exportDir: Path = KSL.dbDir){
+    fun exportAsLoadableCSV(exportDir: Path = KSL.dbDir) {
         val exportCmd = "EXPORT DATABASE '$exportDir'"
         executeCommand(exportCmd)
-        DatabaseIfc.logger.info {"DuckDb: Exported database $label to $exportDir"}
+        DatabaseIfc.logger.info { "DuckDb: Exported database $label to $exportDir" }
+    }
+
+
+    /**
+     *  Exports the database to a file with loadable default Parquet format.
+     *  See DuckDb [documentation](https://duckdb.org/docs/sql/statements/export).
+     *  @param fileName the name of the file within KSL.dbDir
+     */
+    fun exportAsLoadableParquetFile(fileName: String): Path {
+        require(fileName.isNotBlank()) { "fileName must not be blank" }
+        val path = KSL.dbDir.resolve(fileName)
+        exportAsLoadableParquetFile(path)
+        return path
+    }
+
+    /**
+     *  Exports the database to a directory with loadable default Parquet file
+     *  format. See DuckDb [documentation](https://duckdb.org/docs/sql/statements/export).
+     *  @param exportFile the path to the export file
+     */
+    fun exportAsLoadableParquetFile(exportFile: Path = KSL.dbDir) {
+        val exportCmd = "EXPORT DATABASE '$exportFile' (FORMAT PARQUET)"
+        executeCommand(exportCmd)
+        DatabaseIfc.logger.info { "DuckDb: Exported database $label to $exportFile" }
     }
 
     companion object : EmbeddedDbIfc {
+
+//        /**
+//         *  Facilitates the creation of a database backed by DuckDb. The database
+//         *  will be loaded based on the SQLite database specified via the path.
+//         *
+//         * @param pathToSQLiteFile the directory holding the SQLite database
+//         * @param dbName the name of the database
+//         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+//         * @param deleteIfExists If true, an existing database in the supplied directory with
+//         * the same name will be deleted and an empty database will be constructed.
+//         * @return a DuckDb configured database
+//         */
+//        fun importFromSQLite(
+//            pathToSQLiteFile: Path,
+//            dbName: String,
+//            dbDirectory: Path = KSL.dbDir,
+//            deleteIfExists: Boolean = true
+//        ) : DuckDb {
+//            require(SQLiteDb.isDatabase(pathToSQLiteFile)){"The file was not an SQLite database"}
+//            // create the DuckDb database
+//            val db = DuckDb(dbName, dbDirectory, deleteIfExists)
+//            // first attach the SQLite file
+//            val attachSQLite = "ATTACH '$pathToSQLiteFile' as sqlite_db (TYPE SQLITE)"
+//            val dbPath = dbDirectory.resolve(dbName)
+// //           val attachDuckDB = "ATTACH '$dbPath' as duck_db"
+//            // copy from the SQLite database
+//            val copyCmd = "COPY FROM DATABASE sqlite_db"
+//            val cmdList = listOf(attachSQLite, copyCmd)
+//            db.executeCommands(cmdList)
+//            return db
+//        }
 
         /**
          *  Facilitates the creation of a database backed by DuckDb. The database
@@ -122,13 +183,13 @@ class DuckDb(
             dbName: String,
             dbDirectory: Path = KSL.dbDir,
             deleteIfExists: Boolean = true
-        ) : DuckDb {
+        ): DuckDb {
             val importCmd = "IMPORT DATABASE '$exportedDbDir'"
             val db = DuckDb(dbName, dbDirectory, deleteIfExists)
             db.getConnection().use { connection: Connection ->
                 executeCommand(connection, importCmd)
             }
-            DatabaseIfc.logger.info {"DuckDb: Imported database ${db.label} from $exportedDbDir"}
+            DatabaseIfc.logger.info { "DuckDb: Imported database ${db.label} from $exportedDbDir" }
             return db
         }
 
