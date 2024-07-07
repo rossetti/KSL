@@ -240,7 +240,7 @@ class TabularOutputFile(
                 val sql = DatabaseIfc.insertIntoTableStatementSQL(dataTableName, n, schemaName = myDb.defaultSchemaName)
                 val ps = connection.prepareStatement(sql)
                 for (row in buffer) {
-                    myDb.addBatch(row, n, ps)
+                    DatabaseIfc.addBatch(row, n, ps)
                 }
                 val numInserts = ps.executeBatch()
                 val k = numInserts.countGreaterEqualTo(0)
