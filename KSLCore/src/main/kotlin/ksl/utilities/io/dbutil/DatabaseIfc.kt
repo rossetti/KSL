@@ -65,6 +65,9 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      *  A connection that is meant to be used many times before manual closing.
+     *  Many functions rely on this connection as their default connection.
+     *  Do not close this connection unless you are really finished with the database.
+     *  Since, this property is final it cannot be restored after closing.
      */
     val longLastingConnection: Connection
 
@@ -100,6 +103,9 @@ interface DatabaseIfc : DatabaseIOIfc {
      * then a list of table names not associated with a schema may be returned. Or, if
      * the schema concept does not exist for the database, then the names of any user-defined
      * tables may be returned.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @return a list of table names within the schema. The list may be empty if no tables
      * are defined within the schema.
      */
@@ -112,6 +118,9 @@ interface DatabaseIfc : DatabaseIOIfc {
      * then a list of view names not associated with a schema may be returned. Or, if
      * the schema concept does not exist for the database, then the names of any views
      *  may be returned.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @return a list of view names within the schema. The list may be empty if no views
      * are defined within the schema.
      */
@@ -120,6 +129,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @return a list of all table names within the database regardless of schema
      */
     override val userDefinedTables: Map<String?, List<String>>
@@ -127,12 +139,17 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /** The list may be empty if the database does not support the schema concept.
      *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @return a list of all schema names within the database
      */
     override val schemaNames: List<String>
         get() = schemaNames(longLastingConnection)
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @return a list of all view names within the database
      */
     override val views: Map<String?, List<String>>
@@ -145,6 +162,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * This is done because SQL identifier names should be case-insensitive.
      * If neither matches then false is returned.
      *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the schema name to check
      * @return true if the database contains a schema with the provided name
      */
@@ -153,6 +172,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param viewName the unqualified view name to find as a string
      * @return true if the database contains the named view
      */
@@ -164,7 +186,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Checks if tables exist in the specified schema
+     * Checks if tables exist in the specified schema.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the tables
      * @return true if at least one table exists in the schema
@@ -174,7 +198,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Checks if the supplied table exists in the schema
+     * Checks if the supplied table exists in the schema.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the table
      * @param tableName      a string representing the unqualified name of the table
@@ -185,7 +211,10 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Writes the table as comma separated values
+     * Writes the table as comma separated values.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the name of the table to write
      * @param header true means column names as the header included
@@ -210,7 +239,10 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Prints the table as comma separated values to the console
+     * Prints the table as comma separated values to the console.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the table
      * @param tableName the name of the table to print
      */
@@ -220,6 +252,9 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      * Writes the table as prettified text.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
@@ -240,7 +275,10 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Prints the table as prettified text to the console
+     * Prints the table as prettified text to the console.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
@@ -249,7 +287,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Prints all tables as text to the console
+     * Prints all tables as text to the console.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the tables
      */
@@ -258,7 +298,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Writes all tables as text
+     * Writes all tables as text.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
@@ -273,6 +315,9 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      * Writes the table as prettified text.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      * @param out       the PrintWriter to write to.  The print writer is not closed
@@ -292,7 +337,10 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Prints the table as prettified text to the console
+     * Prints the table as prettified text to the console.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the name of the schema that should contain the tables
      * @param tableName the unqualified name of the table to write
      */
@@ -301,7 +349,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Prints all tables as text to the console
+     * Prints all tables as text to the console.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the tables
      */
@@ -310,7 +360,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Writes all tables as text
+     * Writes all tables as text.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
@@ -323,7 +375,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     * Writes all tables as text
+     * Writes all tables as text.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the tables
      * @param out        the PrintWriter to write to
@@ -338,7 +392,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      * Writes all tables as separate comma separated value files into the supplied
      * directory. The files are written to text files using the same name as
-     * the tables in the database
+     * the tables in the database.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the tables
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
@@ -362,7 +418,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      * Writes all tables as separate comma separated value files into the supplied
      * directory. The files are written to text files using the same name as
-     * the tables in the database
+     * the tables in the database.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param schemaName the name of the schema that should contain the tables
      * @param pathToOutPutDirectory the path to the output directory to hold the csv files
@@ -384,6 +442,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the schema containing the table
      * @param tableName the name of the table within the schema to get all records from
      * @return a result holding all the records from the table
@@ -404,6 +465,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      *  Deletes all data from tables within the specified schema. If there
      *  is null, then the tables not associated with a schema are deleted.
      *
+     *  Uses the longLastingConnection property for the connection.
+     *
      *  @param schemaName the name of the schema containing the table
      */
     fun deleteAllFrom(schemaName: String? = defaultSchemaName) {
@@ -413,7 +476,10 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     *  Deletes all data from the tables in the list
+     *  Deletes all data from the tables in the list.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      *  @param tableNames the table to delete from
      *  @param schemaName the name of the schema containing the table
      */
@@ -424,7 +490,10 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
-     *  Deletes all data from the named table
+     *  Deletes all data from the named table.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      *  @param tableName the table to delete from
      *  @param schemaName the name of the schema containing the table
      *  @return true if the command executed successfully.
@@ -438,6 +507,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param tableName qualified or unqualified name of an existing table in the database
      */
     private fun selectAllFromTable(tableName: String): CachedRowSet? {
@@ -446,6 +518,9 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param tableName qualified or unqualified name of an existing table in the database
      */
     fun selectAllIntoOpenResultSet(tableName: String, schemaName: String? = defaultSchemaName): ResultSet? {
@@ -876,6 +951,8 @@ interface DatabaseIfc : DatabaseIOIfc {
     /**
      * Executes a single command on a database connection
      *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param command a valid SQL command
      * @return true if the command executed without an SQLException
      */
@@ -885,7 +962,9 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      * Consecutively executes the list of SQL queries supplied as a list of
-     * strings The strings must not have ";" semi-colon at the end.
+     * strings The strings must not have ";" semicolon at the end.
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param commands the commands
      * @return true if all commands were executed
@@ -896,6 +975,8 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      * Executes the commands in the script on the database
+     *
+     *  Uses the longLastingConnection property for the connection.
      *
      * @param path the path
      * @return true if all commands are executed
@@ -911,6 +992,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * form of a JDBC CachedRowSet. Errors in the SQL are the user's responsibility. Any exceptions
      * are logged and squashed.  The underlying query is closed.
      *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param sql an SQL text string that is valid
      * @return the results of the query or null if there was a problem
      */
@@ -924,6 +1007,8 @@ interface DatabaseIfc : DatabaseIOIfc {
      * are logged and squashed. It is the user's responsibility to close the ResultSet.  That is,
      * the statement used to create the ResultSet is not automatically closed.
      *
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param sql an SQL text string that is valid
      * @return the results of the query or null
      */
@@ -932,6 +1017,8 @@ interface DatabaseIfc : DatabaseIOIfc {
     }
 
     /**
+     *  Uses the longLastingConnection property for the connection.
+     *
      * @param schemaName the schema containing the table
      * @param tableName the name of the table within the schema
      * @return the number of rows in the table
