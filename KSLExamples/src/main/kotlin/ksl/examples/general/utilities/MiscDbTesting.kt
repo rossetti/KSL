@@ -1,19 +1,19 @@
 package ksl.examples.general.utilities
 
 import ksl.utilities.io.dbutil.*
+import ksl.utilities.io.dbutil.DuckDb
 import java.nio.file.Path
 import javax.sql.DataSource
 
 fun main() {
     //   testDbDataCreateString()
-   // testSimpleDb()
+//    testSimpleDb()
 
 //    testSQLiteDb()
 //    testDerbyDb()
 
 //    testPostgres()
     testDuckDb()
-
 
 }
 
@@ -105,6 +105,8 @@ fun testDerbyDb(){
 fun testDuckDb(){
     val td = setOf(Person(), City())
     val db = DuckDb(td, "TestDuckDb")
+    println(db)
+    println()
     db.userDefinedTables.forEach(::println)
     println()
     val p = Person(1, "manuel", age = 10)
@@ -114,6 +116,13 @@ fun testDuckDb(){
     db.printAllTablesAsText()
     println()
     db.tableNames("main").forEach(::println)
+    println()
+
+    val exportPath = db.exportAsLoadableCSV("testDuckDbExport")
+    val nDb = DuckDb.importFromLoadableCSV(exportPath, "ImportedDuckDb")
+    println(nDb)
+    nDb.printAllTablesAsText()
+
 }
 
 fun testPostgres(){

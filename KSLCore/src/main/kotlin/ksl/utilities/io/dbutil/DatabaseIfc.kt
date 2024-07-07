@@ -1066,21 +1066,11 @@ interface DatabaseIfc : DatabaseIOIfc {
         tableName: String = data.tableName,
         schemaName: String? = defaultSchemaName
     ): Int {
-        //TODO this is even more checking of metadata, why
-        if (schemaName == null) {
-            require(containsTable(tableName)) { "Database $label does not contain table $tableName in schema $schemaName for inserting data!" }
-        } else {
-            require(
-                containsTable(
-                    tableName,
-                    schemaName
-                )
-            ) { "Database $label does not contain table $tableName in schema $schemaName for inserting data!" }
-        }
         require(data.tableName == tableName) { "The supplied data was not from table $tableName" }
+        require(containsTable(tableName, schemaName)) { "Database $label does not contain table $tableName for inserting data!" }
         data.schemaName = schemaName // needed to make the insert statement correctly
         val sql = data.insertDataSQLStatement()
-        //insert into main.Persons (id, name, age) values (?, ?, ?)
+        //e.g. insert into main.Persons (id, name, age) values (?, ?, ?)
         try {
             getConnection().use { con ->
                 con.autoCommit = false
@@ -1096,13 +1086,13 @@ interface DatabaseIfc : DatabaseIOIfc {
                 }
                 stmt.executeUpdate()
                 con.commit()
+                // if necessary, this updates the in-memory data item with the assigned generated key
                 if (data.autoIncField) {
                     val rs = stmt.generatedKeys
-                    rs.next()
-                    //val autoId = rs.getObject(1)
-                    val autoId = rs.getInt(1)
-                    //println("autoId = $autoId  class = ${autoId::class}")
-                    data.setAutoIncField(autoId)
+                    if (rs.next()){
+                        val autoId = rs.getInt(1)
+                        data.setAutoIncField(autoId)
+                    }
                 }
                 return 1
             }
@@ -1115,7 +1105,8 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     /**
      *  Inserts the [data] from the list into the supplied table [tableName] and schema [schemaName].
-     *  The DbData instance must be designed for the table.
+     *  The DbData instances must be designed for the same table. The data instances are not
+     *  updated to reflect any changes imposed by the database such as generated primary keys.
      *
      *  @return the number of rows inserted
      */
@@ -1127,15 +1118,16 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (data.isEmpty()) {
             return 0
         }
-        //TODO this is even more checking of metadata, why
         require(containsTable(tableName, schemaName)) { "Database $label does not contain table $tableName for inserting data!" }
         // data should come from the table
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         // use first to set up the prepared statement
+        // assumes the first is representative of the rest in the list
         first.schemaName = schemaName // needed to make the insert statement correctly
         val sql = first.insertDataSQLStatement()
         try {
+            // use new connection because of batch processing and auto commit
             getConnection().use { con ->
                 con.autoCommit = false
                 val stmt = con.prepareStatement(sql)
@@ -1187,16 +1179,20 @@ interface DatabaseIfc : DatabaseIOIfc {
         if (data.isEmpty()) {
             return 0
         }
-        //TODO this is even more checking of metadata, why
-        require(containsTable(tableName, schemaName)) { "Database $label does not contain table $tableName for updating data!" }
+        if (!containsTable(tableName, schemaName)){
+            logger.warn { "Database $label does not contain table $tableName for updating data!"  }
+            return 0
+        }
         // data should come from the table
         val first = data.first()
+        // assumes that the first is representative of all in list
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         // use first to set up the prepared statement
         first.schemaName = schemaName // needed to make the update statement correctly
         val sql = first.updateDataSQLStatement()
         val nc = first.numUpdateFields
         try {
+            // use new connection because of auto commit and batch processing
             getConnection().use { con ->
                 con.autoCommit = false
                 val ps = con.prepareStatement(sql)
@@ -1539,14 +1535,14 @@ interface DatabaseIfc : DatabaseIOIfc {
         fun schemaNames(connection: Connection): List<String> {
             try {
                 logger.trace { "Retrieving the list of schema names in database metadata" }
-                val list = mutableListOf<String>()
+                val set = mutableSetOf<String>()
                 val metaData = connection.metaData
                 val rs = metaData.schemas
                 while (rs.next()) {
-                    list.add(rs.getString("TABLE_SCHEM"))
+                    set.add(rs.getString("TABLE_SCHEM"))
                 }
                 rs.close()
-                return list
+                return set.toList()
             } catch (e: SQLException) {
                 logger.error { "Unable to get database schemas. The meta data was not available." }
                 logger.error { "$e" }

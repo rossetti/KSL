@@ -1,11 +1,13 @@
 package ksl.utilities.io.dbutil
 
 import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.DatabaseIfc.Companion.executeCommand
 import org.duckdb.DuckDBConnection
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
+import java.sql.Connection
 import java.sql.SQLException
 import java.sql.Statement
 import javax.sql.DataSource
@@ -58,7 +60,36 @@ class DuckDb(
         createSimpleDbTables(tableDefinitions)
     }
 
+    fun exportAsLoadableCSV(dirName: String): Path {
+        require(dirName.isNotBlank()) { "dirName must not be blank" }
+        val path = KSL.dbDir.resolve(dirName)
+        exportAsLoadableCSV(path)
+        return path
+    }
+
+    fun exportAsLoadableCSV(exportDir: Path = KSL.dbDir){
+        val exportCmd = "EXPORT DATABASE '$exportDir'"
+        executeCommand(exportCmd)
+        DatabaseIfc.logger.info {"DuckDb: Exported database $label to $exportDir"}
+    }
+
     companion object : EmbeddedDbIfc {
+
+        fun importFromLoadableCSV(
+            exportedDbDir: Path,
+            dbName: String,
+            dbDirectory: Path = KSL.dbDir,
+            deleteIfExists: Boolean = true
+        ) : DuckDb {
+            val importCmd = "IMPORT DATABASE '$exportedDbDir'"
+            val db = DuckDb(dbName, dbDirectory, deleteIfExists)
+            db.getConnection().use { connection: Connection ->
+                executeCommand(connection, importCmd)
+            }
+            DatabaseIfc.logger.info {"DuckDb: Imported database ${db.label} from $exportedDbDir"}
+            return db
+        }
+
         /**
          * Checks if a file is a valid DuckDb database
          * Strategy:

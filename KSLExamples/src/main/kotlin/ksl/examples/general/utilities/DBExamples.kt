@@ -25,7 +25,7 @@ fun main() {
 //    DBExamples.createKSLDatabases()
 
 //    DBExamples.createDerbyDatabase("TestDerby")
-    DBExamples.testKSLDatabase()
+//    DBExamples.testKSLDatabase()
 
 //    DBExamples.exampleExcelDbImport()
 }
