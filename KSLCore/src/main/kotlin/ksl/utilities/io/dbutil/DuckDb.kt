@@ -193,6 +193,33 @@ class DuckDb(
         }
 
         /**
+         *  Facilitates the creation of a database backed by DuckDb. The database
+         *  will be loaded based on the load scripts found in the exported database
+         *  directory containing the parquet files.
+         *
+         * @param exportedDbDir the directory holding the import data and scripts
+         * @param dbName the name of the database
+         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+         * @param deleteIfExists If true, an existing database in the supplied directory with
+         * the same name will be deleted and an empty database will be constructed.
+         * @return a DuckDb configured database
+         */
+        fun importFromLoadableParquetFiles(
+            exportedDbDir: Path,
+            dbName: String,
+            dbDirectory: Path = KSL.dbDir,
+            deleteIfExists: Boolean = true
+        ): DuckDb {
+            val importCmd = "IMPORT DATABASE '$exportedDbDir'"
+            val db = DuckDb(dbName, dbDirectory, deleteIfExists)
+            db.getConnection().use { connection: Connection ->
+                executeCommand(connection, importCmd)
+            }
+            DatabaseIfc.logger.info { "DuckDb: Imported database ${db.label} from $exportedDbDir" }
+            return db
+        }
+
+        /**
          * Checks if a file is a valid DuckDb database
          * Strategy:
          * - path must reference a regular file
