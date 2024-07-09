@@ -135,36 +135,35 @@ class DuckDb(
 
     companion object : EmbeddedDbIfc {
 
-//        /**
-//         *  Facilitates the creation of a database backed by DuckDb. The database
-//         *  will be loaded based on the SQLite database specified via the path.
-//         *
-//         * @param pathToSQLiteFile the directory holding the SQLite database
-//         * @param dbName the name of the database
-//         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
-//         * @param deleteIfExists If true, an existing database in the supplied directory with
-//         * the same name will be deleted and an empty database will be constructed.
-//         * @return a DuckDb configured database
-//         */
-//        fun importFromSQLite(
-//            pathToSQLiteFile: Path,
-//            dbName: String,
-//            dbDirectory: Path = KSL.dbDir,
-//            deleteIfExists: Boolean = true
-//        ) : DuckDb {
-//            require(SQLiteDb.isDatabase(pathToSQLiteFile)){"The file was not an SQLite database"}
-//            // create the DuckDb database
-//            val db = DuckDb(dbName, dbDirectory, deleteIfExists)
-//            // first attach the SQLite file
-//            val attachSQLite = "ATTACH '$pathToSQLiteFile' as sqlite_db (TYPE SQLITE)"
-//            val dbPath = dbDirectory.resolve(dbName)
-// //           val attachDuckDB = "ATTACH '$dbPath' as duck_db"
-//            // copy from the SQLite database
-//            val copyCmd = "COPY FROM DATABASE sqlite_db"
-//            val cmdList = listOf(attachSQLite, copyCmd)
-//            db.executeCommands(cmdList)
-//            return db
-//        }
+        /**
+         *  Facilitates the creation of a database backed by DuckDb. The database
+         *  will be loaded based on the SQLite database specified via the path.
+         *
+         * @param pathToSQLiteFile the path to the file holding the SQLite database
+         * @param dbName the name of the DuckDb database
+         * @param dbDirectory the directory containing the DuckDb database. By default, KSL.dbDir.
+         * @param deleteIfExists If true, an existing database in the supplied directory with
+         * the same name will be deleted and an empty database will be constructed. The default is true.
+         * @return a DuckDb configured database
+         */
+        fun convertFromSQLiteToDuckDb(
+            pathToSQLiteFile: Path,
+            dbName: String,
+            dbDirectory: Path = KSL.dbDir,
+            deleteIfExists: Boolean = true
+        ) : DuckDb {
+            require(SQLiteDb.isDatabase(pathToSQLiteFile)){"The file was not an SQLite database"}
+            // create the DuckDb database
+            val db = DuckDb(dbName, dbDirectory, deleteIfExists)
+            // first attach the SQLite file
+            val attachSQLite = "ATTACH '$pathToSQLiteFile' as sqlite_db (TYPE SQLITE)"
+            // copy from the SQLite database
+            val copyCmd = "COPY FROM DATABASE sqlite_db to $dbName"
+            val detachSQLite = "DETACH DATABASE IF EXISTS sqlite_db"
+            val cmdList = listOf(attachSQLite, copyCmd, detachSQLite)
+            db.executeCommands(cmdList)
+            return db
+        }
 
         /**
          *  Facilitates the creation of a database backed by DuckDb. The database
