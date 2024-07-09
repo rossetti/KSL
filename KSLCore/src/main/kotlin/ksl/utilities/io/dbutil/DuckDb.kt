@@ -111,26 +111,26 @@ class DuckDb(
 
 
     /**
-     *  Exports the database to a file with loadable default Parquet format.
+     *  Exports the database to a directory with loadable default Parquet format.
      *  See DuckDb [documentation](https://duckdb.org/docs/sql/statements/export).
-     *  @param fileName the name of the file within KSL.dbDir
+     *  @param fileName the name of the directory within KSL.dbDir
      */
-    fun exportAsLoadableParquetFile(fileName: String): Path {
+    fun exportAsLoadableParquetFiles(fileName: String): Path {
         require(fileName.isNotBlank()) { "fileName must not be blank" }
         val path = KSL.dbDir.resolve(fileName)
-        exportAsLoadableParquetFile(path)
+        exportAsLoadableParquetFiles(path)
         return path
     }
 
     /**
      *  Exports the database to a directory with loadable default Parquet file
      *  format. See DuckDb [documentation](https://duckdb.org/docs/sql/statements/export).
-     *  @param exportFile the path to the export file
+     *  @param exportDir the path to the export directory
      */
-    fun exportAsLoadableParquetFile(exportFile: Path = KSL.dbDir) {
-        val exportCmd = "EXPORT DATABASE '$exportFile' (FORMAT PARQUET)"
+    fun exportAsLoadableParquetFiles(exportDir: Path = KSL.dbDir) {
+        val exportCmd = "EXPORT DATABASE '$exportDir' (FORMAT PARQUET)"
         executeCommand(exportCmd)
-        DatabaseIfc.logger.info { "DuckDb: Exported database $label to $exportFile" }
+        DatabaseIfc.logger.info { "DuckDb: Exported database $label to $exportDir" }
     }
 
     companion object : EmbeddedDbIfc {

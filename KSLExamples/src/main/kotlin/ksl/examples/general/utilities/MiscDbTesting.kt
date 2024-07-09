@@ -15,7 +15,9 @@ fun main() {
 
 //    testPostgres()
 //    testDuckDb()
-    testConvertToDuckDb()
+
+    testDuckDbParquetFiles()
+//    testConvertToDuckDb()
 
 }
 
@@ -127,6 +129,28 @@ fun testDuckDb(){
 
 }
 
+fun testDuckDbParquetFiles(){
+    val td = setOf(Person(), City())
+    val db = DuckDb(td, "TestDuckDb")
+    println(db)
+    println()
+    db.userDefinedTables.forEach(::println)
+    println()
+    val p = Person(1, "manuel", age = 10)
+    val c = City(1, "London", population = 1000)
+    db.insertDbDataIntoTable(p)
+    db.insertDbDataIntoTable(c)
+    db.printAllTablesAsText()
+    println()
+    db.tableNames("main").forEach(::println)
+    println()
+
+    val exportPath = db.exportAsLoadableParquetFiles("testDuckDbExport")
+//    val nDb = DuckDb.importFromLoadableCSV(exportPath, "ImportedDuckDb")
+//    println(nDb)
+ //   nDb.printAllTablesAsText()
+
+}
 fun testConvertToDuckDb(){
     val sPath = KSL.dbDir.resolve("someDB.db")
     val ds = SQLiteDb.createDataSource(sPath)
