@@ -61,6 +61,8 @@ class DuckDb(
         createSimpleDbTables(tableDefinitions)
     }
 
+    //TODO append DbTableData
+    
     /**
      *  Applies DuckDb's [summarize](https://duckdb.org/docs/guides/meta/summarize.html)
      *  query to the table/view
