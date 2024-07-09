@@ -15,7 +15,7 @@ fun main() {
 
 //    testPostgres()
 //    testDuckDb()
- //   testConvertToDuckDb()
+    testConvertToDuckDb()
 
 }
 
@@ -127,21 +127,21 @@ fun testDuckDb(){
 
 }
 
-//fun testConvertToDuckDb(){
-//    val sPath = KSL.dbDir.resolve("someDB.db")
-//    val ds = SQLiteDb.createDataSource(sPath)
-//    val database = Database(ds, "someDB.db")
-//    database.executeCommand("drop table if exists person")
-//    database.executeCommand("create table person (id integer, name string)")
-//    println(database)
-//    database.executeCommand("insert into person values(1, 'PersonA')")
-//    database.executeCommand("insert into person values(2, 'PersonB')")
-//    database.printTableAsText(tableName = "person")
-//
-//    val ddb = DuckDb.importFromSQLite(sPath, "someDBAsDuck")
-//    println(ddb)
-//    ddb.printAllTablesAsText()
-//}
+fun testConvertToDuckDb(){
+    val sPath = KSL.dbDir.resolve("someDB.db")
+    val ds = SQLiteDb.createDataSource(sPath)
+    val database = Database(ds, "someDB.db")
+    database.executeCommand("drop table if exists person")
+    database.executeCommand("create table person (id integer, name string)")
+    println(database)
+    database.executeCommand("insert into person values(1, 'PersonA')")
+    database.executeCommand("insert into person values(2, 'PersonB')")
+    database.printTableAsText(tableName = "person")
+
+    val ddb = DuckDb.convertFromSQLiteToDuckDb(sPath, "someDBAsDuck")
+    println(ddb)
+    ddb.printAllTablesAsText()
+}
 
 fun testPostgres(){
 //    val ds = PostgresDb.createDataSourceWithLocalHost("rossetti")
