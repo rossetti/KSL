@@ -254,7 +254,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      *  the values in the [responseName] column have the value of the response for the named experiments
      *  and the replication id (number) for the value.
      */
-    fun withRepViewStatistics(responseName: String): AnyFrame {
+    fun withinRepViewStatistics(responseName: String): AnyFrame {
         val stat_name by column<String>()
         var dm = withinRepViewStatistics.filter { stat_name() == responseName }
         val rep_value by column<Double>()

@@ -89,6 +89,7 @@ open class Metric(
     override var unitsOfMeasure: String? = null
 
     override var description: String? = null
+
     override fun toString(): String {
         return "Metric(name='$name', domain=$domain, direction=$direction, unitsOfMeasure=$unitsOfMeasure, description=$description)"
     }

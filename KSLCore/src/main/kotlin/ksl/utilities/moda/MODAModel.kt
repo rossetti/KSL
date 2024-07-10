@@ -815,6 +815,9 @@ abstract class MODAModel(
             return Pair(map, metrics.values.asList())
         }
 
+        /**
+         *  Assigns a linear value function to each metric.
+         */
         fun assignLinearValueFunctions(
             metrics: List<MetricIfc>
         ): Map<MetricIfc, ValueFunctionIfc> {
