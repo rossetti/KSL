@@ -2,8 +2,11 @@ package ksl.utilities.io.dbutil
 
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.DatabaseIfc.Companion.executeCommand
+import ksl.utilities.io.dbutil.DatabaseIfc.Companion.logger
+import org.duckdb.DuckDBAppender
 import org.duckdb.DuckDBConnection
 import java.io.IOException
+import java.math.BigDecimal
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
@@ -11,6 +14,7 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Statement
+import java.time.LocalDateTime
 import javax.sql.DataSource
 
 /**
@@ -61,8 +65,73 @@ class DuckDb(
         createSimpleDbTables(tableDefinitions)
     }
 
-    //TODO append DbTableData
-    
+    /**
+     *  Uses DuckDb's Appender to more efficiently append records to the table.
+     *  The data in the list must be associated with the named table. The table must
+     *  be within the named schema. The data must not have an auto-increment field.
+     */
+    fun <T : DbTableData> appendDbDataToTable(
+        data: List<T>,
+        tableName: String,
+        schemaName: String? = defaultSchemaName
+    )  {
+        if (data.isEmpty()) {
+            return
+        }
+        require(containsTable(tableName, schemaName))
+            { "Database $label does not contain table $tableName for inserting data!" }
+        // data should come from the table
+        val first = data.first()
+        require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
+        val duckDbCon = longLastingConnection as DuckDBConnection
+        val sn = if (schemaName == null){
+            "main"
+        } else {
+            defaultSchemaName
+        }
+        val appender: DuckDBAppender = duckDbCon.createAppender(sn, tableName)
+        for(d in data){
+            require(!d.autoIncField) { "To use appender the autoIncField for table (${d.tableName}) must be false." }
+            val values = d.extractPropertyValues()
+            appender.beginRow()
+            for((i, value) in values.withIndex()){
+                val b = appendValue(appender, value)
+                if (!b){
+                    logger.warn {"The value ($value) for field $i was not appended!"}
+                }
+            }
+            appender.endRow()
+        }
+        appender.close()
+    }
+
+    private fun appendValue(appender: DuckDBAppender, value : Any?) : Boolean {
+        if (value is Double) {
+            appender.append(value)
+        } else if (value is Int) {
+            appender.append(value)
+        } else if (value is Long) {
+            appender.append(value)
+        } else if (value is Boolean) {
+            appender.append(value)
+        } else if (value is Float) {
+            appender.append(value)
+        } else if (value is Short) {
+            appender.append(value)
+        } else if (value is Byte) {
+            appender.append(value)
+        } else if (value is String){
+            appender.append(value)
+        } else if (value is BigDecimal){
+            appender.appendBigDecimal(value)
+        } else if (value is LocalDateTime){
+            appender.appendLocalDateTime(value)
+        } else {
+            return false
+        }
+        return true
+    }
+
     /**
      *  Applies DuckDb's [summarize](https://duckdb.org/docs/guides/meta/summarize.html)
      *  query to the table/view
