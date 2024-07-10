@@ -3,7 +3,6 @@ package ksl.controls.experiments
 import ksl.simulation.Model
 import ksl.utilities.Identity
 import ksl.utilities.KSLArrays
-import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.addColumnsFor
 import ksl.utilities.io.dbutil.KSLDatabase
@@ -16,7 +15,6 @@ import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.io.writeCSV
-import org.jetbrains.kotlinx.dataframe.size
 import java.nio.file.Path
 
 data class DesignPointInfo(val point: Int, val exp_name: String, val rep_id: Int)
@@ -227,7 +225,7 @@ class DesignedExperiment(
      */
     fun responseAsDataFrame(responseName: String): AnyFrame {
         val dpi = replicatedDesignPointInfo()
-        val df = kslDb.withRepViewStatistics(responseName)
+        val df = kslDb.withinRepViewStatistics(responseName)
         if (dpi.rowsCount() != df.rowsCount()) {
             return DataFrame.empty()
         }
