@@ -106,6 +106,10 @@ class DuckDb(
     }
 
     private fun appendValue(appender: DuckDBAppender, value : Any?) : Boolean {
+        if (value == null){
+            appender.append(null)
+            return true
+        }
         if (value is Double) {
             appender.append(value)
         } else if (value is Int) {
