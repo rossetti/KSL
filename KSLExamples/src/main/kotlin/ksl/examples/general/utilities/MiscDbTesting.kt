@@ -14,9 +14,9 @@ fun main() {
 //    testDerbyDb()
 
 //    testPostgres()
-//    testDuckDb()
+    testDuckDb()
 
-    testDuckDbParquetFiles()
+//    testDuckDbParquetFiles()
 //    testConvertToDuckDb()
 
 }
@@ -117,6 +117,9 @@ fun testDuckDb(){
     val c = City(1, "London", population = 1000)
     db.insertDbDataIntoTable(p)
     db.insertDbDataIntoTable(c)
+    val p2 = Person(2, "amy", age = 10)
+    val p3 = Person(3, "joe", age = 10)
+    db.appendDbDataToTable(listOf(p2,p3), "Persons")
     db.printAllTablesAsText()
     println()
     db.tableNames("main").forEach(::println)
