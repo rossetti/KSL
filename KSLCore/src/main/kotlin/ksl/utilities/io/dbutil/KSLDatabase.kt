@@ -176,7 +176,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete experiment $expName in database: $label" }
             db.getConnection().use { connection ->
-                val ps = DatabaseIfc.makeDeleteFromPreparedStatement(connection, "experiment", "exp_name", defaultSchemaName)
+                val ps =
+                    DatabaseIfc.makeDeleteFromPreparedStatement(connection, "experiment", "exp_name", defaultSchemaName)
                 ps.setString(1, expName)
                 ps.execute()
                 //val deleted = ps.execute()
@@ -250,6 +251,45 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         }
 
     /**
+     *  Returns a list containing the within replication data
+     */
+    fun withinRepViewData(): List<WithinRepViewData> {
+        return db.selectTableDataIntoDbData(::WithinRepViewData)
+    }
+
+    /**
+     *  Returns a map of maps. The outer map has the experiment name as its key.
+     *  The inner map has the response's name as the key and the replication results
+     *  as a list of double values. The list contains the observed replication statistic for the response variable
+     *  or the final count for a counter. The list may contain null values because an observation may be
+     *  missing for a particular replication if no observations are observed.
+     *
+     *  This is a map view of the within replication view data (i.e. WithinRepViewData).
+     *  This data is also available via the withRepViewData() function or the withinRepViewStatistics property that
+     *  returns a data frame.  T
+     *
+     *  @return the map of maps
+     */
+    fun replicationDataByExperimentAndResponse(): Map<String, Map<String, List<Double?>>> {
+        val map = mutableMapOf<String, MutableMap<String, MutableList<Double?>>>()
+        val repViewData = withinRepViewData()
+        for (repView in repViewData) {
+            if (!map.containsKey(repView.exp_name)) {
+                map[repView.exp_name] = mutableMapOf<String, MutableList<Double?>>()
+            }
+            // get the exp map
+            val expMap = map[repView.exp_name]!!
+            if (!expMap.containsKey(repView.stat_name)) {
+                expMap[repView.stat_name] = mutableListOf<Double?>()
+            }
+            // get the list to add
+            val repData = expMap[repView.stat_name]!!
+            repData.add(repView.rep_value)
+        }
+        return map
+    }
+
+    /**
      *  Returns a data frame that has columns (exp_name, rep_id, [responseName]) where
      *  the values in the [responseName] column have the value of the response for the named experiments
      *  and the replication id (number) for the value.
@@ -268,8 +308,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     val acrossReplicationStatistics: DataFrame<AcrossRepStatTableData>
         get() {
             var df = db.selectTableDataIntoDbData(::AcrossRepStatTableData).toDataFrame()
-            df = df.remove("numColumns", "schemaName", "tableName", "autoIncField",
-                "keyFields", "numInsertFields", "numUpdateFields")
+            df = df.remove(
+                "numColumns", "schemaName", "tableName", "autoIncField",
+                "keyFields", "numInsertFields", "numUpdateFields"
+            )
             return df
         }
 
@@ -466,7 +508,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val freqRecords = createFrequencyDataRecords(freq, currentSimRun!!.run_id)
             list.addAll(freqRecords)
         }
-       // println("db.insertDbDataIntoTable(list, \"frequency\")")
+        // println("db.insertDbDataIntoTable(list, \"frequency\")")
         db.insertAllDbDataIntoTable(list, "frequency")
     }
 
@@ -979,7 +1021,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     companion object {
-        val TableNames = listOf("frequency", "histogram",
+        val TableNames = listOf(
+            "frequency", "histogram",
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
             "rv_parameter", "control", "model_element", "simulation_run", "experiment"
         )
