@@ -25,6 +25,7 @@ package ksl.observers
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import ksl.utilities.toPrimitives
 import org.jetbrains.kotlinx.dataframe.impl.asList
 
 /**
@@ -99,6 +100,25 @@ class ExperimentDataCollector(model: Model, autoAttach: Boolean = true) {
 
     fun experimentData(expName: String): ReplicationDataCollector? {
         return myExpData[expName]
+    }
+
+    /**
+     *  Returns a map of maps. The outer map has the experiment name as its key.
+     *  The inner map has the response names as the key and the replication results
+     *  as a double array. The array contains the observed replication statistic for the response variable
+     *  or the final count for a counter for each replication.
+     *
+     *  The array may contain Double.NaN values because an observation may be
+     *  missing for a particular replication if no observations of the response are observed during the replication.
+     *
+     *  @return the map of maps
+     */
+    fun replicationDataArraysByExperimentAndResponse(): Map<String, Map<String, DoubleArray>> {
+        val map = mutableMapOf<String, Map<String, DoubleArray>>()
+        for((expName, rdc) in myExpData){
+            map[expName] = rdc.allReplicationDataAsMap
+        }
+        return map
     }
 
     /**

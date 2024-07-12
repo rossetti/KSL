@@ -298,10 +298,10 @@ class ReplicationDataCollector(
         }
 
     /**
-     * The array elements represent the within replication average for the response or
-     * the ending value of the counter.
+     * The array elements represent the within replication average for the responses or
+     * the ending value of the counters.
      *
-     * Note that the returned array may contain Double.NaN values if no observations
+     * Note that the stored array may contain Double.NaN values if no observations
      * of the response were observed during the replication.
      *
      * @return a map holding the response name as key and the end replication data as an array
