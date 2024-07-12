@@ -270,7 +270,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      *
      *  This is a map view of the within replication view data (i.e. WithinRepViewData).
      *  This data is also available via the withRepViewData() function or the withinRepViewStatistics property that
-     *  returns a data frame. 
+     *  returns a data frame.
      *
      *  @return the map of maps
      */
@@ -989,34 +989,50 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     /**
      * Returns the observations for the named experiment and the named statistical response
-     * from within
+     * from the within replication data. If the experiment name [expNameStr] is not found, then an empty
+     * array is returned. If the experiment is found, but the response name [statNameStr] is not
+     * found, then an empty array is returned.
+     * @return the array of replication responses for the named response or counter. If a replication
+     * does not have observations of the response, then Double.NaN will be provided as the value. The
+     * size of the array is determined by the number of replications in the experiment.
      */
     fun withinReplicationObservationsFor(expNameStr: String, statNameStr: String): DoubleArray {
-        var df = withinRepViewStatistics
-        val exp_name by column<String>()
-        val stat_name by column<String>()
-        val rep_value by column<Double>()
-        val rep_id by column<Double>()
-        df = df.filter { exp_name() == expNameStr && stat_name() == statNameStr }
-        df = df.select(rep_id, rep_value).sortBy(rep_id).select(rep_value)
-        val values = df.values()
-        val result = DoubleArray(values.count())
-        for ((index, v) in values.withIndex()) {
-            result[index] = v as Double
+        val expMap = replicationDataArraysByExperimentAndResponse()
+        if (!expMap.containsKey(expNameStr)){
+            return doubleArrayOf()
         }
-        return result
+        // get the response
+        val repMap = expMap[expNameStr]!!
+        if (!repMap.containsKey(statNameStr)){
+            return doubleArrayOf()
+        }
+        return repMap[statNameStr]!!
+//        var df = withinRepViewStatistics
+//        val exp_name by column<String>()
+//        val stat_name by column<String>()
+//        val rep_value by column<Double>()
+//        val rep_id by column<Double>()
+//        df = df.filter { exp_name() == expNameStr && stat_name() == statNameStr }
+//        df = df.select(rep_id, rep_value).sortBy(rep_id).select(rep_value)
+//        val values = df.values()
+//        val result = DoubleArray(values.count())
+//        for ((index, v) in values.withIndex()) {
+//            result[index] = v as Double
+//        }
+//        return result
     }
 
     /**
      * This prepares a map that can be used with MultipleComparisonAnalyzer. If the set of
-     * simulation runs does not contain the provided experiment name, then an IllegalArgumentException
+     * simulation runs does not contain the provided experiment names, then an IllegalArgumentException
      * occurs.  If there are multiple simulation runs with the same experiment name, then
      * an IllegalArgumentException occurs. In other words, when running the experiments, the user
      * must make the experiment names unique in order for this map to be built.
      *
      * @param expNames     The set of experiment names for with the responses need extraction, must not
-     *                     be null
-     * @param responseName the name of the response variable, time weighted variable or counter
+     *                     be empty
+     * @param responseName the name of the response variable, time weighted variable or counter. If the
+     * response name is not associated with the experiment, then an empty array will be returned.
      * @return a map with key exp_name containing an array of values, each value from each replication
      */
     fun withinReplicationViewMapForExperiments(expNames: List<String>, responseName: String): Map<String, DoubleArray> {
@@ -1028,9 +1044,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 throw IllegalArgumentException("There were no simulation runs with the experiment name $name")
             }
         }
+        // all supplied experiments are within the data
+        val expMap = replicationDataArraysByExperimentAndResponse()
         val theMap = mutableMapOf<String, DoubleArray>()
         for (name in expNames) {
-            theMap[name] = withinReplicationObservationsFor(name, responseName)
+//            theMap[name] = withinReplicationObservationsFor(name, responseName)
+            val repArray = expMap[name]!![responseName]
+            theMap[name] = repArray?: doubleArrayOf()
         }
         return theMap
     }
