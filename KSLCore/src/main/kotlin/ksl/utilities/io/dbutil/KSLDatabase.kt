@@ -29,6 +29,7 @@ import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.parameters.RVParameterData
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.statistic.*
+import ksl.utilities.toPrimitives
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import java.io.IOException
 import java.nio.file.Files
@@ -176,6 +177,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete experiment $expName in database: $label" }
             db.getConnection().use { connection ->
+                //TODO note that this approach depends on the database implementing cascade delete
                 val ps =
                     DatabaseIfc.makeDeleteFromPreparedStatement(connection, "experiment", "exp_name", defaultSchemaName)
                 ps.setString(1, expName)
@@ -261,12 +263,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      *  Returns a map of maps. The outer map has the experiment name as its key.
      *  The inner map has the response's name as the key and the replication results
      *  as a list of double values. The list contains the observed replication statistic for the response variable
-     *  or the final count for a counter. The list may contain null values because an observation may be
+     *  or the final count for a counter for each replication.
+     *
+     *  The list may contain null values because an observation may be
      *  missing for a particular replication if no observations are observed.
      *
      *  This is a map view of the within replication view data (i.e. WithinRepViewData).
      *  This data is also available via the withRepViewData() function or the withinRepViewStatistics property that
-     *  returns a data frame.  T
+     *  returns a data frame. 
      *
      *  @return the map of maps
      */
@@ -285,6 +289,36 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             // get the list to add
             val repData = expMap[repView.stat_name]!!
             repData.add(repView.rep_value)
+        }
+        return map
+    }
+
+    /**
+     *  Returns a map of maps. The outer map has the experiment name as its key.
+     *  The inner map has the response's name as the key and the replication results
+     *  as a double array. The array contains the observed replication statistic for the response variable
+     *  or the final count for a counter for each replication.
+     *
+     *  The array may contain Double.NaN values because an observation may be
+     *  missing for a particular replication if no observations are observed.
+     *
+     *  This is a map view of the within replication view data (i.e. WithinRepViewData).
+     *  This data is also available via the withRepViewData() function or the withinRepViewStatistics property that
+     *  returns a data frame.
+     *
+     *  @return the map of maps
+     */
+    fun replicationDataArraysByExperimentAndResponse(): Map<String, Map<String, DoubleArray>> {
+        val map = mutableMapOf<String, MutableMap<String, DoubleArray>>()
+        val m = replicationDataByExperimentAndResponse()
+        for((expName, repDataMap) in m){
+            if (!map.containsKey(expName)){
+                map[expName] = mutableMapOf()
+            }
+            val repMap = map[expName]!!
+            for ((rName, dataList) in repDataMap){
+                repMap[rName] = dataList.toPrimitives(replaceNull = Double.NaN)
+            }
         }
         return map
     }
