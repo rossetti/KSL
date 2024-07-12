@@ -19,6 +19,10 @@ package ksl.utilities.statistic
 
 const val DEFAULT_CONFIDENCE_LEVEL = 0.95
 
+/**
+ *  Statistical collection defines a datum as missing if
+ *  the value is Double.NaN or if it is infinite (i.e. Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY).
+ */
 fun Double.isMissing(): Boolean {
     return this.isNaN() || this.isInfinite()
 }

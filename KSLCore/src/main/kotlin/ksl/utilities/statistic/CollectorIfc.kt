@@ -77,7 +77,9 @@ interface CollectorIfc : LastValueIfc, ValueIfc {
     }
 
     /**
-     * Collect on the supplied value
+     * Collect on the supplied value. Double.NaN,
+     * Double.NEGATIVE_INFINITY, and Double.POSITIVE_INFINITY values
+     * are counted as missing. Null values are not permitted.
      *
      * @param obs a double representing the observation
      */

@@ -58,7 +58,7 @@ interface MeanEstimateIfc : EstimateIfc {
 
     /**
      * Gets the sample standard deviation of the observations. Simply
-     * the square root of getVariance()
+     * the square root of variance
      *
      * @return A double representing the computed standard deviation or Double.NaN
      * if 1 or fewer observations.

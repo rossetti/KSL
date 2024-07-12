@@ -231,6 +231,11 @@ class ReplicationDataCollector(
     }
 
     /** If the response name does not exist in the collector a zero length array is returned.
+     * The array elements represent the within replication average for the response or
+     * the ending value of the counter.
+     *
+     * Note that the returned array may contain Double.NaN values if no observations
+     * of the response were observed during the replication.
      *
      * @param responseName the name of the response or counter, must be in the model
      * @return the replication averages for the named response
@@ -240,7 +245,12 @@ class ReplicationDataCollector(
         return data.copyOf(data.size)
     }
 
-    /**
+    /** If the response name does not exist in the collector a zero length array is returned.
+     * The array elements represent the within replication average for the response.
+     *
+     * Note that the returned array may contain Double.NaN values if no observations
+     * of the response were observed during the replication.
+     *
      * @param responseVariable the response variable, must not be null and must be in model
      * @return the replication averages for the named response
      */
@@ -248,9 +258,11 @@ class ReplicationDataCollector(
         return replicationData(responseVariable.name)
     }
 
-    /**
+    /** If the counter name does not exist in the collector a zero length array is returned.
+     * The array elements represent the ending value of the counter within each replication.
+     *
      * @param counter the counter, must not be null and must be in model
-     * @return the replication averages for the named response
+     * @return the counter final values for the named counter
      */
     fun finalReplicationValues(counter: Counter): DoubleArray {
         return replicationData(counter.name)
@@ -259,6 +271,12 @@ class ReplicationDataCollector(
     /**
      * The responses are ordered in the same order as returned by property responseNames and
      * are the columns, each row for a column is the replication average, row 0 is replication 1
+     *
+     * The array elements represent the within replication average for the responses or
+     * the ending value of the counters.
+     *
+     * Note that the returned array may contain Double.NaN values if no observations
+     * of the response were observed during the replication.
      *
      * @return the replication averages for each response or value for counter for each replication
      */
@@ -280,6 +298,11 @@ class ReplicationDataCollector(
         }
 
     /**
+     * The array elements represent the within replication average for the response or
+     * the ending value of the counter.
+     *
+     * Note that the returned array may contain Double.NaN values if no observations
+     * of the response were observed during the replication.
      *
      * @return a map holding the response name as key and the end replication data as an array
      */
@@ -289,7 +312,7 @@ class ReplicationDataCollector(
             val names = responseNames
             for (name in names) {
                 val x = myResponseData[name]
-                dataMap[name] = x!!
+                dataMap[name] = x!!.copyOf()
             }
             return dataMap
         }
