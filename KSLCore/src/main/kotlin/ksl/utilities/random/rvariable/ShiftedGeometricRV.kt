@@ -36,10 +36,10 @@ class ShiftedGeometricRV(
     }
 
     /**
-     * @param prob      probability of success, must be in range (0,1)
+     * @param probOfSuccess      probability of success, must be in range (0,1)
      * @param streamNum the stream number to use
      */
-    constructor(prob: Double, streamNum: Int) : this(prob, KSLRandom.rnStream(streamNum)) {}
+    constructor(probOfSuccess: Double, streamNum: Int) : this(probOfSuccess, KSLRandom.rnStream(streamNum)) {}
 
     /**
      * @param stream the RNStreamIfc to use
