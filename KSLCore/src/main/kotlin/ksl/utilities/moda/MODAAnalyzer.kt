@@ -4,7 +4,7 @@ import ksl.utilities.moda.MODAModel.Companion.makeEqualWeights
 
 data class MODAAnalyzerData(
     val responseName: String,
-    val weight: Double,
+    val weight: Double = 1.0,
     val metric: MetricIfc = Metric(responseName),
     val valueFunction: ValueFunctionIfc = LinearValueFunction(metric),
 ) {
