@@ -245,7 +245,7 @@ class PDFModeler(
     fun evaluateScoringResults(
         scoringResults: List<ScoringResult>,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod,
-        model: AdditiveMODAModel = createDefaultEvaluationModel(scoringResults, rankingMethod)
+        model: AdditiveMODAModel = createDefaultPDFEvaluationModel(scoringResults, rankingMethod)
     ): AdditiveMODAModel {
         if (scoringResults.isEmpty()) {
             return model
@@ -739,7 +739,7 @@ class PDFModeler(
          *  scoring results that has linear value functions for the metrics.
          *  The list of scoring results must not be empty.
          */
-        fun createDefaultEvaluationModel(
+        fun createDefaultPDFEvaluationModel(
             scoringResults: List<ScoringResult>,
             rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod,
         ): AdditiveMODAModel {
