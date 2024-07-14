@@ -70,17 +70,17 @@ abstract class PDFScoringModel(
         }
     }
 
-    /**
-     *  Returns an invalid score that has the worst possible value
-     *  according to the direction of the meaning of better.
-     */
-    fun badScore() : Score {
-        return if (direction == MetricIfc.Direction.BiggerIsBetter){
-            Score(this, domain.lowerLimit, false)
-        } else {
-            Score(this, domain.upperLimit, false)
-        }
-    }
+//    /**
+//     *  Returns an invalid score that has the worst possible value
+//     *  according to the direction of the meaning of better.
+//     */
+//    fun badScore() : Score {
+//        return if (direction == MetricIfc.Direction.BiggerIsBetter){
+//            Score(this, domain.lowerLimit, false)
+//        } else {
+//            Score(this, domain.upperLimit, false)
+//        }
+//    }
 
     companion object{
 

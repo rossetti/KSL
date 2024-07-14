@@ -56,6 +56,18 @@ interface MetricIfc {
      */
     val allowUpperLimitAdjustment: Boolean
 
+    /**
+     *  Returns a valid score that has the worst possible value
+     *  according to the direction of the meaning of better.
+     */
+    fun badScore() : Score {
+        return if (direction == Direction.BiggerIsBetter){
+            Score(this, domain.lowerLimit, true)
+        } else {
+            Score(this, domain.upperLimit, true)
+        }
+    }
+
 }
 
 /**
@@ -93,5 +105,7 @@ open class Metric(
     override fun toString(): String {
         return "Metric(name='$name', domain=$domain, direction=$direction, unitsOfMeasure=$unitsOfMeasure, description=$description)"
     }
+
+
 
 }
