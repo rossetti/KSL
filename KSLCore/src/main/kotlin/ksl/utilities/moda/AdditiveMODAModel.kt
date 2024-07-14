@@ -48,14 +48,6 @@ class AdditiveMODAModel(
         }
     }
 
-    private fun sumWeights(weights: Map<MetricIfc, Double>): Double {
-        var sum = 0.0
-        for ((_, weight) in weights) {
-            sum = sum + weight
-        }
-        return sum
-    }
-
     val weights: Map<MetricIfc, Double>
         get() = myWeights
 
@@ -68,6 +60,35 @@ class AdditiveMODAModel(
             sum = sum + w * value
         }
         return sum
+    }
+
+    companion object {
+
+        /**
+         *  Sums the weights. Can be used to process weights
+         */
+        fun sumWeights(weights: Map<MetricIfc, Double>): Double {
+            var sum = 0.0
+            for ((_, weight) in weights) {
+                sum = sum + weight
+            }
+            return sum
+        }
+
+        /**
+         *  Mutates the supplied array such that the elements sum to 1.0
+         */
+        fun normalizeWeights(weights: DoubleArray){
+            require(weights.isNotEmpty()) {"The weights array was empty"}
+            val sum = weights.sum()
+            require(sum > 0.0) {"The sum of the weights must be > 0.0"}
+            var ps = 0.0
+            for(i in 0..< weights.size - 1){
+                weights[i] = weights[i]/sum
+                ps = ps + weights[i]
+            }
+            weights[weights.size - 1] = 1.0 - ps
+        }
     }
 
 }
