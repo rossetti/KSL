@@ -80,6 +80,14 @@ class MODAAnalyzer(
             weights[metric] = weight / totalWeight
         }
     }
+    //TODO
+    // - defining the alternatives (experiments/scenarios)
+    // - supplying the within replication view data
+    // - providing the scores of each alternative Map<String, List<Score>>
+    // - making a MODA model for each replication
+    // - tallying the overall score for each replication for each alternative for MCB analysis
+    // - tallying performance (rankings) across replications
+    // - presenting an overall (average) MODA
 
 
 }
