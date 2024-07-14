@@ -2,6 +2,15 @@ package ksl.utilities.moda
 
 import ksl.utilities.moda.AdditiveMODAModel.Companion.sumWeights
 
+/**
+ * @param responseName the name of the response or counter that will serve as
+ * part of the evaluation based on the metric
+ * @param weight thw swing weight associated with the response. The default is 1.0. The weights
+ * are normalized to ultimately be between 0 and 1. A common equal weight will lead to equal weighting of the responses.
+ * @param metric the metric representing the response. Use this to define the range of the reponse (for scaling)
+ * and to define the direction of value. The default is smaller is better.
+ * @param valueFunction the value function associated with the metric. The default is a linear value function.
+ */
 data class MODAAnalyzerData(
     val responseName: String,
     val weight: Double = 1.0,
