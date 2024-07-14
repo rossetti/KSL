@@ -1,5 +1,6 @@
 package ksl.utilities.moda
 
+import ksl.utilities.io.dbutil.WithinRepViewData
 import ksl.utilities.moda.AdditiveMODAModel.Companion.sumWeights
 
 /**
@@ -24,10 +25,13 @@ data class MODAAnalyzerData(
 }
 
 /**
+ * @param alternativeNames the set of names representing the experiments or scenarios
+ * to be evaluated.
  * @param responseDefinitions A specification of the name of the response, its
  * associated weight, metric, and value function within a Set
  */
 class MODAAnalyzer(
+    private val alternativeNames: Set<String>,
     private val responseDefinitions: Set<MODAAnalyzerData>
 ) {
 
@@ -70,7 +74,7 @@ class MODAAnalyzer(
      *  the total weight should be equal to 1.0.
      */
     fun changeWeights(newWeights: Map<MetricIfc, Double>) {
-        require(newWeights.keys.size == metricDefinitions.keys.size){"The supplied number of metrics does not match the required number of metrics!"}
+        require(newWeights.keys.size == metricDefinitions.keys.size) { "The supplied number of metrics does not match the required number of metrics!" }
         for (metric in newWeights.keys) {
             require(metricDefinitions.containsKey(metric)) { "The supplied weight's metric is not in the model" }
         }
@@ -88,6 +92,36 @@ class MODAAnalyzer(
     // - tallying the overall score for each replication for each alternative for MCB analysis
     // - tallying performance (rankings) across replications
     // - presenting an overall (average) MODA
+
+    fun analyze(responseData: List<WithinRepViewData>) {
+        // find the minimum number replications
+        val n = responseData.minOf { it.num_reps }
+        if (n <= 1) {
+            //TODO log this?
+            return
+        }
+        // restrict analysis to those having the specified number of replications
+        val expData = responseData.filter {
+            (it.num_reps == n) && (it.exp_name in alternativeNames) && (it.stat_name in responseMetrics.keys )}
+        if (expData.isEmpty()) {
+            //TODO log this?
+            return
+        }
+        // all remaining are from desired experiments, having equal number of replications, and required responses
+        // get the data by replication
+        val byRep = expData.groupBy { it.rep_id }
+        for((rep, data) in byRep){
+            // get the data for each experiment
+            val byExp = data.groupBy { it.exp_name }
+            // now process each experiment
+            for ((e, subData) in byExp){
+                // get each response's data value for the replication into a list
+            }
+        }
+// alternatives: Map<String, List<Score>> or maybe Map<Int, Map<String, List<Score>>>
+        // Int is replication, String is experiment/alternative, and List holds the scores for each response
+
+    }
 
 
 }
