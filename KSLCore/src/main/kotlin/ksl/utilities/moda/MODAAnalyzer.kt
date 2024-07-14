@@ -1,6 +1,6 @@
 package ksl.utilities.moda
 
-import ksl.utilities.moda.MODAModel.Companion.makeEqualWeights
+import ksl.utilities.moda.AdditiveMODAModel.Companion.sumWeights
 
 data class MODAAnalyzerData(
     val responseName: String,
@@ -35,7 +35,7 @@ class MODAAnalyzer(
     /**
      * the swing weights to be used in the MODA analysis
      */
-    private val weights: Map<MetricIfc, Double>
+    private val weights: MutableMap<MetricIfc, Double>
 
     init {
         require(definitions.size >= 2) { "The number of responses must be >= 2" }
@@ -50,6 +50,26 @@ class MODAAnalyzer(
         responseMetrics = rMap
         metricDefinitions = mMap
         weights = wMap
+    }
+
+    /**
+     *  Changes or assigns the weights for the additive model. The required number
+     *  of metrics must be the number of metrics defined for the model. And,
+     *  the metrics must all be in the model. The weights are normalized to ensure
+     *  that they sum to 1.0 and are individually between [0, 1].
+     *  The total weight supplied must be greater than 0.0. After assignment
+     *  the total weight should be equal to 1.0.
+     */
+    fun changeWeights(newWeights: Map<MetricIfc, Double>) {
+        require(newWeights.keys.size == metricDefinitions.keys.size){"The supplied number of metrics does not match the required number of metrics!"}
+        for (metric in newWeights.keys) {
+            require(metricDefinitions.containsKey(metric)) { "The supplied weight's metric is not in the model" }
+        }
+        val totalWeight = sumWeights(newWeights)
+        require(totalWeight > 0.0) { "The total weight must be > 0.0" }
+        for ((metric, weight) in newWeights) {
+            weights[metric] = weight / totalWeight
+        }
     }
 
 
