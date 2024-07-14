@@ -94,19 +94,4 @@ open class Metric(
         return "Metric(name='$name', domain=$domain, direction=$direction, unitsOfMeasure=$unitsOfMeasure, description=$description)"
     }
 
-    companion object {
-
-        /**
-         *  Creates a list of metrics with the supplied names. Each metric
-         *  has the default settings.
-         */
-        fun createDefaultMetrics(names: Set<String>) : List<MetricIfc>{
-            val list = mutableListOf<MetricIfc>()
-            for(name in names){
-                list.add(Metric(name))
-            }
-            return list
-        }
-    }
-
 }

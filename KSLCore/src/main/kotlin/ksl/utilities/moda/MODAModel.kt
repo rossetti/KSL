@@ -829,6 +829,18 @@ abstract class MODAModel(
         }
 
         /**
+         *  Creates a list of metrics with the supplied names. Each metric
+         *  has the default settings.
+         */
+        fun createDefaultMetrics(names: Set<String>) : List<MetricIfc>{
+            val list = mutableListOf<MetricIfc>()
+            for(name in names){
+                list.add(Metric(name))
+            }
+            return list
+        }
+
+        /**
          *  Creates a map of weights for each metric such that all weights are equal,
          *  and they sum to 1.0
          */

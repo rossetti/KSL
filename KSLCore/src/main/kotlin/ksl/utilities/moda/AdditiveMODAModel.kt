@@ -22,6 +22,13 @@ class AdditiveMODAModel(
     }
 
     /**
+     *  Constructs a default additive MODA model. The supplied [names] are
+     *  used to create default metrics using linear value functions with equal weighting.
+     */
+    constructor(names: Set<String>) : this(
+        assignLinearValueFunctions(createDefaultMetrics(names)))
+
+    /**
      *  Changes or assigns the weights for the additive model. The required number
      *  of metrics must be the number of metrics defined for the model. And,
      *  the metrics must all be in the model. The weights are normalized to ensure
