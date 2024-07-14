@@ -24,6 +24,7 @@ package ksl.observers
 
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.dbutil.WithinRepViewData
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.toPrimitives
 import org.jetbrains.kotlinx.dataframe.impl.asList
@@ -119,6 +120,18 @@ class ExperimentDataCollector(model: Model, autoAttach: Boolean = true) {
             map[expName] = rdc.allReplicationDataAsMap
         }
         return map
+    }
+
+    /**
+     *  Provides a within replication view data representation of the
+     *  collected data.
+     */
+    fun withRepViewData(): List<WithinRepViewData> {
+        val list = mutableListOf<WithinRepViewData>()
+        for((expName, rdc) in myExpData){
+            list.addAll(rdc.withRepViewData())
+        }
+        return list
     }
 
     /**
