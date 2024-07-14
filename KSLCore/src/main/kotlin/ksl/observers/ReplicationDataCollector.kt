@@ -24,6 +24,7 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.dbutil.WithinRepViewData
 import ksl.utilities.maps.KSLMaps
 import ksl.utilities.maps.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
@@ -66,7 +67,7 @@ class ReplicationDataCollector(
     private val modelObserver: ModelObserver = ModelObserver()
 
     init {
-        if (autoAttach){
+        if (autoAttach) {
             model.attachModelElementObserver(modelObserver)
         }
         if (addAll) {
@@ -318,11 +319,36 @@ class ReplicationDataCollector(
         }
 
     /**
+     *  Provides a within replication view data representation of the
+     *  collected data.
+     */
+    fun withRepViewData(): List<WithinRepViewData> {
+        val list = mutableListOf<WithinRepViewData>()
+        val names = responseNames
+        for (name in names) {
+            val data = myResponseData[name]!!
+            for ((i, datum) in data.withIndex()) {
+                val d = WithinRepViewData()
+                d.exp_name = myModel.experimentName
+                d.run_name = myModel.runName
+                d.num_reps = myModel.numberOfReplications
+                d.start_rep_id = myModel.startingRepId
+                d.last_rep_id = myModel.numberReplicationsCompleted
+                d.stat_name = name
+                d.rep_id = i
+                d.rep_value = datum
+                list.add(d)
+            }
+        }
+        return list
+    }
+
+    /**
      *  Converts the data collected by the ReplicationDataCollector to
      *  a DataFrame, with the column names as the response names and
      *  the columns holding the data across replications
      */
-    fun toDataFrame() : AnyFrame {
+    fun toDataFrame(): AnyFrame {
         return allReplicationDataAsMap.toMapOfLists().toDataFrame()
     }
 
@@ -337,7 +363,7 @@ class ReplicationDataCollector(
         return toDataFrame().toString()
     }
 
-    fun asString() : String {
+    fun asString(): String {
         val sb = StringBuilder()
 //        val fmt = Formatter(sb)
         val headerFmt = "%-20s %-5s"
