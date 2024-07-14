@@ -114,7 +114,7 @@ class MODAAnalyzer(
             // get the data for each experiment
             val byExp = data.groupBy { it.exp_name }
             // now process each experiment
-            for ((e, byExpData) in byExp){
+            for ((eName, byExpData) in byExp){
                 // get each response's data value for the replication into a list
                 for(vData in byExpData){
                     // look up the metric for the datum
