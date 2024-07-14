@@ -59,7 +59,7 @@ interface MetricIfc {
 }
 
 /**
- *  This class serves as an abstract base class for classes that implement the
+ *  This class serves as a base class for classes that implement the
  *  MetricIfc interface.  A metric is figure of merit that characterizes the performance of
  *  a device, system, method, or entity, relative to its alternatives.
  *
@@ -92,6 +92,21 @@ open class Metric(
 
     override fun toString(): String {
         return "Metric(name='$name', domain=$domain, direction=$direction, unitsOfMeasure=$unitsOfMeasure, description=$description)"
+    }
+
+    companion object {
+
+        /**
+         *  Creates a list of metrics with the supplied names. Each metric
+         *  has the default settings.
+         */
+        fun createDefaultMetrics(names: Set<String>) : List<MetricIfc>{
+            val list = mutableListOf<MetricIfc>()
+            for(name in names){
+                list.add(Metric(name))
+            }
+            return list
+        }
     }
 
 }
