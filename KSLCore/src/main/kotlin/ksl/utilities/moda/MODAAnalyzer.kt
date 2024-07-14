@@ -94,39 +94,57 @@ class MODAAnalyzer(
     // - presenting an overall (average) MODA
 
     fun analyze(responseData: List<WithinRepViewData>) {
+        val scoresByRep = processWithinRepViewData(responseData)
+        if (scoresByRep.isEmpty()){
+            //TODO log this?
+            return
+        }
+        // we now have the alternative/exp score for each response for each replication
+        // a MODA model can now be built for each replication
+    }
+
+    private fun processWithinRepViewData(
+        responseData: List<WithinRepViewData>
+    ): Map<Int, Map<String, List<Score>>> {
         // find the minimum number replications
         val n = responseData.minOf { it.num_reps }
         if (n <= 1) {
             //TODO log this?
-            return
+            return emptyMap()
         }
         // restrict analysis to those having the specified number of replications
         val expData = responseData.filter {
-            (it.num_reps == n) && (it.exp_name in alternativeNames) && (it.stat_name in responseMetrics.keys )}
+            (it.num_reps == n) && (it.exp_name in alternativeNames) && (it.stat_name in responseMetrics.keys)
+        }
         if (expData.isEmpty()) {
             //TODO log this?
-            return
+            return emptyMap()
         }
         // all remaining are from desired experiments, having equal number of replications, and required responses
         // get the data by replication
         val byRep = expData.groupBy { it.rep_id }
-        for((rep, data) in byRep){
+        val scoresByRep = mutableMapOf<Int, MutableMap<String, List<Score>>>()
+        for ((rep, data) in byRep) {
             // get the data for each experiment
             val byExp = data.groupBy { it.exp_name }
             // now process each experiment
-            for ((eName, byExpData) in byExp){
+            val altScores = mutableMapOf<String, List<Score>>()
+            for ((eName, byExpData) in byExp) {
                 // get each response's data value for the replication into a list
-                for(vData in byExpData){
+                val scoreList = mutableListOf<Score>()
+                for (vData in byExpData) {
                     // look up the metric for the datum
                     val m = responseMetrics[vData.stat_name]!!
                     // create a score based on the data, decide about null values and bad scores
-      //              val s = Score(m, vData.rep_value)
+                    val s = if (vData.rep_value == null) m.badScore() else Score(m, vData.rep_value!!)
+                    scoreList.add(s)
                 }
+                altScores[eName] = scoreList
             }
+            // we now have the alternative/exp score for each response for the current replication
+            scoresByRep[rep] = altScores
         }
-// alternatives: Map<String, List<Score>> or maybe Map<Int, Map<String, List<Score>>>
-        // Int is replication, String is experiment/alternative, and List holds the scores for each response
-
+        return scoresByRep
     }
 
 
