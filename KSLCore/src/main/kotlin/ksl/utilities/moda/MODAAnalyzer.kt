@@ -24,11 +24,11 @@ data class MODAAnalyzerData(
 }
 
 /**
- * @param definitions A specification of the name of the response, its
+ * @param responseDefinitions A specification of the name of the response, its
  * associated weight, metric, and value function within a Set
  */
 class MODAAnalyzer(
-    private val definitions: Set<MODAAnalyzerData>
+    private val responseDefinitions: Set<MODAAnalyzerData>
 ) {
 
     /** the mapping between responses in the models to
@@ -47,11 +47,11 @@ class MODAAnalyzer(
     private val weights: MutableMap<MetricIfc, Double>
 
     init {
-        require(definitions.size >= 2) { "The number of responses must be >= 2" }
+        require(responseDefinitions.size >= 2) { "The number of responses must be >= 2" }
         val rMap = mutableMapOf<String, MetricIfc>()
         val mMap = mutableMapOf<MetricIfc, ValueFunctionIfc>()
         val wMap = mutableMapOf<MetricIfc, Double>()
-        for (defn in definitions) {
+        for (defn in responseDefinitions) {
             rMap[defn.responseName] = defn.metric
             mMap[defn.metric] = defn.valueFunction
             wMap[defn.metric] = defn.weight
