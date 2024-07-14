@@ -51,6 +51,7 @@ class MODAAnalyzer(
     private val weights: MutableMap<MetricIfc, Double>
 
     private var myMODAByRepMap = mutableMapOf<Int, AdditiveMODAModel>()
+    private var myMCBObjValMap = mutableMapOf<String, MutableList<Double>>()
 
     init {
         require(responseDefinitions.size >= 2) { "The number of responses must be >= 2" }
@@ -97,6 +98,7 @@ class MODAAnalyzer(
 
     fun analyze(responseData: List<WithinRepViewData>) {
         myMODAByRepMap.clear()
+        myMCBObjValMap.clear()
         val scoresByRep = processWithinRepViewData(responseData)
         if (scoresByRep.isEmpty()) {
             //TODO log this?
@@ -105,16 +107,22 @@ class MODAAnalyzer(
         // we now have the alternative/exp scores for each response for each replication
         // a MODA model can now be built for each replication
         val modaMapByRep = mutableMapOf<Int, AdditiveMODAModel>()
+        val mcbListData = mutableMapOf<String, MutableList<Double>>()
         for ((rep, altData) in scoresByRep) {
             val moda = AdditiveMODAModel(metricDefinitions, weights)
             moda.defineAlternatives(altData)
             modaMapByRep[rep] = moda
-            //TODO capture overall average scores for MCB analysis of overall score
-           // moda.alternativeOverallValueData()
-            //moda.multiObjectiveValue(alternative: String)
-            //moda.multiObjectiveValuesByAlternative()
+            // capture overall average scores for MCB analysis of overall score
+            val repObjValues = moda.multiObjectiveValuesByAlternative()
+            for((altName, objValue) in repObjValues){
+                if (!mcbListData.containsKey(altName)){
+                    mcbListData[altName] = mutableListOf()
+                }
+                mcbListData[altName]!!.add(objValue)
+            }
         }
         myMODAByRepMap = modaMapByRep
+        myMCBObjValMap = mcbListData
     }
 
     private fun processWithinRepViewData(
