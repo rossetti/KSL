@@ -114,8 +114,14 @@ class MODAAnalyzer(
             // get the data for each experiment
             val byExp = data.groupBy { it.exp_name }
             // now process each experiment
-            for ((e, subData) in byExp){
+            for ((e, byExpData) in byExp){
                 // get each response's data value for the replication into a list
+                for(vData in byExpData){
+                    // look up the metric for the datum
+                    val m = responseMetrics[vData.stat_name]!!
+                    // create a score based on the data, decide about null values and bad scores
+      //              val s = Score(m, vData.rep_value)
+                }
             }
         }
 // alternatives: Map<String, List<Score>> or maybe Map<Int, Map<String, List<Score>>>
