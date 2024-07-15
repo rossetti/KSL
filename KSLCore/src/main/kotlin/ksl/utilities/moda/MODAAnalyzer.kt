@@ -178,6 +178,4 @@ class MODAAnalyzer(
         }
         return scoresByRep
     }
-
-
 }
