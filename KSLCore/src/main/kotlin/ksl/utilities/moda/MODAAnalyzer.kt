@@ -95,7 +95,14 @@ class MODAAnalyzer(
     // - presenting an overall (average) MODA???
     // - presenting the results
 
-    fun analyze(responseData: List<WithinRepViewData>) {
+    fun analyze(
+        responseData: List<WithinRepViewData>,
+        allowRescalingByMetrics: Boolean = true
+    ) {
+        if (responseData.isEmpty()) {
+            KSL.logger.info { "MODAAnalyzer: the supplied list of within replication view data was empty." }
+            return
+        }
         myMODAByRepMap.clear()
         myMCBObjValMap.clear()
         val scoresByRep = processWithinRepViewData(responseData)
@@ -109,7 +116,7 @@ class MODAAnalyzer(
         val mcbListData = mutableMapOf<String, MutableList<Double>>()
         for ((rep, altData) in scoresByRep) {
             val moda = AdditiveMODAModel(metricDefinitions, weights)
-            moda.defineAlternatives(altData)
+            moda.defineAlternatives(altData, allowRescalingByMetrics)
             modaMapByRep[rep] = moda
             // capture overall average scores for MCB analysis of overall score
             val repObjValues = moda.multiObjectiveValuesByAlternative()
@@ -127,10 +134,14 @@ class MODAAnalyzer(
     fun processWithinRepViewData(
         responseData: List<WithinRepViewData>
     ): Map<Int, Map<String, List<Score>>> {
+        if (responseData.isEmpty()) {
+            KSL.logger.info { "MODAAnalyzer: the supplied list of within replication view data was empty." }
+            return emptyMap()
+        }
         // find the minimum number replications
         val n = responseData.minOf { it.num_reps }
         if (n <= 1) {
-            KSL.logger.info { "MODAAnalyzer: There was only 1 replication with the within replication view data" }
+            KSL.logger.info { "MODAAnalyzer: There was only 1 replication in the within replication view data" }
             return emptyMap()
         }
         // restrict analysis to those having the specified number of replications
