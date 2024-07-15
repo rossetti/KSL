@@ -5,24 +5,25 @@ import ksl.utilities.io.dbutil.WithinRepViewData
 import ksl.utilities.moda.AdditiveMODAModel.Companion.sumWeights
 
 /**
- * @param responseName the name of the response or counter that will serve as
- * part of the evaluation based on the metric
+ * @param metric the metric representing the response. Use this to define the range of the response (for scaling)
+ * and to define the direction of value. The default is smaller is better. The name of the metric should be
+ * the name of the corresponding response or counter within the model
  * @param weight thw swing weight associated with the response. The default is 1.0. The weights
  * are normalized to ultimately be between 0 and 1. A common equal weight will lead to equal weighting of the responses.
- * @param metric the metric representing the response. Use this to define the range of the reponse (for scaling)
- * and to define the direction of value. The default is smaller is better.
  * @param valueFunction the value function associated with the metric. The default is a linear value function.
  */
 data class MODAAnalyzerData(
-    val responseName: String,
-    val weight: Double = 1.0,
-    val metric: MetricIfc = Metric(responseName),
+    val metric: MetricIfc,
+    internal var weight: Double = 1.0,
     val valueFunction: ValueFunctionIfc = LinearValueFunction(metric),
 ) {
+    val responseName: String = metric.name
+
     init {
         require(responseName.isNotBlank()) { "The response name must not be empty or blank" }
         require(weight > 0.0) { "The supplied weight must be > 0.0" }
     }
+
 }
 
 /**
@@ -36,39 +37,52 @@ class MODAAnalyzer(
     private val responseDefinitions: Set<MODAAnalyzerData>
 ) {
 
-    /** the mapping between responses in the models to
-     * metrics used within the analysis
+    /** The names of the responses as supplied within the response definitions
      */
-    private val responseMetrics: Map<String, MetricIfc>
-
-    /**
-     * the definition of each metric and its value function
-     */
-    private val metricDefinitions: Map<MetricIfc, ValueFunctionIfc>
-
-    /**
-     * the swing weights to be used in the MODA analysis
-     */
-    private val weights: MutableMap<MetricIfc, Double>
+    val responseNames: Set<String>
 
     private var myMODAByRepMap = mutableMapOf<Int, AdditiveMODAModel>()
+    val modaByReplication: Map<Int, AdditiveMODAModel>
+        get() = myMODAByRepMap
+
     private var myMCBObjValMap = mutableMapOf<String, MutableList<Double>>()
+    val overallValueByAlternative: Map<String, List<Double>>
+        get() = myMCBObjValMap
 
     init {
-        require(alternativeNames.isNotEmpty()) { "The number of alternatives/scenarios/experiment names must be >=1"}
+        require(alternativeNames.isNotEmpty()) { "The number of alternatives/scenarios/experiment names must be >=1" }
+        require(responseDefinitions.isNotEmpty()) { "The number of response names must be >= 1" }
+        val mSet = mutableSetOf<String>()
+        for (defn in responseDefinitions) {
+            mSet.add(defn.responseName)
+        }
+        responseNames = mSet
+    }
+
+    private data class DefinitionMaps(
+        var responseMetrics: Map<String, MetricIfc>,
+        var metricDefinitions: Map<MetricIfc, ValueFunctionIfc>,
+        var weights: MutableMap<MetricIfc, Double>
+    )
+
+    private fun createDefinitionMaps(): DefinitionMaps {
+        require(alternativeNames.isNotEmpty()) { "The number of alternatives/scenarios/experiment names must be >=1" }
         require(responseDefinitions.isNotEmpty()) { "The number of response names must be >= 1" }
         val rMap = mutableMapOf<String, MetricIfc>()
         val mMap = mutableMapOf<MetricIfc, ValueFunctionIfc>()
         val wMap = mutableMapOf<MetricIfc, Double>()
         for (defn in responseDefinitions) {
-            rMap[defn.responseName] = defn.metric
-            mMap[defn.metric] = defn.valueFunction
-            wMap[defn.metric] = defn.weight
+            val m = Metric(defn.metric.name, defn.metric.domain)
+            m.direction = defn.metric.direction
+            rMap[defn.responseName] = m
+            val vf = defn.valueFunction
+            vf.metric = m
+            mMap[m] = vf
+            wMap[m] = defn.weight
         }
-        responseMetrics = rMap
-        metricDefinitions = mMap
-        weights = wMap
+        return DefinitionMaps(rMap, mMap, wMap)
     }
+
 
     /**
      *  Changes or assigns the weights for the additive model. The required number
@@ -78,16 +92,24 @@ class MODAAnalyzer(
      *  The total weight supplied must be greater than 0.0. After assignment
      *  the total weight should be equal to 1.0.
      */
-    fun changeWeights(newWeights: Map<MetricIfc, Double>) {
-        require(newWeights.keys.size == metricDefinitions.keys.size) { "The supplied number of metrics does not match the required number of metrics!" }
-        for (metric in newWeights.keys) {
-            require(metricDefinitions.containsKey(metric)) { "The supplied weight's metric is not in the model" }
-        }
+    fun changeWeights(newWeights: Map<String, Double>) {
+        require(newWeights.keys.size == responseDefinitions.size) { "The supplied number of metrics does not match the required number of metrics!" }
         val totalWeight = sumWeights(newWeights)
         require(totalWeight > 0.0) { "The total weight must be > 0.0" }
-        for ((metric, weight) in newWeights) {
-            weights[metric] = weight / totalWeight
+        for (df in responseDefinitions) {
+            df.weight = newWeights[df.responseName] ?: df.weight
         }
+    }
+
+    /**
+     *  Sums the weights. Can be used to process weights
+     */
+    private fun sumWeights(weights: Map<String, Double>): Double {
+        var sum = 0.0
+        for ((_, weight) in weights) {
+            sum = sum + weight
+        }
+        return sum
     }
 
     //TODO
@@ -115,13 +137,16 @@ class MODAAnalyzer(
         val modaMapByRep = mutableMapOf<Int, AdditiveMODAModel>()
         val mcbListData = mutableMapOf<String, MutableList<Double>>()
         for ((rep, altData) in scoresByRep) {
-            val moda = AdditiveMODAModel(metricDefinitions, weights)
-            moda.defineAlternatives(altData, allowRescalingByMetrics)
+            //TODO metric scaling may have been changed causing scaling error when re-using the metric
+            val dfMaps = createDefinitionMaps()
+            val moda = AdditiveMODAModel(dfMaps.metricDefinitions, dfMaps.weights)
+            // convert altData to scores here
+            moda.defineAlternatives(convertToScores(altData), allowRescalingByMetrics)
             modaMapByRep[rep] = moda
             // capture overall average scores for MCB analysis of overall score
             val repObjValues = moda.multiObjectiveValuesByAlternative()
-            for((altName, objValue) in repObjValues){
-                if (!mcbListData.containsKey(altName)){
+            for ((altName, objValue) in repObjValues) {
+                if (!mcbListData.containsKey(altName)) {
                     mcbListData[altName] = mutableListOf()
                 }
                 mcbListData[altName]!!.add(objValue)
@@ -131,9 +156,15 @@ class MODAAnalyzer(
         myMCBObjValMap = mcbListData
     }
 
-    fun processWithinRepViewData(
-        responseData: List<WithinRepViewData>
-    ): Map<Int, Map<String, List<Score>>> {
+    private fun convertToScores(values: Map<String, List<Double?>>): Map<String, List<Score>>{
+        val map = mutableMapOf<String, List<Score>>()
+        TODO("Not implemented yet")
+        return map
+    }
+
+    private fun processWithinRepViewData(
+        responseData: List<WithinRepViewData>,
+    ): Map<Int, Map<String, List<Double?>>> {
         if (responseData.isEmpty()) {
             KSL.logger.info { "MODAAnalyzer: the supplied list of within replication view data was empty." }
             return emptyMap()
@@ -146,7 +177,7 @@ class MODAAnalyzer(
         }
         // restrict analysis to those having the specified number of replications
         val expData = responseData.filter {
-            (it.num_reps == n) && (it.exp_name in alternativeNames) && (it.stat_name in responseMetrics.keys)
+            (it.num_reps == n) && (it.exp_name in alternativeNames) && (it.stat_name in responseNames)
         }
         if (expData.isEmpty()) {
             KSL.logger.info { "MODAAnalyzer: no within replication view records matched the experiment names and response names." }
@@ -155,21 +186,22 @@ class MODAAnalyzer(
         // all remaining are from desired experiments, having equal number of replications, and required responses
         // get the data by replication
         val byRep = expData.groupBy { it.rep_id }
-        val scoresByRep = mutableMapOf<Int, MutableMap<String, List<Score>>>()
+        val scoresByRep = mutableMapOf<Int, MutableMap<String, List<Double?>>>()
         for ((rep, data) in byRep) {
             // get the data for each experiment
             val byExp = data.groupBy { it.exp_name }
             // now process each experiment
-            val altScores = mutableMapOf<String, List<Score>>()
+            val altScores = mutableMapOf<String, List<Double?>>()
             for ((eName, byExpData) in byExp) {
                 // get each response's data value for the replication into a list
-                val scoreList = mutableListOf<Score>()
+                val scoreList = mutableListOf<Double?>()
                 for (vData in byExpData) {
-                    // look up the metric for the datum
-                    val m = responseMetrics[vData.stat_name]!!
-                    // create a score based on the data, decide about null values and bad scores
-                    val s = if (vData.rep_value == null) m.badScore() else Score(m, vData.rep_value!!)
-                    scoreList.add(s)
+//                    // look up the metric for the datum
+//                    val m = responseMetrics[vData.stat_name]!!
+//                    //TODO these are not scaled, which is okay, but metric may have been changed
+//                    // create a score based on the data, decide about null values and bad scores
+//                    val s = if (vData.rep_value == null) m.badScore() else Score(m, vData.rep_value!!)
+                    scoreList.add(vData.rep_value)
                 }
                 altScores[eName] = scoreList
             }

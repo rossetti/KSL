@@ -18,14 +18,11 @@ import ksl.utilities.statistic.StatisticXY
 class QQCorrelationScoringModel(
     var empDistType: EmpDistType = EmpDistType.Continuity1,
     domain: Interval = Interval(-1.0, 1.0)
-) : PDFScoringModel("QQC", domain) {
+) : PDFScoringModel("QQC", domain, allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = false) {
 
     init {
         direction = MetricIfc.Direction.BiggerIsBetter
     }
-
-    override val allowLowerLimitAdjustment: Boolean = false
-    override val allowUpperLimitAdjustment: Boolean = false
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){

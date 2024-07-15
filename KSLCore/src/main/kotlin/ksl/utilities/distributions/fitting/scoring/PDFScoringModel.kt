@@ -33,8 +33,10 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  */
 abstract class PDFScoringModel(
     name: String,
-    domain: Interval = Interval(0.0, Double.MAX_VALUE)
-) : Metric(name, domain){
+    domain: Interval = Interval(0.0, Double.MAX_VALUE),
+    allowLowerLimitAdjustment: Boolean = true,
+    allowUpperLimitAdjustment: Boolean = true
+) : Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment){
 
     //TODO a scoring model should probably not be a sub-class of metric
     // it should have an instance of one, but not be one
@@ -44,7 +46,7 @@ abstract class PDFScoringModel(
 
     abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
-    abstract fun newInstance(): PDFScoringModel
+    abstract override fun newInstance(): PDFScoringModel
 
     fun score(data: DoubleArray, parameters: RVParameters) : Score {
         val cdf = PDFModeler.createDistribution(parameters)

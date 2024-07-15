@@ -22,17 +22,15 @@ import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Statistic
 
-class AndersonDarlingScoringModel : PDFScoringModel("AD") {
-
-    override val allowLowerLimitAdjustment: Boolean = false
-    override val allowUpperLimitAdjustment: Boolean = true
+class AndersonDarlingScoringModel : PDFScoringModel(
+    "AD", allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = true) {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
-        if (data.isEmpty()){
+        if (data.isEmpty()) {
             return Score(this, Double.MAX_VALUE, true)
         }
         val score = Statistic.andersonDarlingTestStatistic(data, cdf)
-        if (score.isInfinite()){
+        if (score.isInfinite()) {
             return badScore()
         }
         return Score(this, score, true)

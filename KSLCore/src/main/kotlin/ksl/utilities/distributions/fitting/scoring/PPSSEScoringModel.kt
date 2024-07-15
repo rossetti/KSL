@@ -16,10 +16,7 @@ import ksl.utilities.sumOfSquares
  */
 class PPSSEScoringModel(
     var empDistType: EmpDistType = EmpDistType.Continuity1
-) : PDFScoringModel("PPSSE") {
-
-    override val allowLowerLimitAdjustment: Boolean = false
-    override val allowUpperLimitAdjustment: Boolean = true
+) : PDFScoringModel("PPSSE", allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = true) {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){

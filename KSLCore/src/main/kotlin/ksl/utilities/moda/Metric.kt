@@ -68,6 +68,8 @@ interface MetricIfc {
         }
     }
 
+    fun newInstance() : MetricIfc
+
 }
 
 /**
@@ -86,15 +88,14 @@ interface MetricIfc {
  */
 open class Metric(
     override val name: String,
-    final override val domain: Interval = Interval(0.0, Double.MAX_VALUE)
+    final override val domain: Interval = Interval(0.0, Double.MAX_VALUE),
+    override val allowLowerLimitAdjustment: Boolean = true,
+    override val allowUpperLimitAdjustment: Boolean = true
 ) : MetricIfc {
     init {
         require(domain.width > 0.0) { "The width of the domain must be > 0.0. It was $domain" }
         require(domain.width.isFinite()) { "The width of the domain must be finite. It was $domain" }
     }
-
-    override val allowLowerLimitAdjustment: Boolean = true
-    override val allowUpperLimitAdjustment: Boolean = true
 
     override var direction = MetricIfc.Direction.SmallerIsBetter
 
@@ -106,6 +107,15 @@ open class Metric(
         return "Metric(name='$name', domain=$domain, direction=$direction, unitsOfMeasure=$unitsOfMeasure, description=$description)"
     }
 
-
+    override fun newInstance(): Metric {
+        // causes default domain to be used and not one that might have been rescaled.
+        val m = Metric(this.name,
+            allowLowerLimitAdjustment = this.allowLowerLimitAdjustment,
+            allowUpperLimitAdjustment = this.allowUpperLimitAdjustment)
+        m.direction = this.direction
+        m.unitsOfMeasure = this.unitsOfMeasure
+        m.description = this.description
+        return m
+    }
 
 }

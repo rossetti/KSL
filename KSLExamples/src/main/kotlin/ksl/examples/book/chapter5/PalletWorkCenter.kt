@@ -49,6 +49,9 @@ class PalletWorkCenter(
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusyWorkers")
     val numBusyWorkers: TWResponseCIfc
         get() = myNumBusy
+    private val myUtil: TWResponseFunction = TWResponseFunction({x -> x/(this.numWorkers) }, myNumBusy, "Worker Utilization")
+    val workerUtilization: TWResponseCIfc
+        get() = myUtil
     private val myPalletQ: Queue<QObject> = Queue(this, "PalletQ")
     val palletQ: QueueCIfc<QObject>
         get() = myPalletQ
