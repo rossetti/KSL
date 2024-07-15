@@ -1,5 +1,6 @@
 package ksl.utilities.moda
 
+import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.WithinRepViewData
 import ksl.utilities.moda.AdditiveMODAModel.Companion.sumWeights
 
@@ -87,12 +88,8 @@ class MODAAnalyzer(
             weights[metric] = weight / totalWeight
         }
     }
+    
     //TODO
-    // - defining the alternatives (experiments/scenarios)
-    // - supplying the within replication view data
-    // - providing the scores of each alternative Map<String, List<Score>>
-    // - making a MODA model for each replication
-    // - tallying the overall score for each replication for each alternative for MCB analysis
     // - tallying performance (rankings) across replications
     // - presenting an overall (average) MODA???
 
@@ -101,7 +98,7 @@ class MODAAnalyzer(
         myMCBObjValMap.clear()
         val scoresByRep = processWithinRepViewData(responseData)
         if (scoresByRep.isEmpty()) {
-            //TODO log this?
+            KSL.logger.info { "MODAAnalyzer: after processing within replication view data there were no records remaining." }
             return
         }
         // we now have the alternative/exp scores for each response for each replication
@@ -125,13 +122,13 @@ class MODAAnalyzer(
         myMCBObjValMap = mcbListData
     }
 
-    private fun processWithinRepViewData(
+    fun processWithinRepViewData(
         responseData: List<WithinRepViewData>
     ): Map<Int, Map<String, List<Score>>> {
         // find the minimum number replications
         val n = responseData.minOf { it.num_reps }
         if (n <= 1) {
-            //TODO log this?
+            KSL.logger.info { "MODAAnalyzer: There was only 1 replication with the within replication view data" }
             return emptyMap()
         }
         // restrict analysis to those having the specified number of replications
@@ -139,7 +136,7 @@ class MODAAnalyzer(
             (it.num_reps == n) && (it.exp_name in alternativeNames) && (it.stat_name in responseMetrics.keys)
         }
         if (expData.isEmpty()) {
-            //TODO log this?
+            KSL.logger.info { "MODAAnalyzer: no within replication view records matched the experiment names and response names." }
             return emptyMap()
         }
         // all remaining are from desired experiments, having equal number of replications, and required responses
