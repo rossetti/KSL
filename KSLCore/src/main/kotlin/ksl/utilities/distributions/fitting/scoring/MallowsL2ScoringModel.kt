@@ -18,10 +18,8 @@ import kotlin.math.sqrt
  *  See: http://luthuli.cs.uiuc.edu/~daf/courses/Opt-2017/Combinatorialpapers/EMD.pdf
  *
  */
-class MallowsL2ScoringModel : PDFScoringModel("ML2") {
-
-    override val allowLowerLimitAdjustment: Boolean = false
-    override val allowUpperLimitAdjustment: Boolean = true
+class MallowsL2ScoringModel : PDFScoringModel(
+    "ML2", allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = true) {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){

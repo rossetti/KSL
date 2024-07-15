@@ -15,7 +15,7 @@ class AdditiveMODAModel(
     weights: Map<MetricIfc, Double> = makeEqualWeights(metricDefinitions.keys)
 ) : MODAModel(metricDefinitions) {
 
-    private val myWeights = mutableMapOf<MetricIfc, Double>()
+    private val myWeights = mutableMapOf<MetricIfc, Double>() //TODO consider Map<String, Double> with key = metric.name
 
     init {
         assignWeights(weights)

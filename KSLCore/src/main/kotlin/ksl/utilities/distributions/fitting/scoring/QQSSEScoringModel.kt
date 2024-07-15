@@ -16,10 +16,7 @@ import ksl.utilities.sumOfSquares
  */
 class QQSSEScoringModel(
     var empDistType: EmpDistType = EmpDistType.Continuity1
-) : PDFScoringModel("QQSSE") {
-
-    override val allowLowerLimitAdjustment: Boolean = false
-    override val allowUpperLimitAdjustment: Boolean = true
+) : PDFScoringModel("QQSSE", allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = true) {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){

@@ -24,10 +24,8 @@ import ksl.utilities.moda.Score
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
 
-class ChiSquaredScoringModel : PDFScoringModel("CSQ") {
-
-    override val allowLowerLimitAdjustment: Boolean = false
-    override val allowUpperLimitAdjustment: Boolean = true
+class ChiSquaredScoringModel : PDFScoringModel(
+    "CSQ", allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = true) {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){

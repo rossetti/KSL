@@ -35,10 +35,7 @@ import ksl.utilities.statistic.Statistic
  */
 class BayesianInfoCriterionScoringModel(
     domain : Interval = DEFAULT_BIG_RANGE
-) : PDFScoringModel("BIC", domain ) {
-
-    override val allowLowerLimitAdjustment: Boolean = true
-    override val allowUpperLimitAdjustment: Boolean = true
+) : PDFScoringModel("BIC", domain, allowLowerLimitAdjustment = true, allowUpperLimitAdjustment = true ) {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
