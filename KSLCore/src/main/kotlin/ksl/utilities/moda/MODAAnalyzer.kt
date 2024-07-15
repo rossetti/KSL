@@ -55,7 +55,8 @@ class MODAAnalyzer(
     private var myMCBObjValMap = mutableMapOf<String, MutableList<Double>>()
 
     init {
-        require(responseDefinitions.size >= 2) { "The number of responses must be >= 2" }
+        require(alternativeNames.isNotEmpty()) { "The number of alternatives/scenarios/experiment names must be >=1"}
+        require(responseDefinitions.isNotEmpty()) { "The number of response names must be >= 1" }
         val rMap = mutableMapOf<String, MetricIfc>()
         val mMap = mutableMapOf<MetricIfc, ValueFunctionIfc>()
         val wMap = mutableMapOf<MetricIfc, Double>()
@@ -88,10 +89,11 @@ class MODAAnalyzer(
             weights[metric] = weight / totalWeight
         }
     }
-    
+
     //TODO
     // - tallying performance (rankings) across replications
     // - presenting an overall (average) MODA???
+    // - presenting the results
 
     fun analyze(responseData: List<WithinRepViewData>) {
         myMODAByRepMap.clear()
