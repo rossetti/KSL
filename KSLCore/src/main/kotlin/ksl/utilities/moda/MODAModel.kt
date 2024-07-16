@@ -65,9 +65,7 @@ abstract class MODAModel(
             myAlternatives.clear()
         }
         for ((metric, valFunc) in definitions) {
-            if (metric == valFunc.metric) {
                 metricFunctionMap[metric] = valFunc
-            }
         }
     }
 
@@ -243,7 +241,7 @@ abstract class MODAModel(
             val score = map[metric]!!
             val vf = metricFunctionMap[metric]!!
             // apply the value function to the score
-            val v = vf.value(score.value)
+            val v = vf.value(score)
             list.add(v)
         }
         return list
@@ -281,7 +279,7 @@ abstract class MODAModel(
                 // get the value function for the metric
                 val vf = metricFunctionMap[metric]!!
                 // apply the value function to the score
-                val v = vf.value(score.value)
+                val v = vf.value(score)
                 // now store it in the map
                 valMap[metric] = v
             }
@@ -303,7 +301,7 @@ abstract class MODAModel(
             // get the value function for the metric
             val vf = metricFunctionMap[metric]!!
             // apply the value function to the score
-            map[metric] = vf.value(score.value)
+            map[metric] = vf.value(score)
         }
         return map
     }
@@ -316,7 +314,7 @@ abstract class MODAModel(
         // get the value function for the metric
         val vf = metricFunctionMap[metric]!!
         // apply the value function to the score
-        return vf.value(score.value)
+        return vf.value(score)
     }
 
     /**
@@ -823,7 +821,7 @@ abstract class MODAModel(
         ): Map<MetricIfc, ValueFunctionIfc> {
             val map = mutableMapOf<MetricIfc, ValueFunctionIfc>()
             for (metric in metrics) {
-                map[metric] = LinearValueFunction(metric)
+                map[metric] = LinearValueFunction()
             }
             return map
         }
