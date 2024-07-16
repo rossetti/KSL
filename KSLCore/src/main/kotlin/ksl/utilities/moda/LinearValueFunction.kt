@@ -1,26 +1,18 @@
 package ksl.utilities.moda
 
 /**
- *  Uses a linear transformation to transform from metric domain
+ *  Uses a linear transformation to transform from score with a metric domain
  *  to the value domain.
  */
-class LinearValueFunction(
-    metric: MetricIfc,
-) : ValueFunction(metric) {
+class LinearValueFunction() : ValueFunctionIfc {
 
-    override fun value(x: Double): Double {
-        require(metric.domain.contains(x)) {"The value x = $x is not within domain = ${metric.domain} for metric ${metric.name}"}
-        // convert from incoming x to [0,1] values using a linear transformation
-        val domain = metric.domain
-        var y = (x - domain.lowerLimit)/ domain.width
-        if (metric.direction == MetricIfc.Direction.SmallerIsBetter){
+    override fun value(score: Score): Double {
+        val domain = score.metric.domain
+        var y = (score.value - domain.lowerLimit) / domain.width
+        if (score.metric.direction == MetricIfc.Direction.SmallerIsBetter) {
             y = 1.0 - y
         }
         return y
-    }
-
-    override fun newInstance(metric: MetricIfc): ValueFunctionIfc {
-        return LinearValueFunction(metric)
     }
 
 }

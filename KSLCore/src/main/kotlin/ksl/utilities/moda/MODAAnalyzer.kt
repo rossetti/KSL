@@ -14,7 +14,7 @@ import ksl.utilities.io.dbutil.WithinRepViewData
 data class MODAAnalyzerData(
     val metric: MetricIfc,
     internal var weight: Double = 1.0,
-    val valueFunction: ValueFunctionIfc = LinearValueFunction(metric),
+    val valueFunction: ValueFunctionIfc = LinearValueFunction(),
 ) {
     val responseName: String = metric.name
 
@@ -71,15 +71,10 @@ class MODAAnalyzer(
         val mMap = mutableMapOf<MetricIfc, ValueFunctionIfc>()
         val wMap = mutableMapOf<MetricIfc, Double>()
         for (defn in responseDefinitions) {
+            //TODO this is required because a metric might be scaled and its domain changed
             val m = defn.metric.newInstance()
-//            val m = Metric(defn.metric.name, defn.metric.domain,
-//                allowLowerLimitAdjustment = defn.metric.allowLowerLimitAdjustment,
-//                allowUpperLimitAdjustment = defn.metric.allowUpperLimitAdjustment)
-//            m.direction = defn.metric.direction
             rMap[defn.responseName] = m
-//            val vf = defn.valueFunction //TODO this probably needs to be a new value function instance as well
-//            vf.metric = m
-            mMap[m] = defn.valueFunction.newInstance(m)
+            mMap[m] = defn.valueFunction
             wMap[m] = defn.weight
         }
         return DefinitionMaps(rMap, mMap, wMap)

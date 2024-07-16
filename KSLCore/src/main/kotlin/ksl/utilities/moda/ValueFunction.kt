@@ -5,11 +5,10 @@ package ksl.utilities.moda
  *  the value range of [0.0, 1.0], where 0.0 implies no value
  *  and 1.0 implies maximal value.
  */
-interface ValueFunctionIfc {
-    val metric: MetricIfc
-    fun value(x: Double): Double
+fun interface ValueFunctionIfc {
 
-    fun newInstance(metric: MetricIfc): ValueFunctionIfc
+    fun value(score: Score): Double
+
 }
 
 /**
@@ -17,6 +16,4 @@ interface ValueFunctionIfc {
  *  the value range of [0.0, 1.0], where 0.0 implies no value
  *  and 1.0 implies maximal value.
  */
-abstract class ValueFunction(
-    override val metric: MetricIfc
-) : ValueFunctionIfc
+abstract class ValueFunction() : ValueFunctionIfc
