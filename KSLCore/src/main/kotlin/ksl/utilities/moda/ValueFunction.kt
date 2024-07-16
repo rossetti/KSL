@@ -6,7 +6,7 @@ package ksl.utilities.moda
  *  and 1.0 implies maximal value.
  */
 interface ValueFunctionIfc {
-    var metric: MetricIfc
+    val metric: MetricIfc
     fun value(x: Double): Double
 
     fun newInstance(metric: MetricIfc): ValueFunctionIfc
@@ -18,5 +18,5 @@ interface ValueFunctionIfc {
  *  and 1.0 implies maximal value.
  */
 abstract class ValueFunction(
-    override var metric: MetricIfc
+    override val metric: MetricIfc
 ) : ValueFunctionIfc
