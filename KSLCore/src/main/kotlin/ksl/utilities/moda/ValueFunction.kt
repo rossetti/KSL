@@ -9,6 +9,7 @@ interface ValueFunctionIfc {
     var metric: MetricIfc
     fun value(x: Double): Double
 
+    fun newInstance(metric: MetricIfc): ValueFunctionIfc
 }
 
 /**
