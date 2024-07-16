@@ -2,7 +2,6 @@ package ksl.utilities.moda
 
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.WithinRepViewData
-import ksl.utilities.moda.AdditiveMODAModel.Companion.sumWeights
 
 /**
  * @param metric the metric representing the response. Use this to define the range of the response (for scaling)
@@ -72,12 +71,15 @@ class MODAAnalyzer(
         val mMap = mutableMapOf<MetricIfc, ValueFunctionIfc>()
         val wMap = mutableMapOf<MetricIfc, Double>()
         for (defn in responseDefinitions) {
-            val m = Metric(defn.metric.name, defn.metric.domain)
-            m.direction = defn.metric.direction
+            val m = defn.metric.newInstance()
+//            val m = Metric(defn.metric.name, defn.metric.domain,
+//                allowLowerLimitAdjustment = defn.metric.allowLowerLimitAdjustment,
+//                allowUpperLimitAdjustment = defn.metric.allowUpperLimitAdjustment)
+//            m.direction = defn.metric.direction
             rMap[defn.responseName] = m
-            val vf = defn.valueFunction
-            vf.metric = m
-            mMap[m] = vf
+//            val vf = defn.valueFunction //TODO this probably needs to be a new value function instance as well
+//            vf.metric = m
+            mMap[m] = defn.valueFunction.newInstance(m)
             wMap[m] = defn.weight
         }
         return DefinitionMaps(rMap, mMap, wMap)
@@ -137,11 +139,12 @@ class MODAAnalyzer(
         val modaMapByRep = mutableMapOf<Int, AdditiveMODAModel>()
         val mcbListData = mutableMapOf<String, MutableList<Double>>()
         for ((rep, altData) in scoresByRep) {
-            //TODO metric scaling may have been changed causing scaling error when re-using the metric
+            // due to possible metric scaling the metrics cannot be reused
+            // this creates new metrics with the same name and properties for use on each replication
             val dfMaps = createDefinitionMaps()
             val moda = AdditiveMODAModel(dfMaps.metricDefinitions, dfMaps.weights)
             // convert altData to scores here
-            moda.defineAlternatives(convertToScores(altData), allowRescalingByMetrics)
+            moda.defineAlternatives(convertToScores(dfMaps.responseMetrics, altData), allowRescalingByMetrics)
             modaMapByRep[rep] = moda
             // capture overall average scores for MCB analysis of overall score
             val repObjValues = moda.multiObjectiveValuesByAlternative()
@@ -156,15 +159,39 @@ class MODAAnalyzer(
         myMCBObjValMap = mcbListData
     }
 
-    private fun convertToScores(values: Map<String, List<Double?>>): Map<String, List<Score>>{
-        val map = mutableMapOf<String, List<Score>>()
-        TODO("Not implemented yet")
+    private fun convertToScores(
+        responseMetrics: Map<String, MetricIfc>,
+        unScoredValues: Map<String, Map<String, Double>>
+    ): Map<String, List<Score>>{
+        val map = mutableMapOf<String, MutableList<Score>>()
+        // key is exp/alt, list holds scores of each response
+        for((expName, responseMap) in unScoredValues){
+            if (!map.containsKey(expName)){
+                map[expName] = mutableListOf()
+            }
+            // get the list
+            val scoreList = map[expName]!! // must be there, now we can add scores
+            for((responseName, value) in responseMap){
+                // look up the metric for the response
+                val m = responseMetrics[responseName]!!
+                // use the metric to create the score
+                val s = if (value.isNaN()) m.badScore() else Score(m, value)
+                scoreList.add(s)
+            }
+        }
         return map
     }
 
+    /**
+     *  Processes the within replication view data from a set of experiments. Reorganizes the data
+     *  and returns for each replication, the experiment, and the responses and their values for the
+     *  replication.  The returned Map<Int, Map<String, Map<String, Double>>>
+     *  (key Int = replication number, key exp name, key response name, response value
+     *
+     */
     private fun processWithinRepViewData(
         responseData: List<WithinRepViewData>,
-    ): Map<Int, Map<String, List<Double?>>> {
+    ): Map<Int, Map<String, Map<String, Double>>> {
         if (responseData.isEmpty()) {
             KSL.logger.info { "MODAAnalyzer: the supplied list of within replication view data was empty." }
             return emptyMap()
@@ -186,28 +213,23 @@ class MODAAnalyzer(
         // all remaining are from desired experiments, having equal number of replications, and required responses
         // get the data by replication
         val byRep = expData.groupBy { it.rep_id }
-        val scoresByRep = mutableMapOf<Int, MutableMap<String, List<Double?>>>()
+        val performanceByRep = mutableMapOf<Int, MutableMap<String, Map<String, Double>>>()
         for ((rep, data) in byRep) {
             // get the data for each experiment
             val byExp = data.groupBy { it.exp_name }
             // now process each experiment
-            val altScores = mutableMapOf<String, List<Double?>>()
+            val responsesByExperiment = mutableMapOf<String, Map<String, Double>>()
             for ((eName, byExpData) in byExp) {
                 // get each response's data value for the replication into a list
-                val scoreList = mutableListOf<Double?>()
+                val responseMap = mutableMapOf<String, Double>() // name of response, value of response
                 for (vData in byExpData) {
-//                    // look up the metric for the datum
-//                    val m = responseMetrics[vData.stat_name]!!
-//                    //TODO these are not scaled, which is okay, but metric may have been changed
-//                    // create a score based on the data, decide about null values and bad scores
-//                    val s = if (vData.rep_value == null) m.badScore() else Score(m, vData.rep_value!!)
-                    scoreList.add(vData.rep_value)
+                    responseMap[vData.stat_name] = vData.rep_value?:Double.NaN
                 }
-                altScores[eName] = scoreList
+                responsesByExperiment[eName] = responseMap
             }
             // we now have the alternative/exp score for each response for the current replication
-            scoresByRep[rep] = altScores
+            performanceByRep[rep] = responsesByExperiment
         }
-        return scoresByRep
+        return performanceByRep
     }
 }

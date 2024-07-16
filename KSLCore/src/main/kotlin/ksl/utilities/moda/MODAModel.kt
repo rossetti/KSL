@@ -123,7 +123,7 @@ abstract class MODAModel(
         // need statistics for each alternative's metrics
         val statisticsByMetric = scoreStatisticsByMetric()
         for ((metric, stat) in statisticsByMetric) {
-            val interval = if (stat.count >= 2) {
+            val interval = if (stat.count > 2) {//TODO >= 2 does not seem to be good, but what should it be?
                 PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt())
             } else {
                 Interval(stat.min, stat.max)
