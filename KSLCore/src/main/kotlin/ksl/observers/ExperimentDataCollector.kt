@@ -128,7 +128,7 @@ class ExperimentDataCollector(model: Model, autoAttach: Boolean = true) {
      */
     fun withRepViewData(): List<WithinRepViewData> {
         val list = mutableListOf<WithinRepViewData>()
-        for((expName, rdc) in myExpData){
+        for((_, rdc) in myExpData){
             list.addAll(rdc.withRepViewData())
         }
         return list
