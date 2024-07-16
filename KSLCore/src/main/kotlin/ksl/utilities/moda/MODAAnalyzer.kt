@@ -1,7 +1,12 @@
 package ksl.utilities.moda
 
+import ksl.utilities.Interval
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.WithinRepViewData
+import ksl.utilities.statistic.Statistic
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * @param metric the metric representing the response. Use this to define the range of the response (for scaling)
@@ -23,6 +28,21 @@ data class MODAAnalyzerData(
         require(weight > 0.0) { "The supplied weight must be > 0.0" }
     }
 
+}
+
+data class MODAAnalyzerData2(
+    val responseName: String,
+    val direction: MetricIfc.Direction = MetricIfc.Direction.SmallerIsBetter,
+    val weight: Double = 1.0,
+    val valueFunction: ValueFunctionIfc = LinearValueFunction(),
+    val domain: Interval? = null,
+    var unitsOfMeasure: String? = null,
+    var description: String? = null
+){
+    init {
+        require(responseName.isNotBlank()) { "The response name must not be empty or blank" }
+        require(weight > 0.0) { "The supplied weight must be > 0.0" }
+    }
 }
 
 /**
@@ -227,4 +247,52 @@ class MODAAnalyzer(
         }
         return performanceByRep
     }
+
+    private fun filterWithinRepViewData(responseData: List<WithinRepViewData>): List<WithinRepViewData> {
+        if (responseData.isEmpty()) {
+            KSL.logger.info { "MODAAnalyzer: the supplied list of within replication view data was empty." }
+            return emptyList()
+        }
+        // find the minimum number replications
+        val n = responseData.minOf { it.num_reps }
+        if (n <= 1) {
+            KSL.logger.info { "MODAAnalyzer: There was only 1 replication in the within replication view data" }
+            return emptyList()
+        }
+        // restrict analysis to those having the specified number of replications
+        val expData = responseData.filter {
+            (it.num_reps == n) && (it.exp_name in alternativeNames) && (it.stat_name in responseNames)
+        }
+        if (expData.isEmpty()) {
+            KSL.logger.info { "MODAAnalyzer: no within replication view records matched the experiment names and response names." }
+            return emptyList()
+        }
+        return expData
+    }
+
+    /**
+     *  Provides recommended domain intervals for each response based on all observed simulated data
+     *  across all experiments. The response data should be filtered before calling this function.
+     */
+    private fun recommendMetricDomains(responseData: List<WithinRepViewData>): Map<String, Interval> {
+        val map = mutableMapOf<String, Interval>()
+        val statWork = Statistic()
+        for(responseName in responseNames){
+            statWork.reset()
+            val data = responseData.filter { it.stat_name == responseName }.map { it.rep_value?:Double.NaN }
+            statWork.collect(data)
+            val tmp = if (statWork.count > 2) {
+                PDFModeler.rangeEstimate(statWork.min, statWork.max, statWork.count.toInt())
+            } else {
+                // this may not be a very good interval but with 1 or 2 data points what else can be done/
+                // take the floor and ceil in case min = max
+                Interval(floor(statWork.min), ceil(statWork.max))
+            }
+            // round to nearest integers
+            val interval = Interval(floor(tmp.lowerLimit), ceil(tmp.upperLimit))
+            map[responseName] = interval
+        }
+        return map
+    }
+
 }

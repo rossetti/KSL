@@ -14,6 +14,8 @@ import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.impl.asList
 import java.nio.file.Path
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
@@ -124,7 +126,7 @@ abstract class MODAModel(
             val interval = if (stat.count > 2) {//TODO >= 2 does not seem to be good, but what should it be?
                 PDFModeler.rangeEstimate(stat.min, stat.max, stat.count.toInt())
             } else {
-                Interval(stat.min, stat.max)
+                Interval(floor(stat.min), ceil(stat.max))
             }
             if (!metric.allowLowerLimitAdjustment && metric.allowUpperLimitAdjustment) {
                 // no lower limit but yes on upper limit
