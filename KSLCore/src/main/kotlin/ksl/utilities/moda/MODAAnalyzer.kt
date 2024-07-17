@@ -4,6 +4,7 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.WithinRepViewData
+import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.Statistic
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -169,11 +170,14 @@ class MODAAnalyzer(
         }
     }
 
-    //TODO
-    // - tallying performance (rankings) across replications
-    // - presenting an overall (average) MODA???
+    //TODO multiple comparison analyzers by raw response (or response value)
     // - presenting the results
 
+    /**
+     *  Causes the analyzer to analyze the data to produce MODA models for
+     *  each replication and results for an overall multiple comparison
+     *  of the value scoring of each alternative.
+     */
     fun analyze() {
         myMODAByRepMap.clear()
         myMCBObjValMap.clear()
@@ -202,6 +206,56 @@ class MODAAnalyzer(
         }
         myMODAByRepMap = modaMapByRep
         myMCBObjValMap = mcbListData
+    }
+
+    /**
+     *  Returns a multiple comparison analyzer instance that permits
+     *  the comparison of overall value for each alternative based on the MODA results.
+     *  The returned result may be null if insufficient data exists to perform
+     *  the analysis. There must be at least 2 alternative and there must be 2 or more
+     *  observations for each alternative. The number of observations per alternative must
+     *  also be the same.
+     */
+    fun multipleComparisonResults() : MultipleComparisonAnalyzer? {
+        if (myMCBObjValMap.size < 2){
+            return null
+        }
+        val dm = myMCBObjValMap.mapValues{ it.value.toDoubleArray() }.toMap()
+        if (!MultipleComparisonAnalyzer.checkLengths(dm)){
+            return null
+        }
+        val size = dm.values.first().size // all have the same size
+        if (size < 2){
+            return null
+        }
+        return MultipleComparisonAnalyzer(dm)
+    }
+
+    /**
+     *  Computes the average performance for each alternative for each response
+     */
+    fun averagePerformance() : Map<String, Map<String, Double>>{
+        val map = mutableMapOf<String, Map<String, Double>>()
+        val r1 = myResponseData.groupBy { it.exp_name }
+        for((k,v) in r1){
+            val g1 = v.groupBy { it.stat_name }
+            val g2 = g1.mapValues { entry -> entry.value.map {it.rep_value?: Double.NaN}}
+            val g3 = g2.mapValues { it.value.average() }
+            map[k] = g3
+        }
+        return map
+    }
+
+    /**
+     *  Returns a MODA model based on the average performance of the responses across
+     *  the replications.
+     */
+    fun averageMODA() : AdditiveMODAModel {
+        val moda = AdditiveMODAModel(metricDefinitions, weights)
+        val ap = averagePerformance()
+        // convert altData to scores here
+        moda.defineAlternatives(convertToScores(responseMetrics, ap), allowRescalingByMetrics = false)
+        return moda
     }
 
     private fun convertToScores(

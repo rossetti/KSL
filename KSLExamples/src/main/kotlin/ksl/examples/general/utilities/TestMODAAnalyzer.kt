@@ -9,6 +9,7 @@ import ksl.utilities.moda.MODAAnalyzer
 import ksl.utilities.moda.MODAAnalyzerData
 import ksl.utilities.moda.Metric
 import ksl.utilities.moda.MetricIfc
+import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import org.jetbrains.kotlinx.dataframe.api.print
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
@@ -30,10 +31,6 @@ fun main(){
     palletWorkCenter.numWorkers = 3
     model.simulate()
     model.print()
-
-//    val mcb = db.multipleComparisonAnalyzerFor(
-//        listOf("Two Workers", "Three Workers"), palletWorkCenter.totalProcessingTime.name)
-//    println(mcb)
 
     val eNames = setOf("Two Workers", "Three Workers")
 
@@ -66,5 +63,22 @@ fun main(){
         println()
     }
 
+    println("Performance by ranks")
+    for(i in 1..10){
+        println("Replication $i MODA")
+        modaAnalyzer.modaByReplication[i]?.alternativeRanksAsDataFrame()?.print()
+        println()
+    }
+
     modaAnalyzer.overallValueByAlternative.toDataFrame().print()
+
+    val mcb = modaAnalyzer.multipleComparisonResults()
+    mcb?.print()
+
+    println()
+
+    val avgModa = modaAnalyzer.averageMODA()
+    println(avgModa)
+
+
 }

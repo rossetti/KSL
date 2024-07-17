@@ -2669,6 +2669,13 @@ fun DoubleArray.statistics(): Statistic {
     return KSLArrays.statistics(this)
 }
 
+/**
+ *  Returns a statistic that summarizes the data in the collection.
+ */
+fun Collection<Double>.statistics(): Statistic {
+    return this.toDoubleArray().statistics()
+}
+
 /** Takes an array of length, n, and computes k batch means where each batch mean
  * is the average of batchSize (b) elements such that b = Math.FloorDiv(n, k).
  * If the number of batches, k, does not divide evenly into n, then n - (k*b) observations are not processed
