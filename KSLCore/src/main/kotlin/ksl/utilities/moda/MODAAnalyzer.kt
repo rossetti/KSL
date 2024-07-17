@@ -30,6 +30,16 @@ data class MODAAnalyzerData(
 
 }
 
+/**
+ * @param responseName the name of the response or counter to be included in the analysis
+ * @param direction the indication of the direction of value. The default is SmallerIsBetter.
+ * @param weight thw swing weight associated with the response. The default is 1.0. The weights
+ * are normalized to ultimately be between 0 and 1. A common equal weight will lead to equal weighting of the responses.
+ * @param valueFunction the value function associated with the metric. The default is a linear value function.
+ * @param domain an interval that specifies the set of possible values for the response. The default is 0.0 to Double.Max_Value.
+ * If the lower limit or upper limit of the domain is negative infinity, positive infinity, -Double.MAX_VALUE, or Double.MAX_VALUE then
+ * the limits will be respecified based on available data.
+ */
 data class MODAAnalyzerData2(
     val responseName: String,
     val direction: MetricIfc.Direction = MetricIfc.Direction.SmallerIsBetter,
