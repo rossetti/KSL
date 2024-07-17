@@ -397,6 +397,22 @@ abstract class MODAModel(
         return dataFrameOf(columns).sortByDesc(overallValue)
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder().apply {
+            appendLine("Alternative Scores:")
+            appendLine(alternativeScoresAsDataFrame())
+            appendLine("Alternative Values:")
+            appendLine(alternativeValuesAsDataFrame())
+            appendLine("Alternative Ranks:")
+            appendLine(alternativeRanksAsDataFrame())
+        }
+        return sb.toString()
+    }
+
+    fun print(){
+        print(toString())
+    }
+
     /**
      *  Returns a data frame with the first column being the alternatives
      *  by name, a column of rank counts for each alternative,

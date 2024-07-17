@@ -80,6 +80,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         require(checkLengths(dataMap)) { "The data arrays do not have all the same lengths" }
         myDataMap = LinkedHashMap()
         myDataSize = dataMap.values.first().size // all have the same size
+        require(myDataSize >= 2) {"There must be 2 or more observations within the data arrays."}
         for ((name, array) in dataMap.entries.iterator()) {
             // name is the name of the dataset
             // array is the DoubleArray holding the data
@@ -421,28 +422,6 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
             return myPairDiffStats[key1]!!.standardError
         }
         return myPairDiffStats[key2]!!.standardError
-    }
-
-    /**
-     * Checks if each double[] in the map has the same length
-     *
-     * @param dataMap the data map to check
-     * @return true if same length
-     */
-    fun checkLengths(dataMap: Map<String, DoubleArray>): Boolean {
-        require(dataMap.keys.size > 1) { "There must be 2 or more data arrays" }
-        val lengths = IntArray(dataMap.keys.size)
-        var i = 0
-        for (s in dataMap.keys) {
-            lengths[i] = dataMap[s]!!.size
-            if (i > 0) {
-                if (lengths[i - 1] != lengths[i]) {
-                    return false
-                }
-            }
-            i++
-        }
-        return true
     }
 
     /**
@@ -1190,6 +1169,10 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         return set
     }
 
+    fun print(){
+        print(toString())
+    }
+
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Multiple Comparison Report: ")
@@ -1297,6 +1280,46 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
     }
 
     companion object {
+
+        /**
+         * Checks if each double[] in the map has the same length
+         *
+         * @param dataMap the data map to check
+         * @return true if same length
+         */
+        fun checkLengths(dataMap: Map<String, DoubleArray>): Boolean {
+            require(dataMap.keys.size > 1) { "There must be 2 or more data arrays" }
+            val lengths = IntArray(dataMap.keys.size)
+            var i = 0
+            for (s in dataMap.keys) {
+                lengths[i] = dataMap[s]!!.size
+                if (i > 0) {
+                    if (lengths[i - 1] != lengths[i]) {
+                        return false
+                    }
+                }
+                i++
+            }
+            return true
+        }
+
+        /**
+         * Creates multiple comparison analyzer from the supplied data.
+         *
+         * Holds data to perform multiple comparisons Performs pairwise comparisons and
+         * computes pairwise differences and variances.
+         *
+         * The user must supply the data samples over which the comparison will be made.
+         * This is supplied in a Map with key representing a name (identifier) for the
+         * data and an array representing the observations. This class computes all the
+         * pairwise differences and the variances of the differences in the form of
+         * tabulated statistics.
+         *
+         * @author rossetti
+         */
+        fun create(dataMap: Map<String, List<Double>>) : MultipleComparisonAnalyzer {
+            return MultipleComparisonAnalyzer(dataMap.mapValues{ it.value.toDoubleArray() }.toMap())
+        }
 
         /**
          * A helper method to compute the difference between the two arrays
