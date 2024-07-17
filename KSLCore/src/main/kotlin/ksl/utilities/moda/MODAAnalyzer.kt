@@ -276,10 +276,35 @@ class MODAAnalyzer(
      */
     private fun recommendMetricDomains(responseData: List<WithinRepViewData>): Map<String, Interval> {
         val map = mutableMapOf<String, Interval>()
-        val statWork = Statistic()
         for(responseName in responseNames){
-            statWork.reset()
             val data = responseData.filter { it.stat_name == responseName }.map { it.rep_value?:Double.NaN }
+            map[responseName] = recommendDomainInterval(data)
+        }
+        return map
+    }
+
+    companion object {
+
+        /**
+         *  Provides recommended domain intervals for each response based on all observed simulated data
+         *  across all experiments.
+         */
+        fun recommendMetricDomainIntervals(responseNames: Set<String>, responseData: List<WithinRepViewData>): Map<String, Interval> {
+            val map = mutableMapOf<String, Interval>()
+            for(responseName in responseNames){
+                val data = responseData.filter { it.stat_name == responseName }.map { it.rep_value?:Double.NaN }
+                map[responseName] = recommendDomainInterval(data)
+            }
+            return map
+        }
+
+        /**
+         *  Determines a range (interval of values) that likely bound the supplied
+         *  data. This function can be useful for providing a domain for metrics
+         *  for a scaling process.
+         */
+        fun recommendDomainInterval(data: DoubleArray) : Interval {
+            val statWork = Statistic()
             statWork.collect(data)
             val tmp = if (statWork.count > 2) {
                 PDFModeler.rangeEstimate(statWork.min, statWork.max, statWork.count.toInt())
@@ -289,10 +314,17 @@ class MODAAnalyzer(
                 Interval(floor(statWork.min), ceil(statWork.max))
             }
             // round to nearest integers
-            val interval = Interval(floor(tmp.lowerLimit), ceil(tmp.upperLimit))
-            map[responseName] = interval
+            return Interval(floor(tmp.lowerLimit), ceil(tmp.upperLimit))
         }
-        return map
+
+        /**
+         *  Determines a range (interval of values) that likely bound the supplied
+         *  data. This function can be useful for providing a domain for metrics
+         *  for a scaling process.
+         */
+        fun recommendDomainInterval(data: Collection<Double>) : Interval {
+            return recommendDomainInterval(data.toDoubleArray())
+        }
     }
 
 }
