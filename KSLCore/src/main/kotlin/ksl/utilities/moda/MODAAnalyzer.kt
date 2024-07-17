@@ -35,7 +35,7 @@ data class MODAAnalyzerData2(
     val direction: MetricIfc.Direction = MetricIfc.Direction.SmallerIsBetter,
     val weight: Double = 1.0,
     val valueFunction: ValueFunctionIfc = LinearValueFunction(),
-    val domain: Interval? = null,
+    val domain: Interval = Interval(0.0, Double.MAX_VALUE),
     var unitsOfMeasure: String? = null,
     var description: String? = null
 ){
@@ -118,25 +118,14 @@ class MODAAnalyzer(
         }
     }
 
-    /**
-     *  Sums the weights. Can be used to process weights
-     */
-    private fun sumWeights(weights: Map<String, Double>): Double {
-        var sum = 0.0
-        for ((_, weight) in weights) {
-            sum = sum + weight
-        }
-        return sum
-    }
-
     //TODO
     // - tallying performance (rankings) across replications
     // - presenting an overall (average) MODA???
     // - presenting the results
 
     fun analyze(
-        responseData: List<WithinRepViewData>,
-        allowRescalingByMetrics: Boolean = true
+        responseData: List<WithinRepViewData>,  //TODO capture and remember filtered, maybe private late init var
+        allowRescalingByMetrics: Boolean = true //TODO remove
     ) {
         if (responseData.isEmpty()) {
             KSL.logger.info { "MODAAnalyzer: the supplied list of within replication view data was empty." }
@@ -284,6 +273,18 @@ class MODAAnalyzer(
     }
 
     companion object {
+
+
+        /**
+         *  Sums the weights. Can be used to process weights
+         */
+        fun sumWeights(weights: Map<String, Double>): Double {
+            var sum = 0.0
+            for ((_, weight) in weights) {
+                sum = sum + weight
+            }
+            return sum
+        }
 
         /**
          *  Provides recommended domain intervals for each response based on all observed simulated data
