@@ -41,26 +41,16 @@ fun main(){
     // val rNames = setOf("Worker Utilization", "System Time", "Total Processing Time")
     // as num workers increases, utilization, system time, and total processing time should go down
 
-    val util = Metric("Worker Utilization",
-        domain = Interval(0.0, 1.0),
-        allowLowerLimitAdjustment = false,
-        allowUpperLimitAdjustment = false)
-    util.direction = MetricIfc.Direction.BiggerIsBetter
-    val sysTime = Metric("System Time",
-        allowLowerLimitAdjustment = false,
-        allowUpperLimitAdjustment = true)
-    val tpt = Metric("Total Processing Time",
-        allowLowerLimitAdjustment = false,
-        allowUpperLimitAdjustment = true)
-
     val responseDefinitions = setOf(
-        MODAAnalyzerData(util),
-        MODAAnalyzerData(sysTime), //TODO lower limit is being rescaled, it should not
-        MODAAnalyzerData(tpt),
+        MODAAnalyzerData("Worker Utilization", MetricIfc.Direction.BiggerIsBetter, domain = Interval(0.0, 1.0)),
+        MODAAnalyzerData("System Time"),
+        MODAAnalyzerData("Total Processing Time")
     )
 
-    val modaAnalyzer = MODAAnalyzer(eNames, responseDefinitions)
-    modaAnalyzer.analyze(db.withinRepViewData())
+    val wrvd = db.withinRepViewData()
+    val modaAnalyzer = MODAAnalyzer(eNames, responseDefinitions, wrvd)
+
+    modaAnalyzer.analyze()
 
     println("Original performance before value functions")
     for(i in 1..10){

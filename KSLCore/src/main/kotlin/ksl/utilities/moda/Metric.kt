@@ -93,8 +93,8 @@ open class Metric(
     override val allowUpperLimitAdjustment: Boolean = true
 ) : MetricIfc {
     init {
-        require(domain.width > 0.0) { "The width of the domain must be > 0.0. It was $domain" }
-        require(domain.width.isFinite()) { "The width of the domain must be finite. It was $domain" }
+        require(domain.width > 0.0) { "The width of the domain for metric $name must be > 0.0. It was $domain" }
+        require(domain.width.isFinite()) { "The width of the domain for metric $name must be finite. It was $domain" }
     }
 
     override var direction = MetricIfc.Direction.SmallerIsBetter
