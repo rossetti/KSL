@@ -553,6 +553,18 @@ abstract class MODAModel(
     }
 
     /**
+     *  The alternatives and their rank based on largest to smallest multi-objective value
+     */
+    fun alternativeRankedByMultiObjectiveValue() : Map<String, Int>{
+        val map = mutableMapOf<String, Int>()
+        val list = sortedMultiObjectiveValuesByAlternative()
+        for((i, element) in list.withIndex()){
+            map[element.first] = i + 1
+        }
+        return map
+    }
+
+    /**
      *  The names of the alternatives that are considered first based on the multi-objective values.
      *  The set may have more than one alternative if the alternatives tie based on
      *  multi-objective values.

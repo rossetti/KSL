@@ -4,6 +4,8 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.WithinRepViewData
+import ksl.utilities.io.toDataFrame
+import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.Statistic
 import java.io.PrintWriter
@@ -103,6 +105,10 @@ class MODAAnalyzer(
         weights = wMap
     }
 
+    /**
+     *  Filters the within replication view data to only the required experiments, runs that have 2 or
+     *  more replications, and have the required responses.
+     */
     private fun filterWithinRepViewData(responseData: List<WithinRepViewData>): List<WithinRepViewData> {
         if (responseData.isEmpty()) {
             KSL.logger.info { "MODAAnalyzer: the supplied list of within replication view data was empty." }
@@ -241,7 +247,6 @@ class MODAAnalyzer(
      *  across all the experiments/alternatives.  If insufficient data is
      *  available, then the response is not included.
      */
-
     fun mcbForResponseMODAValues(): Map<String, MultipleComparisonAnalyzer> {
         // the key is the response name
         val map = mutableMapOf<String, MultipleComparisonAnalyzer>()
@@ -273,17 +278,17 @@ class MODAAnalyzer(
     fun replicatedResponseMODAValues(): Map<String, Map<String, List<Double>>> {
         // outer key = experiment name/alternative, inner key is response name, array is across replication data
         val map = mutableMapOf<String, MutableMap<String, MutableList<Double>>>()
-        for ((r, moda) in myMODAByRepMap){
+        for ((r, moda) in myMODAByRepMap) {
             // get the response MODA values for this replication
             val altMap = moda.alternativeValuesByMetric()
-            for((eName, mMap) in altMap){
-                if (!map.containsKey(eName)){
+            for ((eName, mMap) in altMap) {
+                if (!map.containsKey(eName)) {
                     map[eName] = mutableMapOf()
                 }
                 // get the map
                 val rMap = map[eName]!!
-                for((metric, value) in mMap){
-                    if (!rMap.containsKey(metric.name)){
+                for ((metric, value) in mMap) {
+                    if (!rMap.containsKey(metric.name)) {
                         rMap[metric.name] = mutableListOf()
                     }
                     rMap[metric.name]!!.add(value)
@@ -431,17 +436,19 @@ class MODAAnalyzer(
     }
 
     fun asString(
-        includeMCBByResponse : Boolean = true,
+        includeMCBByResponse: Boolean = true,
+        includeOverallRankFreq: Boolean = false,
+        includeMCBByMODAResponse: Boolean = false,
         includeMODAByReplication: Boolean = false
-    ) : String {
+    ): String {
         val sb = StringBuilder().apply {
             appendLine("Multi-Objective Analysis")
             appendLine("Alternatives:")
-            for(alternative in alternativeNames){
+            for (alternative in alternativeNames) {
                 appendLine("\t $alternative")
             }
             appendLine("Responses:")
-            for(response in responseNames){
+            for (response in responseNames) {
                 appendLine("\t $response")
             }
             appendLine("Across Replication Analysis:")
@@ -449,17 +456,35 @@ class MODAAnalyzer(
             appendLine("MCB Analysis For Overall Value:")
             appendLine(mcbForOverallValue().toString())
             appendLine("-------------------------------------------")
+            if (includeOverallRankFreq){
+                appendLine("Rank Frequencies Based on Overall Value")
+                val freqMap = overallRankFrequenciesByAlternative()
+                for((alternative, freq) in freqMap){
+                    appendLine("Rank Frequencies for $alternative")
+                    appendLine(freq.toDataFrame())
+                }
+            }
+            appendLine("-------------------------------------------")
             if (includeMCBByResponse) {
                 appendLine("MCB Analysis By Response")
                 appendLine("-------------------------------------------")
                 val mcbMap = mcbForResponsePerformance()
-                for((rn, mcb) in mcbMap){
+                for ((rn, mcb) in mcbMap) {
+                    appendLine(mcb.toString())
+                }
+                appendLine("-------------------------------------------")
+            }
+            if (includeMCBByMODAResponse) {
+                appendLine("MCB Analysis By MODA Response")
+                appendLine("-------------------------------------------")
+                val mcbMap = mcbForResponseMODAValues()
+                for ((rn, mcb) in mcbMap) {
                     appendLine(mcb.toString())
                 }
                 appendLine("-------------------------------------------")
             }
             if (includeMODAByReplication) {
-                for ((r, moda) in myMODAByRepMap){
+                for ((r, moda) in myMODAByRepMap) {
                     appendLine("MODA Results for Replication $r")
                     appendLine(moda.toString())
                 }
@@ -469,27 +494,54 @@ class MODAAnalyzer(
         return sb.toString()
     }
 
+    /**
+     *  Tabulate the rank frequencies for each alternative based on overall MODA value
+     */
+    fun overallRankFrequenciesByAlternative(): Map<String, IntegerFrequency> {
+        val map = mutableMapOf<String, IntegerFrequency>()
+        for (alternative in alternativeNames) {
+            map[alternative] = IntegerFrequency(name = "$alternative:Overall Rank")
+        }
+        for ((r, moda) in myMODAByRepMap) {
+            val rankMap = moda.alternativeRankedByMultiObjectiveValue()
+            for((alternative, rank) in rankMap){
+                map[alternative]!!.collect(rank)
+            }
+        }
+        return map
+    }
+
     fun print(
-        includeMCBByResponse : Boolean = true,
+        includeMCBByResponse: Boolean = true,
+        includeOverallRankFreq: Boolean = false,
+        includeMCBByMODAResponse: Boolean = false,
         includeMODAByReplication: Boolean = false
-    ){
-        write(PrintWriter(System.out), includeMCBByResponse, includeMODAByReplication)
+    ) {
+        write(PrintWriter(System.out), includeMCBByResponse, includeOverallRankFreq,
+            includeMCBByMODAResponse, includeMODAByReplication)
     }
 
     fun write(
         out: PrintWriter,
-        includeMCBByResponse : Boolean = true,
+        includeMCBByResponse: Boolean = true,
+        includeOverallRankFreq: Boolean = true,
+        includeMCBByMODAResponse: Boolean = true,
         includeMODAByReplication: Boolean = true
-    ){
-        out.print(asString(includeMCBByResponse, includeMODAByReplication))
+    ) {
+        out.print(asString(includeMCBByResponse, includeOverallRankFreq,
+            includeMCBByMODAResponse, includeMODAByReplication))
+        out.flush()
     }
 
     fun write(
         fileName: String,
-        includeMCBByResponse : Boolean = true,
+        includeMCBByResponse: Boolean = true,
+        includeOverallRankFreq: Boolean = true,
+        includeMCBByMODAResponse: Boolean = true,
         includeMODAByReplication: Boolean = true
-    ){
-        write(KSL.createPrintWriter(fileName), includeMCBByResponse, includeMODAByReplication)
+    ) {
+        write(KSL.createPrintWriter(fileName), includeMCBByResponse, includeOverallRankFreq,
+            includeMCBByMODAResponse, includeMODAByReplication)
     }
 
     companion object {
