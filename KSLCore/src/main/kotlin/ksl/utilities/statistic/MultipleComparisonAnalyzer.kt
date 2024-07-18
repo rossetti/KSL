@@ -36,7 +36,6 @@ import kotlin.math.min
  * Holds data to perform multiple comparisons Performs pairwise comparisons and
  * computes pairwise differences and variances.
  *
- *
  * The user must supply the data samples over which the comparison will be made.
  * This is supplied in a Map with key representing a name (identifier) for the
  * data and an array representing the observations. This class computes all the
@@ -1175,7 +1174,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.appendLine("Multiple Comparison Report: ")
+        sb.appendLine("Multiple Comparison Report: ${name?:""}")
         sb.appendLine(this.summaryStatistics("Raw Data"))
         sb.appendLine(confidenceIntervalsOnData(defaultLevel))
         sb.appendLine(differenceSummaryStatistics("Difference Data"))

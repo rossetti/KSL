@@ -162,16 +162,15 @@ class MODAAnalyzer(
      */
     fun changeWeights(newWeights: Map<String, Double>) {
         require(newWeights.keys.size == weights.size) { "The supplied number of weights does not match the required number of weights!" }
-        for((rn, w) in newWeights){
-            require(w > 0.0) {"The supplied weight $w for response $rn was not > 0.0"}
-            require(responseNames.contains(rn)) {"The supplied response $rn is not a valid response name"}
+        for ((rn, w) in newWeights) {
+            require(w > 0.0) { "The supplied weight $w for response $rn was not > 0.0" }
+            require(responseNames.contains(rn)) { "The supplied response $rn is not a valid response name" }
             val m = responseMetrics[rn]!!
             weights[m] = w
         }
     }
 
     //TODO multiple comparison analyzers by raw response (or response value)
-    // - presenting the results
 
     /**
      *  Causes the analyzer to analyze the data to produce MODA models for
@@ -216,32 +215,79 @@ class MODAAnalyzer(
      *  observations for each alternative. The number of observations per alternative must
      *  also be the same.
      */
-    fun multipleComparisonResults() : MultipleComparisonAnalyzer? {
-        if (myMCBObjValMap.size < 2){
+    fun mcbForOverallValue(): MultipleComparisonAnalyzer? {
+        if (myMCBObjValMap.size < 2) {
             return null
         }
-        val dm = myMCBObjValMap.mapValues{ it.value.toDoubleArray() }.toMap()
-        if (!MultipleComparisonAnalyzer.checkLengths(dm)){
+        val dm = myMCBObjValMap.mapValues { it.value.toDoubleArray() }.toMap()
+        if (!MultipleComparisonAnalyzer.checkLengths(dm)) {
             return null
         }
         val size = dm.values.first().size // all have the same size
-        if (size < 2){
+        if (size < 2) {
             return null
         }
         return MultipleComparisonAnalyzer(dm)
     }
 
     /**
+     *  Computes and returns the raw replication values for the responses for
+     *  each experiment/alternative. The returned map of maps has
+     *  an outer key of the experiment/alternative name. The inner map
+     *  has keys representing the named responses. The associated array
+     *  contains the associated replication values of the response variable (within
+     *  replication average, or ending counter value), a value for each replication.
+     */
+    fun replicationPerformance(): Map<String, Map<String, DoubleArray>> {
+        val map = mutableMapOf<String, Map<String, DoubleArray>>()
+        val r1 = myResponseData.groupBy { it.exp_name }
+        for ((eName, dList) in r1) {
+            val g1 = dList.groupBy { it.stat_name }
+            val g2 = g1.mapValues { entry -> entry.value.map { it.rep_value ?: Double.NaN } }
+            val g3 = g2.mapValues { it.value.toDoubleArray() }
+            map[eName] = g3
+        }
+        return map
+    }
+
+    /**
      *  Computes the average performance for each alternative for each response
      */
-    fun averagePerformance() : Map<String, Map<String, Double>>{
+    fun averagePerformance(): Map<String, Map<String, Double>> {
         val map = mutableMapOf<String, Map<String, Double>>()
         val r1 = myResponseData.groupBy { it.exp_name }
-        for((k,v) in r1){
+        for ((k, v) in r1) {
             val g1 = v.groupBy { it.stat_name }
-            val g2 = g1.mapValues { entry -> entry.value.map {it.rep_value?: Double.NaN}}
+            val g2 = g1.mapValues { entry -> entry.value.map { it.rep_value ?: Double.NaN } }
             val g3 = g2.mapValues { it.value.average() }
             map[k] = g3
+        }
+        return map
+    }
+
+    /**
+     *  Returns a map holding multiple comparison results for each response.
+     *  The key to the returned map is the response name. The associated
+     *  multiple comparison analyzer represents the comparison for that response
+     *  across all the experiments/alternatives.
+     */
+    fun mcbForResponsePerformance(): Map<String, MultipleComparisonAnalyzer> {
+        // the key is the response name
+        val map = mutableMapOf<String, MultipleComparisonAnalyzer>()
+        // mcb holds dataMap: Map<String, DoubleArray> where keys are experiment names
+        // and arrays are replication data for a specific response
+        val eMap = replicationPerformance()
+        for (responseName in responseNames) {
+            val dMap = mutableMapOf<String, DoubleArray>()
+            for ((eName, rMap) in eMap) {
+                val data = rMap[responseName]!!
+                if (data.size >= 2) {
+                    dMap[eName] = rMap[responseName]!!
+                }
+            }
+            val mcb = MultipleComparisonAnalyzer(dMap)
+            mcb.name = responseName
+            map[responseName] = mcb
         }
         return map
     }
@@ -250,7 +296,7 @@ class MODAAnalyzer(
      *  Returns a MODA model based on the average performance of the responses across
      *  the replications.
      */
-    fun averageMODA() : AdditiveMODAModel {
+    fun averageMODA(): AdditiveMODAModel {
         val moda = AdditiveMODAModel(metricDefinitions, weights)
         val ap = averagePerformance()
         // convert altData to scores here
@@ -258,6 +304,11 @@ class MODAAnalyzer(
         return moda
     }
 
+    /**
+     *  Converts the un-scored values to scored values. The [unScoredValues]
+     *  map contains the outer key = experiment name, inner key response
+     *  name with its value
+     */
     private fun convertToScores(
         responseMetrics: Map<String, MetricIfc>,
         unScoredValues: Map<String, Map<String, Double>>
@@ -309,6 +360,56 @@ class MODAAnalyzer(
             performanceByRep[rep] = responsesByExperiment
         }
         return performanceByRep
+    }
+
+    override fun toString(): String {
+        return asString()
+    }
+
+    fun asString(
+        includeMCBByResponse : Boolean = true,
+        includeMODAByReplication: Boolean = false
+    ) : String {
+        val sb = StringBuilder().apply {
+            appendLine("Multi-Objective Analysis")
+            appendLine("Alternatives:")
+            for(alternative in alternativeNames){
+                appendLine("\t $alternative")
+            }
+            appendLine("Responses:")
+            for(response in responseNames){
+                appendLine("\t $response")
+            }
+            appendLine("Across Replication Analysis:")
+            append(averageMODA().toString())
+            appendLine("MCB Analysis For Overall Value:")
+            appendLine(mcbForOverallValue().toString())
+            appendLine("-------------------------------------------")
+            if (includeMCBByResponse) {
+                appendLine("MCB Analysis By Response")
+                appendLine("-------------------------------------------")
+                val mcbMap = mcbForResponsePerformance()
+                for((rn, mcb) in mcbMap){
+                    appendLine(mcb.toString())
+                }
+                appendLine("-------------------------------------------")
+            }
+            if (includeMODAByReplication) {
+                for ((r, moda) in myMODAByRepMap){
+                    appendLine("MODA Results for Replication $r")
+                    appendLine(moda.toString())
+                }
+                appendLine("-------------------------------------------")
+            }
+        }
+        return sb.toString()
+    }
+
+    fun print(
+        includeMCBByResponse : Boolean = true,
+        includeMODAByReplication: Boolean = false
+    ){
+        print(asString(includeMCBByResponse, includeMODAByReplication))
     }
 
     companion object {

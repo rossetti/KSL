@@ -399,6 +399,19 @@ abstract class MODAModel(
 
     override fun toString(): String {
         val sb = StringBuilder().apply {
+            appendLine("MODA Results")
+            appendLine("-------------------------------------------")
+            appendLine("Metrics")
+            for(metric in metrics){
+                append("\t ${metric.name}")
+                append("\t domain = ${metric.domain}")
+                append("\t direction = ${metric.direction}")
+                if (metric.unitsOfMeasure != null){
+                    append("\t units = ${metric.unitsOfMeasure}")
+                }
+                appendLine()
+            }
+            appendLine("-------------------------------------------")
             appendLine("Alternative Scores:")
             appendLine(alternativeScoresAsDataFrame())
             appendLine("Alternative Values:")

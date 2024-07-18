@@ -62,6 +62,31 @@ class AdditiveMODAModel(
         return sum
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder().apply {
+            appendLine("MODA Results")
+            appendLine("-------------------------------------------")
+            appendLine("Metrics")
+            for((metric, weight) in weights){
+                append("\t ${metric.name}")
+                append("\t domain = ${metric.domain}")
+                append("\t direction = ${metric.direction}")
+                append("\t weight = $weight")
+                if (metric.unitsOfMeasure != null){
+                    append("\t units = ${metric.unitsOfMeasure}")
+                }
+                appendLine()
+            }
+            appendLine("Alternative Scores:")
+            appendLine(alternativeScoresAsDataFrame())
+            appendLine("Alternative Values:")
+            appendLine(alternativeValuesAsDataFrame())
+            appendLine("Alternative Ranks:")
+            appendLine(alternativeRanksAsDataFrame())
+        }
+        return sb.toString()
+    }
+
     companion object {
 
         /**
