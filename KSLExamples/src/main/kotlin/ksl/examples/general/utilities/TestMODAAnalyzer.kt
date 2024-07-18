@@ -5,6 +5,7 @@ import ksl.observers.ReplicationDataCollector
 import ksl.simulation.Model
 import ksl.utilities.Interval
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import ksl.utilities.io.toDataFrame
 import ksl.utilities.moda.MODAAnalyzer
 import ksl.utilities.moda.MODAAnalyzerData
 import ksl.utilities.moda.Metric
@@ -49,13 +50,7 @@ fun main(){
 
     modaAnalyzer.analyze()
 
-   // modaAnalyzer.print(includeMODAByReplication = true)
-   // modaAnalyzer.write("TestMODA_results.txt")
-    println()
-    val map = modaAnalyzer.replicatedResponseMODAValues()
-    for ((eName, rMap) in map){
-        println("Experiment $eName")
-        rMap.toDataFrame().print()
-    }
+    modaAnalyzer.write("TestMODA_results.txt")
+
 
 }
