@@ -177,8 +177,6 @@ class MODAAnalyzer(
         }
     }
 
-    // TODO rank frequency tabulation by response values and overall value (across replication MODA)
-
     /**
      *  Causes the analyzer to analyze the data to produce MODA models for
      *  each replication and results for an overall multiple comparison
