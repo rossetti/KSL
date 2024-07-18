@@ -77,6 +77,8 @@ class AdditiveMODAModel(
                 }
                 appendLine()
             }
+            appendLine()
+            appendLine("-------------------------------------------")
             appendLine("Alternative Scores:")
             appendLine(alternativeScoresAsDataFrame())
             appendLine("Alternative Values:")
