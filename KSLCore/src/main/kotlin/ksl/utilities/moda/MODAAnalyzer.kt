@@ -171,8 +171,7 @@ class MODAAnalyzer(
         }
     }
 
-    //TODO multiple comparison analyzers by response value)
-    // rank frequency tabulation by response values and overall value (across replication MODA)
+    // TODO rank frequency tabulation by response values and overall value (across replication MODA)
 
     /**
      *  Causes the analyzer to analyze the data to produce MODA models for
@@ -236,7 +235,7 @@ class MODAAnalyzer(
      *  Returns a map holding multiple comparison results for each response.
      *  The response values represent the values from the value function transformation.
      *  Thus, the MCB comparison is done on the value domains.
-     *  
+     *
      *  The key to the returned map is the response name. The associated
      *  multiple comparison analyzer represents the comparison for that response
      *  across all the experiments/alternatives.  If insufficient data is
