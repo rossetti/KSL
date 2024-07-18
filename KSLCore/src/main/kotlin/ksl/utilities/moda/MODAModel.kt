@@ -411,6 +411,7 @@ abstract class MODAModel(
                 }
                 appendLine()
             }
+            appendLine()
             appendLine("-------------------------------------------")
             appendLine("Alternative Scores:")
             appendLine(alternativeScoresAsDataFrame())

@@ -451,8 +451,9 @@ class MODAAnalyzer(
             for (response in responseNames) {
                 appendLine("\t $response")
             }
+            appendLine()
             appendLine("Across Replication Analysis:")
-            append(averageMODA().toString())
+            appendLine(averageMODA().toString())
             appendLine("MCB Analysis For Overall Value:")
             appendLine(mcbForOverallValue().toString())
             appendLine("-------------------------------------------")
