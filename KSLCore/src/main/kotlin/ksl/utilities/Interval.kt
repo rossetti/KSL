@@ -19,6 +19,8 @@
 package ksl.utilities
 
 import ksl.utilities.statistic.Histogram
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /** Can be used to represent confidence intervals.  Intervals between two real
  * numbers where the lower limit must be less than or equal to the upper limit.
@@ -93,6 +95,15 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
      */
     fun instance(): Interval {
         return Interval(lowerLimit, upperLimit)
+    }
+
+    /**
+     *  Returns a new interval where the end points have
+     *  been rounded down (lower limit) and rounded up (upper limit)
+     *  to integer valued doubles.
+     */
+    fun roundToIntEndPoints() : Interval {
+        return Interval(floor(lowerLimit), ceil(upperLimit))
     }
 
     fun asRange(): ClosedFloatingPointRange<Double> = lowerLimit..upperLimit
