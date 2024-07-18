@@ -349,7 +349,9 @@ class MODAAnalyzer(
             val statWork = Statistic()
             statWork.collect(data)
             val tmp = if (statWork.count > 2) {
-                PDFModeler.rangeEstimate(statWork.min, statWork.max, statWork.count.toInt())
+                val interval = PDFModeler.rangeEstimate(statWork.min, statWork.max, statWork.count.toInt())
+                // round to integers
+                Interval(floor(interval.lowerLimit), ceil(interval.upperLimit))
             } else {
                 // this may not be a very good interval but with 1 or 2 data points what else can be done/
                 // take the floor and ceil in case min = max
