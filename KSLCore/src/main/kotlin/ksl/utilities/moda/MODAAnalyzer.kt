@@ -232,28 +232,45 @@ class MODAAnalyzer(
         return MultipleComparisonAnalyzer(dm)
     }
 
-    fun mcbForResponseValues(){
+    /**
+     *  Returns a map holding multiple comparison results for each response.
+     *  The response values represent the values from the value function transformation.
+     *  Thus, the MCB comparison is done on the value domains.
+     *  
+     *  The key to the returned map is the response name. The associated
+     *  multiple comparison analyzer represents the comparison for that response
+     *  across all the experiments/alternatives.  If insufficient data is
+     *  available, then the response is not included.
+     */
+
+    fun mcbForResponseMODAValues(): Map<String, MultipleComparisonAnalyzer> {
         // the key is the response name
         val map = mutableMapOf<String, MultipleComparisonAnalyzer>()
         // mcb holds dataMap: Map<String, DoubleArray> where keys are experiment names
         // and arrays are replication data for a specific response
         // go through the responses and make an MCA for each one
-
-        // alternativeValuesByMetric(): Map<String, Map<MetricIfc, Double>>
         // outer key is alternative, so we get the value function value for the specific metric
+        val eMap = replicatedResponseMODAValues()
         for (responseName in responseNames) {
-            // process each moda model over the replications
-            for ((r, moda) in myMODAByRepMap){
-                // how to get the response values for this replication
-                val metric = responseMetrics[responseName]!!
-                val metricValues: List<Double> = moda.metricValues(metric) // this is values for each alternative
+            val dMap = mutableMapOf<String, DoubleArray>()
+            for ((eName, rMap) in eMap) {
+                val data = rMap[responseName]!!
+                if (data.size >= 2) {
+                    dMap[eName] = rMap[responseName]!!.toDoubleArray()
+                }
             }
+            val mcb = MultipleComparisonAnalyzer(dMap)
+            mcb.name = responseName
+            map[responseName] = mcb
         }
-
-        TODO("Not implemented")
-
+        return map
     }
 
+    /**
+     *  Extracts the response performance as MODA values (i.e. after value function processing)
+     *  The returned map of maps has the outer key as the experiment/alternative name.
+     *  The associated inner map holds the response values for each replication by response name (key).
+     */
     fun replicatedResponseMODAValues(): Map<String, Map<String, List<Double>>> {
         // outer key = experiment name/alternative, inner key is response name, array is across replication data
         val map = mutableMapOf<String, MutableMap<String, MutableList<Double>>>()
