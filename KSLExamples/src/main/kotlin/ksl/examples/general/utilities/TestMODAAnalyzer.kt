@@ -49,36 +49,6 @@ fun main(){
 
     modaAnalyzer.analyze()
 
-    println("Original performance before value functions")
-    for(i in 1..10){
-        println("Replication $i MODA")
-        modaAnalyzer.modaByReplication[i]?.alternativeScoresAsDataFrame()?.print()
-        println()
-    }
-
-    println("Performance after value functions")
-    for(i in 1..10){
-        println("Replication $i MODA")
-        modaAnalyzer.modaByReplication[i]?.alternativeValuesAsDataFrame()?.print()
-        println()
-    }
-
-    println("Performance by ranks")
-    for(i in 1..10){
-        println("Replication $i MODA")
-        modaAnalyzer.modaByReplication[i]?.alternativeRanksAsDataFrame()?.print()
-        println()
-    }
-
-    modaAnalyzer.overallValueByAlternative.toDataFrame().print()
-
-    val mcb = modaAnalyzer.multipleComparisonResults()
-    mcb?.print()
-
-    println()
-
-    val avgModa = modaAnalyzer.averageMODA()
-    println(avgModa)
-
+    modaAnalyzer.print(includeMODAByReplication = true)
 
 }
