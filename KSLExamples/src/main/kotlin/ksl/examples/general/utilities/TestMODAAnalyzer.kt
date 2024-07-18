@@ -49,6 +49,13 @@ fun main(){
 
     modaAnalyzer.analyze()
 
-    modaAnalyzer.print(includeMODAByReplication = true)
+   // modaAnalyzer.print(includeMODAByReplication = true)
+   // modaAnalyzer.write("TestMODA_results.txt")
+    println()
+    val map = modaAnalyzer.replicatedResponseMODAValues()
+    for ((eName, rMap) in map){
+        println("Experiment $eName")
+        rMap.toDataFrame().print()
+    }
 
 }

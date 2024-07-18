@@ -6,6 +6,7 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.WithinRepViewData
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.Statistic
+import java.io.PrintWriter
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -231,6 +232,51 @@ class MODAAnalyzer(
         return MultipleComparisonAnalyzer(dm)
     }
 
+    fun mcbForResponseValues(){
+        // the key is the response name
+        val map = mutableMapOf<String, MultipleComparisonAnalyzer>()
+        // mcb holds dataMap: Map<String, DoubleArray> where keys are experiment names
+        // and arrays are replication data for a specific response
+        // go through the responses and make an MCA for each one
+
+        // alternativeValuesByMetric(): Map<String, Map<MetricIfc, Double>>
+        // outer key is alternative, so we get the value function value for the specific metric
+        for (responseName in responseNames) {
+            // process each moda model over the replications
+            for ((r, moda) in myMODAByRepMap){
+                // how to get the response values for this replication
+                val metric = responseMetrics[responseName]!!
+                val metricValues: List<Double> = moda.metricValues(metric) // this is values for each alternative
+            }
+        }
+
+        TODO("Not implemented")
+
+    }
+
+    fun replicatedResponseMODAValues(): Map<String, Map<String, List<Double>>> {
+        // outer key = experiment name/alternative, inner key is response name, array is across replication data
+        val map = mutableMapOf<String, MutableMap<String, MutableList<Double>>>()
+        for ((r, moda) in myMODAByRepMap){
+            // get the response MODA values for this replication
+            val altMap = moda.alternativeValuesByMetric()
+            for((eName, mMap) in altMap){
+                if (!map.containsKey(eName)){
+                    map[eName] = mutableMapOf()
+                }
+                // get the map
+                val rMap = map[eName]!!
+                for((metric, value) in mMap){
+                    if (!rMap.containsKey(metric.name)){
+                        rMap[metric.name] = mutableListOf()
+                    }
+                    rMap[metric.name]!!.add(value)
+                }
+            }
+        }
+        return map
+    }
+
     /**
      *  Computes and returns the raw replication values for the responses for
      *  each experiment/alternative. The returned map of maps has
@@ -270,7 +316,8 @@ class MODAAnalyzer(
      *  Returns a map holding multiple comparison results for each response.
      *  The key to the returned map is the response name. The associated
      *  multiple comparison analyzer represents the comparison for that response
-     *  across all the experiments/alternatives.
+     *  across all the experiments/alternatives.  If insufficient data is
+     *  available, then the response is not included.
      */
     fun mcbForResponsePerformance(): Map<String, MultipleComparisonAnalyzer> {
         // the key is the response name
@@ -410,7 +457,23 @@ class MODAAnalyzer(
         includeMCBByResponse : Boolean = true,
         includeMODAByReplication: Boolean = false
     ){
-        print(asString(includeMCBByResponse, includeMODAByReplication))
+        write(PrintWriter(System.out), includeMCBByResponse, includeMODAByReplication)
+    }
+
+    fun write(
+        out: PrintWriter,
+        includeMCBByResponse : Boolean = true,
+        includeMODAByReplication: Boolean = true
+    ){
+        out.print(asString(includeMCBByResponse, includeMODAByReplication))
+    }
+
+    fun write(
+        fileName: String,
+        includeMCBByResponse : Boolean = true,
+        includeMODAByReplication: Boolean = true
+    ){
+        write(KSL.createPrintWriter(fileName), includeMCBByResponse, includeMODAByReplication)
     }
 
     companion object {
