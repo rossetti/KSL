@@ -18,7 +18,7 @@ data class ObservationDataDb(
     var subject: String = "",
     var obsNum: Int = -1,
     var obsValue: Double = Double.NaN
-) : DbTableData("tblObservations", keyFields = listOf("id"), autoIncField = true) {
+) : DbTableData("tblObservations", keyFields = listOf("id"), autoIncField = false) {
 
     init {
         obsCounter++
@@ -59,7 +59,7 @@ fun Map<String, DoubleArray>.toObservationData(
 /**
  *  Converts the observation data to a data frame
  */
-fun List<ObservationDataDb>.asDataFrame() : DataFrame<ObservationDataDb> {
+fun List<ObservationDataDb>.asObservationDataFrame() : DataFrame<ObservationDataDb> {
     var df = this.toDataFrame()
     df = df.remove("autoIncField", "keyFields",
         "numColumns", "numInsertFields", "numUpdateFields", "schemaName", "tableName")
