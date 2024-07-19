@@ -1,5 +1,10 @@
 package ksl.utilities.moda
 
+import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.Database
+import ksl.utilities.io.dbutil.DatabaseIfc
+import java.nio.file.Path
+
 /**
  *  Represents a multi-objective decision analysis (MODA) model that uses
  *  an additive model for the attribute valuation.  The supplied weights
@@ -27,7 +32,8 @@ class AdditiveMODAModel(
      *  used to create default metrics using linear value functions with equal weighting.
      */
     constructor(names: Set<String>) : this(
-        assignLinearValueFunctions(createDefaultMetrics(names)))
+        assignLinearValueFunctions(createDefaultMetrics(names))
+    )
 
     /**
      *  Changes or assigns the weights for the additive model. The required number
@@ -38,7 +44,7 @@ class AdditiveMODAModel(
      *  the total weight should be equal to 1.0.
      */
     fun assignWeights(weights: Map<MetricIfc, Double>) {
-        require(weights.keys.size == metricFunctionMap.keys.size){"The supplied number of metrics does not match the required number of metrics!"}
+        require(weights.keys.size == metricFunctionMap.keys.size) { "The supplied number of metrics does not match the required number of metrics!" }
         for (metric in weights.keys) {
             require(metrics.contains(metric)) { "The supplied weight's metric is not in the model" }
         }
@@ -68,12 +74,12 @@ class AdditiveMODAModel(
             appendLine("MODA Results")
             appendLine("-------------------------------------------")
             appendLine("Metrics")
-            for((metric, weight) in weights){
+            for ((metric, weight) in weights) {
                 append("\t ${metric.name}")
                 append("\t domain = ${metric.domain}")
                 append("\t direction = ${metric.direction}")
                 append("\t weight = $weight")
-                if (metric.unitsOfMeasure != null){
+                if (metric.unitsOfMeasure != null) {
                     append("\t units = ${metric.unitsOfMeasure}")
                 }
                 appendLine()
@@ -88,6 +94,50 @@ class AdditiveMODAModel(
             appendLine(alternativeRanksAsDataFrame())
         }
         return sb.toString()
+    }
+
+    /**
+     *  Extracts metric data for use in databases and other applications.
+     */
+    fun metricData(): List<MetricData> {
+        val list = mutableListOf<MetricData>()
+        var i = 1
+        for ((m, w) in weights) {
+            val md = m.metricData(this.id, this.name, i, w)
+            i++
+            list.add(md)
+        }
+        return list
+    }
+
+    /**
+     *  Returns the results as a database holding ScoreData, ValueData, and OverallValueData
+     *  tables (tblScores, tblValues, tblOverall).
+     *  @param dbName the name of the database on the disk
+     *  @param dir the directory to hold the database on the disk
+     */
+    fun resultsAsDatabase(
+        dbName: String,
+        dir: Path = KSL.dbDir,
+        deleteIfExists: Boolean = true
+    ): DatabaseIfc {
+        val db = Database.createSimpleDb(
+            setOf(
+                ScoreData(), ValueData(), MetricData(),
+                OverallValueData(), AlternativeRankFrequencyData()
+            ), dbName, dir, deleteIfExists
+        )
+        val metricData = metricData()
+        val scores = alternativeScoreData()
+        val values = alternativeValueData()
+        val overall = alternativeOverallValueData()
+        val ranks = alternativeRankFrequencyData()
+        db.insertAllDbDataIntoTable(metricData, "tblMetrics")
+        db.insertAllDbDataIntoTable(scores, "tblScores")
+        db.insertAllDbDataIntoTable(values, "tblValues")
+        db.insertAllDbDataIntoTable(overall, "tblOverall")
+        db.insertAllDbDataIntoTable(ranks, "tblRankFrequency")
+        return db
     }
 
     companion object {
@@ -106,13 +156,13 @@ class AdditiveMODAModel(
         /**
          *  Mutates the supplied array such that the elements sum to 1.0
          */
-        fun normalizeWeights(weights: DoubleArray){
-            require(weights.isNotEmpty()) {"The weights array was empty"}
+        fun normalizeWeights(weights: DoubleArray) {
+            require(weights.isNotEmpty()) { "The weights array was empty" }
             val sum = weights.sum()
-            require(sum > 0.0) {"The sum of the weights must be > 0.0"}
+            require(sum > 0.0) { "The sum of the weights must be > 0.0" }
             var ps = 0.0
-            for(i in 0..< weights.size - 1){
-                weights[i] = weights[i]/sum
+            for (i in 0..<weights.size - 1) {
+                weights[i] = weights[i] / sum
                 ps = ps + weights[i]
             }
             weights[weights.size - 1] = 1.0 - ps

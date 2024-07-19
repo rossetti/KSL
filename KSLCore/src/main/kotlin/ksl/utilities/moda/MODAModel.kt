@@ -137,10 +137,10 @@ abstract class MODAModel(
             } else if (metric.allowLowerLimitAdjustment && !metric.allowUpperLimitAdjustment) {
                 // yes on lower limit, no on upper limit
                 metric.domain.setInterval(interval.lowerLimit, metric.domain.upperLimit)
-            } else {
+            } else if (metric.allowLowerLimitAdjustment && metric.allowUpperLimitAdjustment){
                 // adjust both
                 metric.domain.setInterval(interval.lowerLimit, interval.upperLimit)
-            }
+            } // else no adjustment
         }
     }
 
@@ -774,30 +774,6 @@ abstract class MODAModel(
         return list
     }
 
-    /**
-     *  Returns the results as a database holding ScoreData, ValueData, and OverallValueData
-     *  tables (tblScores, tblValues, tblOverall).
-     *  @param dbName the name of the database on the disk
-     *  @param dir the directory to hold the database on the disk
-     */
-    fun resultsAsDatabase(
-        dbName: String,
-        dir: Path = KSL.dbDir,
-        deleteIfExists: Boolean = true
-    ): DatabaseIfc {
-        val db = Database.createSimpleDb(setOf(ScoreData(), ValueData(),
-            OverallValueData(), AlternativeRankFrequencyData()), dbName, dir, deleteIfExists)
-        val scores = alternativeScoreData()
-        val values = alternativeValueData()
-        val overall = alternativeOverallValueData()
-        val ranks = alternativeRankFrequencyData()
-        db.insertAllDbDataIntoTable(scores, "tblScores")
-        db.insertAllDbDataIntoTable(values, "tblValues")
-        db.insertAllDbDataIntoTable(overall, "tblOverall")
-        db.insertAllDbDataIntoTable(ranks, "tblRankFrequency")
-        return db
-    }
-
     companion object {
 
         /**
@@ -913,6 +889,21 @@ abstract class MODAModel(
         }
     }
 }
+
+data class MetricData(
+    var modaId: Int = 0,
+    var modaName: String = "",
+    var metricId: Int = 0,
+    var metricName: String = "",
+    var direction: String = "",
+    var weight: Double = 1.0,
+    var domainLowerLimit: Double = 0.0,
+    var domainUpperLimit: Double = Double.POSITIVE_INFINITY,
+    var unitsOfMeasure: String? = null,
+    var description: String? = null,
+    var allowLowerLimitAdjustment: Boolean = false,
+    var allowUpperLimitAdjustment: Boolean = false
+) : DbTableData("tblMetrics", listOf("modaId", "modaName", "metricId", "metricName"))
 
 data class ScoreData(
     var modaId: Int = 0,
