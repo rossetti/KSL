@@ -926,22 +926,22 @@ data class ScoreData(
 data class ValueData(
     var modaId: Int = 0,
     var modaName: String = "",
-    var valueId: Int = 0,
+    var alternativeId: Int = 0,
     var alternative: String = "",
     var metricName: String = "",
     var metricValue: Double = 0.0,
     var rank: Double = 0.0
-) : DbTableData("tblValues", listOf("modaId", "modaName", "valueId", "alternative", "metricName"))
+) : DbTableData("tblValues", listOf("modaId", "modaName", "alternativeId", "alternative", "metricName"))
 
 data class OverallValueData(
     var modaId: Int = 0,
     var modaName: String = "",
-    var valueId: Int = 0,
+    var alternativeId: Int = 0,
     var alternative: String = "",
     var weightedValue: Double = 0.0,
     var firstRankCount: Int = 0,
     var averageRank: Double = 0.0,
-) : DbTableData("tblOverall", listOf("modaId", "modaName","valueId", "alternative"))
+) : DbTableData("tblOverall", listOf("modaId", "modaName","alternativeId", "alternative"))
 
 data class AlternativeRankFrequencyData(
     var modaId: Int = 0,
