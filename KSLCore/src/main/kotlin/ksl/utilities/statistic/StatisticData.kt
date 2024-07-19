@@ -60,6 +60,8 @@ data class StatisticData (
 
 data class StatisticDataDb(
     var id: Int = -1,
+    var context: String? = null,
+    var subject: String? = null,
     var stat_name: String = "",
     var stat_count: Double? = null,
     var average: Double? = null,
