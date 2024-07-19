@@ -26,10 +26,10 @@ import ksl.utilities.distributions.StudentT
 import ksl.utilities.distributions.Tukey
 import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
+import ksl.utilities.maps.ObservationDataDb
 import ksl.utilities.maps.asDataFrame
 import ksl.utilities.maps.toObservationData
 import org.jetbrains.kotlinx.dataframe.api.print
-import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import java.io.PrintWriter
 import kotlin.math.ceil
 import kotlin.math.max
@@ -46,11 +46,13 @@ import kotlin.math.min
  * pairwise differences and the variances of the differences in the form of
  * tabulated statistics.
  *
- * @author rossetti
+ * @param dataMap the map holding the data
+ * @param responseName the name of the response that is being analyzed
  */
-class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
-
-    var name: String? = null
+class MultipleComparisonAnalyzer(
+    dataMap: Map<String, DoubleArray>,
+    responseName: String? = null
+) : IdentityIfc by Identity(responseName) {
 
     /**
      *  The default level to use for confidence intervals and for probability of
@@ -63,6 +65,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         }
 
     private lateinit var myDataMap: LinkedHashMap<String, DoubleArray>
+
     private var myDataSize = 0
     private lateinit var myPairDiffs: LinkedHashMap<String, DoubleArray>
     private lateinit var myPairDiffStats: LinkedHashMap<String, Statistic>
@@ -83,7 +86,7 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         require(checkLengths(dataMap)) { "The data arrays do not have all the same lengths" }
         myDataMap = LinkedHashMap()
         myDataSize = dataMap.values.first().size // all have the same size
-        require(myDataSize >= 2) {"There must be 2 or more observations within the data arrays."}
+        require(myDataSize >= 2) { "There must be 2 or more observations within the data arrays." }
         for ((name, array) in dataMap.entries.iterator()) {
             // name is the name of the dataset
             // array is the DoubleArray holding the data
@@ -130,6 +133,33 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         return myDataMap.containsKey(dataName)
     }
 
+    /**
+     *  Returns the raw observations as a list of observation data for possible
+     *  saving in a database.
+     */
+    fun observationData(
+        tableName: String = "tblObservations",
+        context: String? = name
+    ): List<ObservationDataDb> {
+        return myDataMap.toObservationData(tableName, context)
+    }
+
+    fun statisticData(
+        level: Double = 0.95,
+        context: String? = null,
+        subject: String? = this.name,
+        tableName: String = "tblStatistic"
+    ): List<StatisticDataDb> {
+        val list = mutableListOf<StatisticDataDb>()
+        val statList = statistics
+        for (s in statList) {
+            list.add(s.statisticDataDb(level, context, subject, tableName))
+        }
+        for (s in pairedDifferenceStatistics) {
+            list.add(s.statisticDataDb(level, context, subject, tableName))
+        }
+        return list
+    }
 
     /**
      * The key to each LinkedHashMap is the name of the data The Statistic is
@@ -1128,20 +1158,22 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
      *  Operations Research, vol. 49, pp.950-963.
      */
-    fun screenForMinimum(probCS: Double = defaultLevel) : Set<String>{
+    fun screenForMinimum(probCS: Double = defaultLevel): Set<String> {
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val set = mutableSetOf<String>()
         val minMap = minScreeningIntervals(probCS)
-        for((name, map) in minMap){
+        for ((name, map) in minMap) {
             val avg = average(name) // the one to test
             var test = true
-            for((_, interval) in map){
-                if(!interval.contains(avg)){
+            for ((_, interval) in map) {
+                if (!interval.contains(avg)) {
                     test = false
                     break
                 }
             }
-            if (test) {set.add(name)}
+            if (test) {
+                set.add(name)
+            }
         }
         return set
     }
@@ -1154,31 +1186,33 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
      *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
      *  Operations Research, vol. 49, pp.950-963.
      */
-    fun screenForMaximum(probCS: Double = defaultLevel) : Set<String>{
+    fun screenForMaximum(probCS: Double = defaultLevel): Set<String> {
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
         val set = mutableSetOf<String>()
         val minMap = maxScreeningIntervals(probCS)
-        for((name, map) in minMap){
+        for ((name, map) in minMap) {
             val avg = average(name) // the one to test
             var test = true
-            for((_, interval) in map){
-                if(!interval.contains(avg)){
+            for ((_, interval) in map) {
+                if (!interval.contains(avg)) {
                     test = false
                     break
                 }
             }
-            if (test) {set.add(name)}
+            if (test) {
+                set.add(name)
+            }
         }
         return set
     }
 
-    fun print(){
+    fun print() {
         print(toString())
     }
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.appendLine("Multiple Comparison Report: ${name?:""}")
+        sb.appendLine("Multiple Comparison Report: ${name ?: ""}")
         sb.appendLine(this.summaryStatistics("Raw Data"))
         sb.appendLine(confidenceIntervalsOnData(defaultLevel))
         sb.appendLine(differenceSummaryStatistics("Difference Data"))
@@ -1198,8 +1232,8 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         sb.appendLine()
         sb.appendLine("Max Screening Intervals")
         val maxMap = maxScreeningIntervals(defaultLevel)
-        for((name, map) in maxMap){
-            for((s, interval) in map){
+        for ((name, map) in maxMap) {
+            for ((s, interval) in map) {
                 sb.append(name)
                 sb.append("\t")
                 sb.append("average = ")
@@ -1217,8 +1251,8 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
         sb.appendLine()
         sb.appendLine("Min Screening Intervals")
         val minMap = minScreeningIntervals(defaultLevel)
-        for((name, map) in minMap){
-            for((s, interval) in map){
+        for ((name, map) in minMap) {
+            for ((s, interval) in map) {
                 sb.append(name)
                 sb.append("\t")
                 sb.append("average = ")
@@ -1320,8 +1354,8 @@ class MultipleComparisonAnalyzer(dataMap: Map<String, DoubleArray>) {
          *
          * @author rossetti
          */
-        fun create(dataMap: Map<String, List<Double>>) : MultipleComparisonAnalyzer {
-            return MultipleComparisonAnalyzer(dataMap.mapValues{ it.value.toDoubleArray() }.toMap())
+        fun create(dataMap: Map<String, List<Double>>, responseName: String? = null): MultipleComparisonAnalyzer {
+            return MultipleComparisonAnalyzer(dataMap.mapValues { it.value.toDoubleArray() }.toMap(), responseName)
         }
 
         /**
@@ -3621,10 +3655,10 @@ fun main() {
     data["Two"] = d2
     data["Three"] = d3
     data["Four"] = d4
+    val mca = MultipleComparisonAnalyzer(data, "ExampleData")
     println("The Data")
-    data.toObservationData(context = "MCB Example").asDataFrame().print(rowsLimit = 50)
     println()
-    val mca = MultipleComparisonAnalyzer(data)
+    mca.observationData().asDataFrame().print(rowsLimit = 50)
     mca.writeDataAsCSVFile(KSL.createPrintWriter("MCA_Results.csv"))
     println(mca)
     println("num data sets: " + mca.numberDatasets)
@@ -3632,5 +3666,8 @@ fun main() {
 
     val r = mca.secondStageSampleSizeNM(2.0, 0.95)
     println("Second stage sampling recommendation R = $r")
+
+    println()
+    mca.statisticData().asDataFrame().print(rowsLimit = 50)
 
 }

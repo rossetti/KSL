@@ -177,7 +177,7 @@ class ExperimentDataCollector(model: Model, autoAttach: Boolean = true) {
                 }
             }
         }
-        return MultipleComparisonAnalyzer(map)
+        return MultipleComparisonAnalyzer(map, responseName)
     }
 
 }
