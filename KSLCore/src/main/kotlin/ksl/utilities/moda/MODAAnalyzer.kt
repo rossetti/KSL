@@ -457,10 +457,10 @@ class MODAAnalyzer(
             appendLine("MCB Analysis For Overall Value:")
             appendLine(mcbForOverallValue().toString())
             appendLine("-------------------------------------------")
-            if (includeOverallRankFreq){
+            if (includeOverallRankFreq) {
                 appendLine("Rank Frequencies Based on Overall Value")
                 val freqMap = overallRankFrequenciesByAlternative()
-                for((alternative, freq) in freqMap){
+                for ((alternative, freq) in freqMap) {
                     appendLine("Rank Frequencies for $alternative")
                     appendLine(freq.toDataFrame())
                 }
@@ -505,7 +505,7 @@ class MODAAnalyzer(
         }
         for ((_, moda) in myMODAByRepMap) {
             val rankMap = moda.alternativeRankedByMultiObjectiveValue()
-            for((alternative, rank) in rankMap){
+            for ((alternative, rank) in rankMap) {
                 map[alternative]!!.collect(rank)
             }
         }
@@ -518,8 +518,10 @@ class MODAAnalyzer(
         includeMCBByMODAResponse: Boolean = false,
         includeMODAByReplication: Boolean = false
     ) {
-        write(PrintWriter(System.out), includeMCBByResponse, includeOverallRankFreq,
-            includeMCBByMODAResponse, includeMODAByReplication)
+        write(
+            PrintWriter(System.out), includeMCBByResponse, includeOverallRankFreq,
+            includeMCBByMODAResponse, includeMODAByReplication
+        )
     }
 
     fun write(
@@ -529,8 +531,12 @@ class MODAAnalyzer(
         includeMCBByMODAResponse: Boolean = true,
         includeMODAByReplication: Boolean = true
     ) {
-        out.print(asString(includeMCBByResponse, includeOverallRankFreq,
-            includeMCBByMODAResponse, includeMODAByReplication))
+        out.print(
+            asString(
+                includeMCBByResponse, includeOverallRankFreq,
+                includeMCBByMODAResponse, includeMODAByReplication
+            )
+        )
         out.flush()
     }
 
@@ -541,8 +547,10 @@ class MODAAnalyzer(
         includeMCBByMODAResponse: Boolean = true,
         includeMODAByReplication: Boolean = true
     ) {
-        write(KSL.createPrintWriter(fileName), includeMCBByResponse, includeOverallRankFreq,
-            includeMCBByMODAResponse, includeMODAByReplication)
+        write(
+            KSL.createPrintWriter(fileName), includeMCBByResponse, includeOverallRankFreq,
+            includeMCBByMODAResponse, includeMODAByReplication
+        )
     }
 
     /**
@@ -560,25 +568,49 @@ class MODAAnalyzer(
 //        delta: Double = defaultIndifferenceZone,
 //        probCS: Double = defaultLevel,
 //        context: String? = this.name,
-        subject: String? = null
+//        subject: String? = null
     ): DatabaseIfc {
-        val db = Database.createSimpleDb(setOf(
-            MCBResultData(), MCBIntervalData(), MCBScreeningIntervalData(),
-            StatisticDataDb(), ObservationDataDb(), ScoreData(), ValueData(),
-            OverallValueData(), AlternativeRankFrequencyData()
-        ), dbName, dir, deleteIfExists)
-         saveMODADataToDb(db, averageMODA())
-         saveMCBDataToDb(db, mcbForOverallValue())
-
+        val db = Database.createSimpleDb(
+            setOf(
+                MCBResultData(), MCBIntervalData(), MCBScreeningIntervalData(),
+                StatisticDataDb(), ObservationDataDb(), ScoreData(), ValueData(),
+                OverallValueData(), AlternativeRankFrequencyData()
+            ), dbName, dir, deleteIfExists)
+        // save overall average moda to db
+        saveMODADataToDb(db, averageMODA())
+        // save overall value mcb to db
+        saveMCBDataToDb(db, mcbForOverallValue()) //TODO need context
+        // save overall rank frequencies??
+        val freqMap = overallRankFrequenciesByAlternative()
+        for ((alternative, freq) in freqMap) {
+           //TODO what????? will need to add db table for this...
+        }
+        // save mcb by response
+        var mcbMap = mcbForResponsePerformance()
+        for ((_, mcb) in mcbMap) {
+            saveMCBDataToDb(db, mcb) //TODO need context
+        }
+        // save the mcb responses for the moda values
+        mcbMap = mcbForResponseMODAValues()
+        for ((_, mcb) in mcbMap) {
+            saveMCBDataToDb(db, mcb) //TODO need context
+        }
+        // save the moda results by replication
+        for ((r, moda) in myMODAByRepMap) {
+            saveMODADataToDb(db, moda)
+        }
         return db
     }
 
-    private fun saveMODADataToDb(db: DatabaseIfc, moda: AdditiveMODAModel){
+    private fun saveMODADataToDb(db: DatabaseIfc, moda: AdditiveMODAModel) {
         TODO("Not implemented yet")
     }
 
-    private fun saveMCBDataToDb(db: DatabaseIfc, mcb: MultipleComparisonAnalyzer?) {
-        if (mcb == null){
+    private fun saveMCBDataToDb(
+        db: DatabaseIfc,
+        mcb: MultipleComparisonAnalyzer?
+    ) {
+        if (mcb == null) {
             KSL.logger.info { "The MCB results were null when saving to the database" }
             return
         }
