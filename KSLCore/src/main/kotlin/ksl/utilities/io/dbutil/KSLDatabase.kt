@@ -1069,8 +1069,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      */
     fun multipleComparisonAnalyzerFor(expNames: List<String>, responseName: String): MultipleComparisonAnalyzer {
         val map = withinReplicationViewMapForExperiments(expNames, responseName)
-        val mca = MultipleComparisonAnalyzer(map)
-        mca.name = responseName
+        val mca = MultipleComparisonAnalyzer(map, responseName = responseName)
+        mca.label = responseName
         return mca
     }
 

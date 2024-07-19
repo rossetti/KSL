@@ -232,7 +232,7 @@ class MODAAnalyzer(
         if (size < 2) {
             return null
         }
-        return MultipleComparisonAnalyzer(dm)
+        return MultipleComparisonAnalyzer(dm, "MODA Overall Value")
     }
 
     /**
@@ -261,8 +261,8 @@ class MODAAnalyzer(
                     dMap[eName] = rMap[responseName]!!.toDoubleArray()
                 }
             }
-            val mcb = MultipleComparisonAnalyzer(dMap)
-            mcb.name = responseName
+            val mcb = MultipleComparisonAnalyzer(dMap, responseName = responseName)
+            mcb.label = responseName
             map[responseName] = mcb
         }
         return map
@@ -352,8 +352,8 @@ class MODAAnalyzer(
                     dMap[eName] = rMap[responseName]!!
                 }
             }
-            val mcb = MultipleComparisonAnalyzer(dMap)
-            mcb.name = responseName
+            val mcb = MultipleComparisonAnalyzer(dMap, responseName = responseName)
+            mcb.label = responseName
             map[responseName] = mcb
         }
         return map

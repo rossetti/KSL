@@ -19,6 +19,10 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.io.dbutil.DbTableData
+import ksl.utilities.maps.asDataFrame
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.remove
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 data class StatisticData (
     val name: String,
@@ -81,3 +85,13 @@ data class StatisticDataDb(
     var von_neumann_lag1_stat: Double? = null,
     var num_missing_obs: Double? = null
 ) : DbTableData("tblStatistic", keyFields = listOf("id"), autoIncField = true)
+
+/**
+ *  Converts the statistic data to a data frame
+ */
+fun List<StatisticDataDb>.asDataFrame(): DataFrame<StatisticDataDb> {
+    var df = this.toDataFrame()
+    df = df.remove("autoIncField", "keyFields",
+        "numColumns", "numInsertFields", "numUpdateFields", "schemaName", "tableName")
+    return df
+}

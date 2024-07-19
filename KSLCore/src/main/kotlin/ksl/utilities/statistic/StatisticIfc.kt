@@ -314,11 +314,12 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
     fun statisticDataDb(
         level: Double = 0.95,
         context: String? = null,
-        subject: String? = null
+        subject: String? = null,
+        tableName: String = "tblStatistic"
     ): StatisticDataDb {
         val ci = confidenceInterval(level)
         statDbCounter++
-        return StatisticDataDb(
+        val statData = StatisticDataDb(
             statDbCounter,
             context,
             subject,
@@ -341,6 +342,8 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
             vonNeumannLag1TestStatistic,
             numberMissing
         )
+        statData.tableName = tableName
+        return statData
     }
 
     /**
