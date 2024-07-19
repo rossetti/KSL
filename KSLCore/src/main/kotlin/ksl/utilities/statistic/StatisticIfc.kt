@@ -288,8 +288,8 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
             average,
             standardDeviation,
             standardError,
-            halfWidth,
-            confidenceLevel,
+            ci.halfWidth,
+            level,
             ci.lowerLimit,
             ci.upperLimit,
             min,
@@ -297,6 +297,37 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
             sum,
             variance,
             deviationSumOfSquares,
+            kurtosis,
+            skewness,
+            lag1Covariance,
+            lag1Correlation,
+            vonNeumannLag1TestStatistic,
+            numberMissing
+        )
+    }
+
+    /**
+     *  Returns a data class holding the statistical data with the confidence
+     *  interval specified by the given [level]. The class is suitable
+     *  for inserting into a database table.
+     */
+    fun statisticDataDb(level: Double = 0.95): StatisticDataDb {
+        val ci = confidenceInterval(level)
+        statDbCounter++
+        return StatisticDataDb(
+            statDbCounter,
+            name,
+            count,
+            average,
+            standardDeviation,
+            standardError,
+            ci.halfWidth,
+            level,
+            min,
+            max,
+            sum,
+            deviationSumOfSquares,
+            lastValue,
             kurtosis,
             skewness,
             lag1Covariance,
@@ -509,6 +540,11 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
             stats["Number of missing observations"] = numberMissing
             return stats
         }
+
+    companion object{
+
+        private var statDbCounter = 0
+    }
 }
 
 fun List<StatisticIfc>.averages(): DoubleArray {

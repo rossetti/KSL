@@ -18,6 +18,8 @@
 
 package ksl.utilities.statistic
 
+import ksl.utilities.io.dbutil.DbTableData
+
 data class StatisticData (
     val name: String,
     val count: Double,
@@ -55,3 +57,25 @@ data class StatisticData (
         return average.compareTo(other.average)
     }
 }
+
+data class StatisticDataDb(
+    var id: Int = -1,
+    var stat_name: String = "",
+    var stat_count: Double? = null,
+    var average: Double? = null,
+    var std_dev: Double? = null,
+    var std_err: Double? = null,
+    var half_width: Double? = null,
+    var conf_level: Double? = null,
+    var minimum: Double? = null,
+    var maximum: Double? = null,
+    var sum_of_obs: Double? = null,
+    var dev_ssq: Double? = null,
+    var last_value: Double? = null,
+    var kurtosis: Double? = null,
+    var skewness: Double? = null,
+    var lag1_cov: Double? = null,
+    var lag1_corr: Double? = null,
+    var von_neumann_lag1_stat: Double? = null,
+    var num_missing_obs: Double? = null
+) : DbTableData("tblStatistic", keyFields = listOf("id"), autoIncField = true)
