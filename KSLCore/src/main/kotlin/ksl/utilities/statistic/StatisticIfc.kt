@@ -311,11 +311,17 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      *  interval specified by the given [level]. The class is suitable
      *  for inserting into a database table.
      */
-    fun statisticDataDb(level: Double = 0.95): StatisticDataDb {
+    fun statisticDataDb(
+        level: Double = 0.95,
+        context: String? = null,
+        subject: String? = null
+    ): StatisticDataDb {
         val ci = confidenceInterval(level)
         statDbCounter++
         return StatisticDataDb(
             statDbCounter,
+            context,
+            subject,
             name,
             count,
             average,

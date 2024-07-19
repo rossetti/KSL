@@ -26,6 +26,10 @@ import ksl.utilities.distributions.StudentT
 import ksl.utilities.distributions.Tukey
 import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
+import ksl.utilities.maps.asDataFrame
+import ksl.utilities.maps.toObservationData
+import org.jetbrains.kotlinx.dataframe.api.print
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import java.io.PrintWriter
 import kotlin.math.ceil
 import kotlin.math.max
@@ -3617,6 +3621,9 @@ fun main() {
     data["Two"] = d2
     data["Three"] = d3
     data["Four"] = d4
+    println("The Data")
+    data.toObservationData(context = "MCB Example").asDataFrame().print(rowsLimit = 50)
+    println()
     val mca = MultipleComparisonAnalyzer(data)
     mca.writeDataAsCSVFile(KSL.createPrintWriter("MCA_Results.csv"))
     println(mca)
@@ -3625,4 +3632,5 @@ fun main() {
 
     val r = mca.secondStageSampleSizeNM(2.0, 0.95)
     println("Second stage sampling recommendation R = $r")
+
 }
