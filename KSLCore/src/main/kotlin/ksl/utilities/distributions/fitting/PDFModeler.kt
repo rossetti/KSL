@@ -746,7 +746,7 @@ class PDFModeler(
             require(scoringResults.isNotEmpty()) { "The list of scoring results was empty" }
             val metrics = scoringResults[0].metrics
             val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
-            val model = AdditiveMODAModel(metricValueFunctionMap)
+            val model = AdditiveMODAModel(metricValueFunctionMap, name = "Default PDF MODA")
             model.defaultRankingMethod = rankingMethod
             return model
         }
