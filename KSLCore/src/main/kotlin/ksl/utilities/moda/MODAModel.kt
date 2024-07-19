@@ -1,6 +1,8 @@
 package ksl.utilities.moda
 
 import com.google.common.collect.HashBasedTable
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
@@ -21,8 +23,9 @@ import kotlin.math.floor
  *  Defines a base class for creating multi-objective decision analysis (MODA) models.
  */
 abstract class MODAModel(
-    metricDefinitions: Map<MetricIfc, ValueFunctionIfc>
-) {
+    metricDefinitions: Map<MetricIfc, ValueFunctionIfc>,
+    name: String? = null
+) : IdentityIfc by Identity(name) {
 
     protected val metricFunctionMap: MutableMap<MetricIfc, ValueFunctionIfc> = mutableMapOf()
     protected val myAlternatives: MutableMap<String, Map<MetricIfc, Score>> = mutableMapOf()
@@ -591,7 +594,7 @@ abstract class MODAModel(
         var id = 1
         for ( (alternative, metric) in myAlternatives) {
             for ((m, v) in metric) {
-                list.add(ScoreData(id, alternative, m.name, v.value))
+                list.add(ScoreData(this.id, this.label?:this.name, id, alternative, m.name, v.value))
             }
             id = id + 1
         }
@@ -611,7 +614,7 @@ abstract class MODAModel(
         val ranksByMetricMap = ranksByMetric(rankingMethod)
         for((alternative, metricMap) in alternativeValuesByMetric){
             for ((m, v) in metricMap) {
-                list.add(ValueData(id, alternative, m.name, v, ranksByMetricMap[m]!![id-1]))
+                list.add(ValueData(this.id, this.label?:this.name, id, alternative, m.name, v, ranksByMetricMap[m]!![id-1]))
             }
             id = id + 1
         }
@@ -680,7 +683,7 @@ abstract class MODAModel(
         for ( (alternative, freq) in altFreqMap){
             val fData = freq.frequencyData()
             for(fd in fData){
-                val arfd = AlternativeRankFrequencyData(
+                val arfd = AlternativeRankFrequencyData(this.id, this.label?:this.name,
                     id, alternative, fd.value, fd.count, fd.proportion, fd.cumProportion)
                 list.add(arfd)
             }
@@ -765,7 +768,7 @@ abstract class MODAModel(
         for((alternative, v) in valuesByAlternative){
             val cnt = counts[alternative]!!
             val avg = averages[alternative]!!
-            list.add(OverallValueData(id, alternative, v, cnt, avg))
+            list.add(OverallValueData(this.id, this.label?:this.name, id, alternative, v, cnt, avg))
             id = id + 1
         }
         return list
@@ -912,33 +915,41 @@ abstract class MODAModel(
 }
 
 data class ScoreData(
-    var id: Int = 0,
+    var modaId: Int = 0,
+    var modaName: String = "",
+    var scoreId: Int = 0,
     var alternative: String = "",
     var scoreName: String = "",
     var scoreValue: Double = 0.0
-) : DbTableData("tblScores", listOf("id", "alternative", "scoreName"))
+) : DbTableData("tblScores", listOf("modaId", "modaName", "scoreId", "alternative", "scoreName"))
 
 data class ValueData(
-    var id: Int = 0,
+    var modaId: Int = 0,
+    var modaName: String = "",
+    var valueId: Int = 0,
     var alternative: String = "",
     var metricName: String = "",
     var metricValue: Double = 0.0,
     var rank: Double = 0.0
-) : DbTableData("tblValues", listOf("id", "alternative", "metricName"))
+) : DbTableData("tblValues", listOf("modaId", "modaName", "valueId", "alternative", "metricName"))
 
 data class OverallValueData(
-    var id: Int = 0,
+    var modaId: Int = 0,
+    var modaName: String = "",
+    var valueId: Int = 0,
     var alternative: String = "",
     var weightedValue: Double = 0.0,
     var firstRankCount: Int = 0,
     var averageRank: Double = 0.0,
-) : DbTableData("tblOverall", listOf("id", "alternative"))
+) : DbTableData("tblOverall", listOf("modaId", "modaName","valueId", "alternative"))
 
 data class AlternativeRankFrequencyData(
-    var id: Int = 0,
+    var modaId: Int = 0,
+    var modaName: String = "",
+    var rankId: Int = 0,
     var alternative: String = "",
     var value: Int = 0,
     var count: Double = 0.0,
     var proportion: Double = 0.0,
     var cumProportion: Double = 0.0
-) : DbTableData("tblRankFrequency", listOf("id", "alternative", "value"))
+) : DbTableData("tblRankFrequency", listOf("modaId", "modaName", "rankId", "alternative", "value"))

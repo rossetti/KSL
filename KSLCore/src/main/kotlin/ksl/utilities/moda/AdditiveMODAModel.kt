@@ -12,8 +12,9 @@ package ksl.utilities.moda
  */
 class AdditiveMODAModel(
     metricDefinitions: Map<MetricIfc, ValueFunctionIfc>,
-    weights: Map<MetricIfc, Double> = makeEqualWeights(metricDefinitions.keys)
-) : MODAModel(metricDefinitions) {
+    weights: Map<MetricIfc, Double> = makeEqualWeights(metricDefinitions.keys),
+    name: String? = null
+) : MODAModel(metricDefinitions, name) {
 
     private val myWeights = mutableMapOf<MetricIfc, Double>() //TODO consider Map<String, Double> with key = metric.name
 

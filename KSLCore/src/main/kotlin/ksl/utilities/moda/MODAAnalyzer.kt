@@ -195,7 +195,7 @@ class MODAAnalyzer(
         val modaMapByRep = mutableMapOf<Int, AdditiveMODAModel>()
         val mcbListData = mutableMapOf<String, MutableList<Double>>()
         for ((rep, altData) in scoresByRep) {
-            val moda = AdditiveMODAModel(metricDefinitions, weights)
+            val moda = AdditiveMODAModel(metricDefinitions, weights, name = "MODA Rep $rep")
             // convert altData to scores here
             moda.defineAlternatives(convertToScores(responseMetrics, altData), allowRescalingByMetrics = false)
             modaMapByRep[rep] = moda
@@ -276,7 +276,7 @@ class MODAAnalyzer(
     fun replicatedResponseMODAValues(): Map<String, Map<String, List<Double>>> {
         // outer key = experiment name/alternative, inner key is response name, array is across replication data
         val map = mutableMapOf<String, MutableMap<String, MutableList<Double>>>()
-        for ((r, moda) in myMODAByRepMap) {
+        for ((_, moda) in myMODAByRepMap) {
             // get the response MODA values for this replication
             val altMap = moda.alternativeValuesByMetric()
             for ((eName, mMap) in altMap) {
@@ -468,7 +468,7 @@ class MODAAnalyzer(
                 appendLine("MCB Analysis By Response")
                 appendLine("-------------------------------------------")
                 val mcbMap = mcbForResponsePerformance()
-                for ((rn, mcb) in mcbMap) {
+                for ((_, mcb) in mcbMap) {
                     appendLine(mcb.toString())
                 }
                 appendLine("-------------------------------------------")
@@ -477,7 +477,7 @@ class MODAAnalyzer(
                 appendLine("MCB Analysis By MODA Response")
                 appendLine("-------------------------------------------")
                 val mcbMap = mcbForResponseMODAValues()
-                for ((rn, mcb) in mcbMap) {
+                for ((_, mcb) in mcbMap) {
                     appendLine(mcb.toString())
                 }
                 appendLine("-------------------------------------------")
@@ -501,7 +501,7 @@ class MODAAnalyzer(
         for (alternative in alternativeNames) {
             map[alternative] = IntegerFrequency(name = "$alternative:Overall Rank")
         }
-        for ((r, moda) in myMODAByRepMap) {
+        for ((_, moda) in myMODAByRepMap) {
             val rankMap = moda.alternativeRankedByMultiObjectiveValue()
             for((alternative, rank) in rankMap){
                 map[alternative]!!.collect(rank)
