@@ -3,12 +3,14 @@ package ksl.utilities.moda
 import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.Database
+import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.WithinRepViewData
 import ksl.utilities.io.toDataFrame
-import ksl.utilities.statistic.IntegerFrequency
-import ksl.utilities.statistic.MultipleComparisonAnalyzer
-import ksl.utilities.statistic.Statistic
+import ksl.utilities.maps.ObservationDataDb
+import ksl.utilities.statistic.*
 import java.io.PrintWriter
+import java.nio.file.Path
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -541,6 +543,46 @@ class MODAAnalyzer(
     ) {
         write(KSL.createPrintWriter(fileName), includeMCBByResponse, includeOverallRankFreq,
             includeMCBByMODAResponse, includeMODAByReplication)
+    }
+
+    /**
+     *  Returns the results as a database holding MCBResultData, MCBIntervalData,
+     *  MCBScreeningIntervalData, StatisticDataDb, and ObservationDataDb
+     *  tables (tblMCBResults, tblStatistic, tblMCBIntervals,tblMCBScreeningIntervals, tblObservations).
+     *  @param dbName the name of the database on the disk
+     *  @param dir the directory to hold the database on the disk
+     */
+    fun resultsAsDatabase(
+        dbName: String,
+        dir: Path = KSL.dbDir,
+        deleteIfExists: Boolean = true,
+//        confidenceLevel: Double = defaultLevel,
+//        delta: Double = defaultIndifferenceZone,
+//        probCS: Double = defaultLevel,
+//        context: String? = this.name,
+        subject: String? = null
+    ): DatabaseIfc {
+        val db = Database.createSimpleDb(setOf(
+            MCBResultData(), MCBIntervalData(), MCBScreeningIntervalData(),
+            StatisticDataDb(), ObservationDataDb(), ScoreData(), ValueData(),
+            OverallValueData(), AlternativeRankFrequencyData()
+        ), dbName, dir, deleteIfExists)
+         saveMODADataToDb(db, averageMODA())
+         saveMCBDataToDb(db, mcbForOverallValue())
+
+        return db
+    }
+
+    private fun saveMODADataToDb(db: DatabaseIfc, moda: AdditiveMODAModel){
+        TODO("Not implemented yet")
+    }
+
+    private fun saveMCBDataToDb(db: DatabaseIfc, mcb: MultipleComparisonAnalyzer?) {
+        if (mcb == null){
+            KSL.logger.info { "The MCB results were null when saving to the database" }
+            return
+        }
+        TODO("Not implemented yet")
     }
 
     companion object {

@@ -70,6 +70,32 @@ interface MetricIfc {
 
     fun newInstance() : MetricIfc
 
+    /**
+     *  Returns an instance of MetricData
+     *  based on (modaId, modaName, metricId, weight)
+     */
+    fun metricData(
+        modaId: Int,
+        modaName: String,
+        metricId: Int,
+        weight: Double
+    ) : MetricData {
+        val md = MetricData(
+            modaId = modaId,
+            modaName = modaName,
+            metricId = metricId,
+            metricName = name,
+            direction = direction.name,
+            weight = weight,
+            domainLowerLimit = domain.lowerLimit,
+            domainUpperLimit = domain.upperLimit,
+            unitsOfMeasure = unitsOfMeasure,
+            description = description,
+            allowLowerLimitAdjustment = allowLowerLimitAdjustment,
+            allowUpperLimitAdjustment = allowUpperLimitAdjustment
+        )
+        return md
+    }
 }
 
 /**
