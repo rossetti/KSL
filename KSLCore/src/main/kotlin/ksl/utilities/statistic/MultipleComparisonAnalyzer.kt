@@ -26,15 +26,124 @@ import ksl.utilities.distributions.StudentT
 import ksl.utilities.distributions.Tukey
 import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
+import ksl.utilities.io.dbutil.Database
+import ksl.utilities.io.dbutil.DatabaseIfc
+import ksl.utilities.io.dbutil.DbTableData
 import ksl.utilities.maps.ObservationDataDb
-import ksl.utilities.maps.asDataFrame
+import ksl.utilities.maps.asObservationDataFrame
 import ksl.utilities.maps.toObservationData
+import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.print
+import org.jetbrains.kotlinx.dataframe.api.remove
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import java.io.PrintWriter
+import java.nio.file.Path
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
+data class MCBResultData(
+    var id: Int = -1,
+    var context: String? = null,
+    var subject: String? = null,
+    var maxDifferenceVariance: Double? = null,
+    var minPerformerName: String? = null,
+    var minPerformance: Double? = null,
+    var maxPerformerName: String? = null,
+    var maxPerformance: Double? = null,
+    var minDifferenceName: String? = null,
+    var minDifference: Double? = null,
+    var maxDifferenceName: String? = null,
+    var maxDifference: Double? = null
+) : DbTableData("tblMCBResults", listOf("id"), autoIncField = false) {
+
+    init {
+        resultCounter++
+        id = resultCounter
+    }
+
+    companion object {
+        private var resultCounter = 0
+    }
+}
+
+/**
+ *  Converts the MCB result data to a data frame
+ */
+fun List<MCBResultData>.asMCBResultDataFrame(): DataFrame<MCBResultData> {
+    var df = this.toDataFrame()
+    df = df.remove("autoIncField", "keyFields",
+        "numColumns", "numInsertFields", "numUpdateFields", "schemaName", "tableName")
+    return df
+}
+
+data class MCBIntervalData(
+    var id: Int = -1,
+    var context: String? = null,
+    var subject: String? = null,
+    var direction: String? = null,
+    var indifferenceDelta: Double? = null,
+    var alternative: String? = null,
+    var lowerLimit: Double? = null,
+    var upperLimit: Double? = null,
+    var possibleBest: Boolean? = null,
+    val probCorrectSelection: Double? = null,
+    var keep: Boolean? = null,
+) : DbTableData("tblMCBIntervals", listOf("id"), autoIncField = false) {
+
+    init {
+        resultCounter++
+        id = resultCounter
+    }
+
+    companion object {
+        private var resultCounter = 0
+    }
+}
+
+/**
+ *  Converts the MCB interval data to a data frame
+ */
+fun List<MCBIntervalData>.asMCBIntervalDataFrame(): DataFrame<MCBIntervalData> {
+    var df = this.toDataFrame()
+    df = df.remove("autoIncField", "keyFields",
+        "numColumns", "numInsertFields", "numUpdateFields", "schemaName", "tableName")
+    return df
+}
+
+data class MCBScreeningIntervalData(
+    var id: Int = -1,
+    var context: String? = null,
+    var subject: String? = null,
+    var direction: String? = null,
+    var alternative: String? = null,
+    var average: Double? = null,
+    var screeningCase: String? = null,
+    var confidenceLevel: Double? = null,
+    var lowerLimit: Double? = null,
+    var upperLimit: Double? = null,
+    var contained: Boolean? = null
+) : DbTableData("tblMCBScreeningIntervals", listOf("id"), autoIncField = false) {
+
+    init {
+        resultCounter++
+        id = resultCounter
+    }
+
+    companion object {
+        private var resultCounter = 0
+    }
+}
+
+/**
+ *  Converts the MCB interval data to a data frame
+ */
+fun List<MCBScreeningIntervalData>.asMCBScreeingIntervalDataFrame(): DataFrame<MCBScreeningIntervalData> {
+    var df = this.toDataFrame()
+    df = df.remove("autoIncField", "keyFields",
+        "numColumns", "numInsertFields", "numUpdateFields", "schemaName", "tableName")
+    return df
+}
 
 /**
  * Holds data to perform multiple comparisons Performs pairwise comparisons and
@@ -64,7 +173,8 @@ class MultipleComparisonAnalyzer(
             field = value
         }
 
-    private lateinit var myDataMap: LinkedHashMap<String, DoubleArray>
+    private val myDataMap = mutableMapOf<String, DoubleArray>()
+    private val myStatMap = mutableMapOf<String, Statistic>()
 
     private var myDataSize = 0
     private lateinit var myPairDiffs: LinkedHashMap<String, DoubleArray>
@@ -84,13 +194,13 @@ class MultipleComparisonAnalyzer(
     fun assignData(dataMap: Map<String, DoubleArray>) {
         require(dataMap.keys.size > 1) { "There must be 2 or more data arrays" }
         require(checkLengths(dataMap)) { "The data arrays do not have all the same lengths" }
-        myDataMap = LinkedHashMap()
         myDataSize = dataMap.values.first().size // all have the same size
         require(myDataSize >= 2) { "There must be 2 or more observations within the data arrays." }
         for ((name, array) in dataMap.entries.iterator()) {
             // name is the name of the dataset
             // array is the DoubleArray holding the data
             myDataMap[name] = array.copyOf()
+            myStatMap[name] = Statistic(name = name, values = array)
         }
         myPairDiffs = computePairedDifferences()
         myPairDiffStats = computePairedDifferenceStatistics()
@@ -144,10 +254,17 @@ class MultipleComparisonAnalyzer(
         return myDataMap.toObservationData(tableName, context)
     }
 
+    /**
+     *  Captures the statistics computed on the raw data and the differences
+     *  @param level the confidence level for confidence intervals. The default is 0.95
+     *  @param context can be used to provide context for identifying the statistics
+     *  @param subject the name of the thing that the statistics are about.
+     *  @param tableName a way to change the name of the table if a database is being used.
+     */
     fun statisticData(
         level: Double = 0.95,
-        context: String? = null,
-        subject: String? = this.name,
+        context: String? = this.name,
+        subject: String? = null,
         tableName: String = "tblStatistic"
     ): List<StatisticDataDb> {
         val list = mutableListOf<StatisticDataDb>()
@@ -496,9 +613,9 @@ class MultipleComparisonAnalyzer(
      */
     val statistics: List<StatisticIfc>
         get() {
-            val list: MutableList<StatisticIfc> = ArrayList()
-            for (s in myDataMap.keys) {
-                list.add(statistic(s))
+            val list = mutableListOf<StatisticIfc>()
+            for ((_,s) in myStatMap) {
+                list.add(s.instance())
             }
             return list
         }
@@ -511,8 +628,7 @@ class MultipleComparisonAnalyzer(
      * @return average for the named data or Double.NaN
      */
     fun average(name: String): Double {
-        val s = statistic(name)
-        return s.average
+        return myStatMap[name]?.average ?: Double.NaN
     }
 
     /**
@@ -523,8 +639,7 @@ class MultipleComparisonAnalyzer(
      * @return variance for the named data or Double.NaN
      */
     fun variance(name: String): Double {
-        val s = statistic(name)
-        return s.variance
+        return myStatMap[name]?.variance ?: Double.NaN
     }
 
     /**
@@ -743,7 +858,7 @@ class MultipleComparisonAnalyzer(
      *
      * @return the map holding the intervals
      */
-    val mcbMaxIntervalsAsMap: Map<String?, Interval>
+    val mcbMaxIntervalsAsMap: Map<String, Interval>
         get() = mcbMaxIntervalsAsMap(defaultIndifferenceZone)
 
     /**
@@ -753,8 +868,8 @@ class MultipleComparisonAnalyzer(
      * @param delta the indifference zone parameter, must be greater than or equal to zero
      * @return the map holding the intervals
      */
-    fun mcbMaxIntervalsAsMap(delta: Double = defaultIndifferenceZone): Map<String?, Interval> {
-        val map: MutableMap<String?, Interval> = LinkedHashMap()
+    fun mcbMaxIntervalsAsMap(delta: Double = defaultIndifferenceZone): Map<String, Interval> {
+        val map: MutableMap<String, Interval> = LinkedHashMap()
         val n = numberDatasets
         val names = dataNames
         val list = mcbMaxIntervals(delta)
@@ -1210,9 +1325,142 @@ class MultipleComparisonAnalyzer(
         print(toString())
     }
 
+    /**
+     *  Constructs an instance of MCBResultData to capture the
+     *  performance results from the MCB analysis.
+     *  @param context can be used to add a context for identifying the results
+     */
+    fun mcbResultData(
+        context: String? = this.name,
+        subject: String? = null
+    ) : List<MCBResultData> {
+        val list = mutableListOf<MCBResultData>()
+        val result = MCBResultData(
+            context = context,
+            subject = subject,
+            maxDifferenceVariance = maxVarianceOfDifferences,
+            minPerformerName = nameOfMinimumAverageOfData,
+            minPerformance = minimumAverageOfData,
+            maxPerformerName = nameOfMaximumAverageOfData,
+            maxPerformance = maximumAverageOfData,
+            minDifferenceName = nameOfMinumumAverageOfDifferences,
+            minDifference = minimumOfAveragesOfDifferences,
+            maxDifferenceName = nameOfMaximumAverageOfDifferences,
+            maxDifference = maximumOfAveragesOfDifferences
+        )
+        list.add(result)
+        return list
+    }
+
+    /**
+     *  Captures the MCB interval data to MCBIntervalData instances
+     *  @param delta the indifference zone parameter
+     *  @param probCS the probability of correct selection for screening results
+     *  @param context can be used to provide context to identify the results
+     */
+    fun mcbIntervalData(
+        delta: Double = defaultIndifferenceZone,
+        probCS: Double = defaultLevel,
+        context: String? = this.name,
+        subject: String? = null
+    ) : List<MCBIntervalData>{
+        val list = mutableListOf<MCBIntervalData>()
+        val maxIntervals = mcbMaxIntervalsAsMap(delta)
+        val keepMax = screenForMaximum(probCS)
+        for((name, mi) in maxIntervals){
+            val data = MCBIntervalData(
+                context = context,
+                subject = subject,
+                direction = "maximum",
+                indifferenceDelta = delta,
+                alternative = name,
+                lowerLimit = mi.lowerLimit,
+                upperLimit = mi.upperLimit,
+                possibleBest = (mi.upperLimit != 0.0),
+                probCorrectSelection = probCS,
+                keep = keepMax.contains(name)
+            )
+            list.add(data)
+        }
+        val minIntervals = mcbMinIntervalsAsMap(delta)
+        val keepMin = screenForMinimum(probCS)
+        for((name, mi) in minIntervals){
+            val data = MCBIntervalData(
+                context = context,
+                subject = subject,
+                direction = "minimum",
+                indifferenceDelta = delta,
+                alternative = name,
+                lowerLimit = mi.lowerLimit,
+                upperLimit = mi.upperLimit,
+                possibleBest = (mi.lowerLimit != 0.0),
+                probCorrectSelection = probCS,
+                keep = keepMin.contains(name)
+            )
+            list.add(data)
+        }
+        return list
+    }
+
+    /**
+     *  Captures the MCB screening interval data to MCBIntervalData instances
+     *  @param probCS the probability of correct selection for screening results
+     *  @param context can be used to provide context to identify the results
+     */
+    fun mcbScreeningIntervalData(
+        probCS: Double = defaultLevel,
+        context: String? = this.name,
+        subject: String? = null
+    ) : List<MCBScreeningIntervalData>{
+        val list = mutableListOf<MCBScreeningIntervalData>()
+        val maxIntervals = maxScreeningIntervals(probCS)
+        for((name, intervalMap) in maxIntervals){
+            val avg = average(name)
+            for((altName, mi) in intervalMap){
+                val data = MCBScreeningIntervalData(
+                    context = context,
+                    subject = subject,
+                    direction = "maximum",
+                    alternative = name,
+                    average = avg,
+                    screeningCase = altName,
+                    confidenceLevel = probCS,
+                    lowerLimit = mi.lowerLimit,
+                    upperLimit = mi.upperLimit,
+                    contained = mi.contains(avg)
+                )
+//                lowerLimit = if (mi.lowerLimit == Double.NEGATIVE_INFINITY)
+//                    -Double.MAX_VALUE else mi.lowerLimit,
+//                upperLimit = if (mi.upperLimit == Double.POSITIVE_INFINITY)
+//                    Double.MAX_VALUE else mi.upperLimit,
+                list.add(data)
+            }
+        }
+        val minIntervals = minScreeningIntervals(probCS)
+        for((name, intervalMap) in minIntervals){
+            val avg = average(name)
+            for((altName, mi) in intervalMap){
+                val data = MCBScreeningIntervalData(
+                    context = context,
+                    subject = subject,
+                    direction = "minimum",
+                    alternative = name,
+                    average = avg,
+                    screeningCase = altName,
+                    confidenceLevel = probCS,
+                    lowerLimit = mi.lowerLimit,
+                    upperLimit = mi.upperLimit,
+                    contained = mi.contains(avg)
+                )
+                list.add(data)
+            }
+        }
+        return list
+    }
+
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.appendLine("Multiple Comparison Report: ${name ?: ""}")
+        sb.appendLine("Multiple Comparison Report: $name")
         sb.appendLine(this.summaryStatistics("Raw Data"))
         sb.appendLine(confidenceIntervalsOnData(defaultLevel))
         sb.appendLine(differenceSummaryStatistics("Difference Data"))
@@ -1314,6 +1562,39 @@ class MultipleComparisonAnalyzer(
             }
             out.println()
         }
+    }
+
+    /**
+     *  Returns the results as a database holding ScoreData, ValueData, and OverallValueData
+     *  tables (tblScores, tblValues, tblOverall).
+     *  @param dbName the name of the database on the disk
+     *  @param dir the directory to hold the database on the disk
+     */
+    fun resultsAsDatabase(
+        dbName: String,
+        dir: Path = KSL.dbDir,
+        deleteIfExists: Boolean = true,
+        confidenceLevel: Double = defaultLevel,
+        delta: Double = defaultIndifferenceZone,
+        probCS: Double = defaultLevel,
+        context: String? = this.name,
+        subject: String? = null
+    ): DatabaseIfc {
+        val db = Database.createSimpleDb(setOf(
+            MCBResultData(), MCBIntervalData(),
+            MCBScreeningIntervalData(), StatisticDataDb(), ObservationDataDb()
+        ), dbName, dir, deleteIfExists)
+        val mcbResults = mcbResultData(context, subject)
+        val stats = statisticData(confidenceLevel, context, subject)
+        val mcbIntervals = mcbIntervalData(delta, probCS, context, subject)
+        val mcbScreening = mcbScreeningIntervalData(probCS, context, subject)
+        val rawData = observationData(context = context)
+        db.insertAllDbDataIntoTable(mcbResults, "tblMCBResults")
+        db.insertAllDbDataIntoTable(stats, "tblStatistic")
+        db.insertAllDbDataIntoTable(mcbIntervals, "tblMCBIntervals")
+        db.insertAllDbDataIntoTable(mcbScreening, "tblMCBScreeningIntervals")
+        db.insertAllDbDataIntoTable(rawData, "tblObservations")
+        return db
     }
 
     companion object {
@@ -3658,7 +3939,7 @@ fun main() {
     val mca = MultipleComparisonAnalyzer(data, "ExampleData")
     println("The Data")
     println()
-    mca.observationData().asDataFrame().print(rowsLimit = 50)
+    mca.observationData().asObservationDataFrame().print(rowsLimit = 50)
     mca.writeDataAsCSVFile(KSL.createPrintWriter("MCA_Results.csv"))
     println(mca)
     println("num data sets: " + mca.numberDatasets)
@@ -3668,6 +3949,14 @@ fun main() {
     println("Second stage sampling recommendation R = $r")
 
     println()
-    mca.statisticData().asDataFrame().print(rowsLimit = 50)
+    mca.statisticData().asStatisticDataFrame().print(rowsLimit = 50)
+
+    println()
+    mca.mcbIntervalData().asMCBIntervalDataFrame().print()
+
+    println()
+    mca.mcbScreeningIntervalData().asMCBScreeingIntervalDataFrame().print()
+
+    mca.resultsAsDatabase("TestMCBResults")
 
 }

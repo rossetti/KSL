@@ -679,7 +679,7 @@ abstract class MODAModel(
     ) : List<AlternativeRankFrequencyData> {
         val list = mutableListOf<AlternativeRankFrequencyData>()
         val altFreqMap = alternativeMetricRankFrequencies(sortByAvgRanking, rankingMethod)
-        var id = 0
+        var id = 1
         for ( (alternative, freq) in altFreqMap){
             val fData = freq.frequencyData()
             for(fd in fData){
