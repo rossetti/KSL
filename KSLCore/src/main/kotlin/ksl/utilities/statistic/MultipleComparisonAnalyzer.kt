@@ -1565,8 +1565,9 @@ class MultipleComparisonAnalyzer(
     }
 
     /**
-     *  Returns the results as a database holding ScoreData, ValueData, and OverallValueData
-     *  tables (tblScores, tblValues, tblOverall).
+     *  Returns the results as a database holding MCBResultData, MCBIntervalData,
+     *  MCBScreeningIntervalData, StatisticDataDb, and ObservationDataDb
+     *  tables (tblMCBResults, tblStatistic, tblMCBIntervals,tblMCBScreeningIntervals, tblObservations).
      *  @param dbName the name of the database on the disk
      *  @param dir the directory to hold the database on the disk
      */
