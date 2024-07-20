@@ -234,9 +234,10 @@ class MultipleComparisonAnalyzer(
      */
     fun observationData(
         tableName: String = "tblObservations",
-        context: String? = name
+        context: String? = name,
+        subject: String? = null
     ): List<ObservationDataDb> {
-        return myDataMap.toObservationData(tableName, context)
+        return myDataMap.toObservationData(tableName, context, subject)
     }
 
     /**
