@@ -29,10 +29,6 @@ import java.sql.Connection
 import java.util.*
 import javax.sql.DataSource
 
-enum class DbType {
-    SQLite, Derby, DuckDb
-}
-
 open class Database(
     final override val dataSource: DataSource,
     final override var label: String,
@@ -79,16 +75,16 @@ open class Database(
             dbName: String,
             dbDirectory: Path = KSL.dbDir,
             deleteIfExists: Boolean = true,
-            dbType: DbType = DbType.SQLite
+            dbType: EmbeddedDbType = EmbeddedDbType.SQLITE
         ): Database {
             return when (dbType) {
-                DbType.SQLite -> {
+                EmbeddedDbType.SQLITE -> {
                     SQLiteDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
                 }
-                DbType.Derby -> {
+                EmbeddedDbType.DERBY -> {
                     DerbyDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
                 }
-                DbType.DuckDb -> {
+                EmbeddedDbType.DUCKDB -> {
                     DuckDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
                 }
             }
