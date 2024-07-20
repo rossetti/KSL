@@ -46,7 +46,7 @@ data class FrequencyData(
     var cumProportion: Double = 0.0
 ) {
     fun asFrequencyRecord(): FrequencyRecord {
-        return FrequencyRecord(id, name, cellLabel, value, count, proportion, cumProportion)
+        return FrequencyRecord(id, name, cellLabel, value, count, cum_count, proportion, cumProportion)
     }
 }
 
