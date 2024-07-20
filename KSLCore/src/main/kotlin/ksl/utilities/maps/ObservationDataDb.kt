@@ -15,7 +15,8 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 data class ObservationDataDb(
     var id: Int = obsCounter++,
     var context: String? = null,
-    var subject: String = "",
+    var subject: String? = null,
+    var response: String = "",
     var obsNum: Int = -1,
     var obsValue: Double = Double.NaN
 ) : DbTableData("tblObservations", keyFields = listOf("id"), autoIncField = false) {
@@ -33,14 +34,16 @@ data class ObservationDataDb(
  */
 fun Map<String, DoubleArray>.toObservationData(
     tableName: String = "tblObservations",
-    context: String? = null
+    context: String? = null,
+    subject: String? = null
 ): List<ObservationDataDb> {
     val list = mutableListOf<ObservationDataDb>()
     for ((s, array) in this) {
         for ((i, v) in array.withIndex()) {
             val data = ObservationDataDb(
                 context = context,
-                subject = s,
+                subject = subject,
+                response = s,
                 obsNum = i + 1,
                 obsValue = v
             )

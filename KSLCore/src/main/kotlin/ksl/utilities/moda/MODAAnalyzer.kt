@@ -627,25 +627,30 @@ class MODAAnalyzer(
         // save overall average moda to db
         saveMODADataToDb(db, averageMODA())
         // save overall value mcb to db
-        saveMCBDataToDb(db, mcbForOverallValue()) //TODO need context
-        // save overall rank frequencies??
-        val freqMap = overallRankFrequenciesByAlternative()
-        for ((alternative, freq) in freqMap) {
-           //TODO what????? will need to add db table for this...
+        val overallMCB = mcbForOverallValue()
+        if (overallMCB != null) {
+            saveMCBDataToDb(db, overallMCB, context = "Value Performance", subject = "Overall Value")
+        } else {
+            KSL.logger.info {"MODAAnalyzer: Overall Value MCB was null"}
         }
+        // save overall rank frequencies??
+//        val freqMap = overallRankFrequenciesByAlternative()
+//        for ((alternative, freq) in freqMap) {
+//           //TODO what????? will need to add db table for this...
+//        }
         // save mcb by response
         var mcbMap = mcbForResponsePerformance()
-        for ((_, mcb) in mcbMap) {
-//            saveMCBDataToDb(db, mcb) //TODO need context
+        for ((responseName, mcb) in mcbMap) {
+            saveMCBDataToDb(db, mcb, context = "Raw Performance", subject = responseName)
         }
         // save the mcb responses for the moda values
         mcbMap = mcbForResponseMODAValues()
-        for ((_, mcb) in mcbMap) {
- //           saveMCBDataToDb(db, mcb) //TODO need context
+        for ((responseName, mcb) in mcbMap) {
+            saveMCBDataToDb(db, mcb, context = "Value Performance", subject = responseName)
         }
         // save the moda results by replication
-        for ((r, moda) in myMODAByRepMap) {
-//            saveMODADataToDb(db, moda)
+        for ((_, moda) in myMODAByRepMap) {
+            saveMODADataToDb(db, moda)
         }
         return db
     }
@@ -665,22 +670,18 @@ class MODAAnalyzer(
 
     private fun saveMCBDataToDb(
         db: DatabaseIfc,
-        mcb: MultipleComparisonAnalyzer?,
-        context: String? = null, //TODO mcb.name?
-        subject: String? = null,
-        confidenceLevel: Double = mcb?.defaultLevel?: 0.95,
-        delta: Double = mcb?.defaultIndifferenceZone?:0.0,
-        probCS: Double = mcb?.defaultLevel?: 0.95
+        mcb: MultipleComparisonAnalyzer,
+        context: String,
+        subject: String,
+        confidenceLevel: Double = mcb.defaultLevel,
+        delta: Double = mcb.defaultIndifferenceZone,
+        probCS: Double = mcb.defaultLevel
     ) {
-        if (mcb == null) {
-            KSL.logger.info { "The MCB results were null when saving to the database" }
-            return
-        }
         val mcbResults = mcb.mcbResultData(context, subject)
         val stats = mcb.statisticData(confidenceLevel, context, subject)
         val mcbIntervals = mcb.mcbIntervalData(delta, probCS, context, subject)
         val mcbScreening = mcb.mcbScreeningIntervalData(probCS, context, subject)
-        val rawData = mcb.observationData(context = context)
+        val rawData = mcb.observationData(context = context, subject = subject)
         db.insertAllDbDataIntoTable(mcbResults, "tblMCBResults")
         db.insertAllDbDataIntoTable(stats, "tblStatistic")
         db.insertAllDbDataIntoTable(mcbIntervals, "tblMCBIntervals")
