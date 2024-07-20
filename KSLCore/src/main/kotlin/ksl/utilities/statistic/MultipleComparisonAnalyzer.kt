@@ -43,7 +43,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 data class MCBResultData(
-    var id: Int = -1,
+    var id: Int = mcbResultDataCounter++,
     var context: String? = null,
     var subject: String? = null,
     var maxDifferenceVariance: Double? = null,
@@ -57,13 +57,8 @@ data class MCBResultData(
     var maxDifference: Double? = null
 ) : DbTableData("tblMCBResults", listOf("id"), autoIncField = false) {
 
-    init {
-        resultCounter++
-        id = resultCounter
-    }
-
     companion object {
-        private var resultCounter = 0
+        var mcbResultDataCounter = 0
     }
 }
 
@@ -78,7 +73,7 @@ fun List<MCBResultData>.asMCBResultDataFrame(): DataFrame<MCBResultData> {
 }
 
 data class MCBIntervalData(
-    var id: Int = -1,
+    var id: Int = mcbIntervalDataCounter++,
     var context: String? = null,
     var subject: String? = null,
     var direction: String? = null,
@@ -91,13 +86,8 @@ data class MCBIntervalData(
     var keep: Boolean? = null,
 ) : DbTableData("tblMCBIntervals", listOf("id"), autoIncField = false) {
 
-    init {
-        resultCounter++
-        id = resultCounter
-    }
-
     companion object {
-        private var resultCounter = 0
+        var mcbIntervalDataCounter = 0
     }
 }
 
@@ -112,7 +102,7 @@ fun List<MCBIntervalData>.asMCBIntervalDataFrame(): DataFrame<MCBIntervalData> {
 }
 
 data class MCBScreeningIntervalData(
-    var id: Int = -1,
+    var id: Int = mcbScreeningIntervalCounter++,
     var context: String? = null,
     var subject: String? = null,
     var direction: String? = null,
@@ -125,20 +115,15 @@ data class MCBScreeningIntervalData(
     var contained: Boolean? = null
 ) : DbTableData("tblMCBScreeningIntervals", listOf("id"), autoIncField = false) {
 
-    init {
-        resultCounter++
-        id = resultCounter
-    }
-
     companion object {
-        private var resultCounter = 0
+        var mcbScreeningIntervalCounter = 0
     }
 }
 
 /**
  *  Converts the MCB interval data to a data frame
  */
-fun List<MCBScreeningIntervalData>.asMCBScreeingIntervalDataFrame(): DataFrame<MCBScreeningIntervalData> {
+fun List<MCBScreeningIntervalData>.asMCBScreeningIntervalDataFrame(): DataFrame<MCBScreeningIntervalData> {
     var df = this.toDataFrame()
     df = df.remove("autoIncField", "keyFields",
         "numColumns", "numInsertFields", "numUpdateFields", "schemaName", "tableName")
@@ -3938,9 +3923,7 @@ fun main() {
     data["Three"] = d3
     data["Four"] = d4
     val mca = MultipleComparisonAnalyzer(data, "ExampleData")
-    println("The Data")
-    println()
-    mca.observationData().asObservationDataFrame().print(rowsLimit = 50)
+
     mca.writeDataAsCSVFile(KSL.createPrintWriter("MCA_Results.csv"))
     println(mca)
     println("num data sets: " + mca.numberDatasets)
@@ -3948,16 +3931,6 @@ fun main() {
 
     val r = mca.secondStageSampleSizeNM(2.0, 0.95)
     println("Second stage sampling recommendation R = $r")
-
-    println()
-    mca.statisticData().asStatisticDataFrame().print(rowsLimit = 50)
-
-    println()
-    mca.mcbIntervalData().asMCBIntervalDataFrame().print()
-
-    println()
-    mca.mcbScreeningIntervalData().asMCBScreeingIntervalDataFrame().print()
-
+    // All the data and results can be saved in a database
     mca.resultsAsDatabase("TestMCBResults")
-
 }

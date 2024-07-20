@@ -13,20 +13,15 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
  *  @param obsValue the value of the observation
  */
 data class ObservationDataDb(
-    var id: Int = -1,
+    var id: Int = obsCounter++,
     var context: String? = null,
     var subject: String = "",
     var obsNum: Int = -1,
     var obsValue: Double = Double.NaN
 ) : DbTableData("tblObservations", keyFields = listOf("id"), autoIncField = false) {
 
-    init {
-        obsCounter++
-        id = obsCounter
-    }
-
     companion object {
-        internal var obsCounter = 0
+        var obsCounter = 0
     }
 }
 

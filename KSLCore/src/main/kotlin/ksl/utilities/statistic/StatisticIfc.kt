@@ -318,29 +318,27 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
         tableName: String = "tblStatistic"
     ): StatisticDataDb {
         val ci = confidenceInterval(level)
-        statDbCounter++
         val statData = StatisticDataDb(
-            statDbCounter,
-            context,
-            subject,
-            name,
-            count,
-            average,
-            standardDeviation,
-            standardError,
-            ci.halfWidth,
-            level,
-            min,
-            max,
-            sum,
-            deviationSumOfSquares,
-            lastValue,
-            kurtosis,
-            skewness,
-            lag1Covariance,
-            lag1Correlation,
-            vonNeumannLag1TestStatistic,
-            numberMissing
+            context = context,
+            subject = subject,
+            stat_name = name,
+            stat_count = count,
+            average = average,
+            std_dev = standardDeviation,
+            std_err =  standardError,
+            half_width = ci.halfWidth,
+            conf_level = level,
+            minimum = min,
+            maximum = max,
+            sum_of_obs = sum,
+            dev_ssq = deviationSumOfSquares,
+            last_value = lastValue,
+            kurtosis = kurtosis,
+            skewness = skewness,
+            lag1_cov = lag1Covariance,
+            lag1_corr = lag1Correlation,
+            von_neumann_lag1_stat = vonNeumannLag1TestStatistic,
+            num_missing_obs = numberMissing
         )
         statData.tableName = tableName
         return statData
@@ -549,11 +547,6 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
             stats["Number of missing observations"] = numberMissing
             return stats
         }
-
-    companion object{
-
-        private var statDbCounter = 0
-    }
 }
 
 fun List<StatisticIfc>.averages(): DoubleArray {

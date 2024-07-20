@@ -70,7 +70,7 @@ abstract class MODAModel(
             myAlternatives.clear()
         }
         for ((metric, valFunc) in definitions) {
-                metricFunctionMap[metric] = valFunc
+            metricFunctionMap[metric] = valFunc
         }
     }
 
@@ -137,7 +137,7 @@ abstract class MODAModel(
             } else if (metric.allowLowerLimitAdjustment && !metric.allowUpperLimitAdjustment) {
                 // yes on lower limit, no on upper limit
                 metric.domain.setInterval(interval.lowerLimit, metric.domain.upperLimit)
-            } else if (metric.allowLowerLimitAdjustment && metric.allowUpperLimitAdjustment){
+            } else if (metric.allowLowerLimitAdjustment && metric.allowUpperLimitAdjustment) {
                 // adjust both
                 metric.domain.setInterval(interval.lowerLimit, interval.upperLimit)
             } // else no adjustment
@@ -225,8 +225,8 @@ abstract class MODAModel(
         val table = HashBasedTable.create<String, MetricIfc, Double>()
         val ranksByMetric = ranksByMetric(rankingMethod)
         val alternatives = alternatives
-        for ((metric, ranks) in ranksByMetric){
-            for ((i, rank) in ranks.withIndex()){
+        for ((metric, ranks) in ranksByMetric) {
+            for ((i, rank) in ranks.withIndex()) {
                 val alternative = alternatives[i]
                 table.put(alternative, metric, rank)
             }
@@ -405,11 +405,11 @@ abstract class MODAModel(
             appendLine("MODA Results")
             appendLine("-------------------------------------------")
             appendLine("Metrics")
-            for(metric in metrics){
+            for (metric in metrics) {
                 append("\t ${metric.name}")
                 append("\t domain = ${metric.domain}")
                 append("\t direction = ${metric.direction}")
-                if (metric.unitsOfMeasure != null){
+                if (metric.unitsOfMeasure != null) {
                     append("\t units = ${metric.unitsOfMeasure}")
                 }
                 appendLine()
@@ -426,7 +426,7 @@ abstract class MODAModel(
         return sb.toString()
     }
 
-    fun print(){
+    fun print() {
         print(toString())
     }
 
@@ -559,10 +559,10 @@ abstract class MODAModel(
     /**
      *  The alternatives and their rank based on largest to smallest multi-objective value
      */
-    fun alternativeRankedByMultiObjectiveValue() : Map<String, Int>{
+    fun alternativeRankedByMultiObjectiveValue(): Map<String, Int> {
         val map = mutableMapOf<String, Int>()
         val list = sortedMultiObjectiveValuesByAlternative()
-        for((i, element) in list.withIndex()){
+        for ((i, element) in list.withIndex()) {
             map[element.first] = i + 1
         }
         return map
@@ -577,8 +577,8 @@ abstract class MODAModel(
         val set = mutableSetOf<String>()
         val altList = sortedMultiObjectiveValuesByAlternative()
         val first = altList.first()
-        for ((alternative, value) in altList){
-            if (value == first.second){
+        for ((alternative, value) in altList) {
+            if (value == first.second) {
                 set.add(alternative)
             }
         }
@@ -591,12 +591,17 @@ abstract class MODAModel(
      */
     fun alternativeScoreData(): List<ScoreData> {
         val list = mutableListOf<ScoreData>()
-        var id = 1
-        for ( (alternative, metric) in myAlternatives) {
+        for ((alternative, metric) in myAlternatives) {
             for ((m, v) in metric) {
-                list.add(ScoreData(this.id, this.label?:this.name, id, alternative, m.name, v.value))
+                list.add(
+                    ScoreData(
+                        modaName = this.label ?: this.name,
+                        alternative = alternative,
+                        scoreName = m.name,
+                        scoreValue = v.value
+                    )
+                )
             }
-            id = id + 1
         }
         return list
     }
@@ -612,9 +617,17 @@ abstract class MODAModel(
         var id = 1
         val alternativeValuesByMetric = alternativeValuesByMetric()
         val ranksByMetricMap = ranksByMetric(rankingMethod)
-        for((alternative, metricMap) in alternativeValuesByMetric){
+        for ((alternative, metricMap) in alternativeValuesByMetric) {
             for ((m, v) in metricMap) {
-                list.add(ValueData(this.id, this.label?:this.name, id, alternative, m.name, v, ranksByMetricMap[m]!![id-1]))
+                list.add(
+                    ValueData(
+                        modaName = this.label ?: this.name,
+                        alternative = alternative,
+                        metricName = m.name,
+                        metricValue = v,
+                        rank = ranksByMetricMap[m]!![id - 1]
+                    )
+                )
             }
             id = id + 1
         }
@@ -631,20 +644,19 @@ abstract class MODAModel(
         sortByAvgRanking: Boolean = true,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): Map<String, IntegerFrequency> {
-         // make frequencies
+        // make frequencies
         val altFreqMap = mutableMapOf<String, IntegerFrequency>()
-        for(alternative in alternatives){
+        for (alternative in alternatives) {
             altFreqMap[alternative] = IntegerFrequency(name = "$alternative Metric Rank Frequencies")
         }
         val vdList = alternativeValueData(rankingMethod)
-        for(vd in vdList){
+        for (vd in vdList) {
             altFreqMap[vd.alternative]!!.collect(vd.rank)
         }
-        if (!sortByAvgRanking){
+        if (!sortByAvgRanking) {
             return altFreqMap
         }
-        val sortedMap = altFreqMap.toList().sortedBy {
-            (_, freq) -> freq.average }.toMap()
+        val sortedMap = altFreqMap.toList().sortedBy { (_, freq) -> freq.average }.toMap()
         return sortedMap
     }
 
@@ -660,8 +672,8 @@ abstract class MODAModel(
     ): Map<String, IntegerFrequency> {
         val altSubMap = mutableMapOf<String, IntegerFrequency>()
         val altFreqMap = alternativeMetricRankFrequencies(sortByAvgRanking, rankingMethod)
-        for ( (alternative, freq) in altFreqMap){
-            if (freq.closedRange.contains(1)){
+        for ((alternative, freq) in altFreqMap) {
+            if (freq.closedRange.contains(1)) {
                 altSubMap[alternative] = freq
             }
         }
@@ -676,18 +688,22 @@ abstract class MODAModel(
     fun alternativeRankFrequencyData(
         sortByAvgRanking: Boolean = true,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
-    ) : List<AlternativeRankFrequencyData> {
+    ): List<AlternativeRankFrequencyData> {
         val list = mutableListOf<AlternativeRankFrequencyData>()
         val altFreqMap = alternativeMetricRankFrequencies(sortByAvgRanking, rankingMethod)
-        var id = 1
-        for ( (alternative, freq) in altFreqMap){
+        for ((alternative, freq) in altFreqMap) {
             val fData = freq.frequencyData()
-            for(fd in fData){
-                val arfd = AlternativeRankFrequencyData(this.id, this.label?:this.name,
-                    id, alternative, fd.value, fd.count, fd.proportion, fd.cumProportion)
+            for (fd in fData) {
+                val arfd = AlternativeRankFrequencyData(
+                    modaName = this.label ?: this.name,
+                    alternative = alternative,
+                    value = fd.value,
+                    count = fd.count,
+                    proportion = fd.proportion,
+                    cumProportion = fd.cumProportion
+                )
                 list.add(arfd)
             }
-            id = id + 1
         }
         return list
     }
@@ -702,13 +718,13 @@ abstract class MODAModel(
     fun alternativeFirstRankCounts(
         sortByCounts: Boolean = true,
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
-    ) : List<Pair<String, Int>> {
+    ): List<Pair<String, Int>> {
         val map = mutableMapOf<String, Int>()
         val altFreqMap = alternativeMetricRankFrequencies(false, rankingMethod)
-        for ( (alternative, freq) in altFreqMap){
+        for ((alternative, freq) in altFreqMap) {
             map[alternative] = freq.frequency(1).toInt()
         }
-        if (!sortByCounts){
+        if (!sortByCounts) {
             return map.toList()
         }
         return map.toList().sortedByDescending { it.second }
@@ -727,7 +743,7 @@ abstract class MODAModel(
     ): List<Pair<String, Double>> {
         val list = mutableListOf<Pair<String, Double>>()
         val altFreqMap = alternativeMetricRankFrequencies(sortByAvgRanking, rankingMethod)
-        for ( (alternative, freq) in altFreqMap){
+        for ((alternative, freq) in altFreqMap) {
             list.add(Pair(alternative, freq.average))
         }
         return list
@@ -745,8 +761,8 @@ abstract class MODAModel(
         val set = mutableSetOf<String>()
         val altList = alternativeFirstRankCounts(true, rankingMethod)
         val first = altList.first()
-        for ((alternative, value) in altList){
-            if (value == first.second){
+        for ((alternative, value) in altList) {
+            if (value == first.second) {
                 set.add(alternative)
             }
         }
@@ -765,10 +781,18 @@ abstract class MODAModel(
         val counts = alternativeFirstRankCounts().toMap()
         val averages = alternativeAverageRanking(true, rankingMethod).toMap()
         var id = 1
-        for((alternative, v) in valuesByAlternative){
+        for ((alternative, v) in valuesByAlternative) {
             val cnt = counts[alternative]!!
             val avg = averages[alternative]!!
-            list.add(OverallValueData(this.id, this.label?:this.name, id, alternative, v, cnt, avg))
+            list.add(
+                OverallValueData(
+                    modaName =  this.label ?: this.name,
+                    alternative = alternative,
+                    weightedValue = v,
+                    firstRankCount = cnt,
+                    averageRank = avg
+                )
+            )
             id = id + 1
         }
         return list
@@ -853,9 +877,9 @@ abstract class MODAModel(
          *  Creates a list of metrics with the supplied names. Each metric
          *  has the default settings.
          */
-        fun createDefaultMetrics(names: Set<String>) : List<MetricIfc>{
+        fun createDefaultMetrics(names: Set<String>): List<MetricIfc> {
             val list = mutableListOf<MetricIfc>()
-            for(name in names){
+            for (name in names) {
                 list.add(Metric(name))
             }
             return list
@@ -890,10 +914,11 @@ abstract class MODAModel(
     }
 }
 
+//TODO make id fields
+
 data class MetricData(
-    var modaId: Int = 0,
+    var id: Int = metricDataCounter++,
     var modaName: String = "",
-    var metricId: Int = 0,
     var metricName: String = "",
     var direction: String = "",
     var weight: Double = 1.0,
@@ -903,44 +928,65 @@ data class MetricData(
     var description: String? = null,
     var allowLowerLimitAdjustment: Boolean = false,
     var allowUpperLimitAdjustment: Boolean = false
-) : DbTableData("tblMetrics", listOf("modaId", "modaName", "metricId", "metricName"))
+) : DbTableData("tblMetrics", listOf("id")) {
+
+    companion object {
+        var metricDataCounter = 0
+    }
+}
 
 data class ScoreData(
-    var modaId: Int = 0,
+    var id: Int = scoreDataCounter++,
     var modaName: String = "",
-    var scoreId: Int = 0,
     var alternative: String = "",
     var scoreName: String = "",
     var scoreValue: Double = 0.0
-) : DbTableData("tblScores", listOf("modaId", "modaName", "scoreId", "alternative", "scoreName"))
+) : DbTableData("tblScores", listOf("id")) {
+
+    companion object {
+        var scoreDataCounter = 0
+    }
+}
 
 data class ValueData(
-    var modaId: Int = 0,
+    var id: Int = valueDataCounter++,
     var modaName: String = "",
-    var alternativeId: Int = 0,
     var alternative: String = "",
     var metricName: String = "",
     var metricValue: Double = 0.0,
     var rank: Double = 0.0
-) : DbTableData("tblValues", listOf("modaId", "modaName", "alternativeId", "alternative", "metricName"))
+) : DbTableData("tblValues", listOf("id")) {
+
+    companion object {
+        var valueDataCounter = 0
+    }
+}
 
 data class OverallValueData(
-    var modaId: Int = 0,
+    var id: Int = overallValueDataCounter++,
     var modaName: String = "",
-    var alternativeId: Int = 0,
     var alternative: String = "",
     var weightedValue: Double = 0.0,
     var firstRankCount: Int = 0,
     var averageRank: Double = 0.0,
-) : DbTableData("tblOverall", listOf("modaId", "modaName","alternativeId", "alternative"))
+) : DbTableData("tblOverall", listOf("id")) {
+
+    companion object {
+        var overallValueDataCounter = 0
+    }
+}
 
 data class AlternativeRankFrequencyData(
-    var modaId: Int = 0,
+    var id: Int = altRankFreqDataCounter++,
     var modaName: String = "",
-    var rankId: Int = 0,
     var alternative: String = "",
     var value: Int = 0,
     var count: Double = 0.0,
     var proportion: Double = 0.0,
     var cumProportion: Double = 0.0
-) : DbTableData("tblRankFrequency", listOf("modaId", "modaName", "rankId", "alternative", "value"))
+) : DbTableData("tblRankFrequency", listOf("id")) {
+
+    companion object {
+        var altRankFreqDataCounter = 0
+    }
+}

@@ -72,18 +72,14 @@ interface MetricIfc {
 
     /**
      *  Returns an instance of MetricData
-     *  based on (modaId, modaName, metricId, weight)
+     *  based on (modaName, weight)
      */
     fun metricData(
-        modaId: Int,
         modaName: String,
-        metricId: Int,
         weight: Double
     ) : MetricData {
         val md = MetricData(
-            modaId = modaId,
             modaName = modaName,
-            metricId = metricId,
             metricName = name,
             direction = direction.name,
             weight = weight,
