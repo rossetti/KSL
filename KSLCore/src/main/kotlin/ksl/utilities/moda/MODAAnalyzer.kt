@@ -366,7 +366,7 @@ class MODAAnalyzer(
      *  the replications.
      */
     fun averageMODA(): AdditiveMODAModel {
-        val moda = AdditiveMODAModel(metricDefinitions, weights)
+        val moda = AdditiveMODAModel(metricDefinitions, weights, name = "Average MODA")
         val ap = averagePerformance()
         // convert altData to scores here
         moda.defineAlternatives(convertToScores(responseMetrics, ap), allowRescalingByMetrics = false)
