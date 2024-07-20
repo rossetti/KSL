@@ -29,6 +29,10 @@ import java.sql.Connection
 import java.util.*
 import javax.sql.DataSource
 
+enum class DbType {
+    SQLite, Derby, DuckDb
+}
+
 open class Database(
     final override val dataSource: DataSource,
     final override var label: String,
@@ -57,7 +61,7 @@ open class Database(
 
     companion object {
 
-    //    val nonUserDefinedSysSchemas = setOf("SYS", "SYSIBM", "pg_catalog", "information_schema", "pg_toast" )
+        //    val nonUserDefinedSysSchemas = setOf("SYS", "SYSIBM", "pg_catalog", "information_schema", "pg_toast" )
 
         /** This constructs a database on disk.
          * The database will contain empty tables based on the table definitions.
@@ -67,16 +71,27 @@ open class Database(
          * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
          * @param deleteIfExists If true, an existing database in the supplied directory with
          * the same name will be deleted and an empty database will be constructed.
+         * @param dbType The type of database (SQLite, Derby, DuckDb). The default is SQLite.
          * @return a database
          */
         fun createSimpleDb(
             tableDefinitions: Set<DbTableData>,
             dbName: String,
             dbDirectory: Path = KSL.dbDir,
-            deleteIfExists: Boolean = true
+            deleteIfExists: Boolean = true,
+            dbType: DbType = DbType.SQLite
         ): Database {
-            //TODO make based on type
-            return SQLiteDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
+            return when (dbType) {
+                DbType.SQLite -> {
+                    SQLiteDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
+                }
+                DbType.Derby -> {
+                    DerbyDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
+                }
+                DbType.DuckDb -> {
+                    DuckDb(tableDefinitions, dbName, dbDirectory, deleteIfExists)
+                }
+            }
         }
 
         /** Helper method for making a database

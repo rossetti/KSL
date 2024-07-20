@@ -651,7 +651,7 @@ class MODAAnalyzer(
         }
         // save overall rank frequencies??
         val freqMap = overallRankFrequenciesByAlternative()
-        for ((alternative, freq) in freqMap) {
+        for ((_, freq) in freqMap) {
             val freqData = freq.frequencyData().map { it.asFrequencyRecord().apply { tableName = "tblOverallRankFrequency"  } }
             db.insertAllDbDataIntoTable(freqData, "tblOverallRankFrequency")
         }
