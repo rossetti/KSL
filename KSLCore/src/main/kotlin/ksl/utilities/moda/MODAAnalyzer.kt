@@ -618,11 +618,13 @@ class MODAAnalyzer(
 //        context: String? = this.name,
 //        subject: String? = null
     ): DatabaseIfc {
+        val fr = FrequencyRecord()
+        fr.tableName = "tblOverallRankFrequency"
         val db = Database.createSimpleDb(
             setOf(
                 MCBResultData(), MCBIntervalData(), MCBScreeningIntervalData(),
                 StatisticDataDb(), ObservationDataDb(), ScoreData(), ValueData(),
-                MetricData(), OverallValueData(), AlternativeRankFrequencyData()
+                MetricData(), OverallValueData(), AlternativeRankFrequencyData(), fr
             ), dbName, dir, deleteIfExists)
         // save overall average moda to db
         saveMODADataToDb(db, averageMODA())
@@ -633,11 +635,6 @@ class MODAAnalyzer(
         } else {
             KSL.logger.info {"MODAAnalyzer: Overall Value MCB was null"}
         }
-        // save overall rank frequencies??
-//        val freqMap = overallRankFrequenciesByAlternative()
-//        for ((alternative, freq) in freqMap) {
-//           //TODO what????? will need to add db table for this...
-//        }
         // save mcb by response
         var mcbMap = mcbForResponsePerformance()
         for ((responseName, mcb) in mcbMap) {
@@ -651,6 +648,12 @@ class MODAAnalyzer(
         // save the moda results by replication
         for ((_, moda) in myMODAByRepMap) {
             saveMODADataToDb(db, moda)
+        }
+        // save overall rank frequencies??
+        val freqMap = overallRankFrequenciesByAlternative()
+        for ((alternative, freq) in freqMap) {
+            val freqData = freq.frequencyData().map { it.asFrequencyRecord().apply { tableName = "tblOverallRankFrequency"  } }
+            db.insertAllDbDataIntoTable(freqData, "tblOverallRankFrequency")
         }
         return db
     }

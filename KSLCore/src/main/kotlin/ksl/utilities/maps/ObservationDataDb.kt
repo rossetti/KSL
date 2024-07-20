@@ -9,6 +9,7 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
  *  @param id the identifier for the observation
  *  @param context a context for interpreting the data.
  *  @param subject the subject (or name) of the observation
+ *  @param response the name of the response being observed
  *  @param obsNum an ordered numbering of the observations within the subject
  *  @param obsValue the value of the observation
  */
