@@ -62,7 +62,7 @@ data class StatisticData (
 }
 
 data class StatisticDataDb(
-    var id: Int = -1,
+    var id: Int = statDataCounter++,
     var context: String? = null,
     var subject: String? = null,
     var stat_name: String = "",
@@ -83,7 +83,12 @@ data class StatisticDataDb(
     var lag1_corr: Double? = null,
     var von_neumann_lag1_stat: Double? = null,
     var num_missing_obs: Double? = null
-) : DbTableData("tblStatistic", keyFields = listOf("id"), autoIncField = false)
+) : DbTableData("tblStatistic", keyFields = listOf("id"), autoIncField = false) {
+
+    companion object {
+        var statDataCounter = 0
+    }
+}
 
 /**
  *  Converts the statistic data to a data frame

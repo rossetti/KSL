@@ -435,6 +435,18 @@ class MODAAnalyzer(
         return asString()
     }
 
+    /**
+     *  Constructs a string representation of the results.
+     *
+     *  @param includeMCBByResponse If true, the output includes an MCB analysis of each
+     *  response variable. The default is true.
+     *  @param includeOverallRankFreq If true, the output includes the overall rank frequencies
+     *  across the alternative. The default is false.
+     *  @param includeMCBByMODAResponse If true the output includes an MCB analysis of
+     *  each response variable in terms of MODA value. The default is false.
+     *  @param includeMODAByReplication If true, the output includes the MODA results
+     *  for each replication. The default is false.
+     */
     fun asString(
         includeMCBByResponse: Boolean = true,
         includeOverallRankFreq: Boolean = false,
@@ -512,6 +524,18 @@ class MODAAnalyzer(
         return map
     }
 
+    /**
+     *  Prints the basic asString() results to the console.
+     *
+     *  @param includeMCBByResponse If true, the output includes an MCB analysis of each
+     *  response variable. The default is true.
+     *  @param includeOverallRankFreq If true, the output includes the overall rank frequencies
+     *  across the alternative. The default is false.
+     *  @param includeMCBByMODAResponse If true the output includes an MCB analysis of
+     *  each response variable in terms of MODA value. The default is false.
+     *  @param includeMODAByReplication If true, the output includes the MODA results
+     *  for each replication. The default is false.
+     */
     fun print(
         includeMCBByResponse: Boolean = true,
         includeOverallRankFreq: Boolean = false,
@@ -524,6 +548,18 @@ class MODAAnalyzer(
         )
     }
 
+    /**
+     *  Writes the basic asString() results to the PrintWriter.
+     *
+     *  @param includeMCBByResponse If true, the output includes an MCB analysis of each
+     *  response variable. The default is true.
+     *  @param includeOverallRankFreq If true, the output includes the overall rank frequencies
+     *  across the alternative. The default is true.
+     *  @param includeMCBByMODAResponse If true the output includes an MCB analysis of
+     *  each response variable in terms of MODA value. The default is true.
+     *  @param includeMODAByReplication If true, the output includes the MODA results
+     *  for each replication. The default is true.
+     */
     fun write(
         out: PrintWriter,
         includeMCBByResponse: Boolean = true,
@@ -540,6 +576,18 @@ class MODAAnalyzer(
         out.flush()
     }
 
+    /**
+     *  Writes the basic asString() results to a file within the KSL output directory.
+     *
+     *  @param includeMCBByResponse If true, the output includes an MCB analysis of each
+     *  response variable. The default is true.
+     *  @param includeOverallRankFreq If true, the output includes the overall rank frequencies
+     *  across the alternative. The default is true.
+     *  @param includeMCBByMODAResponse If true the output includes an MCB analysis of
+     *  each response variable in terms of MODA value. The default is true.
+     *  @param includeMODAByReplication If true, the output includes the MODA results
+     *  for each replication. The default is true.
+     */
     fun write(
         fileName: String,
         includeMCBByResponse: Boolean = true,
@@ -574,7 +622,7 @@ class MODAAnalyzer(
             setOf(
                 MCBResultData(), MCBIntervalData(), MCBScreeningIntervalData(),
                 StatisticDataDb(), ObservationDataDb(), ScoreData(), ValueData(),
-                OverallValueData(), AlternativeRankFrequencyData()
+                MetricData(), OverallValueData(), AlternativeRankFrequencyData()
             ), dbName, dir, deleteIfExists)
         // save overall average moda to db
         saveMODADataToDb(db, averageMODA())
@@ -588,33 +636,56 @@ class MODAAnalyzer(
         // save mcb by response
         var mcbMap = mcbForResponsePerformance()
         for ((_, mcb) in mcbMap) {
-            saveMCBDataToDb(db, mcb) //TODO need context
+//            saveMCBDataToDb(db, mcb) //TODO need context
         }
         // save the mcb responses for the moda values
         mcbMap = mcbForResponseMODAValues()
         for ((_, mcb) in mcbMap) {
-            saveMCBDataToDb(db, mcb) //TODO need context
+ //           saveMCBDataToDb(db, mcb) //TODO need context
         }
         // save the moda results by replication
         for ((r, moda) in myMODAByRepMap) {
-            saveMODADataToDb(db, moda)
+//            saveMODADataToDb(db, moda)
         }
         return db
     }
 
     private fun saveMODADataToDb(db: DatabaseIfc, moda: AdditiveMODAModel) {
-        TODO("Not implemented yet")
+        val metricData = moda.metricData()
+        val scores = moda.alternativeScoreData()
+        val values = moda.alternativeValueData()
+        val overall = moda.alternativeOverallValueData()
+        val ranks = moda.alternativeRankFrequencyData()
+        db.insertAllDbDataIntoTable(metricData, "tblMetrics")
+        db.insertAllDbDataIntoTable(scores, "tblScores")
+        db.insertAllDbDataIntoTable(values, "tblValues")
+        db.insertAllDbDataIntoTable(overall, "tblOverall")
+        db.insertAllDbDataIntoTable(ranks, "tblRankFrequency")
     }
 
     private fun saveMCBDataToDb(
         db: DatabaseIfc,
-        mcb: MultipleComparisonAnalyzer?
+        mcb: MultipleComparisonAnalyzer?,
+        context: String? = null, //TODO mcb.name?
+        subject: String? = null,
+        confidenceLevel: Double = mcb?.defaultLevel?: 0.95,
+        delta: Double = mcb?.defaultIndifferenceZone?:0.0,
+        probCS: Double = mcb?.defaultLevel?: 0.95
     ) {
         if (mcb == null) {
             KSL.logger.info { "The MCB results were null when saving to the database" }
             return
         }
-        TODO("Not implemented yet")
+        val mcbResults = mcb.mcbResultData(context, subject)
+        val stats = mcb.statisticData(confidenceLevel, context, subject)
+        val mcbIntervals = mcb.mcbIntervalData(delta, probCS, context, subject)
+        val mcbScreening = mcb.mcbScreeningIntervalData(probCS, context, subject)
+        val rawData = mcb.observationData(context = context)
+        db.insertAllDbDataIntoTable(mcbResults, "tblMCBResults")
+        db.insertAllDbDataIntoTable(stats, "tblStatistic")
+        db.insertAllDbDataIntoTable(mcbIntervals, "tblMCBIntervals")
+        db.insertAllDbDataIntoTable(mcbScreening, "tblMCBScreeningIntervals")
+        db.insertAllDbDataIntoTable(rawData, "tblObservations")
     }
 
     companion object {

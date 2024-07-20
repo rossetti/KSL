@@ -50,7 +50,8 @@ fun main(){
 
     modaAnalyzer.analyze()
 
-    modaAnalyzer.write("TestMODA_results.txt")
+//    modaAnalyzer.write("TestMODA_results.txt")
 
+    modaAnalyzer.resultsAsDatabase("MODA_Analyzer_Results.db")
 
 }

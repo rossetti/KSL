@@ -101,10 +101,8 @@ class AdditiveMODAModel(
      */
     fun metricData(): List<MetricData> {
         val list = mutableListOf<MetricData>()
-        var i = 1
         for ((m, w) in weights) {
-            val md = m.metricData(this.id, this.name, i, w)
-            i++
+            val md = m.metricData(this.name, w)
             list.add(md)
         }
         return list
