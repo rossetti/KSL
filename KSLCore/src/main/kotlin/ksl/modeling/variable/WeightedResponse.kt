@@ -30,7 +30,8 @@ import ksl.simulation.ModelElement
  * @param parent the parent model element
  * @param name the name of the aggregate response
  */
-class WeightedResponse(parent: ModelElement, name : String? = null) : Response(parent, name) {
+class WeightedResponse(parent: ModelElement, name : String? = null
+) : Response(parent, name) {
 
     private val responses = mutableSetOf<Response>()
     private val myObserver = ResponseObserver()

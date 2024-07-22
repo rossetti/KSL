@@ -26,6 +26,7 @@ import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.sample
 import kotlin.math.*
 
 /**
@@ -1081,6 +1082,7 @@ object KSLRandom {
      * @return the randomly selected value
      */
     fun discreteInverseCDF(array: DoubleArray, cdf: DoubleArray, stream: RNStreamIfc): Double {
+        require(array.isNotEmpty()) {"Cannot sample from an empty array"}
         if (cdf.size == 1) {
             return array[0]
         }
@@ -1103,6 +1105,7 @@ object KSLRandom {
      * @return the randomly selected value
      */
     fun discreteInverseCDF(array: IntArray, cdf: DoubleArray, stream: RNStreamIfc): Int {
+        require(array.isNotEmpty()) {"Cannot sample from an empty array"}
         if (cdf.size == 1) {
             return array[0]
         }
@@ -1216,6 +1219,9 @@ object KSLRandom {
      * @return true if valid cdf
      */
     fun isValidCDF(cdf: DoubleArray): Boolean {
+        if (cdf.isEmpty()){
+            return false
+        }
         if (cdf[cdf.size - 1] != 1.0) {
             return false
         }
@@ -1347,6 +1353,7 @@ object KSLRandom {
      * @param stream the source of randomness
      */
     fun permute(x: DoubleArray, stream: RNStreamIfc = defaultRNStream()) {
+        require(x.isNotEmpty()) {"Cannot permute an empty array!"}
         sampleWithoutReplacement(x, x.size, stream)
     }
 
@@ -1375,6 +1382,7 @@ object KSLRandom {
         sampleSize: Int,
         rng: RNStreamIfc = defaultRNStream()
     ) {
+        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
@@ -1404,6 +1412,7 @@ object KSLRandom {
      * @param rng the source of randomness
      */
     fun permute(x: IntArray, rng: RNStreamIfc = defaultRNStream()) {
+        require(x.isNotEmpty()) {"Cannot permute an empty array!"}
         sampleWithoutReplacement(x, x.size, rng)
     }
 
@@ -1432,6 +1441,7 @@ object KSLRandom {
         sampleSize: Int,
         rng: RNStreamIfc = defaultRNStream()
     ) {
+        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
@@ -1490,6 +1500,7 @@ object KSLRandom {
         sampleSize: Int,
         rng: RNStreamIfc = defaultRNStream()
     ) {
+        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
@@ -1522,6 +1533,7 @@ object KSLRandom {
      * @param rng the source of randomness
      */
     fun <T> permute(x: Array<T>, rng: RNStreamIfc = defaultRNStream()) {
+        require(x.isNotEmpty()) {"Cannot permute an empty array!"}
         sampleWithoutReplacement(x, x.size, rng)
     }
 
@@ -1552,6 +1564,7 @@ object KSLRandom {
         sampleSize: Int,
         stream: RNStreamIfc = defaultRNStream()
     ) {
+        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
@@ -1584,6 +1597,7 @@ object KSLRandom {
      * @param stream the source of randomness
     */
     fun <T> permute(x: MutableList<T>, stream: RNStreamIfc = defaultRNStream()) {
+        require(x.isNotEmpty()) {"Cannot permute an empty list!"}
         sampleWithoutReplacement(x, x.size, stream)
     }
 
@@ -1613,6 +1627,7 @@ object KSLRandom {
         sampleSize: Int,
         stream: RNStreamIfc = defaultRNStream()
     ) {
+        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty list!"}
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }

@@ -26,6 +26,19 @@ import ksl.utilities.random.rng.RNStreamControlIfc
  */
 interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, RNStreamChangeIfc {
 
+    /**
+     * @param n the number of values to sum, must be 1 or more
+     * @return the sum of n values of getValue()
+     */
+    fun sum(numInSum: Int) : Double {
+        require(numInSum >= 1) {"There must be 1 or more in the requested sum"}
+        var sum = 0.0
+        for (i in 1..numInSum) {
+            sum = sum + value
+        }
+        return sum
+    }
+
     override var advanceToNextSubStreamOption: Boolean
         get() = rnStream.advanceToNextSubStreamOption
         set(value) {
