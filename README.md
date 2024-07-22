@@ -97,10 +97,36 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.0.9"
+version = "R1.1.0"
 
 ## Release Notes
-Latest Release: R1.0.9
+
+Latest Release: R1.1.0
+- Updates to ksl.utilities.distributions.fitting package
+	- default scoring models changed to Bayesian Information Criterion, Anderson-Darling, Cramer Von-Mises, Q-Q Correlation
+	- Bug fixes for scaling algorithm
+	- Ranking criteria for recommending the distribution
+	- Bootstrap family recommendation
+- Enhancements to database utilities
+	- Support for DuckDb database
+	- Creation of simple databases based on data classes
+	- Improved creation of SQLite, Derby and DuckDb databases
+	- Improved database connection usage
+- Enhancements to MODA (multi-objective decision analysis) package. 
+	- Improved defintion of metrics and support for database of results.
+	- New MODAAnalyzer class to analyze simulation output based on MODA principles.
+- Enhancements to MultipleComparisonAnalyzer
+	- Save analysis to database
+- Statistics
+	- Data classes for saving observations, statistics, histogram, frequencies to database
+	- Bug fix for Beta pdf calculation
+	- StringFrequency tabulation
+	- ErrorMatrix tabulation of confusion matrix results
+- Removed dependency on OpenCSV
+- Upgraded to kotlin 1.9.20
+
+
+Release: R1.0.9
 - Bug fixes and improvements in ksl.utilities.distributions.fitting package
   - fixed Weibull estimation edge cases
   - added additional output to html distribution fitting results
