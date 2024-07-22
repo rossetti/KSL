@@ -7,6 +7,11 @@ import ksl.utilities.random.robj.RElementIfc
 import ksl.utilities.random.robj.REmpiricalMap
 import ksl.utilities.random.rvariable.KSLRandom
 
+/**
+ *  Allows random selection of elements from the map. The supplied map
+ *  must have at least one element. The supplied array must represent a valid
+ *  cumulative distribution function over the same number of elements as in the map.
+ */
 class RandomEmpiricalMap <K, V>(
     parent: ModelElement,
     private val map: Map<K, V>,

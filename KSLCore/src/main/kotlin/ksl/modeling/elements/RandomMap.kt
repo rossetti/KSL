@@ -7,6 +7,10 @@ import ksl.utilities.random.robj.RElementIfc
 import ksl.utilities.random.robj.RMap
 import ksl.utilities.random.rvariable.KSLRandom
 
+/**
+ *  Allows random selection of elements from the map. The supplied map
+ *  must have at least one element
+ */
 class RandomMap<K, V>(
     parent: ModelElement,
     private val map: Map<K, V>,
