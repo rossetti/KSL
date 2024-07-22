@@ -25,7 +25,10 @@ class DUniformList<T>(elements: MutableList<T> = mutableListOf(), stream: RNStre
     RList<T>(elements, stream) {
 
     override val randomElement: T
-        get() = elements[rnStream.randInt(0, elements.size - 1)]
+        get() {
+            require(this.isNotEmpty()){"Cannot draw a random element from an empty list!"}
+            return elements[rnStream.randInt(0, elements.size - 1)]
+        }
 
 }
 

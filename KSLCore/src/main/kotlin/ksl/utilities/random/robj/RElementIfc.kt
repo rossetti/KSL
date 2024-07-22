@@ -20,6 +20,10 @@ package ksl.utilities.random.robj
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 
+/**
+ *  Defines sampling of random elements. Implementers must ensure that
+ *  non-null random elements are sampled.
+ */
 interface RElementIfc<T> : RNStreamControlIfc, RNStreamChangeIfc {
 
     override var advanceToNextSubStreamOption: Boolean
@@ -36,16 +40,16 @@ interface RElementIfc<T> : RNStreamControlIfc, RNStreamChangeIfc {
 
     /** Returns an element randomly selected from the list
      *
-     * @return a randomly selected element from the list or null (if nothing is in the list)
+     * @return a randomly selected element from the list
      */
-    val randomElement: T?
+    val randomElement: T
 
     /** Returns an element randomly selected from the list
      *
      * @return a randomly selected element from the list
      */
     fun sample(): T {
-        return sample(1).first()
+        return randomElement
     }
 
     /** Returns sample of [size] from the list
@@ -55,13 +59,8 @@ interface RElementIfc<T> : RNStreamControlIfc, RNStreamChangeIfc {
     fun sample(size: Int): List<T> {
         require(size > 0) { "The size of the sample must be at least 1." }
         val list = mutableListOf<T>()
-        var i = 0
-        while (i < size) {
-            val element = randomElement
-            if (element != null) {
-                list.add(element)
-                i++
-            }
+        for (i in 0 until size) {
+            list.add(randomElement)
         }
         return list
     }
