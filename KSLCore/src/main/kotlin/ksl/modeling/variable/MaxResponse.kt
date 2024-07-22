@@ -18,7 +18,9 @@
 
 package ksl.modeling.variable
 
-class MaxResponse(observedResponse: Response) : Response(observedResponse, name = "${observedResponse.name}:Max") {
+class MaxResponse(
+    observedResponse: Response
+) : Response(observedResponse, name = "${observedResponse.name}:Max") {
 
     private val response = observedResponse
 

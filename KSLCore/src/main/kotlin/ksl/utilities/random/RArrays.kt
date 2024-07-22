@@ -115,6 +115,7 @@ fun <T> MutableList<T>.permute(streamNum: Int): MutableList<T> {
  * @param stream the stream to use for randomness
  */
 fun DoubleArray.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream()): Double {
+    require(this.isNotEmpty()) {"Cannot sample from an empty array!"}
     return this[stream.randInt(0, this.size - 1)]
 }
 
@@ -124,6 +125,7 @@ fun DoubleArray.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream()): Doubl
  * @return a new array containing the sample
  */
 fun DoubleArray.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.defaultRNStream()): DoubleArray {
+    require(this.isNotEmpty()) {"Cannot sample from an empty array!"}
     require(sampleSize > 0) {"The sample size must be > 0"}
     val arr = DoubleArray(sampleSize)
     for(i in arr.indices){
@@ -137,6 +139,7 @@ fun DoubleArray.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.defaultR
  * @param stream the stream to use for randomness
  */
 fun IntArray.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream()): Int {
+    require(this.isNotEmpty()) {"Cannot sample from an empty array!"}
     return this[stream.randInt(0, this.size - 1)]
 }
 
@@ -146,6 +149,7 @@ fun IntArray.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream()): Int {
  * @return a new array containing the sample
  */
 fun IntArray.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.defaultRNStream()): IntArray {
+    require(this.isNotEmpty()) {"Cannot sample from an empty array!"}
     require(sampleSize > 0) {"The sample size must be > 0"}
     val arr = IntArray(sampleSize)
     for(i in arr.indices){
@@ -159,6 +163,7 @@ fun IntArray.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.defaultRNSt
  * @param stream the stream to use for randomness
  */
 fun BooleanArray.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream()): Boolean {
+    require(this.isNotEmpty()) {"Cannot sample from an empty array!"}
     return this[stream.randInt(0, this.size - 1)]
 }
 
@@ -168,6 +173,7 @@ fun BooleanArray.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream()): Bool
  * @return a new array containing the sample
  */
 fun BooleanArray.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.defaultRNStream()): BooleanArray {
+    require(this.isNotEmpty()) {"Cannot sample from an empty array!"}
     require(sampleSize > 0) {"The sample size must be > 0"}
     val arr = BooleanArray(sampleSize)
     for(i in arr.indices){
@@ -181,6 +187,7 @@ fun BooleanArray.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.default
  * @param stream the stream to use for randomness
  */
 fun <T> Array<T>.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream()): T {
+    require(this.isNotEmpty()) {"Cannot sample from an empty array!"}
     return this[stream.randInt(0, this.size - 1)]
 }
 
@@ -191,6 +198,7 @@ fun <T> Array<T>.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream()): T {
  * @return a new array containing the sample
  */
 fun <T> Array<T>.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.defaultRNStream()): MutableList<T> {
+    require(this.isNotEmpty()) {"Cannot sample from an empty array!"}
     require(sampleSize > 0) {"The sample size must be > 0"}
     return this.toMutableList().sample(sampleSize, stream)
     //TODO I would like to return an Array<T> but can't
@@ -208,6 +216,7 @@ fun <T> Array<T>.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.default
  * @param stream the stream to use for randomness
  */
 fun <T> MutableList<T>.sample(stream: RNStreamIfc = KSLRandom.defaultRNStream()): T {
+    require(this.isNotEmpty()) {"Cannot sample from an empty list!"}
     return this[stream.randInt(0, this.size - 1)]
 }
 

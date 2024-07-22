@@ -63,19 +63,6 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, 
     override fun value(): Double = value
 
     /**
-     * @param n the number of values to sum, must be 1 or more
-     * @return the sum of n values of getValue()
-     */
-    fun sum(n: Int): Double {
-        require(n >= 1) { "There must be at least 1 in the sum" }
-        var sum = 0.0
-        for (i in 1..n) {
-            sum = sum + value
-        }
-        return sum
-    }
-
-    /**
      * @param stream the RNStreamIfc to use
      * @return a new instance with same parameter values
      */

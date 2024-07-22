@@ -36,27 +36,32 @@ interface RElementIfc<T> : RNStreamControlIfc, RNStreamChangeIfc {
 
     /** Returns an element randomly selected from the list
      *
-     * @return a randomly selected element from the list
+     * @return a randomly selected element from the list or null (if nothing is in the list)
      */
-    val randomElement: T
+    val randomElement: T?
 
     /** Returns an element randomly selected from the list
      *
      * @return a randomly selected element from the list
      */
-    fun sample() : T {
-        return randomElement
+    fun sample(): T {
+        return sample(1).first()
     }
 
     /** Returns sample of [size] from the list
      *
      * @return randomly selected elements as a list
      */
-    fun sample(size : Int) : List<T> {
+    fun sample(size: Int): List<T> {
         require(size > 0) { "The size of the sample must be at least 1." }
         val list = mutableListOf<T>()
-        for (i in 0 until size) {
-            list.add(randomElement)
+        var i = 0
+        while (i < size) {
+            val element = randomElement
+            if (element != null) {
+                list.add(element)
+                i++
+            }
         }
         return list
     }
