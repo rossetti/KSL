@@ -8,7 +8,7 @@ import ksl.simulation.ModelElement
  */
 abstract class Station(
     parent: ModelElement,
-    var nextReceiver: ReceiveQObjectIfc? = null,
+    var nextReceiver: ReceiveQObjectIfc?,
     name: String? = null
 ) : ModelElement(parent, name), ReceiveQObjectIfc {
 
