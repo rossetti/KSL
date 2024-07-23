@@ -2,18 +2,19 @@ package ksl.modeling.station
 
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
+import ksl.modeling.variable.TWResponseFunction
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
 /**
  * A SResource represents a simple resource that can have units become busy. A
- * resource is considered busy when it has 1 or more units busy. A resource is
+ * resource is considered busy when it has 1 or more units seized. A resource is
  * considered idle when all available units are idle. A resource has an initial
  * capacity, which represents the units that can be allocated.
  *
  * The capacity of the resource represents the maximum number of units available
  * for use. For example, if the resource has capacity 3, it may have 2 units busy
- * and 1 unit idle. A resource cannot have more units busy than the capacity.
+ * and 1 unit available. A resource cannot have more units busy than the capacity.
  *
  * @author rossetti
  */
@@ -56,9 +57,13 @@ class SResource(
     var numTimesReleased = 0
         private set
 
-    private val myNumBusy = TWResponse(this, "${this.name}:NumBusyUnits")
+    private val myNumBusy = TWResponse(this, "${this.name}:NumBusy")
     val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
+
+    private val myUtil: TWResponseFunction = TWResponseFunction({ x -> x/(capacity) }, myNumBusy, "${this.name}:Util")
+    val utilization: TWResponseCIfc
+        get() = myUtil
 
     val numAvailableUnits: Int
         get() = capacity - myNumBusy.value.toInt()
@@ -85,21 +90,28 @@ class SResource(
     /**
      * Seizes amt units of the resource. If amt = 0, then an exception occurs. If
      * the resource has no units available, then an exception occurs. If the amt
-     * &gt; getNumberAvailable() then an exception occurs.
+     * is greater than the number available, then an exception occurs. Thus, users
+     * must check for availability before calling this function.
      *
      * @param amt the amount to seize
      */
     fun seize(amt: Int = 1) {
         require(amt > 0) { "The seize amount must be > 0" }
-        if (!hasAvailableUnits) {
-            val s = "Tried to increment number busy with no units available"
-            throw IllegalStateException(s)
-        }
-        if (amt > numAvailableUnits) {
-            val s = "Tried to increment number busy by $amt with $numAvailableUnits units available"
-            throw IllegalStateException(s)
-        }
+        require (amt <= numAvailableUnits) {"Attempted to seize more than amount available ($numAvailableUnits) "}
         myNumBusy.increment(amt.toDouble())
         numTimesSeized++
+    }
+
+    fun release(amt:  Int = 1){
+        require(amt > 0) { "The release amount must be > 0" }
+        require(amt <= myNumBusy.value.toInt()) {"Attempted to release more units than were busy (${myNumBusy.value}"}
+        myNumBusy.decrement(amt.toDouble())
+        numTimesReleased++
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("Resource: $name Capacity = $capacity \t Available = $numAvailableUnits \t Busy = ${myNumBusy.value}")
+        return sb.toString()
     }
 }

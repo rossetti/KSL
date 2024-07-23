@@ -2,11 +2,11 @@ package ksl.modeling.station
 
 import ksl.simulation.ModelElement
 
-/** A generic interface that can be implemented to allow
- * facilitates the receiving of QObjects
+/** A generic interface that can be implemented to
+ * facilitate the receiving of QObjects for processing.
  *
  * @author rossetti
  */
 fun interface ReceiveQObjectIfc {
-    fun receive(qObj: ModelElement.QObject)
+    fun receive(qObject: ModelElement.QObject)
 }

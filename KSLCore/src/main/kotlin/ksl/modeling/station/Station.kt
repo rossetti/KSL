@@ -2,13 +2,15 @@ package ksl.modeling.station
 
 import ksl.simulation.ModelElement
 
+/**
+ *  A station is a location that can receive and potentially
+ *  process instances of the QObject class.
+ */
 abstract class Station(
     parent: ModelElement,
-    var sender: SendQObjectIfc? = null,
+    var nextReceiver: ReceiveQObjectIfc? = null,
     name: String? = null
 ) : ModelElement(parent, name), ReceiveQObjectIfc {
-
-    var nextReceiver: ReceiveQObjectIfc? = null
 
     /**
      * A Station may or may not have a helper object that implements the
@@ -23,19 +25,9 @@ abstract class Station(
      *
      * If neither helper object is supplied then a runtime exception will
      * occur when trying to use the send() method
-     * @param qObj the completed QObject
+     * @param qObject the completed QObject
      */
-    protected fun send(qObj: QObject) {
-        if (sender != null) {
-            sender!!.send(qObj)
-        } else if (nextReceiver != null) {
-            nextReceiver!!.receive(qObj)
-        } else {
-            val sb = StringBuilder()
-            sb.append("There was no sender or receiver for station: ")
-            sb.appendLine(name)
-            sb.appendLine(", both had null values.  Make sure to create the receiver or sender.")
-            throw RuntimeException(sb.toString())
-        }
+    protected open fun send(qObject: QObject) {
+        nextReceiver?.receive(qObject)
     }
 }
