@@ -25,11 +25,11 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 
-open class SingleQStation(
+class SingleQStation(
     parent: ModelElement,
     capacity: Int = 1,
     processingTime: RandomIfc,
-    nextReceiver: ReceiveQObjectIfc? = null,
+    nextReceiver: ReceiveQObjectIfc,
     name: String? = null
 ) : Station(parent, nextReceiver, name = name) {
 
@@ -55,8 +55,27 @@ open class SingleQStation(
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
+    /**
+     *  Indicates if the resource has units available.
+     */
+    val isResourceAvailable: Boolean
+        get() = myResource.hasAvailableUnits
+
+    /**
+     *  Indicates if the queue is empty.
+     */
+    val isQueueEmpty: Boolean
+        get() = myWaitingQ.isEmpty
+
+    /**
+     * Indicates if the queue is not empty
+     */
+    val isQueueNotEmpty: Boolean
+        get() = myWaitingQ.isNotEmpty
+
     override fun receive(qObject: QObject) {
         myNS.increment() // new qObject arrived
+        qObject.timeStamp = time
         myWaitingQ.enqueue(qObject) // enqueue the newly arriving qObject
         if (isResourceAvailable) { // server available
             serveNext()
@@ -64,62 +83,28 @@ open class SingleQStation(
     }
 
     /**
-     *
-     * @return true if a resource has available units
-     */
-    val isResourceAvailable: Boolean
-        get() {
-            return myResource.hasAvailableUnits
-        }
-
-    /**
      * Called to determine which waiting QObject will be served next Determines
      * the next customer, seizes the resource, and schedules the end of the
      * service.
      */
-    protected open fun serveNext() {
+    private fun serveNext() {
         val nextCustomer = myWaitingQ.removeNext()!! //remove the next customer
         myResource.seize()
-        // schedule end of service
-        schedule(this::endOfProcessing, myProcessingTimeRV, nextCustomer)
+        // schedule end of service, if the customer can supply a value, use it otherwise use the processing time RV
+        val delayTime = nextCustomer.valueObject?.value ?: myProcessingTimeRV.value
+        schedule(this::endOfProcessing, delayTime, nextCustomer)
     }
 
-    protected open fun endOfProcessing(event: KSLEvent<QObject>) {
-        val leavingCustomer: QObject = event.message!!
-        myNS.decrement() // customer departed
+    private fun endOfProcessing(event: KSLEvent<QObject>) {
+        val leaving: QObject = event.message!!
+        myNS.decrement() // qObject completed
+        myNumProcessed.increment()
+        mySysTime.value = (time - leaving.timeStamp)
         myResource.release()
         if (isQueueNotEmpty) { // queue is not empty
             serveNext()
         }
-        send(leavingCustomer)
+        send(leaving)
     }
-
-    override fun send(qObject: QObject) {
-        mySysTime.value = (time - qObject.createTime)
-        myNS.decrement() // part left the center
-        myNumProcessed.increment()
-        super.send(qObject)
-    }
-
-
-    /**
-     * Whether the queue is empty
-     *
-     * @return Whether the queue is empty
-     */
-    val isQueueEmpty: Boolean
-        get() {
-            return myWaitingQ.isEmpty
-        }
-
-    /**
-     * Whether the queue is not empty
-     *
-     * @return Whether the queue is not empty
-     */
-    val isQueueNotEmpty: Boolean
-        get() {
-            return myWaitingQ.isNotEmpty
-        }
 
 }

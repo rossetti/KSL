@@ -33,6 +33,14 @@ class REmpiricalList<T>(
     name: String? = null
 ) : ModelElement(parent, name), RandomElementIfc {
 
+    constructor(
+        parent: ModelElement,
+        elements: List<T>,
+        theCDF: DoubleArray,
+        streamNum: Int,
+        name: String? = null
+    ) : this(parent, elements, theCDF, KSLRandom.rnStream(streamNum), name)
+
     private val myDEmpirical = DEmpiricalList<T>(elements, theCDF, stream)
 
     var initialStream = stream
