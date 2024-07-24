@@ -10,5 +10,3 @@ import ksl.simulation.ModelElement
 fun interface QObjectReceiverIfc {
     fun receive(qObject: ModelElement.QObject)
 }
-
-//typealias QObjectReceiver = (ModelElement.QObject) -> Unit
