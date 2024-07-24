@@ -69,7 +69,7 @@ class WalkInHealthClinic(parent: ModelElement, name: String? = null) : ProcessMo
 
     // define the process
     private inner class Patient : Entity() {
-        private val service = serviceRV.element
+        private val service = serviceRV.randomElement
 
         init {
             priority = typeMap[service]!!

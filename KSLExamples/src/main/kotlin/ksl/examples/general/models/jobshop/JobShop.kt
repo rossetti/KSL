@@ -77,7 +77,7 @@ class JobShop(parent: ModelElement, name: String? = null) : ProcessModel(parent,
             wip.increment()
             timeStamp = time
             // determine the job sequence
-            val sequence: List<JobStep> = seqList.element
+            val sequence: List<JobStep> = seqList.randomElement
             // get the iterator
             val itr = sequence.iterator()
             // iterate through the sequence

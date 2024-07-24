@@ -113,7 +113,7 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
             use(myDiagnostics, delayDuration = diagnosticTime)
             delay(moveTime)
             // determine the test plan
-            val plan: List<TestPlanStep> = planList.element
+            val plan: List<TestPlanStep> = planList.randomElement
             // get the iterator
             val itr = plan.iterator()
             // iterate through the plan

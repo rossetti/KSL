@@ -1,0 +1,71 @@
+/*
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2024  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package ksl.examples.book.chapter4
+
+import ksl.modeling.elements.EventGenerator
+import ksl.modeling.station.DisposeStation
+import ksl.modeling.station.SingleQStation
+import ksl.modeling.station.SingleQStationCIfc
+import ksl.modeling.variable.Counter
+import ksl.modeling.variable.CounterCIfc
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
+import ksl.simulation.ModelElement
+import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.ExponentialRV
+
+class TandemQueue(
+    parent: ModelElement,
+    ad: RandomIfc = ExponentialRV(6.0, 1),
+    sd1: RandomIfc = ExponentialRV(4.0, 2),
+    sd2: RandomIfc = ExponentialRV(3.0, 3),
+    name: String? = null
+): ModelElement(parent, name) {
+
+    private val myArrivalGenerator: EventGenerator = EventGenerator(this,
+        this::arrivalEvent, ad, ad)
+
+    private val myStation1: SingleQStation = SingleQStation(this, sd1, name= "${this.name}:Station1")
+    val station1: SingleQStationCIfc
+        get() = myStation1
+
+    private val myStation2: SingleQStation = SingleQStation(this, sd2, name= "${this.name}:Station2")
+    val station2: SingleQStationCIfc
+        get() = myStation2
+
+    private val mySysTime: Response = Response(this, "${this.name}:TotalSystemTime")
+    val totalSystemTime: ResponseCIfc
+        get() = mySysTime
+
+    private val myNumCustomers: Counter = Counter(this, "${this.name}:TotalProcessed")
+    val totalProcessed: CounterCIfc
+        get() = myNumCustomers
+
+    private val myDispose: DisposeStation = DisposeStation(myNumCustomers, mySysTime)
+
+    init {
+        myStation1.nextReceiver = myStation2
+        myStation2.nextReceiver = myDispose
+    }
+
+    private fun arrivalEvent(generator: EventGenerator){
+        val customer = QObject()
+        myStation1.receive(customer)
+    }
+}
