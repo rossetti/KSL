@@ -18,15 +18,13 @@
 
 package ksl.modeling.station
 
-import ksl.modeling.variable.Counter
-import ksl.modeling.variable.CounterCIfc
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.ResponseCIfc
+import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 
 class DisposeStation(
     private val myNumDisposed: Counter? = null,
     private val mySystemTime: Response? = null,
+    private val myNumInSystem: TWResponse? = null
 ) : QObjectReceiverIfc {
 
     val numDisposed: CounterCIfc?
@@ -38,6 +36,7 @@ class DisposeStation(
     override fun receive(qObject: ModelElement.QObject) {
         mySystemTime?.value = qObject.currentTime - qObject.createTime
         myNumDisposed?.increment()
+        myNumInSystem?.decrement()
     }
 
 }
