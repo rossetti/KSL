@@ -23,7 +23,7 @@ abstract class Station(
      *
      * If neither helper object is supplied then the station quietly does nothing
      * with the qObject.
-     * 
+     *
      * @param qObject the completed QObject
      */
     protected open fun sendToNextReceiver(qObject: QObject) {

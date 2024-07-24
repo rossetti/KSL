@@ -19,13 +19,8 @@
 package ksl.examples.book.chapter4
 
 import ksl.modeling.elements.EventGenerator
-import ksl.modeling.station.DisposeStation
-import ksl.modeling.station.SingleQStation
-import ksl.modeling.station.SingleQStationCIfc
-import ksl.modeling.variable.Counter
-import ksl.modeling.variable.CounterCIfc
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.ResponseCIfc
+import ksl.modeling.station.*
+import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -49,6 +44,10 @@ class TandemQueue(
     val station2: SingleQStationCIfc
         get() = myStation2
 
+    private val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
+    val numInSystem: TWResponseCIfc
+        get() = myNS
+
     private val mySysTime: Response = Response(this, "${this.name}:TotalSystemTime")
     val totalSystemTime: ResponseCIfc
         get() = mySysTime
@@ -57,8 +56,9 @@ class TandemQueue(
     val totalProcessed: CounterCIfc
         get() = myNumCustomers
 
-    private val myDispose: DisposeStation = DisposeStation(myNumCustomers, mySysTime)
+    private val myDispose: DisposeStation = DisposeStation(myNumCustomers, mySysTime, myNS)
 
+    //private val myDepartSystem: QObjectReceiver = this::departSystem
     init {
         myStation1.nextReceiver = myStation2
         myStation2.nextReceiver = myDispose
@@ -66,6 +66,11 @@ class TandemQueue(
 
     private fun arrivalEvent(generator: EventGenerator){
         val customer = QObject()
+        myNS.increment()
         myStation1.receive(customer)
+    }
+
+    private fun receive(qObject: ModelElement.QObject){
+
     }
 }
