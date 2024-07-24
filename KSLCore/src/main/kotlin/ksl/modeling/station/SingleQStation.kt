@@ -26,6 +26,30 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 
 
+interface SingleQStationCIfc {
+    val resource: SResourceCIfc
+    val processingTimeRV: RandomSourceCIfc
+    val numInSystem: TWResponseCIfc
+    val systemTime: ResponseCIfc
+    val numProcessed: CounterCIfc
+    val waitingQ: QueueCIfc<ModelElement.QObject>
+
+    /**
+     *  Indicates if the resource has units available.
+     */
+    val isResourceAvailable: Boolean
+
+    /**
+     *  Indicates if the queue is empty.
+     */
+    val isQueueEmpty: Boolean
+
+    /**
+     * Indicates if the queue is not empty
+     */
+    val isQueueNotEmpty: Boolean
+}
+
 /**
  *  Models a simple work station that has a single queue for holding received qObjects
  *  for processing and a simple resource that is used during the processing.
@@ -54,48 +78,48 @@ class SingleQStation(
     resource: SResource? = null,
     nextReceiver: QObjectReceiverIfc? = null,
     name: String? = null
-) : Station(parent, nextReceiver, name = name) {
+) : Station(parent, nextReceiver, name = name), SingleQStationCIfc {
 
     private val myResource: SResource = resource ?: SResource(this, 1, "${this.name}:R")
-    val resource:  SResourceCIfc
+    override val resource:  SResourceCIfc
         get() = myResource
 
     private var myProcessingTimeRV: RandomVariable = RandomVariable(this, processingTime)
-    val processingTimeRV: RandomSourceCIfc
+    override val processingTimeRV: RandomSourceCIfc
         get() = myProcessingTimeRV
 
     private val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
-    val numInSystem: TWResponseCIfc
+    override val numInSystem: TWResponseCIfc
         get() = myNS
 
     private val mySysTime: Response = Response(this, "${this.name}:StationTime")
-    val systemTime: ResponseCIfc
+    override val systemTime: ResponseCIfc
         get() = mySysTime
 
     private val myNumProcessed: Counter = Counter(this, "${this.name}:NumProcessed")
-    val numProcessed: CounterCIfc
+    override val numProcessed: CounterCIfc
         get() = myNumProcessed
 
     private val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:Q")
-    val waitingQ: QueueCIfc<QObject>
+    override val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
     /**
      *  Indicates if the resource has units available.
      */
-    val isResourceAvailable: Boolean
+    override val isResourceAvailable: Boolean
         get() = myResource.hasAvailableUnits
 
     /**
      *  Indicates if the queue is empty.
      */
-    val isQueueEmpty: Boolean
+    override val isQueueEmpty: Boolean
         get() = myWaitingQ.isEmpty
 
     /**
      * Indicates if the queue is not empty
      */
-    val isQueueNotEmpty: Boolean
+    override val isQueueNotEmpty: Boolean
         get() = myWaitingQ.isNotEmpty
 
     override fun receive(qObject: QObject) {

@@ -132,7 +132,7 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
             delay(moveTime)
             release(twa)
             // determine the test plan
-            val plan: List<TestPlanStep> = planList.element
+            val plan: List<TestPlanStep> = planList.randomElement
             // get the iterator
             val itr = plan.iterator()
             // iterate through the plan

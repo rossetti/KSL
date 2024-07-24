@@ -67,14 +67,14 @@ abstract class RandomElement(
      * the random source, then each replication may not necessarily start in the
      * same initial state.  It is recommended that this be used only prior to executing replications.
      */
-    final override var initialRandomSource: RandomIfc = rSource
+    override var initialRandomSource: RandomIfc = rSource
         set(value) {
             if (model.isRunning) {
                 if (initialRandomSourceChangeWarning) {
                     Model.logger.warn { "Changed the initial random source of $name during replication ${model.currentReplicationNumber}." }
                 }
             }
-      //      println("-------->  $name is changing initial random source to $value")
+            //      println("-------->  $name is changing initial random source to $value")
             field = value
             model.addStream(field.rnStream)
         }

@@ -1,5 +1,5 @@
 /*
- *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2024  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
@@ -16,21 +16,16 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.modeling.station
+package ksl.examples.book.chapter4
 
-import ksl.modeling.elements.REmpiricalList
-import ksl.simulation.ModelElement
+import ksl.simulation.Model
 
-/**
- *  Allows an REmpiricalList to act as a receiver of qObjects
- *  and to send them to destination receivers according to the
- *  specified probabilities.
- */
-class NWayByChanceSender(
-    private val receiverList : REmpiricalList<QObjectReceiverIfc>
-) : QObjectReceiverIfc{
-
-    override fun receive(qObject: ModelElement.QObject) {
-        receiverList.randomElement.receive(qObject)
-    }
+fun main(){
+    val sim = Model("TandemQ Model")
+    sim.numberOfReplications = 30
+    sim.lengthOfReplication = 20000.0
+    sim.lengthOfReplicationWarmUp = 5000.0
+    val tq = TandemQueue(sim, name = "TandemQ")
+    sim.simulate()
+    sim.print()
 }

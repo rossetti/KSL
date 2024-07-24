@@ -23,15 +23,14 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.robj.DEmpiricalList
+import ksl.utilities.random.robj.RElementIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 class REmpiricalList<T>(
     parent: ModelElement,
-    elements: List<T>,
-    theCDF: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    dEmpiricalList: DEmpiricalList<T>,
     name: String? = null
-) : ModelElement(parent, name), RandomElementIfc {
+) : ModelElement(parent, name), RandomElementIfc, RElementIfc<T> {
 
     constructor(
         parent: ModelElement,
@@ -39,53 +38,32 @@ class REmpiricalList<T>(
         theCDF: DoubleArray,
         streamNum: Int,
         name: String? = null
-    ) : this(parent, elements, theCDF, KSLRandom.rnStream(streamNum), name)
+    ) : this(parent, DEmpiricalList<T>(elements, theCDF, KSLRandom.rnStream(streamNum)), name)
 
-    private val myDEmpirical = DEmpiricalList<T>(elements, theCDF, stream)
+    constructor(
+        parent: ModelElement,
+        elements: List<T>,
+        theCDF: DoubleArray,
+        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+        name: String? = null
+    ) : this(parent, DEmpiricalList<T>(elements, theCDF, stream), name)
 
-    var initialStream = stream
+    private val myDEmpirical = dEmpiricalList
+
+    var initialStream = dEmpiricalList.rnStream
         set(value) {
             if (model.isRunning) {
                 if (initialRandomSourceChangeWarning) {
                     Model.logger.warn { "Changed the initial random source of $name during replication ${model.currentReplicationNumber}." }
                 }
             }
+            model.removeStream(field)
             field = value
             model.addStream(value)
         }
 
-    val element: T
+    override val randomElement: T
         get() = myDEmpirical.randomElement
-
-    override fun resetStartStream() {
-        myDEmpirical.resetStartStream()
-    }
-
-    override fun resetStartSubStream() {
-        myDEmpirical.resetStartSubStream()
-    }
-
-    override fun advanceToNextSubStream() {
-        myDEmpirical.advanceToNextSubStream()
-    }
-
-    override var antithetic: Boolean
-        get() = myDEmpirical.antithetic
-        set(value) {
-            myDEmpirical.antithetic = value
-        }
-
-    override var advanceToNextSubStreamOption: Boolean
-        get() = myDEmpirical.advanceToNextSubStreamOption
-        set(value) {
-            myDEmpirical.advanceToNextSubStreamOption = value
-        }
-
-    override var resetStartStreamOption: Boolean
-        get() = myDEmpirical.resetStartStreamOption
-        set(value) {
-            myDEmpirical.resetStartStreamOption = value
-        }
 
     override var rnStream: RNStreamIfc
         get() = myDEmpirical.rnStream

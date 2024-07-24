@@ -121,7 +121,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
             //every part goes to diagnostics
             use(myDiagnostics, delayDuration = diagnosticTime)
             // determine the test plan
-            val plan: List<TestPlanStep> = planList.element
+            val plan: List<TestPlanStep> = planList.randomElement
             // get the iterator
             val itr = plan.iterator()
             var cr = requestConveyor(loopConveyor, myDiagnostics, cellSizes[plan]!!)

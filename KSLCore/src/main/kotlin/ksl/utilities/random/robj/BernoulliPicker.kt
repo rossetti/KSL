@@ -23,32 +23,32 @@ import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  *  Allows the picking between two alternatives according to a Bernoulli process.
- *  @param firstProbability the probability associated with the first choice
- *  @param first the first choice
- *  @param second the second choice
+ *  @param successProbability the probability associated with success
+ *  @param success the success choice
+ *  @param failure the failure choice
  *  @param stream the associated random number stream
  */
 class BernoulliPicker<T>(
-    private val firstProbability: Double,
-    private val first: T,
-    private val second: T,
+    private val successProbability: Double,
+    private val success: T,
+    private val failure: T,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : RElementIfc<T> {
 
     constructor(
-        firstProbability: Double,
-        first: T,
-        second: T,
+        successProbability: Double,
+        success: T,
+        failure: T,
         streamNum: Int,
-    ) : this(firstProbability, first, second, KSLRandom.rnStream(streamNum))
+    ) : this(successProbability, success, failure, KSLRandom.rnStream(streamNum))
 
     init {
-        require(!(firstProbability <= 0.0 || firstProbability >= 1.0)) { "Probability must be (0,1)" }
+        require(!(successProbability <= 0.0 || successProbability >= 1.0)) { "Probability must be (0,1)" }
     }
 
     override var rnStream: RNStreamIfc = stream
 
     override val randomElement: T
-        get() = if (rnStream.randU01() <= firstProbability) first else second
+        get() = if (rnStream.randU01() <= successProbability) success else failure
 
 }
