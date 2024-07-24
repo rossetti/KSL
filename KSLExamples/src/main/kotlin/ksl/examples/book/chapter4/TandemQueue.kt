@@ -57,11 +57,16 @@ class TandemQueue(
         get() = myNumCustomers
 
     private val myDispose: DisposeStation = DisposeStation(myNumCustomers, mySysTime, myNS)
+    val something = QObjectReceiverIfc {
+        mySysTime.value = it.currentTime - it.createTime
+        myNumCustomers.increment()
+        myNS.decrement()
+    }
 
     //private val myDepartSystem: QObjectReceiver = this::departSystem
     init {
         myStation1.nextReceiver = myStation2
-        myStation2.nextReceiver = myDispose
+        myStation2.nextReceiver = something
     }
 
     private fun arrivalEvent(generator: EventGenerator){
@@ -69,6 +74,8 @@ class TandemQueue(
         myNS.increment()
         myStation1.receive(customer)
     }
+
+
 
     private fun receive(qObject: ModelElement.QObject){
 
