@@ -25,23 +25,9 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
 
 class DisposeStation(
-    parent: ModelElement,
-    val countDisposals: Boolean = false,
-    val captureTotalTime: Boolean = false,
-    name: String? = null
-) : Station(parent, null, name = name) {
-
-    private var myNumDisposed: Counter? = null
-    private var mySystemTime: Response? = null
-
-    init {
-        if (countDisposals) {
-            myNumDisposed = Counter(this, "${this.name}:NumDisposed")
-        }
-        if (captureTotalTime) {
-            mySystemTime = Response(this, "${this.name}:TotalSystemTime")
-        }
-    }
+    private val myNumDisposed: Counter? = null,
+    private val mySystemTime: Response? = null,
+) : QObjectReceiverIfc {
 
     val numDisposed: CounterCIfc?
         get() = myNumDisposed
@@ -49,8 +35,8 @@ class DisposeStation(
     val totalTime: ResponseCIfc?
         get() = mySystemTime
 
-    override fun receive(qObject: QObject) {
-        mySystemTime?.value = time - qObject.createTime
+    override fun receive(qObject: ModelElement.QObject) {
+        mySystemTime?.value = qObject.currentTime - qObject.createTime
         myNumDisposed?.increment()
     }
 

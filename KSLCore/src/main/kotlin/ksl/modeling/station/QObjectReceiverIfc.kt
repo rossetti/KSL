@@ -7,6 +7,6 @@ import ksl.simulation.ModelElement
  *
  * @author rossetti
  */
-fun interface ReceiveQObjectIfc {
+fun interface QObjectReceiverIfc {
     fun receive(qObject: ModelElement.QObject)
 }

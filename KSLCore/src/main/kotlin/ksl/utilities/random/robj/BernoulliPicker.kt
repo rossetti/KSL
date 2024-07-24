@@ -1,6 +1,6 @@
 /*
  *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *     Copyright (C) 2024  Manuel D. Rossetti, rossetti@uark.edu
  *
  *     This program is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -21,11 +21,34 @@ package ksl.utilities.random.robj
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
-abstract class RList<T>(
-    val elements: MutableList<T>,
+/**
+ *  Allows the picking between two alternatives according to a Bernoulli process.
+ *  @param firstProbability the probability associated with the first choice
+ *  @param first the first choice
+ *  @param second the second choice
+ *  @param stream the associated random number stream
+ */
+class BernoulliPicker<T>(
+    private val firstProbability: Double,
+    private val first: T,
+    private val second: T,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RListIfc<T>, MutableList<T> by elements {
+) : RElementIfc<T> {
+
+    constructor(
+        firstProbability: Double,
+        first: T,
+        second: T,
+        streamNum: Int,
+    ) : this(firstProbability, first, second, KSLRandom.rnStream(streamNum))
+
+    init {
+        require(!(firstProbability <= 0.0 || firstProbability >= 1.0)) { "Probability must be (0,1)" }
+    }
 
     override var rnStream: RNStreamIfc = stream
+
+    override val randomElement: T
+        get() = if (rnStream.randU01() <= firstProbability) first else second
 
 }

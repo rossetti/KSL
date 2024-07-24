@@ -26,10 +26,29 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 
+/**
+ *  Models a simple delay.
+ *
+ *  A QObject may have an object that implements the GetValueIfc attached. If so,
+ *  the current value from this object is used as the delay time at the station. If
+ *  not attached, then the specified delay time for the station will be used. Thus,
+ *  a processed QObject instance can bring its own delay time.  In addition, a QObject
+ *  may have a ListIterator<QObjectReceiverIfc> attached. If one is attached, the
+ *  iterator will be used to determine where to send the qObject. If an iterator is
+ *  not attached, then the specified next receiver (if not null)  will be used. Thus,
+ *  a processed QObject instance can determine where it goes to next after processing.
+ *
+ *  @param parent the model element serving as this element's parent
+ *  @param delayTime the delay time at the station
+ *  @param nextReceiver the receiving location that will receive the processed qObjects
+ *  once the processing has been completed. A default of null, indicates that there is no
+ *  receiver. If no receiver is present, the processed qObject are sent silently nowhere.
+ *  @param name the name of the station
+ */
 class DelayStation(
     parent: ModelElement,
     delayTime: RandomIfc,
-    nextReceiver: ReceiveQObjectIfc,
+    nextReceiver: QObjectReceiverIfc?,
     name: String? = null
 ) : Station(parent, nextReceiver, name = name) {
 
@@ -37,7 +56,7 @@ class DelayStation(
     val delayTimeRV: RandomSourceCIfc
         get() = myDelayTimeRV
 
-    private val myNS: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
+    private val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
     val numInSystem: TWResponseCIfc
         get() = myNS
 
@@ -50,6 +69,6 @@ class DelayStation(
     private fun endDelayAction(event: KSLEvent<QObject>) {
         val finishedObject = event.message!!
         myNS.decrement()
-        nextReceiver.receive(finishedObject)
+        sendToNextReceiver(finishedObject)
     }
 }

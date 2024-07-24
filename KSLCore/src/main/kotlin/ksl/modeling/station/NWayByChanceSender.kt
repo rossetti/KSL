@@ -20,21 +20,17 @@ package ksl.modeling.station
 
 import ksl.modeling.elements.REmpiricalList
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.KSLRandom
 
+/**
+ *  Allows an REmpiricalList to act as a receiver of qObjects
+ *  and to send them to destination receivers according to the
+ *  specified probabilities.
+ */
 class NWayByChanceSender(
-    parent: ModelElement,
-    elements: List<ReceiveQObjectIfc>,
-    theCDF: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-    name: String? = null
-) : Station(parent, null, name) {
+    private val receiverList : REmpiricalList<QObjectReceiverIfc>
+) : QObjectReceiverIfc{
 
-    private var myReceiverList = REmpiricalList(this, elements, theCDF, stream,
-        "${this.name}:REmpiricalList")
-
-    override fun receive(qObject: QObject) {
-        myReceiverList.element.receive(qObject)
+    override fun receive(qObject: ModelElement.QObject) {
+        receiverList.element.receive(qObject)
     }
 }

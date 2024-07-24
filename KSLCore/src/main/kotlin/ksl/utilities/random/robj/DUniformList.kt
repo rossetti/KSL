@@ -21,12 +21,14 @@ package ksl.utilities.random.robj
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
-class DUniformList<T>(elements: MutableList<T> = mutableListOf(), stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RList<T>(elements, stream) {
+class DUniformList<T>(
+    elements: MutableList<T> = mutableListOf(),
+    stream: RNStreamIfc = KSLRandom.nextRNStream()
+) : RList<T>(elements, stream) {
 
     override val randomElement: T
         get() {
-            require(this.isNotEmpty()){"Cannot draw a random element from an empty list!"}
+            require(this.isNotEmpty()) { "Cannot draw a random element from an empty list!" }
             return elements[rnStream.randInt(0, elements.size - 1)]
         }
 

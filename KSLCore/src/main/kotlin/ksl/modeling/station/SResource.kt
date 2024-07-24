@@ -6,6 +6,57 @@ import ksl.modeling.variable.TWResponseFunction
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
+
+interface SResourceCIfc {
+    /**
+     * The initial capacity of the resource at time just prior to 0.0
+     */
+    var initialCapacity: Int
+
+    /**
+     * The capacity of the resource at time any time t
+     */
+    val capacity: Int
+
+    /**
+     * Counts how many times the resource has units become busy
+     */
+    val numTimesSeized: Int
+
+    /**
+     * Counts how many times the resource has units become idle
+     */
+    val numTimesReleased: Int
+
+    /**
+     *  Response information on number of busy units
+     */
+    val numBusyUnits: TWResponseCIfc
+
+    /**
+     *  Response information on resource utilization
+     */
+    val utilization: TWResponseCIfc
+
+    /**
+     *  Current number of available units
+     */
+    val numAvailableUnits: Int
+
+    /**
+     *  Indicates if resource has available units
+     */
+    val hasAvailableUnits: Boolean
+
+    /** Checks if the resource is idle, has no units allocated
+     */
+    val isIdle: Boolean
+
+    /** Checks to see if the resource is busy, has some units allocated
+     */
+    val isBusy: Boolean
+}
+
 /**
  * A SResource represents a simple resource that can have units become busy. A
  * resource is considered busy when it has 1 or more units seized. A resource is
@@ -22,7 +73,7 @@ class SResource(
     parent: ModelElement,
     capacity: Int = 1,
     name: String? = null
-) : ModelElement(parent, name) {
+) : ModelElement(parent, name), SResourceCIfc {
     init {
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
     }
@@ -30,7 +81,7 @@ class SResource(
     /**
      * The initial capacity of the resource at time just prior to 0.0
      */
-    var initialCapacity = capacity
+    override var initialCapacity = capacity
         set(value) {
             require(value >= 1) { "The initial capacity of the resource must be >= 1" }
             if (model.isRunning) {
@@ -39,74 +90,84 @@ class SResource(
             field = value
         }
 
+    override val capacity: Int
+        get() = myCapacity
+
+    override val numTimesSeized: Int
+        get() = myNumTimesSeized
+
+    override val numTimesReleased: Int
+        get() = myNumTimesReleased
+
     /**
      * The capacity of the resource at time any time t
      */
-    var capacity = capacity
-        private set
+    private var myCapacity = capacity
 
     /**
      * Counts how many times the resource has units become busy
      */
-    var numTimesSeized = 0
-        private set
+    private var myNumTimesSeized = 0
 
     /**
      * Counts how many times the resource has units become idle
      */
-    var numTimesReleased = 0
-        private set
+    private var myNumTimesReleased = 0
 
     private val myNumBusy = TWResponse(this, "${this.name}:NumBusy")
-    val numBusyUnits: TWResponseCIfc
+    override val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
 
-    private val myUtil: TWResponseFunction = TWResponseFunction({ x -> x/(capacity) }, myNumBusy, "${this.name}:Util")
-    val utilization: TWResponseCIfc
+    private val myUtil: TWResponseFunction = TWResponseFunction({ x -> x / (capacity) }, myNumBusy, "${this.name}:Util")
+    override val utilization: TWResponseCIfc
         get() = myUtil
 
-    val numAvailableUnits: Int
+    override val numAvailableUnits: Int
         get() = capacity - myNumBusy.value.toInt()
 
-    val hasAvailableUnits: Boolean
+    override val hasAvailableUnits: Boolean
         get() = numAvailableUnits > 0
 
     /** Checks if the resource is idle, has no units allocated
      */
-    val isIdle: Boolean
+    override val isIdle: Boolean
         get() = myNumBusy.value == 0.0
 
     /** Checks to see if the resource is busy, has some units allocated
      */
-    val isBusy: Boolean
+    override val isBusy: Boolean
         get() = myNumBusy.value > 0.0
 
     override fun initialize() {
-        capacity = initialCapacity
-        numTimesReleased = 0
-        numTimesSeized = 0
+        myCapacity = initialCapacity
+        myNumTimesReleased = 0
+        myNumTimesSeized = 0
     }
 
     /**
-     * Seizes amt units of the resource. If amt = 0, then an exception occurs. If
+     * Seizes amount units of the resource. If amt = 0, then an exception occurs. If
      * the resource has no units available, then an exception occurs. If the amt
      * is greater than the number available, then an exception occurs. Thus, users
      * must check for availability before calling this function.
      *
-     * @param amt the amount to seize
+     * @param amount the amount to seize
      */
-    fun seize(amt: Int = 1) {
-        require(amt > 0) { "The seize amount must be > 0" }
-        require (amt <= numAvailableUnits) {"Attempted to seize more than amount available ($numAvailableUnits) "}
-        myNumBusy.increment(amt.toDouble())
-        numTimesSeized++
+    fun seize(amount: Int = 1) {
+        require(amount > 0) { "The seize amount must be > 0" }
+        require(amount <= numAvailableUnits) { "Attempted to seize more than amount available ($numAvailableUnits) " }
+        myNumBusy.increment(amount.toDouble())
+        myNumTimesSeized++
     }
 
-    fun release(amt:  Int = 1){
-        require(amt > 0) { "The release amount must be > 0" }
-        require(amt <= myNumBusy.value.toInt()) {"Attempted to release more units than were busy (${myNumBusy.value}"}
-        myNumBusy.decrement(amt.toDouble())
-        numTimesReleased++
+    /**
+     *  Release the [amount] of the resource. The amount to release must be 1 or more and less than
+     *  or equal to the current number of busy resource units.
+     */
+    fun release(amount: Int = 1) {
+        require(amount > 0) { "The release amount must be > 0" }
+        require(amount <= myNumBusy.value.toInt()) { "Attempted to release more units than were busy (${myNumBusy.value}" }
+        myNumBusy.decrement(amount.toDouble())
+        myNumTimesReleased++
     }
 
     override fun toString(): String {
