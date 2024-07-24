@@ -18,43 +18,19 @@
 
 package ksl.modeling.station
 
-import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.BernoulliRV
-import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.robj.BernoulliPicker
 
+/**
+ *  Allows a Bernoulli choice between two qObject receivers.
+ *  Receives the incoming qObject and sends it two one of
+ *  two receivers according to the Bernoulli picking process.
+ */
 class TwoWayByChanceSender(
-    parent: ModelElement,
-    firstProbability: Double,
-    private val firstReceiver: ReceiveQObjectIfc,
-    private val secondReceiver: ReceiveQObjectIfc,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-    name: String? = null
-) : Station(parent, null, name = name) {
+    private val bernoulliPicker: BernoulliPicker<QObjectReceiverIfc>
+) : QObjectReceiverIfc {
 
-    init {
-        require(!(firstProbability <= 0.0 || firstProbability >= 1.0)) { "Probability must be (0,1)" }
-    }
-
-    private var myChoiceRV = RandomVariable(
-        this, BernoulliRV(firstProbability, stream),
-        "${this.name}:ChoiceRV"
-    )
-
-    var firstProbability: Double = firstProbability
-        set(value) {
-            require(!(value <= 0.0 || value >= 1.0)) { "Probability must be (0,1)" }
-            field = value
-            val stream = myChoiceRV.initialRandomSource.rnStream
-            myChoiceRV.initialRandomSource = BernoulliRV(value, stream)
-        }
-
-    override fun receive(qObject: QObject) {
-        if (myChoiceRV.value == 1.0) {
-            firstReceiver.receive(qObject)
-        } else {
-            secondReceiver.receive(qObject)
-        }
+    override fun receive(qObject: ModelElement.QObject) {
+        bernoulliPicker.randomElement.receive(qObject)
     }
 }

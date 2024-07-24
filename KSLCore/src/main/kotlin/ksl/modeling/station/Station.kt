@@ -8,9 +8,9 @@ import ksl.simulation.ModelElement
  */
 abstract class Station(
     parent: ModelElement,
-    var nextReceiver: ReceiveQObjectIfc?,
+    var nextReceiver: QObjectReceiverIfc?,
     name: String? = null
-) : ModelElement(parent, name), ReceiveQObjectIfc {
+) : ModelElement(parent, name), QObjectReceiverIfc {
 
     /**
      * A Station may or may not have a helper object that implements the
@@ -27,7 +27,13 @@ abstract class Station(
      * occur when trying to use the send() method
      * @param qObject the completed QObject
      */
-    protected open fun send(qObject: QObject) {
-        nextReceiver?.receive(qObject)
+    protected open fun sendToNextReceiver(qObject: QObject) {
+        if (qObject.receiverIterator != null){
+            if (qObject.receiverIterator!!.hasNext()){
+                qObject.receiverIterator!!.next().receive(qObject)
+            }
+        } else {
+            nextReceiver?.receive(qObject)
+        }
     }
 }

@@ -30,6 +30,7 @@ import ksl.utilities.NameIfc
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.modeling.station.QObjectReceiverIfc
 
 private var elementCounter: Int = 0
 
@@ -1910,6 +1911,12 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         override val name: String
 
         /**
+         *  The current simulation time. Attached to the queue object for convenience
+         *  of checking time outside of model element instances.
+         */
+        val currentTime: Double
+
+        /**
          * The time that the QObject was created
          */
         val createTime: Double
@@ -1966,6 +1973,9 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         init {
             qObjCounter++
         }
+
+        final override val currentTime: Double
+            get() = this@ModelElement.time
 
         /**
          * Gets a uniquely assigned identifier for this QObject. This
@@ -2044,6 +2054,11 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
          */
         var valueObject: GetValueIfc? = null
 
+        /**
+         *  Allows for the qObject to determine the next receiver
+         */
+        var receiverIterator: ListIterator<QObjectReceiverIfc>? = null
+
         override fun toString(): String {
             return "ID= $id, name= $name isQueued = $isQueued"
         }
@@ -2074,20 +2089,6 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
 
         final override val isNotQueued: Boolean
             get() = !isQueued
-
-//        /**
-//         * Causes all references of objects from this QObject to be set to null.
-//         *
-//         * Meant primarily to facilitate garbage collection. After this call, the
-//         * object should not be used.
-//         *
-//         */
-//        fun nullify() {
-//            //TODO is this really necessary. consider removing
-//            attachedObject = null
-//            valueObject = null
-//            queue = null
-//        }
 
         /**
          * Used by Queue to indicate that the QObject has entered the queue

@@ -25,25 +25,50 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 
+
+/**
+ *  Models a simple work station that has a single queue for holding received qObjects
+ *  for processing and a simple resource that is used during the processing.
+ *
+ *  A QObject may have an object that implements the GetValueIfc attached. If so,
+ *  the current value from this object is used as the processing time at the station. If
+ *  not attached, then the specified processing time for the station will be used. Thus,
+ *  a processed QObject instance can bring its own processing time.  In addition, a QObject
+ *  may have a ListIterator<QObjectReceiverIfc> attached. If one is attached, the
+ *  iterator will be used to determine where to send the qObject. If an iterator is
+ *  not attached, then the specified next receiver (if not null)  will be used. Thus,
+ *  a processed QObject instance can determine where it goes to next after processing.
+ *
+ *  @param parent the model element serving as this element's parent
+ *  @param processingTime the processing time at the station
+ *  @param resource the resource to use at the station. The default of null will cause
+ *  a resource of capacity 1 to be created and used at the station
+ *  @param nextReceiver the receiving location that will receive the processed qObjects
+ *  once the processing has been completed. A default of null, indicates that there is no
+ *  receiver. If no receiver is present, the processed qObject are sent silently nowhere.
+ *  @param name the name of the station
+ */
 class SingleQStation(
     parent: ModelElement,
-    capacity: Int = 1,
     processingTime: RandomIfc,
-    nextReceiver: ReceiveQObjectIfc,
+    resource: SResource? = null,
+    nextReceiver: QObjectReceiverIfc? = null,
     name: String? = null
 ) : Station(parent, nextReceiver, name = name) {
 
-    private val myResource: SResource = SResource(this, capacity, "${this.name}:Resource")
+    private val myResource: SResource = resource ?: SResource(this, 1, "${this.name}:R")
+    val resource:  SResourceCIfc
+        get() = myResource
 
     private var myProcessingTimeRV: RandomVariable = RandomVariable(this, processingTime)
     val processingTimeRV: RandomSourceCIfc
         get() = myProcessingTimeRV
 
-    private val myNS: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
+    private val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
     val numInSystem: TWResponseCIfc
         get() = myNS
 
-    private val mySysTime: Response = Response(this, "${this.name}:SystemTime")
+    private val mySysTime: Response = Response(this, "${this.name}:StationTime")
     val systemTime: ResponseCIfc
         get() = mySysTime
 
@@ -51,7 +76,7 @@ class SingleQStation(
     val numProcessed: CounterCIfc
         get() = myNumProcessed
 
-    private val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:WaitingQ")
+    private val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:Q")
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
@@ -95,6 +120,10 @@ class SingleQStation(
         schedule(this::endOfProcessing, delayTime, nextCustomer)
     }
 
+    /**
+     *  The end of processing event actions. Collect departing statistics and send the qObject
+     *  to its next receiver. If the queue is not empty, continue processing the next qObject.
+     */
     private fun endOfProcessing(event: KSLEvent<QObject>) {
         val leaving: QObject = event.message!!
         myNS.decrement() // qObject completed
@@ -104,7 +133,7 @@ class SingleQStation(
         if (isQueueNotEmpty) { // queue is not empty
             serveNext()
         }
-        send(leaving)
+        sendToNextReceiver(leaving)
     }
 
 }
