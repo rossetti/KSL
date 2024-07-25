@@ -19,7 +19,6 @@
 package ksl.examples.book.chapter4
 
 import ksl.simulation.Model
-import ksl.utilities.io.MarkDown.D3FORMAT
 
 fun main(){
     val sim = Model("TandemQ Model")
@@ -29,6 +28,4 @@ fun main(){
     val tq = TandemQueue(sim, name = "TandemQ")
     sim.simulate()
     sim.print()
-
-    sim.simulationReporter.writeHalfWidthSummaryReportAsMarkDown(df = D3FORMAT)
 }
