@@ -21,6 +21,11 @@ package ksl.modeling.station
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 
+/**
+ *  Can be used to capture the total number disposed through this station
+ *  and the total time in the system at this dispose. The optionally supplied
+ *  number in the system response will be decremented by 1 if supplied.
+ */
 class DisposeStation(
     parent: ModelElement,
     private val myNumInSystem: TWResponse? = null,
