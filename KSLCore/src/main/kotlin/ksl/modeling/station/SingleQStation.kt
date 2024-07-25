@@ -131,6 +131,10 @@ open class SingleQStation(
 
     }
 
+    /**
+     *  Receives the qObject instance for processing. Handle the queuing
+     *  if the resource is not available and begins service for the next customer.
+     */
     final override fun receive(qObject: QObject) {
         onEntry(qObject)
         myNS.increment() // new qObject arrived
