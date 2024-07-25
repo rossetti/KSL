@@ -22,21 +22,21 @@ import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 
 class DisposeStation(
-    private val myNumDisposed: Counter? = null,
-    private val mySystemTime: Response? = null,
-    private val myNumInSystem: TWResponse? = null
-) : QObjectReceiverIfc {
+    parent: ModelElement,
+    private val myNumInSystem: TWResponse? = null,
+    name: String? = null
+) : ModelElement(parent, name), QObjectReceiverIfc {
 
-    val numDisposed: CounterCIfc?
+    private val myNumDisposed: Counter = Counter(this, "${this.name}:TotalProcessed")
+    val numDisposed: CounterCIfc
         get() = myNumDisposed
-
-    val totalTime: ResponseCIfc?
+    private val mySystemTime: Response = Response(this, "${this.name}:TotalSystemTime")
+    val totalTime: ResponseCIfc
         get() = mySystemTime
 
     override fun receive(qObject: ModelElement.QObject) {
-        mySystemTime?.value = qObject.currentTime - qObject.createTime
-        myNumDisposed?.increment()
+        mySystemTime.value = qObject.currentTime - qObject.createTime
+        myNumDisposed.increment()
         myNumInSystem?.decrement()
     }
-
 }

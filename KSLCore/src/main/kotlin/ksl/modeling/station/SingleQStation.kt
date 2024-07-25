@@ -72,7 +72,7 @@ interface SingleQStationCIfc {
  *  receiver. If no receiver is present, the processed qObject are sent silently nowhere.
  *  @param name the name of the station
  */
-class SingleQStation(
+open class SingleQStation(
     parent: ModelElement,
     processingTime: RandomIfc,
     resource: SResource? = null,
@@ -80,27 +80,27 @@ class SingleQStation(
     name: String? = null
 ) : Station(parent, nextReceiver, name = name), SingleQStationCIfc {
 
-    private val myResource: SResource = resource ?: SResource(this, 1, "${this.name}:R")
+    protected val myResource: SResource = resource ?: SResource(this, 1, "${this.name}:R")
     override val resource:  SResourceCIfc
         get() = myResource
 
-    private var myProcessingTimeRV: RandomVariable = RandomVariable(this, processingTime)
+    protected var myProcessingTimeRV: RandomVariable = RandomVariable(this, processingTime)
     override val processingTimeRV: RandomSourceCIfc
         get() = myProcessingTimeRV
 
-    private val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
+    protected val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
     override val numInSystem: TWResponseCIfc
         get() = myNS
 
-    private val mySysTime: Response = Response(this, "${this.name}:StationTime")
+    protected val mySysTime: Response = Response(this, "${this.name}:StationTime")
     override val systemTime: ResponseCIfc
         get() = mySysTime
 
-    private val myNumProcessed: Counter = Counter(this, "${this.name}:NumProcessed")
+    protected val myNumProcessed: Counter = Counter(this, "${this.name}:NumProcessed")
     override val numProcessed: CounterCIfc
         get() = myNumProcessed
 
-    private val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:Q")
+    protected val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:Q")
     override val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
@@ -122,7 +122,17 @@ class SingleQStation(
     override val isQueueNotEmpty: Boolean
         get() = myWaitingQ.isNotEmpty
 
-    override fun receive(qObject: QObject) {
+    /**
+     *  This function can be overridden to provide logic
+     *  upon entry to the station before any other state
+     *  changes occur.
+     */
+    open fun onEntry(qObject: QObject){
+
+    }
+
+    final override fun receive(qObject: QObject) {
+        onEntry(qObject)
         myNS.increment() // new qObject arrived
         qObject.timeStamp = time
         myWaitingQ.enqueue(qObject) // enqueue the newly arriving qObject
@@ -136,7 +146,7 @@ class SingleQStation(
      * the next customer, seizes the resource, and schedules the end of the
      * service.
      */
-    private fun serveNext() {
+    protected fun serveNext() {
         val nextCustomer = myWaitingQ.removeNext()!! //remove the next customer
         myResource.seize()
         // schedule end of service, if the customer can supply a value, use it otherwise use the processing time RV
@@ -157,7 +167,17 @@ class SingleQStation(
         if (isQueueNotEmpty) { // queue is not empty
             serveNext()
         }
+        onExit(leaving)
         sendToNextReceiver(leaving)
+    }
+
+    /**
+     *  This function can be overridden to provide logic
+     *  upon exit from the station before being sent to the
+     *  next receiver.
+     */
+    open fun onExit(qObject: QObject){
+
     }
 
 }

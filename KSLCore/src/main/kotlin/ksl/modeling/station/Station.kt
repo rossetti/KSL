@@ -27,12 +27,18 @@ abstract class Station(
      * @param qObject the completed QObject
      */
     protected open fun sendToNextReceiver(qObject: QObject) {
-        if (qObject.receiverIterator != null){
-            if (qObject.receiverIterator!!.hasNext()){
+        if (qObject.receiverIterator != null) {
+            if (qObject.receiverIterator!!.hasNext()) {
                 qObject.receiverIterator!!.next().receive(qObject)
             }
         } else {
             nextReceiver?.receive(qObject)
         }
+    }
+
+    companion object {
+
+        val DoNothingDispose = DoNothingReceiver
+
     }
 }
