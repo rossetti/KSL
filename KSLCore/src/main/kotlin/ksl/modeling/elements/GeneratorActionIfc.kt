@@ -17,8 +17,6 @@
  */
 package ksl.modeling.elements
 
-import ksl.simulation.KSLEvent
-
 /**  This interface defines the action to occur for an EventGenerator.
  * Implementors place code in the method generate() in order to
  * provide actions that can occur when the event that was generated
