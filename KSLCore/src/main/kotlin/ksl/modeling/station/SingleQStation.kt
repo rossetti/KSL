@@ -29,8 +29,8 @@ import ksl.utilities.random.RandomIfc
 interface SingleQStationCIfc {
     val resource: SResourceCIfc
     val processingTimeRV: RandomSourceCIfc
-    val numInSystem: TWResponseCIfc
-    val systemTime: ResponseCIfc
+    val numAtStation: TWResponseCIfc
+    val stationTime: ResponseCIfc
     val numProcessed: CounterCIfc
     val waitingQ: QueueCIfc<ModelElement.QObject>
 
@@ -89,12 +89,12 @@ open class SingleQStation(
         get() = myProcessingTimeRV
 
     protected val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
-    override val numInSystem: TWResponseCIfc
+    override val numAtStation: TWResponseCIfc
         get() = myNS
 
-    protected val mySysTime: Response = Response(this, "${this.name}:StationTime")
-    override val systemTime: ResponseCIfc
-        get() = mySysTime
+    protected val myStationTime: Response = Response(this, "${this.name}:StationTime")
+    override val stationTime: ResponseCIfc
+        get() = myStationTime
 
     protected val myNumProcessed: Counter = Counter(this, "${this.name}:NumProcessed")
     override val numProcessed: CounterCIfc
@@ -172,7 +172,7 @@ open class SingleQStation(
         val leaving: QObject = event.message!!
         myNS.decrement() // qObject completed
         myNumProcessed.increment()
-        mySysTime.value = (time - leaving.timeStamp)
+        myStationTime.value = (time - leaving.timeStamp)
         myResource.release()
         if (isQueueNotEmpty) { // queue is not empty
             serveNext()

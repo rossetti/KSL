@@ -37,6 +37,7 @@ import java.util.*
 const val DEFAULT_ROW_FORMAT = "%-70s \t %12d \t %12.4f \t %12.4f %n"
 const val DEFAULT_HEADER_FORMAT = "%-70s \t %12s \t %12s \t %12s %n"
 val D2FORMAT = DecimalFormat(".##")
+
 /**
  * A class to help with making useful statistical reports. Creates summary
  * reports as StringBuilders based on the supplied list of statistics

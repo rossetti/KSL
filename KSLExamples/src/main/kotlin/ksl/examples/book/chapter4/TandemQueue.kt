@@ -33,17 +33,6 @@ class TandemQueue(
     name: String? = null
 ): ModelElement(parent, name) {
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this,
-        this::arrivalEvent, ad, ad)
-
-    private val myStation1: SingleQStation = SingleQStation(this, sd1, name= "${this.name}:Station1")
-    val station1: SingleQStationCIfc
-        get() = myStation1
-
-    private val myStation2: SingleQStation = SingleQStation(this, sd2, name= "${this.name}:Station2")
-    val station2: SingleQStationCIfc
-        get() = myStation2
-
     private val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
     val numInSystem: TWResponseCIfc
         get() = myNS
@@ -55,6 +44,17 @@ class TandemQueue(
     private val myNumProcessed: Counter = Counter(this, "${this.name}:TotalProcessed")
     val totalProcessed: CounterCIfc
         get() = myNumProcessed
+
+    private val myArrivalGenerator: EventGenerator = EventGenerator(this,
+        this::arrivalEvent, ad, ad)
+
+    private val myStation1: SingleQStation = SingleQStation(this, sd1, name= "${this.name}:Station1")
+    val station1: SingleQStationCIfc
+        get() = myStation1
+
+    private val myStation2: SingleQStation = SingleQStation(this, sd2, name= "${this.name}:Station2")
+    val station2: SingleQStationCIfc
+        get() = myStation2
 
     init {
         myStation1.nextReceiver = myStation2
@@ -73,9 +73,5 @@ class TandemQueue(
             myNumProcessed.increment()
             myNS.decrement()
         }
-    }
-
-    private fun doSomething(qObject: QObject){
-
     }
 }

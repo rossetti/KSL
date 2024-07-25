@@ -21,8 +21,6 @@
  */
 package ksl.simulation
 
-import ksl.observers.textfile.CSVExperimentReport
-import ksl.observers.textfile.CSVReplicationReport
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.toDataFrame
@@ -66,15 +64,6 @@ class SimulationReporter(theModel: Model) {
 
     private val model: Model = theModel
     private val experiment: ExperimentIfc = theModel.myExperiment
-//    private lateinit var myCSVRepReport: CSVReplicationReport
-//    private lateinit var myCSVExpReport: CSVExperimentReport
-
-    init {
-//        if (autoCSVReports){
-//            myCSVRepReport = CSVReplicationReport(theModel)
-//            myCSVExpReport = CSVExperimentReport(theModel)
-//        }
-    }
 
     /**
      * A convenience method. Gets the response variables from
@@ -728,30 +717,6 @@ class SimulationReporter(theModel: Model) {
         return builders
     }
 
-//    /**
-//     * Attaches the CSVExperimentReport to the model if not attached.
-//     *
-//     */
-//    fun turnOnAcrossReplicationStatisticReporting(){
-//        if (!this::myCSVExpReport.isInitialized){
-//            myCSVExpReport = CSVExperimentReport(model)
-//        }
-//        if (!model.isModelElementObserverAttached(myCSVExpReport)){
-//            model.attachModelElementObserver(myCSVExpReport)
-//        }
-//    }
-//
-//    /**
-//     * Detaches the CSVExperimentReport from the model.
-//     *
-//     */
-//    fun turnOffAcrossReplicationStatisticReporting() {
-//        if (!this::myCSVExpReport.isInitialized){
-//            return
-//        }
-//        model.detachModelElementObserver(myCSVExpReport)
-//    }
-
     /**
      *
      * @return a StatisticReporter holding the across replication statistics for reporting
@@ -813,7 +778,7 @@ class SimulationReporter(theModel: Model) {
 
     /**
      *  Returns the across replication statistics as a data frame
-     *  with confidence intevals specified by the provided [level].
+     *  with confidence intervals specified by the provided [level].
      */
     fun acrossReplicationStatisticsAsDataFrame(level: Double = 0.95): DataFrame<StatisticData> {
         val list = acrossReplicationStatisticsList().toMutableList()
