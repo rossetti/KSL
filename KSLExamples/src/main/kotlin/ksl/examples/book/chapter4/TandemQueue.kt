@@ -52,14 +52,13 @@ class TandemQueue(
     val totalSystemTime: ResponseCIfc
         get() = mySysTime
 
-    private val myNumCustomers: Counter = Counter(this, "${this.name}:TotalProcessed")
+    private val myNumProcessed: Counter = Counter(this, "${this.name}:TotalProcessed")
     val totalProcessed: CounterCIfc
-        get() = myNumCustomers
+        get() = myNumProcessed
 
     init {
         myStation1.nextReceiver = myStation2
         myStation2.nextReceiver = ExitSystem()
-//        myStation2.nextReceiver = this::doSomething
     }
 
     private fun arrivalEvent(generator: EventGenerator){
@@ -71,7 +70,7 @@ class TandemQueue(
     private inner class ExitSystem : QObjectReceiverIfc {
         override fun receive(qObject: QObject) {
             mySysTime.value = time - qObject.createTime
-            myNumCustomers.increment()
+            myNumProcessed.increment()
             myNS.decrement()
         }
     }
