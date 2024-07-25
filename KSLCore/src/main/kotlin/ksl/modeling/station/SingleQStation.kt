@@ -150,8 +150,14 @@ open class SingleQStation(
         val nextCustomer = myWaitingQ.removeNext()!! //remove the next customer
         myResource.seize()
         // schedule end of service, if the customer can supply a value, use it otherwise use the processing time RV
-        val delayTime = nextCustomer.valueObject?.value ?: myProcessingTimeRV.value
-        schedule(this::endOfProcessing, delayTime, nextCustomer)
+        schedule(this::endOfProcessing, delayTime(nextCustomer), nextCustomer)
+    }
+
+    /**
+     *  Could be overridden to supply different approach for determining the service delay
+     */
+    protected fun delayTime(qObject: QObject) : Double {
+        return qObject.valueObject?.value ?: myProcessingTimeRV.value
     }
 
     /**
