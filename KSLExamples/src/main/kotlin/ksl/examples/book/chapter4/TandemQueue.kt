@@ -68,8 +68,8 @@ class TandemQueue(
     }
 
     private inner class ExitSystem : QObjectReceiverIfc {
-        override fun receive(qObject: QObject) {
-            mySysTime.value = time - qObject.createTime
+        override fun receive(arrivingQObject: QObject) {
+            mySysTime.value = time - arrivingQObject.createTime
             myNumProcessed.increment()
             myNS.decrement()
         }

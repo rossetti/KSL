@@ -31,6 +31,8 @@ import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.station.QObjectReceiverIfc
+import ksl.modeling.station.QObjectSender
+import ksl.modeling.station.QObjectSenderIfc
 
 private var elementCounter: Int = 0
 
@@ -2055,9 +2057,14 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         var valueObject: GetValueIfc? = null
 
         /**
-         *  Allows for the qObject to determine the next receiver
+         *  The receiver that last received the qObject
          */
-        var receiverIterator: ListIterator<QObjectReceiverIfc>? = null
+        var currentReceiver: QObjectReceiverIfc? = null
+
+        /**
+         *  Something that knows how to send qObjects to receivers
+         */
+        var sender: QObjectSenderIfc? = null
 
         override fun toString(): String {
             return "ID= $id, name= $name isQueued = $isQueued"

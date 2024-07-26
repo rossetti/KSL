@@ -30,7 +30,7 @@ class NWayByChanceSender(
     private val receiverList : REmpiricalList<QObjectReceiverIfc>
 ) : QObjectReceiverIfc{
 
-    override fun receive(qObject: ModelElement.QObject) {
-        receiverList.randomElement.receive(qObject)
+    override fun receive(arrivingQObject: ModelElement.QObject) {
+        receiverList.randomElement.receive(arrivingQObject)
     }
 }

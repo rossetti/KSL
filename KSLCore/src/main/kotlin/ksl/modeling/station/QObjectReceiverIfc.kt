@@ -9,10 +9,16 @@ import ksl.simulation.ModelElement.QObject
  * @author rossetti
  */
 fun interface QObjectReceiverIfc {
-    fun receive(qObject: ModelElement.QObject)
+    fun receive(arrivingQObject: ModelElement.QObject)
 }
 
 object DoNothingReceiver : QObjectReceiverIfc {
-    override fun receive(qObject: QObject) {
+    override fun receive(arrivingQObject: QObject) {
+    }
+}
+
+object NotImplementedReceiver : QObjectReceiverIfc {
+    override fun receive(arrivingQObject: QObject) {
+        TODO("Attempted to send ${arrivingQObject.name} to a not implemented receiver. Check your station receiver assignments.")
     }
 }

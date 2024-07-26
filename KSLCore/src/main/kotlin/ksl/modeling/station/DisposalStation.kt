@@ -39,8 +39,8 @@ class DisposalStation(
     val totalTime: ResponseCIfc
         get() = mySystemTime
 
-    override fun receive(qObject: ModelElement.QObject) {
-        mySystemTime.value = qObject.currentTime - qObject.createTime
+    override fun receive(arrivingQObject: ModelElement.QObject) {
+        mySystemTime.value = arrivingQObject.currentTime - arrivingQObject.createTime
         myNumDisposed.increment()
         myNumInSystem?.decrement()
     }
