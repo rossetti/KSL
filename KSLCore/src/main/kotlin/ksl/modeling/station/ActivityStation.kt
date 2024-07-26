@@ -20,8 +20,6 @@ package ksl.modeling.station
 
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
-import ksl.modeling.variable.TWResponse
-import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
@@ -39,36 +37,37 @@ import ksl.utilities.random.RandomIfc
  *  a processed QObject instance can determine where it goes to next after processing.
  *
  *  @param parent the model element serving as this element's parent
- *  @param delayTime the delay time at the station
+ *  @param activityTime the delay time at the station
  *  @param nextReceiver the receiving location that will receive the processed qObjects
  *  once the processing has been completed. A default of null, indicates that there is no
  *  receiver. If no receiver is present, the processed qObject are sent silently nowhere.
  *  @param name the name of the station
  */
-class DelayStation(
+open class ActivityStation(
     parent: ModelElement,
-    delayTime: RandomIfc,
-    nextReceiver: QObjectReceiverIfc?,
+    activityTime: RandomIfc,
+    nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
     name: String? = null
-) : Station(parent, nextReceiver, name = name) {
+) : Station(parent, nextReceiver, name = name), ActivityStationCIfc{
 
-    private var myDelayTimeRV: RandomVariable = RandomVariable(this, delayTime, "${this.name}:DelayRV")
-    val delayTimeRV: RandomSourceCIfc
-        get() = myDelayTimeRV
+    protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime, "${this.name}:ActivityRV")
+    override val activityTimeRV: RandomSourceCIfc
+        get() = myActivityTimeRV
 
-    private val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
-    val numInSystem: TWResponseCIfc
-        get() = myNS
-
-    override fun receive(qObject: QObject) {
-        myNS.increment()
-        val delayTime = qObject.valueObject?.value ?: myDelayTimeRV.value
-        schedule(this::endDelayAction, delayTime, qObject)
+    override fun receive(arrivingQObject: QObject) {
+        super.receive(arrivingQObject)
+        schedule(this::endActivityAction, activityTime(arrivingQObject), arrivingQObject)
     }
 
-    private fun endDelayAction(event: KSLEvent<QObject>) {
+    /**
+     *  Could be overridden to supply different approach for determining the service delay
+     */
+    protected fun activityTime(qObject: QObject) : Double {
+        return qObject.valueObject?.value ?: myActivityTimeRV.value
+    }
+
+    private fun endActivityAction(event: KSLEvent<QObject>) {
         val finishedObject = event.message!!
-        myNS.decrement()
         sendToNextReceiver(finishedObject)
     }
 }
