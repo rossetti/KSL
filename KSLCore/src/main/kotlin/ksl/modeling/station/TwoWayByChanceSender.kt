@@ -31,6 +31,13 @@ class TwoWayByChanceSender(
 ) : QObjectReceiverIfc {
 
     override fun receive(arrivingQObject: ModelElement.QObject) {
-        bernoulliPicker.randomElement.receive(arrivingQObject)
+        val selected = bernoulliPicker.randomElement
+        beforeSendingAction?.invoke(selected, arrivingQObject)
+        selected.receive(arrivingQObject)
+        afterSendingAction?.invoke(selected, arrivingQObject)
     }
+
+    var beforeSendingAction: ((receiver: QObjectReceiverIfc, qObject: ModelElement.QObject) -> Unit)? = null
+
+    var afterSendingAction: ((receiver: QObjectReceiverIfc, qObject: ModelElement.QObject) -> Unit)? = null
 }

@@ -31,6 +31,14 @@ class NWayByChanceSender(
 ) : QObjectReceiverIfc{
 
     override fun receive(arrivingQObject: ModelElement.QObject) {
-        receiverList.randomElement.receive(arrivingQObject)
+        val selected = receiverList.randomElement
+        beforeSendingAction?.invoke(selected, arrivingQObject)
+        selected.receive(arrivingQObject)
+        afterSendingAction?.invoke(selected, arrivingQObject)
     }
+
+    var beforeSendingAction: ((receiver: QObjectReceiverIfc, qObject: ModelElement.QObject) -> Unit)? = null
+
+    var afterSendingAction: ((receiver: QObjectReceiverIfc, qObject: ModelElement.QObject) -> Unit)? = null
+
 }

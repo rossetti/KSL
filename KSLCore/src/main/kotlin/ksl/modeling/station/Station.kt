@@ -35,6 +35,14 @@ interface SingleQStationCIfc : ActivityStationCIfc {
     val isQueueNotEmpty: Boolean
 }
 
+fun interface EntryActionIfc {
+    fun onEntry(qObject: ModelElement.QObject)
+}
+
+fun interface ExitActionIfc {
+    fun onExit(qObject: ModelElement.QObject)
+}
+
 /**
  *  A station is a location that can receive, potentially
  *  process instances of the QObject class, and cause them to
@@ -73,37 +81,42 @@ abstract class Station(
      * @param completedQObject the completed QObject
      */
     protected fun sendToNextReceiver(completedQObject: QObject) {
-        onExit(completedQObject)
-        if (completedQObject.sender != null){
+        departureCollection(completedQObject)
+        exitAction?.invoke(completedQObject) ?: onExit(completedQObject)
+        if (completedQObject.sender != null) {
             completedQObject.sender!!.send()
         } else {
             nextReceiver.receive(completedQObject)
         }
     }
 
-    protected fun departureCollection(completedQObject: QObject){
+    protected fun departureCollection(completedQObject: QObject) {
         myNS.decrement() // qObject completed
         myNumProcessed.increment()
         myStationTime.value = (time - completedQObject.timeStamp)
     }
 
-    protected fun arrivalCollection(arrivingQObject: QObject){
+    protected fun arrivalCollection(arrivingQObject: QObject) {
         arrivingQObject.currentReceiver = this
         myNS.increment() // new qObject arrived
         arrivingQObject.timeStamp = time
     }
 
     override fun receive(arrivingQObject: QObject) {
-        onEntry(arrivingQObject)
+        arrivalCollection(arrivingQObject)
+        entryAction?.invoke(arrivingQObject) ?: onEntry(arrivingQObject)
     }
+
+    var entryAction: ((QObject) -> Unit)? = null
+
+    var exitAction: ((QObject) -> Unit)? = null
 
     /**
      *  This function can be overridden to provide logic
      *  upon entry to the station before any other state
      *  changes occur.
      */
-    open fun onEntry(arrivingQObject: QObject){
-        arrivalCollection(arrivingQObject)
+    open fun onEntry(arrivingQObject: QObject) {
     }
 
     /**
@@ -111,7 +124,6 @@ abstract class Station(
      *  upon exit from the station before being sent to the
      *  next receiver.
      */
-    open fun onExit(completedQObject: QObject){
-        departureCollection(completedQObject)
+    open fun onExit(completedQObject: QObject) {
     }
 }
