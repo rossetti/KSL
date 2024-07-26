@@ -97,11 +97,18 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.1.0"
+version = "R1.1.1"
 
 ## Release Notes
 
-Latest Release: R1.1.0
+Latest Release: R1.1.1
+- Added ksl.modeling.station package
+	- facilitate modeling of simple queueing systems
+- added maps that can have randomly selected elements
+- improved RList, DUniformList
+- added BernoulliPicker
+
+Release: R1.1.0
 - Updates to ksl.utilities.distributions.fitting package
 	- default scoring models changed to Bayesian Information Criterion, Anderson-Darling, Cramer Von-Mises, Q-Q Correlation
 	- Bug fixes for scaling algorithm
@@ -124,7 +131,6 @@ Latest Release: R1.1.0
 	- ErrorMatrix tabulation of confusion matrix results
 - Removed dependency on OpenCSV
 - Upgraded to kotlin 1.9.20
-
 
 Release: R1.0.9
 - Bug fixes and improvements in ksl.utilities.distributions.fitting package
