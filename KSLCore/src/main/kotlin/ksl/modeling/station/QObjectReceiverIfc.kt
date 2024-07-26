@@ -19,6 +19,11 @@ object DoNothingReceiver : QObjectReceiverIfc {
 
 object NotImplementedReceiver : QObjectReceiverIfc {
     override fun receive(arrivingQObject: QObject) {
-        TODO("Attempted to send ${arrivingQObject.name} to a not implemented receiver. Check your station receiver assignments.")
+        val sb = StringBuilder().apply {
+            appendLine("Attempted to send ${arrivingQObject.name} to a not implemented receiver.")
+            appendLine("The qObject may be trying to leave receiver ${arrivingQObject.currentReceiver}")
+            appendLine("Check your station receiver assignments for NotImplementedReceiver assignments.")
+        }
+        TODO(sb.toString())
     }
 }
