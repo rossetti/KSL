@@ -31,7 +31,7 @@ class TandemQueue(
     sd1: RandomIfc = ExponentialRV(4.0, 2),
     sd2: RandomIfc = ExponentialRV(3.0, 3),
     name: String? = null
-): ModelElement(parent, name) {
+) : ModelElement(parent, name) {
 
     private val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
     val numInSystem: TWResponseCIfc
@@ -45,23 +45,27 @@ class TandemQueue(
     val totalProcessed: CounterCIfc
         get() = myNumProcessed
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this,
-        this::arrivalEvent, ad, ad)
+    private val myArrivalGenerator: EventGenerator = EventGenerator(
+        this,
+        this::arrivalEvent, ad, ad
+    )
 
-    private val myStation1: SingleQStation = SingleQStation(this, sd1, name= "${this.name}:Station1")
+    private val myStation1: SingleQStation = SingleQStation(this, sd1, name = "${this.name}:Station1")
     val station1: SingleQStationCIfc
         get() = myStation1
 
-    private val myStation2: SingleQStation = SingleQStation(this, sd2, name= "${this.name}:Station2")
+    private val myStation2: SingleQStation = SingleQStation(this, sd2, name = "${this.name}:Station2")
     val station2: SingleQStationCIfc
         get() = myStation2
 
     init {
         myStation1.nextReceiver = myStation2
         myStation2.nextReceiver = ExitSystem()
+        myStation1.entryAction = { println("Entering station 1: ${it.name}") }
+        myStation1.exitAction = { println("Exiting station 1: ${it.name}") }
     }
 
-    private fun arrivalEvent(generator: EventGenerator){
+    private fun arrivalEvent(generator: EventGenerator) {
         val customer = QObject()
         myNS.increment()
         myStation1.receive(customer)

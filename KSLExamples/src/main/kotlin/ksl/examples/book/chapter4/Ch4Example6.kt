@@ -22,9 +22,11 @@ import ksl.simulation.Model
 
 fun main(){
     val sim = Model("TandemQ Model")
-    sim.numberOfReplications = 30
-    sim.lengthOfReplication = 20000.0
-    sim.lengthOfReplicationWarmUp = 5000.0
+//    sim.numberOfReplications = 30
+//    sim.lengthOfReplication = 20000.0
+//    sim.lengthOfReplicationWarmUp = 5000.0
+    sim.numberOfReplications = 1
+    sim.lengthOfReplication = 40.0
     val tq = TandemQueue(sim, name = "TandemQ")
     sim.simulate()
     sim.print()
