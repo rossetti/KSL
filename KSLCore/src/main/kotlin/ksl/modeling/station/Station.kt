@@ -50,9 +50,16 @@ fun interface ExitActionIfc {
  */
 abstract class Station(
     parent: ModelElement,
-    var nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
+    private var nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
     name: String? = null
 ) : ModelElement(parent, name), QObjectReceiverIfc, StationCIfc {
+
+    /**
+     *  Sets the receiver of qObject instances from this station
+     */
+    fun nextReceiver(receiver: QObjectReceiverIfc){
+        nextReceiver = receiver
+    }
 
     protected val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
     override val numAtStation: TWResponseCIfc
@@ -82,7 +89,7 @@ abstract class Station(
      */
     protected fun sendToNextReceiver(completedQObject: QObject) {
         departureCollection(completedQObject)
-        exitAction?.invoke(completedQObject) ?: onExit(completedQObject)
+        exitAction?.onExit(completedQObject) ?: onExit(completedQObject)
         if (completedQObject.sender != null) {
             completedQObject.sender!!.send()
         } else {
@@ -104,12 +111,20 @@ abstract class Station(
 
     override fun receive(arrivingQObject: QObject) {
         arrivalCollection(arrivingQObject)
-        entryAction?.invoke(arrivingQObject) ?: onEntry(arrivingQObject)
+        entryAction?.onEntry(arrivingQObject) ?: onEntry(arrivingQObject)
     }
 
-    var entryAction: ((QObject) -> Unit)? = null
+    protected var entryAction: EntryActionIfc? = null
 
-    var exitAction: ((QObject) -> Unit)? = null
+    fun entryAction(action: EntryActionIfc?) {
+        entryAction = action
+    }
+
+    protected var exitAction: ExitActionIfc? = null
+
+    fun exitAction(action: ExitActionIfc?) {
+        exitAction = action
+    }
 
     /**
      *  This function can be overridden to provide logic
