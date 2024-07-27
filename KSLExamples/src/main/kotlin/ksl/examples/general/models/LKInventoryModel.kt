@@ -43,10 +43,10 @@ class LKInventoryModel(
     private val myAvgShortageCost: TWResponse = TWResponse(this, "Shortage Cost")
 
     private val myDemandGenerator: EventGenerator = EventGenerator(this, DemandArrival(),
-        ExponentialRV(0.1), ExponentialRV(0.1), theName = "Demand Generator")
+        ExponentialRV(0.1), ExponentialRV(0.1), name = "Demand Generator")
 
     private val myInventoryCheckGenerator: EventGenerator = EventGenerator(this,
-        InventoryCheck(), ConstantRV.ZERO, ConstantRV.ONE, theName = "Inventory Check")
+        InventoryCheck(), ConstantRV.ZERO, ConstantRV.ONE, name = "Inventory Check")
 
     private val myOrderArrivalEvent: OrderArrival = OrderArrival()
 
