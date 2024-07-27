@@ -1,5 +1,7 @@
 package ksl.modeling.station
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.modeling.variable.TWResponseFunction
@@ -81,6 +83,10 @@ class SResource(
     /**
      * The initial capacity of the resource at time just prior to 0.0
      */
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 1.0
+    )
     override var initialCapacity = capacity
         set(value) {
             require(value >= 1) { "The initial capacity of the resource must be >= 1" }

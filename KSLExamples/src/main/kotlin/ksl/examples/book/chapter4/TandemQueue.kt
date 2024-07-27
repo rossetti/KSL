@@ -59,10 +59,8 @@ class TandemQueue(
         get() = myStation2
 
     init {
-        myStation1.nextReceiver = myStation2
-        myStation2.nextReceiver = ExitSystem()
-        myStation1.entryAction = { println("Entering station 1: ${it.name}") }
-        myStation1.exitAction = { println("Exiting station 1: ${it.name}") }
+        myStation1.nextReceiver(myStation2)
+        myStation2.nextReceiver(ExitSystem())
     }
 
     private fun arrivalEvent(generator: EventGenerator) {

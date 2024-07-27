@@ -56,55 +56,67 @@ import ksl.utilities.random.rvariable.ConstantRV
  * is only within the current replication.
  *
  * @param parent the parent model element
- * @param theAction The action supplies the generation logic for reacting to the generated event.
- * @param theTimeUntilTheFirstEvent A RandomIfc object that supplies the time until the first event.
- * @param theTimeBtwEvents A RandomIfc object that supplies the time between
+ * @param generateAction The action supplies the generation logic for reacting to the generated event.
+ * @param timeUntilFirstRV A RandomIfc object that supplies the time until the first event.
+ * @param timeBtwEventsRV A RandomIfc object that supplies the time between
  * events. Must not be a RandomIfc that always returns 0.0, if the maximum
  * number of generations is infinite (Long.MAX_VALUE)
- * @param theMaxNumberOfEvents A long that supplies the maximum number of events to
+ * @param maxNumberOfEvents A long that supplies the maximum number of events to
  * generate. Each time an event is to be scheduled the maximum number of
  * events is checked. If the maximum has been reached, then the generator is
  * turned off. The default is Long.MAX_VALUE. This parameter cannot be
  * Long.MAX_VALUE when the time until next always returns a value of 0.0
- * @param theTimeOfTheLastEvent A double that supplies a time to stop generating
+ * @param timeOfTheLastEvent A double that supplies a time to stop generating
  * events. When the generator is created, this variable is used to set the
  * ending time of the generator. Each time an event is to be scheduled the
  * ending time is checked. If the time of the next event is past this time,
  * then the generator is turned off and the event won't be scheduled. The
  * default is Double.POSITIVE_INFINITY.
- * @param theName the name of the generator
+ * @param name the name of the generator
  */
 open class EventGenerator(
     parent: ModelElement,
-    theAction: GeneratorActionIfc?,
-    theTimeUntilTheFirstEvent: RandomIfc = ConstantRV.ZERO,
-    theTimeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
-    theMaxNumberOfEvents: Long = Long.MAX_VALUE,
-    theTimeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
-    theName: String? = null
-) : ModelElement(parent, theName), EventGeneratorIfc {
+    generateAction: GeneratorActionIfc? = null,
+    timeUntilFirstRV: RandomIfc = ConstantRV.ZERO,
+    timeBtwEventsRV: RandomIfc = ConstantRV.POSITIVE_INFINITY,
+    maxNumberOfEvents: Long = Long.MAX_VALUE,
+    timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
+    name: String? = null
+) : ModelElement(parent, name), EventGeneratorIfc {
     init {
-        require(theMaxNumberOfEvents >= 0) { "The maximum number of events to generate was < 0!" }
-        if (theMaxNumberOfEvents == Long.MAX_VALUE) {
-            if (theTimeBtwEvents is ConstantRV) {
+        require(maxNumberOfEvents >= 0) { "The maximum number of events to generate was < 0!" }
+        if (maxNumberOfEvents == Long.MAX_VALUE) {
+            if (timeBtwEventsRV is ConstantRV) {
                 //TODO ranges will make this easier to check
-                require(theTimeBtwEvents.value != 0.0) { "Maximum number of events is $theMaxNumberOfEvents and time between events is 0.0" }
+                require(timeBtwEventsRV.value != 0.0) { "Maximum number of events is $maxNumberOfEvents and time between events is 0.0" }
             }
         }
-        require(theTimeOfTheLastEvent >= 0) { "The time of the last event was < 0!" }
+        require(timeOfTheLastEvent >= 0) { "The time of the last event was < 0!" }
         //TODO need to implement ranges so that time until first can be checked
     }
 
     /**
      * The action for the events for generation
      */
-    private val generatorAction: GeneratorActionIfc? = theAction
+    private var generatorAction: GeneratorActionIfc? = generateAction
+
+    /**
+     *  Can be used to supply logic to invoke when the generator's
+     *  is supposed to generate
+     */
+    fun generatorAction(action: GeneratorActionIfc?) {
+        generatorAction = action
+    }
+
+    private var endGeneratorAction: EndGeneratorActionIfc? = null
 
     /**
      *  Can be used to supply logic to invoke when the generator's
      *  ending time is finite and the generator is turned off.
      */
-    var endGeneratorAction: EndGeneratorActionIfc? = null
+    fun endGeneratorAction(action: EndGeneratorActionIfc?) {
+        endGeneratorAction = action
+    }
 
     /**
      * Determines the priority of the event generator's events The default is
@@ -116,14 +128,14 @@ open class EventGenerator(
      * Holds the random source for the time until first event. Used to
      * initialize the generator at the beginning of each replication
      */
-    private var myInitialTimeUntilFirstEvent: RandomIfc = theTimeUntilTheFirstEvent
+    private var myInitialTimeUntilFirstEvent: RandomIfc = timeUntilFirstRV
 
     /**
      * A RandomVariable that uses the time until first random source
      */
     private val myTimeUntilFirstEventRV: RandomVariable = RandomVariable(
         this, myInitialTimeUntilFirstEvent,
-        "$name:TimeUntilFirstEventRV"
+        "${this.name}:TimeUntilFirstEventRV"
     )
     override val initialTimeUntilFirstEvent: RandomSourceCIfc
         get() = myTimeUntilFirstEventRV
@@ -132,24 +144,24 @@ open class EventGenerator(
      * Holds the random source for the time between events. Used to initialize
      * the generator at the beginning of each replication
      */
-    private var myInitialTimeBtwEvents: RandomIfc = theTimeBtwEvents
+    private var myInitialTimeBtwEvents: RandomIfc = timeBtwEventsRV
 
     /**
      * Used to initialize the maximum number of events at the beginning of each
      * replication
      */
-    private var myInitialMaxNumEvents: Long = theMaxNumberOfEvents
+    private var myInitialMaxNumEvents: Long = maxNumberOfEvents
 
     /**
      * A random variable for the time between events
      */
     private val myTimeBtwEventsRV: RandomVariable =
-        RandomVariable(this, myInitialTimeBtwEvents, "$name:TimeBtwEventsRV")
+        RandomVariable(this, myInitialTimeBtwEvents, "${this.name}:TimeBtwEventsRV")
 
     /**
      * The time to stop generating for the current replication
      */
-    override var endingTime: Double = theTimeOfTheLastEvent
+    override var endingTime: Double = timeOfTheLastEvent
         set(value) {
             require(value >= 0.0) { "The ending time was < 0.0!" }
             if (value < time) {
@@ -168,7 +180,7 @@ open class EventGenerator(
         name = "initialEndingTime",
         lowerBound = 0.0
     )
-    override var initialEndingTime: Double = theTimeOfTheLastEvent
+    override var initialEndingTime: Double = timeOfTheLastEvent
         set(value) {
             require(value >= 0.0) { "The time until last was < 0.0!" }
             field = value
@@ -367,12 +379,12 @@ open class EventGenerator(
     override var isDone: Boolean = false
         protected set
 
-    private var myMaxNumEvents: Long = theMaxNumberOfEvents
+    private var myMaxNumEvents: Long = maxNumberOfEvents
 
     /**
      * The number of events to generate for the current replication
      */
-    override var maximumNumberOfEvents: Long = theMaxNumberOfEvents
+    override var maximumNumberOfEvents: Long = maxNumberOfEvents
         set(maxNum) {
             setTimeBetweenEvents(myTimeBtwEventsRV.randomSource, maxNum)
         }
@@ -442,7 +454,7 @@ open class EventGenerator(
     @Suppress("UNUSED_PARAMETER")
     private fun endGeneratorAction(event: KSLEvent<Nothing>) {
         turnOffGenerator()
-        endGeneration()
+        endGeneratorAction?.endGeneration(this) ?: endGeneration()
     }
 
     /**
@@ -496,6 +508,7 @@ open class EventGenerator(
         override fun action(event: KSLEvent<Nothing>) {
             incrementNumberOfEvents()
             if (!isDone) {
+                generatorAction?.generate(this@EventGenerator) ?: generate()
                 generate()
                 // get the time until next event
                 val t: Double = myTimeBtwEventsRV.value
@@ -513,11 +526,9 @@ open class EventGenerator(
     }
 
     protected open fun generate() {
-        generatorAction?.generate(this)
     }
 
     protected open fun endGeneration() {
-        endGeneratorAction?.endGeneration(this)
     }
 
     companion object {
