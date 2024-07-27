@@ -2056,6 +2056,10 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
          */
         var valueObject: GetValueIfc? = null
 
+        fun valueObject(value: GetValueIfc?){
+            valueObject = value
+        }
+
         /**
          *  The receiver that last received the qObject
          */
