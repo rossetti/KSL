@@ -69,7 +69,7 @@ class YBoxInspectionSystem(
     init {
         myInspectionStation.nextReceiver(myInspectDecide)
         myAdjustmentStation.nextReceiver(myInspectionStation)
-        myAdjustmentStation.entryAction {
+        myAdjustmentStation.exitAction {
             (it as YBox).numAdjustments++
             println("incremented number of adjustments")
         }
