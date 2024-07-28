@@ -12,6 +12,7 @@ import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.robj.BernoulliPicker
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.UniformRV
+import kotlin.reflect.KFunction
 
 fun main(){
     val sim = Model("Exercise 5_6")
@@ -63,9 +64,10 @@ class InspectionSystem(
     private val myExit = ExitSystem()
 
     private val myInspectDecide = TwoWayByChanceSender(
-        BernoulliPicker<QObjectReceiverIfc>(0.82,
-            myExit, myAdjustmentStation, streamNum = 4)
+        BernoulliPicker(0.82, myExit, myAdjustmentStation, streamNum = 4)
     )
+
+    private val s : ((QObject) -> Unit)? = null
 
     init {
         myArrivalGenerator.generatorAction {
