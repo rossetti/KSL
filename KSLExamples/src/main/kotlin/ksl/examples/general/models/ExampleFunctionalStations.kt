@@ -19,12 +19,12 @@ fun main(){
 //    sim.lengthOfReplication = 30000.0
     sim.numberOfReplications = 1
     sim.lengthOfReplication = 100.0
-    val tq = YBoxInspectionSystem(sim, name = "InspectionSystem")
+    val tq = InspectionSystem(sim, name = "InspectionSystem")
     sim.simulate()
     sim.print()
 }
 
-class YBoxInspectionSystem(
+class InspectionSystem(
     parent: ModelElement,
     timeBtwArrivals: RandomIfc = ExponentialRV(6.0, 1),
     inspectionTime: RandomIfc = ExponentialRV(10.0, 2),
@@ -37,7 +37,7 @@ class YBoxInspectionSystem(
         get() = myArrivalRV
 
     private val myArrivalGenerator: EventGenerator = EventGenerator(this,
-        this::arrivalEvent, myArrivalRV, myArrivalRV)
+        timeUntilFirstRV = myArrivalRV, timeBtwEventsRV = myArrivalRV)
 
     private val myInspectionStation: SingleQStation = SingleQStation(
         this, inspectionTime,
@@ -63,25 +63,27 @@ class YBoxInspectionSystem(
     private val myExit = ExitSystem()
 
     private val myInspectDecide = TwoWayByChanceSender(
-        BernoulliPicker(0.82, myExit, myAdjustmentStation, streamNum = 4)
+        BernoulliPicker<QObjectReceiverIfc>(0.82,
+            myExit, myAdjustmentStation, streamNum = 4)
     )
 
     init {
+        myArrivalGenerator.generatorAction {
+            val customer = YBox()
+            myInspectionStation.receive(customer)
+        }
         myInspectionStation.nextReceiver(myInspectDecide)
         myAdjustmentStation.nextReceiver(myInspectionStation)
-        myAdjustmentStation.exitAction {
-            (it as YBox).numAdjustments++
-            println("incremented number of adjustments")
-        }
     }
 
     private inner class YBox() : QObject() {
         var numAdjustments = 0
     }
 
-    private fun arrivalEvent(generator: EventGenerator){
-        val customer = YBox()
-        myInspectionStation.receive(customer)
+    private fun exitSystem(exiting: QObject){
+        mySysTime.value = time - exiting.createTime
+        val yBox = exiting as YBox
+        myNumAdjustments.value = yBox.numAdjustments.toDouble()
     }
 
     private inner class ExitSystem : QObjectReceiverIfc {

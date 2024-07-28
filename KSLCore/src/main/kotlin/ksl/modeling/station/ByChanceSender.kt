@@ -11,11 +11,11 @@ fun interface SendingActionIfc {
  *  Promises to randomly pick the receiver and send the
  *  arriving QObject instance to the receiver.
  */
-class ByChanceSender(
+open class ByChanceSender(
     private val picker: RElementIfc<QObjectReceiverIfc>
 ) : QObjectReceiverIfc {
 
-    override fun receive(arrivingQObject: ModelElement.QObject) {
+    final override fun receive(arrivingQObject: ModelElement.QObject) {
         val selected = picker.randomElement
         beforeSendingAction?.action(selected, arrivingQObject)
         selected.receive(arrivingQObject)

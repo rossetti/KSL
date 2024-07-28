@@ -27,18 +27,5 @@ import ksl.simulation.ModelElement
  *  specified probabilities.
  */
 class NWayByChanceSender(
-    private val receiverList : REmpiricalList<QObjectReceiverIfc>
-) : QObjectReceiverIfc{
-
-    override fun receive(arrivingQObject: ModelElement.QObject) {
-        val selected = receiverList.randomElement
-        beforeSendingAction?.invoke(selected, arrivingQObject)
-        selected.receive(arrivingQObject)
-        afterSendingAction?.invoke(selected, arrivingQObject)
-    }
-
-    var beforeSendingAction: ((receiver: QObjectReceiverIfc, qObject: ModelElement.QObject) -> Unit)? = null
-
-    var afterSendingAction: ((receiver: QObjectReceiverIfc, qObject: ModelElement.QObject) -> Unit)? = null
-
-}
+    receiverList : REmpiricalList<QObjectReceiverIfc>
+) : ByChanceSender(receiverList)

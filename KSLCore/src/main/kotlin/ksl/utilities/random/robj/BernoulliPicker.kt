@@ -30,17 +30,33 @@ import ksl.utilities.random.rvariable.KSLRandom
  */
 class BernoulliPicker<T>(
     private val successProbability: Double,
-    private val success: T,
-    private val failure: T,
+    successOption: T,
+    failureOption: T,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : RElementIfc<T> {
 
+    init {
+        require(successOption != failureOption) {"The success and failure options cannot be the same."}
+    }
+
     constructor(
         successProbability: Double,
-        success: T,
-        failure: T,
+        successOption: T,
+        failureOption: T,
         streamNum: Int,
-    ) : this(successProbability, success, failure, KSLRandom.rnStream(streamNum))
+    ) : this(successProbability, successOption, failureOption, KSLRandom.rnStream(streamNum))
+
+    var success: T = successOption
+        set(value) {
+            require(value != failure) {"The success option cannot be equal to the failure option"}
+            field = value
+        }
+
+    var failure: T = failureOption
+        set(value) {
+            require(value != success) {"The failure option cannot be equal to the success option"}
+            field = value
+        }
 
     init {
         require(!(successProbability <= 0.0 || successProbability >= 1.0)) { "Probability must be (0,1)" }
