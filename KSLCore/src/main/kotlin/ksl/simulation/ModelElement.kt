@@ -1963,6 +1963,8 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
 
         val valueObject: GetValueIfc?
 
+        val qObjectType: Int
+
     }
 
     /**
@@ -2055,6 +2057,11 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
                 require(value >= createTime) { "The time stamp was less than the creation time $createTime" }
                 field = value
             }
+
+        /**
+         *  A generic attribute to indicate a type for the QObject
+         */
+        override var qObjectType: Int = 1
 
         /**
          * Allows for a generic value to be held by the QObject

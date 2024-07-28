@@ -89,8 +89,7 @@ open class SingleQStation(
      *  Receives the qObject instance for processing. Handle the queuing
      *  if the resource is not available and begins service for the next customer.
      */
-    final override fun receive(arrivingQObject: QObject) {
-        super.receive(arrivingQObject)
+    override fun process(arrivingQObject: QObject) {
         // enqueue the newly arriving qObject
         myWaitingQ.enqueue(arrivingQObject)
         if (isResourceAvailable) {

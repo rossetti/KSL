@@ -46,7 +46,7 @@ fun interface ExitActionIfc {
 /**
  *  A station is a location that can receive, potentially
  *  process instances of the QObject class, and cause them to
- *  be received.
+ *  be received by other receivers via appropriate send logic.
  */
 abstract class Station(
     parent: ModelElement,
@@ -57,7 +57,7 @@ abstract class Station(
     /**
      *  Sets the receiver of qObject instances from this station
      */
-    fun nextReceiver(receiver: QObjectReceiverIfc){
+    fun nextReceiver(receiver: QObjectReceiverIfc) {
         nextReceiver = receiver
     }
 
@@ -74,6 +74,9 @@ abstract class Station(
         get() = myNumProcessed
 
     /**
+     * The sending logic will be based on that supplied by the sender() function; however,
+     * if there is no sender, then QObject is checked for its own sender.
+     *
      * A QObject may or may not have a helper object that implements the
      * QObjectSenderIfc interface.  If this helper object is supplied it will
      * be used to send the processed QObject to its next location for
@@ -82,20 +85,39 @@ abstract class Station(
      * If the QObject does not have the helper object, then the nextReceiver
      * property is used to determine the next location for the qObject.
      *
-     * If neither helper object is supplied then the station quietly does nothing
-     * with the qObject.
-     *
      * @param completedQObject the completed QObject
      */
     protected fun sendToNextReceiver(completedQObject: QObject) {
         departureCollection(completedQObject)
         exitAction?.onExit(completedQObject)
         onExit(completedQObject)
-        if (completedQObject.sender != null) {
-            completedQObject.sender!!.send()
+        if (sender != null) {
+            sender!!.send(completedQObject)
         } else {
-            nextReceiver.receive(completedQObject)
+            if (completedQObject.sender != null) {
+                completedQObject.sender!!.send(completedQObject)
+            } else {
+                nextReceiver.receive(completedQObject)
+            }
         }
+    }
+
+    /**
+     *  If supplied, this logic will be used to send the QObject instance.
+     *  Otherwise, the standard logic is used. The standard logic
+     *  will use a sender attached to the QObject instance. If a
+     *  sender is not attached to the QObject the next receiver is used
+     */
+    protected var sender: QObjectSenderIfc? = null
+
+    /**
+     *  Can be used to supply a sender that will be used instead of
+     *  the default behavior. The default behavior uses a sender attached
+     *  to the QObject instance and if not attached will send the QObject
+     *  to the next receiver.
+     */
+    fun sender(sender: QObjectSender?) {
+        this.sender = sender
     }
 
     protected fun departureCollection(completedQObject: QObject) {
@@ -105,16 +127,19 @@ abstract class Station(
     }
 
     protected fun arrivalCollection(arrivingQObject: QObject) {
-        arrivingQObject.currentReceiver = this
         myNS.increment() // new qObject arrived
         arrivingQObject.timeStamp = time
     }
 
-    override fun receive(arrivingQObject: QObject) {
+    final override fun receive(arrivingQObject: QObject) {
+        arrivingQObject.currentReceiver = this
         arrivalCollection(arrivingQObject)
         entryAction?.onEntry(arrivingQObject)
         onEntry(arrivingQObject)
+        process(arrivingQObject)
     }
+
+    protected abstract fun process(arrivingQObject: QObject)
 
     protected var entryAction: EntryActionIfc? = null
 

@@ -54,8 +54,7 @@ open class ActivityStation(
     override val activityTimeRV: RandomSourceCIfc
         get() = myActivityTimeRV
 
-    override fun receive(arrivingQObject: QObject) {
-        super.receive(arrivingQObject)
+    override fun process(arrivingQObject: QObject) {
         schedule(this::endActivityAction, activityTime(arrivingQObject), arrivingQObject)
     }
 
