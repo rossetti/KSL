@@ -28,16 +28,13 @@ import ksl.utilities.random.robj.BernoulliPicker
  */
 class TwoWayByChanceSender(
     private val bernoulliPicker: BernoulliPicker<QObjectReceiverIfc>
-) : QObjectReceiverIfc {
+) : ByChanceSender(bernoulliPicker) {
 
-    override fun receive(arrivingQObject: ModelElement.QObject) {
-        val selected = bernoulliPicker.randomElement
-        beforeSendingAction?.invoke(selected, arrivingQObject)
-        selected.receive(arrivingQObject)
-        afterSendingAction?.invoke(selected, arrivingQObject)
+    fun successOption(receiver: QObjectReceiverIfc){
+        bernoulliPicker.success = receiver
     }
 
-    var beforeSendingAction: ((receiver: QObjectReceiverIfc, qObject: ModelElement.QObject) -> Unit)? = null
-
-    var afterSendingAction: ((receiver: QObjectReceiverIfc, qObject: ModelElement.QObject) -> Unit)? = null
+    fun failureOption(receiver: QObjectReceiverIfc){
+        bernoulliPicker.failure = receiver
+    }
 }

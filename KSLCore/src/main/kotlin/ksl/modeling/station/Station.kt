@@ -89,7 +89,8 @@ abstract class Station(
      */
     protected fun sendToNextReceiver(completedQObject: QObject) {
         departureCollection(completedQObject)
-        exitAction?.onExit(completedQObject) ?: onExit(completedQObject)
+        exitAction?.onExit(completedQObject)
+        onExit(completedQObject)
         if (completedQObject.sender != null) {
             completedQObject.sender!!.send()
         } else {
@@ -111,25 +112,41 @@ abstract class Station(
 
     override fun receive(arrivingQObject: QObject) {
         arrivalCollection(arrivingQObject)
-        entryAction?.onEntry(arrivingQObject) ?: onEntry(arrivingQObject)
+        entryAction?.onEntry(arrivingQObject)
+        onEntry(arrivingQObject)
     }
 
     protected var entryAction: EntryActionIfc? = null
 
+    /**
+     *  Specifies an action to occur when a QObject instance
+     *  enters the station. The action occurs immediately after
+     *  entering the station. That is, the QObject is considered
+     *  within the station.
+     */
     fun entryAction(action: EntryActionIfc?) {
         entryAction = action
     }
 
     protected var exitAction: ExitActionIfc? = null
 
+    /**
+     *  Specifies an action to occur when a QObject instance
+     *  exits the station. The action occurs immediately before
+     *  being sent to the next receiver. That is, the QObject is considered
+     *  to have exited the station.
+     */
     fun exitAction(action: ExitActionIfc?) {
         exitAction = action
     }
 
     /**
      *  This function can be overridden to provide logic
-     *  upon entry to the station before any other state
-     *  changes occur.
+     *  upon entry to the station. The action occurs immediately after
+     *  entering the station. That is, the QObject is considered
+     *  within the station. If an entry action is provided, this
+     *  function occurs immediately after the entry action but
+     *  before any other logic. To be used by subclasses.
      */
     open fun onEntry(arrivingQObject: QObject) {
     }
@@ -137,7 +154,8 @@ abstract class Station(
     /**
      *  This function can be overridden to provide logic
      *  upon exit from the station before being sent to the
-     *  next receiver.
+     *  next receiver. If an exit action is provided, this function
+     *  executes immediately after the exit action.
      */
     open fun onExit(completedQObject: QObject) {
     }

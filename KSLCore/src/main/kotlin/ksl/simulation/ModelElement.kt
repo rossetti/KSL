@@ -21,7 +21,6 @@ package ksl.simulation
 import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.SpatialModel
-//import ksl.modeling.queue.qObjCounter
 import ksl.modeling.variable.*
 import ksl.observers.ModelElementObserver
 import ksl.utilities.GetValueIfc
@@ -31,7 +30,6 @@ import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.station.QObjectReceiverIfc
-import ksl.modeling.station.QObjectSender
 import ksl.modeling.station.QObjectSenderIfc
 
 private var elementCounter: Int = 0
@@ -1958,6 +1956,13 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
          */
         val isQueued: Boolean
         val isNotQueued: Boolean
+
+        val currentReceiver: QObjectReceiverIfc?
+
+        val sender: QObjectSenderIfc?
+
+        val valueObject: GetValueIfc?
+
     }
 
     /**
@@ -2054,8 +2059,11 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         /**
          * Allows for a generic value to be held by the QObject
          */
-        var valueObject: GetValueIfc? = null
+        override var valueObject: GetValueIfc? = null
 
+        /**
+         *  Facilitates SAM setting with a lambda
+         */
         fun valueObject(value: GetValueIfc?){
             valueObject = value
         }
@@ -2063,12 +2071,19 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         /**
          *  The receiver that last received the qObject
          */
-        var currentReceiver: QObjectReceiverIfc? = null
+        override var currentReceiver: QObjectReceiverIfc? = null
 
         /**
          *  Something that knows how to send qObjects to receivers
          */
-        var sender: QObjectSenderIfc? = null
+        override var sender: QObjectSenderIfc? = null
+
+        /**
+         *  Facilitates SAM setting with a lambda
+         */
+        fun sender(sender: QObjectSenderIfc?){
+            this.sender = sender
+        }
 
         override fun toString(): String {
             return "ID= $id, name= $name isQueued = $isQueued"
