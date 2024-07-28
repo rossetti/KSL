@@ -65,6 +65,11 @@ class SimpleProcessQ(parent: ModelElement) : ProcessModel(parent, null) {
 }
 
 fun main(){
+//    test1()
+    test2()
+}
+
+fun test1(){
     val m = Model()
     val test = SimpleProcessQ(m)
     m.numberOfReplications = 30
@@ -72,4 +77,15 @@ fun main(){
     m.lengthOfReplicationWarmUp = 5000.0
     m.simulate()
     m.print()
+}
+
+fun test2(){
+    val m = Model().apply {
+        val test = SimpleProcessQ(this)
+        numberOfReplications = 30
+        lengthOfReplication = 20000.0
+        lengthOfReplicationWarmUp = 5000.0
+        simulate()
+        print()
+    }
 }

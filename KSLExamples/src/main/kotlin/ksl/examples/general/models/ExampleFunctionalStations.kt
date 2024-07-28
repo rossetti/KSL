@@ -14,12 +14,12 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.UniformRV
 import kotlin.reflect.KFunction
 
-fun main(){
-    val sim = Model("Exercise 5_6")
-//    sim.numberOfReplications = 30
-//    sim.lengthOfReplication = 30000.0
-    sim.numberOfReplications = 1
-    sim.lengthOfReplication = 100.0
+fun main() {
+    val sim = Model("FunctionalExample")
+    sim.numberOfReplications = 30
+    sim.lengthOfReplication = 30000.0
+//    sim.numberOfReplications = 1
+//    sim.lengthOfReplication = 100.0
     val tq = InspectionSystem(sim, name = "InspectionSystem")
     sim.simulate()
     sim.print()
@@ -31,25 +31,29 @@ class InspectionSystem(
     inspectionTime: RandomIfc = ExponentialRV(10.0, 2),
     adjustmentTime: RandomIfc = UniformRV(7.0, 14.0, 3),
     name: String? = null
-): ModelElement(parent, name = name) {
+) : ModelElement(parent, name = name) {
 
     private var myArrivalRV: RandomVariable = RandomVariable(parent, timeBtwArrivals)
     val arrivalRV: RandomSourceCIfc
         get() = myArrivalRV
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this,
-        timeUntilFirstRV = myArrivalRV, timeBtwEventsRV = myArrivalRV)
+    private val myArrivalGenerator: EventGenerator = EventGenerator(
+        this,
+        timeUntilFirstRV = myArrivalRV, timeBtwEventsRV = myArrivalRV
+    )
 
     private val myInspectionStation: SingleQStation = SingleQStation(
         this, inspectionTime,
         SResource(this, capacity = 2, "${this.name}:Inspectors"),
-        name= "${this.name}:Inspection")
+        name = "${this.name}:Inspection"
+    )
     val inspectionStation: SingleQStationCIfc
         get() = myInspectionStation
 
-    private val myAdjustmentStation: AdjustmentStation = AdjustmentStation(
+    private val myAdjustmentStation: SingleQStation = SingleQStation(
         this, adjustmentTime,
-        name= "${this.name}:Adjustments")
+        name = "${this.name}:Adjustments"
+    )
     val adjustmentStation: SingleQStationCIfc
         get() = myAdjustmentStation
 
@@ -61,53 +65,24 @@ class InspectionSystem(
     val numAdjustments: ResponseCIfc
         get() = myNumAdjustments
 
-    private val myExit = ExitSystem()
+    private val myExit = QObjectReceiverIfc { arrivingQObject ->
+        mySysTime.value = time - arrivingQObject.createTime
+        val yBox = arrivingQObject as YBox
+        myNumAdjustments.value = yBox.numAdjustments.toDouble()
+    }
 
     private val myInspectDecide = TwoWayByChanceSender(
         BernoulliPicker(0.82, myExit, myAdjustmentStation, streamNum = 4)
     )
 
-    private val s : ((QObject) -> Unit)? = null
-
     init {
-        myArrivalGenerator.generatorAction {
-            val customer = YBox()
-            myInspectionStation.receive(customer)
-        }
+        myArrivalGenerator.generatorAction { myInspectionStation.receive(YBox()) }
+        myAdjustmentStation.exitAction { (it as YBox).numAdjustments++ }
         myInspectionStation.nextReceiver(myInspectDecide)
         myAdjustmentStation.nextReceiver(myInspectionStation)
     }
 
     private inner class YBox() : QObject() {
         var numAdjustments = 0
-    }
-
-    private fun exitSystem(exiting: QObject){
-        mySysTime.value = time - exiting.createTime
-        val yBox = exiting as YBox
-        myNumAdjustments.value = yBox.numAdjustments.toDouble()
-    }
-
-    private inner class ExitSystem : QObjectReceiverIfc {
-        override fun receive(arrivingQObject: QObject) {
-            mySysTime.value = time - arrivingQObject.createTime
-            val yBox = arrivingQObject as YBox
-            myNumAdjustments.value = yBox.numAdjustments.toDouble()
-        }
-    }
-
-    private inner class AdjustmentStation(
-        parent: ModelElement,
-        activityTime: RandomIfc,
-        resource: SResource? = null,
-        nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
-        name: String? = null
-    ): SingleQStation(parent, activityTime, resource, nextReceiver, name){
-
-        override fun onExit(completedQObject: QObject) {
-            super.onExit(completedQObject)
-            val yBox = completedQObject as YBox
-            yBox.numAdjustments++
-        }
     }
 }

@@ -9,28 +9,20 @@ fun interface SendingActionIfc {
 
 /**
  *  Promises to randomly pick the receiver and send the
- *  arriving QObject instance to the receiver.
+ *  arriving QObject instance to the receiver. Can act as
+ *  both a receiver and a sender of QObject instances. Receiving
+ *  instances are immediately sent.
  */
 open class ByChanceSender(
     private val picker: RElementIfc<QObjectReceiverIfc>
-) : QObjectReceiverIfc {
+) : QObjectSender(), QObjectReceiverIfc{
 
     final override fun receive(arrivingQObject: ModelElement.QObject) {
-        val selected = picker.randomElement
-        beforeSendingAction?.action(selected, arrivingQObject)
-        selected.receive(arrivingQObject)
-        afterSendingAction?.action(selected, arrivingQObject)
+        send(arrivingQObject)
     }
 
-    private var beforeSendingAction: SendingActionIfc? = null
-
-    fun beforeSendingAction(action : SendingActionIfc){
-        beforeSendingAction = action
+    final override fun selectNextReceiver(): QObjectReceiverIfc {
+        return picker.randomElement
     }
 
-    private var afterSendingAction: SendingActionIfc? = null
-
-    fun afterSendingAction(action : SendingActionIfc){
-        afterSendingAction = action
-    }
 }
