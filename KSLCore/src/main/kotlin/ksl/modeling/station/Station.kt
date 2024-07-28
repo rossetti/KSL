@@ -116,7 +116,7 @@ abstract class Station(
      *  to the QObject instance and if not attached will send the QObject
      *  to the next receiver.
      */
-    fun sender(sender: QObjectSender?) {
+    fun sender(sender: QObjectSenderIfc?) {
         this.sender = sender
     }
 
