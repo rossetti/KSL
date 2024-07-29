@@ -101,7 +101,10 @@ version = "R1.1.1"
 
 ## Release Notes
 
-Latest Release: R1.1.1
+Latest Release: R1.1.2
+	- Added SAM functional interfaces to station package
+	
+Release: R1.1.1
 - Added ksl.modeling.station package
 	- facilitate modeling of simple queueing systems
 - added maps that can have randomly selected elements

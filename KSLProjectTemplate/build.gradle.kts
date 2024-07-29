@@ -17,7 +17,7 @@ dependencies {
 
     // next line allows use of KSL libraries within the project
     // update the release number when new releases become available
-    api(group = "io.github.rossetti", name = "KSLCore", version = "R1.1.1")
+    api(group = "io.github.rossetti", name = "KSLCore", version = "R1.1.2")
 
 
     testImplementation(kotlin("test"))
