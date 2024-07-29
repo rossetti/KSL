@@ -22,6 +22,10 @@ class MaxResponse(
     observedResponse: Response
 ) : Response(observedResponse, name = "${observedResponse.name}:Max") {
 
+    constructor(
+        observedResponse: ResponseCIfc
+    ) : this(observedResponse = observedResponse as Response)
+
     private val response = observedResponse
 
     override fun replicationEnded() {

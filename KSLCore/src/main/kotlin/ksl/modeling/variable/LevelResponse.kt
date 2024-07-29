@@ -36,8 +36,9 @@ import ksl.utilities.statistic.StateFrequency
 class LevelResponse(variable: Variable,
                     theLevel: Double,
                     stats: Boolean = true,
-                    theName: String? = null) :
-    ModelElement(variable, theName) {
+                    theName: String? = null
+) : ModelElement(variable, theName) {
+
     init {
         require(variable.domain.contains(theLevel))
         { "The supplied level $theLevel was outside the range of the variable's limits ${variable.domain}" }

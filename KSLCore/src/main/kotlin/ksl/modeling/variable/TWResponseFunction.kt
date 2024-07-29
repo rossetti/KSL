@@ -17,6 +17,12 @@ class TWResponseFunction(
     name: String? = null
 ) : TWResponse(observedResponse, name) {
 
+    constructor(
+        function: (Double) -> Double,
+        observedResponse: TWResponseCIfc,
+        name: String? = null
+    ) : this(function, observedResponse as TWResponse, name)
+
     private val myObserver = ResponseObserver()
     private val myFunction = function
     private val myObservedResponse = observedResponse

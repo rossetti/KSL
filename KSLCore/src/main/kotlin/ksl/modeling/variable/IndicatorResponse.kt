@@ -22,21 +22,31 @@ import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.toDouble
 
-class IndicatorResponse(predicate: (Double) -> Boolean,
-                        observedResponse: Response, name: String? = null) : Response(observedResponse, name) {
+class IndicatorResponse(
+    predicate: (Double) -> Boolean,
+    observedResponse: Response,
+    name: String? = null
+) : Response(observedResponse, name) {
+
+    constructor(
+        predicate: (Double) -> Boolean,
+        observedResponse: ResponseCIfc,
+        name: String? = null
+    ): this(predicate = predicate, observedResponse as Response, name)
 
     private val myObserver = ResponseObserver()
     private val myPredicate = predicate
     private val myObservedResponse = observedResponse
+
     init {
         myObservedResponse.attachModelElementObserver(myObserver)
     }
 
-    fun detach(){
+    fun detach() {
         myObservedResponse.detachModelElementObserver(myObserver)
     }
 
-    private inner class ResponseObserver: ModelElementObserver(){
+    private inner class ResponseObserver : ModelElementObserver() {
         override fun update(modelElement: ModelElement) {
             // must be a response because only attached to responses
             val response = modelElement as Response

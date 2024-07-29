@@ -16,6 +16,12 @@ class ResponseFunction(
     name: String? = null
 ) : Response(observedResponse, name) {
 
+    constructor(
+        function: (Double) -> Double,
+        observedResponse: ResponseCIfc,
+        name: String? = null
+    ): this(function = function, observedResponse as Response, name)
+
     private val myObserver = ResponseObserver()
     private val myFunction = function
     private val myObservedResponse = observedResponse
