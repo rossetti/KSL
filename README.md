@@ -97,12 +97,12 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.1.1"
+version = "R1.1.2"
 
 ## Release Notes
 
 Latest Release: R1.1.2
-	- Added SAM functional interfaces to station package
+- Added SAM functional interfaces to station package
 	
 Release: R1.1.1
 - Added ksl.modeling.station package
