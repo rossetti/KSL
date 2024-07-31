@@ -509,7 +509,6 @@ open class EventGenerator(
             incrementNumberOfEvents()
             if (!isDone) {
                 generatorAction?.generate(this@EventGenerator) ?: generate()
-                generate()
                 // get the time until next event
                 val t: Double = myTimeBtwEventsRV.value
                 // check if it is past end time
