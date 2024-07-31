@@ -97,12 +97,17 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.1.2"
+version = "R1.1.3"
 
 ## Release Notes
 
-Latest Release: R1.1.2
+Latest Release: R1.1.3
+- Added ability of IndicatorResponse to observe ResponseCIfc 
+- Fixed stupid bug in EventGenerator introduced by typo in release 1.1.2.
+ 
+Release: R1.1.2
 - Added SAM functional interfaces to station package
+- Don't use R1.1.2 due to stupid bug in EventGenerator, now fixed in R1.1.3
 	
 Release: R1.1.1
 - Added ksl.modeling.station package
