@@ -28,6 +28,7 @@
     "ksl.modeling.queue.*",
     "ksl.modeling.entity.*",
     "ksl.modeling.elements.*",
+    "ksl.modeling.station.*",
     "ksl.modeling.nhpp.*",
     "ksl.modeling.spatial.*",
     "ksl.utilities.io.plotting.*",
