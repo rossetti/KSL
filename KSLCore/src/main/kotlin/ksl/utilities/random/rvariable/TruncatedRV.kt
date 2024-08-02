@@ -49,25 +49,47 @@ class TruncatedRV(
         require(!(lowerLimit == cdfLL && upperLimit == cdfUL)) { "There was no truncation over the interval of support" }
     }
 
+    /**
+     * Constructs a truncated random variable based on the provided distribution
+     *
+     * @param distribution the distribution to truncate, must not be null
+     * @param cdfLL        The lower limit of the range of support of the distribution
+     * @param cdfUL        The upper limit of the range of support of the distribution
+     * @param truncLL      The truncated lower limit (if moved in from cdfLL), must be &gt;= cdfLL
+     * @param truncUL      The truncated upper limit (if moved in from cdfUL), must be &lt;= cdfUL
+     * @param streamNum    A positive integer to identify the stream
+     */
     constructor(
-        distribution: InvertibleCDFIfc,
-        distDomain: Interval,
-        truncInterval: Interval
+        distribution: InvertibleCDFIfc, cdfLL: Double, cdfUL: Double,
+        truncLL: Double, truncUL: Double, streamNum: Int
+    ) : this(distribution, cdfLL, cdfUL, truncLL, truncUL, KSLRandom.rnStream(streamNum))
+
+    constructor(
+        distribution: ContinuousDistributionIfc,
+        distDomain: Interval = distribution.domain(),
+        truncInterval: Interval,
+        stream: RNStreamIfc = KSLRandom.nextRNStream()
     ) : this(
         distribution,
         distDomain.lowerLimit,
         distDomain.upperLimit,
         truncInterval.lowerLimit,
         truncInterval.upperLimit,
+        stream
     )
 
     constructor(
         distribution: ContinuousDistributionIfc,
+        distDomain: Interval = distribution.domain(),
         truncInterval: Interval,
+        streamNum: Int
     ) : this(
         distribution,
-        distribution.domain(),
-        truncInterval
+        distDomain.lowerLimit,
+        distDomain.upperLimit,
+        truncInterval.lowerLimit,
+        truncInterval.upperLimit,
+        stream = KSLRandom.rnStream(streamNum)
     )
 
     private val myDistribution: InvertibleCDFIfc = distribution
@@ -94,22 +116,6 @@ class TruncatedRV(
         require(!KSLMath.equal(myDeltaFUFL, 0.0))
         { "The supplied limits have no probability support (F(upper) - F(lower) = 0.0)" }
     }
-
-
-    /**
-     * Constructs a truncated random variable based on the provided distribution
-     *
-     * @param distribution the distribution to truncate, must not be null
-     * @param cdfLL        The lower limit of the range of support of the distribution
-     * @param cdfUL        The upper limit of the range of support of the distribution
-     * @param truncLL      The truncated lower limit (if moved in from cdfLL), must be &gt;= cdfLL
-     * @param truncUL      The truncated upper limit (if moved in from cdfUL), must be &lt;= cdfUL
-     * @param streamNum    A positive integer to identify the stream
-     */
-    constructor(
-        distribution: InvertibleCDFIfc, cdfLL: Double, cdfUL: Double,
-        truncLL: Double, truncUL: Double, streamNum: Int
-    ) : this(distribution, cdfLL, cdfUL, truncLL, truncUL, KSLRandom.rnStream(streamNum))
 
     override fun generate(): Double {
         val v = myFofLL + myDeltaFUFL * rnStream.randU01()
