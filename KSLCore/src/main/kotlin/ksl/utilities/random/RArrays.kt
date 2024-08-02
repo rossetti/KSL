@@ -20,6 +20,7 @@ package ksl.utilities.random
 
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /** Extension functions and other functions for working with arrays
  * @author rossetti@uark.edu
@@ -233,4 +234,44 @@ fun <T> MutableList<T>.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.d
         list.add(this.sample(stream))
     }
     return list
+}
+
+/**
+ *  Returns an array that holds a sample from each individual
+ *  random variable in the collection.
+ */
+fun Collection<RVariableIfc>.sample(): DoubleArray {
+    val array = DoubleArray(this.size)
+    for((i, element) in this.withIndex()){
+        array[i] = element.value
+    }
+    return array
+}
+
+/**
+ *  Returns an array that holds a sample of size [sampleSize] from each individual
+ *  random variable in the collection.
+ */
+fun Collection<RVariableIfc>.sample(sampleSize: Int = 1): Array<DoubleArray> {
+    val array = mutableListOf<DoubleArray>()
+    for(element in this){
+        array.add(element.sample(sampleSize))
+    }
+    return array.toTypedArray()
+}
+
+/**
+ *  Returns an array that holds a sample from each individual
+ *  random variable in the list.
+ */
+fun List<RVariableIfc>.sample(): DoubleArray {
+    return DoubleArray(this.size) { this[it].value }
+}
+
+/**
+ *  Returns a matrix that holds a sample of size [sampleSize] from each individual
+ *  random variable in the list.
+ */
+fun List<RVariableIfc>.sample(sampleSize: Int = 1): Array<DoubleArray> {
+    return Array(this.size) { this[it].sample(sampleSize) }
 }

@@ -21,6 +21,7 @@ package ksl.utilities
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.*
 import java.text.DecimalFormat
 import java.util.*
@@ -1004,7 +1005,7 @@ object KSLArrays {
      * @return the sum of the squares of the elements of the array
      */
     fun sumOfSquares(array: DoubleArray): Double {
-        require(array.isNotEmpty()) {"The array cannot be empty."}
+        require(array.isNotEmpty()) { "The array cannot be empty." }
         var sum = 0.0
         for (v in array) {
             sum = sum + v * v
@@ -1020,8 +1021,8 @@ object KSLArrays {
      * @param b the second array
      * @return the sum of  (a[i]-b[i])^2 for the elements
      */
-    fun sumOfSquaredError(a: DoubleArray, b: DoubleArray) : Double {
-        require(a.isNotEmpty() && b.isNotEmpty()) {"The arrays cannot be empty."}
+    fun sumOfSquaredError(a: DoubleArray, b: DoubleArray): Double {
+        require(a.isNotEmpty() && b.isNotEmpty()) { "The arrays cannot be empty." }
         val d = subtractElements(a, b)
         return sumOfSquares(d)
     }
@@ -1034,9 +1035,9 @@ object KSLArrays {
      * @param b the second array. Cannot be empty
      * @return the average of sum of (a[i]-b[i])^2 for the elements
      */
-    fun meanSquaredError(a: DoubleArray, b: DoubleArray) : Double {
-        require(a.isNotEmpty() && b.isNotEmpty()) {"The arrays cannot be empty."}
-        return sumOfSquaredError(a, b)/a.size
+    fun meanSquaredError(a: DoubleArray, b: DoubleArray): Double {
+        require(a.isNotEmpty() && b.isNotEmpty()) { "The arrays cannot be empty." }
+        return sumOfSquaredError(a, b) / a.size
     }
 
     /**
@@ -1046,7 +1047,7 @@ object KSLArrays {
      * @return the sum of the square roots of the elements of the array
      */
     fun sumOfSquareRoots(array: DoubleArray): Double {
-        require(array.isNotEmpty()) {"The array cannot be empty."}
+        require(array.isNotEmpty()) { "The array cannot be empty." }
         var sum = 0.0
         for (v in array) {
             sum = sum + sqrt(v)
