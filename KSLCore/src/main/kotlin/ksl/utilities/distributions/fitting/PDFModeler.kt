@@ -549,20 +549,12 @@ class PDFModeler(
     /**
      *  Produces a html representation of the goodness of fit results which
      *  include the distribution fit quad plot and the chi-squared goodness
-     *  of fit statistics.
+     *  of fit statistics for a particular scoring result.
      */
     fun htmlGoodnessOfFitSummary(
-        pdfModelingResults: PDFModelingResults,
-        evaluationMethod: EvaluationMethod = EvaluationMethod.Scoring,
+        result: ScoringResult,
         plotFileName: String? = null
     ): String {
-        // produce html results
-        // distribution quad evaluation plot
-        val result = if (evaluationMethod == EvaluationMethod.Scoring) {
-            pdfModelingResults.topResultByScore
-        } else {
-            pdfModelingResults.topResultByRanking
-        }
         val distPlot = result.distributionFitPlot()
         if (plotFileName != null) {
             distPlot.saveToFile("${plotFileName}_PDF_Plot")
@@ -609,6 +601,26 @@ class PDFModeler(
             appendLine("</div>")
         }
         return sb.toString()
+    }
+
+    /**
+     *  Produces a html representation of the goodness of fit results which
+     *  include the distribution fit quad plot and the chi-squared goodness
+     *  of fit statistics for the recommended distribution.
+     */
+    fun htmlGoodnessOfFitSummary(
+        pdfModelingResults: PDFModelingResults,
+        evaluationMethod: EvaluationMethod = EvaluationMethod.Scoring,
+        plotFileName: String? = null
+    ): String {
+        // produce html results
+        // distribution quad evaluation plot
+        val result = if (evaluationMethod == EvaluationMethod.Scoring) {
+            pdfModelingResults.topResultByScore
+        } else {
+            pdfModelingResults.topResultByRanking
+        }
+        return htmlGoodnessOfFitSummary(result, plotFileName)
     }
 
     /**
