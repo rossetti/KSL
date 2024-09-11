@@ -494,12 +494,14 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
      * half-width
      *
      * @param desiredHW the desired half-width, must be greater than zero
+     * @param level the confidence level for the calculation. Defaults to
+     * the statistic's current confidence level
      * @return the estimated sample size
      */
-    fun estimateSampleSize(desiredHW: Double): Long {
+    fun estimateSampleSize(desiredHW: Double, level: Double = this.confidenceLevel): Long {
         require(desiredHW > 0.0) { "The desired half-width must be > 0" }
-        val cl = this.confidenceLevel
-        val a = 1.0 - cl
+        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+        val a = 1.0 - level
         val a2 = a / 2.0
         val z = Normal.stdNormalInvCDF(1.0 - a2)
         val s = standardDeviation
