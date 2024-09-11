@@ -490,8 +490,7 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
 
     /**
      * Estimates the number of observations needed in order to obtain a
-     * getConfidenceLevel() confidence interval with plus/minus the provided
-     * half-width
+     * confidence interval with plus/minus the provided half-width.
      *
      * @param desiredHW the desired half-width, must be greater than zero
      * @param level the confidence level for the calculation. Defaults to
@@ -505,7 +504,7 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
         val a2 = a / 2.0
         val z = Normal.stdNormalInvCDF(1.0 - a2)
         val s = standardDeviation
-        val m = z * s / desiredHW * (z * s / desiredHW)
+        val m = (z * s / desiredHW) * (z * s / desiredHW)
         return (m + .5).roundToLong()
     }
 
