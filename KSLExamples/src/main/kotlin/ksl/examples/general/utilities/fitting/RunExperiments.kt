@@ -114,8 +114,12 @@ fun main(){
     val eType = ExpType.FULL
 //    val eType = ExpType.SCREENING
 //    val testCases = buildCases(allRVs, setUpSampleSizes(eType))
-    val testCases = buildCases(allRVs, setUpSampleSizes(eType))
-    val dfExperiment = DFExperiment("${eType}", testCases)
+    runExperiments(allRVs, eType)
+}
+
+fun runExperiments(rvCases: Set<RVCases>, expType: ExpType){
+    val testCases = buildCases(rvCases, setUpSampleSizes(expType))
+    val dfExperiment = DFExperiment("${expType}", testCases)
     dfExperiment.messageOutput = true
     println("Running experiments...")
     val mark = TimeSource.Monotonic.markNow()
