@@ -560,4 +560,39 @@ object ExcelUtil  {
         DatabaseIfc.logger.info { "Completed exporting ResultSet to Excel worksheet ${sheet.sheetName}" }
     }
 
+    /** Writes each table in the list to an Excel workbook with each table being placed
+     *  in a new sheet with the sheet name equal to the name of the table. The column names
+     *  for each table are written as the first row of each sheet.
+     *
+     *  Uses the longLastingConnection property for the connection.
+     *
+     * @param schemaName the name of the schema containing the tables or null
+     * @param tableNames the names of the tables to write to a workbook
+     * @param path the path to the workbook
+     * @param db the database containing the tables
+     */
+    fun exportTablesToExcel(db: DatabaseIfc, path: Path, tableNames: List<String>, schemaName: String?) {
+        FileOutputStream(path.toFile()).use {
+            logger.info { "Opened workbook $path for writing database ${db.label} output" }
+            DatabaseIfc.logger.info { "Writing database ${db.label} to workbook at $path" }
+            val workbook = SXSSFWorkbook(100)
+            for (tableName in tableNames) {
+                // get result set
+                val rs = db.selectAllIntoOpenResultSet(tableName, schemaName)
+                if (rs != null) {
+                    // write result set to workbook
+                    val sheet = ExcelUtil.createSheet(workbook, tableName)
+                    ExcelUtil.exportAsWorkSheet(rs, sheet)
+                    // close result set
+                    rs.close()
+                }
+            }
+            workbook.write(it)
+            workbook.close()
+            workbook.dispose()
+            logger.info { "Closed workbook $path after writing database ${db.label} output" }
+            DatabaseIfc.logger.info { "Completed database ${db.label} export to workbook at $path" }
+        }
+    }
+
 }
