@@ -79,7 +79,7 @@ object ExcelUtil  {
     }
 
     /**
-     * Writes the Java Object to the Excel cell
+     * Writes the Object to the Excel cell
      *
      * @param cell   the cell to write
      * @param `object` a Java object
