@@ -20,10 +20,6 @@ package ksl.utilities.io
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.utilities.io.dbutil.DatabaseIfc
-import ksl.utilities.io.dbutil.DatabaseIfc.Companion
-import ksl.utilities.io.dbutil.DatabaseIfc.Companion.addBatch
-import ksl.utilities.io.dbutil.DatabaseIfc.Companion.columnNames
-import ksl.utilities.io.dbutil.DatabaseIfc.Companion.makeInsertPreparedStatement
 import ksl.utilities.io.dbutil.ResultSetRowIterator
 import org.apache.commons.csv.CSVFormat
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException
@@ -535,7 +531,7 @@ object ExcelUtil  {
         require(!resultSet.isClosed) { "The supplied ResultSet is closed when trying to write workbook ${sheet.sheetName} " }
         // write the header
         var rowCnt = 0
-        val names = columnNames(resultSet)
+        val names = DatabaseIfc.columnNames(resultSet)
         if (writeHeader) {
             val header = sheet.createRow(0)
             for (col in names.indices) {
@@ -626,7 +622,7 @@ object ExcelUtil  {
         for (tableName in tableNames) {
             val sheet = workbook.getSheet(tableName)
             if (sheet == null) {
-                Companion.logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
+                DatabaseIfc.logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
                 continue
             }
             DatabaseIfc.logger.trace { "Processing the sheet for table $tableName." }
@@ -698,7 +694,7 @@ object ExcelUtil  {
             db.getConnection().use { con ->
                 con.autoCommit = false
                 // make prepared statement for inserts
-                val insertStatement = makeInsertPreparedStatement(con, tableName, numColumns, schemaName)
+                val insertStatement = DatabaseIfc.makeInsertPreparedStatement(con, tableName, numColumns, schemaName)
                 var batchCnt = 0
                 var cntBad = 0
                 var rowCnt = 0
@@ -710,7 +706,7 @@ object ExcelUtil  {
                     DatabaseIfc.logger.trace { "Read ${rowData.size} elements from sheet ${sheet.sheetName}" }
                     DatabaseIfc.logger.trace { "Sheet Data: $rowData" }
                     // rowData needs to be placed into insert statement
-                    val success = addBatch(rowData, numColumns, insertStatement)
+                    val success = DatabaseIfc.addBatch(rowData, numColumns, insertStatement)
                     if (!success) {
                         DatabaseIfc.logger.trace { "Wrote row number ${row.rowNum} of sheet ${sheet.sheetName} to bad data file" }
                         unCompatibleRows.println("Sheet: ${sheet.sheetName} row: ${row.rowNum} not written: $rowData")
