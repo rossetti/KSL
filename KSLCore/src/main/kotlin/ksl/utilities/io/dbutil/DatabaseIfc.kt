@@ -25,7 +25,6 @@ import ksl.utilities.io.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.csv.CSVFormat
 import org.apache.poi.ss.usermodel.Sheet
-import org.apache.poi.xssf.streaming.SXSSFSheet
 import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.duckdb.DuckDBDatabaseMetaData
@@ -720,7 +719,7 @@ interface DatabaseIfc : DatabaseIOIfc {
                 if (rs != null) {
                     // write result set to workbook
                     val sheet = ExcelUtil.createSheet(workbook, tableName)
-                    exportAsWorkSheet(rs, sheet)
+                    ExcelUtil.exportAsWorkSheet(rs, sheet)
                     // close result set
                     rs.close()
                 }
@@ -1391,44 +1390,6 @@ interface DatabaseIfc : DatabaseIOIfc {
         val NEW_DELIMITER_PATTERN: Pattern = Pattern.compile("(?:--|\\/\\/|\\#)?!DELIMITER=(.+)")
 
         val COMMENT_PATTERN: Pattern = Pattern.compile("^(?:--|\\/\\/|\\#).+")
-
-        /** Exports the data in the ResultSet to an Excel worksheet. The ResultSet is assumed to be forward
-         * only and each row is processed until all rows are exported. The ResultSet is closed after
-         * the processing.
-         *
-         * @param resultSet the result set to copy from
-         * @param sheet the sheet in the workbook to hold the results set values
-         * @param writeHeader whether to write a header of the column names into the sheet. The default is true
-         */
-        fun exportAsWorkSheet(resultSet: ResultSet, sheet: Sheet, writeHeader: Boolean = true) {
-            require(!resultSet.isClosed) { "The supplied ResultSet is closed when trying to write workbook ${sheet.sheetName} " }
-            // write the header
-            var rowCnt = 0
-            val names = columnNames(resultSet)
-            if (writeHeader) {
-                val header = sheet.createRow(0)
-                for (col in names.indices) {
-                    val cell = header.createCell(col)
-                    cell.setCellValue(names[col])
-                    sheet.setColumnWidth(col, ((names[col].length + 2) * 256))
-                }
-                rowCnt++
-            }
-            // write all the rows
-            val iterator = ResultSetRowIterator(resultSet)
-            while (iterator.hasNext()) {
-                val list = iterator.next()
-                val row = sheet.createRow(rowCnt)
-                for (col in list.indices) {
-                    ExcelUtil.writeCell(row.createCell(col), list[col])
-                }
-                rowCnt++
-            }
-            resultSet.close()
-            val s = sheet as SXSSFSheet
-            s.flushRows()
-            logger.info { "Completed exporting ResultSet to Excel worksheet ${sheet.sheetName}" }
-        }
 
         /**
          * Executes the SQL provided in the string. Squelches exceptions The string
