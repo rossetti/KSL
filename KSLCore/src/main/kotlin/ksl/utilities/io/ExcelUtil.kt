@@ -21,7 +21,9 @@ package ksl.utilities.io
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.DatabaseIfc.Companion
+import ksl.utilities.io.dbutil.DatabaseIfc.Companion.addBatch
 import ksl.utilities.io.dbutil.DatabaseIfc.Companion.columnNames
+import ksl.utilities.io.dbutil.DatabaseIfc.Companion.makeInsertPreparedStatement
 import ksl.utilities.io.dbutil.ResultSetRowIterator
 import org.apache.commons.csv.CSVFormat
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException
@@ -35,12 +37,11 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.FileOutputStream
 import java.io.FileWriter
 import java.io.IOException
+import java.io.PrintWriter
 import java.math.BigDecimal
 import java.nio.file.Path
+import java.sql.*
 import java.sql.Date
-import java.sql.ResultSet
-import java.sql.Time
-import java.sql.Timestamp
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -637,7 +638,7 @@ object ExcelUtil  {
             DatabaseIfc.logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
             val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
             val numToSkip = if (skipFirstRow) 1 else 0
-            val success = db.importSheetToTable(
+            val success = importSheetToTable(db,
                 sheet,
                 tableName,
                 tblMetaData.size,
@@ -654,6 +655,92 @@ object ExcelUtil  {
         workbook.close()
         DatabaseIfc.logger.info { "Closed workbook $pathToWorkbook " }
         DatabaseIfc.logger.info { "Completed writing workbook $pathToWorkbook to database ${db.label}" }
+    }
+
+    /** Copies the rows from the sheet to the table.  The copy is assumed to start
+     * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
+     * table and the number of rows of the sheet.  The copy is from the perspective of the table.
+     * That is, all columns of a row of the table are attempted to be filled from a corresponding
+     * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
+     * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
+     * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
+     * in the table.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
+     *
+     * @param db the database holding the table
+     * @param sheet the sheet that has the data to transfer to the ResultSet
+     * @param tableName the table to copy into
+     * @param numColumns the number of columns in the sheet to copy into the table
+     * @param schemaName the name of the schema containing the tabel
+     * @param numRowsToSkip indicates the number of rows to skip from the top of the sheet. Use 1 (default) if the sheet has
+     * a header row
+     *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
+     *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
+     */
+    fun importSheetToTable(
+        db: DatabaseIfc,
+        sheet: Sheet,
+        tableName: String,
+        numColumns: Int,
+        schemaName: String?,
+        numRowsToSkip: Int,
+        rowBatchSize: Int = 100,
+        unCompatibleRows: PrintWriter
+    ): Boolean {
+        return try {
+            val rowIterator = sheet.rowIterator()
+            for (i in 1..numRowsToSkip) {
+                if (rowIterator.hasNext()) {
+                    rowIterator.next()
+                }
+            }
+            DatabaseIfc.logger.trace { "Getting connection to import ${sheet.sheetName} into table $tableName of schema $schemaName of database ${db.label}" }
+            DatabaseIfc.logger.trace { "Table $tableName to hold data for sheet ${sheet.sheetName} has $numColumns columns to fill." }
+            db.getConnection().use { con ->
+                con.autoCommit = false
+                // make prepared statement for inserts
+                val insertStatement = makeInsertPreparedStatement(con, tableName, numColumns, schemaName)
+                var batchCnt = 0
+                var cntBad = 0
+                var rowCnt = 0
+                var cntGood = 0
+                while (rowIterator.hasNext()) {
+                    val row = rowIterator.next()
+                    val rowData = ExcelUtil.readRowAsObjectList(row, numColumns)
+                    rowCnt++
+                    DatabaseIfc.logger.trace { "Read ${rowData.size} elements from sheet ${sheet.sheetName}" }
+                    DatabaseIfc.logger.trace { "Sheet Data: $rowData" }
+                    // rowData needs to be placed into insert statement
+                    val success = addBatch(rowData, numColumns, insertStatement)
+                    if (!success) {
+                        DatabaseIfc.logger.trace { "Wrote row number ${row.rowNum} of sheet ${sheet.sheetName} to bad data file" }
+                        unCompatibleRows.println("Sheet: ${sheet.sheetName} row: ${row.rowNum} not written: $rowData")
+                        cntBad++
+                    } else {
+                        DatabaseIfc.logger.trace { "Inserted data into batch for insertion" }
+                        batchCnt++
+                        if (batchCnt.mod(rowBatchSize) == 0) {
+                            val ni = insertStatement.executeBatch()
+                            con.commit()
+                            DatabaseIfc.logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
+                            batchCnt = 0
+                        }
+                        cntGood++
+                    }
+                }
+                if (batchCnt > 0) {
+                    val ni = insertStatement.executeBatch()
+                    con.commit()
+                    DatabaseIfc.logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
+                }
+                DatabaseIfc.logger.info { "Transferred $cntGood out of $rowCnt rows for ${sheet.sheetName}. There were $cntBad incompatible rows written." }
+            }
+            true
+        } catch (ex: SQLException) {
+            DatabaseIfc.logger.error(
+                ex
+            ) { "SQLException when importing ${sheet.sheetName} into table $tableName of schema $schemaName of database ${db.label}" }
+            false
+        }
     }
 
 }
