@@ -25,7 +25,6 @@ import ksl.utilities.io.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.csv.CSVFormat
 import org.apache.poi.ss.usermodel.Sheet
-import org.apache.poi.xssf.streaming.SXSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.duckdb.DuckDBDatabaseMetaData
 import org.jetbrains.kotlinx.dataframe.AnyFrame
@@ -709,27 +708,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             wbName
         }
         val path = wbDirectory.resolve(wbn)
-        FileOutputStream(path.toFile()).use {
-            ExcelUtil.logger.info { "Opened workbook $path for writing database $label output" }
-            logger.info { "Writing database $label to workbook at $path" }
-            val workbook = SXSSFWorkbook(100)
-            for (tableName in finalList) {
-                // get result set
-                val rs = selectAllIntoOpenResultSet(tableName, schemaName)
-                if (rs != null) {
-                    // write result set to workbook
-                    val sheet = ExcelUtil.createSheet(workbook, tableName)
-                    ExcelUtil.exportAsWorkSheet(rs, sheet)
-                    // close result set
-                    rs.close()
-                }
-            }
-            workbook.write(it)
-            workbook.close()
-            workbook.dispose()
-            ExcelUtil.logger.info { "Closed workbook $path after writing database $label output" }
-            logger.info { "Completed database $label export to workbook at $path" }
-        }
+        ExcelUtil.exportTablesToExcel(this, path, finalList, schemaName)
     }
 
     /**
