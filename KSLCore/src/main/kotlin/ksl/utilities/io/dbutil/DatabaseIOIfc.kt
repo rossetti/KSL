@@ -1,7 +1,6 @@
 package ksl.utilities.io.dbutil
 
 import ksl.utilities.io.OutputDirectory
-import org.apache.poi.ss.usermodel.Sheet
 import java.io.PrintWriter
 import java.nio.file.Path
 
@@ -267,31 +266,4 @@ interface DatabaseIOIfc {
         skipFirstRow: Boolean = true
     )
 
-    /** Copies the rows from the sheet to the table.  The copy is assumed to start
-     * at row 1, column 1 (i.e. cell A1) and proceed to the right for the number of columns in the
-     * table and the number of rows of the sheet.  The copy is from the perspective of the table.
-     * That is, all columns of a row of the table are attempted to be filled from a corresponding
-     * row of the sheet.  If the row of the sheet does not have cell values for the corresponding column, then
-     * the cell is interpreted as a null value when being placed in the corresponding column.  It is up to the client
-     * to ensure that the cells in a row of the sheet are data type compatible with the corresponding column
-     * in the table.  Any rows that cannot be transfer in their entirety are logged to the supplied PrintWriter
-     *
-     * @param sheet the sheet that has the data to transfer to the ResultSet
-     * @param tableName the table to copy into
-     * @param numColumns the number of columns in the sheet to copy into the table
-     * @param schemaName the name of the schema containing the tabel
-     * @param numRowsToSkip indicates the number of rows to skip from the top of the sheet. Use 1 (default) if the sheet has
-     * a header row
-     *  @param rowBatchSize the number of rows to accumulate in a batch before completing a transfer
-     *  @param unCompatibleRows a file to hold the rows that are not transferred in a string representation
-     */
-    fun importSheetToTable(
-        sheet: Sheet,
-        tableName: String,
-        numColumns: Int,
-        schemaName: String? = defaultSchemaName,
-        numRowsToSkip: Int = 1,
-        rowBatchSize: Int = 100,
-        unCompatibleRows: PrintWriter = outputDirectory.createPrintWriter("BadRowsForSheet_${sheet.sheetName}")
-    ): Boolean
 }
