@@ -595,4 +595,65 @@ object ExcelUtil  {
         }
     }
 
+    /**
+     * Opens the workbook for reading only and writes the sheets of the workbook into database tables.
+     * The list of names is the names of the
+     * sheets in the workbook and the names of the tables that need to be written. They are in the
+     * order that is required for entering data so that no integrity constraints are violated. The
+     * underlying workbook is closed after the operation.
+     *
+     *  Uses the longLastingConnection property for the connection for metadata checking.
+     *
+     * @param db the database containing the tables
+     * @param pathToWorkbook the path to the workbook. Must be valid workbook with .xlsx extension
+     * @param skipFirstRow   if true the first row of each sheet is skipped
+     * @param schemaName the name of the schema containing the named tables
+     * @param tableNames     the names of the sheets and tables in the order that needs to be written
+     * @throws IOException an io exception
+     */
+    fun importWorkbookToSchema(
+        db: DatabaseIfc,
+        pathToWorkbook: Path,
+        tableNames: List<String>,
+        schemaName: String?,
+        skipFirstRow: Boolean
+    ) {
+        val workbook: XSSFWorkbook = openExistingXSSFWorkbookReadOnly(pathToWorkbook)
+            ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
+
+        DatabaseIfc.logger.info { "Writing workbook $pathToWorkbook to database ${db.label}" }
+        for (tableName in tableNames) {
+            val sheet = workbook.getSheet(tableName)
+            if (sheet == null) {
+                Companion.logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
+                continue
+            }
+            DatabaseIfc.logger.trace { "Processing the sheet for table $tableName." }
+            val tblMetaData = db.tableMetaData(tableName, schemaName)
+            DatabaseIfc.logger.trace { "Constructing path for bad rows file for table $tableName." }
+            val dirStr = pathToWorkbook.toString().substringBeforeLast(".")
+            val path = Path.of(dirStr)
+            val pathToBadRows = path.resolve("${tableName}_MissingRows.txt")
+            DatabaseIfc.logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
+            val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
+            val numToSkip = if (skipFirstRow) 1 else 0
+            val success = db.importSheetToTable(
+                sheet,
+                tableName,
+                tblMetaData.size,
+                schemaName,
+                numToSkip,
+                unCompatibleRows = badRowsFile
+            )
+            if (!success) {
+                DatabaseIfc.logger.info { "Unable to write sheet $tableName to database ${db.label}. See trace logs for details" }
+            } else {
+                DatabaseIfc.logger.info { "Wrote sheet $tableName to database ${db.label}." }
+            }
+        }
+        workbook.close()
+        DatabaseIfc.logger.info { "Closed workbook $pathToWorkbook " }
+        DatabaseIfc.logger.info { "Completed writing workbook $pathToWorkbook to database ${db.label}" }
+    }
+
 }
