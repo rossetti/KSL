@@ -25,7 +25,7 @@ import ksl.utilities.io.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.csv.CSVFormat
 import org.apache.poi.ss.usermodel.Sheet
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+//import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.duckdb.DuckDBDatabaseMetaData
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
@@ -732,42 +732,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         schemaName: String?,
         skipFirstRow: Boolean
     ) {
-        val workbook: XSSFWorkbook = ExcelUtil.openExistingXSSFWorkbookReadOnly(pathToWorkbook)
-            ?: throw IOException("There was a problem opening the workbook at $pathToWorkbook!")
-
-        logger.info { "Writing workbook $pathToWorkbook to database $label" }
-        for (tableName in tableNames) {
-            val sheet = workbook.getSheet(tableName)
-            if (sheet == null) {
-                logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
-                continue
-            }
-            logger.trace { "Processing the sheet for table $tableName." }
-            val tblMetaData = tableMetaData(tableName, schemaName)
-            logger.trace { "Constructing path for bad rows file for table $tableName." }
-            val dirStr = pathToWorkbook.toString().substringBeforeLast(".")
-            val path = Path.of(dirStr)
-            val pathToBadRows = path.resolve("${tableName}_MissingRows.txt")
-            logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
-            val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
-            val numToSkip = if (skipFirstRow) 1 else 0
-            val success = importSheetToTable(
-                sheet,
-                tableName,
-                tblMetaData.size,
-                schemaName,
-                numToSkip,
-                unCompatibleRows = badRowsFile
-            )
-            if (!success) {
-                logger.info { "Unable to write sheet $tableName to database ${label}. See trace logs for details" }
-            } else {
-                logger.info { "Wrote sheet $tableName to database ${label}." }
-            }
-        }
-        workbook.close()
-        logger.info { "Closed workbook $pathToWorkbook " }
-        logger.info { "Completed writing workbook $pathToWorkbook to database $label" }
+        ExcelUtil.importWorkbookToSchema(this, pathToWorkbook, tableNames, schemaName, skipFirstRow)
     }
 
     /** Copies the rows from the sheet to the table.  The copy is assumed to start
