@@ -242,7 +242,10 @@ object ExcelUtil2 {
         unCompatibleRows: PrintWriter
     ): Boolean {
         sheet.openStream().use {
-
+            // process each row
+            // save the rows into a list to form a batch
+            // when the batch size is reached, write the batch, clear the list
+            // if any rows are left write them
         }
         TODO("Not implemented yet")
     }
