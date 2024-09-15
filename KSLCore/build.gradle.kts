@@ -118,10 +118,10 @@ dependencies {
     implementation("org.duckdb:duckdb_jdbc:1.0.0")
     implementation(group = "com.zaxxer", name = "HikariCP", version = "5.1.0")
 
-    // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
-//    implementation("org.dhatim:fastexcel-reader:0.14.0")
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel
-//    implementation("org.dhatim:fastexcel:0.14.0")
+    implementation("org.dhatim:fastexcel:0.18.3")
+// https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
+    implementation("org.dhatim:fastexcel-reader:0.18.3")
 
     // https://mvnrepository.com/artifact/org.apache.poi/poi
     api(group = "org.apache.poi", name = "poi", version = "5.2.5")
