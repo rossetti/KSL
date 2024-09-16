@@ -65,9 +65,9 @@ object DBExamples {
         dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
 
         // this creates and attaches a KSLDatabase
-//        val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
+        val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
 //        val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb", model.outputDirectory.dbDir)
-        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
+//        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
         val kdb = KSLDatabase(sdb)
         KSLDatabaseObserver(model, kdb)
         // this also creates and attached another KSLDatabase, using the defaults
@@ -104,9 +104,9 @@ object DBExamples {
             println(r)
         }
 
-        println("Exporting from postgres to csv")
+        println("Exporting from to csv")
         sdb.exportAllTablesAsCSV()
-        println("Exporting from postgres to Excel")
+        println("Exporting from to Excel")
         sdb.exportToExcel()
 
         println("Done!")

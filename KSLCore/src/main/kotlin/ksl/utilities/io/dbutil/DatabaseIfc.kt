@@ -706,7 +706,8 @@ interface DatabaseIfc : DatabaseIOIfc {
             wbName
         }
         val path = wbDirectory.resolve(wbn)
-        ExcelUtil.exportTablesToExcel(this, path, finalList, schemaName)
+       // ExcelUtil.exportTablesToExcel(this, path, finalList, schemaName)
+        ExcelUtil2.exportTablesToExcel(this, path, finalList, schemaName)
     }
 
     /**
@@ -730,7 +731,8 @@ interface DatabaseIfc : DatabaseIOIfc {
         schemaName: String?,
         skipFirstRow: Boolean
     ) {
-        ExcelUtil.importWorkbookToSchema(this, pathToWorkbook, tableNames, schemaName, skipFirstRow)
+        ExcelUtil2.importWorkbookToSchema(this, pathToWorkbook, tableNames, schemaName, skipFirstRow)
+        //ExcelUtil.importWorkbookToSchema(this, pathToWorkbook, tableNames, schemaName, skipFirstRow)
     }
 
     /**
