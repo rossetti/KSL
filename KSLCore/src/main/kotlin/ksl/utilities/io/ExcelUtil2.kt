@@ -8,10 +8,7 @@ import org.dhatim.fastexcel.reader.ReadableWorkbook
 import java.io.*
 import java.math.BigDecimal
 import java.nio.file.Path
-import java.sql.Date
-import java.sql.ResultSet
-import java.sql.Time
-import java.sql.Timestamp
+import java.sql.*
 
 object ExcelUtil2 {
 
@@ -86,59 +83,59 @@ object ExcelUtil2 {
         DatabaseIfc.logger.info { "Completed exporting ResultSet to Excel worksheet $sheetName" }
     }
 
-    private fun writeRow(sheet: org.dhatim.fastexcel.Worksheet, rowNum: Int, list: List<Any?>){
-        for((colNum, value) in list.withIndex()){
+    private fun writeRow(sheet: org.dhatim.fastexcel.Worksheet, rowNum: Int, list: List<Any?>) {
+        for ((colNum, value) in list.withIndex()) {
             writeCell(sheet, rowNum, colNum, value)
         }
     }
 
-    private fun writeCell(sheet: org.dhatim.fastexcel.Worksheet, rowNum: Int, colNum: Int, value: Any?){
+    private fun writeCell(sheet: org.dhatim.fastexcel.Worksheet, rowNum: Int, colNum: Int, value: Any?) {
         when (value) {
             null -> { // nothing to write
             }
 
             is String -> {
-                sheet.value(rowNum, colNum,value.trim())
+                sheet.value(rowNum, colNum, value.trim())
             }
 
             is Boolean -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             is Int -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             is Double -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             is Float -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             is BigDecimal -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             is Long -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             is Short -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             is Date -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             is Time -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             is Timestamp -> {
-                sheet.value(rowNum, colNum,value)
+                sheet.value(rowNum, colNum, value)
             }
 
             else -> {
@@ -170,14 +167,14 @@ object ExcelUtil2 {
         tableNames: List<String>,
         schemaName: String?,
         skipFirstRow: Boolean
-    ){
+    ) {
         FileInputStream(pathToWorkbook.toFile()).use {
             val workbook = ReadableWorkbook(it)
             //do the work
             DatabaseIfc.logger.info { "Writing workbook $pathToWorkbook to database ${db.label}" }
             for (tableName in tableNames) {
                 val sheetOption = workbook.findSheet(tableName)
-                if (sheetOption.isEmpty){
+                if (sheetOption.isEmpty) {
                     DatabaseIfc.logger.info { "Skipping table $tableName no corresponding sheet in workbook" }
                     continue
                 }
@@ -192,7 +189,8 @@ object ExcelUtil2 {
                 DatabaseIfc.logger.trace { "The file to hold bad data for table $tableName is $pathToBadRows" }
                 val badRowsFile = KSLFileUtil.createPrintWriter(pathToBadRows)
                 val numToSkip = if (skipFirstRow) 1 else 0
-                val success = importSheetToTable(db,
+                val success = importSheetToTable(
+                    db,
                     sheet,
                     tableName,
                     tblMetaData.size,
@@ -241,11 +239,32 @@ object ExcelUtil2 {
         rowBatchSize: Int = 100,
         unCompatibleRows: PrintWriter
     ): Boolean {
-        sheet.openStream().use {
-            // process each row
-            // save the rows into a list to form a batch
-            // when the batch size is reached, write the batch, clear the list
-            // if any rows are left write them
+        return try {
+            // make the db connection and insert statement
+            DatabaseIfc.logger.trace { "Getting connection to import ${sheet.name} into table $tableName of schema $schemaName of database ${db.label}" }
+            DatabaseIfc.logger.trace { "Table $tableName to hold data for sheet ${sheet.name} has $numColumns columns to fill." }
+            sheet.openStream().use {
+                val rowList = mutableListOf<org.dhatim.fastexcel.reader.Row>()
+                var rowCnt = 0
+                it.forEach { row: org.dhatim.fastexcel.reader.Row ->
+                    rowCnt++
+                    if (rowCnt > numRowsToSkip){
+                        rowList.add(row)
+                        if (rowList.size == rowBatchSize) {
+                            // write the rows in the row list to the database
+                            rowList.clear()
+                        }
+                    }
+                }
+                if (rowList.isNotEmpty()){
+                    // form the last batch and insert
+                }
+            }
+            true
+        } catch (ex: SQLException){
+            DatabaseIfc.logger.error(ex)
+            { "SQLException when importing ${sheet.name} into table $tableName of schema $schemaName of database ${db.label}" }
+            false
         }
         TODO("Not implemented yet")
     }
