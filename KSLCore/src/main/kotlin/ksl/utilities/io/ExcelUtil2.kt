@@ -17,8 +17,11 @@ import java.time.format.DateTimeFormatter
 import java.util.ArrayList
 
 object ExcelUtil2 {
-//TODO ensure proper worksheet names
-//TODO testing, testing, testing
+    //TODO ensure proper worksheet names
+    //TODO creating a workbook for writing
+    //TODO opening a workbook for reading
+    //TODO writing an 1-D array, 2-D array, map of arrays (data map)
+    // TODO testing, testing, testing
 
     val logger = KotlinLogging.logger {}
 
