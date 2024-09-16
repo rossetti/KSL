@@ -1,6 +1,7 @@
 package ksl.utilities.io
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.utilities.io.ExcelUtil2.isValidExcelSheetName
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.ResultSetRowIterator
 import org.dhatim.fastexcel.Workbook
@@ -16,6 +17,11 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.ArrayList
 
+fun main() {
+    val sheetName = "ExampleSheet * ExampleSheet"
+    println("Is '$sheetName' a valid Excel sheet name? ${isValidExcelSheetName(sheetName)}")
+}
+
 object ExcelUtil2 {
     //TODO ensure proper worksheet names
     //TODO creating a workbook for writing
@@ -29,6 +35,19 @@ object ExcelUtil2 {
 
     val DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         .withZone(ZoneId.systemDefault())
+
+    fun isValidExcelSheetName(sheetName: String): Boolean {
+        // Check if the sheet name is within the allowed length
+        if (sheetName.length > 31) return false
+        // Define the invalid characters
+        val invalidChars = listOf('\\', '/', '*', '[', ']', ':', '?')
+        // Check if the sheet name contains any invalid characters
+        for (char in invalidChars) {
+            if (sheetName.contains(char)) return false
+        }
+        // If all checks pass, the sheet name is valid
+        return true
+    }
 
     /** Writes each table in the list to an Excel workbook with each table being placed
      *  in a new sheet with the sheet name equal to the name of the table. The column names
