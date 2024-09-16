@@ -24,6 +24,7 @@ import ksl.examples.book.chapter5.PalletWorkCenter
 import ksl.examples.book.chapter6.StemFairMixer
 import ksl.simulation.Model
 import ksl.utilities.io.ExcelUtil
+import ksl.utilities.io.ExcelUtil2
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import org.jetbrains.kotlinx.dataframe.api.print
@@ -47,13 +48,13 @@ fun showControls(){
 
 //    controls.controlData().toDataFrame().print(rowsLimit = 36)
 
-//    val cmap = controls.asMap()
-//    ExcelUtil.writeToExcel(cmap, "Controls")
-//    val rmap = ExcelUtil.readToMap("Controls")
-//    for ((k, v) in rmap) {
- //       println("$k: $v")
-//    }
-//    println(controls)
+    val cmap = controls.asMap()
+    ExcelUtil2.writeMapToExcel(cmap, "Controls")
+    val rmap = ExcelUtil2.readToMap("Controls")
+    for ((k, v) in rmap) {
+        println("$k: $v")
+    }
+    println(controls)
     println()
     val control = controls.control("JHBuntR.initialCapacity")
     println("Control value ${control?.value}")
