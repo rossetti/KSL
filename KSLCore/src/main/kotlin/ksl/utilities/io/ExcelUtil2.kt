@@ -1,16 +1,31 @@
 package ksl.utilities.io
 
-import ksl.utilities.io.ExcelUtil.logger
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.ResultSetRowIterator
 import org.dhatim.fastexcel.Workbook
+import org.dhatim.fastexcel.reader.Row
+import org.dhatim.fastexcel.reader.Cell
+import org.dhatim.fastexcel.reader.CellType
 import org.dhatim.fastexcel.reader.ReadableWorkbook
 import java.io.*
 import java.math.BigDecimal
 import java.nio.file.Path
 import java.sql.*
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.ArrayList
 
 object ExcelUtil2 {
+//TODO ensure proper worksheet names
+//TODO testing, testing, testing
+
+    val logger = KotlinLogging.logger {}
+
+    const val DEFAULT_MAX_CHAR_IN_CELL = 512
+
+    val DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        .withZone(ZoneId.systemDefault())
 
     /** Writes each table in the list to an Excel workbook with each table being placed
      *  in a new sheet with the sheet name equal to the name of the table. The column names
@@ -83,13 +98,26 @@ object ExcelUtil2 {
         DatabaseIfc.logger.info { "Completed exporting ResultSet to Excel worksheet $sheetName" }
     }
 
-    private fun writeRow(sheet: org.dhatim.fastexcel.Worksheet, rowNum: Int, list: List<Any?>) {
+    /**
+     *  Writes the data in the list to the indicated row in the sheet
+     *  @param sheet the sheet to hold the data
+     *  @param rowNum the row to write
+     *  @param list the data to write to the row
+     */
+    fun writeRow(sheet: org.dhatim.fastexcel.Worksheet, rowNum: Int, list: List<Any?>) {
         for ((colNum, value) in list.withIndex()) {
             writeCell(sheet, rowNum, colNum, value)
         }
     }
 
-    private fun writeCell(sheet: org.dhatim.fastexcel.Worksheet, rowNum: Int, colNum: Int, value: Any?) {
+    /**
+     *  Writes the information to a cell in a sheet.
+     *  @param sheet the sheet holding the cell
+     *  @param rowNum the row number for the cell (0 based)
+     *  @param colNum the column number for the cell (0 based)
+     *  @param value the value to write to the cell
+     */
+    fun writeCell(sheet: org.dhatim.fastexcel.Worksheet, rowNum: Int, colNum: Int, value: Any?) {
         when (value) {
             null -> { // nothing to write
             }
@@ -236,36 +264,313 @@ object ExcelUtil2 {
         numColumns: Int,
         schemaName: String?,
         numRowsToSkip: Int,
-        rowBatchSize: Int = 100,
+        rowBatchSize: Int = 1000,
         incompatibleRows: PrintWriter
     ): Boolean {
         return try {
-            //TODO make the db connection and insert statement
-            DatabaseIfc.logger.trace { "Getting connection to import ${sheet.name} into table $tableName of schema $schemaName of database ${db.label}" }
-            DatabaseIfc.logger.trace { "Table $tableName to hold data for sheet ${sheet.name} has $numColumns columns to fill." }
-            sheet.openStream().use {
-                val rowList = mutableListOf<org.dhatim.fastexcel.reader.Row>()
-                var rowCnt = 0
-                it.forEach { row: org.dhatim.fastexcel.reader.Row ->
-                    rowCnt++
-                    if (rowCnt > numRowsToSkip){
-                        rowList.add(row)
-                        if (rowList.size == rowBatchSize) {
-                            //TODO write the rows in the row list to the database or to the incompatible row file
-                            rowList.clear()
+            //make the db connection and insert statement
+            db.getConnection().use { con ->
+                DatabaseIfc.logger.trace { "Getting connection to import ${sheet.name} into table $tableName of schema $schemaName of database ${db.label}" }
+                DatabaseIfc.logger.trace { "Table $tableName to hold data for sheet ${sheet.name} has $numColumns columns to fill." }
+                con.autoCommit = false
+                // make prepared statement for inserts
+                val insertStatement = DatabaseIfc.makeInsertPreparedStatement(
+                    con, tableName, numColumns, schemaName
+                )
+                sheet.openStream().use {
+                    val rowList = mutableListOf<Row>()
+                    val badRows = mutableListOf<Row>()
+                    var rowCnt = 0
+                    var cntGood = 0
+                    it.forEach { row: Row ->
+                        rowCnt++
+                        if (rowCnt > numRowsToSkip) {
+                            rowList.add(row)
+                            if (rowList.size == rowBatchSize) {
+                                // write the rows in the row list to the database or to the incompatible row file
+                                insertRows(rowList, numColumns, insertStatement, badRows)
+                                rowList.clear()
+                                // commit the batch
+                                val ni = insertStatement.executeBatch()
+                                con.commit()
+                                cntGood = cntGood + ni.size
+                                DatabaseIfc.logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
+                            }
                         }
                     }
-                }
-                if (rowList.isNotEmpty()){
-                    // form the last batch and insert
-                    //TODO write the rows in the row list to the database or to the incompatible row file
+                    // there may be some left over from batch processing, insert these
+                    if (rowList.isNotEmpty()) {
+                        // form the last batch and insert
+                        //write the rows in the row list to the database or to the incompatible row file
+                        insertRows(rowList, numColumns, insertStatement, badRows)
+                        rowList.clear()
+                        // commit the batch
+                        val ni = insertStatement.executeBatch()
+                        con.commit()
+                        cntGood = cntGood + ni.size
+                        DatabaseIfc.logger.trace { "Wrote batch of size ${ni.size} to table $tableName" }
+                    }
+                    // write bad rows to the file
+                    for (row in badRows) {
+                        DatabaseIfc.logger.trace { "Wrote row number ${row.rowNum} of sheet ${sheet.name} to bad data file" }
+                        incompatibleRows.println("Sheet: ${sheet.name} row: ${row.rowNum} not written: $row")
+                    }
+                    DatabaseIfc.logger.info { "Transferred $cntGood out of $rowCnt rows for ${sheet.name}. There were ${badRows.size} incompatible rows written." }
                 }
             }
             true
-        } catch (ex: SQLException){
+        } catch (ex: SQLException) {
             DatabaseIfc.logger.error(ex)
             { "SQLException when importing ${sheet.name} into table $tableName of schema $schemaName of database ${db.label}" }
             false
+        }
+    }
+
+    /**
+     *  Rows are either placed in a prepared statement or
+     *  saved as bad rows.
+     *  @param rowList the list of rows to process
+     *  @param numColumns the number of columns for all rows
+     *  @param insertStatement the prepared statement
+     *  @param badRows the rows that could not be inserted
+     */
+    private fun insertRows(
+        rowList: List<Row>,
+        numColumns: Int,
+        insertStatement: PreparedStatement,
+        badRows: MutableList<Row>
+    ) {
+        for (row in rowList) {
+            val rowData = readRowAsObjectList(row, numColumns)
+            // rowData needs to be placed into insert statement
+            val success = DatabaseIfc.addBatch(rowData, numColumns, insertStatement)
+            if (!success) {
+                badRows.add(row)
+            }
+        }
+    }
+
+    /**
+     * Read a row assuming a fixed number of columns.  Cells that
+     * are missing/null in the row are read as null objects.
+     *
+     * @param row    the Excel row
+     * @param numColumns the number of columns to read in the row
+     * @return a list of objects representing the contents of the cells for each column
+     */
+    fun readRowAsObjectList(
+        row: Row,
+        numColumns: Int = row.cellCount
+    ): List<Any?> {
+        val list = mutableListOf<Any?>()
+        for (i in 0 until numColumns) {
+            if (row.hasCell(i)) {
+                val cell = row.getCell(i)
+                if (cell != null) {
+                    list.add(readCellAsObject(cell))
+                } else {
+                    list.add(null)
+                }
+            } else {
+                list.add(null)
+            }
+        }
+        return list
+    }
+
+    /**
+     * Reads the Excel cell and translates it into an object
+     *
+     * @param cell the Excel cell to read data from
+     * @return the data in the form of an object
+     */
+    fun readCellAsObject(cell: Cell): Any? {
+        return when (cell.type) {
+            CellType.STRING -> cell.asString().trim()
+            CellType.BOOLEAN -> cell.asBoolean()
+            CellType.FORMULA -> cell.formula
+            CellType.NUMBER -> {
+                cell.asNumber().toDouble()
+            }
+
+            else -> null
+        }
+    }
+
+    /** Writes each entry in the map to an Excel workbook. The mapping
+     * of problematic double values is as follows:
+     *
+     *  - Double.NaN is written as the string "NaN"
+     *  - Double.POSITIVE_INFINITY is written as a string "+Infinity"
+     *  - Double.NEGATIVE_INFINITY is written as a string "-Infinity"
+     *
+     * Note that NULL is not a possible value in the map.
+     *
+     * @param sheetName the name of the sheet within the workbook. This should
+     * follow the sheet naming conventions of Excel
+     * @param map the map of information to export
+     * @param wbName the name of the workbook. By default, assumes that
+     * the workbook name is the same as the sheet name.
+     * @param wbDirectory the directory to store the workbook. By default,
+     * this is KSL.excelDir.
+     * @param header if true a header of (Element Name, Element Value) is the first
+     * row in the sheet. By default, no header is written.
+     */
+    fun writeMapToExcel(
+        map: Map<String, Double>,
+        sheetName: String,
+        wbName: String = sheetName,
+        wbDirectory: Path = KSL.excelDir,
+        header: Boolean = false
+    ) {
+        val wbn = if (!wbName.endsWith(".xlsx")) {
+            "$wbName.xlsx"
+        } else {
+            wbName
+        }
+        val path = wbDirectory.resolve(wbn)
+        FileOutputStream(path.toFile()).use {
+            logger.info { "Opened workbook $path for writing map $sheetName to Excel" }
+            var rowCnt = 0
+            val workbook = Workbook(it, "KSL", "1.0")
+            val sheet = workbook.newWorksheet(sheetName)
+            if (header) {
+                sheet.value(0, 0, "Element Name")
+                sheet.value(0, 1, "Element Value")
+                rowCnt++
+            }
+            for ((n, v) in map) {
+                sheet.value(rowCnt, 0, n)
+                if (v.isNaN()) {
+                    sheet.value(rowCnt, 1, "NaN")
+                } else if (v == Double.POSITIVE_INFINITY) {
+                    sheet.value(rowCnt, 1, "+Infinity")
+                } else if (v == Double.NEGATIVE_INFINITY) {
+                    sheet.value(rowCnt, 1, "-Infinity")
+                } else {
+                    writeCell(sheet, rowCnt, 1, v)
+                }
+                rowCnt++
+                sheet.flush()
+            }
+            sheet.finish()
+            workbook.finish()
+            workbook.close()
+            logger.info { "Closed workbook $path after writing map $sheetName to Excel" }
+        }
+    }
+
+    /** This is the reverse operation to the function writeToExcel() for a Map<String, Double>
+     *  The strings "+Infinity", "-Infinity", and "NaN" in the value column are correctly converted
+     *  to the appropriate double representation.  Any rows that have empty cells (null) are skipped in the
+     *  processing.
+     *
+     *  @param sheetName the name of the sheet holding the map. If the workbook does not
+     *  contain the named sheet then an empty map is returned
+     *  @param pathToWorkbook the path to the workbook file. By default, this is assumed
+     *  to be a workbook in the KSL.excelDir directory with the name "sheetName.xlsx"
+     *  @param skipFirstRow if true the first row of the sheet is skipped because it
+     *  contains a header. The default is false.
+     */
+    fun readToMap(
+        sheetName: String,
+        pathToWorkbook: Path = KSL.excelDir.resolve("${sheetName}.xlsx"),
+        skipFirstRow: Boolean = false,
+    ): Map<String, Double> {
+
+        FileInputStream(pathToWorkbook.toFile()).use {
+            val workbook = ReadableWorkbook(it)
+            val sheetOptional = workbook.findSheet(sheetName)
+            if (sheetOptional.isEmpty) {
+                logger.info { "No corresponding sheet named $sheetName in workbook $pathToWorkbook" }
+                return emptyMap()
+            }
+            // sheet must exist
+            val sheet = sheetOptional.get()
+            val map = mutableMapOf<String, Double>()
+            sheet.openStream().use {
+                var rowCnt = 0
+                it.forEach { row: Row ->
+                    rowCnt++
+                    if ((rowCnt == 1) && (skipFirstRow)) {
+                        // skip
+                    } else {
+                        // process
+                        val rowData = readRowAsStringList(row, 2)
+                        if (rowData[0] != null) {
+                            val sn = rowData[0]!!
+                            if (rowData[1] != null) {
+                                if (rowData[1].equals("NaN")) {
+                                    map[sn] = Double.NaN
+                                } else if (rowData[1].equals("+Infinity")) {
+                                    map[sn] = Double.POSITIVE_INFINITY
+                                } else if (rowData[1].equals("-Infinity")) {
+                                    map[sn] = Double.NEGATIVE_INFINITY
+                                } else {
+                                    map[sn] = rowData[1]!!.toDouble()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return map
+        }
+    }
+
+    /**
+     * Read a row assuming a fixed number of columns.  Cells that
+     * are missing/null in the row are read as null Strings.
+     *
+     * @param row     the Excel row
+     * @param numCol  the number of columns in the row
+     * @param maxChar the maximum number of characters permitted for any string
+     * @return a list of Strings representing the contents of the cells
+     */
+    fun readRowAsStringList(
+        row: Row,
+        numCol: Int,
+        maxChar: Int = DEFAULT_MAX_CHAR_IN_CELL
+    ): List<String?> {
+        require(numCol > 0) { "The number of columns must be >= 1" }
+        require(maxChar > 0) { "The maximum number of characters must be >= 1" }
+        val list: MutableList<String?> = ArrayList()
+        for (i in 0 until numCol) {
+            var s: String? = null
+            if (row.hasCell(i)) {
+                val cell = row.getCell(i)
+                if (cell != null) {
+                    s = readCellAsString(cell)
+                    if (s.length > maxChar) {
+                        s = s.substring(0, maxChar - 1)
+                        logger.warn { "The cell $cell was truncated to $maxChar characters" }
+                    }
+                }
+            }
+            list.add(s)
+        }
+        return list
+    }
+
+    /**
+     * Reads the Excel cell and translates it into a String
+     *
+     * @param cell the Excel cell to read data from
+     * @return the data in the form of a String
+     */
+    fun readCellAsString(cell: Cell): String {
+        return when (cell.type) {
+            CellType.STRING -> cell.asString()
+            CellType.NUMBER -> {
+                val v = cell.asNumber()
+                v.toDouble().toString()
+            }
+            CellType.BOOLEAN -> {
+                val value = cell.asBoolean()
+                value.toString()
+            }
+            CellType.FORMULA -> cell.formula
+            else -> ""
         }
     }
 }
