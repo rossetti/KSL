@@ -196,7 +196,7 @@ object ExcelUtil2 {
                     tblMetaData.size,
                     schemaName,
                     numToSkip,
-                    unCompatibleRows = badRowsFile
+                    incompatibleRows = badRowsFile
                 )
                 if (!success) {
                     DatabaseIfc.logger.info { "Unable to write sheet $tableName to database ${db.label}. See trace logs for details" }
@@ -237,10 +237,10 @@ object ExcelUtil2 {
         schemaName: String?,
         numRowsToSkip: Int,
         rowBatchSize: Int = 100,
-        unCompatibleRows: PrintWriter
+        incompatibleRows: PrintWriter
     ): Boolean {
         return try {
-            // make the db connection and insert statement
+            //TODO make the db connection and insert statement
             DatabaseIfc.logger.trace { "Getting connection to import ${sheet.name} into table $tableName of schema $schemaName of database ${db.label}" }
             DatabaseIfc.logger.trace { "Table $tableName to hold data for sheet ${sheet.name} has $numColumns columns to fill." }
             sheet.openStream().use {
@@ -251,13 +251,14 @@ object ExcelUtil2 {
                     if (rowCnt > numRowsToSkip){
                         rowList.add(row)
                         if (rowList.size == rowBatchSize) {
-                            // write the rows in the row list to the database
+                            //TODO write the rows in the row list to the database or to the incompatible row file
                             rowList.clear()
                         }
                     }
                 }
                 if (rowList.isNotEmpty()){
                     // form the last batch and insert
+                    //TODO write the rows in the row list to the database or to the incompatible row file
                 }
             }
             true
@@ -266,6 +267,5 @@ object ExcelUtil2 {
             { "SQLException when importing ${sheet.name} into table $tableName of schema $schemaName of database ${db.label}" }
             false
         }
-        TODO("Not implemented yet")
     }
 }
