@@ -82,6 +82,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         this@ProcessModel, null, timeUntilTheFirstEntity,
         timeBtwEvents, maxNumberOfEvents, timeOfTheLastEvent, name
     ) {
+        //TODO supply an (optional) initial process, if it is supplied it is activated, otherwise the process
+        // sequence should be used
         override fun generate() {
             val entity = entityCreator()
             val event: KSLEvent<KSLProcess>? = startProcessSequence(entity, priority = activationPriority)
@@ -214,7 +216,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  Controls whether the entity uses an assigned process sequence via the processSequence property
          *  at the end of successfully completing a process to determine the next process to experience.
-         *  The default is true.
+         *  The default is false.
          */
         var useProcessSequence = false
 
@@ -506,6 +508,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             block: suspend KSLProcessBuilder.() -> Unit
         ): KSLProcess {
             val coroutine = ProcessCoroutine(processName)
+            //TODO consider making addToSequence false by default
             if (addToSequence) {
                 processSequence.add(coroutine)
             }
@@ -643,6 +646,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id completed process = $completedProcess" }
             afterRunningProcess(completedProcess)
             val np = determineNextProcess(completedProcess)
+            //TODO no next process triggers has allocation checking logic
             if (np != null) {
                 previousProcess = completedProcess
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id to activate process = $np next" }
@@ -651,6 +655,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // no next process to run, entity must not have any allocations
                 dispose(completedProcess)
                 if (hasAllocations) {
+                    //TODO this is going to be a problem, this prevents an entity from seizing
+                    // a resource in one process and releasing it in another, which might be very common
+                    // is a warning sufficient?
                     val msg = StringBuilder()
                     msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had allocations when ending process $completedProcess with no next process!")
                     msg.appendLine()
