@@ -56,11 +56,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
     private val suspendedEntities = mutableSetOf<Entity>()
 
-    /** Note that an EntityGenerator relies on the entity having at least one process
+    /** Note that an EntityGenerator relies on the entity having an initial process or at least one process
      * that has been added to its process sequence via the process() method's addToSequence
-     * parameter being true, which is the default. The generator will create the entity and
-     * start the process that is listed first in its process sequence.  If there are no
-     * processes in the sequence then nothing happens.
+     * parameter being true. The generator will create the entity and
+     * activate the initial process or the process that is listed first in its process sequence.  If the
+     * entity does not have an initial process, or it does not have any processes in its process sequence
+     * then an illegal state exception will occur. If the entity has both an initial process defined and
+     * a non-empty process sequence, the initial process will be activated.
      *
      * @param entityCreator the thing that creates the entities of the particular type. Typically,
      * a reference to the constructor of the class
@@ -82,13 +84,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         this@ProcessModel, null, timeUntilTheFirstEntity,
         timeBtwEvents, maxNumberOfEvents, timeOfTheLastEvent, name
     ) {
-        //TODO supply an (optional) initial process, if it is supplied it is activated, otherwise the process
-        // sequence should be used
+
         override fun generate() {
             val entity = entityCreator()
-            val event: KSLEvent<KSLProcess>? = startProcessSequence(entity, priority = activationPriority)
-            if (event == null) {
-                logger.warn { "The $entity does not have any processes on its process sequence!" }
+            require((entity.initialProcess != null) || (entity.processSequence.isNotEmpty())) {
+                "The entity must have an initial process or its process sequence must not be empty to be generated via an EntityGenerator"
+            }
+            // if the entity has an initial process use it otherwise try to use the process sequence
+            if (entity.initialProcess != null) {
+                activate(entity.initialProcess!!, priority = activationPriority)
+            } else {
+                startProcessSequence(entity, priority = activationPriority)
             }
         }
 
@@ -212,6 +218,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * of its ProcessModel
          */
         override var velocity: GetValueIfc = this@ProcessModel.spatialModel.defaultVelocity
+
+        /**
+         *  If supplied, this process will be the process activated by an EntityGenerator
+         *  that creates and activates the entity.  This will supersede the use of an
+         *  associated process sequence via the process sequence property.
+         */
+        var initialProcess: KSLProcess? = null
 
         /**
          *  Controls whether the entity uses an assigned process sequence via the processSequence property
@@ -495,20 +508,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  Creates the coroutine and immediately suspends it.  To start executing
          *  the created coroutine use the methods for activating processes.
          *
-         *  Note that by default, a process defined by this function, will be
+         *  Note that by default, a process defined by this function, will not be
          *  added automatically to the entity's processSequence.  If you want a defined process to
-         *  not be part of the entity's process sequence, then set the addToSequence argument to false.
+         *  be part of the entity's process sequence, then set the addToSequence argument to true.
          *
          *  @param processName the name of the process
-         *  @param addToSequence whether to add the process to the entity's default process sequence
+         *  @param addToSequence whether to add the process to the entity's default process sequence. The default
+         *  value is false. The process will not be added automatically to the process sequence.
          */
         protected fun process(
             processName: String? = null,
-            addToSequence: Boolean = true,
+            addToSequence: Boolean = false,
             block: suspend KSLProcessBuilder.() -> Unit
         ): KSLProcess {
             val coroutine = ProcessCoroutine(processName)
-            //TODO consider making addToSequence false by default
             if (addToSequence) {
                 processSequence.add(coroutine)
             }
@@ -543,7 +556,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  the fine-grained control for the sequence of calls necessary. Thus, this method can be used internally
          *  when needed in those (rare) cases.
          */
-        internal fun immediateResume(){
+        internal fun immediateResume() {
             if (myCurrentProcess != null) {
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
                 myCurrentProcess!!.resumeContinuation()
@@ -1018,7 +1031,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             private suspend fun suspend() {
                 //logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: suspension name = $currentSuspendName: suspending process, ($this) ..." }
                 state.suspend()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.suspend(): entity_id = ${entity.id}: *** COROUTINE SUSPEND ***: process = (${this@ProcessCoroutine})"}
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.suspend(): entity_id = ${entity.id}: *** COROUTINE SUSPEND ***: process = (${this@ProcessCoroutine})" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.suspend(): entity_id = ${entity.id}: suspension name = $currentSuspendName: suspending..." }
                 return suspendCoroutineUninterceptedOrReturn<Unit> { cont ->
                     continuation = cont
@@ -1150,7 +1163,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            private fun resourceSeizeAction(event: KSLEvent<Request>){
+            private fun resourceSeizeAction(event: KSLEvent<Request>) {
                 val request = event.message!!
                 val resource = request.resource!!
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
@@ -1196,7 +1209,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 return allocation
             }
 
-            private fun resourcePoolSeizeAction(event: KSLEvent<Request>){
+            private fun resourcePoolSeizeAction(event: KSLEvent<Request>) {
                 val request = event.message!!
                 val resource = request.resourcePool!!
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
@@ -1257,7 +1270,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspend()
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
-                require(time == myDelayEvent!!.time) {"r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})"}
+                require(time == myDelayEvent!!.time) { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -1359,7 +1372,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun release(resource: Resource, releasePriority: Int) {
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} RELEASE all ${entity.totalAmountAllocated(resource)} units of ${resource.name} allocated in process, ($this)" }
+                logger.trace {
+                    "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} RELEASE all ${
+                        entity.totalAmountAllocated(
+                            resource
+                        )
+                    } units of ${resource.name} allocated in process, ($this)"
+                }
                 // get the allocations of this entity for this resource
                 val list = resource.allocations(entity)
                 for (allocation in list) {
@@ -1500,8 +1519,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     "Attempted to access ${conveyor.name} when already allocated to conveyor: ${entity.conveyorRequest?.conveyor?.name}." +
                             "An entity can access only one conveyor at a time. Use exit() to stop accessing a conveyor."
                 }
-                require(conveyor.entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) " +
-                        "is not an entry location for (${conveyor.name})" }
+                require(conveyor.entryLocations.contains(entryLocation)) {
+                    "The location (${entryLocation.name}) " +
+                            "is not an entry location for (${conveyor.name})"
+                }
                 require(numCellsNeeded >= 1) { "The amount of cells to allocate must be >= 1" }
                 require(numCellsNeeded <= conveyor.maxEntityCellsAllowed) {
                     "The entity requested more cells ($numCellsNeeded) than " +
@@ -1509,11 +1530,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.ACCESS
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : REQUEST CONVEYOR : entity_id = ${entity.id} : requesting $numCellsNeeded cells of ${conveyor.name} : suspension name = $currentSuspendName"  }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : REQUEST CONVEYOR : entity_id = ${entity.id} : requesting $numCellsNeeded cells of ${conveyor.name} : suspension name = $currentSuspendName" }
                 // schedules the conveyor to receive the request for cells at the current time ordered by request priority
-                val conveyorRequest = conveyor.receiveEntity(entity, numCellsNeeded, entryLocation, requestPriority, requestResumePriority)
+                val conveyorRequest = conveyor.receiveEntity(
+                    entity,
+                    numCellsNeeded,
+                    entryLocation,
+                    requestPriority,
+                    requestResumePriority
+                )
                 // holds the entity until the entry cell is blocked for entry
-                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:HoldForCells:${conveyor.conveyorHoldQ.name}")
+                hold(
+                    conveyor.conveyorHoldQ,
+                    suspensionName = "$suspensionName:HoldForCells:${conveyor.conveyorHoldQ.name}"
+                )
                 // ensure that the entity remembers that it is now "using" the conveyor
                 entity.conveyorRequest = conveyorRequest
                 // entity via the request now blocks (controls) the access cell for entry
@@ -1529,7 +1559,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 destination: IdentityIfc,
                 ridePriority: Int,
                 suspensionName: String?
-            ) : Double {
+            ): Double {
                 require(entity.conveyorRequest != null) {
                     "Attempted to ride without having requested the conveyor."
                 }
@@ -1544,7 +1574,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val origin = conveyorRequest.currentLocation
                 require(conveyor.isReachable(origin, destination))
                 { "The destination (${destination.name}) is not reachable from entry location (${origin.name})" }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from ${origin.name} to ${destination.name} : suspension name = $currentSuspendName"}
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from ${origin.name} to ${destination.name} : suspension name = $currentSuspendName" }
                 // schedules the need to ride the conveyor
                 conveyor.scheduleConveyAction(conveyorRequest as Conveyor.ConveyorRequest, destination, ridePriority)
                 isMoving = true
@@ -1552,7 +1582,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val timeStarted = time
                 hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
                 isMoving = false
-                if (destination is LocationIfc){
+                if (destination is LocationIfc) {
                     currentLocation = destination
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from ${origin.name} to ${destination.name} : suspension name = $currentSuspendName" }
@@ -1748,7 +1778,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     isActivated = true
                     state = running
                     // this starts the coroutine for the first time, because I used createCoroutineUnintercepted()
-                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Created.start() : entity_id = ${entity.id} : ---> resuming initial continuation = $continuation"}
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Created.start() : entity_id = ${entity.id} : ---> resuming initial continuation = $continuation" }
                     continuation?.resume(Unit)
                 }
             }
@@ -1771,12 +1801,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     //un-capture suspended entities here
                     suspendedEntities.remove(entity)
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : suspension name = $currentSuspendName : resuming..." }
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : *** before COROUTINE RESUME *** : process = (${this@ProcessCoroutine})"}
-                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : ---> before resuming continuation = $continuation"}
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : *** before COROUTINE RESUME *** : process = (${this@ProcessCoroutine})" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : ---> before resuming continuation = $continuation" }
                     continuation?.resume(Unit)
-                    logger.trace {"r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> after resuming continuation = $continuation"}
- //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: *** after COROUTINE RESUME ***: continuation = ${continuation}"}
- //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: suspension name = $currentSuspendName: resumed" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> after resuming continuation = $continuation" }
+                    //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: *** after COROUTINE RESUME ***: continuation = ${continuation}"}
+                    //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: suspension name = $currentSuspendName: resumed" }
                 }
 
                 /**
