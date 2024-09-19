@@ -65,5 +65,9 @@ class TandemQueueWithBlocking(parent: ModelElement, name: String? = null) : Proc
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
+
+        init {
+            initialProcess = tandemQProcess
+        }
     }
 }

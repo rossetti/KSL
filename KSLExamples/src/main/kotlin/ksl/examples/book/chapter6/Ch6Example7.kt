@@ -98,7 +98,10 @@ class StemFairMixer(
             } else {
                 mySystemTimeNW.value = st
             }
+        }
 
+        init {
+            initialProcess = stemFairProcess
         }
     }
 }

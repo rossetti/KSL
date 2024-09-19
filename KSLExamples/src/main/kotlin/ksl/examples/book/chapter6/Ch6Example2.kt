@@ -34,7 +34,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
  *  This example illustrates how to set up and use an entity generator instance to generate
  *  and activate customers in a simple process.
  */
-fun main(){
+fun main() {
     val m = Model()
     val test = EntityGeneratorExample(m, "System")
     m.numberOfReplications = 30
@@ -55,18 +55,23 @@ class EntityGeneratorExample(
     private val wip = TWResponse(this, "${this.name}:WIP")
     private val tip = Response(this, "${this.name}:TimeInSystem")
     private val generator = EntityGenerator(::Customer, tba, tba)
-    private val counter = Counter(this, "${this.name}:NumServed" )
+    private val counter = Counter(this, "${this.name}:NumServed")
 
-    private inner class Customer: Entity() {
-        val mm1: KSLProcess = process{
+    private inner class Customer : Entity() {
+
+        val mm1: KSLProcess = process() {
             wip.increment()
             timeStamp = time
-            val a  = seize(worker)
+            val a = seize(worker)
             delay(st)
             release(a)
             tip.value = time - timeStamp
             wip.decrement()
             counter.increment()
+        }
+
+        init {
+            initialProcess = mm1
         }
     }
 }
