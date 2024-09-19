@@ -78,6 +78,10 @@ class TandemQueue(parent: ModelElement, name: String? = null) : ProcessModel(par
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
+
+        init {
+            initialProcess = tandemQProcess
+        }
     }
 }
 
@@ -113,6 +117,10 @@ class TandemQueueV2(parent: ModelElement, name: String? = null) : ProcessModel(p
             use(worker2, delayDuration = st2)
             timeInSystem.value = time - timeStamp
             wip.decrement()
+        }
+
+        init {
+            initialProcess = tandemQProcess
         }
     }
 }

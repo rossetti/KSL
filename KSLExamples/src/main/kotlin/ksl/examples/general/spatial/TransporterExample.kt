@@ -70,7 +70,7 @@ class SmallTransporterModel(parent: ModelElement, name: String? = null) : Proces
     val unloadingTimeRV: RandomSourceCIfc
         get() = myUnLoadingTime
     private inner class Part : Entity() {
-        val mfgProcess: KSLProcess = process {
+        val mfgProcess: KSLProcess = process(addToSequence = true) {
             currentLocation = enter
             wip.increment()
             timeStamp = time

@@ -102,6 +102,10 @@ class WalkInHealthClinic(parent: ModelElement, name: String? = null) : ProcessMo
             numServed.increment()
         }
 
+        init {
+            initialProcess = clinicProcess
+        }
+
         private fun renegeAction(event: KSLEvent<Patient>) {
             val request: ProcessModel.Entity.Request? = doctorQ.find { it.entity == event.message }
             if (request != null) {

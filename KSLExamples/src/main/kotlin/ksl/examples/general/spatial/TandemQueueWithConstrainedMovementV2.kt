@@ -61,7 +61,7 @@ class TandemQueueWithConstrainedMovementV2(parent: ModelElement, name: String? =
         get() = timeInSystem
 
     private inner class Customer : Entity() {
-        val tandemQProcess: KSLProcess = process {
+        val tandemQProcess: KSLProcess = process(addToSequence = true) {
             currentLocation = enter
             wip.increment()
             timeStamp = time

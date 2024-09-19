@@ -77,6 +77,10 @@ class TieDyeTShirts(
             myNumInSystem.decrement()
             mySystemTime.value = time - this@Order.createTime
         }
+
+        init {
+            initialProcess = orderMaking
+        }
     }
 
     private inner class Shirt(val orderNum: Long) : Entity() {

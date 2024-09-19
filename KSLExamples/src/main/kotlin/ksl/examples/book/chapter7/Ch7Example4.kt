@@ -127,5 +127,9 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
+
+        init {
+            initialProcess = testAndRepairProcess
+        }
     }
 }

@@ -85,7 +85,7 @@ class ConveyorExample3(
 
     private inner class PartType : Entity() {
 
-        val productionProcess = process {
+        val productionProcess = process(addToSequence = true) {
             myNumInSystem.increment()
             val cr = requestConveyor(conveyor, arrivalArea, numCellsNeeded = 1)
             rideConveyor(station1)

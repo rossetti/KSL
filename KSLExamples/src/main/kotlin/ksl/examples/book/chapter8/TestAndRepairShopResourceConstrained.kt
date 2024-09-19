@@ -155,5 +155,9 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
+
+        init {
+            initialProcess = testAndRepairProcess
+        }
     }
 }

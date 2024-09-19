@@ -73,7 +73,7 @@ class JobShop(parent: ModelElement, name: String? = null) : ProcessModel(parent,
     )
 
     private inner class Job : Entity() {
-        val jobShopProcess: KSLProcess = process {
+        val jobShopProcess: KSLProcess = process(addToSequence = true) {
             wip.increment()
             timeStamp = time
             // determine the job sequence
