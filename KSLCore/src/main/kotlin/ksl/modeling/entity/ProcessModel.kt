@@ -88,6 +88,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         override fun generate() {
             val entity = entityCreator()
+            // if a process name is provided, then check if the entity has a process with the given name
+            // if so, then activate the process, if no process name is provided, check
+            // if the entity has an initial process, if so, activate it
+            // if no valid process name and no initial process is specified, check if the
+            // entity is specified as using its process sequence, if so use the process sequence
+            // if no process are in the process sequence, then throw an exception
+            
             //TODO this needs revisiting
             require((entity.initialProcess != null) || (entity.processSequence.isNotEmpty())) {
                 "The entity must have an initial process or its process sequence must not be empty to be generated via an EntityGenerator"
@@ -230,6 +237,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  associated process sequence via the process sequence property.
          */
         var initialProcess: KSLProcess? = null
+
+        /**
+         *  Holds the named processes for the entity
+         */
+        private val myProcesses = mutableMapOf<String, KSLProcess>()
+
+        /**
+         *  Provides access to the entity's processes by name
+         */
+        val processes: Map<String, KSLProcess>
+            get() = myProcesses
 
         /**
          *  Controls whether the entity uses an assigned process sequence via the processSequence property
@@ -514,21 +532,31 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  the created coroutine use the methods for activating processes.
          *
          *  Note that by default, a process defined by this function, will not be
-         *  added automatically to the entity's processSequence.  If you want a defined process to
-         *  be part of the entity's process sequence, then set the addToSequence argument to true.
+         *  the entity's default initial process. To use an EntityGenerator the entity
+         *  must have a default initial process.
          *
          *  @param processName the name of the process
-         *  @param addToSequence whether to add the process to the entity's default process sequence. The default
-         *  value is false. The process will not be added automatically to the process sequence.
+         *  @param isInitialProcess whether to add the process to the entity's default initial process. The default
+         *  value is false. The process will not be used as the entity's default initial process.
          */
         protected fun process(
-            processName: String? = null,
-            addToSequence: Boolean = false,
+            processName: String,
+            isInitialProcess: Boolean = false,
             block: suspend KSLProcessBuilder.() -> Unit
         ): KSLProcess {
+            require(processName.isNotBlank()){"The name of the process cannot be empty/blank"}
+            require(!myProcesses.contains(processName))
+                {"The process name, $processName has already been used for the entity. The name must be unique."}
             val coroutine = ProcessCoroutine(processName)
-            if (addToSequence) {
-                processSequence.add(coroutine)
+            myProcesses[processName] = coroutine
+            if (isInitialProcess){
+                if (initialProcess == null) {
+                    initialProcess = coroutine
+                } else {
+                    var str = "Attempted to specify initial process to $processName via process() function.\n"
+                    str = str + "The initial process was already ${initialProcess!!.name}"
+                    logger.warn {str}
+                }
             }
             coroutine.continuation = block.createCoroutineUnintercepted(receiver = coroutine, completion = coroutine)
             return coroutine
