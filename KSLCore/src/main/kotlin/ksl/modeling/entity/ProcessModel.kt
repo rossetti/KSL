@@ -84,13 +84,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         this@ProcessModel, null, timeUntilTheFirstEntity,
         timeBtwEvents, maxNumberOfEvents, timeOfTheLastEvent, name
     ) {
+        //TODO maybe generator needs process name as an argument
 
         override fun generate() {
             val entity = entityCreator()
+            //TODO this needs revisiting
             require((entity.initialProcess != null) || (entity.processSequence.isNotEmpty())) {
                 "The entity must have an initial process or its process sequence must not be empty to be generated via an EntityGenerator"
             }
             // if the entity has an initial process use it otherwise try to use the process sequence
+            //TODO consider testing if entity follows a sequence
             if (entity.initialProcess != null) {
                 activate(entity.initialProcess!!, priority = activationPriority)
             } else {
@@ -114,9 +117,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         timeUntilActivation: Double = 0.0,
         priority: Int = KSLEvent.DEFAULT_PRIORITY,
     ): KSLEvent<KSLProcess>? {
+        //TODO this function is only called by EntityGenerator
         if (entity.processSequence.isEmpty()) {
             logger.warn { "Attempted to start an empty sequence for entity: $entity" }
         }
+        //TODO this may need to be changed
         entity.useProcessSequence = true
         entity.processSequenceIterator = entity.processSequence.listIterator()
         if (entity.processSequenceIterator.hasNext()) {
