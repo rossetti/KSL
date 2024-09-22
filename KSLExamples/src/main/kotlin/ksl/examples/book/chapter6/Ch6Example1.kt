@@ -91,7 +91,7 @@ class DriveThroughPharmacy(
     }
 
     private inner class Customer : Entity() {
-        val pharmacyProcess: KSLProcess = process("Pharmacy Process") {
+        val pharmacyProcess: KSLProcess = process {
             wip.increment()
             timeStamp = time
             val a = seize(pharmacists)

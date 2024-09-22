@@ -54,12 +54,12 @@ class EntityGeneratorExample(
     private val st = RandomVariable(this, ExponentialRV(3.0, 2))
     private val wip = TWResponse(this, "${this.name}:WIP")
     private val tip = Response(this, "${this.name}:TimeInSystem")
-    private val generator = EntityGenerator(::Customer, processName = "MM1", tba, tba)
+    private val generator = EntityGenerator(::Customer, tba, tba)
     private val counter = Counter(this, "${this.name}:NumServed")
 
     private inner class Customer : Entity() {
 
-        val mm1: KSLProcess = process("MM1") {
+        val mm1: KSLProcess = process {
             wip.increment()
             timeStamp = time
             val a = seize(worker)

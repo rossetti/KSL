@@ -107,7 +107,7 @@ class SeizeTesting(parent: ModelElement, name: String? = null) : ProcessModel(pa
     private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
 
     private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType,
-        "Production Process", myTBArrivals, myTBArrivals)
+        myTBArrivals, myTBArrivals)
 
     private val myDrillingRV = RandomVariable(this, UniformRV(6.0, 9.0, 2))
     private val myMillingRV = RandomVariable(this, TriangularRV(12.0, 16.0, 20.0, 3))
@@ -151,7 +151,7 @@ class SeizeTesting(parent: ModelElement, name: String? = null) : ProcessModel(pa
     private inner class PartType : Entity() {
         val isType1 = myJobTypeRV.value.toBoolean()
 
-        val productionProcess = process("Production Process") {
+        val productionProcess = process {
             delay(60.0/25.0) // arrival to drilling
             var done = false
             while (!done) {
@@ -232,7 +232,7 @@ class SeizeTesting(parent: ModelElement, name: String? = null) : ProcessModel(pa
     private inner class PartTypeV2 : Entity() {
         val isType1 = myJobTypeRV.value.toBoolean()
 
-        val productionProcess = process("Production Process") {
+        val productionProcess = process {
             delay(60.0/25.0) // arrival to drilling
             var done = false
             while (!done) {

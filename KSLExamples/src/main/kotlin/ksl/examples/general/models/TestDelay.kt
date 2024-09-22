@@ -42,7 +42,7 @@ class TestDelay(parent: ModelElement) : ProcessModel(parent, null) {
             println("time = $time after the second delay in ${this@Customer}")
         }
 
-        val seizeTest: KSLProcess = process("test seize"){
+        val seizeTest: KSLProcess = process {
        //     val a  = seize(resource)
             delay(10.0)
        //     release(a)

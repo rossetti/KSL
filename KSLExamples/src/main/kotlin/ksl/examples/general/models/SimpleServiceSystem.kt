@@ -58,7 +58,7 @@ class SimpleServiceSystem(
     }
 
     private inner class Customer : Entity() {
-        val serviceProcess: KSLProcess = process("Service Process") {
+        val serviceProcess: KSLProcess = process {
             wip.increment()
             timeStamp = time
             val a = seize(servers)

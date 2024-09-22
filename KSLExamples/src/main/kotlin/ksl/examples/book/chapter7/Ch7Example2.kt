@@ -39,7 +39,7 @@ class TandemQueueWithBlocking(parent: ModelElement, name: String? = null) : Proc
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
     val service2RV: RandomSourceCIfc
         get() = st2
-    private val myArrivalGenerator = EntityGenerator(::Customer, processName = "TandemQ Process", tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -51,7 +51,7 @@ class TandemQueueWithBlocking(parent: ModelElement, name: String? = null) : Proc
         get() = timeInSystem
 
     private inner class Customer : Entity() {
-        val tandemQProcess: KSLProcess = process(processName = "TandemQ Process") {
+        val tandemQProcess: KSLProcess = process {
             wip.increment()
             timeStamp = time
             val a1 = seize(worker1)
