@@ -703,7 +703,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id completed process = $completedProcess" }
             afterRunningProcess(completedProcess)
             val np = determineNextProcess(completedProcess)
-            //TODO no next process triggers has allocation checking logic
             if (np != null) {
                 previousProcess = completedProcess
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id to activate process = $np next" }
@@ -712,9 +711,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // no next process to run, entity must not have any allocations
                 dispose(completedProcess)
                 if (hasAllocations) {
-                    //TODO this is going to be a problem, this prevents an entity from seizing
-                    // a resource in one process and releasing it in another, which might be very common
-                    // is a warning sufficient?
                     val msg = StringBuilder()
                     msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had allocations when ending process $completedProcess with no next process!")
                     msg.appendLine()
