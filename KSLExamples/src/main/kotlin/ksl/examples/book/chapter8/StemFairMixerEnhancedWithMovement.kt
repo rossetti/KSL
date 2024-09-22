@@ -205,7 +205,7 @@ class StemFairMixerEnhancedWithMovement(parent: ModelElement, name: String? = nu
         val isMixer = myDecideToMix.value.toBoolean()
         val isLeaver = myDecideToLeave.value.toBoolean()
 
-        val mixingStudentProcess = process(addToSequence = false) {
+        val mixingStudentProcess = process("Mixing Student Process") {
             entity.currentLocation = entrance
             myNumInSystem.increment()
             moveTo(nameTags)
@@ -265,7 +265,7 @@ class StemFairMixerEnhancedWithMovement(parent: ModelElement, name: String? = nu
             }
         }
 
-        val recruitingOnlyStudentProcess = process(addToSequence = false) {
+        val recruitingOnlyStudentProcess = process("Recruiting Only Process") {
             entity.currentLocation = entrance
             myNumInSystem.increment()
             moveTo(nameTags, velocity = myWalkingSpeedRV)

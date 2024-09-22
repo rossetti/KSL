@@ -52,7 +52,8 @@ class TieDyeTShirts(
     private val myShirtMakers: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "ShirtMakers_R")
     private val myOrderQ: RequestQ = RequestQ(this, name = "OrderQ")
     private val myPackager: ResourceWithQ = ResourceWithQ(this, "Packager_R")
-    private val generator = EntityGenerator(::Order, myTBOrders, myTBOrders)
+    private val generator = EntityGenerator(::Order, processName = "Order Making",
+        myTBOrders, myTBOrders)
     private val completedShirtQ: BlockingQueue<Shirt> = BlockingQueue(this, name = "Completed Shirt Q")
 
     private inner class Order : Entity() {
@@ -78,9 +79,6 @@ class TieDyeTShirts(
             mySystemTime.value = time - this@Order.createTime
         }
 
-        init {
-            initialProcess = orderMaking
-        }
     }
 
     private inner class Shirt(val orderNum: Long) : Entity() {

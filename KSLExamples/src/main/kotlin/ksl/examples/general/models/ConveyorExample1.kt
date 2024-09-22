@@ -24,7 +24,8 @@ class ConveyorExample1(
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(10.0, 1)
 
-    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
+    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType,
+        processName = "Production Process", myTBArrivals, myTBArrivals)
 
     private val myPackingTimeRV = RandomVariable(this, TriangularRV(0.5, 2.0, 2.5, 2))
 
@@ -53,7 +54,7 @@ class ConveyorExample1(
     }
 
     private inner class PartType : Entity() {
-        val productionProcess = process(addToSequence = true) {
+        val productionProcess = process("Production Process") {
             myNumInSystem.increment()
             val conveyorRequest = requestConveyor(conveyor, arrivalArea, 1)
             rideConveyor(conveyorRequest, exitArea)

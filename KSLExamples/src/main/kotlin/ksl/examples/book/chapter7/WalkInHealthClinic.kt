@@ -44,7 +44,8 @@ class WalkInHealthClinic(parent: ModelElement, name: String? = null) : ProcessMo
     private val serviceRV = REmpiricalList(this, distributions, distributionCDF)
     private val typeMap = mapOf(highRV to 1, mediumRV to 2, lowRV to 3)
 
-    private val myArrivalGenerator = EntityGenerator(::Patient, myTBArrivals, myTBArrivals)
+    private val myArrivalGenerator = EntityGenerator(::Patient, processName = "Clinic Process",
+        myTBArrivals, myTBArrivals)
 
     private val timeInSystem: Response = Response(this, "${this.name}:TimeInSystem")
     val systemTime: ResponseCIfc
@@ -75,7 +76,7 @@ class WalkInHealthClinic(parent: ModelElement, name: String? = null) : ProcessMo
             priority = typeMap[service]!!
         }
 
-        val clinicProcess = process {
+        val clinicProcess = process("Clinic Process") {
             if ((priority == 3) && (doctorQ.size >= balkCriteria)) {
                 // record balking
                 balkingProb.value = 1.0

@@ -71,13 +71,13 @@ class ClinicDesignA(
         "SchedulingClerk", capacity = 1)
 
     private val patientGenerator = EntityGenerator(
-        ::Patient, timeUntilTheFirstEntity = timeBetweenArrivals,
+        ::Patient, processName = "Patient Process", timeUntilTheFirstEntity = timeBetweenArrivals,
         timeBtwEvents = timeBetweenArrivals,
         timeOfTheLastEvent = 10.0 * 60.0
     )
 
     private inner class Patient : Entity() {
-        val patientProcess: KSLProcess = process(addToSequence = true) {
+        val patientProcess: KSLProcess = process("Patient Process") {
             wip.increment()
             timeStamp = time
             val nurse = seize(nurses)

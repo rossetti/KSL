@@ -45,7 +45,8 @@ import ksl.utilities.random.rvariable.*
 class ConveyorExample4(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(12.0, 1)
-    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
+    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType,
+       "Production Process", myTBArrivals, myTBArrivals)
     init {
 //        myArrivalGenerator.initialMaximumNumberOfEvents = 2
     }
@@ -94,7 +95,7 @@ class ConveyorExample4(parent: ModelElement, name: String? = null) : ProcessMode
 
     private inner class PartType : Entity() {
 
-        val productionProcess = process(addToSequence = true) {
+        val productionProcess = process("Production Process") {
             myNumInSystem.increment()
  //           println("$time > entity ${entity.id} arrival")
             val cr = requestConveyor(conveyor, arrivalArea, numCellsNeeded = 1)

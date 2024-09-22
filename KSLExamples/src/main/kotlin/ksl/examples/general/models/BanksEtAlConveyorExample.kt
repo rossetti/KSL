@@ -106,7 +106,8 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
 
-    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType, myTBArrivals, myTBArrivals)
+    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType,
+        processName = "Type 1 Production Process", myTBArrivals, myTBArrivals)
 
     private val myDrillingRV = RandomVariable(this, UniformRV(6.0, 9.0, 2))
     private val myMillingRV = RandomVariable(this, TriangularRV(12.0, 16.0, 20.0, 3))
@@ -197,7 +198,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
     private inner class PartType : Entity() {
         val isType1 = myJobTypeRV.value.toBoolean()
 
-        val productionProcess = process(addToSequence = true) {
+        val productionProcess = process("Type 1 Production Process") {
             val cr1 = requestConveyor(arrivalConveyor, arrivalArea, 2)
             rideConveyor(cr1, myDrillingResource)
             exitConveyor(cr1)
@@ -298,7 +299,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
     private inner class PartTypeV2 : Entity() {
         val isType1 = myJobTypeRV.value.toBoolean()
 
-        val productionProcess = process(addToSequence = true) {
+        val productionProcess = process("Type 2 Production Process") {
             convey(arrivalConveyor, entryLocation = arrivalArea, destination = myDrillingResource, numCellsNeeded = 2)
             var done = false
             while (!done) {

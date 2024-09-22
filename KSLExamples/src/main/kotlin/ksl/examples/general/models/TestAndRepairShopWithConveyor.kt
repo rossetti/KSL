@@ -79,7 +79,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
     private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 2, testPlan3 to 2, testPlan4 to 2)
-    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Part, "Test and Repair Process", tba, tba)
     init {
  //          myArrivalGenerator.initialMaximumNumberOfEvents = 1
     }
@@ -115,7 +115,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 
     // define the process
     private inner class Part : Entity() {
-        val testAndRepairProcess: KSLProcess = process(addToSequence = true) {
+        val testAndRepairProcess: KSLProcess = process("Test and Repair Process") {
             wip.increment()
             timeStamp = time
             //every part goes to diagnostics

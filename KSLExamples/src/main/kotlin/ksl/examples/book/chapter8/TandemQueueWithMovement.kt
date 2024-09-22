@@ -42,7 +42,7 @@ class TandemQueueWithMovement(parent: ModelElement, name: String? = null) : Proc
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
     val service2RV: RandomSourceCIfc
         get() = st2
-    private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Customer, processName = "TandemQ Process", tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -54,7 +54,7 @@ class TandemQueueWithMovement(parent: ModelElement, name: String? = null) : Proc
         get() = timeInSystem
 
     private inner class Customer : Entity() {
-        val tandemQProcess: KSLProcess = process {
+        val tandemQProcess: KSLProcess = process("TandemQ Process") {
             currentLocation = enter
             wip.increment()
             timeStamp = time
