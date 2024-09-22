@@ -76,7 +76,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      */
     protected inner class EntityGenerator<T : Entity>(
         private val entityCreator: () -> T,
-        var processName: String? = null,
         timeUntilTheFirstEntity: RandomIfc = ConstantRV.ZERO,
         timeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
         maxNumberOfEvents: Long = Long.MAX_VALUE,
@@ -87,40 +86,50 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         this@ProcessModel, null, timeUntilTheFirstEntity,
         timeBtwEvents, maxNumberOfEvents, timeOfTheLastEvent, name
     ) {
+        //TODO EntityGenerator
 
         override fun generate() {
             val entity = entityCreator()
-            // if a process name is provided, then check if the entity has a process with the given name
-            // if so, then activate the process, and return
-            var msg: String? = null
-            if (entity.processes.containsKey(processName)) {
-                val initialProcess = entity.processes[processName]!!
-                activate(initialProcess, priority = activationPriority)
-                return
-            } else {
-                msg = "Attempted to generate entity: No process name specified"
-            }
-            // no process name provided, check for initial process being specified
-            // and activate it.
-            if (entity.initialProcess != null) {
-                activate(entity.initialProcess!!, priority = activationPriority)
-                return
-            } else {
-                msg = "$msg or no initial process specified"
-            }
-            // no process name or initial process, check if process sequence should be used
-            if (entity.useProcessSequence) {
-                require(entity.processSequence.isNotEmpty()) { "Use process sequence was on, but no elements in the sequence" }
-                startProcessSequence(entity, priority = activationPriority)
-                return
-            } else {
-                msg = "$msg and not using process sequence."
-            }
-            // if we get here there is an illegal state
-            // no process name or no initial process or process sequence
-            throw IllegalStateException(msg)
+            require(entity.defaultProcess != null) {"There was no initial process specified for the entity"}
+            activate(entity.defaultProcess!!, priority = activationPriority)
         }
 
+    }
+
+    /** Note that an EntitySequenceGenerator relies on the entity having at least one process
+     * that has been added to its process sequence and the entity's addToSequence
+     * property being true. The generator will create the entity and
+     * activate the process that is listed first in its process sequence.  If the
+     * entity does not have any processes in its process sequence
+     * then an illegal state exception will occur.
+     *
+     * @param entityCreator the thing that creates the entities of the particular type. Typically,
+     * a reference to the constructor of the class
+     * @param timeUntilTheFirstEntity the time until the first entity creation
+     * @param timeBtwEvents the time between entity creation
+     * @param maxNumberOfEvents the maximum number of entities to create
+     * @param timeOfTheLastEvent the time of the last entity creation
+     * @param activationPriority the priority for the activation of the entity
+     * @param name a name for the generator
+     */
+    protected inner class EntitySequenceGenerator<T : Entity>(
+        private val entityCreator: () -> T,
+        timeUntilTheFirstEntity: RandomIfc = ConstantRV.ZERO,
+        timeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
+        maxNumberOfEvents: Long = Long.MAX_VALUE,
+        timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
+        var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,
+        name: String? = null
+    ) : EventGenerator(
+        this@ProcessModel, null, timeUntilTheFirstEntity,
+        timeBtwEvents, maxNumberOfEvents, timeOfTheLastEvent, name
+    ) {
+        override fun generate() {
+            val entity = entityCreator()
+            require(entity.useProcessSequence){"Cannot start the sequence because the entity ${entity.name} does not use a sequence"}
+            require(entity.processSequence.isNotEmpty()) { "Use process sequence was on, but no processes are in the sequence" }
+            startProcessSequence(entity, priority = activationPriority)
+        }
     }
 
     /** Cause the entity to start the process sequence in the order specified by the sequence.
@@ -138,9 +147,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         priority: Int = KSLEvent.DEFAULT_PRIORITY,
     ): KSLEvent<KSLProcess>? {
         require(entity.useProcessSequence) { "The entity.useProcessSequence property must be true to start the sequence." }
-        if (entity.processSequence.isEmpty()) {
-            logger.warn { "Attempted to start an empty sequence for entity: $entity" }
-        }
+        require(entity.processSequence.isNotEmpty()) { "Use process sequence was on, but no processes are in the sequence" }
         entity.processSequenceIterator = entity.processSequence.listIterator()
         if (entity.processSequenceIterator.hasNext()) {
             val event = activate(entity.processSequenceIterator.next(), timeUntilActivation, priority)
@@ -244,10 +251,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         /**
          *  If supplied, this process will be the process activated by an EntityGenerator
-         *  that creates and activates the entity.  This will supersede the use of an
-         *  associated process sequence via the process sequence property.
+         *  that creates and activates the entity.
          */
-        var initialProcess: KSLProcess? = null
+        var defaultProcess: KSLProcess? = null
 
         /**
          *  Holds the named processes for the entity
@@ -551,22 +557,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  value is false. The process will not be used as the entity's default initial process.
          */
         protected fun process(
-            processName: String,
+            processName: String? = null,
             isInitialProcess: Boolean = false,
             block: suspend KSLProcessBuilder.() -> Unit
         ): KSLProcess {
-            require(processName.isNotBlank()) { "The name of the process cannot be empty/blank" }
             require(!myProcesses.contains(processName))
-            { "The process name, $processName has already been used for the entity. The name must be unique." }
+            { "The process name, $processName has already been used for the entity. The process name must be unique to the entity type." }
             val coroutine = ProcessCoroutine(processName)
-            myProcesses[processName] = coroutine
-            if (isInitialProcess) {
-                if (initialProcess == null) {
-                    initialProcess = coroutine
-                } else {
-                    var str = "Attempted to specify initial process to $processName via process() function.\n"
-                    str = str + "The initial process was already ${initialProcess!!.name}"
-                    logger.warn { str }
+            myProcesses[coroutine.name] = coroutine
+            // if this is the first defined process, make it the initial process by default
+            if (myProcesses.size == 1){
+                defaultProcess = coroutine
+            } else {
+                // not the first one, overwrite initial process only if told to do so
+                if (isInitialProcess){
+                    defaultProcess = coroutine
                 }
             }
             coroutine.continuation = block.createCoroutineUnintercepted(receiver = coroutine, completion = coroutine)
