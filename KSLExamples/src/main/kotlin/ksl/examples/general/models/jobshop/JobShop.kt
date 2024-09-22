@@ -54,7 +54,7 @@ class JobShop(parent: ModelElement, name: String? = null) : ProcessModel(parent,
     private val seqCDF = doubleArrayOf(0.3, 0.8, 1.0)
     private val seqList = REmpiricalList<List<JobStep>>(this, sequences, seqCDF)
 
-    private val myArrivalGenerator = EntityGenerator(::Job, myTBA, myTBA)
+    private val myArrivalGenerator = EntityGenerator(::Job, "Job Shop Process", myTBA, myTBA)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -73,7 +73,7 @@ class JobShop(parent: ModelElement, name: String? = null) : ProcessModel(parent,
     )
 
     private inner class Job : Entity() {
-        val jobShopProcess: KSLProcess = process(addToSequence = true) {
+        val jobShopProcess: KSLProcess = process("Job Shop Process") {
             wip.increment()
             timeStamp = time
             // determine the job sequence

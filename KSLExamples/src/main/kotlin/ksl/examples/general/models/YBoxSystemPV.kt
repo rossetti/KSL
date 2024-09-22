@@ -35,7 +35,8 @@ import ksl.utilities.random.rvariable.toBoolean
 class YBoxSystemPV(parent: ModelElement, name: String?= null) : ProcessModel(parent, name) {
     private val maxAdjustments = 2
     private var myArrivalRV: RandomVariable = RandomVariable(parent, ExponentialRV(15.0, 1))
-    private val myArrivalGenerator = EntityGenerator(::YBox, myArrivalRV, myArrivalRV)
+    private val myArrivalGenerator = EntityGenerator(::YBox,
+        "YBox Process", myArrivalRV, myArrivalRV)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -52,7 +53,7 @@ class YBoxSystemPV(parent: ModelElement, name: String?= null) : ProcessModel(par
 
     private inner class YBox : Entity(){
         var numAdjustments = 0
-        val productionProcess = process(addToSequence = true){
+        val productionProcess = process("YBox Process"){
             do {
                 val a = seize(inspectors, amountNeeded = 1)
                 delay(myInspectionRV)
