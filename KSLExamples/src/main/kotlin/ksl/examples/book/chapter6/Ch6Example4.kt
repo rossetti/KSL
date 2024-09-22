@@ -44,7 +44,7 @@ class SignalExample(parent: ModelElement, name: String? = null) : ProcessModel(p
     private val signal = Signal(this, "SignalExample")
 
     private inner class SignaledEntity : Entity() {
-        val waitForSignalProcess: KSLProcess = process("Wait For Signal Process") {
+        val waitForSignalProcess: KSLProcess = process {
             println("$time > before waiting for the signal: ${this@SignaledEntity.name}")
             waitFor(signal)
             println("$time > after getting the signal: ${this@SignaledEntity.name}")

@@ -88,7 +88,7 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
 
-    private val myArrivalGenerator = EntityGenerator(::Part, processName = "Test and Repair Process", tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -106,7 +106,7 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
 
     // define the process
     private inner class Part : Entity() {
-        val testAndRepairProcess: KSLProcess = process("Test and Repair Process") {
+        val testAndRepairProcess: KSLProcess = process {
             wip.increment()
             timeStamp = time
             //every part goes to diagnostics
@@ -126,10 +126,6 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
             }
             timeInSystem.value = time - timeStamp
             wip.decrement()
-        }
-
-        init {
-            initialProcess = testAndRepairProcess
         }
     }
 }

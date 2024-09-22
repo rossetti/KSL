@@ -40,7 +40,7 @@ class WaitForProcessExample(parent: ModelElement) : ProcessModel(parent, null) {
     private var n = 1
 
     private inner class Customer : Entity() {
-        val simpleProcess: KSLProcess = process("SimpleProcess") {
+        val simpleProcess: KSLProcess = process {
             println("\t $time > starting simple process for entity: ${this@Customer.name}")
             wip.increment()
             timeStamp = time
@@ -50,7 +50,7 @@ class WaitForProcessExample(parent: ModelElement) : ProcessModel(parent, null) {
             println("\t $time > completed simple process for entity: ${this@Customer.name}")
         }
 
-        val wfp = process("WaitForAnotherProcess") {
+        val wfp = process {
             val c = Customer()
             println("$time > before waitFor simple process for entity: ${this@Customer.name}")
             waitFor(c.simpleProcess)

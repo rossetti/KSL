@@ -40,7 +40,7 @@ class HoldQExample(parent: ModelElement) : ProcessModel(parent, null)  {
     private val myEventActionOne: EventActionOne = EventActionOne()
 
     private inner class Customer: Entity() {
-        val holdProcess : KSLProcess = process("Hold Process") {
+        val holdProcess : KSLProcess = process {
             println("time = $time : before being held customer = ${this@Customer.name}")
             hold(myHoldQueue)
             println("time = $time : after being held customer = ${this@Customer.name}")

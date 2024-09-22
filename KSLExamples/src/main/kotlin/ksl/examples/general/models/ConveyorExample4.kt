@@ -46,7 +46,7 @@ class ConveyorExample4(parent: ModelElement, name: String? = null) : ProcessMode
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(12.0, 1)
     private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType,
-       "Production Process", myTBArrivals, myTBArrivals)
+       myTBArrivals, myTBArrivals)
     init {
 //        myArrivalGenerator.initialMaximumNumberOfEvents = 2
     }
@@ -95,7 +95,7 @@ class ConveyorExample4(parent: ModelElement, name: String? = null) : ProcessMode
 
     private inner class PartType : Entity() {
 
-        val productionProcess = process("Production Process") {
+        val productionProcess = process {
             myNumInSystem.increment()
  //           println("$time > entity ${entity.id} arrival")
             val cr = requestConveyor(conveyor, arrivalArea, numCellsNeeded = 1)

@@ -52,7 +52,7 @@ class SmallTransporterModel(parent: ModelElement, name: String? = null) : Proces
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
     val service2RV: RandomSourceCIfc
         get() = st2
-    private val myArrivalGenerator = EntityGenerator(::Part, "Mfg Process", tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -70,7 +70,7 @@ class SmallTransporterModel(parent: ModelElement, name: String? = null) : Proces
     val unloadingTimeRV: RandomSourceCIfc
         get() = myUnLoadingTime
     private inner class Part : Entity() {
-        val mfgProcess: KSLProcess = process("Mfg Process") {
+        val mfgProcess: KSLProcess = process {
             currentLocation = enter
             wip.increment()
             timeStamp = time

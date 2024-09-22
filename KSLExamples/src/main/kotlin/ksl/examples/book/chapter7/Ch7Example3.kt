@@ -66,7 +66,7 @@ class ResourcePoolExample(parent: ModelElement) : ProcessModel(parent, null) {
     }
 
     private inner class Customer: Entity() {
-        val usePool1: KSLProcess = process("Use Pool 1 Process") {
+        val usePool1: KSLProcess = process("Pool 1 Process") {
             wip1.increment()
             timeStamp = time
             val a  = seize(pool1, 1)
@@ -76,7 +76,7 @@ class ResourcePoolExample(parent: ModelElement) : ProcessModel(parent, null) {
             wip1.decrement()
         }
 
-        val usePool2: KSLProcess = process("Use Pool 2 Process") {
+        val usePool2: KSLProcess = process("Pool 2 Process") {
             wip2.increment()
             timeStamp = time
             val a  = seize(pool2, 1)

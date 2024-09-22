@@ -61,14 +61,13 @@ class StemFairMixer(
     val malWartRecruiters : ResourceWithQCIfc
         get() = myMalWartRecruiters
 
-    private val generator = EntityGenerator(::Student, processName = "STEM Fair Process",
-        myTBArrivals, myTBArrivals)
+    private val generator = EntityGenerator(::Student, myTBArrivals, myTBArrivals)
 
     private inner class Student : Entity() {
         private val isWanderer = myDecideToWander.value.toBoolean()
         private val isLeaver = myDecideToLeave.value.toBoolean()
 
-        val stemFairProcess = process("STEM Fair Process") {
+        val stemFairProcess = process {
             myNumInSystem.increment()
             delay(myNameTagTimeRV)
             if (isWanderer) {

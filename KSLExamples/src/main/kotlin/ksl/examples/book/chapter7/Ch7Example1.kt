@@ -54,8 +54,7 @@ class TandemQueue(parent: ModelElement, name: String? = null) : ProcessModel(par
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
     val service2RV: RandomSourceCIfc
         get() = st2
-    private val myArrivalGenerator = EntityGenerator(::Customer, processName = "TandemQ Process",
-        tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -67,7 +66,7 @@ class TandemQueue(parent: ModelElement, name: String? = null) : ProcessModel(par
         get() = timeInSystem
 
     private inner class Customer : Entity(){
-        val tandemQProcess : KSLProcess = process("TandemQ Process") {
+        val tandemQProcess : KSLProcess = process {
             wip.increment()
             timeStamp = time
             seize(worker1)
@@ -95,7 +94,7 @@ class TandemQueueV2(parent: ModelElement, name: String? = null) : ProcessModel(p
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
     val service2RV: RandomSourceCIfc
         get() = st2
-    private val myArrivalGenerator = EntityGenerator(::Customer, processName = "TandemQ Process", tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -107,7 +106,7 @@ class TandemQueueV2(parent: ModelElement, name: String? = null) : ProcessModel(p
         get() = timeInSystem
 
     private inner class Customer : Entity(){
-        val tandemQProcess : KSLProcess = process (processName = "TandemQ Process") {
+        val tandemQProcess : KSLProcess = process {
             wip.increment()
             timeStamp = time
             use(worker1, delayDuration = st1)

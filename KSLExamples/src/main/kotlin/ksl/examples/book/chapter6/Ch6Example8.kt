@@ -52,8 +52,7 @@ class TieDyeTShirts(
     private val myShirtMakers: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "ShirtMakers_R")
     private val myOrderQ: RequestQ = RequestQ(this, name = "OrderQ")
     private val myPackager: ResourceWithQ = ResourceWithQ(this, "Packager_R")
-    private val generator = EntityGenerator(::Order, processName = "Order Making",
-        myTBOrders, myTBOrders)
+    private val generator = EntityGenerator(::Order, myTBOrders, myTBOrders)
     private val completedShirtQ: BlockingQueue<Shirt> = BlockingQueue(this, name = "Completed Shirt Q")
 
     private inner class Order : Entity() {
@@ -61,7 +60,7 @@ class TieDyeTShirts(
         val size: Int = myOrderSize.value.toInt()
         var completedShirts: List<Shirt> = emptyList() // not really necessary
 
-        val orderMaking: KSLProcess = process("Order Making") {
+        val orderMaking: KSLProcess = process {
             myNumInSystem.increment()
             for (i in 1..size) {
                 val shirt = Shirt(this@Order.id)
@@ -82,7 +81,7 @@ class TieDyeTShirts(
     }
 
     private inner class Shirt(val orderNum: Long) : Entity() {
-        val shirtMaking: KSLProcess = process("Shirt Making") {
+        val shirtMaking: KSLProcess = process {
             val a = seize(myShirtMakers)
             delay(myShirtMakingTime)
             release(a)

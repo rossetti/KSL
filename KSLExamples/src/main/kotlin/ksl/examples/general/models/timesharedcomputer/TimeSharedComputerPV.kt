@@ -47,7 +47,7 @@ class TimeSharedComputerPV(
     }
 
     private inner class Terminal : Entity() {
-        val thinkingProcess: KSLProcess = process("Thinking Process") {
+        val thinkingProcess: KSLProcess = process {
             do {
                 myNumTerminalsThinking.increment()
                 delay(myThinkingTimeRV)
@@ -72,7 +72,7 @@ class TimeSharedComputerPV(
                 remainingServiceTime + mySwapTime
             }
 
-        val computingProcess: KSLProcess = process("Computing Process") {
+        val computingProcess: KSLProcess = process {
             while (remainingServiceTime > 0) {
                 val a = seize(cpu)
                 delay(runtime)

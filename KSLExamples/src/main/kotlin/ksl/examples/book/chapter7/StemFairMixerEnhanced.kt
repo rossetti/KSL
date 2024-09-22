@@ -194,7 +194,7 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         val isMixer = myDecideToMix.value.toBoolean()
         val isLeaver = myDecideToLeave.value.toBoolean()
 
-        val mixingStudentProcess = process("Mixing Student Process") {
+        val mixingStudentProcess = process {
             myNumInSystem.increment()
             delay(walkToNameTags)
             // at name tag station
@@ -253,7 +253,7 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
             }
         }
 
-        val recruitingOnlyStudentProcess = process("Recruiting Only Process") {
+        val recruitingOnlyStudentProcess = process {
             myNumInSystem.increment()
             delay(walkToNameTags)
             // at name tag station
