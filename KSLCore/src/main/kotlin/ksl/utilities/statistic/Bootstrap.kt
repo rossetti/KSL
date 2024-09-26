@@ -112,6 +112,13 @@ interface BootstrapEstimateIfc {
         get() = acrossBootstrapAverage - originalDataEstimate
 
     /**
+     *  An estimate of the mean squared error of the estimator based on bootstrapping.
+     *  This is the bootstrap bias squared plus the bootstrap estimate of the variance of the estimator
+     */
+    val bootstrapMSEEstimate: Double
+        get() = bootstrapBiasEstimate*bootstrapBiasEstimate + acrossBootstrapStatistics.variance
+
+    /**
      * This is the standard deviation of the across bootstrap observations of the estimator
      * for each bootstrap generated
      *
