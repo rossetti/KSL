@@ -10,6 +10,21 @@ import ksl.utilities.statistic.MVBSEstimatorIfc
 import ksl.utilities.statistic.StatisticIfc
 
 /**
+ *  Holds information from the parameter bootstrapping process.
+ *  @param totalMSE the total estimated mean squared error summed over the parameters
+ *  @param totalBias the total estimated bias summed over the parameters
+ *  @param totalVariance the total estimated variance summed over the parameters. This ignores
+ *  any dependence between parameters.
+ *  @param estimates the base bootstrap estimate for each parameter
+ */
+data class BootStrapResults(
+    val totalMSE: Double,
+    val totalBias: Double,
+    val totalVariance: Double,
+    val estimates: Map<String, BootstrapEstimate>
+)
+
+/**
  *  A data class to hold information from a parameter estimation algorithm.
  *  In general the algorithm may fail due to data or numerical computation issues.
  *  The [parameters] may be null because of such issues; however,
@@ -57,6 +72,26 @@ class EstimationResult(
                 originalData
             }
         }
+
+    /**
+     *  Computes and saves the bootstrap results for the quality
+     *  of the parameter estimates.
+     */
+    fun bootStrapResults(
+        numBootstrapSamples: Int = 399,
+        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    ): BootStrapResults {
+        val map = bootstrapParameters(numBootstrapSamples)
+        var tb = 0.0
+        var tm = 0.0
+        var tv = 0.0
+        for((n,b) in map){
+            tb = tb + b.bootstrapBiasEstimate
+            tm = tm + b.bootstrapMSEEstimate
+            tv = tv + b.acrossBootstrapStatistics.variance
+        }
+        return BootStrapResults(tb, tm, tv, map)
+    }
 
     /**
      *  Performs the bootstrap sampling of the parameters associated
