@@ -332,7 +332,7 @@ fun testBootStrappingOfFamily(){
         AndersonDarlingScoringModel(),
         CramerVonMisesScoringModel(),
         QQCorrelationScoringModel(),
-       // ParameterErrorModel()
+       // ParameterMSEModel()
     )
     val pdfModeler = PDFModeler(data, sm)
     pdfModeler.showAllResultsInBrowser()
