@@ -43,6 +43,8 @@ abstract class PDFScoringModel(
     // if necessary consider using delegation, but that may not even be necessary.
     // it appears that it needs to be a metric because the metric is needed
     // to create the score and because the MODA model needs metrics.
+    // newInstance() comes from Metric
+    // badScore() comes from Metric
 
     //TODO consider making this protected
     protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
