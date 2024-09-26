@@ -28,10 +28,10 @@ class CramerVonMisesScoringModel : PDFScoringModel(
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
-            return Score(this, Double.MAX_VALUE, true)
+            return Score(metric, Double.MAX_VALUE, true)
         }
         val score = Statistic.cramerVonMisesTestStatistic(data, cdf)
-        return Score(this, score, true)
+        return Score(metric, score, true)
     }
 
     override fun newInstance(): CramerVonMisesScoringModel {

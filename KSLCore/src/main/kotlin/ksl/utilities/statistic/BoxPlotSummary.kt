@@ -50,6 +50,12 @@ class BoxPlotSummary(
     data: DoubleArray,
     name: String? = null
 ): IdentityIfc by Identity(name), BoxPlotDataIfc {
+
+    /**
+     *  @return a read-only view of the data
+     */
+    val data: List<Double> = data.toList()
+
     /**
      * @return the estimated median
      */

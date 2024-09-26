@@ -36,7 +36,11 @@ abstract class PDFScoringModel(
     domain: Interval = Interval(0.0, Double.MAX_VALUE),
     allowLowerLimitAdjustment: Boolean = true,
     allowUpperLimitAdjustment: Boolean = true
-) : Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment){
+) {
+    //: Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment){
+
+    val metric = Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment)
+    val domain: Interval = metric.domain
 
     //TODO a scoring model should probably not be a sub-class of metric
     // it should have an instance of one, but not be one
@@ -49,13 +53,15 @@ abstract class PDFScoringModel(
     //TODO consider making this protected
     protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
-    abstract override fun newInstance(): PDFScoringModel
+    //abstract override fun newInstance(): PDFScoringModel
+
+    abstract fun newInstance(): PDFScoringModel
 
     //TODO consider making this protected
     protected fun score(data: DoubleArray, parameters: RVParameters) : Score {
         val cdf = PDFModeler.createDistribution(parameters)
         return if (cdf == null){
-            badScore()
+            metric.badScore()
         } else {
             score(data, cdf)
         }
@@ -65,7 +71,7 @@ abstract class PDFScoringModel(
     open fun score(result: EstimationResult) : Score {
         val parameters = result.parameters
         return if (parameters == null){
-            badScore()
+            metric.badScore()
         } else {
             // need to score the model based on data it was fit on
             val data = if (result.shiftedData != null){

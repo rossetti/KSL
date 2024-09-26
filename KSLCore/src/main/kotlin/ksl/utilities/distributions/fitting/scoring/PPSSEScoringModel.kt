@@ -20,14 +20,14 @@ class PPSSEScoringModel(
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
-            return Score(this, Double.MAX_VALUE, true)
+            return Score(metric, Double.MAX_VALUE, true)
         }
         val orderStats = data.orderStatistics()
         val empProbabilities = Statistic.empiricalProbabilities(orderStats.size, empDistType)
         val theoreticalProbabilities: DoubleArray = DoubleArray(orderStats.size) { i -> cdf.cdf(orderStats[i]) }
         val errors = KSLArrays.subtractElements(theoreticalProbabilities, empProbabilities)
         val sse = errors.sumOfSquares()
-        return Score(this, sse, true)
+        return Score(metric, sse, true)
     }
 
     override fun newInstance(): PPSSEScoringModel {
