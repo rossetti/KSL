@@ -5,6 +5,11 @@ import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.moda.Score
 import kotlin.math.sqrt
 
+/**
+ *  The scoring is based on bootstrapping the mean squared error of the
+ *  estimated parameter. The score is the square root of the total mean squared
+ *  error based on the sum over the parameters.
+ */
 class ParameterMSEModel : PDFScoringModel("PMSE") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
