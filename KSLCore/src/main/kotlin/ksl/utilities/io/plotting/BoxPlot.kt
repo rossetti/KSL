@@ -49,7 +49,7 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : BasePlot() {
                     upper = "thirdQuartile"
                     ymin = "lowerWhisker"
                     ymax = "upperWhisker"
-                } + 
+                } +
                 labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
