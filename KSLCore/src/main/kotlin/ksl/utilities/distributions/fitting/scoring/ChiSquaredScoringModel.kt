@@ -29,7 +29,7 @@ class ChiSquaredScoringModel : PDFScoringModel(
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
-            return Score(this, Double.MAX_VALUE, true)
+            return Score(metric, Double.MAX_VALUE, true)
         }
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
 //        bp.sort()
@@ -38,7 +38,7 @@ class ChiSquaredScoringModel : PDFScoringModel(
         bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
         bp = Histogram.addUpperLimit(domain.upperLimit, bp)
         val chiSq = Statistic.chiSqTestStatistic(data, bp, cdf)
-        return Score(this, chiSq,true)
+        return Score(metric, chiSq,true)
     }
 
     override fun newInstance(): ChiSquaredScoringModel {

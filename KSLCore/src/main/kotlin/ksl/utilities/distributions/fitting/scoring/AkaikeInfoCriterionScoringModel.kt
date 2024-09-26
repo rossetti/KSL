@@ -43,30 +43,30 @@ class AkaikeInfoCriterionScoringModel(
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()) {
-            return Score(this, domain.upperLimit, true)
+            return Score(metric, domain.upperLimit, true)
         }
         val k = cdf.parameters().size
         val lm = cdf.sumLogLikelihood(data)
         // if there is a problem, just return bad score.
         if (!lm.isFinite()) {
             KSL.logger.warn { "AIC scoring model: Bounded score: ${domain.upperLimit}  made for $cdf : log-likelihood was not finite" }
-            return Score(this, domain.upperLimit, true)
+            return Score(metric, domain.upperLimit, true)
         }
         val score = Statistic.akaikeInfoCriterion(data.size, k, lm)
         // if there is a problem, just return bad score.
         if (!score.isFinite() || score.isNaN()) {
             KSL.logger.warn { "AIC scoring model: Bounded score: ${domain.upperLimit} made for $cdf : AIC score was infinite/NaN" }
-            return Score(this, domain.upperLimit, true)
+            return Score(metric, domain.upperLimit, true)
         }
         // bound the score within the domain
         if (score <= domain.lowerLimit) {
             KSL.logger.warn { "AIC scoring model: Bounded score: ${domain.upperLimit} made for $cdf : AIC score was outside lower domain" }
-            return Score(this, domain.lowerLimit, true)
+            return Score(metric, domain.lowerLimit, true)
         }
         if (score >= domain.upperLimit) {
             KSL.logger.warn { "AIC scoring model: Bounded score: ${domain.upperLimit} made for $cdf : AIC score was outside upper domain" }
-            return Score(this, domain.upperLimit, true)
+            return Score(metric, domain.upperLimit, true)
         }
-        return Score(this, score, true)
+        return Score(metric, score, true)
     }
 }

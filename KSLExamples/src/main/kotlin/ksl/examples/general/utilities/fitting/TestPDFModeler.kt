@@ -369,5 +369,5 @@ fun testPearsonType5(){
 
     val sm = AndersonDarlingScoringModel()
 
-    sm.score(data, result.parameters!!)
+  //  sm.score(data, result.parameters!!)
 }

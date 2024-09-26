@@ -34,7 +34,7 @@ class SquaredErrorScoringModel : PDFScoringModel(
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
-            return Score(this, Double.MAX_VALUE, true)
+            return Score(metric, Double.MAX_VALUE, true)
         }
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
 //        bp.sort()
@@ -49,13 +49,13 @@ class SquaredErrorScoringModel : PDFScoringModel(
         val observed = h.binFractions
         val n = predicted.size.coerceAtMost(observed.size)
         if (n == 0){
-            return Score(this, Double.MAX_VALUE, true)
+            return Score(metric, Double.MAX_VALUE, true)
         }
         var sum = 0.0
         for (i in 0.until(n)) {
             sum = sum + (predicted[i] - observed[i]) * (predicted[i] - observed[i])
         }
-        return Score(this, sum,true)
+        return Score(metric, sum,true)
     }
 
     override fun newInstance(): SquaredErrorScoringModel {

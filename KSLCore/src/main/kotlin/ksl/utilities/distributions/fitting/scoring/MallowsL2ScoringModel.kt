@@ -23,7 +23,7 @@ class MallowsL2ScoringModel : PDFScoringModel(
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
-            return Score(this, Double.MAX_VALUE, true)
+            return Score(metric, Double.MAX_VALUE, true)
         }
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
         // make sure that they are unique
@@ -38,14 +38,14 @@ class MallowsL2ScoringModel : PDFScoringModel(
         val observed = h.binFractions
         val n = predicted.size.coerceAtMost(observed.size)
         if (n == 0){
-            return Score(this, Double.MAX_VALUE, true)
+            return Score(metric, Double.MAX_VALUE, true)
         }
         var sum = 0.0
         for (i in 0.until(n)) {
             sum = sum + (predicted[i] - observed[i]) * (predicted[i] - observed[i])
         }
         val mL2 = sqrt(sum/n.toDouble())
-        return Score(this, mL2,true)
+        return Score(metric, mL2,true)
     }
 
     override fun newInstance(): MallowsL2ScoringModel {

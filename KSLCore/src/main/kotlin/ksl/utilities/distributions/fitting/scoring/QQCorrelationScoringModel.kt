@@ -21,12 +21,12 @@ class QQCorrelationScoringModel(
 ) : PDFScoringModel("QQC", domain, allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = false) {
 
     init {
-        direction = MetricIfc.Direction.BiggerIsBetter
+        metric.direction = MetricIfc.Direction.BiggerIsBetter
     }
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         if (data.isEmpty()){
-            return Score(this, 0.0, true)
+            return Score(metric, 0.0, true)
         }
         val orderStats = data.orderStatistics()
         val empProbabilities = Statistic.empiricalProbabilities(orderStats.size, empDistType)
@@ -38,7 +38,7 @@ class QQCorrelationScoringModel(
         } else {
             stat.correlationXY
         }
-        return Score(this, s, true)
+        return Score(metric, s, true)
     }
 
     override fun newInstance(): QQCorrelationScoringModel {

@@ -3,6 +3,7 @@ package ksl.utilities.io.plotting
 import ksl.utilities.statistic.BoxPlotSummary
 import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.geom.geomBoxplot
+import org.jetbrains.letsPlot.geom.geomJitter
 import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
@@ -39,6 +40,7 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : BasePlot() {
            the geomBoxplot() function can extract the required values.  Somehow
            the data map is then part of the generated html
          */
+       // val dm = mapOf<String, List<Double>>("data" to boxPlotSummary.data)
         val p = ggplot(data) +
                 geomBoxplot(stat = Stat.identity) {
                     x = "name"
@@ -47,7 +49,7 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : BasePlot() {
                     upper = "thirdQuartile"
                     ymin = "lowerWhisker"
                     ymax = "upperWhisker"
-                } +
+                } + 
                 labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
