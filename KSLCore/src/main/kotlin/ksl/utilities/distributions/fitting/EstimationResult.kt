@@ -90,7 +90,7 @@ class EstimationResult(
             tm = tm + b.bootstrapMSEEstimate
             tv = tv + b.acrossBootstrapStatistics.variance
         }
-        return BootStrapResults(tb, tm, tv, map)
+        return BootStrapResults(tm, tb, tv, map)
     }
 
     /**
