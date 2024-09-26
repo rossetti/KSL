@@ -24,8 +24,7 @@ import ksl.utilities.distributions.fitting.*
 import ksl.utilities.distributions.fitting.estimators.ExponentialMLEParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.PearsonType5MLEParameterEstimator
 import ksl.utilities.distributions.fitting.estimators.WeibullMLEParameterEstimator
-import ksl.utilities.distributions.fitting.scoring.AndersonDarlingScoringModel
-import ksl.utilities.distributions.fitting.scoring.ChiSquaredScoringModel
+import ksl.utilities.distributions.fitting.scoring.*
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.writeToFile
@@ -327,7 +326,15 @@ fun testBootStrappingOfFamily(){
     val rv = ExponentialRV(mean = 10.0)
     //   val rv = TriangularRV(3.0, 6.0, 10.0)
     val data = rv.sample(100)
-    val pdfModeler = PDFModeler(data)
+
+    val sm = setOf(
+        BayesianInfoCriterionScoringModel(),
+        AndersonDarlingScoringModel(),
+        CramerVonMisesScoringModel(),
+        QQCorrelationScoringModel(),
+       // ParameterErrorModel()
+    )
+    val pdfModeler = PDFModeler(data, sm)
     pdfModeler.showAllResultsInBrowser()
 
     val freq = PDFModeler.bootstrapFamilyFrequencyAsDataFrame(data, EvaluationMethod.Scoring,

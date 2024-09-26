@@ -3,13 +3,13 @@ package ksl.utilities.distributions.fitting.scoring
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.moda.Score
+import kotlin.math.sqrt
 
-class ParameterErrorModel(
-
-) : PDFScoringModel("PMSE", allowLowerLimitAdjustment = true, allowUpperLimitAdjustment = true) {
+class ParameterMSEModel : PDFScoringModel("PMSE") {
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
-        TODO("Not yet implemented")
+        // this will never be called
+        return metric.badScore()
     }
 
     override fun score(result: EstimationResult): Score {
@@ -18,12 +18,12 @@ class ParameterErrorModel(
             metric.badScore()
         } else {
             val bsr = result.bootStrapResults()
-            return Score(metric, bsr.totalMSE)
+            return Score(metric, sqrt(bsr.totalMSE))
         }
     }
 
     override fun newInstance(): PDFScoringModel {
-        return ParameterErrorModel()
+        return ParameterMSEModel()
     }
 
 }
