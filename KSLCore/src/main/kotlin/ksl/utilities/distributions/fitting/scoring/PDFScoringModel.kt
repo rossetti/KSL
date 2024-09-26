@@ -60,7 +60,7 @@ abstract class PDFScoringModel(
     }
 
     //TODO consider making this open
-    fun score(result: EstimationResult) : Score {
+    open fun score(result: EstimationResult) : Score {
         val parameters = result.parameters
         return if (parameters == null){
             badScore()
