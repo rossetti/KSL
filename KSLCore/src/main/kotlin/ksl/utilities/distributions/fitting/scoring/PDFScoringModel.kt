@@ -53,33 +53,21 @@ abstract class PDFScoringModel(
     //TODO consider making this protected
     protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
-    //abstract override fun newInstance(): PDFScoringModel
-
     abstract fun newInstance(): PDFScoringModel
 
-    //TODO consider making this protected
-    protected fun score(data: DoubleArray, parameters: RVParameters) : Score {
-        val cdf = PDFModeler.createDistribution(parameters)
-        return if (cdf == null){
-            metric.badScore()
-        } else {
-            score(data, cdf)
-        }
-    }
-
-    //TODO consider making this open
     open fun score(result: EstimationResult) : Score {
         val parameters = result.parameters
         return if (parameters == null){
             metric.badScore()
         } else {
+            val cdf = PDFModeler.createDistribution(parameters) ?: return metric.badScore()
             // need to score the model based on data it was fit on
             val data = if (result.shiftedData != null){
                 result.shiftedData!!.shiftedData
             } else {
                 result.originalData
             }
-            score(data, parameters)
+            score(data, cdf)
         }
     }
 
