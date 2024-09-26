@@ -136,7 +136,7 @@ class RQInventoryModel(
     }
 
     fun approxOptimalReorderPtViaBackOrderModel(): Double {
-        val q = approxEOQ()
+        //val q = approxEOQ()
         val h = holdingCostPerUnitPerPeriod
         val b: Double = backOrderCostPerUnitPerPeriod
         return (ltdDist.invCDF(b / (b + h)))

@@ -81,11 +81,11 @@ class EstimationResult(
         numBootstrapSamples: Int = 399,
         stream: RNStreamIfc = KSLRandom.nextRNStream(),
     ): BootStrapResults {
-        val map = bootstrapParameters(numBootstrapSamples)
+        val map = bootstrapParameters(numBootstrapSamples, stream)
         var tb = 0.0
         var tm = 0.0
         var tv = 0.0
-        for((n,b) in map){
+        for((_,b) in map){
             tb = tb + b.bootstrapBiasEstimate
             tm = tm + b.bootstrapMSEEstimate
             tv = tv + b.acrossBootstrapStatistics.variance

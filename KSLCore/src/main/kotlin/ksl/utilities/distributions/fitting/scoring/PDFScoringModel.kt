@@ -44,11 +44,13 @@ abstract class PDFScoringModel(
     // it appears that it needs to be a metric because the metric is needed
     // to create the score and because the MODA model needs metrics.
 
-    abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
+    //TODO consider making this protected
+    protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
     abstract override fun newInstance(): PDFScoringModel
 
-    fun score(data: DoubleArray, parameters: RVParameters) : Score {
+    //TODO consider making this protected
+    protected fun score(data: DoubleArray, parameters: RVParameters) : Score {
         val cdf = PDFModeler.createDistribution(parameters)
         return if (cdf == null){
             badScore()
@@ -57,6 +59,7 @@ abstract class PDFScoringModel(
         }
     }
 
+    //TODO consider making this open
     fun score(result: EstimationResult) : Score {
         val parameters = result.parameters
         return if (parameters == null){
