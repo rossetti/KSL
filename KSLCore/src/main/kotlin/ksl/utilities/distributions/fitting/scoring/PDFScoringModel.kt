@@ -37,20 +37,10 @@ abstract class PDFScoringModel(
     allowLowerLimitAdjustment: Boolean = true,
     allowUpperLimitAdjustment: Boolean = true
 ) {
-    //: Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment){
 
     val metric = Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment)
     val domain: Interval = metric.domain
 
-    //TODO a scoring model should probably not be a sub-class of metric
-    // it should have an instance of one, but not be one
-    // if necessary consider using delegation, but that may not even be necessary.
-    // it appears that it needs to be a metric because the metric is needed
-    // to create the score and because the MODA model needs metrics.
-    // newInstance() comes from Metric
-    // badScore() comes from Metric
-
-    //TODO consider making this protected
     protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
     abstract fun newInstance(): PDFScoringModel
@@ -70,18 +60,6 @@ abstract class PDFScoringModel(
             score(data, cdf)
         }
     }
-
-//    /**
-//     *  Returns an invalid score that has the worst possible value
-//     *  according to the direction of the meaning of better.
-//     */
-//    fun badScore() : Score {
-//        return if (direction == MetricIfc.Direction.BiggerIsBetter){
-//            Score(this, domain.lowerLimit, false)
-//        } else {
-//            Score(this, domain.upperLimit, false)
-//        }
-//    }
 
     companion object{
 
