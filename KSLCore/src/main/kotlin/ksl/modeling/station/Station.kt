@@ -120,15 +120,15 @@ abstract class Station(
         this.sender = sender
     }
 
+    protected fun arrivalCollection(arrivingQObject: QObject) {
+        myNS.increment() // new qObject arrived
+        arrivingQObject.stationArriveTime = time
+    }
+
     protected fun departureCollection(completedQObject: QObject) {
         myNS.decrement() // qObject completed
         myNumProcessed.increment()
-        myStationTime.value = (time - completedQObject.timeStamp)
-    }
-
-    protected fun arrivalCollection(arrivingQObject: QObject) {
-        myNS.increment() // new qObject arrived
-        arrivingQObject.timeStamp = time
+        myStationTime.value = (time - completedQObject.stationArriveTime)
     }
 
     final override fun receive(arrivingQObject: QObject) {
