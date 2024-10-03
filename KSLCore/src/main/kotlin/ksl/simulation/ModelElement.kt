@@ -2059,6 +2059,15 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
             }
 
         /**
+         * can be used to time stamp the qObject
+         */
+        var stationArriveTime: Double = Double.POSITIVE_INFINITY
+            internal set(value) {
+                require(value >= createTime) { "The station arrive was less than the creation time $createTime" }
+                field = value
+            }
+
+        /**
          *  A generic attribute to indicate a type for the QObject
          */
         override var qObjectType: Int = 1

@@ -55,8 +55,31 @@ open class SingleQStation(
     name: String? = null
 ) : Station(parent, nextReceiver, name = name), SingleQStationCIfc {
 
+    /**
+     * Allows the single queue station to be created with an initial capacity specification
+     * for its resource.
+     *
+     *  @param parent the model element serving as this element's parent
+     *  @param activityTime the processing time at the station
+     *  @param initialCapacity the initial capacity of the resource at the station.
+     *  @param nextReceiver the receiving location that will receive the processed qObjects
+     *  once the processing has been completed. A default of NotImplementedReceiver, indicates that there is no
+     *  receiver implemented. If no receiver is present, there will be a run-time error.
+     *  @param name the name of the station
+     */
+    constructor(
+        parent: ModelElement,
+        activityTime: RandomIfc,
+        initialCapacity: Int,
+        nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
+        name: String? = null
+    ) : this(parent, activityTime, null, nextReceiver, name) {
+        require(initialCapacity > 0) { "initialCapacity must be positive." }
+        myResource.initialCapacity = initialCapacity
+    }
+
     protected val myResource: SResource = resource ?: SResource(this, 1, "${this.name}:R")
-    override val resource:  SResourceCIfc
+    override val resource: SResourceCIfc
         get() = myResource
 
     protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime)
@@ -114,7 +137,7 @@ open class SingleQStation(
     /**
      *  Could be overridden to supply different approach for determining the service delay
      */
-    protected fun delayTime(qObject: QObject) : Double {
+    protected fun delayTime(qObject: QObject): Double {
         return qObject.valueObject?.value ?: myActivityTimeRV.value
     }
 
