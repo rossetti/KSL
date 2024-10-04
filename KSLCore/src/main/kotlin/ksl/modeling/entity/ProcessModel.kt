@@ -706,6 +706,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
             logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id completed process = $completedProcess" }
+         //   myCurrentProcess = null //TODO I think that this is okay
             afterRunningProcess(completedProcess)
             val np = determineNextProcess(completedProcess)
             if (np != null) {
@@ -1661,6 +1662,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+            /**
+             *  This function is called from within the internal Kotlin coroutine library when the
+             *  coroutine has completed. That is, the coroutine has reached it end and returned
+             *  a value from its last suspension point (or returned). The result indicates if the coroutine stopped successfully
+             *  or with a failure. After this call occurs the coroutine is done.
+             */
             override fun resumeWith(result: Result<Unit>) {
                 // Resumes the execution of the corresponding coroutine passing a successful or failed result
                 // as the return value of the last suspension point.
