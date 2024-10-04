@@ -27,6 +27,7 @@ import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.Score
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.BSEstimatorIfc
+import ksl.utilities.statistic.Bootstrap
 
 /**
  *  Computes a score to indicate the quality of fit for the proposed
@@ -41,7 +42,7 @@ abstract class PDFScoringModel(
 
     val metric = Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment)
     val domain: Interval = metric.domain
-    var useBootstrapping = false
+//    var useBootstrapping = true
 
     protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
@@ -59,29 +60,33 @@ abstract class PDFScoringModel(
             } else {
                 result.originalData
             }
-            if (useBootstrapping){
-                bootstrapScores(data, cdf)
-            } else {
-                score(data, cdf)
-            }
-          //  score(data, cdf)
+//            if (useBootstrapping){
+//                bootstrapScores(data, cdf)
+//            } else {
+//                score(data, cdf)
+//            }
+            score(data, cdf)
         }
     }
 
-    private fun bootstrapScores(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score {
-        // make the estimator
-        // make the bootstrapper
-        // do the bootstrapping
-        // construct the score from the bootstrap results
-        TODO("Not implemented yet")
-    }
-
-    private inner class BootStrapScore(var cdf: ContinuousDistributionIfc) : BSEstimatorIfc {
-        override fun estimate(data: DoubleArray): Double {
-            val s = score(data, cdf)
-            return s.value
-        }
-    }
+//    private fun bootstrapScores(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score {
+//        // make the estimator
+//        val estimator = BootStrapScore(cdf)
+//        // make the bootstrapper
+//        val bs = Bootstrap(data, estimator)
+//        // do the bootstrapping
+//        bs.generateSamples(399) //TODO have default number of samples
+//        // construct the score from the bootstrap results
+//        val scoreAvg = bs.acrossBootstrapAverage
+//        return Score(metric, scoreAvg)
+//    }
+//
+//    private inner class BootStrapScore(var cdf: ContinuousDistributionIfc) : BSEstimatorIfc {
+//        override fun estimate(data: DoubleArray): Double {
+//            val s = score(data, cdf)
+//            return s.value
+//        }
+//    }
 
     companion object{
 
