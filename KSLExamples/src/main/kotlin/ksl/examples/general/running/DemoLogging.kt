@@ -3,7 +3,6 @@ package ksl.examples.general.running
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.elements.EventGenerator
-import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
@@ -13,15 +12,14 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.statistic.HistogramIfc
-
 
 fun main() {
     val model = Model("Demo_Logging")
     model.numberOfReplications = 1
-    model.lengthOfReplication = 100.0
+    model.lengthOfReplication = 20.0
     val dtp = DemoLogging(model, 1)
-    KSL.out.OUTPUT_ON = true
+    // set OUTPUT_ON to true for writing to kslOutput.txt, false stops the writing
+    KSL.out.OUTPUT_ON = false
     model.simulate()
     model.print()
 }
@@ -79,29 +77,31 @@ class DemoLogging(
     private val endServiceEvent = this::endOfService
 
     private fun arrival(generator: EventGenerator){
+        KSL.logger.info { "$time started arrival function" }
         myNS.increment() // new customer arrived
         val arrivingCustomer = QObject()
-        KSL.out.println("t> $time : arrival: customer ${arrivingCustomer}")
+        KSL.out.println("t> $time : arrival: customer ${arrivingCustomer.id}")
         myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
         if (myNumBusy.value < numPharmacists) { // server available
             myNumBusy.increment() // make server busy
             val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
             // schedule end of service, include the customer as the event's message
-            KSL.out.println("t> $time : scheduled service for: customer ${customer}")
+            KSL.out.println("t> $time : scheduled service for: customer ${customer?.id}")
             schedule(endServiceEvent, myServiceRV, customer)
         }
     }
 
     private fun endOfService(event: KSLEvent<QObject>) {
+        KSL.logger.info { "$time started departure function" }
         val departingCustomer = event.message!!
-        KSL.out.println("t> $time : departure: customer ${departingCustomer}")
+        KSL.out.println("t> $time : departure: customer ${departingCustomer.id}")
         myNumBusy.decrement() // customer is leaving server is freed
-        KSL.out.println("t> $time : queue has ${myWaitingQ.numInQ}")
+        KSL.out.println("t> $time : queue has ${myWaitingQ.numInQ.value} customers waiting")
         if (!myWaitingQ.isEmpty) { // queue is not empty
             val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
             myNumBusy.increment() // make server busy
             // schedule end of service
-            KSL.out.println("t> $time : scheduled service for: customer ${customer}")
+            KSL.out.println("t> $time : scheduled service for: customer ${customer?.id}")
             schedule(endServiceEvent, myServiceRV, customer)
         }
         departSystem(departingCustomer)
@@ -109,7 +109,7 @@ class DemoLogging(
 
     private fun departSystem(departingCustomer: QObject) {
         mySysTime.value = (time - departingCustomer.createTime)
-        KSL.out.println("t> $time : system time of customer ${departingCustomer} = ${mySysTime.value}")
+        KSL.out.println("t> $time : system time of customer ${departingCustomer.id} = ${mySysTime.value}")
         myNS.decrement() // customer left system
         myNumCustomers.increment()
     }
