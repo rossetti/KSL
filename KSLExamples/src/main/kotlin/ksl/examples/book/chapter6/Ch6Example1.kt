@@ -25,8 +25,11 @@ import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.asMarkDownTable
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 
 /**
  *  Example 6.1
@@ -40,7 +43,6 @@ fun main(){
     val dtp = DriveThroughPharmacy(m, name = "DriveThrough")
     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
-
     m.numberOfReplications = 30
     m.lengthOfReplication = 20000.0
     m.lengthOfReplicationWarmUp = 5000.0
