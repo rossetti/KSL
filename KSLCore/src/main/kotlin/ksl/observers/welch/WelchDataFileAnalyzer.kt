@@ -23,6 +23,7 @@
 package ksl.observers.welch
 
 import ksl.utilities.KSLArrays
+import ksl.utilities.indexOfMin
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.observers.ObservableComponent
@@ -89,6 +90,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
     private val myAcrossRepStat: Statistic = Statistic()
     private val myPathToWDF: Path = Paths.get(bean.pathToFile)
     private lateinit var myWDFDataFile: RandomAccessFile
+
     init {
         // set up internal state
         // get the path to the data file
@@ -147,6 +149,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
     override fun countObservers(): Int {
         return myObsComponent.countObservers()
     }
+
     /**
      * Creates a file and writes out the Welch data to the DataOutputStream. This
      * produces a file with the "wpdf" extension. wpdf = Welch Plot Data File
@@ -189,6 +192,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
         out.flush()
         out.close()
     }
+
     /**
      * Creates and writes out the Welch plot data. Squelches inconvenient IOExceptions
      * The file is stored in the base directory holding the
@@ -210,6 +214,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
         }
         return file
     }
+
     /**
      * Writes out the number of observations to the supplied PrintWriter This
      * results in a comma separated value file that has x_bar and cum_x_bar
@@ -624,6 +629,36 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
             val metaDataBean: WelchFileMetaDataBean =
                 WelchFileMetaDataBean.makeFromJSON(pathToWelchFileMetaDataBeanJson)
             return WelchDataFileAnalyzer(metaDataBean)
+        }
+
+        /**
+         * Assumes that the array is a time series of observations from the simulation
+         * and recommends the deletion point. Typically, [data] is the
+         * Welch averages.  The recommended deletion point is the value of d, that
+         * minimizes MSER(d) computed via the computeMSER() function
+         */
+        fun recommendDeletionPointMSER(data: DoubleArray) : Int {
+            return computeMSER(data).indexOfMin()
+        }
+
+        /**
+         *  Computes the MSER data by deleting the elements in the
+         *  array starting at the beginning and computing the MSER(d)
+         *  values for d = 0,1,2,...n-5, where n is the size of the array.
+         */
+        fun computeMSER(data: DoubleArray): List<Double> {
+            val s = Statistic()
+            val mserData = mutableListOf<Double>()
+            val m = data.size
+            for (d in 0..<m - 5) {
+                s.reset()
+                for (j in d..<data.size) {
+                    s.collect(data[j])
+                }
+                val mser = s.variance * (m - d - 1) / ((m - d) * (m - d))
+                mserData.add(mser)
+            }
+            return mserData
         }
 
     }
