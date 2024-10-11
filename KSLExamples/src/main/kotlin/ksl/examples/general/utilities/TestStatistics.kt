@@ -22,8 +22,12 @@ import ksl.utilities.distributions.KolmogorovSmirnovDist
 import ksl.utilities.distributions.Normal
 import ksl.utilities.io.*
 import ksl.utilities.math.KSLMath
+import ksl.utilities.random.rvariable.MVIndependentMarginals
+import ksl.utilities.random.rvariable.NormalRV
+import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.U01Test
+import ksl.utilities.toMapOfRows
 import org.jetbrains.kotlinx.dataframe.api.column
 
 val testData = doubleArrayOf(
@@ -56,6 +60,17 @@ val mpg = doubleArrayOf(
     32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7, 15.0, 21.4
 )
 
+val d1 = doubleArrayOf(63.72, 32.24, 40.28, 36.94, 36.29, 56.94, 34.10, 63.36, 49.29, 87.20)
+val d2 = doubleArrayOf(63.06, 31.78, 40.32, 37.71, 36.79, 57.93, 33.39, 62.92, 47.67, 80.79)
+val d3 = doubleArrayOf(57.74, 29.65, 36.52, 35.71, 33.81, 51.54, 31.39, 57.24, 42.63, 67.27)
+val d4 = doubleArrayOf(62.63, 31.56, 39.87, 37.35, 36.65, 57.15, 33.30, 62.21, 47.46, 79.60)
+val mcbData = mapOf<String, DoubleArray>(
+    "One" to d1,
+    "Two" to d2,
+    "Three" to d3,
+    "Four" to d4
+)
+
 fun main() {
     //   testData.writeToFile("testData.txt")
     // testAutoCorrelation()
@@ -68,7 +83,11 @@ fun main() {
 //    println("k = $k")
 //    testStatistics()
 
-    demoDataFrame()
+//    demoDataFrame()
+
+ //   testMCB(mcbData)
+
+    mcbExample()
 }
 
 fun testStatistics(){
@@ -146,4 +165,28 @@ fun partialSums() {
     val partialSums: DoubleArray = Statistic.partialSums(avg, y)
     println("avg = $avg")
     println(partialSums.contentToString())
+}
+
+fun testMCB(data: Map<String, DoubleArray>) {
+    val mca = MultipleComparisonAnalyzer(data, "ExampleData")
+    mca.writeDataAsCSVFile(KSL.createPrintWriter("MCA_Results.csv"))
+    println(mca)
+    println("num data sets: " + mca.numberDatasets)
+    println(mca.dataNames.joinToString())
+    val r = mca.secondStageSampleSizeNM(2.0, 0.95)
+    println("Second stage sampling recommendation R = $r")
+    // All the data and results can be saved in a database
+    mca.resultsAsDatabase("TestMCBResults")
+}
+
+fun mcbExample(){
+    val rvs = listOf(NormalRV(10.0, 2.0),
+        NormalRV(12.0, 3.0),
+        NormalRV(9.0, 4.0), NormalRV(7.0, 1.0),
+    )
+    val mv = MVIndependentMarginals(rvs)
+    val da =  mv.sampleByColumn(20)
+    val dataMap = da.toMapOfRows(listOf("One", "Two", "Three", "Four"))
+    testMCB(dataMap)
+
 }

@@ -45,7 +45,7 @@ class MVStatistic(val names: List<String>) {
      *  dimension, there will be a Statistic that summarizes the statistical
      *  properties of that dimension.
      */
-    fun collect(observation: DoubleArray) {
+    fun collect(observation: kotlin.DoubleArray) {
         require(observation.size == names.size) { "The size of the observation array must match the dimension of the collector." }
         for ((i, x) in observation.withIndex()) {
             statistics[i].collect(x)
