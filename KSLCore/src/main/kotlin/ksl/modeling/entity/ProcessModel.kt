@@ -66,7 +66,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      *
      * @param entityCreator the thing that creates the entities of the particular type. Typically,
      * a reference to the constructor of the class
-     * @param processName
      * @param timeUntilTheFirstEntity the time until the first entity creation
      * @param timeBtwEvents the time between entity creation
      * @param maxNumberOfEvents the maximum number of entities to create
@@ -86,7 +85,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         this@ProcessModel, null, timeUntilTheFirstEntity,
         timeBtwEvents, maxNumberOfEvents, timeOfTheLastEvent, name
     ) {
-        //TODO EntityGenerator
 
         override fun generate() {
             val entity = entityCreator()
