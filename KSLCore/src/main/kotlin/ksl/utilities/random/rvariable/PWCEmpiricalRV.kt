@@ -2,6 +2,7 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.isStrictlyIncreasing
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.statistic.HistogramIfc
 
 /**
  *  Represents a piece-wise continuous empirical random variable specified via
@@ -38,6 +39,21 @@ class PWCEmpiricalRV(
         streamNum: Int) : this(
         breakPoints, proportions, KSLRandom.rnStream(streamNum)
     )
+
+    /** Note the requirements for breakpoints and proportions.
+     *
+     *  @param histogram a histogram specifying the breakpoints and proportions
+     *  @param stream The random number stream.
+     */
+    constructor(histogram: HistogramIfc, stream: RNStreamIfc = KSLRandom.nextRNStream()): this(
+        histogram.breakPoints, histogram.binFractions, stream)
+
+    /** Note the requirements for breakpoints and proportions.
+     *  @param histogram a histogram specifying the breakpoints and proportions
+     *  @param streamNum supplied the number of the stream instead of the stream
+     */
+    constructor(histogram: HistogramIfc, streamNum: Int): this(
+        histogram.breakPoints, histogram.binFractions, KSLRandom.rnStream(streamNum))
 
     init {
         require(proportions.isNotEmpty()) { "There must be at least 1 interval" }
