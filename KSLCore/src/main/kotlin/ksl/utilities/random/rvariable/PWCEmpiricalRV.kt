@@ -5,7 +5,7 @@ import ksl.utilities.random.rng.RNStreamIfc
 
 /**
  *  Represents a piece-wise continuous empirical random variable specified via
- *  intervals defined by breakpoints and a probabilities associated with each interval.
+ *  intervals defined by breakpoints and probabilities associated with each interval.
  *  A piecewise linear approximation forms the basis for the CDF where the breakpoints
  *  form the linear segments. There must be at least 1 interval (and two breakpoints).
  *
@@ -47,6 +47,7 @@ class PWCEmpiricalRV(
             require(0.0 < proportions[i]) {" proportion[$i] is <= 0.0" }
             require(proportions[i] < 1.0) {" proportion[$i] is >= 1.0" }
         }
+        require(KSLRandom.isValidPMF(proportions)) {"The proportions do not represent a valid probability distribution"}
         // number of intervals/points
         val n = proportions.size
         // use 1-based indexing, 1 = 1st interval
