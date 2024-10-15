@@ -12,7 +12,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  *  @param breakPoints The break points defining the intervals such that p[j] is
  *  associated with breakpoints b[j] and b[j+1] for j = 0, 1,..., n-1, where n
  *  is the number of break points. The number of breakpoints should be 1 more than
- *  the number of proportions. The breakpoints must be strictly increasing.
+ *  the number of proportions. The breakpoints must be strictly increasing and finite.
  *  @param proportions A double array holding the proportion associated with the intervals defined
  *  by the breakpoints. All proportions must be strictly greater than 0 and strictly
  *  less than 1. If not supplied, the default is intervals with equal probability. That is,
@@ -45,6 +45,9 @@ class PWCEmpiricalRV(
         require(proportions.size == (breakPoints.size - 1)) {
             "Improper array sizes: proportions.size = " +
                     "${proportions.size} should be 1 less than the number of breakpoints, and breakPoints.size = ${breakPoints.size} "
+        }
+        for (i in breakPoints.indices) {
+            require(breakPoints[i].isFinite()) { " breakpoint[$i] is ${breakPoints[i]}" }
         }
         // breakpoints must be strictly increasing
         require(breakPoints.isStrictlyIncreasing()) { "The break points must be strictly increasing" }
