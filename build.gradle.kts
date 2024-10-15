@@ -5,14 +5,14 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     `java-library`
     // uncomment for publishing task
-    kotlin("jvm") version "1.9.0"
+    kotlin("jvm") version "1.9.20"
     kotlin("plugin.serialization") version "1.9.0"
     //   id("org.jetbrains.kotlinx.dataframe") version "0.11.0"
-    id("org.jetbrains.dokka") version "1.9.10"
+    id("org.jetbrains.dokka") version "1.9.20"
 }
 
 group = "io.github.rossetti"
-version = "R1.0.8"
+version = "R1.1.3"
 
 buildscript {
 
