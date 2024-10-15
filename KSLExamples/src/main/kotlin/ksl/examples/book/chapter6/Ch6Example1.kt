@@ -63,10 +63,10 @@ class DriveThroughPharmacy(
 
     private val pharmacists: ResourceWithQ = ResourceWithQ(this, "Pharmacists", numPharmacists)
 
-    private var serviceTime: RandomVariable = RandomVariable(this, sd)
+    private val serviceTime: RandomVariable = RandomVariable(this, sd)
     val serviceRV: RandomSourceCIfc
         get() = serviceTime
-    private var timeBetweenArrivals: RandomVariable = RandomVariable(parent, ad)
+    private val timeBetweenArrivals: RandomVariable = RandomVariable(parent, ad)
     val arrivalRV: RandomSourceCIfc
         get() = timeBetweenArrivals
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
