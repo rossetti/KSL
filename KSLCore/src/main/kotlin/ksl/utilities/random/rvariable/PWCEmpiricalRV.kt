@@ -1,9 +1,23 @@
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.countGreaterThan
 import ksl.utilities.isStrictlyIncreasing
 import ksl.utilities.random.rng.RNStreamIfc
 
+/**
+ *  Represents a piece-wise continuous empirical random variable specified via
+ *  intervals defined by breakpoints and a probabilities associated with each interval.
+ *  A piecewise linear approximation forms the basis for the CDF where the breakpoints
+ *  form the linear segments. There must be at least 1 interval (and two breakpoints).
+ *
+ *  @param proportions A double array holding the proportion associated with the intervals defined
+ *  by the breakpoints. All proportions must be strictly greater than 0 and strictly
+ *  less than 1.
+ *  @param breakPoints The break points defining the intervals such that p[j] is
+ *  associated with breakpoints b[j] and b[j+1] for j = 0, 1,..., n-1, where n
+ *  is the number of break points. The number of breakpoints should be 1 more than
+ *  the number of proportions. The breakpoints must be strictly increasing.
+ *  @param stream The random number stream.
+ */
 class PWCEmpiricalRV(
     proportions: DoubleArray,
     breakPoints: DoubleArray,
@@ -21,14 +35,18 @@ class PWCEmpiricalRV(
     )
 
     init {
-        // check for valid inputs, constants must be > 0, constants.length = breakPoints.length - 1
-        require(proportions.countGreaterThan(0.0) == proportions.size) { "Supplied proportions were not all > 0.0" }
+        require(proportions.isNotEmpty()) {"There must be at least 1 interval"}
+        require( breakPoints.size >= 2) {"There must be at least 2 break points"}
         require(proportions.size == (breakPoints.size - 1)) {
             "Improper array sizes: proportions.size = " +
-                    "${proportions.size} should be 1 less than, and breakPoints.size =${breakPoints.size} "
+                    "${proportions.size} should be 1 less than the number of breakpoints, and breakPoints.size = ${breakPoints.size} "
         }
         // breakpoints must be strictly increasing
         require(breakPoints.isStrictlyIncreasing()) { "The break points must be strictly increasing" }
+        for (i in proportions.indices) {
+            require(0.0 < proportions[i]) {" proportion[$i] is <= 0.0" }
+            require(proportions[i] < 1.0) {" proportion[$i] is >= 1.0" }
+        }
         // number of intervals/points
         val n = proportions.size
         // use 1-based indexing, 1 = 1st interval
