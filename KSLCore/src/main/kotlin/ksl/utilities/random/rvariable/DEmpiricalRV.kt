@@ -20,6 +20,7 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.parameters.DEmpiricalRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
+import ksl.utilities.statistic.HistogramIfc
 
 /**
  * Discrete Empirical Random Variable. Randomly selects from the supplied
@@ -57,6 +58,24 @@ class DEmpiricalRV(
      */
     constructor(values: DoubleArray, cdf: DoubleArray, streamNum: Int) : this(
         values, cdf, KSLRandom.rnStream(streamNum)
+    )
+
+    /**
+     *
+     * @param histogram a histogram specifying the midpoints and bin fractions
+     * @param streamNum the stream number
+     */
+    constructor(histogram: HistogramIfc, streamNum: Int) : this(
+        histogram.midPoints, KSLRandom.makeCDF(histogram.binFractions), KSLRandom.rnStream(streamNum)
+    )
+
+    /**
+     *
+     * @param histogram a histogram specifying the midpoints and bin fractions
+     * @param stream  the source of randomness
+     */
+    constructor(histogram: HistogramIfc, stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(
+        histogram.midPoints, KSLRandom.makeCDF(histogram.binFractions), stream
     )
 
     override fun instance(stream: RNStreamIfc): DEmpiricalRV {
