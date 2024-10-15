@@ -19,6 +19,8 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.QueueCIfc
+import ksl.modeling.variable.AggregateTWResponse
+import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
@@ -28,6 +30,11 @@ enum class CapacityChangeRule {
 
 interface ResourceWithQCIfc : ResourceCIfc {
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
+
+    /**
+     * The number waiting and in service
+     */
+    val wip: TWResponseCIfc
 }
 
 /**
@@ -93,12 +100,22 @@ open class ResourceWithQ(
      */
     internal val myWaitingQ: RequestQ
 
+    /**
+     *  The number waiting plus number in service: Q(t) + B(t)
+     */
+    protected val myWIP = AggregateTWResponse(this, "${this.name}:WIP")
+
     init {
         myWaitingQ = queue ?: RequestQ(this, "${this.name}:Q")
+        myWIP.observe(myWaitingQ.numInQ)
+        myWIP.observe(myNumBusy)
     }
 
     override val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
+
+    override val wip: TWResponseCIfc
+        get() = myWIP
 
     override var defaultReportingOption: Boolean
         get() = super.defaultReportingOption
