@@ -25,6 +25,7 @@ class PWCEmpiricalRV(
     proportions: DoubleArray = DoubleArray(breakPoints.size - 1) { 1.0 / (breakPoints.size - 1) },
     stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : RVariable(stream) {
+
     private val myProportions: DoubleArray
     private val myBreakPoints: DoubleArray
     private val myCDFPoints: DoubleArray
