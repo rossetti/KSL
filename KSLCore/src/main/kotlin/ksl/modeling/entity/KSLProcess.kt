@@ -112,12 +112,14 @@ interface KSLProcessBuilder {
      */
     suspend fun suspend(suspensionObserver: SuspensionObserver, suspensionName: String?)
 
-    /** Causes the current process to suspend until the specified process has run to completion.
+    /** Causes the current process to suspend (immediately) until the specified process has run to completion.
      *  This is like run blocking.  It activates the specified process and then waits for it
-     *  to complete before proceeding.
+     *  to complete before proceeding. Since the current process suspends (immediately) the time until
+     *  activation of the specified process will be included in the total time until the specified
+     *  process completes.
      *
-     * @param process the process to start for an entity
-     * @param timeUntilActivation the time until the start the process
+     * @param process the process to start for an entity. The supplied process must be in the created state.
+     * @param timeUntilActivation the time until the start the process being activated.
      * @param priority the priority associated with the event to start the process
      */
     suspend fun waitFor(
