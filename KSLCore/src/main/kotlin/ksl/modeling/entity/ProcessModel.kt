@@ -943,7 +943,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal var continuation: Continuation<Unit>? = null //set with suspending function
             override val context: CoroutineContext get() = EmptyCoroutineContext
 
-            internal var callingProcess: ProcessCoroutine? = null
+            internal var callingProcess: ProcessCoroutine? = null  //TODO for normal waitFor
             internal var calledProcess: ProcessCoroutine? = null
 
             override var isActivated: Boolean = false
@@ -954,6 +954,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             private val completed = Completed()
             private val running = Running()
             private var state: ProcessState = created
+            override val currentStateName: String
+                get() = state.processStateName
             override val isCreated: Boolean
                 get() = state == created
             override val isSuspended: Boolean
@@ -976,7 +978,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             /**
              *  Activates the process. Causes the process to be scheduled to start at the present time or some time
-             *  into the future. This schedules an event
+             *  into the future. This schedules an event.
              *
              *  @param timeUntilActivation the time into the future at which the process should be activated (started) for
              *  the supplied entity
@@ -1091,6 +1093,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ) {
                 require(currentProcess != process) { "The process ${process.name} is the same as the current process! " }
+                require(process.isCreated) {"The supplied process ${process.name} must be in the created state. It's state was: ${process.currentStateName}"}
                 val p = process as ProcessCoroutine
                 require(p.callingProcess == null) { "The process to wait on already has a calling process" }
                 p.callingProcess = this
