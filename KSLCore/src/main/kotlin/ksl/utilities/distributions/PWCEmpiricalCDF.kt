@@ -182,10 +182,8 @@ class PWCEmpiricalCDF(
         sb.appendLine("mean = ${mean()}")
         sb.appendLine("2nd moment = ${secondMoment()}")
         sb.appendLine("variance = ${variance()}")
-        sb.append("--------------------------------------------")
-        sb.appendLine()
-        sb.append(String.format("%8s %8s %8s %8s %8s", "LL", "UL", "P", "F(x)", "Slope"))
-        sb.appendLine()
+        sb.appendLine("--------------------------------------------")
+        sb.appendLine(String.format("%8s %8s %8s %8s %8s", "LL", "UL", "P", "F(x)", "Slope"))
         for (i in 1..<myProportions.size) {
             val s = String.format(
                 "%5f %5f %5f %5f %5f",
@@ -197,28 +195,8 @@ class PWCEmpiricalCDF(
             )
             sb.appendLine(s)
         }
-        sb.append("-------------------------------------------")
+        sb.appendLine("-------------------------------------------")
+        sb.appendLine("Parameter String: ${parameters().joinToString()}")
         return sb.toString()
     }
-}
-
-fun main() {
-    val b = doubleArrayOf(0.25, 0.5, 1.0, 1.5, 2.0)
-    val p = doubleArrayOf(0.31, 0.10, 0.25, 0.34)
-    val pwc = PWCEmpiricalCDF(b, p)
-    println(pwc)
-    println()
-    for (i in 1..30) {
-        val x = i / 10.0
-        val cp = pwc.cdf(x)
-        val iCDF = pwc.invCDF(cp)
-        println("F($x) = $cp and invF($cp) = $iCDF")
-    }
-
-    val params = pwc.parameters()
-    println(params.joinToString())
-    pwc.parameters(params)
-
-    println()
-    println(pwc)
 }
