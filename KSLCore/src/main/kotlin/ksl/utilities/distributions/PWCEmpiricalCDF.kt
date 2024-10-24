@@ -152,9 +152,6 @@ class PWCEmpiricalCDF(
         params.copyInto(b, startIndex = 1, endIndex = n + 1)
         params.copyInto(p, startIndex = n + 2)
         setParameters(b, p)
-//        println("n = $n")
-//        println("b = ${b.toCSVString()}")
-//        println("p = ${p.toCSVString()}")
     }
 
     /**
