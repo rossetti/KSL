@@ -64,20 +64,20 @@ class PWCEmpiricalCDF(
     override fun cdf(x: Double): Double {
         if (x < myBreakPoints.first())
             return 0.0
-        if (x >= myBreakPoints.last()){
+        if (x >= myBreakPoints.last()) {
             return 1.0
         }
         var i = 1
         while (myBreakPoints[i] <= x) {
             i += 1
         }
-        return ((x - myBreakPoints[i-1])/mySlopes[i]) + myCDFPoints[i - 1]
+        return ((x - myBreakPoints[i - 1]) / mySlopes[i]) + myCDFPoints[i - 1]
     }
 
     override fun pdf(x: Double): Double {
         if (x < myBreakPoints.first())
             return 0.0
-        if (x > myBreakPoints.last()){
+        if (x > myBreakPoints.last()) {
             return 0.0
         }
         var i = 1
@@ -96,7 +96,7 @@ class PWCEmpiricalCDF(
         if (p <= 0.0) {
             return myBreakPoints.first()
         }
-        if (p >= 1.0){
+        if (p >= 1.0) {
             return myBreakPoints.last()
         }
         val i = findInterval(p)
@@ -115,7 +115,7 @@ class PWCEmpiricalCDF(
 
     override fun mean(): Double {
         var sum = 0.0
-        for (i in 1..< myProportions.size) {
+        for (i in 1..<myProportions.size) {
             sum =
                 sum + myProportions[i] * ((myBreakPoints[i] * myBreakPoints[i]) - (myBreakPoints[i - 1] * myBreakPoints[i - 1]))
         }
@@ -129,7 +129,7 @@ class PWCEmpiricalCDF(
 
     fun secondMoment(): Double {
         var sum = 0.0
-        for (i in 1..< myProportions.size) {
+        for (i in 1..<myProportions.size) {
             val xi3 = myBreakPoints[i] * myBreakPoints[i] * myBreakPoints[i]
             val xim13 = myBreakPoints[i - 1] * myBreakPoints[i - 1] * myBreakPoints[i - 1]
             sum = sum + myProportions[i] * (xi3 - xim13)
@@ -137,17 +137,24 @@ class PWCEmpiricalCDF(
         return sum / 3.0
     }
 
+    /**
+     *  n = number of break points
+     *  k = number of proportions k = n - 1
+     *  param[0] = n
+     *  param[1..n]
+     *  param[(n+1)..(n+1+k)]
+     */
     override fun parameters(params: DoubleArray) {
         require(params.isNotEmpty()) { "The array of parameters was empty" }
         val n = params[0].toInt()
         val b = DoubleArray(n)
         val p = DoubleArray(n - 1)
-        params.copyInto(b, endIndex = n)
-        params.copyInto(p, startIndex = n+1, endIndex = 2*n)
-        println("n = $n")
-        println("b = ${b.toCSVString()}")
-        println("p = ${b.toCSVString()}")
- //       TODO("Not yet implemented")
+        params.copyInto(b, startIndex = 1, endIndex = n + 1)
+        params.copyInto(p, startIndex = n + 2)
+        setParameters(b, p)
+//        println("n = $n")
+//        println("b = ${b.toCSVString()}")
+//        println("p = ${p.toCSVString()}")
     }
 
     /**
@@ -179,8 +186,15 @@ class PWCEmpiricalCDF(
         sb.appendLine()
         sb.append(String.format("%8s %8s %8s %8s %8s", "LL", "UL", "P", "F(x)", "Slope"))
         sb.appendLine()
-        for (i in 1..< myProportions.size) {
-            val s = String.format("%5f %5f %5f %5f %5f", myBreakPoints[i-1], myBreakPoints[i], myProportions[i], myCDFPoints[i], mySlopes[i])
+        for (i in 1..<myProportions.size) {
+            val s = String.format(
+                "%5f %5f %5f %5f %5f",
+                myBreakPoints[i - 1],
+                myBreakPoints[i],
+                myProportions[i],
+                myCDFPoints[i],
+                mySlopes[i]
+            )
             sb.appendLine(s)
         }
         sb.append("-------------------------------------------")
@@ -191,18 +205,20 @@ class PWCEmpiricalCDF(
 fun main() {
     val b = doubleArrayOf(0.25, 0.5, 1.0, 1.5, 2.0)
     val p = doubleArrayOf(0.31, 0.10, 0.25, 0.34)
-    val pwc =  PWCEmpiricalCDF(b, p)
+    val pwc = PWCEmpiricalCDF(b, p)
     println(pwc)
     println()
-    for (i in 1..30){
-        val x = i/10.0
-        val p = pwc.cdf(x)
-        val iCDF = pwc.invCDF(p)
-        println("F($x) = $p and invF($p) = $iCDF")
+    for (i in 1..30) {
+        val x = i / 10.0
+        val cp = pwc.cdf(x)
+        val iCDF = pwc.invCDF(cp)
+        println("F($x) = $cp and invF($cp) = $iCDF")
     }
 
     val params = pwc.parameters()
     println(params.joinToString())
     pwc.parameters(params)
 
+    println()
+    println(pwc)
 }
