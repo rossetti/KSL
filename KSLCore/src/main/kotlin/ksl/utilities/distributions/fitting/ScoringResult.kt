@@ -39,7 +39,7 @@ data class ScoringResult(
         get() = rvType.rvParameters.numberOfParameters
 
     /**
-     *  This holds the metric and is value based on the transformed
+     *  This holds the metric and its value based on the transformed
      *  score to the value function domain.
      */
     var values: Map<MetricIfc, Double> = emptyMap()
