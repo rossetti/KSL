@@ -16,7 +16,9 @@ import kotlin.math.sqrt
  *  Estimates the location and scale of a logistic distribution based on
  *  the method of moments. Observations must not all be equal. There must be
  *  at least two observations. The moment matching is based on an unbiased
- *  estimate of the variance.
+ *  estimate of the variance.  Uses the median for the location parameter
+ *  because logistic distribution should be symmetric and median is less sensitive
+ *  to outliers.
  */
 object LogisticMOMParameterEstimator : ParameterEstimatorIfc,
     MVBSEstimatorIfc, IdentityIfc by Identity("LogisticMOMParameterEstimator") {
@@ -65,7 +67,10 @@ object LogisticMOMParameterEstimator : ParameterEstimatorIfc,
         val sd = statistics.standardDeviation
         val scale = sd * sqrt(3.0) / PI
         val parameters = LogisticRVParameters()
-        parameters.changeDoubleParameter("location", statistics.average)
+        // since logistic distribution should not be skewed, mean should be equal to median
+        // use median for location because it is less sensitive to outliers
+        val median = Statistic.median(data)
+        parameters.changeDoubleParameter("location", median)
         parameters.changeDoubleParameter("scale", scale)
         return EstimationResult(
             originalData = data,
