@@ -3,13 +3,19 @@ package ksl.utilities.moda
 import kotlin.math.exp
 
 class LogisticFunction(
-    val location: Double,
-    val scale: Double
+    var location: Double = 0.0,
+    scale: Double = 1.0
 ) : ValueFunctionIfc {
 
     init {
         require(scale > 0.0) {"The scale must be > 0.0"}
     }
+
+    var scale: Double = scale
+        set(value) {
+            require(scale > 0.0) {"The scale must be > 0.0"}
+            field = value
+        }
 
     override fun value(score: Score): Double {
         val z = (score.value - location)/ scale
