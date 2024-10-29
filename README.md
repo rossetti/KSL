@@ -97,11 +97,19 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.1.3"
+version = "R1.1.4"
 
 ## Release Notes
 
-Latest Release: R1.1.3
+Latest Release: R1.1.4
+- updated how processes are started, removed automatic use of process sequence
+- fixed random number stream assignment issue
+- added piecewise constant continuous empirical random variable and distribution
+- minor enhancements to pdf scoring and fitting
+- fixed bootstrap standard error estimate
+- refactoring to enable future removal of Apache POI dependency
+
+Release: R1.1.3
 - Added ability of IndicatorResponse to observe ResponseCIfc 
 - Fixed stupid bug in EventGenerator introduced by typo in release 1.1.2.
  
