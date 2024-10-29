@@ -20,6 +20,8 @@ package ksl.examples.general.utilities
 
 import ksl.utilities.random.rng.RNStreamFactory
 import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.rvariable.BernoulliRV
+import ksl.utilities.random.rvariable.KSLRandom
 
 
 fun main() {
@@ -32,9 +34,10 @@ fun main() {
 //    println(r)
 
 //    testIt()
-    test()
+ //   test()
 //    test1()
 //    test2()
+    test3()
 }
 
 fun test() {
@@ -115,4 +118,14 @@ fun test2() {
     check(sum == 55.445704270784404){
         "didn't match"
     }
+}
+
+fun test3() {
+    // check stream assignment
+    val rv = BernoulliRV(0.10, 5)
+    println("rv was assigned stream : ${rv.rnStream}")
+
+    val last = KSLRandom.DefaultRNStreamProvider.lastRNStreamNumber()
+    println()
+    println("last = $last")
 }
