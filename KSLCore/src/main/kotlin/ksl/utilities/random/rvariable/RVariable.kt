@@ -29,7 +29,8 @@ import ksl.utilities.random.rng.RNStreamIfc
 abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) : RVariableIfc,
     IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter() {
 
-    constructor(stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(stream, null)
+        //TODO should this be stream number??, why is even needed
+  //  constructor(stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(stream, null)
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers

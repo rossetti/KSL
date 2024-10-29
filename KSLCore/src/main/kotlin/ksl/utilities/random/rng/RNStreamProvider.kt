@@ -19,6 +19,8 @@
 package ksl.utilities.random.rng
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.utilities.random.rvariable.BernoulliRV
+import ksl.utilities.random.rvariable.KSLRandom
 
 //private val logger = KotlinLogging.logger {}
 
@@ -57,7 +59,7 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
         val stream = myStreamFactory.nextStream()
         myStreams.add(stream)
         if (myStreams.size > streamNumberWarningLimit) {
-            logger.warn{"The number of streams made is now = ${myStreams.size}"}
+            logger.warn { "The number of streams made is now = ${myStreams.size}" }
             logger.warn { "Increase the stream warning limit if you don't want to see this message" }
         }
         logger.info { "Provided stream ${stream.id}, stream ${lastRNStreamNumber()} of ${myStreams.size} streams" }
@@ -70,12 +72,18 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
         require(i > 0) {
             "The stream number must be > 0!"
         }
+        //       println("want stream: $i")
         if (i > lastRNStreamNumber()) {
             var stream: RNStreamIfc? = null
-            for (j in lastRNStreamNumber()..i) {
+            //           println("last stream number: ${lastRNStreamNumber()}")
+            for (j in lastRNStreamNumber()..<i) {
                 stream = nextRNStream()
+//                println("$j with stream ${stream.id}, stream ${lastRNStreamNumber()} of ${myStreams.size}")
             }
             // this is safe because there must be at least one call to nextRNStream()
+//            for(s in myStreams) {
+//                println("stream $s")
+//            }
             return stream!!
         }
         return myStreams[i - 1]
@@ -133,4 +141,13 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
     companion object {
         val logger = KotlinLogging.logger {}
     }
+}
+
+fun main() {
+    val rv = BernoulliRV(0.10, 5)
+    println("rv was assigned stream : ${rv.rnStream}")
+
+    val last = KSLRandom.DefaultRNStreamProvider.lastRNStreamNumber()
+    println()
+    println("last = $last")
 }
