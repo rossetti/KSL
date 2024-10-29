@@ -1372,43 +1372,46 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
             }
             return ranks
         }
-    }
 
-    /**
-     *  Estimates the sample standard deviation from the range.
-     *  Wan, Xiang, Wenqian Wang, Jiming Liu, and Tiejun Tong. “Estimating the Sample Mean and Standard Deviation
-     *  from the Sample Size, Median, Range and/or Interquartile Range.” BMC Medical Research Methodology 14, no. 1
-     *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
-     *
-     */
-    fun estimateStdDevFromRange(range: Double, n: Double) : Double {
-        val z = 2.0*Normal.stdNormalInvCDF((n-0.375)/(n + 0.25))
-        return range/z
-    }
+        /**
+         *  Estimates the sample standard deviation from the range.
+         *  Wan, Xiang, Wenqian Wang, Jiming Liu, and Tiejun Tong. “Estimating the Sample Mean and Standard Deviation
+         *  from the Sample Size, Median, Range and/or Interquartile Range.” BMC Medical Research Methodology 14, no. 1
+         *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
+         *
+         */
+        fun estimateStdDevFromRange(range: Double, n: Double): Double {
+            require(n >= 2) { "There must be at least two observations" }
+            val z = 2.0 * Normal.stdNormalInvCDF((n - 0.375) / (n + 0.25))
+            return range / z
+        }
 
-    /**
-     *  Estimates the sample standard deviation from the range.
-     *  Wan, Xiang, Wenqian Wang, Jiming Liu, and Tiejun Tong. “Estimating the Sample Mean and Standard Deviation
-     *  from the Sample Size, Median, Range and/or Interquartile Range.” BMC Medical Research Methodology 14, no. 1
-     *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
-     *
-     */
-    fun estimateStdDevFromRangeAndIQR(range: Double, iqr: Double, n: Double) : Double {
-        val z1 = 4.0*Normal.stdNormalInvCDF((n-0.375)/(n + 0.25))
-        val z2 = 4.0*Normal.stdNormalInvCDF((0.75*n - 0.125)/(n + 0.25))
-        return (range/z1) + iqr/z2
-    }
+        /**
+         *  Estimates the sample standard deviation from the range.
+         *  Wan, Xiang, Wenqian Wang, Jiming Liu, and Tiejun Tong. “Estimating the Sample Mean and Standard Deviation
+         *  from the Sample Size, Median, Range and/or Interquartile Range.” BMC Medical Research Methodology 14, no. 1
+         *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
+         *
+         */
+        fun estimateStdDevFromRangeAndIQR(range: Double, iqr: Double, n: Double): Double {
+            require(n >= 2) { "There must be at least two observations" }
+            val z1 = 4.0 * Normal.stdNormalInvCDF((n - 0.375) / (n + 0.25))
+            val z2 = 4.0 * Normal.stdNormalInvCDF((0.75 * n - 0.125) / (n + 0.25))
+            return (range / z1) + iqr / z2
+        }
 
-    /**
-     *  Estimates the sample standard deviation from the range.
-     *  Wan, Xiang, Wenqian Wang, Jiming Liu, and Tiejun Tong. “Estimating the Sample Mean and Standard Deviation
-     *  from the Sample Size, Median, Range and/or Interquartile Range.” BMC Medical Research Methodology 14, no. 1
-     *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
-     *
-     */
-    fun estimateStdDevFromIQR(iqr: Double, n: Double) : Double {
-        val z2 = 2.0*Normal.stdNormalInvCDF((0.75*n - 0.125)/(n + 0.25))
-        return iqr/z2
+        /**
+         *  Estimates the sample standard deviation from the range.
+         *  Wan, Xiang, Wenqian Wang, Jiming Liu, and Tiejun Tong. “Estimating the Sample Mean and Standard Deviation
+         *  from the Sample Size, Median, Range and/or Interquartile Range.” BMC Medical Research Methodology 14, no. 1
+         *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
+         *
+         */
+        fun estimateStdDevFromIQR(iqr: Double, n: Double): Double {
+            require(n >= 2) { "There must be at least two observations" }
+            val z2 = 2.0 * Normal.stdNormalInvCDF((0.75 * n - 0.125) / (n + 0.25))
+            return iqr / z2
+        }
     }
 
 }

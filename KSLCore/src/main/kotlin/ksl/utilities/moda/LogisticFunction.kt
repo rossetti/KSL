@@ -1,6 +1,10 @@
 package ksl.utilities.moda
 
+import ksl.utilities.statistic.BoxPlotSummary
+import ksl.utilities.statistic.Statistic
+import kotlin.math.PI
 import kotlin.math.exp
+import kotlin.math.sqrt
 
 class LogisticFunction(
     var location: Double = 0.0,
@@ -10,6 +14,17 @@ class LogisticFunction(
     init {
         require(scale > 0.0) {"The scale must be > 0.0"}
     }
+
+    /**
+     *  @param pair is location, scale
+     */
+    constructor(pair: Pair<Double, Double>) : this(pair.first, pair.second)
+
+    /**
+     *  Estimates the location and scale from the data
+     *  @param data there must be at least two observations
+     */
+    constructor(data: DoubleArray): this(estimateLocationAndScale(data))
 
     var scale: Double = scale
         set(value) {
@@ -24,5 +39,22 @@ class LogisticFunction(
             y = 1.0 - y
         }
         return y
+    }
+
+    companion object {
+
+        /**
+         *  Estimates the location and scale based on the data
+         *  The location is estimated by the median.
+         *  The scale is estimated using the interquartile range.
+         *  @return the pair(location, scale)
+         */
+        fun estimateLocationAndScale(data: DoubleArray): Pair<Double, Double> {
+            require(data.size >= 2){"There must be at least two observations"}
+            val b = BoxPlotSummary(data)
+            val sd = Statistic.estimateStdDevFromIQR(b.interQuartileRange, b.count)
+            val scale = sd * sqrt(3.0) / PI
+            return Pair(b.median, scale)
+        }
     }
 }
