@@ -142,12 +142,3 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
         val logger = KotlinLogging.logger {}
     }
 }
-
-fun main() {
-    val rv = BernoulliRV(0.10, 5)
-    println("rv was assigned stream : ${rv.rnStream}")
-
-    val last = KSLRandom.DefaultRNStreamProvider.lastRNStreamNumber()
-    println()
-    println("last = $last")
-}
