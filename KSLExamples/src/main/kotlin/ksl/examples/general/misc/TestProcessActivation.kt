@@ -50,6 +50,7 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
             val a  = seize(resource)
             delay(10.0)
             release(a)
+            println("time = $time ended process 2 ${this@Customer}")
         }
 
         private fun activateProcess2Event(event: KSLEvent<Nothing>){
@@ -58,7 +59,7 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
         }
 
         override fun afterRunningProcess(completedProcess: KSLProcess) {
-            // this is called after any process completes, thus need to check which completed
+            // this is called after any process completes, thus need to check which one completed
 //            if (completedProcess == process1) {
 //                schedule(this@Customer::activateProcess2Event, 0.0)
 //            }
