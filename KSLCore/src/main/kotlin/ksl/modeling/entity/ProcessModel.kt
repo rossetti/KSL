@@ -1088,6 +1088,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
+            //TODO waitFor function
             override suspend fun waitFor(
                 process: KSLProcess,
                 timeUntilActivation: Double,
