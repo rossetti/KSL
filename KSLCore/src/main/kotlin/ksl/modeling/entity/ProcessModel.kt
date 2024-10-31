@@ -659,7 +659,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  Can be used by subclasses to perform some logic when (after) the
          *  current process is completed, but before deciding to execute
-         *  the next process (if there is one). By default, this method does nothing.
+         *  the next process (if there is one). Called right before determineNextProcess()
+         *
+         *  By default, this method does nothing.
          *
          *  @param completedProcess  This is actually the process that just completed.
          */
@@ -704,7 +706,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
             logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id completed process = $completedProcess" }
-         //   myCurrentProcess = null //TODO I think that this is okay
+            myCurrentProcess = null //TODO I think that this is okay, clear the current process so next can be run if there
             afterRunningProcess(completedProcess)
             val np = determineNextProcess(completedProcess)
             if (np != null) {
@@ -989,8 +991,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 timeUntilActivation: Double = 0.0,
                 priority: Int = KSLEvent.DEFAULT_PRIORITY
             ): KSLEvent<KSLProcess> {
-                check(!hasPendingProcess) { "The $this process cannot be activated for the entity because the entity already has a pending process" }
-                check(!hasCurrentProcess) { "The $this process cannot be activated for the entity because the entity is already running a process" }
+                check(!hasPendingProcess) { "The $this process cannot be activated for the entity because the entity already has a pending process: ${pendingProcess?.name}" }
+                //TODO when does hasCurrentProcess get set to false (when does currentProcess get set to null)
+                check(!hasCurrentProcess) { "The $this process cannot be activated for the entity because the entity is already running a process: ${currentProcess?.name}" }
                 myPendingProcess = this
                 entity.state.schedule()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduling process $this to start at time ${time + timeUntilActivation}" }
