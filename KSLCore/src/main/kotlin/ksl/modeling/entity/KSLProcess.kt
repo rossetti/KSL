@@ -61,6 +61,7 @@ enum class SuspendType {
     WAIT_FOR_ITEMS,
     WAIT_FOR_ANY_ITEMS,
     WAIT_FOR_PROCESS,
+    BLOCK_UNTIL_COMPLETION,
     SEND,
     SEIZE,
     DELAY,
@@ -147,6 +148,25 @@ interface KSLProcessBuilder {
         signal: Signal,
         waitPriority: Int = PRIORITY,
         waitStats: Boolean = true,
+        suspensionName: String? = null
+    )
+
+    /**
+     *  Causes the current process to block until the specified process completes. This function does not
+     *  activate the specified process. The specified process must have been previously activated. If the specified process has
+     *  already completed, then no blocking occurs.  In other words, the call immediately returns.
+     *  If the specified process has terminated, then an exception occurs.
+     *
+     *  @param process the process to block for. The supplied process must not be terminated and cannot be
+     *  the same as the current process.
+     *  @param resumptionPriority a priority indicator to inform ordering when there is more than one process blocking
+     *  for the specified process
+     *  @param suspensionName the name of the blockUntilCompletion. can be used to identify which blockUntilCompletion the entity is experiencing if there
+     *   are more than one blockUntilCompletion suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun blockUntilCompletion(
+        process: KSLProcess,
+        resumptionPriority: Int = PRIORITY,
         suspensionName: String? = null
     )
 

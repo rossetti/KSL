@@ -311,6 +311,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private val myBlockedReceivingState = BlockedReceiving()
         private val myBlockedSendingState = BlockedSending()
         private val myWaitForProcessState = WaitForProcess()
+        private val myBlockedUntilCompletion = BlockedUntilCompletion()
         private var state: EntityState = myCreatedState
 
         val isCreated: Boolean
@@ -335,6 +336,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myBlockedReceivingState
         val isWaitingForProcess: Boolean
             get() = state == myWaitForProcessState
+        val isBlockedUntilCompletion: Boolean
+            get() = state == myBlockedUntilCompletion
 
         /**
          * If the entity is in a HoldQueue return the queue
@@ -815,6 +818,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 errorMessage("wait for process for the entity")
             }
 
+            open fun blockUntilCompletion(){
+                errorMessage("block until the process is completed")
+            }
+
             private fun errorMessage(message: String) {
                 val sb = StringBuilder()
                 sb.appendLine()
@@ -884,6 +891,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun waitForProcess() {
                 state = myWaitForProcessState
             }
+
+            override fun blockUntilCompletion() {
+                state = myBlockedUntilCompletion
+            }
         }
 
         private inner class Scheduled : EntityState("Scheduled") {
@@ -929,6 +940,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         private inner class WaitForProcess : EntityState("WaitForProcess") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        private inner class BlockedUntilCompletion : EntityState("BlockedUntilCompletion") {
             override fun activate() {
                 state = myActiveState
             }
@@ -1131,6 +1148,30 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} released from ${signal.name} in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
+            }
+
+            //TODO blockUntilCompletion function
+            override suspend fun blockUntilCompletion(
+                process: KSLProcess,
+                resumptionPriority: Int,
+                suspensionName: String?
+            ){
+                require(currentProcess != process) { "The process ${process.name} is the same as the current process! " }
+                if (process.isCompleted){
+                    return
+                }
+                //TODO more tests
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking until ${process.name} completes, in process, ($this)" }
+                entity.state.blockUntilCompletion()
+                //TODO suspension
+
+                entity.state.activate()
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} stopped blocking until ${process.name} completes, in process, ($this)" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                TODO("Not implemented yet")
             }
 
             override suspend fun hold(queue: HoldQueue, priority: Int, suspensionName: String?) {
