@@ -18,10 +18,7 @@
 
 package ksl.examples.general.misc
 
-import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.HoldQueue
-import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.entity.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -53,6 +50,11 @@ class TestBlockUntilCompletion(parent: ModelElement) : ProcessModel(parent, null
             return super.determineNextProcess(completedProcess)
         }
 
+        override fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
+            println("handleTerminatedProcess for ${this@Entity1.name}")
+            super.handleTerminatedProcess(terminatedProcess)
+        }
+
     }
 
     private inner class Entity2: Entity() {
@@ -61,6 +63,7 @@ class TestBlockUntilCompletion(parent: ModelElement) : ProcessModel(parent, null
             println("time = $time starting process 2 ${this@Entity2.name}")
             val a  = seize(resource)
             delay(5.0)
+            throw ProcessTerminatedException()
             release(a)
             println("time = $time ended process 2 ${this@Entity2.name}")
         }
@@ -72,6 +75,11 @@ class TestBlockUntilCompletion(parent: ModelElement) : ProcessModel(parent, null
         // could also override this fun to determine the next
         override fun determineNextProcess(completedProcess: KSLProcess): KSLProcess? {
             return super.determineNextProcess(completedProcess)
+        }
+
+        override fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
+            println("handleTerminatedProcess for ${this@Entity2.name}")
+            super.handleTerminatedProcess(terminatedProcess)
         }
 
     }

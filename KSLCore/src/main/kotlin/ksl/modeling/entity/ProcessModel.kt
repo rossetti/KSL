@@ -1730,6 +1730,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  or with a failure. After this call occurs the coroutine is done.
              */
             override fun resumeWith(result: Result<Unit>) {
+                //TODO the coroutine resumeWith function
+
                 // Resumes the execution of the corresponding coroutine passing a successful or failed result
                 // as the return value of the last suspension point.
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > The coroutine process ${this@ProcessCoroutine} completed with result = $result" }
@@ -1791,14 +1793,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             calledProcess = null
                         }
                         // need to terminate any processes that are blocking until its completion via blockUntilCompleted() calls
+                        // this terminates any "child" processes that are blocking first and then the parent
                         if (blockedUntilCompletionList != null) {
                             for (p in blockedUntilCompletionList!!) {
                                 if (p.isSuspended) {
+                                    //println("terminating process $p")
                                     p.terminate()
                                 }
                             }
-//                            blockedUntilCompletionList!!.clear()
-//                            blockedUntilCompletionList = null
+                            blockedUntilCompletionList!!.clear()
+                            blockedUntilCompletionList = null
                         }
                         afterTerminatedProcessCompletion()
                         handleTerminatedProcess(this)
