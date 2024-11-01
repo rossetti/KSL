@@ -1168,8 +1168,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} did not block for ${process.name}, because it was already completed, in process, ($this)" }
                     return
                 }
-                //TODO check for scheduled???
-               // require(process.isActivated) { "The supplied process ${process.name} must be activated in order to block the current process! " }
+                require(process.entity.isScheduled || process.isActivated) { "The supplied process ${process.name} must be scheduled or activated in order to block the current process! " }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking until ${process.name} completes, in process, ($this)" }

@@ -29,13 +29,13 @@ class TestBlockUntilCompletion(parent: ModelElement) : ProcessModel(parent, null
 
     private inner class Entity1: Entity() {
         val process1 : KSLProcess = process("process1") {
-            val e2 = Entity2()
-            activate(e2.process2)
+//            val e2 = Entity2()
+//            activate(e2.process2)
             println("time = $time before the first delay in ${this@Entity1}")
             delay(10.0)
             println("time = $time after the first delay in ${this@Entity1}")
-//            val e2 = Entity2()
-//            activate(e2.process2)
+            val e2 = Entity2()
+            activate(e2.process2)
             println("time = $time ${this@Entity1.name} before blocking for process ${e2.process2.name}")
             blockUntilCompletion(e2.process2)
             println("time = $time ${this@Entity1.name} after blocking for process ${e2.process2.name}")
