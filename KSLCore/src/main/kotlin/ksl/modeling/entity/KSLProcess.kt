@@ -121,8 +121,8 @@ interface KSLProcessBuilder {
      *  process completes.
      *
      * @param process the process to start for an entity. The supplied process must be in the created state.
-     * @param timeUntilActivation the time until the start the process being activated.
-     * @param priority the priority associated with the event to start the process
+     * @param timeUntilActivation the time until the start of the process being activated.
+     * @param priority the priority associated with the event to activate the process
      */
     suspend fun waitFor(
         process: KSLProcess,
