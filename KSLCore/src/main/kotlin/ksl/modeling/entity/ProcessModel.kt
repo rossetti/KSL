@@ -1168,7 +1168,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} did not block for ${process.name}, because it was already completed, in process, ($this)" }
                     return
                 }
-                require(process.isActivated) { "The supplied process ${process.name} must be activated in order to block the current process! " }
+                //TODO check for scheduled???
+               // require(process.isActivated) { "The supplied process ${process.name} must be activated in order to block the current process! " }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking until ${process.name} completes, in process, ($this)" }
@@ -1753,8 +1754,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                                 p.entity.resumeProcess(priority = p.resumptionPriority)
                             }
                         }
-                        blockedUntilCompletionList!!.clear()
-                        blockedUntilCompletionList = null
                     }
                     afterSuccessfulProcessCompletion(this)
                 }.onFailure {
@@ -1798,8 +1797,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                                     p.terminate()
                                 }
                             }
-                            blockedUntilCompletionList!!.clear()
-                            blockedUntilCompletionList = null
+//                            blockedUntilCompletionList!!.clear()
+//                            blockedUntilCompletionList = null
                         }
                         afterTerminatedProcessCompletion()
                         handleTerminatedProcess(this)
