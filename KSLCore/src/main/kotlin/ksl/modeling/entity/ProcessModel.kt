@@ -709,7 +709,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
             logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id completed process = $completedProcess" }
-            //TODO I think that this is okay, must clear the current process so next can be run if there one
+            // must clear the current process so next can be run if there is one
             myCurrentProcess = null
             afterRunningProcess(completedProcess)
             val np = determineNextProcess(completedProcess)
