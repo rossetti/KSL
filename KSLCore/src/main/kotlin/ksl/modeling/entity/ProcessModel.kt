@@ -88,7 +88,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         override fun generate() {
             val entity = entityCreator()
-            require(entity.defaultProcess != null) {"There was no initial process specified for the entity"}
+            require(entity.defaultProcess != null) { "There was no initial process specified for the entity" }
             activate(entity.defaultProcess!!, priority = activationPriority)
         }
 
@@ -124,7 +124,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     ) {
         override fun generate() {
             val entity = entityCreator()
-            require(entity.useProcessSequence){"Cannot start the sequence because the entity ${entity.name} does not use a sequence"}
+            require(entity.useProcessSequence) { "Cannot start the sequence because the entity ${entity.name} does not use a sequence" }
             require(entity.processSequence.isNotEmpty()) { "Use process sequence was on, but no processes are in the sequence" }
             startProcessSequence(entity, priority = activationPriority)
         }
@@ -567,11 +567,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val coroutine = ProcessCoroutine(processName)
             myProcesses[coroutine.name] = coroutine
             // if this is the first defined process, make it the initial process by default
-            if (myProcesses.size == 1){
+            if (myProcesses.size == 1) {
                 defaultProcess = coroutine
             } else {
                 // not the first one, overwrite initial process only if told to do so
-                if (isInitialProcess){
+                if (isInitialProcess) {
                     defaultProcess = coroutine
                 }
             }
@@ -709,7 +709,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private fun afterSuccessfulProcessCompletion(completedProcess: KSLProcess) {
             logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id completed process = $completedProcess" }
-            myCurrentProcess = null //TODO I think that this is okay, must clear the current process so next can be run if there one
+            //TODO I think that this is okay, must clear the current process so next can be run if there one
+            myCurrentProcess = null
             afterRunningProcess(completedProcess)
             val np = determineNextProcess(completedProcess)
             if (np != null) {
@@ -818,7 +819,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 errorMessage("wait for process for the entity")
             }
 
-            open fun blockUntilCompletion(){
+            open fun blockUntilCompletion() {
                 errorMessage("block until the process is completed")
             }
 
@@ -964,6 +965,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal var callingProcess: ProcessCoroutine? = null  //TODO for normal waitFor
             internal var calledProcess: ProcessCoroutine? = null
 
+            // can be used internally to control the priority of resuming after a suspension
+            internal var resumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY
+
+            //TODO need list to hold processes that are blocked until completion
+            internal var blockedUntilCompletionList: MutableList<ProcessCoroutine>? = null
+
             override var isActivated: Boolean = false
                 private set
             private val created = Created()
@@ -1105,7 +1112,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
-            //TODO waitFor function
             override suspend fun waitFor(
                 process: KSLProcess,
                 timeUntilActivation: Double,
@@ -1113,7 +1119,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ) {
                 require(currentProcess != process) { "The process ${process.name} is the same as the current process! " }
-                require(process.isCreated) {"The supplied process ${process.name} must be in the created state. It's state was: ${process.currentStateName}"}
+                require(process.isCreated) { "The supplied process ${process.name} must be in the created state. It's state was: ${process.currentStateName}" }
                 val p = process as ProcessCoroutine
                 require(p.callingProcess == null) { "The process to wait on already has a calling process" }
                 p.callingProcess = this
@@ -1155,23 +1161,31 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 process: KSLProcess,
                 resumptionPriority: Int,
                 suspensionName: String?
-            ){
-                require(currentProcess != process) { "The process ${process.name} is the same as the current process! " }
-                if (process.isCompleted){
+            ) {
+                require(currentProcess != process) { "The supplied process ${process.name} is the same as the current process! " }
+                require(!process.isTerminated) { "The supplied process ${process.name} is terminated! Cannot block for a terminated process." }
+                if (process.isCompleted) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} did not block for ${process.name}, because it was already completed, in process, ($this)" }
                     return
                 }
-                //TODO more tests
+                require(process.isActivated) { "The supplied process ${process.name} must be activated in order to block the current process! " }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking until ${process.name} completes, in process, ($this)" }
+                val theProcess = process as ProcessCoroutine
+                if (theProcess.blockedUntilCompletionList == null) {
+                    theProcess.blockedUntilCompletionList = mutableListOf()
+                }
                 entity.state.blockUntilCompletion()
-                //TODO suspension
-
+                this.resumptionPriority = resumptionPriority
+                theProcess.blockedUntilCompletionList!!.add(this)
+                suspend() // theProcess will resume the blocked processes when it completes
+                theProcess.blockedUntilCompletionList!!.remove(this)
+                this.resumptionPriority = KSLEvent.DEFAULT_PRIORITY
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} stopped blocking until ${process.name} completes, in process, ($this)" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                TODO("Not implemented yet")
             }
 
             override suspend fun hold(queue: HoldQueue, priority: Int, suspensionName: String?) {
@@ -1732,6 +1746,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         // called process is completed. it no longer can have calling process
                         callingProcess = null
                     }
+                    // check if the current process had other processes blocking until its completion via blockUntilCompleted() calls
+                    if (blockedUntilCompletionList != null) {
+                        for (p in blockedUntilCompletionList!!) {
+                            if (p.isSuspended) {
+                                p.entity.resumeProcess(priority = p.resumptionPriority)
+                            }
+                        }
+                        blockedUntilCompletionList!!.clear()
+                        blockedUntilCompletionList = null
+                    }
                     afterSuccessfulProcessCompletion(this)
                 }.onFailure {
                     if (it is ProcessTerminatedException) {
@@ -1766,6 +1790,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                                 calledProcess!!.terminate()
                             }
                             calledProcess = null
+                        }
+                        // need to terminate any processes that are blocking until its completion via blockUntilCompleted() calls
+                        if (blockedUntilCompletionList != null) {
+                            for (p in blockedUntilCompletionList!!) {
+                                if (p.isSuspended) {
+                                    p.terminate()
+                                }
+                            }
+                            blockedUntilCompletionList!!.clear()
+                            blockedUntilCompletionList = null
                         }
                         afterTerminatedProcessCompletion()
                         handleTerminatedProcess(this)
