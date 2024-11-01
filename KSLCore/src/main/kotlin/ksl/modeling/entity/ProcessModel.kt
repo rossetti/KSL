@@ -962,13 +962,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal var continuation: Continuation<Unit>? = null //set with suspending function
             override val context: CoroutineContext get() = EmptyCoroutineContext
 
-            internal var callingProcess: ProcessCoroutine? = null  //TODO for normal waitFor
+            internal var callingProcess: ProcessCoroutine? = null  // for normal waitFor
             internal var calledProcess: ProcessCoroutine? = null
 
             // can be used internally to control the priority of resuming after a suspension
             internal var resumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY
 
-            //TODO need list to hold processes that are blocked until completion
+            // need list to hold processes that are blocked until completion
             internal var blockedUntilCompletionList: MutableList<ProcessCoroutine>? = null
 
             override var isActivated: Boolean = false
