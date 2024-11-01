@@ -38,11 +38,12 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
             println("time = $time before the second delay in ${this@Customer}")
             delay(20.0)
             println("time = $time after the second delay in ${this@Customer}")
-            println("time = $time scheduling process 2 in ${this@Customer}")
+
        //     activate(this@Customer.process2)  // activate is not allowed because current process is running
             // scheduling will work only if current process completes before activation event
             // safer to use afterRunningProcess() or determineNextProcess() which are called after current process has completed
-            schedule(this@Customer::activateProcess2Event, 0.0)
+       //     println("time = $time scheduling process 2 in ${this@Customer}")
+    //        schedule(this@Customer::activateProcess2Event, 0.0)
         }
 
         val process2: KSLProcess = process("process2"){
@@ -54,15 +55,17 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
         }
 
         private fun activateProcess2Event(event: KSLEvent<Nothing>){
-            println("time = $time activating process 2}")
+            println("time = $time activating process 2")
             activate(this.process2)
         }
 
         override fun afterRunningProcess(completedProcess: KSLProcess) {
             // this is called after any process completes, thus need to check which one completed
-//            if (completedProcess == process1) {
-//                schedule(this@Customer::activateProcess2Event, 0.0)
-//            }
+            if (completedProcess == process1) {
+                println("time = $time activating process 2 after running $completedProcess")
+                activate(this@Customer.process2)
+                // schedule(this@Customer::activateProcess2Event, 0.0)
+            }
         }
 
         // could also override this fun to determine the next
