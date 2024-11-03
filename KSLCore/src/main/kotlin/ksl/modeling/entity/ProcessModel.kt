@@ -1749,6 +1749,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         callingProcess = null
                     }
                     // check if the current process had other processes blocking until its completion via blockUntilCompleted() calls
+                    //TODO consider pushing completion notification to suspended entities
                     if (blockedUntilCompletionList != null) {
                         for (p in blockedUntilCompletionList!!) {
                             if (p.isSuspended) {
