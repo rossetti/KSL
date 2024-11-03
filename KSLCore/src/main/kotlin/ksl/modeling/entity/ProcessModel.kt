@@ -1085,14 +1085,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 state.terminate(afterTermination)
             }
 
-            override suspend fun suspend(suspensionObserver: SuspensionObserver, suspensionName: String?) {
+            override suspend fun suspend(suspensionName: String?) {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SUSPEND
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) using suspension observe, ${suspensionObserver.name}" }
-                suspensionObserver.attach(entity)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) for suspension named: $currentSuspendName" }
+              //  suspensionObserver.attach(entity)
                 suspend()
-                suspensionObserver.detach(entity)
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) resumed by suspension observe, ${suspensionObserver.name}" }
+              //  suspensionObserver.detach(entity)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) resumed from suspension named: $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }

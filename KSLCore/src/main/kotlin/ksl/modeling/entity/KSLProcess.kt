@@ -70,23 +70,23 @@ enum class SuspendType {
     EXIT
 }
 
-/**
- *  Because an entity that is executing a process cannot resume itself
- *  after suspending itself, we need a mechanism to allow the entity
- *  to register itself before suspending.
- *
- *  Allows entities to suspend themselves by providing a callback mechanism
- *  to allow the entity to register (attach) itself before suspending, with
- *  the assurance that the SuspensionObserver will (eventually) tell the entity
- *  to resume.
- */
-interface SuspensionObserver {
-
-    val name: String
-
-    fun attach(entity: ProcessModel.Entity)
-    fun detach(entity: ProcessModel.Entity)
-}
+///**
+// *  Because an entity that is executing a process cannot resume itself
+// *  after suspending itself, we need a mechanism to allow the entity
+// *  to register itself before suspending.
+// *
+// *  Allows entities to suspend themselves by providing a callback mechanism
+// *  to allow the entity to register (attach) itself before suspending, with
+// *  the assurance that the SuspensionObserver will (eventually) tell the entity
+// *  to resume.
+// */
+//interface SuspensionObserver {
+//
+//    val name: String
+//
+//    fun attach(entity: ProcessModel.Entity)
+//    fun detach(entity: ProcessModel.Entity)
+//}
 
 /**
  * KSLProcessBuilder provides the functionality for describing a process.  A process is an instance
@@ -104,15 +104,17 @@ interface KSLProcessBuilder {
 
     /**
      *  Suspends the execution of the process.  Since the process cannot resume itself, the client
-     *  must provide an object that will resume the process. Most required functionality is provided
-     *  via the other methods in this interface.  The method suspend() might be considered for implementing
-     *  higher level functionality.
+     *  must provide a mechanism that resumes the process. The most basic strategy would be to
+     *  store a "globally" available reference to the entity that is suspending. The reference
+     *  can then be used to resume the process via the entity's resumeProcess() function.
      *
-     * @param suspensionObserver the thing that promises to resume the process
+     *  The method suspend() is used for implementing higher level functionality.
+     *
      * @param suspensionName a name for the suspension point. Can be used to determine which suspension point
-     * the entity is in when there are multiple suspension points.
+     * the entity is in when there are multiple suspension points, assuming that every suspension point
+     * has a unique suspension name..
      */
-    suspend fun suspend(suspensionObserver: SuspensionObserver, suspensionName: String?)
+    suspend fun suspend(suspensionName: String? = null)
 
     /** Causes the current process to suspend (immediately) until the specified process has run to completion.
      *  This is like run blocking.  It activates the specified process and then waits for it
