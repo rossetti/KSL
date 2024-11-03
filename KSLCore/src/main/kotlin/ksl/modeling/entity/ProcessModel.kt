@@ -1187,10 +1187,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 entity.state.blockUntilCompletion()
                 this.resumptionPriority = resumptionPriority
                 //TODO need to store "theProcess" for the current entity to remember which process it is blocking for
-                val theProcess = process as ProcessCoroutine
-                theProcess.attachBlockingCompletionListener(this)
-                suspend() // theProcess will resume the blocked processes when it completes
-                theProcess.detachBlockingCompletionListener(this)
+                val theCompletingProcess = process as ProcessCoroutine
+                theCompletingProcess.attachBlockingCompletionListener(this)
+                suspend() // theCompletingProcess will resume the blocked processes when it completes
+                theCompletingProcess.detachBlockingCompletionListener(this)
                 this.resumptionPriority = KSLEvent.DEFAULT_PRIORITY
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} stopped blocking until ${process.name} completes, in process, ($this)" }
