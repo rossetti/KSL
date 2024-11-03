@@ -968,7 +968,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // can be used internally to control the priority of resuming after a suspension
             internal var resumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY
 
-            // need list to hold processes that are blocked until completion
+            // need list to hold processes that are blocked waiting on the completion of this process
+            //TODO should this be a set? duplicates cannot be in this list
             internal var blockedUntilCompletionList: MutableList<ProcessCoroutine>? = null
 
             override var isActivated: Boolean = false
@@ -1178,6 +1179,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 entity.state.blockUntilCompletion()
                 this.resumptionPriority = resumptionPriority
+                //TODO need to store "theProcess" for the current entity to remember which process it is blocking for
                 theProcess.blockedUntilCompletionList!!.add(this)
                 suspend() // theProcess will resume the blocked processes when it completes
                 theProcess.blockedUntilCompletionList!!.remove(this)
@@ -1752,6 +1754,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     //TODO consider pushing completion notification to suspended entities
                     if (blockedUntilCompletionList != null) {
                         for (p in blockedUntilCompletionList!!) {
+                            //TODO call the entity with the reference to the completing process
                             if (p.isSuspended) {
                                 p.entity.resumeProcess(priority = p.resumptionPriority)
                             }
@@ -1796,6 +1799,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         // this terminates any "child" processes that are blocking first and then the parent
                         if (blockedUntilCompletionList != null) {
                             for (p in blockedUntilCompletionList!!) {
+                                //TODO call the process with notification of termination
                                 if (p.isSuspended) {
                                     //println("terminating process $p")
                                     p.terminate()
