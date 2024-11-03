@@ -1,7 +1,6 @@
 package ksl.examples.general.models
 
 import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.SuspensionObserver
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
@@ -22,15 +21,6 @@ class SoccerMom(
     override fun initialize() {
         val m = Mom()
         activate(m.momProcess)
-    }
-
-    private val tempSO = TempSO()
-    private inner class TempSO() : SuspensionObserver {
-        override val name: String = "Temp"
-        override fun attach(entity: Entity) {
-        }
-        override fun detach(entity: Entity) {
-        }
     }
 
     private inner class Mom : Entity() {
