@@ -18,7 +18,9 @@
 
 package ksl.examples.book.chapter6
 
-import ksl.modeling.entity.*
+import ksl.modeling.entity.ProcessModel
+import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.entity.ResourceWithQCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
@@ -27,75 +29,85 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.*
 
 /**
- *  Example 6.8
- *  This example illustrates process view modeling for a simple production system that
- *  produces T-Shirts. A blocking queue is an important part of the implementation
- *  for this model.
+ *  Example 6.7
+ *  This model illustrates process view modeling via the STEM Career Fair Mixer system
+ *  described in Chapter 6.
  */
-class TieDyeTShirts(
+class StemFairMixer(
     parent: ModelElement,
     name: String? = null
 ) : ProcessModel(parent, name) {
 
-    private val myTBOrders: RVariableIfc = ExponentialRV(60.0)
-    private val myType: RVariableIfc = DEmpiricalRV(doubleArrayOf(1.0, 2.0), doubleArrayOf(0.7, 1.0))
-    private val mySize: RVariableIfc = DEmpiricalRV(doubleArrayOf(3.0, 5.0), doubleArrayOf(0.75, 1.0))
-    private val myOrderSize = RandomVariable(this, mySize)
-    private val myOrderType = RandomVariable(this, myType)
-    private val myShirtMakingTime = RandomVariable(this, UniformRV(15.0, 25.0))
-    private val myPaperWorkTime = RandomVariable(this, UniformRV(8.0, 10.0))
-    private val myPackagingTime = RandomVariable(this, TriangularRV(5.0, 10.0, 15.0))
+    private val myTBArrivals: RVariableIfc = ExponentialRV(2.0, 1)
+    private val myNameTagTimeRV = RandomVariable(this, UniformRV((15.0 / 60.0), (45.0 / 60.0), 2))
+    private val myWanderingTimeRV = RandomVariable(this, TriangularRV(15.0, 20.0, 45.0, 3),
+        name = "WanderingT")
+    private val myTalkWithJHBunt = RandomVariable(this, ExponentialRV(6.0, 4))
+    private val myTalkWithMalMart = RandomVariable(this, ExponentialRV(3.0, 5))
+    private val myDecideToWander = RandomVariable(this, BernoulliRV(0.5, 6))
+    private val myDecideToLeave = RandomVariable(this, BernoulliRV(0.1, 7))
 
-    private val mySystemTime = Response(this, "System Time")
-    private val myNumInSystem = TWResponse(this, "Num in System")
+    private val myOverallSystemTime = Response(this, "OverallSystemTime")
+    private val mySystemTimeNW = Response(this, "NonWanderSystemTime")
+    private val mySystemTimeW = Response(this, "WanderSystemTime")
+    private val mySystemTimeL = Response(this, "LeaverSystemTime")
+    private val myNumInSystem = TWResponse(this, "NumInSystem")
 
-    private val myShirtMakers: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "ShirtMakers_R")
-    private val myOrderQ: RequestQ = RequestQ(this, name = "OrderQ")
-    private val myPackager: ResourceWithQ = ResourceWithQ(this, "Packager_R")
-    private val generator = EntityGenerator(::Order, myTBOrders, myTBOrders)
-    private val completedShirtQ: BlockingQueue<Shirt> = BlockingQueue(this, name = "Completed Shirt Q")
+    private val myJHBuntRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "JHBuntR")
+    val jhBuntRecruiters : ResourceWithQCIfc
+        get() = myJHBuntRecruiters
 
-    private inner class Order : Entity() {
-        val type: Int = myOrderType.value.toInt() // in the problem, but not really used
-        val size: Int = myOrderSize.value.toInt()
-        var completedShirts: List<Shirt> = emptyList() // not really necessary
+    private val myMalWartRecruiters: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "MalWartR")
+    val malWartRecruiters : ResourceWithQCIfc
+        get() = myMalWartRecruiters
 
-        val orderMaking: KSLProcess = process {
+    private val generator = EntityGenerator(::Student, myTBArrivals, myTBArrivals)
+
+    private inner class Student : Entity() {
+        private val isWanderer = myDecideToWander.value.toBoolean()
+        private val isLeaver = myDecideToLeave.value.toBoolean()
+
+        val stemFairProcess = process {
             myNumInSystem.increment()
-            for (i in 1..size) {
-                val shirt = Shirt(this@Order.id)
-                activate(shirt.shirtMaking)
+            delay(myNameTagTimeRV)
+            if (isWanderer) {
+                delay(myWanderingTimeRV)
+                if (isLeaver) {
+                    departMixer(this@Student)
+                    return@process
+                }
             }
-            var a = seize(myPackager, queue = myOrderQ)
-            delay(myPaperWorkTime)
-            release(a)
-            // wait for shirts
-            completedShirts = waitForItems(completedShirtQ, size, { it.orderNum == this@Order.id })
-            a = seize(myPackager)
-            delay(myPackagingTime)
-            release(a)
+            val mw = seize(myMalWartRecruiters)
+            delay(myTalkWithMalMart)
+            release(mw)
+            val jhb = seize(myJHBuntRecruiters)
+            delay(myTalkWithJHBunt)
+            release(jhb)
+            departMixer(this@Student)
+        }
+
+        private fun departMixer(departingStudent: Student) {
             myNumInSystem.decrement()
-            mySystemTime.value = time - this@Order.createTime
+            val st = time - departingStudent.createTime
+            myOverallSystemTime.value = st
+            if (isWanderer) {
+                mySystemTimeW.value = st
+                if (isLeaver) {
+                    mySystemTimeL.value = st
+                }
+            } else {
+                mySystemTimeNW.value = st
+            }
         }
 
-    }
-
-    private inner class Shirt(val orderNum: Long) : Entity() {
-        val shirtMaking: KSLProcess = process {
-            val a = seize(myShirtMakers)
-            delay(myShirtMakingTime)
-            release(a)
-            // send to orders
-            send(this@Shirt, completedShirtQ)
-        }
     }
 }
 
 fun main() {
     val m = Model()
-    TieDyeTShirts(m, "Tie-Dye Shirts")
-    m.lengthOfReplication = 480.0
-    m.numberOfReplications = 30
+    StemFairMixer(m, "Stem Fair")
+    m.lengthOfReplication = 6.0 * 60.0
+    m.numberOfReplications = 400
     m.simulate()
     m.print()
 }
