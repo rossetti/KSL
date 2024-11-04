@@ -67,8 +67,8 @@ class SoccerMom(
             mom.resumeProcess()
             println("$time> daughter, ${this@Daughter.name}, starting playing")
             isPlaying = true
-           // delay(30.0)
-            delay(60.0)
+            delay(30.0)
+          //  delay(60.0)
             isPlaying = false
             println("$time> daughter, ${this@Daughter.name}, finished playing")
             if (!mom.errandsCompleted){
