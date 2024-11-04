@@ -969,7 +969,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal var resumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY
 
             // need list to hold processes that are blocked waiting on the completion of this process
-            //TODO should this be a set? duplicates cannot be in this list
             private var blockedUntilCompletionListeners: MutableSet<ProcessCoroutine>? = null
 
             override var isActivated: Boolean = false
@@ -1017,7 +1016,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 priority: Int = KSLEvent.DEFAULT_PRIORITY
             ): KSLEvent<KSLProcess> {
                 check(!hasPendingProcess) { "The $this process cannot be activated for the entity because the entity already has a pending process: ${pendingProcess?.name}" }
-                //TODO when does hasCurrentProcess get set to false (when does currentProcess get set to null)
+                // hasCurrentProcess gets set to false (currentProcess get set to null) in afterSuccessfulProcessCompletion()
                 check(!hasCurrentProcess) { "The $this process cannot be activated for the entity because the entity is already running a process: ${currentProcess?.name}" }
                 myPendingProcess = this
                 entity.state.schedule()
