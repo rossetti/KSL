@@ -35,13 +35,11 @@ class SoccerMom(
             val daughter = Daughter(this@Mom)
             activate(daughter.daughterProcess)
             println("$time> mom = ${this@Mom.name} suspending for daughter to exit van")
-            //TODO suspend mom's process
             suspend("mom suspended for daughter to exit van")
             println("$time> mom = ${this@Mom.name} running errands...")
             delay(45.0)
             println("$time> mom = ${this@Mom.name} completed errands")
             errandsCompleted = true
-            //TODO suspend if daughter isn't done playing
             if (daughter.isPlaying){
                 println("$time> mom, ${this@Mom.name}, mom suspending because daughter is still playing")
                 suspend("mom suspended for daughter playing")
@@ -65,16 +63,14 @@ class SoccerMom(
             println("$time> daughter, ${this@Daughter.name}, exiting the van")
             delay(2.0)
             println("$time> daughter, ${this@Daughter.name}, exited the van")
-            //TODO resume mom process
             println("$time> daughter, ${this@Daughter.name}, resuming mom")
             mom.resumeProcess()
             println("$time> daughter, ${this@Daughter.name}, starting playing")
             isPlaying = true
            // delay(30.0)
-            delay(60.0) //TODO
+            delay(60.0)
             isPlaying = false
             println("$time> daughter, ${this@Daughter.name}, finished playing")
-            //TODO suspend if mom isn't here
             if (!mom.errandsCompleted){
                 println("$time> daughter, ${this@Daughter.name}, mom errands not completed suspending")
                 suspend("daughter waiting on mom to complete errand")
@@ -82,7 +78,6 @@ class SoccerMom(
             println("$time> daughter, ${this@Daughter.name}, entering van")
             delay(2.0)
             println("$time> daughter, ${this@Daughter.name}, entered van")
-            //TODO resume mom process
             println("$time> daughter, ${this@Daughter.name}, entered van, resuming mom")
             mom.resumeProcess()
         }
