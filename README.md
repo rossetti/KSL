@@ -97,11 +97,14 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.1.4"
+version = "R1.1.5"
 
 ## Release Notes
+Latest Release: R1.1.5
+- Added blockUntilCompleted() suspending function to permit suspension until another process completes
+- Simplified basic suspend() function
 
-Latest Release: R1.1.4
+Release: R1.1.4
 - updated how processes are started, removed automatic use of process sequence
 - fixed random number stream assignment issue
 - added piecewise constant continuous empirical random variable and distribution
