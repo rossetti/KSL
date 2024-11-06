@@ -97,9 +97,9 @@ class GreatCircleBasedSpatialModel () : SpatialModel() {
             require(abs(latitude) <= 90.0) { "The latitude must be in range [-90, 90] degrees" }
             require(abs(longitude) <= 180.0) { "The longitude must be in range [-180, 180] degrees" }
         }
-        override val model: SpatialModel = this@GreatCircleBasedSpatialModel
+        override val spatialModel: SpatialModel = this@GreatCircleBasedSpatialModel
         override fun toString(): String {
-            return "Location(latitude=$latitude, longitude=$longitude, id=$id, name='$name', spatial model=${model.name})"
+            return "Location(latitude=$latitude, longitude=$longitude, id=$id, name='$name', spatial model=${spatialModel.name})"
         }
 
     }
