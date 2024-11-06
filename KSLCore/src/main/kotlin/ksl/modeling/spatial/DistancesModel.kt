@@ -23,7 +23,6 @@ import com.google.common.collect.HashBasedTable
 import com.google.common.collect.HashBiMap
 import com.google.common.collect.Table
 import ksl.utilities.KSLArrays
-import ksl.utilities.isRectangular
 
 data class DistanceData(val fromLoc: String, val toLoc: String, val distance: Double) {
     init {
@@ -223,9 +222,9 @@ class DistancesModel() : SpatialModel() {
             require(!myLocations.containsKey(aName)) { "The location name $aName already exists" }
         }
 
-        override val model: SpatialModel = this@DistancesModel
+        override val spatialModel: SpatialModel = this@DistancesModel
         override fun toString(): String {
-            return "Location(id=$id, name='$name', spatial model=${model.name})"
+            return "Location(id=$id, name='$name', spatial model=${spatialModel.name})"
         }
 
     }

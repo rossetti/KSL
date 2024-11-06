@@ -58,15 +58,18 @@ class TandemQueueWithMovement(parent: ModelElement, name: String? = null) : Proc
             currentLocation = enter
             wip.increment()
             timeStamp = time
-            moveTo(station1, velocity = myWalkingSpeedRV)
+           // moveTo(station1, velocity = myWalkingSpeedRV)
+            moveTo(station1)
             seize(worker1)
             delay(st1)
             release(worker1)
-            moveTo(station2, velocity = myWalkingSpeedRV)
+           // moveTo(station2, velocity = myWalkingSpeedRV)
+            moveTo(station2)
             seize(worker2)
             delay(st2)
             release(worker2)
-            moveTo(exit, velocity = myWalkingSpeedRV)
+            //moveTo(exit, velocity = myWalkingSpeedRV)
+            moveTo(exit)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
