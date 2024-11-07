@@ -222,11 +222,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     }
 
     override fun afterReplication() {
-        // make a copy of the set
+        // make a copy of the set for iteration purposes
         val set = suspendedEntities.toHashSet()
         Model.logger.info { "After Replication for ${this.name}: terminating ${set.size} suspended entities" }
         for (entity in set) {
-            entity.terminateProcess()
+            if (entity.isSuspended){
+                //TODO this check necessary because a terminating process may terminate its calling process and
+                // that termination does not remove the suspended entity from the suspendedEntities list.
+                // So, only terminate those processes that are suspended and skip those that are already terminated
+                entity.terminateProcess()
+            }
         }
         suspendedEntities.clear()
     }
@@ -1784,6 +1789,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                                 // this is to prevent the calling process from trying to re-terminate the called process
                                 // When it is terminated
                                 callingProcess!!.calledProcess = null
+                                // since the calling process is suspended, it will be in the suspendedEntities list
+                                // termination, leaves it in the list
+                                // thus terminated entities may be in the suspendedEntities list
                                 callingProcess!!.terminate()
                             }
                             callingProcess = null
@@ -1802,6 +1810,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                                 // try to terminate its calling process, which has already terminated
                                 calledProcess!!.callingProcess = null
                                 // now terminate the sub-process
+                                // since the called process is suspended, it will be in the suspendedEntities list
+                                // thus terminated entities may be in the suspendedEntities list
                                 calledProcess!!.terminate()
                             }
                             calledProcess = null
@@ -1813,6 +1823,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                                 //TODO call the process with notification of termination
                                 if (p.isSuspended) {
                                     //println("terminating process $p")
+                                    // since the blocked process is suspended, it will be in the suspendedEntities list
+                                    // thus terminated entities may be in the suspendedEntities list
                                     p.terminate()
                                 }
                             }

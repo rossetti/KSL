@@ -83,7 +83,7 @@ class DumpTruckSystemProcessView(
     }
 
     private inner class Truck(name: String? = null) : Entity(name) {
-        val miningProcess: KSLProcess = process {
+        val miningProcess: KSLProcess = process ("Truck Process") {
             while (true) {
                 timeStamp = time
                 val loader = seize(myLoaders)
@@ -102,7 +102,7 @@ class DumpTruckSystemProcessView(
     }
 
     private inner class Truck2(name: String? = null) : Entity(name) {
-        val miningProcess: KSLProcess = process {
+        val miningProcess: KSLProcess = process("Truck2 Process") {
             timeStamp = time
             val loader = seize(myLoaders)
             delay(myLoadingTimeRV)
