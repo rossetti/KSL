@@ -12,11 +12,10 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.DUniformRV
-import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main(){
     val model = Model("MfgSystem Example")
-    val mfgSystem = TestBlockUntilCompleted(model, "MfgSystem")
+    val mfgSystem = TestBlockUntilAllCompleted(model, "MfgSystem")
     model.lengthOfReplication = 5000.0
     model.numberOfReplications = 1
     model.simulate()
@@ -30,7 +29,7 @@ fun main(){
  *  A part is randomly assigned to an assembly line for processing.
  *  Each assembly line consists of a sequence of stations to visit.
  */
-class TestBlockUntilCompleted(
+class TestBlockUntilAllCompleted(
     parent: ModelElement,
     name: String?
 ) : ProcessModel(parent, name) {
@@ -73,7 +72,7 @@ class TestBlockUntilCompleted(
     }
 
     private inner class AssemblyLine(
-        system: TestBlockUntilCompleted,
+        system: TestBlockUntilAllCompleted,
         name: String?
     ) : ModelElement(system, name) {
 
