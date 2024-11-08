@@ -765,10 +765,10 @@ class PDFModeler(
             scalingFunction: DefaultScalingFunction = defaultScalingFunction,
         ): AdditiveMODAModel {
             require(scoringResults.isNotEmpty()) { "The list of scoring results was empty" }
-            val metrics = scoringResults[0].metrics
             val metricValueFunctionMap = if (scalingFunction == DefaultScalingFunction.Logistic) {
-                createLogisticFunctionMetricEvaluationFunctionMap(scoringResults, metrics)
+                createLogisticFunctionMetricEvaluationFunctionMap(scoringResults)
             } else {
+                val metrics = scoringResults[0].metrics
                 MODAModel.assignLinearValueFunctions(metrics)
             }
             val model = AdditiveMODAModel(metricValueFunctionMap, name = "Default PDF MODA")
@@ -779,13 +779,37 @@ class PDFModeler(
         /**
          *  Creates a map for an AdditiveMODAModel that can specify the metrics using
          *  LogisticFunction value functions
+         *  The list of scoring results must not be empty.
+         *  @param scoringResults the list os scoring results, must not be empty
          */
         fun createLogisticFunctionMetricEvaluationFunctionMap(
-            scoringResults: List<ScoringResult>,
-            metrics: List<MetricIfc>
+            scoringResults: List<ScoringResult>
         ): Map<MetricIfc, ValueFunctionIfc> {
-            TODO("need to implement the logistic function case")
-            val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
+            require(scoringResults.isNotEmpty()) { "The list of scoring results was empty" }
+            val metrics = scoringResults[0].metrics
+            // We need the metric values for each alternative (distribution)
+            // e.g. all the BIC values (the BIC value for each distribution)
+            // make the map to hold the raw score values for each metric
+            val metricData = mutableMapOf<MetricIfc, MutableList<Double>>()
+            for(m in metrics){
+                metricData[m] = mutableListOf()
+            }
+            // Now extract the data. List<Scores> within ScoringResult has the data.
+            // Each score has the metric and its associated raw score value
+            for(sr in scoringResults){
+                // scoring results go across the alternatives
+                for(score in sr.scores){
+                    // get the list for the metric and add the associated score
+                    metricData[score.metric]!!.add(score.value)
+                }
+            }
+            // We need to build the logistic functions based on the metric score values
+            // make the map and assign the value function for each metric then return
+            val metricValueFunctionMap = mutableMapOf<MetricIfc, ValueFunctionIfc>()
+            for((metric, data) in metricData){
+                val f = LogisticFunction.create(data.toDoubleArray())
+                metricValueFunctionMap[metric] = f
+            }
             return metricValueFunctionMap
         }
 
