@@ -84,7 +84,7 @@ class LogisticFunction(
         fun recommendLocationAndScale(data: DoubleArray, factor: Double = 0.25): Pair<Double, Double> {
             require((0.0 < factor) && (factor < 1.0)) { "The factor must be within (0,1)" }
             var (location, scale) = estimateLocationAndScale(data)
-            val cvLL = location * factor
+            val cvLL = location * (1.0 - factor)
             val cvUL = location * (1.0 + factor)
             if (scale < cvLL) {
                 scale = cvLL
