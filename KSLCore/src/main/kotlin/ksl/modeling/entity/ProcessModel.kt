@@ -221,14 +221,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
     }
 
+    /**
+     *  It is essential that subclasses that override this function call the super.
+     *  This ensures that suspended entities are cleaned up after a replication
+     */
     override fun afterReplication() {
         // make a copy of the set for iteration purposes
         val set = suspendedEntities.toHashSet()
         Model.logger.info { "After Replication for ${this.name}: terminating ${set.size} suspended entities" }
         for (entity in set) {
-            if (entity.isSuspended){
+            if (entity.isSuspended) {
                 //TODO this check necessary because a terminating process may terminate its calling process and
-                // that termination does not remove the suspended entity from the suspendedEntities list.
+                // that termination does not remove the suspended entity from the local copy of the set of suspended entities.
                 // So, only terminate those processes that are suspended and skip those that are already terminated
                 entity.terminateProcess()
             }
@@ -973,8 +977,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // can be used internally to control the priority of resuming after a suspension
             internal var resumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY
 
-            // need list to hold processes that are blocked waiting on the completion of this process
+            // need a set to hold processes that are blocked waiting on the completion of this process
             private var blockedUntilCompletionListeners: MutableSet<ProcessCoroutine>? = null
+
+            // need a set to hold the processes that this process might be blocking until they complete
+            private var blockingUntilCompletedSet: MutableSet<ProcessCoroutine>? =
+                null  //TODO blockingUntilCompletedSet
 
             override var isActivated: Boolean = false
                 private set
@@ -1094,9 +1102,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SUSPEND
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) for suspension named: $currentSuspendName" }
-              //  suspensionObserver.attach(entity)
+                //  suspensionObserver.attach(entity)
                 suspend()
-              //  suspensionObserver.detach(entity)
+                //  suspensionObserver.detach(entity)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) resumed from suspension named: $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -1161,46 +1169,99 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            private fun attachBlockingCompletionListener(listener: KSLProcess){
-                if (blockedUntilCompletionListeners == null){
+            private fun attachBlockingCompletionListener(listener: KSLProcess) {
+                if (blockedUntilCompletionListeners == null) {
                     blockedUntilCompletionListeners = mutableSetOf()
                 }
                 blockedUntilCompletionListeners!!.add(listener as ProcessCoroutine)
             }
 
-            private fun detachBlockingCompletionListener(listener: KSLProcess){
+            private fun detachBlockingCompletionListener(listener: KSLProcess) {
                 blockedUntilCompletionListeners?.remove(listener)
             }
 
-            //TODO blockUntilCompletion function
+            override suspend fun blockUntilAllCompleted(
+                processes: Set<KSLProcess>,
+                resumptionPriority: Int,
+                suspensionName: String?
+            ) {
+                for (process in processes) {
+                    require(currentProcess != process) { "The supplied process ${process.name} is the same as the current process! " }
+                    require(!process.isTerminated) { "The supplied process ${process.name} is terminated! Cannot block for a terminated process." }
+                    require(process.entity.isScheduled || process.isActivated) { "The supplied process ${process.name} must be scheduled or activated in order to block the current process! " }
+                }
+                val processSet = mutableSetOf<ProcessCoroutine>()
+                for (process in processes) {
+                    if (!process.isCompleted) {
+                        processSet.add(process as ProcessCoroutine)
+                    }
+                }
+                if (processSet.isEmpty()) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} did not block until all completed for $suspensionName, because all processes were completed, in process, ($this)" }
+                    return
+                }
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking until all complete for suspension $currentSuspendName, in process, ($this)" }
+                entity.state.blockUntilCompletion()
+                this.resumptionPriority = resumptionPriority
+                blockingUntilCompletedSet = processSet
+                // tell each completing process to remember that the current process (this) is blocking until it completes
+                for (completingProcess in blockingUntilCompletedSet!!) {
+                    completingProcess.attachBlockingCompletionListener(this)
+                }
+                // suspend this current process while the supplied processes complete
+                suspend()
+                // tell each completing process to forget that this current process was blocking for it
+                for (completedProcess in blockingUntilCompletedSet!!) {
+                    completedProcess.detachBlockingCompletionListener(this)
+                }
+                // done blocking on the process so make sure that set is clear
+                blockingUntilCompletedSet?.clear()
+                blockingUntilCompletedSet = null
+                this.resumptionPriority = KSLEvent.DEFAULT_PRIORITY
+                entity.state.activate()
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} stopped blocking until all complete for suspension $currentSuspendName, in process, ($this)" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+            }
+
             override suspend fun blockUntilCompletion(
                 process: KSLProcess,
                 resumptionPriority: Int,
                 suspensionName: String?
             ) {
-                require(currentProcess != process) { "The supplied process ${process.name} is the same as the current process! " }
-                require(!process.isTerminated) { "The supplied process ${process.name} is terminated! Cannot block for a terminated process." }
-                if (process.isCompleted) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} did not block for ${process.name}, because it was already completed, in process, ($this)" }
-                    return
-                }
-                require(process.entity.isScheduled || process.isActivated) { "The supplied process ${process.name} must be scheduled or activated in order to block the current process! " }
-                currentSuspendName = suspensionName
-                currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking until ${process.name} completes, in process, ($this)" }
-                entity.state.blockUntilCompletion()
-                this.resumptionPriority = resumptionPriority
-                //TODO need to store "theProcess" for the current entity to remember which process it is blocking for
-                val theCompletingProcess = process as ProcessCoroutine
-                theCompletingProcess.attachBlockingCompletionListener(this)
-                suspend() // theCompletingProcess will resume the blocked processes when it completes
-                theCompletingProcess.detachBlockingCompletionListener(this)
-                this.resumptionPriority = KSLEvent.DEFAULT_PRIORITY
-                entity.state.activate()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} stopped blocking until ${process.name} completes, in process, ($this)" }
-                currentSuspendName = null
-                currentSuspendType = SuspendType.NONE
+                blockUntilAllCompleted(setOf(process), resumptionPriority, suspensionName)
             }
+
+            //TODO blockUntilCompletion function
+//            override suspend fun blockUntilCompletion(
+//                process: KSLProcess,
+//                resumptionPriority: Int,
+//                suspensionName: String?
+//            ) {
+//                require(currentProcess != process) { "The supplied process ${process.name} is the same as the current process! " }
+//                require(!process.isTerminated) { "The supplied process ${process.name} is terminated! Cannot block for a terminated process." }
+//                if (process.isCompleted) {
+//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} did not block for ${process.name}, because it was already completed, in process, ($this)" }
+//                    return
+//                }
+//                require(process.entity.isScheduled || process.isActivated) { "The supplied process ${process.name} must be scheduled or activated in order to block the current process! " }
+//                currentSuspendName = suspensionName
+//                currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
+//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking until ${process.name} completes, in process, ($this)" }
+//                entity.state.blockUntilCompletion()
+//                this.resumptionPriority = resumptionPriority
+//                val theCompletingProcess = process as ProcessCoroutine
+//                theCompletingProcess.attachBlockingCompletionListener(this)
+//                suspend() // theCompletingProcess will resume the blocked processes when it completes
+//                theCompletingProcess.detachBlockingCompletionListener(this)
+//                this.resumptionPriority = KSLEvent.DEFAULT_PRIORITY
+//                entity.state.activate()
+//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} stopped blocking until ${process.name} completes, in process, ($this)" }
+//                currentSuspendName = null
+//                currentSuspendType = SuspendType.NONE
+//            }
 
             override suspend fun hold(queue: HoldQueue, priority: Int, suspensionName: String?) {
                 currentSuspendName = suspensionName
@@ -1736,13 +1797,41 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            private fun notifyBlockedCompletionListenersOfCompletion(){
-                //TODO consider pushing completion notification to suspended entities
+            /**
+             *  This function is called from the Kotlin coroutine resumeWith() function
+             *  after a KSL process completes.  If the completing process has processes
+             *  that are blocked (until) its completion, then those processes are notified
+             *  that the completing process has completed (successfully).  The blocked
+             *  processes can then react accordingly.
+             */
+            private fun notifyBlockedCompletionListenersOfCompletion() {
+                // push completion notification to suspended entities
                 if (blockedUntilCompletionListeners != null) {
-                    for (p in blockedUntilCompletionListeners!!) {
-                        //TODO call the entity with the reference to the completing process
-                        if (p.isSuspended && p.entity.isBlockedUntilCompletion) {
-                            p.entity.resumeProcess(priority = p.resumptionPriority)
+                    for (blockedProcess in blockedUntilCompletionListeners!!) {
+                        // call the blocked process with the reference to the completing process
+                        blockedProcess.blockingUntilProcessCompleted(this)
+                    }
+                }
+            }
+
+            /**
+             *   This function is called when a completing process has processes that are blocked
+             *   (until) completion. This function handles what the **blocked** process should do
+             *   when the process it is waiting on completes. The functionality in this routine
+             *   applied to the blocked process.  The behavior is to resume if all processes
+             *   for which this process was blocked for have completed. If so, it resumes itself.
+             */
+            private fun blockingUntilProcessCompleted(completedProcess: ProcessCoroutine) {
+                // ***** we are inside the blocked process *****
+                if (blockingUntilCompletedSet != null) {
+                    // completed process is completed so remove it from set that this process is blocking for
+                    blockingUntilCompletedSet!!.remove(completedProcess)
+                    // if all have completed, we can resume
+                    if (blockingUntilCompletedSet!!.isEmpty()) {
+                        // all processes that this process was blocked for have completed
+                        // this process can resume
+                        if (isSuspended && entity.isBlockedUntilCompletion) {
+                            entity.resumeProcess(priority = resumptionPriority)
                         }
                     }
                 }
@@ -1819,13 +1908,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         // need to terminate any processes that are blocking until its completion via blockUntilCompleted() calls
                         // this terminates any "child" processes that are blocking first and then the parent
                         if (blockedUntilCompletionListeners != null) {
-                            for (p in blockedUntilCompletionListeners!!) {
+                            for (blockedProcess in blockedUntilCompletionListeners!!) {
                                 //TODO call the process with notification of termination
-                                if (p.isSuspended) {
+                                if (blockedProcess.isSuspended) {
                                     //println("terminating process $p")
                                     // since the blocked process is suspended, it will be in the suspendedEntities list
                                     // thus terminated entities may be in the suspendedEntities list
-                                    p.terminate()
+                                    blockedProcess.terminate()
                                 }
                             }
                             blockedUntilCompletionListeners!!.clear()
@@ -1978,6 +2067,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     state = terminated
                     //un-capture suspended entities here
                     suspendedEntities.remove(entity)
+                    if (blockingUntilCompletedSet != null) {
+                        // note that the termination of any process for which it was blocking will have caused its termination
+                        // if this process was blocking until other processes completed, then its termination
+                        // should cause it to not be blocking and thus its set should be cleared
+                        blockingUntilCompletedSet!!.clear()
+                        blockingUntilCompletedSet = null
+                    }
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.terminate() : entity_id = ${entity.id} terminated process, (${this@ProcessCoroutine}) ..." }
                     //resume with exception
 //                    continuation?.resumeWith(Result.failure(ProcessTerminatedException())) // same as below

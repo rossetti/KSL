@@ -173,6 +173,25 @@ interface KSLProcessBuilder {
     )
 
     /**
+     *  Causes the current process to block until all the specified processes completes. This function does not
+     *  activate the specified processes. The specified processes must have been previously activated. If all specified processes have
+     *  already completed, then no blocking occurs.  In other words, the call immediately returns.
+     *  If any of the specified processes have terminated, then an exception occurs.
+     *
+     *  @param processes the processes to block for. The supplied processes must not be terminated and cannot be
+     *  the same as the current process.
+     *  @param resumptionPriority a priority indicator to inform ordering when there is more than one process blocking
+     *  for the specified processes
+     *  @param suspensionName the name of the blockUntilCompletion. can be used to identify which blockUntilCompletion the entity is experiencing if there
+     *   are more than one blockUntilCompletion suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun blockUntilAllCompleted(
+        processes: Set<KSLProcess>,
+        resumptionPriority: Int = PRIORITY,
+        suspensionName: String? = null
+    )
+
+    /**
      *  Causes the process to hold indefinitely within the supplied queue.  Some other process or event
      *  is responsible for removing the entities and causing them to proceed with their processes
      *  NOTE:  The entity is not signaled to resume its process unless you signal it.  The
