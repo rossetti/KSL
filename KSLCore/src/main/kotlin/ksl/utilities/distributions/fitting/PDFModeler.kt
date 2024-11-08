@@ -28,10 +28,7 @@ import ksl.utilities.io.plotting.BoxPlot
 import ksl.utilities.io.plotting.ObservationsPlot
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.toStatDataFrame
-import ksl.utilities.moda.AdditiveMODAModel
-import ksl.utilities.moda.MODAModel
-import ksl.utilities.moda.MetricIfc
-import ksl.utilities.moda.Score
+import ksl.utilities.moda.*
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.*
@@ -670,6 +667,12 @@ class PDFModeler(
 
     companion object {
 
+        enum class DefaultScalingFunction {
+            Linear, Logistic
+        }
+
+        var defaultScalingFunction = DefaultScalingFunction.Logistic
+
         /**
          *  For rank based evaluation, this specifies the default parameter value
          *  for those methods the perform rank based evaluation calculations.
@@ -750,17 +753,40 @@ class PDFModeler(
          *  Creates an additive evaluation model based on the metrics within the
          *  scoring results that has linear value functions for the metrics.
          *  The list of scoring results must not be empty.
+         *  @param scoringResults the list os scoring results, must not be empty
+         *  @param rankingMethod the desired ranking method. The default is specified by
+         *  the companion property defaultRankingMethod
+         *  @param scalingFunction the type of scaling function to use. By default, this is
+         *  specified by the companion property, defaultScalingFunction
          */
         fun createDefaultPDFEvaluationModel(
             scoringResults: List<ScoringResult>,
             rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod,
+            scalingFunction: DefaultScalingFunction = defaultScalingFunction,
         ): AdditiveMODAModel {
             require(scoringResults.isNotEmpty()) { "The list of scoring results was empty" }
             val metrics = scoringResults[0].metrics
-            val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
+            val metricValueFunctionMap = if (scalingFunction == DefaultScalingFunction.Linear) {
+                MODAModel.assignLinearValueFunctions(metrics)
+            } else {
+                createLogisticFunctionMetricEvaluationFunctionMap(scoringResults, metrics)
+            }
             val model = AdditiveMODAModel(metricValueFunctionMap, name = "Default PDF MODA")
             model.defaultRankingMethod = rankingMethod
             return model
+        }
+
+        /**
+         *  Creates a map for an AdditiveMODAModel that can specify the metrics using
+         *  LogisticFunction value functions
+         */
+        fun createLogisticFunctionMetricEvaluationFunctionMap(
+            scoringResults: List<ScoringResult>,
+            metrics: List<MetricIfc>
+        ): Map<MetricIfc, ValueFunctionIfc> {
+            TODO("need to implement the logistic function case")
+            val metricValueFunctionMap = MODAModel.assignLinearValueFunctions(metrics)
+            return metricValueFunctionMap
         }
 
         /**
