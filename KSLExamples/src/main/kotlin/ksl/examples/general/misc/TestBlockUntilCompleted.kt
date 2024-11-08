@@ -1,4 +1,4 @@
-package ksl.examples.general.models
+package ksl.examples.general.misc
 
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.KSLProcess
@@ -16,9 +16,9 @@ import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main(){
     val model = Model("MfgSystem Example")
-    val mfgSystem = MfgSystem(model, "MfgSystem")
+    val mfgSystem = TestBlockUntilCompleted(model, "MfgSystem")
     model.lengthOfReplication = 5000.0
-    model.numberOfReplications = 2
+    model.numberOfReplications = 1
     model.simulate()
     model.print()
 }
@@ -30,7 +30,7 @@ fun main(){
  *  A part is randomly assigned to an assembly line for processing.
  *  Each assembly line consists of a sequence of stations to visit.
  */
-class MfgSystem(
+class TestBlockUntilCompleted(
     parent: ModelElement,
     name: String?
 ) : ProcessModel(parent, name) {
@@ -42,11 +42,16 @@ class MfgSystem(
     private val cdf = doubleArrayOf(0.4, 1.0)
     private val rLineList = REmpiricalList(this, lineList, cdf)
 
-    private val r1 = RandomVariable(this, ExponentialRV(10.0))
-    private val r2 = RandomVariable(this, ExponentialRV(12.0))
-    private val r3 = RandomVariable(this, ExponentialRV(14.0))
+//    private val r1 = RandomVariable(this, ExponentialRV(10.0))
+//    private val r2 = RandomVariable(this, ExponentialRV(12.0))
+//    private val r3 = RandomVariable(this, ExponentialRV(14.0))
 
-    private val tba = RandomVariable(this, ExponentialRV(15.0))
+    private val r1 = RandomVariable(this, ConstantRV(10.0))
+    private val r2 = RandomVariable(this, ConstantRV(12.0))
+    private val r3 = RandomVariable(this, ConstantRV(14.0))
+
+//    private val tba = RandomVariable(this, ExponentialRV(15.0))
+    private val tba = RandomVariable(this, ConstantRV(15.0))
     private val orderSizeRV = RandomVariable(this, DUniformRV(5, 10))
 
     private val systemTime = Response(this, "${this.name}:SystemTime")
@@ -62,13 +67,13 @@ class MfgSystem(
         // make the order
         val order = Order()
         // start the part
-        activate(order.orderProcess)
+        activate(order.orderProcess2)
         // schedule the next arrival
-        schedule(this::arrivals, tba)
+ //       schedule(this::arrivals, tba)
     }
 
     private inner class AssemblyLine(
-        system: MfgSystem,
+        system: TestBlockUntilCompleted,
         name: String?
     ) : ModelElement(system, name) {
 
@@ -81,20 +86,33 @@ class MfgSystem(
     private inner class Order : Entity() {
         val parts = mutableListOf<Part>()
         init {
-            val orderSize = orderSizeRV.value.toInt()
+  //          val orderSize = orderSizeRV.value.toInt()
+            val orderSize = 3
             for (i in 0 until orderSize) {
                 // randomly pick the line for the part
                 val line = rLineList.randomElement
+ //               val line = line2
                 parts.add(Part(this, line))
             }
         }
-
         val orderProcess = process ("Order Process") {
             for(part in parts) {
                 // waitFor causes the order to wait for the part to be completed
-                // before the next part is activated.
+                // before the next part is activated. There are obviously better ways.
                 waitFor(part.mfgProcess)
             }
+         //   println("$time> order process completed")
+        }
+
+        val orderProcess2 = process ("OrderProcess2") {
+            val set = mutableSetOf<KSLProcess>()
+            for(part in parts) {
+                set.add(part.mfgProcess)
+                activate(part.mfgProcess)
+            }
+            println("$time> the order ${entity.name} is blocking for its parts")
+            blockUntilAllCompleted(set)
+            println("$time> the order ${entity.name} completed blocking for the parts")
         }
 
         override fun afterRunningProcess(completedProcess: KSLProcess) {
@@ -115,9 +133,13 @@ class MfgSystem(
     ) : Entity() {
 
         val mfgProcess = process ("Part Process ${line.name}"){
+            println("$time> part: ${entity.name} for order ${order.name} started at station 1")
             use(line.station1, delayDuration = r1)
+            println("$time> part: ${entity.name} for order ${order.name} completed at station 1")
             use(line.station2, delayDuration = r2)
+            println("$time> part: ${entity.name} for order ${order.name} completed at station 2")
             use(line.station3, delayDuration = r3)
+            println("$time> part: ${entity.name} for order ${order.name} completed at station 3")
         }
 
         override fun afterRunningProcess(completedProcess: KSLProcess) {
@@ -130,6 +152,7 @@ class MfgSystem(
     private fun partCompleted(part: Part) {
         // can do whatever you want after a part is completed
         partCounter.increment()
+
     }
 
 }
