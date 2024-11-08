@@ -671,7 +671,7 @@ class PDFModeler(
             Linear, Logistic
         }
 
-        var defaultScalingFunction = DefaultScalingFunction.Logistic
+        var defaultScalingFunction = DefaultScalingFunction.Linear
 
         /**
          *  For rank based evaluation, this specifies the default parameter value
@@ -776,6 +776,12 @@ class PDFModeler(
             return model
         }
 
+        var defaultLogisticFunctionFactor = 0.25
+            set(value) {
+                require((0.0 < value) && (value < 1.0)) { "The factor must be within (0,1)" }
+                field = value
+            }
+
         /**
          *  Creates a map for an AdditiveMODAModel that can specify the metrics using
          *  LogisticFunction value functions
@@ -807,7 +813,7 @@ class PDFModeler(
             // make the map and assign the value function for each metric then return
             val metricValueFunctionMap = mutableMapOf<MetricIfc, ValueFunctionIfc>()
             for((metric, data) in metricData){
-                val f = LogisticFunction.create(data.toDoubleArray())
+                val f = LogisticFunction.create(data.toDoubleArray(), defaultLogisticFunctionFactor)
                 metricValueFunctionMap[metric] = f
             }
             return metricValueFunctionMap

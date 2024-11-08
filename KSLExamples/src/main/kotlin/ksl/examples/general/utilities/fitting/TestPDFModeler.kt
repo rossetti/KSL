@@ -332,9 +332,11 @@ fun testBootStrappingOfFamily(){
         AndersonDarlingScoringModel(),
         CramerVonMisesScoringModel(),
         QQCorrelationScoringModel(),
-       // ParameterMSEModel()
+//        ParameterMSEModel()
     )
     val pdfModeler = PDFModeler(data, sm)
+//   PDFModeler.defaultScalingFunction = PDFModeler.Companion.DefaultScalingFunction.Logistic
+
     pdfModeler.showAllResultsInBrowser()
 
     val freq = PDFModeler.bootstrapFamilyFrequencyAsDataFrame(data, EvaluationMethod.Scoring,

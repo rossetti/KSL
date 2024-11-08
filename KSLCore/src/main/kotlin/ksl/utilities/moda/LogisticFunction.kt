@@ -51,8 +51,8 @@ class LogisticFunction(
          *  Creates a useful logistic function based on the data based on using
          *  recommendLocationAndScale()
          */
-        fun create(data: DoubleArray): LogisticFunction {
-            return LogisticFunction(recommendLocationAndScale(data))
+        fun create(data: DoubleArray, factor: Double): LogisticFunction {
+            return LogisticFunction(recommendLocationAndScale(data, factor))
         }
 
         /**
