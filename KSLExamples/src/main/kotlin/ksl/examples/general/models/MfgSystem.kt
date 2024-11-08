@@ -61,7 +61,7 @@ class MfgSystem(
         // make the order
         val order = Order()
         // start the part
-        activate(order.orderProcess)
+        activate(order.orderProcess2)
         // schedule the next arrival
         schedule(this::arrivals, tba)
     }
@@ -96,6 +96,16 @@ class MfgSystem(
                 waitFor(part.mfgProcess)
             }
          //   println("$time> order process completed")
+        }
+
+        val orderProcess2 = process ("OrderProcess2") {
+            val set = mutableSetOf<KSLProcess>()
+            for(part in parts) {
+                set.add(part.mfgProcess)
+                activate(part.mfgProcess)
+            }
+            blockUntilAllCompleted(set)
+
         }
 
         override fun afterRunningProcess(completedProcess: KSLProcess) {
