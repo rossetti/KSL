@@ -6,6 +6,10 @@ import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.sqrt
 
+/**
+ *  @param location the location of the distribution
+ *  @param scale the scale of the distribution, must be greater than 0.0
+ */
 class LogisticFunction(
     var location: Double = 0.0,
     scale: Double = 1.0
