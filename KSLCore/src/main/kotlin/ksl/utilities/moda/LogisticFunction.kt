@@ -44,6 +44,14 @@ class LogisticFunction(
     companion object {
 
         /**
+         *  Creates a useful logistic function based on the data based on using
+         *  recommendLocationAndScale()
+         */
+        fun create(data: DoubleArray): LogisticFunction {
+            return LogisticFunction(recommendLocationAndScale(data))
+        }
+
+        /**
          *  Estimates the location and scale based on the data
          *  The location is estimated by the median.
          *  The scale is estimated using the interquartile range.
@@ -58,6 +66,28 @@ class LogisticFunction(
             val sd = Statistic.estimateStdDevFromIQR(b.interQuartileRange, b.count)
             val scale = sd * sqrt(3.0) / PI
             return Pair(b.median, scale)
+        }
+
+        /**
+         *  Recommends the location and scale based on the data such that the scale is always between
+         *  (factor*location, location*(1+factor)) based on the data.  If the estimated location and
+         *  scale based on the data
+         *  @param data the data used to estimate the location and scale
+         *  @param factor a bounding factor to limit the scale to a useful range. Must be within (0,1)
+         *  The default is 0.25.
+         *  @return the pair(location, scale)
+         */
+        fun recommendLocationAndScale(data: DoubleArray, factor: Double = 0.25): Pair<Double, Double> {
+            require((0.0 < factor) && (factor < 1.0)) { "The factor must be within (0,1)" }
+            var (location, scale) = estimateLocationAndScale(data)
+            val cvLL = location * factor
+            val cvUL = location * (1.0 + factor)
+            if (scale < cvLL) {
+                scale = cvLL
+            } else if (scale > cvUL) {
+                scale = cvUL
+            }
+            return Pair(location, scale)
         }
     }
 }
