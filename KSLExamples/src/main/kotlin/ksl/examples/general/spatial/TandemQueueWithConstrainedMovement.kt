@@ -30,8 +30,7 @@ class TandemQueueWithConstrainedMovement(parent: ModelElement, name: String? = n
         dm.addDistance(station2, enter, 90.0, symmetric = true)
         dm.addDistance(exit, station1, 90.0, symmetric = true)
         dm.addDistance(exit, enter, 150.0, symmetric = true)
-        // dm.defaultVelocity = myWalkingSpeedRV
-        dm.defaultVelocity = ConstantRV(10000.0)
+         dm.defaultVelocity = myWalkingSpeedRV
         spatialModel = dm
     }
 
@@ -41,7 +40,7 @@ class TandemQueueWithConstrainedMovement(parent: ModelElement, name: String? = n
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
     private val worker2: ResourceWithQ = ResourceWithQ(this, "worker2")
 
-    private val tba = ExponentialRV(2.0, 1)
+    private val tba = ExponentialRV(1.0, 1)
 
     private val st1 = RandomVariable(this, ExponentialRV(0.7, 2))
     val service1RV: RandomSourceCIfc
@@ -69,16 +68,12 @@ class TandemQueueWithConstrainedMovement(parent: ModelElement, name: String? = n
             move(mover1, toLoc = enter)
             moveWith(mover1, toLoc = station1)
             release(a1)
-            seize(worker1)
-            delay(st1)
-            release(worker1)
+            use(worker1, delayDuration = st1)
             val a2 = seize(mover2)
             move(mover2, toLoc = station1)
             moveWith(mover2, toLoc = station2)
             release(a2)
-            seize(worker2)
-            delay(st2)
-            release(worker2)
+            use(worker2, delayDuration = st2)
             val a3 = seize(mover3)
             move(mover3, toLoc = station2)
             moveWith(mover3, toLoc = exit)
