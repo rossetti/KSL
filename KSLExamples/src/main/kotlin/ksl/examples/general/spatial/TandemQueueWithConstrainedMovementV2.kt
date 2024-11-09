@@ -13,7 +13,10 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 
-class TandemQueueWithConstrainedMovementV2(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class TandemQueueWithConstrainedMovementV2(
+    parent: ModelElement,
+    name: String? = null
+) : ProcessModel(parent, name) {
     // velocity is in feet/min
     private val myWalkingSpeedRV = TriangularRV(88.0, 176.0, 264.0)
     private val dm = DistancesModel()
@@ -30,8 +33,7 @@ class TandemQueueWithConstrainedMovementV2(parent: ModelElement, name: String? =
         dm.addDistance(station2, enter, 90.0, symmetric = true)
         dm.addDistance(exit, station1, 90.0, symmetric = true)
         dm.addDistance(exit, enter, 150.0, symmetric = true)
-        // dm.defaultVelocity = myWalkingSpeedRV
-        dm.defaultVelocity = ConstantRV(10000.0)
+        dm.defaultVelocity = myWalkingSpeedRV
         spatialModel = dm
     }
 
@@ -41,7 +43,7 @@ class TandemQueueWithConstrainedMovementV2(parent: ModelElement, name: String? =
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
     private val worker2: ResourceWithQ = ResourceWithQ(this, "worker2")
 
-    private val tba = ExponentialRV(2.0, 1)
+    private val tba = ExponentialRV(1.0, 1)
 
     private val st1 = RandomVariable(this, ExponentialRV(0.7, 2))
     val service1RV: RandomSourceCIfc
@@ -66,13 +68,9 @@ class TandemQueueWithConstrainedMovementV2(parent: ModelElement, name: String? =
             wip.increment()
             timeStamp = time
             transportWith(mover1, station1)
-            seize(worker1)
-            delay(st1)
-            release(worker1)
+            use(worker1, delayDuration = st1)
             transportWith(mover2, station2)
-            seize(worker2)
-            delay(st2)
-            release(worker2)
+            use(worker2, delayDuration = st2)
             transportWith(mover3, exit)
             timeInSystem.value = time - timeStamp
             wip.decrement()
