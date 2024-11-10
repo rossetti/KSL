@@ -97,10 +97,18 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.1.5"
+version = "R1.1.6"
 
 ## Release Notes
-Latest Release: R1.1.5
+Latest Release R1.1.6
+- Added blockUntilAllCompleted() suspending function to permit suspension until a set of processes completes.
+- Added home base concept for MovableResource
+- Completed MSER work for initialization bias deletion point detection
+- Completed LogisticFunction scaling implementation for MODA and use in PDFModeler
+- Fixed after replication termination issue for suspended processes using the waitFor() suspending function
+- Added examples for entity movement
+
+Release: R1.1.5
 - Added blockUntilCompleted() suspending function to permit suspension until another process completes
 - Simplified basic suspend() function
 
