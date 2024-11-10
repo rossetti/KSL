@@ -100,7 +100,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
             myWDFDataFile = RandomAccessFile(wdfDataFile, "r")
         } catch (ex: IOException) {
             val str = "Problem creating RandomAccessFile for " + wdfDataFile.absolutePath
-            KSL.logger.error(ex) { "$str" }
+            KSL.logger.error(ex) { str }
         }
     }
 
@@ -159,6 +159,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @return the file reference
      */
     fun createWelchPlotDataFile(numObs: Long = minNumObservationsInReplications): File {
+        require(numObs > 0) {"The number of observations must be > 0"}
         val path = baseDirectory.resolve(responseName + ".wpdf")
         val wpdf: File = KSLFileUtil.createFile(path)
         try {
@@ -181,6 +182,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @throws IOException could not write the data to the file for some reason
      */
     fun writeWelchPlotData(out: DataOutputStream, numObs: Long) {
+        require(numObs > 0) {"The number of observations must be > 0"}
         val n = Math.min(numObs, minNumObservationsInReplications)
         val s = Statistic()
         for (i in 1..n) {
@@ -204,6 +206,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @return the File reference
      */
     fun createCSVWelchPlotDataFile(numObs: Long = minNumObservationsInReplications): File {
+        require(numObs > 0) {"The number of observations must be > 0"}
         val path = baseDirectory.resolve(responseName + "_WelchPlotData.csv")
         val file: File = KSLFileUtil.createFile(path)
         val pw: PrintWriter = KSLFileUtil.createPrintWriter(file)
@@ -228,6 +231,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @throws IOException if problem writing
      */
     fun writeCSVWelchPlotData(out: PrintWriter, numObs: Long = minNumObservationsInReplications) {
+        require(numObs > 0) {"The number of observations must be > 0"}
         val n = Math.min(numObs, minNumObservationsInReplications)
         out.print("Avg")
         out.print(",")
@@ -257,6 +261,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @throws IOException if problem writing
      */
     fun createCSVWelchDataFile(numObs: Long = minNumObservationsInReplications): File {
+        require(numObs > 0) {"The number of observations must be > 0"}
         val path = baseDirectory.resolve(responseName + "_WelchData.csv")
         val file: File = KSLFileUtil.createFile(path)
         val pw: PrintWriter = KSLFileUtil.createPrintWriter(file)
@@ -278,6 +283,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @throws IOException if problem writing
      */
     fun writeCSVWelchData(out: PrintWriter, numObs: Long = minNumObservationsInReplications) {
+        require(numObs > 0) {"The number of observations must be > 0"}
         val n = Math.min(numObs, minNumObservationsInReplications)
         val nReps = numberOfReplications()
         // make the header
@@ -314,6 +320,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @throws IOException if there was a problem accessing the file
      */
     fun welchAverages(numObs: Int): DoubleArray {
+        require(numObs > 0) {"The number of observations must be > 0"}
         val n: Int = if (numObs <= minNumObservationsInReplications) {
             numObs
         } else {
@@ -336,6 +343,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @return the array of data
      */
     fun welchAveragesNE(numObs: Int): DoubleArray {
+        require(numObs > 0) {"The number of observations must be > 0"}
         var avgs = DoubleArray(0)
         try {
             avgs = welchAverages(numObs)
@@ -355,6 +363,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      * @return the array of data
      */
     fun cumulativeWelchAverages(numObs: Int): DoubleArray {
+        require(numObs > 0) {"The number of observations must be > 0"}
         val avgs = welchAveragesNE(numObs)
         val cumAvgs = DoubleArray(avgs.size)
         val s = Statistic()
@@ -616,6 +625,39 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
         return welchFileMetaDataBean.toJSON()
     }
 
+    /**
+     *  Uses the MSER (mean squared error rule) to recommend a deletion point.
+     *  The MSE rule is applied to the entire Welch average time series without batching.
+     *
+     *  [White, K. P., & Robinson, S. (2010). The problem of the initial transient (again),
+     *  or why MSER works. Journal of Simulation, 4(4), 268–272.] (https://doi.org/10.1057/jos.2010.19)
+     *
+     *  @param maxNumObs the maximum number of Welch averages to process. Since the number of observations
+     *  may be large, the user may want to specify this parameter to limit the size of the array
+     *  being processed. By default, minNumObservationsInReplications is used.
+     */
+    fun recommendDeletionPoint(maxNumObs: Int = minNumObservationsInReplications.toInt()) : Int {
+        val avgs = welchAveragesNE(maxNumObs)
+        return recommendDeletionPointMSER(avgs)
+    }
+
+    /**
+     *  Uses the MSER (mean squared error rule) to recommend a deletion point.
+     *  The MSE rule is applied to the entire Welch average time series without batching.
+     *
+     *  [White, K. P., & Robinson, S. (2010). The problem of the initial transient (again),
+     *  or why MSER works. Journal of Simulation, 4(4), 268–272.] (https://doi.org/10.1057/jos.2010.19)
+     *
+     *  @param batchSize the batch size associated with processing the Welch averages. The default is
+     *  the MSER-5 rule, where 5 is the batch size.
+     */
+    fun recommendDeletionPointUsingBatching(batchSize: Int = 5) : Int {
+        require(batchSize >=1 ) {"The batch size must be >= 1"}
+        val batchWelchAverages: BatchStatistic = batchWelchAverages(0, batchSize)
+        val d = recommendDeletionPointMSER(batchWelchAverages.batchMeans)
+        return d*batchSize
+    }
+
     companion object {
         const val NUMBYTES = 8
         const val MIN_BATCH_SIZE = 10
@@ -635,7 +677,11 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
          * Assumes that the array is a time series of observations from the simulation
          * and recommends the deletion point. Typically, [data] is the
          * Welch averages.  The recommended deletion point is the value of d, that
-         * minimizes MSER(d) computed via the computeMSER() function
+         * minimizes MSER(d) computed via the computeMSER() function.
+         *
+         *  [White, K. P., & Robinson, S. (2010). The problem of the initial transient (again),
+         *  or why MSER works. Journal of Simulation, 4(4), 268–272.] (https://doi.org/10.1057/jos.2010.19)
+         *
          */
         fun recommendDeletionPointMSER(data: DoubleArray) : Int {
             return computeMSER(data).indexOfMin()
@@ -645,6 +691,10 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
          *  Computes the MSER data by deleting the elements in the
          *  array starting at the beginning and computing the MSER(d)
          *  values for d = 0,1,2,...n-5, where n is the size of the array.
+         *
+         *  [White, K. P., & Robinson, S. (2010). The problem of the initial transient (again),
+         *  or why MSER works. Journal of Simulation, 4(4), 268–272.] (https://doi.org/10.1057/jos.2010.19)
+         *
          */
         fun computeMSER(data: DoubleArray): List<Double> {
             val s = Statistic()
