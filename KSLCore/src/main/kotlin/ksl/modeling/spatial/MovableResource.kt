@@ -77,8 +77,12 @@ class MovableResource(
     override val observableComponent: ObservableComponent<SpatialElementIfc>
         get() = mySpatialElement.observableComponent
 
+    var initialHomeBase: LocationIfc? = null
+    var homeBase:LocationIfc? = null
+
     override fun initialize() {
         super.initialize()
+        homeBase = initialHomeBase
         initializeSpatialElement()
     }
 
