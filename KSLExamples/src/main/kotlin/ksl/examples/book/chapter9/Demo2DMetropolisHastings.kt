@@ -22,7 +22,6 @@ import ksl.utilities.distributions.GeneralizedBeta
 import ksl.utilities.io.KSL
 import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.mcmc.*
-import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticXY
 

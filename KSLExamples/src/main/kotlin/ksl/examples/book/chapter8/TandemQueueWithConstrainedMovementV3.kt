@@ -1,5 +1,6 @@
-package ksl.examples.general.spatial
+package ksl.examples.book.chapter8
 
+import ksl.examples.general.spatial.SmallTransporterModel
 import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
@@ -85,13 +86,3 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
     }
 }
 
-fun main() {
-    val m = Model()
-    val tq = SmallTransporterModel(m, name = "TandemQModel")
-
-    m.numberOfReplications = 30
-    m.lengthOfReplication = 20000.0
-    m.lengthOfReplicationWarmUp = 5000.0
-    m.simulate()
-    m.print()
-}

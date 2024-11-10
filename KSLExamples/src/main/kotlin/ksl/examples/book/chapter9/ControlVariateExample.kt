@@ -3,7 +3,6 @@ package ksl.examples.book.chapter9
 import ksl.examples.book.chapter5.PalletWorkCenter
 import ksl.observers.ControlVariateDataCollector
 import ksl.simulation.Model
-import ksl.utilities.io.write
 
 fun main(){
     val model = Model("CV Example")
