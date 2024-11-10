@@ -1,4 +1,4 @@
-package ksl.examples.general.spatial
+package ksl.examples.book.chapter8
 
 import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.entity.KSLProcess
@@ -9,7 +9,6 @@ import ksl.modeling.spatial.MovableResourceWithQ
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 
@@ -84,13 +83,3 @@ class TandemQueueWithConstrainedMovement(parent: ModelElement, name: String? = n
     }
 }
 
-fun main() {
-    val m = Model()
-    val tq = TandemQueueWithConstrainedMovement(m, name = "TandemQModel")
-
-    m.numberOfReplications = 30
-    m.lengthOfReplication = 20000.0
-    m.lengthOfReplicationWarmUp = 5000.0
-    m.simulate()
-    m.print()
-}

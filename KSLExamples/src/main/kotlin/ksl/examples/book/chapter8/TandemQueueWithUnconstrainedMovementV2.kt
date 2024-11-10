@@ -1,19 +1,17 @@
-package ksl.examples.general.spatial
+package ksl.examples.book.chapter8
 
 import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.spatial.DistancesModel
-import ksl.modeling.spatial.MovableResourceWithQ
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 
-class TandemQueueWithUnConstrainedMovement(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
+class TandemQueueWithUnconstrainedMovementV2(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
     private val myWalkingSpeedRV = TriangularRV(88.0, 176.0, 264.0)
     private val dm = DistancesModel()
@@ -67,15 +65,4 @@ class TandemQueueWithUnConstrainedMovement(parent: ModelElement, name: String? =
             wip.decrement()
         }
     }
-}
-
-fun main() {
-    val m = Model()
-    val tq = TandemQueueWithUnConstrainedMovement(m, name = "TandemQModel")
-
-    m.numberOfReplications = 30
-    m.lengthOfReplication = 20000.0
-    m.lengthOfReplicationWarmUp = 5000.0
-    m.simulate()
-    m.print()
 }

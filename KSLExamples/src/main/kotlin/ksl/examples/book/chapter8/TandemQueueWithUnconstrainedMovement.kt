@@ -1,45 +1,33 @@
-package ksl.examples.general.spatial
+package ksl.examples.book.chapter8
 
 import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.spatial.DistancesModel
-import ksl.modeling.spatial.MovableResourceWithQ
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 
-class TandemQueueWithConstrainedMovementV2(
-    parent: ModelElement,
-    name: String? = null
-) : ProcessModel(parent, name) {
+class TandemQueueWithUnconstrainedMovement(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
     // velocity is in feet/min
-    private val myWalkingSpeedRV = TriangularRV(88.0, 176.0, 264.0)
+    private val myWalkingSpeedRV = RandomVariable(this, TriangularRV(88.0, 176.0, 264.0))
     private val dm = DistancesModel()
     private val enter = dm.Location("Enter")
     private val station1 = dm.Location("Station1")
     private val station2 = dm.Location("Station2")
     private val exit = dm.Location("Exit")
-
     init {
         // distance is in feet
         dm.addDistance(enter, station1, 60.0, symmetric = true)
         dm.addDistance(station1, station2, 30.0, symmetric = true)
         dm.addDistance(station2, exit, 60.0, symmetric = true)
-        dm.addDistance(station2, enter, 90.0, symmetric = true)
-        dm.addDistance(exit, station1, 90.0, symmetric = true)
-        dm.addDistance(exit, enter, 150.0, symmetric = true)
         dm.defaultVelocity = myWalkingSpeedRV
         spatialModel = dm
     }
 
-    private val mover1: MovableResourceWithQ = MovableResourceWithQ(this, enter, myWalkingSpeedRV, "Mover1")
-    private val mover2: MovableResourceWithQ = MovableResourceWithQ(this, enter, myWalkingSpeedRV, "Mover2")
-    private val mover3: MovableResourceWithQ = MovableResourceWithQ(this, enter, myWalkingSpeedRV, "Mover3")
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
     private val worker2: ResourceWithQ = ResourceWithQ(this, "worker2")
 
@@ -67,24 +55,20 @@ class TandemQueueWithConstrainedMovementV2(
             currentLocation = enter
             wip.increment()
             timeStamp = time
-            transportWith(mover1, station1)
-            use(worker1, delayDuration = st1)
-            transportWith(mover2, station2)
-            use(worker2, delayDuration = st2)
-            transportWith(mover3, exit)
+           // moveTo(station1, velocity = myWalkingSpeedRV)
+            moveTo(station1)
+            seize(worker1)
+            delay(st1)
+            release(worker1)
+           // moveTo(station2, velocity = myWalkingSpeedRV)
+            moveTo(station2)
+            seize(worker2)
+            delay(st2)
+            release(worker2)
+            //moveTo(exit, velocity = myWalkingSpeedRV)
+            moveTo(exit)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
     }
-}
-
-fun main() {
-    val m = Model()
-    val tq = TandemQueueWithConstrainedMovementV2(m, name = "TandemQModel")
-
-    m.numberOfReplications = 30
-    m.lengthOfReplication = 20000.0
-    m.lengthOfReplicationWarmUp = 5000.0
-    m.simulate()
-    m.print()
 }
