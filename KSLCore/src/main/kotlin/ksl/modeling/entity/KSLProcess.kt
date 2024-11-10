@@ -934,6 +934,9 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
+        if (movableResource.homeBase != null){
+            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
+        }
         release(a)
     }
 
@@ -973,6 +976,9 @@ interface KSLProcessBuilder {
         moveWith(movableResourceWithQ, toLoc, transportVelocity, transportPriority)
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
+        }
+        if (movableResourceWithQ.homeBase != null){
+            move(movableResourceWithQ, movableResourceWithQ.homeBase!!, emptyVelocity, emptyMovePriority)
         }
         release(a)
     }
@@ -1017,6 +1023,9 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
+        if (movableResource.homeBase != null){
+            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
+        }
         release(a)
     }
 
@@ -1058,6 +1067,9 @@ interface KSLProcessBuilder {
         moveWith(movableResource, toLoc, transportVelocity, transportPriority)
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
+        }
+        if (movableResource.homeBase != null){
+            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
         }
         release(a)
     }
