@@ -616,6 +616,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  when needed in those (rare) cases.
          */
         internal fun immediateResume() {
+            //TODO immediateResume() who calls this?
+            // called from 1) within resourceSeizeAction(), 2)resourcePoolSeizeAction(), 3) HoldQueue.removeAndImmediateResume()
             if (myCurrentProcess != null) {
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
                 myCurrentProcess!!.resumeContinuation()
@@ -1451,7 +1453,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspend()
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
-                require(time == myDelayEvent!!.time) { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})" }
+                require(time == myDelayEvent!!.time) { "r = ${model.currentReplicationNumber} : $time > END : DELAY: suspension name = $currentSuspendName : entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
