@@ -15,6 +15,15 @@ class NHPPPiecewiseRateFunctionTimeBtwEventRV(
     name: String? = null
 ) : NHPPTimeBtwEventRV(parent, rateFunction, lastRate, stream, name) {
 
+
+    constructor(
+        parent: ModelElement,
+        rateFunction: PiecewiseRateFunction,
+        lastRate: Double = Double.NaN,
+        streamNum: Int,
+        name: String? = null
+    ) : this(parent, rateFunction, lastRate, KSLRandom.rnStream(streamNum), name)
+
     /**
      *  This function can be used to adjust the rates within the piecewise rate function
      *  up or down by the provided factor. Each rate is multiplied by the factor for its
