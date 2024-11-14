@@ -159,7 +159,7 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
 
     /** Returns the rate segment at index k
      * Interval indexing starts at index 0 (i.e. 0 is the first interval,
-     * silly Java zero based indexing)
+     * silly zero based indexing)
      * @param k the index
      * @return the rate segment at index k
      */
