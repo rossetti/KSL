@@ -34,7 +34,7 @@ import ksl.utilities.random.rvariable.KSLRandom
  * @param lastRate  the last rate
  * @param name the name to assign
  */
-class NHPPEventGenerator(
+open class NHPPEventGenerator(
     parent: ModelElement,
     rateFunction: InvertibleCumulativeRateFunctionIfc,
     generatorAction: GeneratorActionIfc,
@@ -98,6 +98,7 @@ class NHPPEventGenerator(
         get() = myEventGenerator.timeBetweenEvents
 
     override fun setTimeBetweenEvents(timeBtwEvents: RandomIfc, maxNumEvents: Long) {
+        require(timeBtwEvents is NHPPTimeBtwEventRV) {"The time between events random variable for the generator must be a NHPPTimeBtwEventRV" }
         myEventGenerator.setTimeBetweenEvents(timeBtwEvents, maxNumEvents)
     }
 
@@ -105,6 +106,7 @@ class NHPPEventGenerator(
         initialTimeBtwEvents: RandomIfc,
         initialMaxNumEvents: Long
     ) {
+        require(initialTimeBtwEvents is NHPPTimeBtwEventRV) {"The time between events random variable for the generator must be a NHPPTimeBtwEventRV" }
         myEventGenerator.setInitialTimeBetweenEventsAndMaxNumEvents(initialTimeBtwEvents, initialMaxNumEvents)
     }
 
