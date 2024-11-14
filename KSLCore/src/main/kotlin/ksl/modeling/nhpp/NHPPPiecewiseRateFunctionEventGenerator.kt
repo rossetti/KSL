@@ -12,7 +12,16 @@ class NHPPPiecewiseRateFunctionEventGenerator(
     lastRate: Double = Double.NaN,
     stream: RNStreamIfc = KSLRandom.nextRNStream(),
     theName: String? = null
-) : NHPPEventGenerator(parent, rateFunction, generatorAction, lastRate, stream) {
+) : NHPPEventGenerator(parent, rateFunction, generatorAction, lastRate, stream, theName) {
+
+    constructor(
+        parent: ModelElement,
+        rateFunction: PiecewiseRateFunction,
+        generatorAction: GeneratorActionIfc,
+        lastRate: Double = Double.NaN,
+        streamNum: Int,
+        name: String? = null
+    ) : this(parent, rateFunction, generatorAction, lastRate, KSLRandom.rnStream(streamNum), name)
 
     /**
      *  This function can be used to adjust the rates within the piecewise rate function
