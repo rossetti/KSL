@@ -100,7 +100,13 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
     }
 
     private val myTBArrivals: NHPPTimeBtwEventRV
+    private val rateFunction: PiecewiseConstantRateFunction
 //    private val myTBArrivals: RVariableIfc
+
+    fun adjustRates(factor: Double){
+        require(factor > 0.0) {"the adjustment factor must be >= 0.0"}
+        myTBArrivals.rateFunction = rateFunction.instance(factor)
+    }
 
     init {
         // set up the generator
@@ -113,8 +119,8 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
             55.0, 55.0, 60.0, 30.0, 5.0, 5.0
         )
         val ratesPerMinute = hourlyRates.divideConstant(60.0)
-        val f = PiecewiseConstantRateFunction(durations, ratesPerMinute)
-        myTBArrivals = NHPPTimeBtwEventRV(this, f, streamNum = 1)
+        rateFunction = PiecewiseConstantRateFunction(durations, ratesPerMinute)
+        myTBArrivals = NHPPTimeBtwEventRV(this, rateFunction, streamNum = 1)
 //        myTBArrivals = ExponentialRV(2.0, 1)
     }
 
