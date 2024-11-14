@@ -646,7 +646,7 @@ class PDFModeler(
         visualizationResultsFileName: String = "PDF_Modeling_Visualization_Summary",
         scoringResultsFileName: String = "PDF_Modeling_Scoring_Summary",
         goodnessOfFitResultsFileName: String = "PDF_Modeling_GoodnessOfFit_Summary",
-    ) {
+    ) : PDFModelingResults {
         KSLFileUtil.openInBrowser(
             fileName = statResultsFileName,
             htmlStatisticalSummary()
@@ -663,6 +663,7 @@ class PDFModeler(
             fileName = goodnessOfFitResultsFileName,
             htmlGoodnessOfFitSummary(pdfModelingResults, evaluationMethod)
         )
+        return pdfModelingResults
     }
 
     companion object {
