@@ -32,7 +32,7 @@ import kotlin.math.floor
  * @param lastRate the last rate
  * @param name the name
  */
-class NHPPTimeBtwEventRV(
+open class NHPPTimeBtwEventRV(
     parent: ModelElement,
     rateFunction: InvertibleCumulativeRateFunctionIfc,
     lastRate: Double = Double.NaN,
@@ -119,14 +119,14 @@ class NHPPTimeBtwEventRV(
             myRateFunction = rateFunction
         }
 
-    override fun initialize() {
+    final override fun initialize() {
         myCycleStartTime = time
         myPPTime = myCycleStartTime
         myNumCycles = 0
         myUseLastRateFlag = false
     }
 
-    override val value: Double
+    final override val value: Double
         get() {
             if (myUseLastRateFlag == true) {
                 // if this option is on the exponential distribution
