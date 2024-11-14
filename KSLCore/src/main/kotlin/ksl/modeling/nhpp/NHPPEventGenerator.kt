@@ -52,7 +52,7 @@ open class NHPPEventGenerator(
         name: String? = null
     ) : this(parent, rateFunction, generatorAction, lastRate, KSLRandom.rnStream(streamNum), name)
 
-    private val myTBARV: NHPPTimeBtwEventRV = NHPPTimeBtwEventRV(this, rateFunction, lastRate, stream)
+    protected val myTBARV: NHPPTimeBtwEventRV = NHPPTimeBtwEventRV(this, rateFunction, lastRate, stream)
 
     private val myEventGenerator: EventGenerator = EventGenerator(this, generatorAction, myTBARV, myTBARV)
 
