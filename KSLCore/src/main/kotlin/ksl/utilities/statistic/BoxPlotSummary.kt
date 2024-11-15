@@ -346,6 +346,20 @@ class BoxPlotSummary(
         return map
     }
 
+    fun outlierResults() : String {
+        //TODO use chunk to control number on each line
+        val sb = StringBuilder()
+        sb.appendLine("Extreme low outliers (x <= $lowerOuterFence): ")
+        sb.appendLine("\t ${lowerOuterPoints().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
+        sb.appendLine("Mild low outliers ($lowerOuterFence <= x <= $lowerInnerFence): ")
+        sb.appendLine("\t ${pointsBtwLowerInnerAndOuterFences().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
+        sb.appendLine("Mild upper outliers ($upperInnerFence <= x <= $upperOuterFence): ")
+        sb.appendLine("\t ${pointsBtwUpperInnerAndOuterFences().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
+        sb.appendLine("Extreme upper outliers: ($upperOuterFence <= x): ")
+        sb.appendLine("\t ${upperOuterPoints().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
+        return sb.toString()
+    }
+
     override fun toString(): String {
         val sb = StringBuilder("BoxPlotSummary")
         sb.appendLine()
@@ -374,13 +388,15 @@ class BoxPlotSummary(
         sb.append("range = ").append(range)
         sb.appendLine()
         sb.append("inter-quartile range = ").append(interQuartileRange)
-        sb.appendLine()
+//        sb.appendLine("Outlier Results:")
+//        sb.append(outlierResults())
         sb.appendLine()
         sb.append("Statistical Summary ")
         sb.appendLine()
         sb.append(statistic)
         return sb.toString()
     }
+
 }
 
 fun main() {
