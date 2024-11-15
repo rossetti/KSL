@@ -349,13 +349,13 @@ class BoxPlotSummary(
     fun outlierResults() : String {
         //TODO use chunk to control number on each line
         val sb = StringBuilder()
-        sb.appendLine("Extreme low outliers (x <= $lowerOuterFence): ")
+        sb.appendLine("Extremely low value outliers (x <= $lowerOuterFence): ")
         sb.appendLine("\t ${lowerOuterPoints().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
-        sb.appendLine("Mild low outliers ($lowerOuterFence <= x <= $lowerInnerFence): ")
+        sb.appendLine("Mildly low value outliers ($lowerOuterFence <= x <= $lowerInnerFence): ")
         sb.appendLine("\t ${pointsBtwLowerInnerAndOuterFences().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
-        sb.appendLine("Mild upper outliers ($upperInnerFence <= x <= $upperOuterFence): ")
+        sb.appendLine("Mildly high value outliers ($upperInnerFence <= x <= $upperOuterFence): ")
         sb.appendLine("\t ${pointsBtwUpperInnerAndOuterFences().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
-        sb.appendLine("Extreme upper outliers: ($upperOuterFence <= x): ")
+        sb.appendLine("Extremely high value outliers: ($upperOuterFence <= x): ")
         sb.appendLine("\t ${upperOuterPoints().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
         return sb.toString()
     }
