@@ -346,17 +346,28 @@ class BoxPlotSummary(
         return map
     }
 
+    private fun chunkArrayOutput(array: DoubleArray): String {
+        val sb = StringBuilder()
+        val chunks = array.toList().chunked(10)
+        if (chunks.isEmpty()) {
+            return sb.appendLine("\t {none}").toString()
+        }
+        for (chunk in chunks) {
+            sb.appendLine("\t ${chunk.joinToString(prefix = "{", postfix = "}", separator = ", ")}")
+        }
+        return sb.toString()
+    }
+
     fun outlierResults() : String {
-        //TODO use chunk to control number on each line
         val sb = StringBuilder()
         sb.appendLine("Extremely low value outliers (x <= $lowerOuterFence): ")
-        sb.appendLine("\t ${lowerOuterPoints().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
+        sb.append(chunkArrayOutput(lowerOuterPoints()))
         sb.appendLine("Mildly low value outliers ($lowerOuterFence <= x <= $lowerInnerFence): ")
-        sb.appendLine("\t ${pointsBtwLowerInnerAndOuterFences().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
+        sb.append(chunkArrayOutput(pointsBtwLowerInnerAndOuterFences()))
         sb.appendLine("Mildly high value outliers ($upperInnerFence <= x <= $upperOuterFence): ")
-        sb.appendLine("\t ${pointsBtwUpperInnerAndOuterFences().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
+        sb.append(chunkArrayOutput(pointsBtwUpperInnerAndOuterFences()))
         sb.appendLine("Extremely high value outliers: ($upperOuterFence <= x): ")
-        sb.appendLine("\t ${upperOuterPoints().joinToString(prefix = "{", postfix = "}", separator = ", ")}")
+        sb.append(chunkArrayOutput(upperOuterPoints()))
         return sb.toString()
     }
 
@@ -387,9 +398,9 @@ class BoxPlotSummary(
         sb.appendLine()
         sb.append("range = ").append(range)
         sb.appendLine()
-        sb.append("inter-quartile range = ").append(interQuartileRange)
-//        sb.appendLine("Outlier Results:")
-//        sb.append(outlierResults())
+        sb.append("inter-quartile range = ").appendLine(interQuartileRange)
+        sb.appendLine("Outlier Results:")
+        sb.append(outlierResults())
         sb.appendLine()
         sb.append("Statistical Summary ")
         sb.appendLine()

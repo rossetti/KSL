@@ -41,6 +41,7 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : BasePlot() {
            the data map is then part of the generated html
          */
        // val dm = mapOf<String, List<Double>>("data" to boxPlotSummary.data)
+        //TODO show outlier points on the plot
         val p = ggplot(data) +
                 geomBoxplot(stat = Stat.identity) {
                     x = "name"
