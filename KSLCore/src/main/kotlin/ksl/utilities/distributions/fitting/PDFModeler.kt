@@ -360,6 +360,8 @@ class PDFModeler(
             for ((key, value) in bs) {
                 appendLine("$key = $value")
             }
+//            appendLine("Outlier Summary:")
+//            appendLine(bp.outlierResults())
             appendLine("</pre>")
             appendLine("</div>")
             appendLine("<h1>")
