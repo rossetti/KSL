@@ -288,7 +288,7 @@ class BoxPlotSummary(
                 break
             }
         }
-        return orderStatistics.copyOfRange(n - i, n)
+        return orderStatistics.copyOfRange(n - i + 1, orderStatistics.size)
     }
 
     /**
@@ -511,11 +511,16 @@ fun main() {
         9.20756684199006,
         13.0421837951471,
         8.50476579169282,
-        7.7653569673433
+        7.7653569673433,
+        25.0,
+        30.0,
+        -25.0,
+        -30.0,
     )
     val boxPlotSummary = BoxPlotSummary(x)
     println(boxPlotSummary)
 
     println()
     println(boxPlotSummary.orderStatistics().contentToString())
+    boxPlotSummary.boxPlot().showInBrowser()
 }
