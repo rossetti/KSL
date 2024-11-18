@@ -43,7 +43,7 @@ import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
  * process in the form of a coroutine.  An entity can have many processes described that it
  * may follow based on different modeling logic. A process model facilitates the running
  * of a sequence of processes that are stored in an entity's processSequence property.
- * An entity can experience only one process at a time. After completing the process,
+ * An entity can experience only one process at a time. If using a sequence, after completing a process,
  * the entity will try to use its sequence to run the next process (if available). Individual
  * processes can be activated for specific entities.
  *
