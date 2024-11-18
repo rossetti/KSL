@@ -166,7 +166,7 @@ interface KSLProcessBuilder {
      *  @param suspensionName the name of the blockUntilCompletion. can be used to identify which blockUntilCompletion the entity is experiencing if there
      *   are more than one blockUntilCompletion suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun blockUntilCompletion(
+    suspend fun blockUntilCompleted(
         process: KSLProcess,
         resumptionPriority: Int = PRIORITY,
         suspensionName: String? = null
