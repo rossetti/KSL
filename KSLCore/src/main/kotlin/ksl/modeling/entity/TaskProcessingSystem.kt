@@ -14,7 +14,7 @@ class TaskProcessingSystem(
      * Provides the ability to react to the completion of a task that was
      * started.
      */
-    interface TaskStarterIfc {
+    interface TaskCompletedIfc {
 
         /**
          * Called when the task is completed
@@ -22,7 +22,14 @@ class TaskProcessingSystem(
         fun taskCompleted(task: Task)
     }
 
-    abstract inner class Task(val taskStarter: TaskStarterIfc) : Entity() {
+    abstract inner class Task(val taskStarter: TaskCompletedIfc) : Entity() {
+        //TODO task type??
+        // start time, completion time, elapsed time
+
+        /**
+         *  The worker assigned to execute the task's process
+         */
+        var worker: Worker? = null
 
         /**
          * The deadline may be used by the worker to assist with task selection
@@ -35,16 +42,12 @@ class TaskProcessingSystem(
 
         abstract val taskProcess: KSLProcess
 
-        /**
-         *  The worker assigned to execute the task's process
-         */
-        var worker: Worker? = null
-
     }
 
     open inner class Worker(
         val taskQueue: Queue<Task>,
     ) : Entity() {
+        //TODO consider a WorkerIfc interface
 
         var currentTask: Task? = null
         var previousTask: Task? = null
