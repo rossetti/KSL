@@ -1228,7 +1228,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            override suspend fun blockUntilCompletion(
+            override suspend fun blockUntilCompleted(
                 process: KSLProcess,
                 resumptionPriority: Int,
                 suspensionName: String?
