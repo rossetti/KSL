@@ -37,7 +37,7 @@ class TestBlockUntilCompletion(parent: ModelElement) : ProcessModel(parent, null
             val e2 = Entity2()
             activate(e2.process2)
             println("time = $time ${this@Entity1.name} before blocking for process ${e2.process2.name}")
-            blockUntilCompletion(e2.process2)
+            blockUntilCompleted(e2.process2)
             println("time = $time ${this@Entity1.name} after blocking for process ${e2.process2.name}")
         }
 
