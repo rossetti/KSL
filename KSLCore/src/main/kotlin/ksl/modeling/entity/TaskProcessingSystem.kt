@@ -2,6 +2,7 @@ package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
 import ksl.simulation.ModelElement
+import ksl.utilities.statistic.State
 
 
 open class TaskProcessingSystem(
@@ -81,7 +82,17 @@ open class TaskProcessingSystem(
 
         var currentTask: Task? = null
         var previousTask: Task? = null
-
+        val idleState : State = State(name = "Idle" )
+        val busyState : State = State(name = "Busy" )
+        val failedState : State = State(name = "Failed" )
+        val inactiveState : State = State(name = "Inactive" )
+        var currentState: State = idleState
+            private set(value) {
+                field.exit(time) // exit the current state
+                field = value // update the state
+                field.enter(time) // enter the new state
+            }
+        
         /**
          *  Receives the task for processing
          */
@@ -106,13 +117,23 @@ open class TaskProcessingSystem(
                 taskQueue.remove(nextTask)
                 //TODO set the state based on the task type
                 currentTask = nextTask
+                beforeTaskExecution()
                 waitFor(nextTask.taskProcess)
+                afterTaskExecution()
                 nextTask.taskStarter.taskCompleted(nextTask)
                 previousTask = nextTask
                 currentTask = null
                 //TODO set the state (busy?)
             }
             //TODO set the state to idle?
+        }
+
+        protected open fun beforeTaskExecution() {
+
+        }
+
+        protected open fun afterTaskExecution() {
+
         }
 
         /**
