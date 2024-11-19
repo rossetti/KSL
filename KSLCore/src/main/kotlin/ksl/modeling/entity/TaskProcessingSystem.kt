@@ -93,6 +93,22 @@ open class TaskProcessingSystem(
                 field.enter(time) // enter the new state
             }
 
+        fun isBusy(): Boolean {
+            return currentState === busyState
+        }
+
+        fun isFailed(): Boolean {
+            return currentState === failedState
+        }
+
+        fun isIdle(): Boolean {
+            return currentState === idleState
+        }
+
+        fun isInactive(): Boolean {
+            return currentState === inactiveState
+        }
+
         /**
          *  Receives the task for processing
          */
@@ -104,8 +120,10 @@ open class TaskProcessingSystem(
             }
             task.taskProcessor = this
             taskQueue.enqueue(task)
-            //TODO
             // if worker is idle then activate the worker's task processing
+            if (isIdle()) {
+                activate(taskProcessing)
+            }
         }
 
         /**
@@ -116,17 +134,25 @@ open class TaskProcessingSystem(
             while (hasNextTask()) {
                 val nextTask = selectNextTask() ?: break
                 taskQueue.remove(nextTask)
-                //TODO set the state based on the task type
                 currentTask = nextTask
                 beforeTaskExecution()
+                // set the state based on the task type
+                updateState(nextTask)
                 waitFor(nextTask.taskProcess)
                 afterTaskExecution()
                 nextTask.taskStarter.taskCompleted(nextTask)
                 previousTask = nextTask
                 currentTask = null
-                //TODO set the state (busy?)
             }
-            //TODO set the state to idle?
+            currentState = idleState
+        }
+
+        protected fun updateState(task: Task) {
+            when (task.taskType) {
+                BREAK -> { currentState = inactiveState }
+                FAILURE -> { currentState = failedState }
+                WORK -> { currentState = busyState }
+            }
         }
 
         protected open fun beforeTaskExecution() {
