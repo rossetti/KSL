@@ -4,11 +4,22 @@ import ksl.modeling.queue.Queue
 import ksl.simulation.ModelElement
 
 
-class TaskProcessingSystem(
+open class TaskProcessingSystem(
     parent: ModelElement,
     name: String? = null
 ) : ProcessModel(parent, name) {
 
+    val WORK = nextTypeConstant()
+    val FAILURE = nextTypeConstant()
+    val BREAK = nextTypeConstant()
+
+    companion object {
+        private var myTaskTypeCounter = 0
+
+        fun nextTypeConstant(): Int {
+            return myTaskTypeCounter++
+        }
+    }
 
     /**
      * Provides the ability to react to the completion of a task that was
@@ -22,14 +33,23 @@ class TaskProcessingSystem(
         fun taskCompleted(task: Task)
     }
 
-    abstract inner class Task(val taskStarter: TaskCompletedIfc) : Entity() {
-        //TODO task type??
+    abstract inner class Task(
+        val taskStarter: TaskCompletedIfc,
+        val taskType: Int = WORK
+    ) : Entity() {
+
         // start time, completion time, elapsed time
+        var startTime: Double = Double.NaN
+            internal set
+        var endTime: Double = Double.NaN
+            internal set
+        val elapsedTime: Double
+            get() = endTime - startTime
 
         /**
-         *  The worker assigned to execute the task's process
+         *  The processor assigned to execute the task's process
          */
-        var worker: Worker? = null
+        var taskProcessor: TaskProcessor? = null
 
         /**
          * The deadline may be used by the worker to assist with task selection
@@ -44,10 +64,10 @@ class TaskProcessingSystem(
 
     }
 
-    open inner class Worker(
+    open inner class TaskProcessor(
         val taskQueue: Queue<Task>,
     ) : Entity() {
-        //TODO consider a WorkerIfc interface
+        //TODO consider a TaskProcessorIfc interface
 
         var currentTask: Task? = null
         var previousTask: Task? = null
@@ -57,7 +77,7 @@ class TaskProcessingSystem(
             if (task.deadline != deadline) {
                 task.deadline = deadline
             }
-            task.worker = this
+            task.taskProcessor = this
             taskQueue.enqueue(task)
             //TODO
             // if worker is idle then activate the worker's task processing
