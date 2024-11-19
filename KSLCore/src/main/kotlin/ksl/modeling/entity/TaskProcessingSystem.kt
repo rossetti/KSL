@@ -38,11 +38,21 @@ open class TaskProcessingSystem(
         val taskType: Int = WORK
     ) : Entity() {
 
-        // start time, completion time, elapsed time
+        /**
+            The time that the task started.  Double.NaN if never started.
+         */
         var startTime: Double = Double.NaN
             internal set
+
+        /**
+         *  The time that the task ended. Double.NaN if never started or ended.
+         */
         var endTime: Double = Double.NaN
             internal set
+
+        /**
+         *  The elapsed time taken by the task, end time minus start time
+         */
         val elapsedTime: Double
             get() = endTime - startTime
 
@@ -72,6 +82,9 @@ open class TaskProcessingSystem(
         var currentTask: Task? = null
         var previousTask: Task? = null
 
+        /**
+         *  Receives the task for processing
+         */
         fun receiveTask(task: Task, deadline: Double = Double.POSITIVE_INFINITY) {
             //TODO require that task is viable (not started, not completed)
             if (task.deadline != deadline) {
@@ -83,6 +96,10 @@ open class TaskProcessingSystem(
             // if worker is idle then activate the worker's task processing
         }
 
+        /**
+         *  Describes how to process a task. If there are tasks, a new task
+         *  is selected and then executed.
+         */
         val taskProcessing = process("${this.name}_TaskProcessing") {
             while (hasNextTask()) {
                 val nextTask = selectNextTask() ?: break
