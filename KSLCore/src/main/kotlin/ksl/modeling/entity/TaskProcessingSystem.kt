@@ -92,12 +92,13 @@ open class TaskProcessingSystem(
                 field = value // update the state
                 field.enter(time) // enter the new state
             }
-        
+
         /**
          *  Receives the task for processing
          */
         fun receiveTask(task: Task, deadline: Double = Double.POSITIVE_INFINITY) {
-            //TODO require that task is viable (not started, not completed)
+            require(currentProcess != task.taskProcess) { "The task ${task.taskProcess.name} is the same as the current process! " }
+            require(task.taskProcess.isCreated) { "The supplied process ${task.taskProcess.name} must be in the created state. It's state was: ${task.taskProcess.currentStateName}" }
             if (task.deadline != deadline) {
                 task.deadline = deadline
             }
