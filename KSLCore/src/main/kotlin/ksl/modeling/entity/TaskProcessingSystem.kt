@@ -7,10 +7,15 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.statistic.State
 
 
+
 open class TaskProcessingSystem(
     parent: ModelElement,
     name: String? = null
 ) : ProcessModel(parent, name) {
+
+    enum class TaskProcessorStatus {
+        START_FAILURE, END_FAILURE, START_INACTIVE, END_INACTIVE, START_SHUTDOWN, SHUTDOWN
+    }
 
     val WORK = nextTypeConstant()
     val FAILURE = nextTypeConstant()
@@ -26,7 +31,7 @@ open class TaskProcessingSystem(
 
     /**
      * Provides the ability to react to the completion of a task that was
-     * started.
+     * sent for processing.
      */
     interface TaskSenderIfc {
 
@@ -35,47 +40,36 @@ open class TaskProcessingSystem(
          */
         fun taskCompleted(task: Task)
 
-        fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus){}
-
         /**
-         *  Called if the task processor is about to start a failure task.
-         *  Subclasses can provide logic to react to the occurrence of a failure
-         *  for which it has current tasks pending or where it might send future tasks.
+         *  This function is called by task processors that are processing tasks sent by the sender.
+         *  Subclasses can provide specific logic to react to the occurrence of the start of a failure,
+         *  the end of a failure, start of an inactive period, end of an inactive period, and the warning
+         *  of a shutdown and the shutdown. By default, no reaction occurs.
+         *  @param taskInQ a task sent by the sender that is waiting in queue for the processor
+         *  @param taskProcessor the task processor
+         *  @param status the status indicator for the type of action
          */
-        fun onTaskProcessorFailure(taskProcessor: TaskProcessor) {}
+        fun onTaskProcessorAction(taskInQ: Task, taskProcessor: TaskProcessor, status: TaskProcessorStatus){}
 
-        /**
-         *  Called if the task processor has completed a failure task.
-         *  Subclasses can provide logic to react to the processor coming back after
-         *  a failure.
-         */
-        fun onTaskProcessorRepaired(taskProcessor: TaskProcessor) {}
-
-        /**
-         *  Called if the task processor is about to start an inactive task.
-         *  Subclasses can provide logic to react to the occurrence of an inactive
-         *  period for the processor.
-         */
-        fun onTaskProcessorInactive(taskProcessor: TaskProcessor) {}
-
-        /**
-         *  Called if the task processor has completed an inactive period.
-         *  Subclasses can provide logic to react to the occurrence of the processor
-         *  returning from an inactive period.
-         */
-        fun onTaskProcessorActive(taskProcessor: TaskProcessor) {}
-
-        /**
-         *  Called if the task processor is about to be shutdown (permanently).
-         *  Subclasses can provide logic to react to a task processor being permanently shutdown.
-         */
-        fun onTaskProcessorShutdown(taskProcessor: TaskProcessor) {}
     }
 
+    /**
+     *  Something that promises to receive tasks
+     */
     interface TaskReceiverIfc {
+        /**
+         *  @param task the task the should be received
+         *  @param deadline a valid time by which the task should be completed. Can be used to
+         *  make decisions related to task processing
+         */
         fun receiveTask(task: Task, deadline: Double = Double.POSITIVE_INFINITY)
     }
 
+    /**
+     *  Represents something that must be executed by a TaskProcessor.
+     *  @param taskSender the thing that wants the task completed
+     *  @param taskType the type of task 
+     */
     abstract inner class Task(
         val taskSender: TaskSenderIfc,
         val taskType: Int = WORK
@@ -161,11 +155,6 @@ open class TaskProcessingSystem(
         }
     }
 
-    enum class TaskProcessorStatus {
-        START_FAILURE, END_FAILURE, START_INACTIVE, END_INACTIVE, SHUTDOWN
-    }
-
-
     open inner class TaskProcessor(
         val taskQueue: Queue<Task>,
     ) : Entity(), TaskReceiverIfc {
@@ -174,8 +163,14 @@ open class TaskProcessingSystem(
         //TODO consider ability to shutdown the processor, types of shutdown (graceful, hard)
         // shutdown is permanent deactivation, would need to notify sender of tasks
         // consider the ability to allow sender to react to failure, react to inactive, react to shutdown
+        // allow scheduling of shutdown, allow canceling of shutdown, assume shutdown can only occur
+        // after current task is completed.
+        // once shutdown occurs no new tasks can be received
 
         //TODO consider generalizing starting state
+
+        var isShutdown = false
+            private set
 
         var currentTask: Task? = null
         var previousTask: Task? = null
@@ -206,9 +201,8 @@ open class TaskProcessingSystem(
                 val nextTask = selectNextTask() ?: break
                 taskQueue.remove(nextTask)
                 currentTask = nextTask
-
                 // set the state based on the task type
-                updateState(nextTask) 
+                updateState(nextTask)
                 beforeTaskExecution()//TODO is this necessary
                 notifySendersOfStartAction(nextTask.taskType)
                 nextTask.beforeTaskStart()
@@ -223,6 +217,16 @@ open class TaskProcessingSystem(
             currentState = idleState
         }
 
+        fun shutdown(){
+            if (!isShutdown) {
+                isShutdown = true
+                // notify the senders of waiting tasks of shutdown
+                for(task in taskQueue){
+                    task.taskSender.onTaskProcessorAction(task,this, TaskProcessorStatus.SHUTDOWN)
+                }
+            }
+        }
+
         private fun notifySendersOfStartAction(taskType:Int) {
             var actionType: TaskProcessorStatus? = null
             if (taskType == FAILURE){
@@ -233,7 +237,7 @@ open class TaskProcessingSystem(
             }
             if (actionType != null) {
                 for(task in taskQueue){
-                    task.taskSender.onTaskProcessorAction(this, actionType)
+                    task.taskSender.onTaskProcessorAction(task,this, actionType)
                 }
             }
         }
@@ -248,7 +252,7 @@ open class TaskProcessingSystem(
             }
             if (actionType != null) {
                 for(task in taskQueue){
-                    task.taskSender.onTaskProcessorAction(this, actionType)
+                    task.taskSender.onTaskProcessorAction(task, this, actionType)
                 }
             }
         }
