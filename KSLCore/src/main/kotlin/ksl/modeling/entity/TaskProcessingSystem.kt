@@ -4,7 +4,6 @@ import ksl.modeling.queue.Queue
 import ksl.simulation.ModelElement
 import ksl.utilities.ConstantValue
 import ksl.utilities.GetValueIfc
-import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.State
 
 
@@ -35,6 +34,8 @@ open class TaskProcessingSystem(
          * Called when the task is completed
          */
         fun taskCompleted(task: Task)
+
+        fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus){}
 
         /**
          *  Called if the task processor is about to start a failure task.
@@ -76,7 +77,7 @@ open class TaskProcessingSystem(
     }
 
     abstract inner class Task(
-        val taskStarter: TaskSenderIfc,
+        val taskSender: TaskSenderIfc,
         val taskType: Int = WORK
     ) : Entity() {
 
@@ -121,6 +122,7 @@ open class TaskProcessingSystem(
 
         /**
          *  Called by the processor immediately after the task completes and before the sender
+         *  is notified of completion
          */
         open fun afterTaskCompleted() {}
 
@@ -158,6 +160,11 @@ open class TaskProcessingSystem(
             delay(awayTime)
         }
     }
+
+    enum class TaskProcessorStatus {
+        START_FAILURE, END_FAILURE, START_INACTIVE, END_INACTIVE, SHUTDOWN
+    }
+
 
     open inner class TaskProcessor(
         val taskQueue: Queue<Task>,
@@ -199,16 +206,51 @@ open class TaskProcessingSystem(
                 val nextTask = selectNextTask() ?: break
                 taskQueue.remove(nextTask)
                 currentTask = nextTask
-                beforeTaskExecution()//TODO is this necessary
+
                 // set the state based on the task type
-                updateState(nextTask) //TODO need to notify senders before failure, inactive starts
+                updateState(nextTask) 
+                beforeTaskExecution()//TODO is this necessary
+                notifySendersOfStartAction(nextTask.taskType)
+                nextTask.beforeTaskStart()
                 waitFor(nextTask.taskProcess)
+                nextTask.afterTaskCompleted()
+                notifySendersOfEndAction(nextTask.taskType)
                 afterTaskExecution() //TODO is this necessary
-                nextTask.taskStarter.taskCompleted(nextTask)
+                nextTask.taskSender.taskCompleted(nextTask)
                 previousTask = nextTask
                 currentTask = null
             }
             currentState = idleState
+        }
+
+        private fun notifySendersOfStartAction(taskType:Int) {
+            var actionType: TaskProcessorStatus? = null
+            if (taskType == FAILURE){
+                actionType = TaskProcessorStatus.START_FAILURE
+            }
+            if (taskType == BREAK){
+                actionType = TaskProcessorStatus.START_INACTIVE
+            }
+            if (actionType != null) {
+                for(task in taskQueue){
+                    task.taskSender.onTaskProcessorAction(this, actionType)
+                }
+            }
+        }
+
+        private fun notifySendersOfEndAction(taskType:Int) {
+            var actionType: TaskProcessorStatus? = null
+            if (taskType == FAILURE){
+                actionType = TaskProcessorStatus.END_FAILURE
+            }
+            if (taskType == BREAK){
+                actionType = TaskProcessorStatus.END_INACTIVE
+            }
+            if (actionType != null) {
+                for(task in taskQueue){
+                    task.taskSender.onTaskProcessorAction(this, actionType)
+                }
+            }
         }
 
         init {
