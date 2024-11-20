@@ -118,7 +118,7 @@ open class TaskProcessingSystem(
     ) : Entity(), TaskReceiverIfc {
         //TODO consider a TaskProcessorIfc interface
 
-        //TODO consider ability to shutdown the processor
+        //TODO consider ability to shutdown the processor, types of shutdown (graceful, hard)
         // shutdown is permanent deactivation, would need to notify sender of tasks
         // consider the ability to allow sender to react to failure, react to inactive, react to shutdown
 
