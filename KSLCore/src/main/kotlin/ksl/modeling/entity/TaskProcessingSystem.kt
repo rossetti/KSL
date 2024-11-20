@@ -122,18 +122,54 @@ open class TaskProcessingSystem(
         // shutdown is permanent deactivation, would need to notify sender of tasks
         // consider the ability to allow sender to react to failure, react to inactive, react to shutdown
 
+        //TODO consider generalizing starting state
+
         var currentTask: Task? = null
         var previousTask: Task? = null
+
         val idleState: State = State(name = "Idle")
+
+        init {
+            idleState.enter(time)
+        }
+
         val busyState: State = State(name = "Busy")
         val failedState: State = State(name = "Failed")
         val inactiveState: State = State(name = "Inactive")
+
         var currentState: State = idleState
             private set(value) {
                 field.exit(time) // exit the current state
                 field = value // update the state
                 field.enter(time) // enter the new state
             }
+
+        /**
+         *  Describes how to process a task. If there are tasks, a new task
+         *  is selected and then executed.
+         */
+        val taskProcessing = process("${this.name}_TaskProcessing") {
+            while (hasNextTask()) {
+                val nextTask = selectNextTask() ?: break
+                taskQueue.remove(nextTask)
+                currentTask = nextTask
+                beforeTaskExecution()
+                // set the state based on the task type
+                updateState(nextTask)
+                waitFor(nextTask.taskProcess)
+                afterTaskExecution()
+                nextTask.taskStarter.taskCompleted(nextTask)
+                previousTask = nextTask
+                currentTask = null
+            }
+            currentState = idleState
+        }
+
+        init {
+            if (taskQueue.isNotEmpty && isIdle()){
+                activate(taskProcessing)
+            }
+        }
 
         fun isBusy(): Boolean {
             return currentState === busyState
@@ -229,27 +265,6 @@ open class TaskProcessingSystem(
             if (isIdle()) {
                 activate(taskProcessing)
             }
-        }
-
-        /**
-         *  Describes how to process a task. If there are tasks, a new task
-         *  is selected and then executed.
-         */
-        val taskProcessing = process("${this.name}_TaskProcessing") {
-            while (hasNextTask()) {
-                val nextTask = selectNextTask() ?: break
-                taskQueue.remove(nextTask)
-                currentTask = nextTask
-                beforeTaskExecution()
-                // set the state based on the task type
-                updateState(nextTask)
-                waitFor(nextTask.taskProcess)
-                afterTaskExecution()
-                nextTask.taskStarter.taskCompleted(nextTask)
-                previousTask = nextTask
-                currentTask = null
-            }
-            currentState = idleState
         }
 
         protected fun updateState(task: Task) {
