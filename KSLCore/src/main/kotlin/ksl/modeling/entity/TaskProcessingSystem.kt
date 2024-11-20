@@ -112,15 +112,23 @@ open class TaskProcessingSystem(
 
         abstract val taskProcess: KSLProcess
 
-        //TODO beforeTaskStart(), afterTaskCompleted()
+        /**
+         *  Called by the processor immediately before starting the task
+         */
+        open fun beforeTaskStart() {}
+
+        /**
+         *  Called by the processor immediately after the task completes and before the sender
+         */
+        open fun afterTaskCompleted() {}
 
     }
 
     inner class WorkTask(
-        workTime: Double, taskStarter: TaskSenderIfc
-    ) : Task(taskStarter, WORK) {
+        workTime: Double, taskSender: TaskSenderIfc
+    ) : Task(taskSender, WORK) {
 
-        constructor(workTime: GetValueIfc, taskStarter: TaskSenderIfc) : this(workTime.value, taskStarter)
+        constructor(workTime: GetValueIfc, taskSender: TaskSenderIfc) : this(workTime.value, taskSender)
 
         override val taskProcess: KSLProcess = process {
             delay(workTime)
@@ -128,10 +136,10 @@ open class TaskProcessingSystem(
     }
 
     inner class FailureTask(
-        downTime: Double, taskStarter: TaskSenderIfc
-    ) : Task(taskStarter, FAILURE) {
+        downTime: Double, taskSender: TaskSenderIfc
+    ) : Task(taskSender, FAILURE) {
 
-        constructor(downTime: GetValueIfc, taskStarter: TaskSenderIfc) : this(downTime.value, taskStarter)
+        constructor(downTime: GetValueIfc, taskSender: TaskSenderIfc) : this(downTime.value, taskSender)
 
         override val taskProcess: KSLProcess = process {
             delay(downTime)
@@ -139,10 +147,10 @@ open class TaskProcessingSystem(
     }
 
     inner class InactiveTask(
-        awayTime: Double, taskStarter: TaskSenderIfc
-    ) : Task(taskStarter, FAILURE) {
+        awayTime: Double, taskSender: TaskSenderIfc
+    ) : Task(taskSender, FAILURE) {
 
-        constructor(awayTime: GetValueIfc, taskStarter: TaskSenderIfc) : this(awayTime.value, taskStarter)
+        constructor(awayTime: GetValueIfc, taskSender: TaskSenderIfc) : this(awayTime.value, taskSender)
 
         override val taskProcess: KSLProcess = process {
             delay(awayTime)
