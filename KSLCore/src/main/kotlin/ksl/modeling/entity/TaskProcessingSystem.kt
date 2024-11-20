@@ -2,7 +2,9 @@ package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
 import ksl.simulation.ModelElement
+import ksl.utilities.ConstantValue
 import ksl.utilities.GetValueIfc
+import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.State
 
 
@@ -125,10 +127,10 @@ open class TaskProcessingSystem(
     }
 
     inner class WorkTask(
-        workTime: Double, taskSender: TaskSenderIfc
+        var workTime: GetValueIfc, taskSender: TaskSenderIfc
     ) : Task(taskSender, WORK) {
 
-        constructor(workTime: GetValueIfc, taskSender: TaskSenderIfc) : this(workTime.value, taskSender)
+        constructor(workTime: Double, taskSender: TaskSenderIfc) : this(ConstantValue(workTime), taskSender)
 
         override val taskProcess: KSLProcess = process {
             delay(workTime)
@@ -136,10 +138,10 @@ open class TaskProcessingSystem(
     }
 
     inner class FailureTask(
-        downTime: Double, taskSender: TaskSenderIfc
+        var downTime: GetValueIfc, taskSender: TaskSenderIfc
     ) : Task(taskSender, FAILURE) {
 
-        constructor(downTime: GetValueIfc, taskSender: TaskSenderIfc) : this(downTime.value, taskSender)
+        constructor(downTime: Double, taskSender: TaskSenderIfc) : this(ConstantValue(downTime), taskSender)
 
         override val taskProcess: KSLProcess = process {
             delay(downTime)
@@ -147,10 +149,10 @@ open class TaskProcessingSystem(
     }
 
     inner class InactiveTask(
-        awayTime: Double, taskSender: TaskSenderIfc
+        var awayTime: GetValueIfc, taskSender: TaskSenderIfc
     ) : Task(taskSender, FAILURE) {
 
-        constructor(awayTime: GetValueIfc, taskSender: TaskSenderIfc) : this(awayTime.value, taskSender)
+        constructor(awayTime: Double, taskSender: TaskSenderIfc) : this(ConstantValue(awayTime), taskSender)
 
         override val taskProcess: KSLProcess = process {
             delay(awayTime)

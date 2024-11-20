@@ -28,3 +28,7 @@ fun interface GetValueIfc {
      */
     fun value(): Double
 }
+
+class ConstantValue(override val value: Double) : GetValueIfc {
+    override fun value(): Double {return value}
+}
