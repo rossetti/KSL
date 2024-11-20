@@ -2,6 +2,7 @@ package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
 import ksl.simulation.ModelElement
+import ksl.utilities.GetValueIfc
 import ksl.utilities.statistic.State
 
 
@@ -34,13 +35,17 @@ open class TaskProcessingSystem(
         fun taskCompleted(task: Task)
     }
 
+    interface TaskReceiverIfc {
+        fun receiveTask(task: Task, deadline: Double = Double.POSITIVE_INFINITY)
+    }
+
     abstract inner class Task(
         val taskStarter: TaskCompletedIfc,
         val taskType: Int = WORK
     ) : Entity() {
 
         /**
-            The time that the task started.  Double.NaN if never started.
+        The time that the task started.  Double.NaN if never started.
          */
         var startTime: Double = Double.NaN
             internal set
@@ -75,17 +80,50 @@ open class TaskProcessingSystem(
 
     }
 
+    inner class WorkTask(
+        workTime: Double, taskStarter: TaskCompletedIfc
+    ) : Task(taskStarter, WORK) {
+
+        constructor(workTime: GetValueIfc, taskStarter: TaskCompletedIfc) : this(workTime.value, taskStarter)
+
+        override val taskProcess: KSLProcess = process {
+            delay(workTime)
+        }
+    }
+
+    inner class FailureTask(
+        downTime: Double, taskStarter: TaskCompletedIfc
+    ) : Task(taskStarter, FAILURE) {
+
+        constructor(downTime: GetValueIfc, taskStarter: TaskCompletedIfc) : this(downTime.value, taskStarter)
+
+        override val taskProcess: KSLProcess = process {
+            delay(downTime)
+        }
+    }
+
+    inner class InactiveTask(
+        awayTime: Double, taskStarter: TaskCompletedIfc
+    ) : Task(taskStarter, FAILURE) {
+
+        constructor(awayTime: GetValueIfc, taskStarter: TaskCompletedIfc) : this(awayTime.value, taskStarter)
+
+        override val taskProcess: KSLProcess = process {
+            delay(awayTime)
+        }
+    }
+
     open inner class TaskProcessor(
         val taskQueue: Queue<Task>,
-    ) : Entity() {
+    ) : Entity(), TaskReceiverIfc {
         //TODO consider a TaskProcessorIfc interface
 
         var currentTask: Task? = null
         var previousTask: Task? = null
-        val idleState : State = State(name = "Idle" )
-        val busyState : State = State(name = "Busy" )
-        val failedState : State = State(name = "Failed" )
-        val inactiveState : State = State(name = "Inactive" )
+        val idleState: State = State(name = "Idle")
+        val busyState: State = State(name = "Busy")
+        val failedState: State = State(name = "Failed")
+        val inactiveState: State = State(name = "Inactive")
         var currentState: State = idleState
             private set(value) {
                 field.exit(time) // exit the current state
@@ -109,10 +147,73 @@ open class TaskProcessingSystem(
             return currentState === inactiveState
         }
 
+        val numTimesFailed: Double
+            get() = failedState.numberOfTimesEntered
+
+        val numTimesInactive: Double
+            get() = inactiveState.numberOfTimesExited
+
+        val numTimesIdle: Double
+            get() = idleState.numberOfTimesEntered
+
+        val numTimesBusy: Double
+            get() = busyState.numberOfTimesEntered
+
+        val totalIdleTime: Double
+            get() = idleState.totalTimeInState
+
+        val totalBusyTime: Double
+            get() = busyState.totalTimeInState
+
+        val totalFailedTime: Double
+            get() = failedState.totalTimeInState
+
+        val totalInactiveTime: Double
+            get() = inactiveState.totalTimeInState
+
+        val totalCycleTime: Double
+            get() = totalIdleTime + totalBusyTime + totalFailedTime + totalInactiveTime
+
+        val fractionTimeIdle: Double
+            get() {
+                val tt = totalCycleTime
+                if (tt == 0.0) {
+                    return Double.NaN
+                }
+                return totalIdleTime / tt
+            }
+
+        val fractionTimeBusy: Double
+            get() {
+                val tt = totalCycleTime
+                if (tt == 0.0) {
+                    return Double.NaN
+                }
+                return totalBusyTime / tt
+            }
+
+        val fractionTimeInactive: Double
+            get() {
+                val tt = totalCycleTime
+                if (tt == 0.0) {
+                    return Double.NaN
+                }
+                return totalInactiveTime / tt
+            }
+
+        val fractionTimeFailed: Double
+            get() {
+                val tt = totalCycleTime
+                if (tt == 0.0) {
+                    return Double.NaN
+                }
+                return totalFailedTime / tt
+            }
+
         /**
          *  Receives the task for processing
          */
-        fun receiveTask(task: Task, deadline: Double = Double.POSITIVE_INFINITY) {
+        override fun receiveTask(task: Task, deadline: Double) {
             require(currentProcess != task.taskProcess) { "The task ${task.taskProcess.name} is the same as the current process! " }
             require(task.taskProcess.isCreated) { "The supplied process ${task.taskProcess.name} must be in the created state. It's state was: ${task.taskProcess.currentStateName}" }
             if (task.deadline != deadline) {
@@ -149,9 +250,17 @@ open class TaskProcessingSystem(
 
         protected fun updateState(task: Task) {
             when (task.taskType) {
-                BREAK -> { currentState = inactiveState }
-                FAILURE -> { currentState = failedState }
-                WORK -> { currentState = busyState }
+                BREAK -> {
+                    currentState = inactiveState
+                }
+
+                FAILURE -> {
+                    currentState = failedState
+                }
+
+                WORK -> {
+                    currentState = busyState
+                }
             }
         }
 
