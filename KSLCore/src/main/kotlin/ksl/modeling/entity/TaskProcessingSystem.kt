@@ -27,12 +27,46 @@ open class TaskProcessingSystem(
      * Provides the ability to react to the completion of a task that was
      * started.
      */
-    interface TaskCompletedIfc {
+    interface TaskSenderIfc {
 
         /**
          * Called when the task is completed
          */
         fun taskCompleted(task: Task)
+
+        /**
+         *  Called if the task processor is about to start a failure task.
+         *  Subclasses can provide logic to react to the occurrence of a failure
+         *  for which it has current tasks pending or where it might send future tasks.
+         */
+        fun onTaskProcessorFailure(taskProcessor: TaskProcessor) {}
+
+        /**
+         *  Called if the task processor has completed a failure task.
+         *  Subclasses can provide logic to react to the processor coming back after
+         *  a failure.
+         */
+        fun onTaskProcessorRepaired(taskProcessor: TaskProcessor) {}
+
+        /**
+         *  Called if the task processor is about to start an inactive task.
+         *  Subclasses can provide logic to react to the occurrence of an inactive
+         *  period for the processor.
+         */
+        fun onTaskProcessorInactive(taskProcessor: TaskProcessor) {}
+
+        /**
+         *  Called if the task processor has completed an inactive period.
+         *  Subclasses can provide logic to react to the occurrence of the processor
+         *  returning from an inactive period.
+         */
+        fun onTaskProcessorActive(taskProcessor: TaskProcessor) {}
+
+        /**
+         *  Called if the task processor is about to be shutdown (permanently).
+         *  Subclasses can provide logic to react to a task processor being permanently shutdown.
+         */
+        fun onTaskProcessorShutdown(taskProcessor: TaskProcessor) {}
     }
 
     interface TaskReceiverIfc {
@@ -40,7 +74,7 @@ open class TaskProcessingSystem(
     }
 
     abstract inner class Task(
-        val taskStarter: TaskCompletedIfc,
+        val taskStarter: TaskSenderIfc,
         val taskType: Int = WORK
     ) : Entity() {
 
@@ -78,13 +112,15 @@ open class TaskProcessingSystem(
 
         abstract val taskProcess: KSLProcess
 
+        //TODO beforeTaskStart(), afterTaskCompleted()
+
     }
 
     inner class WorkTask(
-        workTime: Double, taskStarter: TaskCompletedIfc
+        workTime: Double, taskStarter: TaskSenderIfc
     ) : Task(taskStarter, WORK) {
 
-        constructor(workTime: GetValueIfc, taskStarter: TaskCompletedIfc) : this(workTime.value, taskStarter)
+        constructor(workTime: GetValueIfc, taskStarter: TaskSenderIfc) : this(workTime.value, taskStarter)
 
         override val taskProcess: KSLProcess = process {
             delay(workTime)
@@ -92,10 +128,10 @@ open class TaskProcessingSystem(
     }
 
     inner class FailureTask(
-        downTime: Double, taskStarter: TaskCompletedIfc
+        downTime: Double, taskStarter: TaskSenderIfc
     ) : Task(taskStarter, FAILURE) {
 
-        constructor(downTime: GetValueIfc, taskStarter: TaskCompletedIfc) : this(downTime.value, taskStarter)
+        constructor(downTime: GetValueIfc, taskStarter: TaskSenderIfc) : this(downTime.value, taskStarter)
 
         override val taskProcess: KSLProcess = process {
             delay(downTime)
@@ -103,10 +139,10 @@ open class TaskProcessingSystem(
     }
 
     inner class InactiveTask(
-        awayTime: Double, taskStarter: TaskCompletedIfc
+        awayTime: Double, taskStarter: TaskSenderIfc
     ) : Task(taskStarter, FAILURE) {
 
-        constructor(awayTime: GetValueIfc, taskStarter: TaskCompletedIfc) : this(awayTime.value, taskStarter)
+        constructor(awayTime: GetValueIfc, taskStarter: TaskSenderIfc) : this(awayTime.value, taskStarter)
 
         override val taskProcess: KSLProcess = process {
             delay(awayTime)
@@ -153,11 +189,11 @@ open class TaskProcessingSystem(
                 val nextTask = selectNextTask() ?: break
                 taskQueue.remove(nextTask)
                 currentTask = nextTask
-                beforeTaskExecution()
+                beforeTaskExecution()//TODO is this necessary
                 // set the state based on the task type
-                updateState(nextTask)
+                updateState(nextTask) //TODO need to notify senders before failure, inactive starts
                 waitFor(nextTask.taskProcess)
-                afterTaskExecution()
+                afterTaskExecution() //TODO is this necessary
                 nextTask.taskStarter.taskCompleted(nextTask)
                 previousTask = nextTask
                 currentTask = null
@@ -166,7 +202,7 @@ open class TaskProcessingSystem(
         }
 
         init {
-            if (taskQueue.isNotEmpty && isIdle()){
+            if (taskQueue.isNotEmpty && isIdle()) {
                 activate(taskProcessing)
             }
         }
@@ -282,6 +318,7 @@ open class TaskProcessingSystem(
                 }
             }
         }
+
 
         protected open fun beforeTaskExecution() {
 
