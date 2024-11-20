@@ -118,6 +118,10 @@ open class TaskProcessingSystem(
     ) : Entity(), TaskReceiverIfc {
         //TODO consider a TaskProcessorIfc interface
 
+        //TODO consider ability to shutdown the processor
+        // shutdown is permanent deactivation, would need to notify sender of tasks
+        // consider the ability to allow sender to react to failure, react to inactive, react to shutdown
+
         var currentTask: Task? = null
         var previousTask: Task? = null
         val idleState: State = State(name = "Idle")
