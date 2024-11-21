@@ -1,6 +1,7 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
+import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.ConstantValue
 import ksl.utilities.GetValueIfc
@@ -157,7 +158,7 @@ open class TaskProcessingSystem(
     }
 
     open inner class TaskProcessor(
-        val taskQueue: Queue<Task>,
+        taskQueue: Queue<Task>
     ) : Entity(), TaskReceiverIfc {
         //TODO consider a TaskProcessorIfc interface
 
@@ -169,6 +170,10 @@ open class TaskProcessingSystem(
         // once shutdown occurs no new tasks can be received
 
         //TODO consider generalizing starting state
+
+        private val myTaskQueue: Queue<Task> = taskQueue
+        val taskQueue: QueueCIfc<Task>
+            get() = myTaskQueue
 
         /**
          *  Indicates if the processor is shutdown and will no longer process tasks.
@@ -228,7 +233,7 @@ open class TaskProcessingSystem(
         val taskProcessing = process("${this.name}_TaskProcessing") {
             while (hasNextTask()) {
                 val nextTask = selectNextTask() ?: break
-                taskQueue.remove(nextTask)
+                myTaskQueue.remove(nextTask)
                 currentTask = nextTask
                 // set the state based on the task type
                 updateState(nextTask)
@@ -250,7 +255,7 @@ open class TaskProcessingSystem(
             if (!shutdown) {
                 shutdown = true
                 // notify the senders of waiting tasks of shutdown
-                for (task in taskQueue) {
+                for (task in myTaskQueue) {
                     task.taskSender.onTaskProcessorAction(task, this, TaskProcessorStatus.SHUTDOWN)
                 }
             }
@@ -265,7 +270,7 @@ open class TaskProcessingSystem(
                 actionType = TaskProcessorStatus.START_INACTIVE
             }
             if (actionType != null) {
-                for (task in taskQueue) {
+                for (task in myTaskQueue) {
                     task.taskSender.onTaskProcessorAction(task, this, actionType)
                 }
             }
@@ -280,14 +285,14 @@ open class TaskProcessingSystem(
                 actionType = TaskProcessorStatus.END_INACTIVE
             }
             if (actionType != null) {
-                for (task in taskQueue) {
+                for (task in myTaskQueue) {
                     task.taskSender.onTaskProcessorAction(task, this, actionType)
                 }
             }
         }
 
         init {
-            if (taskQueue.isNotEmpty && isIdle()) {
+            if (myTaskQueue.isNotEmpty && isIdle()) {
                 activate(taskProcessing)
             }
         }
@@ -381,7 +386,8 @@ open class TaskProcessingSystem(
                 task.deadline = deadline
             }
             task.taskProcessor = this
-            taskQueue.enqueue(task)
+            //TODO consider separate queues for holding failures and breaks
+            myTaskQueue.enqueue(task)
             // if worker is idle then activate the worker's task processing
             if (isIdle()) {
                 activate(taskProcessing)
@@ -425,7 +431,9 @@ open class TaskProcessingSystem(
          *  from the task queue. If null, then a new task could not be selected.
          */
         open fun selectNextTask(): Task? {
-            return taskQueue.peekNext()
+            //TODO consider what happens if separate queues/lists are used for failures and breaks
+            // provide functional interface alternative for selecting
+            return myTaskQueue.peekNext()
         }
     }
 }
