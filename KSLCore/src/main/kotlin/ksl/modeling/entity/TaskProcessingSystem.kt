@@ -5,7 +5,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.ConstantValue
 import ksl.utilities.GetValueIfc
 import ksl.utilities.statistic.State
-
+import ksl.utilities.statistic.StateAccessorIfc
 
 
 open class TaskProcessingSystem(
@@ -17,9 +17,7 @@ open class TaskProcessingSystem(
         START_FAILURE, END_FAILURE, START_INACTIVE, END_INACTIVE, START_SHUTDOWN, SHUTDOWN
     }
 
-    val WORK = nextTypeConstant()
-    val FAILURE = nextTypeConstant()
-    val BREAK = nextTypeConstant()
+    enum class TaskType { WORK, FAILURE, BREAK }
 
     companion object {
         private var myTaskTypeCounter = 0
@@ -49,7 +47,7 @@ open class TaskProcessingSystem(
          *  @param taskProcessor the task processor
          *  @param status the status indicator for the type of action
          */
-        fun onTaskProcessorAction(taskInQ: Task, taskProcessor: TaskProcessor, status: TaskProcessorStatus){}
+        fun onTaskProcessorAction(taskInQ: Task, taskProcessor: TaskProcessor, status: TaskProcessorStatus) {}
 
     }
 
@@ -68,11 +66,11 @@ open class TaskProcessingSystem(
     /**
      *  Represents something that must be executed by a TaskProcessor.
      *  @param taskSender the thing that wants the task completed
-     *  @param taskType the type of task 
+     *  @param taskType the type of task
      */
     abstract inner class Task(
         val taskSender: TaskSenderIfc,
-        val taskType: Int = WORK
+        val taskType: TaskType = TaskType.WORK
     ) : Entity() {
 
         /**
@@ -99,7 +97,7 @@ open class TaskProcessingSystem(
         var taskProcessor: TaskProcessor? = null
 
         /**
-         * The deadline may be used by the worker to assist with task selection
+         * The deadline may be used by the task processor to assist with task selection
          */
         var deadline: Double = Double.POSITIVE_INFINITY
             set(value) {
@@ -107,6 +105,9 @@ open class TaskProcessingSystem(
                 field = value
             }
 
+        /**
+         *  The process routine defined for the task.
+         */
         abstract val taskProcess: KSLProcess
 
         /**
@@ -124,7 +125,7 @@ open class TaskProcessingSystem(
 
     inner class WorkTask(
         var workTime: GetValueIfc, taskSender: TaskSenderIfc
-    ) : Task(taskSender, WORK) {
+    ) : Task(taskSender, TaskType.WORK) {
 
         constructor(workTime: Double, taskSender: TaskSenderIfc) : this(ConstantValue(workTime), taskSender)
 
@@ -135,7 +136,7 @@ open class TaskProcessingSystem(
 
     inner class FailureTask(
         var downTime: GetValueIfc, taskSender: TaskSenderIfc
-    ) : Task(taskSender, FAILURE) {
+    ) : Task(taskSender, TaskType.FAILURE) {
 
         constructor(downTime: Double, taskSender: TaskSenderIfc) : this(ConstantValue(downTime), taskSender)
 
@@ -146,7 +147,7 @@ open class TaskProcessingSystem(
 
     inner class InactiveTask(
         var awayTime: GetValueIfc, taskSender: TaskSenderIfc
-    ) : Task(taskSender, FAILURE) {
+    ) : Task(taskSender, TaskType.FAILURE) {
 
         constructor(awayTime: Double, taskSender: TaskSenderIfc) : this(ConstantValue(awayTime), taskSender)
 
@@ -169,28 +170,56 @@ open class TaskProcessingSystem(
 
         //TODO consider generalizing starting state
 
-        var isShutdown = false
+        /**
+         *  Indicates if the processor is shutdown and will no longer process tasks.
+         */
+        var shutdown = false
             private set
 
+        /**
+         *  The task that the processor is currently executing
+         */
         var currentTask: Task? = null
-        var previousTask: Task? = null
+            private set
 
-        val idleState: State = State(name = "Idle")
+        /**
+         *  The task that was previously executed by the processor
+         */
+        var previousTask: Task? = null
+            private set
+
+        /**
+         *  Used to indicate that the processor is idle (not processing any tasks)
+         *  and to tabulate time spent in the state.
+         */
+        private val myIdleState: State = State(name = "Idle")
+        val idleState: StateAccessorIfc
+            get() = myIdleState
 
         init {
-            idleState.enter(time)
+            myIdleState.enter(time)
         }
 
-        val busyState: State = State(name = "Busy")
-        val failedState: State = State(name = "Failed")
-        val inactiveState: State = State(name = "Inactive")
+        val myBusyState: State = State(name = "Busy")
+        val busyState: StateAccessorIfc
+            get() = myBusyState
 
-        var currentState: State = idleState
+        val myFailedState: State = State(name = "Failed")
+        val failedState: StateAccessorIfc
+            get() = myFailedState
+
+        val myInactiveState: State = State(name = "Inactive")
+        val inactiveState: StateAccessorIfc
+            get() = myInactiveState
+
+        private var myCurrentState: State = myIdleState
             private set(value) {
                 field.exit(time) // exit the current state
                 field = value // update the state
                 field.enter(time) // enter the new state
             }
+        val currentState: StateAccessorIfc
+            get() = myCurrentState
 
         /**
          *  Describes how to process a task. If there are tasks, a new task
@@ -214,44 +243,44 @@ open class TaskProcessingSystem(
                 previousTask = nextTask
                 currentTask = null
             }
-            currentState = idleState
+            myCurrentState = myIdleState
         }
 
-        fun shutdown(){
-            if (!isShutdown) {
-                isShutdown = true
+        fun shutdown() {
+            if (!shutdown) {
+                shutdown = true
                 // notify the senders of waiting tasks of shutdown
-                for(task in taskQueue){
-                    task.taskSender.onTaskProcessorAction(task,this, TaskProcessorStatus.SHUTDOWN)
+                for (task in taskQueue) {
+                    task.taskSender.onTaskProcessorAction(task, this, TaskProcessorStatus.SHUTDOWN)
                 }
             }
         }
 
-        private fun notifySendersOfStartAction(taskType:Int) {
+        private fun notifySendersOfStartAction(taskType: TaskType) {
             var actionType: TaskProcessorStatus? = null
-            if (taskType == FAILURE){
+            if (taskType == TaskType.FAILURE) {
                 actionType = TaskProcessorStatus.START_FAILURE
             }
-            if (taskType == BREAK){
+            if (taskType == TaskType.BREAK) {
                 actionType = TaskProcessorStatus.START_INACTIVE
             }
             if (actionType != null) {
-                for(task in taskQueue){
-                    task.taskSender.onTaskProcessorAction(task,this, actionType)
+                for (task in taskQueue) {
+                    task.taskSender.onTaskProcessorAction(task, this, actionType)
                 }
             }
         }
 
-        private fun notifySendersOfEndAction(taskType:Int) {
+        private fun notifySendersOfEndAction(taskType: TaskType) {
             var actionType: TaskProcessorStatus? = null
-            if (taskType == FAILURE){
+            if (taskType == TaskType.FAILURE) {
                 actionType = TaskProcessorStatus.END_FAILURE
             }
-            if (taskType == BREAK){
+            if (taskType == TaskType.BREAK) {
                 actionType = TaskProcessorStatus.END_INACTIVE
             }
             if (actionType != null) {
-                for(task in taskQueue){
+                for (task in taskQueue) {
                     task.taskSender.onTaskProcessorAction(task, this, actionType)
                 }
             }
@@ -264,44 +293,44 @@ open class TaskProcessingSystem(
         }
 
         fun isBusy(): Boolean {
-            return currentState === busyState
+            return myCurrentState === myBusyState
         }
 
         fun isFailed(): Boolean {
-            return currentState === failedState
+            return myCurrentState === myFailedState
         }
 
         fun isIdle(): Boolean {
-            return currentState === idleState
+            return myCurrentState === myIdleState
         }
 
         fun isInactive(): Boolean {
-            return currentState === inactiveState
+            return myCurrentState === myInactiveState
         }
 
         val numTimesFailed: Double
-            get() = failedState.numberOfTimesEntered
+            get() = myFailedState.numberOfTimesEntered
 
         val numTimesInactive: Double
-            get() = inactiveState.numberOfTimesExited
+            get() = myInactiveState.numberOfTimesExited
 
         val numTimesIdle: Double
-            get() = idleState.numberOfTimesEntered
+            get() = myIdleState.numberOfTimesEntered
 
         val numTimesBusy: Double
-            get() = busyState.numberOfTimesEntered
+            get() = myBusyState.numberOfTimesEntered
 
         val totalIdleTime: Double
-            get() = idleState.totalTimeInState
+            get() = myIdleState.totalTimeInState
 
         val totalBusyTime: Double
-            get() = busyState.totalTimeInState
+            get() = myBusyState.totalTimeInState
 
         val totalFailedTime: Double
-            get() = failedState.totalTimeInState
+            get() = myFailedState.totalTimeInState
 
         val totalInactiveTime: Double
-            get() = inactiveState.totalTimeInState
+            get() = myInactiveState.totalTimeInState
 
         val totalCycleTime: Double
             get() = totalIdleTime + totalBusyTime + totalFailedTime + totalInactiveTime
@@ -361,16 +390,16 @@ open class TaskProcessingSystem(
 
         protected fun updateState(task: Task) {
             when (task.taskType) {
-                BREAK -> {
-                    currentState = inactiveState
+                TaskType.BREAK -> {
+                    myCurrentState = myInactiveState
                 }
 
-                FAILURE -> {
-                    currentState = failedState
+                TaskType.FAILURE -> {
+                    myCurrentState = myFailedState
                 }
 
-                WORK -> {
-                    currentState = busyState
+                TaskType.WORK -> {
+                    myCurrentState = myBusyState
                 }
             }
         }
