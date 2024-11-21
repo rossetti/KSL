@@ -2,6 +2,7 @@ package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
+import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.ConstantValue
 import ksl.utilities.GetValueIfc
@@ -251,46 +252,6 @@ open class TaskProcessingSystem(
             myCurrentState = myIdleState
         }
 
-        fun shutdown() {
-            if (!shutdown) {
-                shutdown = true
-                // notify the senders of waiting tasks of shutdown
-                for (task in myTaskQueue) {
-                    task.taskSender.onTaskProcessorAction(task, this, TaskProcessorStatus.SHUTDOWN)
-                }
-            }
-        }
-
-        private fun notifySendersOfStartAction(taskType: TaskType) {
-            var actionType: TaskProcessorStatus? = null
-            if (taskType == TaskType.FAILURE) {
-                actionType = TaskProcessorStatus.START_FAILURE
-            }
-            if (taskType == TaskType.BREAK) {
-                actionType = TaskProcessorStatus.START_INACTIVE
-            }
-            if (actionType != null) {
-                for (task in myTaskQueue) {
-                    task.taskSender.onTaskProcessorAction(task, this, actionType)
-                }
-            }
-        }
-
-        private fun notifySendersOfEndAction(taskType: TaskType) {
-            var actionType: TaskProcessorStatus? = null
-            if (taskType == TaskType.FAILURE) {
-                actionType = TaskProcessorStatus.END_FAILURE
-            }
-            if (taskType == TaskType.BREAK) {
-                actionType = TaskProcessorStatus.END_INACTIVE
-            }
-            if (actionType != null) {
-                for (task in myTaskQueue) {
-                    task.taskSender.onTaskProcessorAction(task, this, actionType)
-                }
-            }
-        }
-
         init {
             if (myTaskQueue.isNotEmpty && isIdle()) {
                 activate(taskProcessing)
@@ -434,6 +395,72 @@ open class TaskProcessingSystem(
             //TODO consider what happens if separate queues/lists are used for failures and breaks
             // provide functional interface alternative for selecting
             return myTaskQueue.peekNext()
+        }
+
+        private fun notifySendersOfStartAction(taskType: TaskType) {
+            var actionType: TaskProcessorStatus? = null
+            if (taskType == TaskType.FAILURE) {
+                actionType = TaskProcessorStatus.START_FAILURE
+            }
+            if (taskType == TaskType.BREAK) {
+                actionType = TaskProcessorStatus.START_INACTIVE
+            }
+            if (actionType != null) {
+                for (task in myTaskQueue) {
+                    task.taskSender.onTaskProcessorAction(task, this, actionType)
+                }
+            }
+        }
+
+        private fun notifySendersOfEndAction(taskType: TaskType) {
+            var actionType: TaskProcessorStatus? = null
+            if (taskType == TaskType.FAILURE) {
+                actionType = TaskProcessorStatus.END_FAILURE
+            }
+            if (taskType == TaskType.BREAK) {
+                actionType = TaskProcessorStatus.END_INACTIVE
+            }
+            if (actionType != null) {
+                for (task in myTaskQueue) {
+                    task.taskSender.onTaskProcessorAction(task, this, actionType)
+                }
+            }
+        }
+
+        fun shutdown() {
+            scheduleShutDown(0.0)
+        }
+
+        private var myShutDownEvent: KSLEvent<Nothing>? = null
+        val isShutdownPending: Boolean
+            get() = myShutDownEvent != null
+        val timeUntilShutdown: Double
+            get() = if (myShutDownEvent != null) {
+                myShutDownEvent!!.interEventTime
+            } else {
+                Double.POSITIVE_INFINITY
+            }
+
+        fun scheduleShutDown(timeUntilShutdown: Double) {
+            require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
+            myShutDownEvent = schedule(this@TaskProcessor::shutDownAction, timeUntilShutdown)
+            // notify the senders of waiting tasks of pending shutdown
+            for (task in myTaskQueue) {
+                task.taskSender.onTaskProcessorAction(task, this, TaskProcessorStatus.START_SHUTDOWN)
+            }
+
+            val s = if (myShutDownEvent != null) myShutDownEvent!!.interEventTime else Double.POSITIVE_INFINITY
+        }
+
+        private fun shutDownAction(event: KSLEvent<Nothing>){
+            if (!shutdown) {
+                shutdown = true
+                // notify the senders of waiting tasks of shutdown
+                for (task in myTaskQueue) {
+                    task.taskSender.onTaskProcessorAction(task, this, TaskProcessorStatus.SHUTDOWN)
+                }
+                myShutDownEvent = null
+            }
         }
     }
 }
