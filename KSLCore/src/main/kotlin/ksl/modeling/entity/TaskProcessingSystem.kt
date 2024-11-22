@@ -39,10 +39,25 @@ open class TaskProcessingSystem(
         }
     }
 
+    fun createTaskProcessors(number: Int, queue: Queue<Task>, prefix: String = "Processor_"){
+        val set = mutableSetOf<String>()
+        for(i in 1..number){
+            set.add(prefix+i)
+        }
+        createTaskProcessors(set, queue)
+    }
+
+    //TODO can task processors share a queue
+    fun createTaskProcessors(names: Set<String>, queue: Queue<Task>){
+        for (name in names){
+            TaskProcessor(queue, name)
+        }
+    }
+
     override fun afterReplication() {
         super.afterReplication()
         for (taskProcessor in myTaskProcessors.values) {
-
+            //TODO afterReplication
         }
     }
 
