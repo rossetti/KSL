@@ -256,6 +256,7 @@ open class TaskProcessingSystem(
         val currentState: StateAccessorIfc
             get() = myCurrentState
 
+        //TODO when and where to call
         internal fun startUp() {
             resetStates()
             previousTask = null
@@ -494,6 +495,7 @@ open class TaskProcessingSystem(
         private fun shutDownAction(event: KSLEvent<Nothing>){
             //TODO need to decide what to do if the task processor is currently working on a task
             // default: current task should be allowed to complete before shutdown actually occurs??
+            // TODO need shutdownPending flag
             if (!shutdown) {
                 shutdown = true
                 // notify the senders of waiting tasks of shutdown
