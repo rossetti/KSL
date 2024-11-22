@@ -402,6 +402,7 @@ open class TaskProcessingSystem(
          */
         override fun receiveTask(task: Task, deadline: Double) {
             require(!shutdown) {"${this.name} Task Processor: cannot receive tasks because it is shutdown"}
+            //TODO check the task before executing it, not here
             require(currentProcess != task.taskProcess) { "${this.name} Task Processor: The task ${task.taskProcess.name} is the same as the current process! " }
             require(task.taskProcess.isCreated) { "${this.name} Task Processor: The supplied process ${task.taskProcess.name} must be in the created state. It's state was: ${task.taskProcess.currentStateName}" }
             if (task.deadline != deadline) {
