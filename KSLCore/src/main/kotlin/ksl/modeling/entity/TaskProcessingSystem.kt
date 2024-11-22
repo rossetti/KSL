@@ -409,7 +409,8 @@ open class TaskProcessingSystem(
             }
             task.taskProcessor = this
             //TODO consider separate queues for holding failures and breaks
-            myTaskQueue.enqueue(task)
+            myTaskQueue.enqueue(task) //TODO there is no need to store the tasks
+            //TODO it really is about waking it up to pull a task from the selector
             // if worker is idle then activate the worker's task processing
             if (isIdle()) {
                 activate(taskProcessing)
