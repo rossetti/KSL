@@ -200,7 +200,7 @@ open class TaskProcessingSystem(
         }
     }
 
-    //TODO why not generalize out the queue to a task provider
+    //TODO why not generalize out the queue to a TaskSelectorIfc because a queue is just one way to select tasks
     open inner class TaskProcessor(
         taskQueue: Queue<Task>,
         aName: String? = null
