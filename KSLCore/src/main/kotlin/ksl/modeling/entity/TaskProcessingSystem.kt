@@ -25,6 +25,13 @@ open class TaskProcessingSystem(
     val taskProcessors: Map<String, TaskProcessor>
         get() = myTaskProcessors
 
+    fun shutdownAllTaskProcessors(timeUntilShutdown: Double = 0.0){
+        require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
+        for (taskProcessor in myTaskProcessors.values) {
+            taskProcessor.scheduleShutDown(timeUntilShutdown)
+        }
+    }
+
     /**
      * Provides the ability to react to the completion of a task that was
      * sent for processing.
@@ -430,10 +437,6 @@ open class TaskProcessingSystem(
             }
         }
 
-        fun shutdown() {
-            scheduleShutDown(0.0)
-        }
-
         private var myShutDownEvent: KSLEvent<Nothing>? = null
         val isShutdownPending: Boolean
             get() = myShutDownEvent != null
@@ -444,7 +447,7 @@ open class TaskProcessingSystem(
                 Double.POSITIVE_INFINITY
             }
 
-        fun scheduleShutDown(timeUntilShutdown: Double) {
+        fun scheduleShutDown(timeUntilShutdown: Double = 0.0) {
             require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
             myShutDownEvent = schedule(this@TaskProcessor::shutDownAction, timeUntilShutdown)
             // notify the senders of waiting tasks of pending shutdown
@@ -458,6 +461,17 @@ open class TaskProcessingSystem(
         private fun shutDownAction(event: KSLEvent<Nothing>){
             //TODO need to decide what to do if the task processor is currently working on a task
             // default: current task should be allowed to complete before shutdown actually occurs??
+            if (!shutdown) {
+                shutdown = true
+                // notify the senders of waiting tasks of shutdown
+                for (task in myTaskQueue) {
+                    task.taskSender.onTaskProcessorAction(task, this, TaskProcessorStatus.SHUTDOWN)
+                }
+                myShutDownEvent = null
+            }
+        }
+
+        private fun shutdown(){
             if (!shutdown) {
                 shutdown = true
                 // notify the senders of waiting tasks of shutdown
