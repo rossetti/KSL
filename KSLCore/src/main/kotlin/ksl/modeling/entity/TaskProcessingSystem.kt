@@ -21,13 +21,9 @@ open class TaskProcessingSystem(
 
     enum class TaskType { WORK, FAILURE, BREAK }
 
-    companion object {
-        private var myTaskTypeCounter = 0
-
-        fun nextTypeConstant(): Int {
-            return myTaskTypeCounter++
-        }
-    }
+    private val myTaskProcessors = mutableMapOf<String, TaskProcessor>()
+    val taskProcessors: Map<String, TaskProcessor>
+        get() = myTaskProcessors
 
     /**
      * Provides the ability to react to the completion of a task that was
@@ -159,8 +155,14 @@ open class TaskProcessingSystem(
     }
 
     open inner class TaskProcessor(
-        taskQueue: Queue<Task>
-    ) : Entity(), TaskReceiverIfc {
+        taskQueue: Queue<Task>,
+        aName: String? = null
+    ) : Entity(aName), TaskReceiverIfc {
+
+        init {
+            require(!myTaskProcessors.containsKey(this@TaskProcessor.name)) {"The task processor name (${this@TaskProcessor.name}) already exists for ${this@TaskProcessingSystem.name}" }
+            myTaskProcessors[this@TaskProcessor.name] = this
+        }
         //TODO consider a TaskProcessorIfc interface
 
         //TODO consider ability to shutdown the processor, types of shutdown (graceful, hard)
@@ -232,9 +234,9 @@ open class TaskProcessingSystem(
          *  is selected and then executed.
          */
         val taskProcessing = process("${this.name}_TaskProcessing") {
-            while (hasNextTask()) {
+            while (hasNextTask() && !shutdown) {
                 val nextTask = selectNextTask() ?: break
-                myTaskQueue.remove(nextTask)
+                myTaskQueue.remove(nextTask) //TODO this will need changing if separate queues are used
                 currentTask = nextTask
                 // set the state based on the task type
                 updateState(nextTask)
@@ -341,8 +343,9 @@ open class TaskProcessingSystem(
          *  Receives the task for processing
          */
         override fun receiveTask(task: Task, deadline: Double) {
-            require(currentProcess != task.taskProcess) { "The task ${task.taskProcess.name} is the same as the current process! " }
-            require(task.taskProcess.isCreated) { "The supplied process ${task.taskProcess.name} must be in the created state. It's state was: ${task.taskProcess.currentStateName}" }
+            require(!shutdown) {"${this.name} Task Processor: cannot receive tasks because it is shutdown"}
+            require(currentProcess != task.taskProcess) { "${this.name} Task Processor: The task ${task.taskProcess.name} is the same as the current process! " }
+            require(task.taskProcess.isCreated) { "${this.name} Task Processor: The supplied process ${task.taskProcess.name} must be in the created state. It's state was: ${task.taskProcess.currentStateName}" }
             if (task.deadline != deadline) {
                 task.deadline = deadline
             }
@@ -453,6 +456,8 @@ open class TaskProcessingSystem(
         }
 
         private fun shutDownAction(event: KSLEvent<Nothing>){
+            //TODO need to decide what to do if the task processor is currently working on a task
+            // default: current task should be allowed to complete before shutdown actually occurs??
             if (!shutdown) {
                 shutdown = true
                 // notify the senders of waiting tasks of shutdown
