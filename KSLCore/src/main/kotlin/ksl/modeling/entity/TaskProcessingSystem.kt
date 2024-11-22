@@ -39,6 +39,20 @@ open class TaskProcessingSystem(
         }
     }
 
+    override fun afterReplication() {
+        super.afterReplication()
+        for (taskProcessor in myTaskProcessors.values) {
+
+        }
+    }
+
+    override fun warmUp() {
+        super.warmUp()
+        for (taskProcessor in myTaskProcessors.values) {
+            taskProcessor.resetStates()
+        }
+    }
+
     //TODO statistics on task processors
     //TODO make it easier to create a set of task processors
 
@@ -221,10 +235,6 @@ open class TaskProcessingSystem(
         val idleState: StateAccessorIfc
             get() = myIdleState
 
-        init {
-            myIdleState.enter(time)
-        }
-
         val myBusyState: State = State(name = "Busy")
         val busyState: StateAccessorIfc
             get() = myBusyState
@@ -245,6 +255,25 @@ open class TaskProcessingSystem(
             }
         val currentState: StateAccessorIfc
             get() = myCurrentState
+
+        internal fun startUp() {
+            resetStates()
+            previousTask = null
+            currentTask = null
+            shutdown = false
+            myCurrentState = myIdleState
+            myIdleState.enter(time)
+            if (hasNextTask() && isIdle()) {
+                activate(taskProcessing)
+            }
+        }
+
+        fun resetStates(){
+            myIdleState.initialize()
+            myBusyState.initialize()
+            myFailedState.initialize()
+            myInactiveState.initialize()
+        }
 
         /**
          *  Describes how to process a task. If there are tasks, a new task
@@ -269,12 +298,6 @@ open class TaskProcessingSystem(
                 currentTask = null
             }
             myCurrentState = myIdleState
-        }
-
-        init {
-            if (myTaskQueue.isNotEmpty && isIdle()) {
-                activate(taskProcessing)
-            }
         }
 
         fun isBusy(): Boolean {
@@ -482,6 +505,7 @@ open class TaskProcessingSystem(
         }
 
         private fun shutdown(){
+            //TODO call from event
             if (!shutdown) {
                 shutdown = true
                 // notify the senders of waiting tasks of shutdown
