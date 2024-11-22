@@ -201,6 +201,7 @@ open class TaskProcessingSystem(
     }
 
     //TODO why not generalize out the queue to a TaskSelectorIfc because a queue is just one way to select tasks
+    // need to think more carefully about startup
     open inner class TaskProcessor(
         taskQueue: Queue<Task>,
         aName: String? = null
@@ -274,13 +275,17 @@ open class TaskProcessingSystem(
             get() = myCurrentState
 
         //TODO when and where to call
-        internal fun startUp() {
+        internal fun initialize() {
             resetStates()
             previousTask = null
             currentTask = null
             shutdown = false
             myCurrentState = myIdleState
             myIdleState.enter(time)
+        }
+
+        fun startUp(){
+            initialize()
             if (hasNextTask() && isIdle()) {
                 activate(taskProcessing)
             }
