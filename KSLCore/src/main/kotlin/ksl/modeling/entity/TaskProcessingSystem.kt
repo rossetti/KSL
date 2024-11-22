@@ -25,12 +25,22 @@ open class TaskProcessingSystem(
     val taskProcessors: Map<String, TaskProcessor>
         get() = myTaskProcessors
 
+    /**
+     *  Causes all the task processors in the system to shut down based on
+     *  the supplied time until shutdown. The shutdowns may not occur exactly
+     *  at the desired time due to the fact that a task processor may be performing
+     *  a task. The task is allowed to complete before the shutdown occurs.
+     *  @param timeUntilShutdown a desired time until shutdown, must be greater than or equal to 0.0
+     */
     fun shutdownAllTaskProcessors(timeUntilShutdown: Double = 0.0){
         require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
         for (taskProcessor in myTaskProcessors.values) {
             taskProcessor.scheduleShutDown(timeUntilShutdown)
         }
     }
+
+    //TODO statistics on task processors
+    //TODO make it easier to create a set of task processors
 
     /**
      * Provides the ability to react to the completion of a task that was
