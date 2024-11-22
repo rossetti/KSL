@@ -57,7 +57,7 @@ open class TaskProcessingSystem(
     override fun afterReplication() {
         super.afterReplication()
         for (taskProcessor in myTaskProcessors.values) {
-            //TODO afterReplication
+            //TODO afterReplication, need to initialize but not start them
         }
     }
 
@@ -200,6 +200,7 @@ open class TaskProcessingSystem(
         }
     }
 
+    //TODO why not generalize out the queue to a task provider
     open inner class TaskProcessor(
         taskQueue: Queue<Task>,
         aName: String? = null
@@ -220,6 +221,7 @@ open class TaskProcessingSystem(
 
         //TODO consider generalizing starting state
 
+        //TODO could the task queue be changeable?
         private val myTaskQueue: Queue<Task> = taskQueue
         val taskQueue: QueueCIfc<Task>
             get() = myTaskQueue
