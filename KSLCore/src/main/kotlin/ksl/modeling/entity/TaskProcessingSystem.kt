@@ -227,22 +227,16 @@ open class TaskProcessingSystem(
         }
     }
 
-    //TODO why not generalize out the queue to a TaskSelectorIfc because a queue is just one way to select tasks
-    // need to think more carefully about startup
+    /**
+     *
+     */
     open inner class TaskProcessor(
         aName: String? = null
     ) : Entity(aName) {
 
         //TODO consider a TaskProcessorIfc interface
-
-        //TODO consider ability to shutdown the processor, types of shutdown (graceful, hard)
-        // shutdown is permanent deactivation, would need to notify sender of tasks
-        // consider the ability to allow sender to react to failure, react to inactive, react to shutdown
-        // allow scheduling of shutdown, allow canceling of shutdown, assume shutdown can only occur
-        // after current task is completed.
-        // once shutdown occurs no new tasks can be received
-
-        //TODO consider generalizing starting state
+        //TODO finish shutdown logic
+        //TODO think more carefully about startup
 
         private var myTaskProvider: TaskProviderIfc? = null
 
@@ -471,8 +465,6 @@ open class TaskProcessingSystem(
          *  from the task queue. If null, then a new task could not be selected.
          */
         private fun selectNextTask(): Task? {
-            //TODO consider what happens if separate queues/lists are used for failures and breaks
-            // provide functional interface alternative for selecting
             return myTaskProvider?.next()
         }
 
