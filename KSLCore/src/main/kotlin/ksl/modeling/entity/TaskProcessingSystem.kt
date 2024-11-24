@@ -2,10 +2,14 @@ package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.ConstantValue
 import ksl.utilities.GetValueIfc
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 
@@ -32,29 +36,29 @@ open class TaskProcessingSystem(
      *  a task. The task is allowed to complete before the shutdown occurs.
      *  @param timeUntilShutdown a desired time until shutdown, must be greater than or equal to 0.0
      */
-    fun shutdownAllTaskProcessors(timeUntilShutdown: Double = 0.0){
+    fun shutdownAllTaskProcessors(timeUntilShutdown: Double = 0.0) {
         require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
         for (taskProcessor in myTaskProcessors.values) {
             taskProcessor.scheduleShutDown(timeUntilShutdown)
         }
     }
 
-    fun createTaskProcessors(number: Int, prefix: String = "Processor_"){
+    fun createTaskProcessors(number: Int, prefix: String = "Processor_") {
         val set = mutableSetOf<String>()
-        for(i in 1..number){
-            set.add(prefix+i)
+        for (i in 1..number) {
+            set.add(prefix + i)
         }
         createTaskProcessors(set)
     }
 
-    fun createTaskProcessors(names: Set<String>){
-        for (name in names){
+    fun createTaskProcessors(names: Set<String>) {
+        for (name in names) {
             addTaskProcessor(TaskProcessor(name))
         }
     }
 
-    fun addTaskProcessor(taskProcessor: TaskProcessor){
-        require(!myTaskProcessors.containsKey(taskProcessor.name)) {"The task processor name (${taskProcessor.name}) already exists for ${this@TaskProcessingSystem.name}" }
+    fun addTaskProcessor(taskProcessor: TaskProcessor) {
+        require(!myTaskProcessors.containsKey(taskProcessor.name)) { "The task processor name (${taskProcessor.name}) already exists for ${this@TaskProcessingSystem.name}" }
         myTaskProcessors[taskProcessor.name] = taskProcessor
     }
 
@@ -113,7 +117,7 @@ open class TaskProcessingSystem(
 
     interface TaskProviderIfc : Iterator<Task> {
 
-        override fun hasNext() : Boolean
+        override fun hasNext(): Boolean
 
         override fun next(): Task
 
@@ -227,18 +231,67 @@ open class TaskProcessingSystem(
         }
     }
 
+    inner class ProcessorPerformance(
+        parent: ModelElement,
+        val processor: TaskProcessor,
+        val allPerformance: Boolean = false,
+        name: String? = processor.name
+    ) : ModelElement(parent, name) {
+
+        private val myFractionTimeBusy = Response(this, name = "${this.name}:FractionTimeBusy")
+        val fractionTimeBusy: ResponseCIfc
+            get() = myFractionTimeBusy
+        private val myNumTimesBusy = Response(this, name = "${this.name}:NumTimesBusy")
+        val numTimesBusy: ResponseCIfc
+            get() = myNumTimesBusy
+        private val myFractionIdleTime by lazy { Response(this, name = "${this.name}:FractionTimeIdle") }
+        val fractionTimeIdle: ResponseCIfc
+            get() = myFractionIdleTime
+        private val myNumTimesIdle = Response(this, name = "${this.name}:NumTimesIdle")
+        val numTimesIdle: ResponseCIfc
+            get() = myNumTimesIdle
+        private val myFractionFailedTime by lazy { Response(this, name = "${this.name}:FractionTimeFailed") }
+        val fractionTimeFailed: ResponseCIfc
+            get() = myFractionFailedTime
+        private val myNumTimesFailed = Response(this, name = "${this.name}:NumTimesFailed")
+        val numTimesFailed: ResponseCIfc
+            get() = myNumTimesFailed
+        private val myFractionInactiveTime by lazy { Response(this, name = "${this.name}:FractionTimeInactive") }
+        val fractionTimeInactive: ResponseCIfc
+            get() = myFractionInactiveTime
+        private val myNumTimesInactive = Response(this, name = "${this.name}:NumTimesInactive")
+        val numTimesInactive: ResponseCIfc
+            get() = myNumTimesInactive
+
+        override fun replicationEnded() {
+            super.replicationEnded()
+            myFractionTimeBusy.value = processor.fractionTimeBusy
+            myNumTimesBusy.value = processor.numTimesBusy
+            if (allPerformance) {
+                myFractionIdleTime.value = processor.fractionTimeIdle
+                myNumTimesIdle.value = processor.numTimesIdle
+                myFractionFailedTime.value = processor.fractionTimeFailed
+                myNumTimesFailed.value = processor.numTimesFailed
+                myFractionInactiveTime.value = processor.fractionTimeInactive
+                myNumTimesInactive.value = processor.numTimesInactive
+            }
+        }
+    }
+
+
     /**
      *
      */
     open inner class TaskProcessor(
         aName: String? = null
-    ) : Entity(aName) {
+    ) : IdentityIfc by Identity(aName) {
 
         //TODO consider a TaskProcessorIfc interface
         //TODO finish shutdown logic
         //TODO think more carefully about startup
 
         private var myTaskProvider: TaskProviderIfc? = null
+        private var myProcessor: Processor? = null
 
         /**
          *  Indicates if the processor is shutdown and will no longer process tasks.
@@ -291,6 +344,7 @@ open class TaskProcessingSystem(
         internal fun initialize() {
             resetStates()
             myTaskProvider = null
+            myProcessor = null
             previousTask = null
             currentTask = null
             shutdown = false
@@ -305,36 +359,11 @@ open class TaskProcessingSystem(
 //            }
 //        }
 
-        fun resetStates(){
+        fun resetStates() {
             myIdleState.initialize()
             myBusyState.initialize()
             myFailedState.initialize()
             myInactiveState.initialize()
-        }
-
-        /**
-         *  Describes how to process a task. If there are tasks, a new task
-         *  is selected and then executed.
-         */
-        val taskProcessing = process("${this.name}_TaskProcessing") {
-            while (hasNextTask() && !shutdown) {
-                val nextTask = selectNextTask() ?: break
-                nextTask.taskProcessor = this@TaskProcessor
-                currentTask = nextTask
-                // set the state based on the task type
-                updateState(nextTask)
-                beforeTaskExecution()//TODO is this necessary
-                notifySendersOfStartAction(nextTask.taskType)
-                nextTask.beforeTaskStart()
-                waitFor(nextTask.taskProcess)
-                nextTask.afterTaskCompleted()
-                notifySendersOfEndAction(nextTask.taskType)
-                afterTaskExecution() //TODO is this necessary
-                myTaskProvider?.taskCompleted(nextTask)
-                previousTask = nextTask
-                currentTask = null
-            }
-            myCurrentState = myIdleState
         }
 
         fun isBusy(): Boolean {
@@ -416,16 +445,17 @@ open class TaskProcessingSystem(
                 return totalFailedTime / tt
             }
 
-        fun activateProcessor(taskProvider: TaskProviderIfc){
-            require(!shutdown) {"${this.name} Task Processor: cannot be activated because it is shutdown!"}
-            require(isIdle()) {"${this.name} Task Processor: cannot be activated because it is not idle!"}
+        fun activateProcessor(taskProvider: TaskProviderIfc) {
+            require(!shutdown) { "${this.name} Task Processor: cannot be activated because it is shutdown!" }
+            require(isIdle()) { "${this.name} Task Processor: cannot be activated because it is not idle!" }
             // must be idle thus it can be activated
             // if the incoming task provider is different from the current provider
             // then we can exchange it, otherwise it stays the same
-            if (myTaskProvider != taskProvider){
+            if (myTaskProvider != taskProvider) {
                 myTaskProvider = taskProvider
             }
-            activate(taskProcessing)
+            myProcessor = Processor("Processor_${this.name}")
+            activate(myProcessor!!.taskProcessing)
         }
 
         private fun updateState(task: Task) {
@@ -512,7 +542,7 @@ open class TaskProcessingSystem(
             val s = if (myShutDownEvent != null) myShutDownEvent!!.interEventTime else Double.POSITIVE_INFINITY
         }
 
-        private fun shutDownAction(event: KSLEvent<Nothing>){
+        private fun shutDownAction(event: KSLEvent<Nothing>) {
             //TODO need to decide what to do if the task processor is currently working on a task
             // default: current task should be allowed to complete before shutdown actually occurs??
             // TODO need shutdownPending flag
@@ -524,13 +554,42 @@ open class TaskProcessingSystem(
             }
         }
 
-        private fun shutdown(){
+        private fun shutdown() {
             //TODO call from event
             if (!shutdown) {
                 shutdown = true
                 // notify the provider of tasks of shutdown
                 myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.SHUTDOWN)
                 myShutDownEvent = null
+            }
+        }
+
+        inner class Processor(name: String?) : Entity(name) {
+
+            /**
+             *  Describes how to process a task. If there are tasks, a new task
+             *  is selected and then executed.
+             */
+            val taskProcessing = process("${this.name}_TaskProcessing") {
+                while (hasNextTask() && !shutdown) {
+                    val nextTask = selectNextTask() ?: break
+                    nextTask.taskProcessor = this@TaskProcessor
+                    currentTask = nextTask
+                    // set the state based on the task type
+                    updateState(nextTask)
+                    beforeTaskExecution()//TODO is this necessary
+                    notifySendersOfStartAction(nextTask.taskType)
+                    nextTask.beforeTaskStart()
+                    waitFor(nextTask.taskProcess)
+                    nextTask.afterTaskCompleted()
+                    notifySendersOfEndAction(nextTask.taskType)
+                    afterTaskExecution() //TODO is this necessary
+                    myTaskProvider?.taskCompleted(nextTask)
+                    previousTask = nextTask
+                    currentTask = null
+                }
+                myCurrentState = myIdleState
+                myProcessor = null
             }
         }
     }
