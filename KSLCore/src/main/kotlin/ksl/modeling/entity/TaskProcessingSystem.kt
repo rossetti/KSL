@@ -274,7 +274,11 @@ open class TaskProcessingSystem(
                 Double.POSITIVE_INFINITY
             }
         val timeOfShutDown: Double
-            get() = if (myShutDownEvent != null) {myShutDownEvent!!.time} else {Double.NaN}
+            get() = if (myShutDownEvent != null) {
+                myShutDownEvent!!.time
+            } else {
+                Double.POSITIVE_INFINITY
+            }
 
         override fun initialize() {
             super.initialize()
