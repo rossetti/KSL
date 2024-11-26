@@ -556,13 +556,13 @@ open class TaskProcessingSystem(
                     currentTask = nextTask
                     // set the state based on the task type
                     updateState(nextTask)
-                    beforeTaskExecution()//TODO is this necessary
+                    beforeTaskExecution()
                     notifyProviderOfStartAction(nextTask.taskType)
                     nextTask.beforeTaskStart()
                     waitFor(nextTask.taskProcess)
                     nextTask.afterTaskCompleted()
                     notifyProviderOfEndAction(nextTask.taskType)
-                    afterTaskExecution() //TODO is this necessary
+                    afterTaskExecution()
                     myTaskProvider?.taskCompleted(nextTask)
                     previousTask = nextTask
                     currentTask = null
