@@ -1,5 +1,6 @@
 package ksl.modeling.entity
 
+import ksl.modeling.queue.Queue
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.KSLEvent
@@ -58,6 +59,26 @@ open class TaskProcessingSystem(
         myTaskProcessors[taskProcessor.name] = taskProcessor
     }
 
+    inner class QueueBasedTaskProvider(
+        val taskProcessor: TaskProcessor,
+        val queue: Queue<Task>
+    ) : TaskProviderIfc {
+        override fun hasNext(): Boolean {
+            return queue.peekNext() != null
+        }
+
+        override fun next(): Task? {
+            return queue.removeNext()
+        }
+
+        fun enqueue(task: Task) {
+            queue.enqueue(task)
+            if (taskProcessor.isIdle() && !taskProcessor.shutdown){
+                taskProcessor.activateProcessor(this)
+            }
+        }
+    }
+
     interface TaskProviderIfc {
 
         /**
@@ -68,12 +89,12 @@ open class TaskProcessingSystem(
         /**
          *  Provides the task
          */
-        fun next(): Task
+        fun next(): Task?
 
         /**
          * Called when the task is completed
          */
-        fun taskCompleted(task: Task)
+        fun taskCompleted(task: Task){}
 
         /**
          *  This function is called by task processors that are processing tasks sent by the provider.
