@@ -543,7 +543,7 @@ open class TaskProcessingSystem(
             }
         }
 
-        inner class Processor(name: String?) : Entity(name) {
+        private inner class Processor(name: String?) : Entity(name) {
 
             /**
              *  Describes how to process a task. If there are tasks, a new task
