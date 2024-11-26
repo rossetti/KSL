@@ -1,15 +1,11 @@
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
-import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.ConstantValue
 import ksl.utilities.GetValueIfc
-import ksl.utilities.Identity
-import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 
@@ -20,10 +16,10 @@ open class TaskProcessingSystem(
 ) : ProcessModel(parent, name) {
 
     enum class TaskProcessorStatus {
-        START_FAILURE, END_FAILURE, START_INACTIVE, END_INACTIVE, START_SHUTDOWN, SHUTDOWN
+        START_WORK, END_WORK, START_FAILURE, END_FAILURE, START_INACTIVE, END_INACTIVE, START_SHUTDOWN, SHUTDOWN, CANCEL_SHUTDOWN
     }
 
-    enum class TaskType { WORK, FAILURE, BREAK }
+    enum class TaskType { WORK, REPAIR, BREAK }
 
     private val myTaskProcessors = mutableMapOf<String, TaskProcessor>()
     val taskProcessors: Map<String, TaskProcessor>
@@ -155,10 +151,9 @@ open class TaskProcessingSystem(
         }
     }
 
-    //TODO consider name change to RepairTask
-    inner class FailureTask(
+    inner class RepairTask(
         var downTime: GetValueIfc
-    ) : Task(TaskType.FAILURE) {
+    ) : Task(TaskType.REPAIR) {
 
         constructor(downTime: Double) : this(ConstantValue(downTime))
 
@@ -169,7 +164,7 @@ open class TaskProcessingSystem(
 
     inner class InactiveTask(
         var awayTime: GetValueIfc
-    ) : Task(TaskType.FAILURE) {
+    ) : Task(TaskType.BREAK) {
 
         constructor(awayTime: Double) : this(ConstantValue(awayTime))
 
@@ -213,7 +208,7 @@ open class TaskProcessingSystem(
             get() = myNumTimesInactive
 
         init {
-            if (allPerformance){
+            if (allPerformance) {
                 // cause the lazy variables to be created when the model element is created
                 myFractionIdleTime.id
                 myNumTimesIdle.id
@@ -223,9 +218,6 @@ open class TaskProcessingSystem(
                 myNumTimesInactive.id
             }
         }
-
-        //TODO consider a TaskProcessorIfc interface
-        //TODO finish shutdown logic
 
         private var myTaskProvider: TaskProviderIfc? = null
         private var myProcessor: Processor? = null
@@ -409,6 +401,15 @@ open class TaskProcessingSystem(
                 return totalFailedTime / tt
             }
 
+
+        /**
+         *  Causes the task processor to be activated and to start processing tasks from the supplied
+         *  task provider. The task provider must not be shutdown and must be idle in order to be
+         *  activated. The task processor will continue to execute tasks from the provider as long
+         *  as the provider can supply them.
+         *
+         * @param taskProvider the task provider from which tasks will be pulled after activation
+         */
         fun activateProcessor(taskProvider: TaskProviderIfc) {
             require(!shutdown) { "${this.name} Task Processor: cannot be activated because it is shutdown!" }
             require(isIdle()) { "${this.name} Task Processor: cannot be activated because it is not idle!" }
@@ -422,12 +423,30 @@ open class TaskProcessingSystem(
             activate(myProcessor!!.taskProcessing)
         }
 
+        /**
+         *  Causes a shutdown event to be scheduled for the supplied time. The shutdown event is scheduled
+         *  and the current task provider is notified of the pending shutdown. This allows the
+         *  current task provider to react gracefully to the pending shutdown.  If there is no task provider
+         *  then no notification occurs.  There is no task provider if the task processor has not been
+         *  activated.
+         *
+         * @param timeUntilShutdown The time until the commencement of the shutdown. The default is 0 (now).
+         */
         fun scheduleShutDown(timeUntilShutdown: Double = 0.0) {
             require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
             myShutDownEvent = schedule(this@TaskProcessor::shutDownAction, timeUntilShutdown)
             // notify the provider of tasks of pending shutdown
             myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.START_SHUTDOWN)
-            val s = if (myShutDownEvent != null) myShutDownEvent!!.interEventTime else Double.POSITIVE_INFINITY
+        }
+
+        /**
+         *  Causes a pending shutdown event to be cancelled. If there is a task provider associated with
+         *  the task processor it will be notified of the cancellation.
+         */
+        fun cancelShutDown() {
+            myShutDownEvent?.cancel = true
+            myShutDownEvent = null
+            myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.CANCEL_SHUTDOWN)
         }
 
         private fun updateState(task: Task) {
@@ -436,7 +455,7 @@ open class TaskProcessingSystem(
                     myInactiveState
                 }
 
-                TaskType.FAILURE -> {
+                TaskType.REPAIR -> {
                     myFailedState
                 }
 
@@ -462,53 +481,60 @@ open class TaskProcessingSystem(
         }
 
         /**
-         *  Finds the next task to work on. Does not remove the task
-         *  from the task queue. If null, then a new task could not be selected.
+         *  Finds the next task to work on.  If null, then a new task could not be selected.
          */
-        private fun selectNextTask(): Task? {
+        private fun nextTask(): Task? {
             return myTaskProvider?.next()
         }
 
-        private fun notifySendersOfStartAction(taskType: TaskType) {
-            var actionType: TaskProcessorStatus? = null
-            if (taskType == TaskType.FAILURE) {
-                actionType = TaskProcessorStatus.START_FAILURE
+        private fun notifyProviderOfStartAction(taskType: TaskType) {
+
+            val actionType = when (taskType) {
+                TaskType.BREAK -> {
+                    TaskProcessorStatus.START_INACTIVE
+                }
+
+                TaskType.REPAIR -> {
+                    TaskProcessorStatus.START_FAILURE
+                }
+
+                TaskType.WORK -> {
+                    TaskProcessorStatus.START_WORK
+                }
             }
-            if (taskType == TaskType.BREAK) {
-                actionType = TaskProcessorStatus.START_INACTIVE
-            }
-            if (actionType != null) {
-                myTaskProvider?.onTaskProcessorAction(this, actionType)
-            }
+
+            myTaskProvider?.onTaskProcessorAction(this, actionType)
         }
 
-        private fun notifySendersOfEndAction(taskType: TaskType) {
-            var actionType: TaskProcessorStatus? = null
-            if (taskType == TaskType.FAILURE) {
-                actionType = TaskProcessorStatus.END_FAILURE
+        private fun notifyProviderOfEndAction(taskType: TaskType) {
+            val actionType = when (taskType) {
+                TaskType.BREAK -> {
+                    TaskProcessorStatus.END_INACTIVE
+                }
+
+                TaskType.REPAIR -> {
+                    TaskProcessorStatus.END_FAILURE
+                }
+
+                TaskType.WORK -> {
+                    TaskProcessorStatus.END_WORK
+                }
             }
-            if (taskType == TaskType.BREAK) {
-                actionType = TaskProcessorStatus.END_INACTIVE
-            }
-            if (actionType != null) {
                 myTaskProvider?.onTaskProcessorAction(this, actionType)
-            }
+
         }
 
         private fun shutDownAction(event: KSLEvent<Nothing>) {
-            //TODO need to decide what to do if the task processor is currently working on a task
-            // default: current task should be allowed to complete before shutdown actually occurs??
-            // TODO need shutdownPending flag
-            if (!shutdown) {
-                shutdown = true
-                // notify the provider of tasks of pending shutdown
-                myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.START_SHUTDOWN)
-                myShutDownEvent = null
+            // if the current task is not null we can't immediately start the shutdown
+            // because the processor is executing a task;
+            // however, if the current task is null then the processor is not executing a task
+            // and can be shutdown (immediately).
+            if (currentTask == null) {
+                shutdown()
             }
         }
 
         private fun shutdown() {
-            //TODO call from event
             if (!shutdown) {
                 shutdown = true
                 // notify the provider of tasks of shutdown
@@ -525,22 +551,25 @@ open class TaskProcessingSystem(
              */
             val taskProcessing = process("${this.name}_TaskProcessing") {
                 while (hasNextTask() && !shutdown) {
-                    val nextTask = selectNextTask() ?: break
+                    val nextTask = nextTask() ?: break
                     nextTask.taskProcessor = this@TaskProcessor
                     currentTask = nextTask
                     // set the state based on the task type
                     updateState(nextTask)
                     beforeTaskExecution()//TODO is this necessary
-                    notifySendersOfStartAction(nextTask.taskType)
+                    notifyProviderOfStartAction(nextTask.taskType)
                     nextTask.beforeTaskStart()
                     waitFor(nextTask.taskProcess)
                     nextTask.afterTaskCompleted()
-                    notifySendersOfEndAction(nextTask.taskType)
+                    notifyProviderOfEndAction(nextTask.taskType)
                     afterTaskExecution() //TODO is this necessary
                     myTaskProvider?.taskCompleted(nextTask)
                     previousTask = nextTask
                     currentTask = null
-                    //TODO need to catch shutdown that occurred during task execution
+                    // need to catch shutdown that might have occurred during task execution
+                    if (timeOfShutDown <= time) {
+                        shutdown()
+                    }
                 }
                 myCurrentState = myIdleState
                 myProcessor = null
