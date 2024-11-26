@@ -58,11 +58,17 @@ open class TaskProcessingSystem(
         myTaskProcessors[taskProcessor.name] = taskProcessor
     }
 
-    interface TaskProviderIfc : Iterator<Task> {
+    interface TaskProviderIfc {
 
-        override fun hasNext(): Boolean
+        /**
+         *  Checks if the provider has another task
+         */
+        fun hasNext(): Boolean
 
-        override fun next(): Task
+        /**
+         *  Provides the task 
+         */
+        fun next(): Task
 
         /**
          * Called when the task is completed
