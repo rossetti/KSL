@@ -212,6 +212,18 @@ open class TaskProcessingSystem(
         val numTimesInactiveResponse: ResponseCIfc
             get() = myNumTimesInactive
 
+        init {
+            if (allPerformance){
+                // cause the lazy variables to be created when the model element is created
+                myFractionIdleTime.id
+                myNumTimesIdle.id
+                myFractionFailedTime.id
+                myNumTimesFailed.id
+                myFractionInactiveTime.id
+                myNumTimesInactive.id
+            }
+        }
+
         //TODO consider a TaskProcessorIfc interface
         //TODO finish shutdown logic
 
