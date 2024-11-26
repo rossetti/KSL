@@ -66,7 +66,7 @@ open class TaskProcessingSystem(
         fun hasNext(): Boolean
 
         /**
-         *  Provides the task 
+         *  Provides the task
          */
         fun next(): Task
 
@@ -89,7 +89,6 @@ open class TaskProcessingSystem(
 
     /**
      *  Represents something that must be executed by a TaskProcessor.
-     *  @param taskSender the thing that wants the task completed
      *  @param taskType the type of task
      */
     abstract inner class Task(
