@@ -281,13 +281,14 @@ open class TaskProcessingSystem(
             get() = myInactiveState
 
         private var myCurrentState: State = myIdleState
-            private set(value) {
-                field.exit(time) // exit the current state
-                field = value // update the state
-                field.enter(time) // enter the new state
-            }
         val currentState: StateAccessorIfc
             get() = myCurrentState
+
+        private fun changeState(nextState: State){
+            myCurrentState.exit(time) // exit the current state
+            nextState.enter(time) // enter the new state
+            myCurrentState = nextState // update the state
+        }
 
         /**
          *  Indicates if the processor is shutdown and will no longer process tasks.
@@ -475,8 +476,8 @@ open class TaskProcessingSystem(
             myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.CANCEL_SHUTDOWN)
         }
 
-        private fun updateState(task: Task) {
-            myCurrentState = when (task.taskType) {
+        private fun nextState(task: Task) : State {
+            return when (task.taskType) {
                 TaskType.BREAK -> {
                     myInactiveState
                 }
@@ -581,7 +582,8 @@ open class TaskProcessingSystem(
                     nextTask.taskProcessor = this@TaskProcessor
                     currentTask = nextTask
                     // set the state based on the task type
-                    updateState(nextTask)
+                    val nextState = nextState(nextTask)
+                    changeState(nextState)
                     beforeTaskExecution()
                     notifyProviderOfStartAction(nextTask.taskType)
                     nextTask.beforeTaskStart()
@@ -597,7 +599,7 @@ open class TaskProcessingSystem(
                         shutdown()
                     }
                 }
-                myCurrentState = myIdleState
+                changeState(myIdleState)
                 myProcessor = null
             }
         }
