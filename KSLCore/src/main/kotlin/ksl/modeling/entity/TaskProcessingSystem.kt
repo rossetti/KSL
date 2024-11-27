@@ -97,7 +97,8 @@ open class TaskProcessingSystem(
         fun hasNext(): Boolean
 
         /**
-         *  Provides the task
+         *  Provides the task. Implementors should set the provider of the task
+         *  before supplying the task.
          */
         fun next(): Task?
 
