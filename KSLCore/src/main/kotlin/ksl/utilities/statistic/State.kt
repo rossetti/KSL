@@ -111,7 +111,8 @@ open class State(
         protected set
 
     /**
-     * Total time spent in state
+     * Total time spent in state based on exits.  Does not
+     * include time in state if not exited.
      */
     override var totalTimeInState = 0.0
         protected set
