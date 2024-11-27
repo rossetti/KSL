@@ -285,9 +285,11 @@ open class TaskProcessingSystem(
             get() = myCurrentState
 
         private fun changeState(nextState: State){
-            myCurrentState.exit(time) // exit the current state
-            nextState.enter(time) // enter the new state
-            myCurrentState = nextState // update the state
+            if (nextState != myCurrentState){
+                myCurrentState.exit(time) // exit the current state
+                nextState.enter(time) // enter the new state
+                myCurrentState = nextState // update the state
+            }
         }
 
         /**
