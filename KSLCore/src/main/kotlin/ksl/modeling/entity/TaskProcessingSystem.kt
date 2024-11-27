@@ -60,7 +60,7 @@ open class TaskProcessingSystem(
     }
 
     inner class QueueBasedTaskProvider(
-        val taskProcessor: TaskProcessor,
+        val taskProcessor: TaskProcessorIfc,
         val queue: Queue<Task>
     ) : TaskProviderIfc {
         override fun hasNext(): Boolean {
@@ -75,7 +75,7 @@ open class TaskProcessingSystem(
 
         fun enqueue(task: Task) {
             queue.enqueue(task)
-            if (taskProcessor.isIdle() && !taskProcessor.shutdown) {
+            if (taskProcessor.isIdle() && !taskProcessor.isShutDown()) {
                 taskProcessor.activateProcessor(this)
             }
         }
@@ -215,38 +215,112 @@ open class TaskProcessingSystem(
         }
     }
 
+    interface TaskProcessorIfc {
+        val taskProcessingSystem: TaskProcessingSystem
+        val fractionTimeBusyResponse: ResponseCIfc
+        val numTimesBusyResponse: ResponseCIfc
+        val fractionTimeIdleResponse: ResponseCIfc
+        val numTimesIdleResponse: ResponseCIfc
+        val fractionTimeInRepairResponse: ResponseCIfc
+        val numTimesRepairedResponse: ResponseCIfc
+        val fractionTimeInactiveResponse: ResponseCIfc
+        val numTimesInactiveResponse: ResponseCIfc
+
+        val idleState: StateAccessorIfc
+        val busyState: StateAccessorIfc
+        val inRepairState: StateAccessorIfc
+        val inactiveState: StateAccessorIfc
+        val currentState: StateAccessorIfc
+
+        val isShutdownPending: Boolean
+        val timeUntilShutdown: Double
+        val timeOfShutDown: Double
+        val numTimesRepaired: Double
+        val numTimesInactive: Double
+        val numTimesIdle: Double
+        val numTimesBusy: Double
+        val totalIdleTime: Double
+        val totalBusyTime: Double
+        val totalFailedTime: Double
+        val totalInactiveTime: Double
+        val totalCycleTime: Double
+        val fractionTimeIdle: Double
+        val fractionTimeBusy: Double
+        val fractionTimeInactive: Double
+        val fractionTimeFailed: Double
+
+        fun resetStates()
+        fun isBusy(): Boolean
+        fun isFailed(): Boolean
+        fun isIdle(): Boolean
+        fun isInactive(): Boolean
+        fun isShutDown(): Boolean
+
+        /**
+         *  Causes the task processor to be activated and to start processing tasks from the supplied
+         *  task provider. The task provider must not be shutdown and must be idle in order to be
+         *  activated. The task processor will continue to execute tasks from the provider as long
+         *  as the provider can supply them.
+         *
+         * @param taskProvider the task provider from which tasks will be pulled after activation
+         */
+        fun activateProcessor(taskProvider: TaskProviderIfc)
+
+        /**
+         *  Causes a shutdown event to be scheduled for the supplied time. The shutdown event is scheduled
+         *  and the current task provider is notified of the pending shutdown. This allows the
+         *  current task provider to react gracefully to the pending shutdown.  If there is no task provider
+         *  then no notification occurs.  There is no task provider if the task processor has not been
+         *  activated.
+         *
+         * @param timeUntilShutdown The time until the commencement of the shutdown. The default is 0 (now).
+         */
+        fun scheduleShutDown(timeUntilShutdown: Double = 0.0)
+
+        /**
+         *  Causes a pending shutdown event to be cancelled. If there is a task provider associated with
+         *  the task processor it will be notified of the cancellation.
+         */
+        fun cancelShutDown()
+
+        /**
+         *  Indicates true if selectNextTask() results in a non-null task
+         */
+        fun hasNextTask(): Boolean
+    }
+
     /**
-     *
+     * Responsible for executing tasks that have been supplied.
      */
     open inner class TaskProcessor(
-        val taskProcessingSystem: TaskProcessingSystem,
+        override val taskProcessingSystem: TaskProcessingSystem,
         var allPerformance: Boolean = false,
         name: String? = null
-    ) : ModelElement(taskProcessingSystem, name) {
+    ) : ModelElement(taskProcessingSystem, name), TaskProcessorIfc {
 
         private val myFractionTimeBusy = Response(this, name = "${this.name}:FractionTimeBusy")
-        val fractionTimeBusyResponse: ResponseCIfc
+        override val fractionTimeBusyResponse: ResponseCIfc
             get() = myFractionTimeBusy
         private val myNumTimesBusy = Response(this, name = "${this.name}:NumTimesBusy")
-        val numTimesBusyResponse: ResponseCIfc
+        override val numTimesBusyResponse: ResponseCIfc
             get() = myNumTimesBusy
         private val myFractionIdleTime by lazy { Response(this, name = "${this.name}:FractionTimeIdle") }
-        val fractionTimeIdleResponse: ResponseCIfc
+        override val fractionTimeIdleResponse: ResponseCIfc
             get() = myFractionIdleTime
         private val myNumTimesIdle by lazy { Response(this, name = "${this.name}:NumTimesIdle") }
-        val numTimesIdleResponse: ResponseCIfc
+        override val numTimesIdleResponse: ResponseCIfc
             get() = myNumTimesIdle
         private val myFractionInRepairTime by lazy { Response(this, name = "${this.name}:FractionTimeInRepair") }
-        val fractionTimeInRepairResponse: ResponseCIfc
+        override val fractionTimeInRepairResponse: ResponseCIfc
             get() = myFractionInRepairTime
         private val myNumTimesRepaired by lazy { Response(this, name = "${this.name}:NumTimesRepaired") }
-        val numTimesRepairedResponse: ResponseCIfc
+        override val numTimesRepairedResponse: ResponseCIfc
             get() = myNumTimesRepaired
         private val myFractionInactiveTime by lazy { Response(this, name = "${this.name}:FractionTimeInactive") }
-        val fractionTimeInactiveResponse: ResponseCIfc
+        override val fractionTimeInactiveResponse: ResponseCIfc
             get() = myFractionInactiveTime
         private val myNumTimesInactive by lazy { Response(this, name = "${this.name}:NumTimesInactive") }
-        val numTimesInactiveResponse: ResponseCIfc
+        override val numTimesInactiveResponse: ResponseCIfc
             get() = myNumTimesInactive
 
         init {
@@ -281,23 +355,23 @@ open class TaskProcessingSystem(
          *  and to tabulate time spent in the state.
          */
         private val myIdleState: State = State(name = "Idle")
-        val idleState: StateAccessorIfc
+        override val idleState: StateAccessorIfc
             get() = myIdleState
 
         val myBusyState: State = State(name = "Busy")
-        val busyState: StateAccessorIfc
+        override val busyState: StateAccessorIfc
             get() = myBusyState
 
         val myInRepairState: State = State(name = "InRepair")
-        val inRepairState: StateAccessorIfc
+        override val inRepairState: StateAccessorIfc
             get() = myInRepairState
 
         val myInactiveState: State = State(name = "Inactive")
-        val inactiveState: StateAccessorIfc
+        override val inactiveState: StateAccessorIfc
             get() = myInactiveState
 
         private var myCurrentState: State = myIdleState
-        val currentState: StateAccessorIfc
+        override val currentState: StateAccessorIfc
             get() = myCurrentState
 
         private fun changeState(nextState: State) {
@@ -311,16 +385,19 @@ open class TaskProcessingSystem(
          */
         var shutdown = false
             private set
+        final override fun isShutDown() : Boolean {
+            return shutdown
+        }
         private var myShutDownEvent: KSLEvent<Nothing>? = null
-        val isShutdownPending: Boolean
+        override val isShutdownPending: Boolean
             get() = myShutDownEvent != null
-        val timeUntilShutdown: Double
+        override val timeUntilShutdown: Double
             get() = if (myShutDownEvent != null) {
                 myShutDownEvent!!.interEventTime
             } else {
                 Double.POSITIVE_INFINITY
             }
-        val timeOfShutDown: Double
+        override val timeOfShutDown: Double
             get() = if (myShutDownEvent != null) {
                 myShutDownEvent!!.time
             } else {
@@ -358,7 +435,7 @@ open class TaskProcessingSystem(
             resetStates()
         }
 
-        fun resetStates() {
+        override fun resetStates() {
             myIdleState.initialize()
             myBusyState.initialize()
             myInRepairState.initialize()
@@ -367,62 +444,62 @@ open class TaskProcessingSystem(
             myCurrentState.enter(time)
         }
 
-        fun isBusy(): Boolean {
+        override fun isBusy(): Boolean {
             return myCurrentState === myBusyState
         }
 
-        fun isFailed(): Boolean {
+        override fun isFailed(): Boolean {
             return myCurrentState === myInRepairState
         }
 
-        fun isIdle(): Boolean {
+        override fun isIdle(): Boolean {
             return myCurrentState === myIdleState
         }
 
-        fun isInactive(): Boolean {
+        override fun isInactive(): Boolean {
             return myCurrentState === myInactiveState
         }
 
-        val numTimesRepaired: Double
+        override val numTimesRepaired: Double
             get() = myInRepairState.numberOfTimesExited
 
-        val numTimesInactive: Double
+        override val numTimesInactive: Double
             get() = myInactiveState.numberOfTimesExited
 
-        val numTimesIdle: Double
+        override val numTimesIdle: Double
             get() = myIdleState.numberOfTimesExited
 
-        val numTimesBusy: Double
+        override val numTimesBusy: Double
             get() = myBusyState.numberOfTimesExited
 
-        val totalIdleTime: Double
+        override val totalIdleTime: Double
             get() {
                 val st = if (isIdle()) time - myIdleState.timeStateEntered else 0.0
                 return myIdleState.totalTimeInState + st
             }
 
-        val totalBusyTime: Double
+        override val totalBusyTime: Double
             get() {
                 val st = if (isBusy()) time - myBusyState.timeStateEntered else 0.0
                 return myBusyState.totalTimeInState + st
             }
 
-        val totalFailedTime: Double
+        override val totalFailedTime: Double
             get() {
                 val st = if (isFailed()) time - myInRepairState.timeStateEntered else 0.0
                 return myInRepairState.totalTimeInState + st
             }
 
-        val totalInactiveTime: Double
+        override val totalInactiveTime: Double
             get() {
                 val st = if (isInactive()) time - myInactiveState.timeStateEntered else 0.0
                 return myInactiveState.totalTimeInState + st
             }
 
-        val totalCycleTime: Double
+        override val totalCycleTime: Double
             get() = totalIdleTime + totalBusyTime + totalFailedTime + totalInactiveTime
 
-        val fractionTimeIdle: Double
+        override val fractionTimeIdle: Double
             get() {
                 val tt = totalCycleTime
                 if (tt == 0.0) {
@@ -431,7 +508,7 @@ open class TaskProcessingSystem(
                 return totalIdleTime / tt
             }
 
-        val fractionTimeBusy: Double
+        override val fractionTimeBusy: Double
             get() {
                 val tt = totalCycleTime
                 if (tt == 0.0) {
@@ -440,7 +517,7 @@ open class TaskProcessingSystem(
                 return totalBusyTime / tt
             }
 
-        val fractionTimeInactive: Double
+        override val fractionTimeInactive: Double
             get() {
                 val tt = totalCycleTime
                 if (tt == 0.0) {
@@ -449,7 +526,7 @@ open class TaskProcessingSystem(
                 return totalInactiveTime / tt
             }
 
-        val fractionTimeFailed: Double
+        override val fractionTimeFailed: Double
             get() {
                 val tt = totalCycleTime
                 if (tt == 0.0) {
@@ -467,7 +544,7 @@ open class TaskProcessingSystem(
          *
          * @param taskProvider the task provider from which tasks will be pulled after activation
          */
-        fun activateProcessor(taskProvider: TaskProviderIfc) {
+        override fun activateProcessor(taskProvider: TaskProviderIfc) {
             require(!shutdown) { "${this.name} Task Processor: cannot be activated because it is shutdown!" }
             require(isIdle()) { "${this.name} Task Processor: cannot be activated because it is not idle!" }
             // must be idle thus it can be activated
@@ -489,7 +566,7 @@ open class TaskProcessingSystem(
          *
          * @param timeUntilShutdown The time until the commencement of the shutdown. The default is 0 (now).
          */
-        fun scheduleShutDown(timeUntilShutdown: Double = 0.0) {
+        override fun scheduleShutDown(timeUntilShutdown: Double) {
             require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
             myShutDownEvent = schedule(this@TaskProcessor::shutDownAction, timeUntilShutdown)
             // notify the provider of tasks of pending shutdown
@@ -500,7 +577,7 @@ open class TaskProcessingSystem(
          *  Causes a pending shutdown event to be cancelled. If there is a task provider associated with
          *  the task processor it will be notified of the cancellation.
          */
-        fun cancelShutDown() {
+        override fun cancelShutDown() {
             myShutDownEvent?.cancel = true
             myShutDownEvent = null
             myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.CANCEL_SHUTDOWN)
@@ -533,7 +610,7 @@ open class TaskProcessingSystem(
         /**
          *  Indicates true if selectNextTask() results in a non-null task
          */
-        private fun hasNextTask(): Boolean {
+        override fun hasNextTask(): Boolean {
             return myTaskProvider?.hasNext() ?: false
         }
 
