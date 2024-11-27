@@ -325,6 +325,7 @@ open class TaskProcessingSystem(
 
         override fun replicationEnded() {
             super.replicationEnded()
+            myCurrentState.exit(time)
             myFractionTimeBusy.value = fractionTimeBusy
             myNumTimesBusy.value = numTimesBusy
             if (allPerformance) {
@@ -379,6 +380,7 @@ open class TaskProcessingSystem(
         val numTimesBusy: Double
             get() = myBusyState.numberOfTimesExited
 
+        //TODO need to capture time still in state when asked
         val totalIdleTime: Double
             get() = myIdleState.totalTimeInState
 
