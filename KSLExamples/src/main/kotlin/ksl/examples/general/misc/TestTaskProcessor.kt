@@ -12,9 +12,9 @@ import ksl.utilities.random.rvariable.ExponentialRV
 fun main(){
     val m = Model()
     val test = TestTaskProcessor(m)
-    m.numberOfReplications = 2
+    m.numberOfReplications = 30
     m.lengthOfReplication = 20000.0
-    m.lengthOfReplicationWarmUp = 5000.0
+//    m.lengthOfReplicationWarmUp = 5000.0
     m.simulate()
     m.print()
 }
