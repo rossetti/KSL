@@ -73,7 +73,7 @@ open class TaskProcessingSystem(
 
         fun enqueue(task: Task) {
             queue.enqueue(task)
-            if (taskProcessor.isIdle() && !taskProcessor.shutdown){
+            if (taskProcessor.isIdle() && !taskProcessor.shutdown) {
                 taskProcessor.activateProcessor(this)
             }
         }
@@ -94,7 +94,7 @@ open class TaskProcessingSystem(
         /**
          * Called when the task is completed
          */
-        fun taskCompleted(task: Task){}
+        fun taskCompleted(task: Task) {}
 
         /**
          *  This function is called by task processors that are processing tasks sent by the provider.
@@ -217,19 +217,19 @@ open class TaskProcessingSystem(
         private val myFractionIdleTime by lazy { Response(this, name = "${this.name}:FractionTimeIdle") }
         val fractionTimeIdleResponse: ResponseCIfc
             get() = myFractionIdleTime
-        private val myNumTimesIdle = Response(this, name = "${this.name}:NumTimesIdle")
+        private val myNumTimesIdle by lazy { Response(this, name = "${this.name}:NumTimesIdle") }
         val numTimesIdleResponse: ResponseCIfc
             get() = myNumTimesIdle
-        private val myFractionFailedTime by lazy { Response(this, name = "${this.name}:FractionTimeFailed") }
-        val fractionTimeFailedResponse: ResponseCIfc
-            get() = myFractionFailedTime
-        private val myNumTimesFailed = Response(this, name = "${this.name}:NumTimesFailed")
-        val numTimesFailedResponse: ResponseCIfc
-            get() = myNumTimesFailed
+        private val myFractionInRepairTime by lazy { Response(this, name = "${this.name}:FractionTimeInRepair") }
+        val fractionTimeInRepairResponse: ResponseCIfc
+            get() = myFractionInRepairTime
+        private val myNumTimesRepaired by lazy { Response(this, name = "${this.name}:NumTimesRepaired") }
+        val numTimesRepairedResponse: ResponseCIfc
+            get() = myNumTimesRepaired
         private val myFractionInactiveTime by lazy { Response(this, name = "${this.name}:FractionTimeInactive") }
         val fractionTimeInactiveResponse: ResponseCIfc
             get() = myFractionInactiveTime
-        private val myNumTimesInactive = Response(this, name = "${this.name}:NumTimesInactive")
+        private val myNumTimesInactive by lazy { Response(this, name = "${this.name}:NumTimesInactive") }
         val numTimesInactiveResponse: ResponseCIfc
             get() = myNumTimesInactive
 
@@ -238,8 +238,8 @@ open class TaskProcessingSystem(
                 // cause the lazy variables to be created when the model element is created
                 myFractionIdleTime.id
                 myNumTimesIdle.id
-                myFractionFailedTime.id
-                myNumTimesFailed.id
+                myFractionInRepairTime.id
+                myNumTimesRepaired.id
                 myFractionInactiveTime.id
                 myNumTimesInactive.id
             }
@@ -272,9 +272,9 @@ open class TaskProcessingSystem(
         val busyState: StateAccessorIfc
             get() = myBusyState
 
-        val myFailedState: State = State(name = "Failed")
-        val failedState: StateAccessorIfc
-            get() = myFailedState
+        val myInRepairState: State = State(name = "InRepair")
+        val inRepairState: StateAccessorIfc
+            get() = myInRepairState
 
         val myInactiveState: State = State(name = "Inactive")
         val inactiveState: StateAccessorIfc
@@ -284,12 +284,10 @@ open class TaskProcessingSystem(
         val currentState: StateAccessorIfc
             get() = myCurrentState
 
-        private fun changeState(nextState: State){
-            if (nextState != myCurrentState){
-                myCurrentState.exit(time) // exit the current state
-                nextState.enter(time) // enter the new state
-                myCurrentState = nextState // update the state
-            }
+        private fun changeState(nextState: State) {
+            myCurrentState.exit(time) // exit the current state
+            nextState.enter(time) // enter the new state
+            myCurrentState = nextState // update the state
         }
 
         /**
@@ -332,8 +330,8 @@ open class TaskProcessingSystem(
             if (allPerformance) {
                 myFractionIdleTime.value = fractionTimeIdle
                 myNumTimesIdle.value = numTimesIdle
-                myFractionFailedTime.value = fractionTimeFailed
-                myNumTimesFailed.value = numTimesFailed
+                myFractionInRepairTime.value = fractionTimeFailed
+                myNumTimesRepaired.value = numTimesRepaired
                 myFractionInactiveTime.value = fractionTimeInactive
                 myNumTimesInactive.value = numTimesInactive
             }
@@ -349,7 +347,7 @@ open class TaskProcessingSystem(
         fun resetStates() {
             myIdleState.initialize()
             myBusyState.initialize()
-            myFailedState.initialize()
+            myInRepairState.initialize()
             myInactiveState.initialize()
         }
 
@@ -358,7 +356,7 @@ open class TaskProcessingSystem(
         }
 
         fun isFailed(): Boolean {
-            return myCurrentState === myFailedState
+            return myCurrentState === myInRepairState
         }
 
         fun isIdle(): Boolean {
@@ -369,17 +367,17 @@ open class TaskProcessingSystem(
             return myCurrentState === myInactiveState
         }
 
-        val numTimesFailed: Double
-            get() = myFailedState.numberOfTimesEntered
+        val numTimesRepaired: Double
+            get() = myInRepairState.numberOfTimesExited
 
         val numTimesInactive: Double
             get() = myInactiveState.numberOfTimesExited
 
         val numTimesIdle: Double
-            get() = myIdleState.numberOfTimesEntered
+            get() = myIdleState.numberOfTimesExited
 
         val numTimesBusy: Double
-            get() = myBusyState.numberOfTimesEntered
+            get() = myBusyState.numberOfTimesExited
 
         val totalIdleTime: Double
             get() = myIdleState.totalTimeInState
@@ -388,7 +386,7 @@ open class TaskProcessingSystem(
             get() = myBusyState.totalTimeInState
 
         val totalFailedTime: Double
-            get() = myFailedState.totalTimeInState
+            get() = myInRepairState.totalTimeInState
 
         val totalInactiveTime: Double
             get() = myInactiveState.totalTimeInState
@@ -480,14 +478,14 @@ open class TaskProcessingSystem(
             myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.CANCEL_SHUTDOWN)
         }
 
-        private fun nextState(task: Task) : State {
+        private fun nextState(task: Task): State {
             return when (task.taskType) {
                 TaskType.BREAK -> {
                     myInactiveState
                 }
 
                 TaskType.REPAIR -> {
-                    myFailedState
+                    myInRepairState
                 }
 
                 TaskType.WORK -> {
@@ -551,7 +549,7 @@ open class TaskProcessingSystem(
                     TaskProcessorStatus.END_WORK
                 }
             }
-                myTaskProvider?.onTaskProcessorAction(this, actionType)
+            myTaskProvider?.onTaskProcessorAction(this, actionType)
 
         }
 
