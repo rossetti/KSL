@@ -38,7 +38,7 @@ fun main() {
     val sim = Model("Drive Through PharmacyQ")
     sim.numberOfReplications = 30
     sim.lengthOfReplication = 20000.0
- //   sim.lengthOfReplicationWarmUp = 5000.0
+    sim.lengthOfReplicationWarmUp = 5000.0
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacyWithQ(sim, 1)
     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
