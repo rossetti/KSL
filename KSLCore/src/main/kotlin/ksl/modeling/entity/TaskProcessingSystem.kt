@@ -342,6 +342,8 @@ open class TaskProcessingSystem(
         override fun warmUp() {
             super.warmUp()
             resetStates()
+            //need to re-enter the current state after resetting states
+            myCurrentState.enter(time)
         }
 
         fun resetStates() {
