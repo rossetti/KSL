@@ -68,7 +68,9 @@ open class TaskProcessingSystem(
         }
 
         override fun next(): Task? {
-            return queue.removeNext()
+            val task = queue.removeNext()
+            task?.taskProvider = this
+            return task
         }
 
         fun enqueue(task: Task) {
@@ -77,6 +79,14 @@ open class TaskProcessingSystem(
                 taskProcessor.activateProcessor(this)
             }
         }
+    }
+
+    fun interface TaskCompletedIfc {
+        fun taskCompleted(task: Task)
+    }
+
+    fun interface TaskProcessorActionIfc  {
+        fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus)
     }
 
     interface TaskProviderIfc {
@@ -138,6 +148,11 @@ open class TaskProcessingSystem(
          *  The processor that executed the task's process
          */
         var taskProcessor: TaskProcessor? = null
+
+        /**
+         *  The provider that supplied the task for processing
+         */
+        var taskProvider: TaskProviderIfc? = null
 
         /**
          * The deadline may be used by the task processor to assist with task selection
@@ -340,8 +355,6 @@ open class TaskProcessingSystem(
         override fun warmUp() {
             super.warmUp()
             resetStates()
-            //need to re-enter the current state after resetting states
-            myCurrentState.enter(time)
         }
 
         fun resetStates() {
@@ -349,6 +362,8 @@ open class TaskProcessingSystem(
             myBusyState.initialize()
             myInRepairState.initialize()
             myInactiveState.initialize()
+            //need to re-enter the current state after resetting states
+            myCurrentState.enter(time)
         }
 
         fun isBusy(): Boolean {
