@@ -60,6 +60,7 @@ open class TaskProcessingSystem(
     }
 
     inner class QueueBasedTaskProvider(
+        val taskProcessor: TaskProcessorIfc,
         val queue: Queue<Task>
     ) : TaskProviderIfc {
         override fun hasNext(): Boolean {
@@ -74,8 +75,8 @@ open class TaskProcessingSystem(
 
         fun enqueue(task: Task) {
             queue.enqueue(task)
-            if (task.taskProcessor.isIdle() && !task.taskProcessor.isShutDown()) {
-                task.taskProcessor.activateProcessor(this)
+            if (taskProcessor.isIdle() && !taskProcessor.isShutDown()) {
+                taskProcessor.activateProcessor(this)
             }
         }
     }
@@ -84,7 +85,7 @@ open class TaskProcessingSystem(
         fun taskCompleted(task: Task)
     }
 
-    fun interface TaskProcessorActionIfc {
+    fun interface TaskProcessorActionIfc  {
         fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus)
     }
 
@@ -120,11 +121,9 @@ open class TaskProcessingSystem(
 
     /**
      *  Represents something that must be executed by a TaskProcessor.
-     *  @param taskProcessor the processor that should execute the task
      *  @param taskType the type of task
      */
     abstract inner class Task(
-        var taskProcessor: TaskProcessorIfc,
         val taskType: TaskType = TaskType.WORK
     ) : Entity() {
 
@@ -145,6 +144,11 @@ open class TaskProcessingSystem(
          */
         val elapsedTime: Double
             get() = endTime - startTime
+
+        /**
+         *  The processor that executed the task's process
+         */
+        var taskProcessor: TaskProcessor? = null
 
         /**
          *  The provider that supplied the task for processing
@@ -179,11 +183,10 @@ open class TaskProcessingSystem(
     }
 
     inner class WorkTask(
-        taskProcessor: TaskProcessorIfc,
         var workTime: GetValueIfc
-    ) : Task(taskProcessor, TaskType.WORK) {
+    ) : Task(TaskType.WORK) {
 
-        constructor(taskProcessor: TaskProcessorIfc, workTime: Double) : this(taskProcessor, ConstantValue(workTime))
+        constructor(workTime: Double) : this(ConstantValue(workTime))
 
         override val taskProcess: KSLProcess = process {
             delay(workTime)
@@ -191,11 +194,10 @@ open class TaskProcessingSystem(
     }
 
     inner class RepairTask(
-        taskProcessor: TaskProcessorIfc,
         var downTime: GetValueIfc
-    ) : Task(taskProcessor, TaskType.REPAIR) {
+    ) : Task(TaskType.REPAIR) {
 
-        constructor(taskProcessor: TaskProcessorIfc, downTime: Double) : this(taskProcessor, ConstantValue(downTime))
+        constructor(downTime: Double) : this(ConstantValue(downTime))
 
         override val taskProcess: KSLProcess = process {
             delay(downTime)
@@ -203,11 +205,10 @@ open class TaskProcessingSystem(
     }
 
     inner class InactiveTask(
-        taskProcessor: TaskProcessorIfc,
         var awayTime: GetValueIfc
-    ) : Task(taskProcessor, TaskType.BREAK) {
+    ) : Task(TaskType.BREAK) {
 
-        constructor(taskProcessor: TaskProcessorIfc, awayTime: Double) : this(taskProcessor, ConstantValue(awayTime))
+        constructor(awayTime: Double) : this(ConstantValue(awayTime))
 
         override val taskProcess: KSLProcess = process {
             delay(awayTime)
@@ -384,11 +385,9 @@ open class TaskProcessingSystem(
          */
         var shutdown = false
             private set
-
-        final override fun isShutDown(): Boolean {
+        final override fun isShutDown() : Boolean {
             return shutdown
         }
-
         private var myShutDownEvent: KSLEvent<Nothing>? = null
         override val isShutdownPending: Boolean
             get() = myShutDownEvent != null
