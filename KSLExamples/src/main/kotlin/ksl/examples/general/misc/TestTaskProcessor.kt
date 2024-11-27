@@ -3,7 +3,6 @@ package ksl.examples.general.misc
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.entity.TaskProcessingSystem
 import ksl.modeling.queue.Queue
-import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -30,11 +29,11 @@ class TestTaskProcessor(
     private val myWaitingQ: Queue<Task> = Queue(this, "TaskQ")
 
     private val myTaskProcessor = TaskProcessor(this, name = "TestProcessor")
-    private val myTaskProvider = QueueBasedTaskProvider(myTaskProcessor, myWaitingQ)
+    private val myTaskProvider = QueueBasedTaskProvider(myWaitingQ)
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrivals, myTBA, myTBA)
 
     private fun arrivals(generator: EventGenerator) {
-        val task = WorkTask(myST)
+        val task = WorkTask(myTaskProcessor, myST)
         myTaskProvider.enqueue(task)
     }
 }
