@@ -382,16 +382,28 @@ open class TaskProcessingSystem(
 
         //TODO need to capture time still in state when asked
         val totalIdleTime: Double
-            get() = myIdleState.totalTimeInState
+            get() {
+                val st = if (isIdle()) time - myIdleState.timeStateEntered else 0.0
+                return myIdleState.totalTimeInState + st
+            }
 
         val totalBusyTime: Double
-            get() = myBusyState.totalTimeInState
+            get() {
+                val st = if (isBusy()) time - myBusyState.timeStateEntered else 0.0
+                return myBusyState.totalTimeInState + st
+            }
 
         val totalFailedTime: Double
-            get() = myInRepairState.totalTimeInState
+            get() {
+                val st = if (isFailed()) time - myInRepairState.timeStateEntered else 0.0
+                return myInRepairState.totalTimeInState + st
+            }
 
         val totalInactiveTime: Double
-            get() = myInactiveState.totalTimeInState
+            get() {
+                val st = if (isInactive()) time - myInactiveState.timeStateEntered else 0.0
+                return myInactiveState.totalTimeInState + st
+            }
 
         val totalCycleTime: Double
             get() = totalIdleTime + totalBusyTime + totalFailedTime + totalInactiveTime
