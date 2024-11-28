@@ -7,6 +7,8 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.ConstantValue
 import ksl.utilities.GetValueIfc
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 
@@ -40,24 +42,24 @@ open class TaskProcessingSystem(
         }
     }
 
-    fun createTaskProcessors(number: Int, prefix: String = "Processor_") {
-        val set = mutableSetOf<String>()
-        for (i in 1..number) {
-            set.add(prefix + i)
-        }
-        createTaskProcessors(set)
-    }
-
-    fun createTaskProcessors(names: Set<String>, allPerformance: Boolean = false) {
-        for (name in names) {
-            addTaskProcessor(TaskProcessor(this, allPerformance, name))
-        }
-    }
-
-    fun addTaskProcessor(taskProcessor: TaskProcessor) {
-        require(!myTaskProcessors.containsKey(taskProcessor.name)) { "The task processor name (${taskProcessor.name}) already exists for ${this@TaskProcessingSystem.name}" }
-        myTaskProcessors[taskProcessor.name] = taskProcessor
-    }
+//    fun createTaskProcessors(number: Int, prefix: String = "Processor_") {
+//        val set = mutableSetOf<String>()
+//        for (i in 1..number) {
+//            set.add(prefix + i)
+//        }
+//        createTaskProcessors(set)
+//    }
+//
+//    fun createTaskProcessors(names: Set<String>, allPerformance: Boolean = false) {
+//        for (name in names) {
+//            addTaskProcessor(TaskProcessor(this, allPerformance, name))
+//        }
+//    }
+//
+//    fun addTaskProcessor(taskProcessor: TaskProcessor) {
+//        require(!myTaskProcessors.containsKey(taskProcessor.name)) { "The task processor name (${taskProcessor.name}) already exists for ${this@TaskProcessingSystem.name}" }
+//        myTaskProcessors[taskProcessor.name] = taskProcessor
+//    }
 
     inner class QueueBasedTaskProvider(
         val taskProcessor: TaskProcessorIfc,
@@ -85,7 +87,7 @@ open class TaskProcessingSystem(
         fun taskCompleted(task: Task)
     }
 
-    fun interface TaskProcessorActionIfc  {
+    fun interface TaskProcessorActionIfc {
         fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus)
     }
 
@@ -215,8 +217,7 @@ open class TaskProcessingSystem(
         }
     }
 
-    interface TaskProcessorIfc {
-        val taskProcessingSystem: TaskProcessingSystem
+    interface TaskProcessorPerformanceIfc {
         val fractionTimeBusyResponse: ResponseCIfc
         val numTimesBusyResponse: ResponseCIfc
         val fractionTimeIdleResponse: ResponseCIfc
@@ -225,7 +226,10 @@ open class TaskProcessingSystem(
         val numTimesRepairedResponse: ResponseCIfc
         val fractionTimeInactiveResponse: ResponseCIfc
         val numTimesInactiveResponse: ResponseCIfc
+    }
 
+    interface TaskProcessorIfc {
+        val taskProcessingSystem: TaskProcessingSystem
         val idleState: StateAccessorIfc
         val busyState: StateAccessorIfc
         val inRepairState: StateAccessorIfc
@@ -289,14 +293,12 @@ open class TaskProcessingSystem(
         fun hasNextTask(): Boolean
     }
 
-    /**
-     * Responsible for executing tasks that have been supplied.
-     */
-    open inner class TaskProcessor(
-        override val taskProcessingSystem: TaskProcessingSystem,
-        var allPerformance: Boolean = false,
+    open inner class TaskProcessorME(
+        private val taskProcessor: TaskProcessor,
+        private val allPerformance: Boolean = false,
         name: String? = null
-    ) : ModelElement(taskProcessingSystem, name), TaskProcessorIfc {
+    ) : ModelElement(this@TaskProcessingSystem, name),
+        TaskProcessorPerformanceIfc, TaskProcessorIfc by taskProcessor {
 
         private val myFractionTimeBusy = Response(this, name = "${this.name}:FractionTimeBusy")
         override val fractionTimeBusyResponse: ResponseCIfc
@@ -334,6 +336,40 @@ open class TaskProcessingSystem(
                 myNumTimesInactive.id
             }
         }
+
+        override fun initialize() {
+            super.initialize()
+            taskProcessor.initialize()
+        }
+
+        override fun replicationEnded() {
+            super.replicationEnded()
+            myFractionTimeBusy.value = taskProcessor.fractionTimeBusy
+            myNumTimesBusy.value = taskProcessor.numTimesBusy
+            if (allPerformance) {
+                myFractionIdleTime.value = taskProcessor.fractionTimeIdle
+                myNumTimesIdle.value = taskProcessor.numTimesIdle
+                myFractionInRepairTime.value = taskProcessor.fractionTimeFailed
+                myNumTimesRepaired.value = taskProcessor.numTimesRepaired
+                myFractionInactiveTime.value = taskProcessor.fractionTimeInactive
+                myNumTimesInactive.value = taskProcessor.numTimesInactive
+            }
+        }
+
+        override fun warmUp() {
+            super.warmUp()
+            taskProcessor.resetStates()
+        }
+
+    }
+
+    /**
+     * Responsible for executing tasks that have been supplied.
+     */
+    open inner class TaskProcessor(
+        override val taskProcessingSystem: TaskProcessingSystem,
+        name: String? = null
+    ) : TaskProcessorIfc, IdentityIfc by Identity(name) {
 
         private var myTaskProvider: TaskProviderIfc? = null
         private var myProcessor: Processor? = null
@@ -385,9 +421,11 @@ open class TaskProcessingSystem(
          */
         var shutdown = false
             private set
-        final override fun isShutDown() : Boolean {
+
+        final override fun isShutDown(): Boolean {
             return shutdown
         }
+
         private var myShutDownEvent: KSLEvent<Nothing>? = null
         override val isShutdownPending: Boolean
             get() = myShutDownEvent != null
@@ -404,8 +442,7 @@ open class TaskProcessingSystem(
                 Double.POSITIVE_INFINITY
             }
 
-        override fun initialize() {
-            super.initialize()
+        fun initialize() {
             resetStates()
             myTaskProvider = null
             myProcessor = null
@@ -414,25 +451,6 @@ open class TaskProcessingSystem(
             shutdown = false
             myCurrentState = myIdleState
             myIdleState.enter(time)
-        }
-
-        override fun replicationEnded() {
-            super.replicationEnded()
-            myFractionTimeBusy.value = fractionTimeBusy
-            myNumTimesBusy.value = numTimesBusy
-            if (allPerformance) {
-                myFractionIdleTime.value = fractionTimeIdle
-                myNumTimesIdle.value = numTimesIdle
-                myFractionInRepairTime.value = fractionTimeFailed
-                myNumTimesRepaired.value = numTimesRepaired
-                myFractionInactiveTime.value = fractionTimeInactive
-                myNumTimesInactive.value = numTimesInactive
-            }
-        }
-
-        override fun warmUp() {
-            super.warmUp()
-            resetStates()
         }
 
         override fun resetStates() {
@@ -534,7 +552,6 @@ open class TaskProcessingSystem(
                 }
                 return totalFailedTime / tt
             }
-
 
         /**
          *  Causes the task processor to be activated and to start processing tasks from the supplied
