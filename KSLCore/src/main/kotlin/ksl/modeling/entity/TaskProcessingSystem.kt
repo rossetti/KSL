@@ -294,10 +294,11 @@ open class TaskProcessingSystem(
     }
 
     open inner class TaskProcessorME(
-        private val taskProcessor: TaskProcessor,
+        parent: ModelElement,
         private val allPerformance: Boolean = false,
-        name: String? = null
-    ) : ModelElement(this@TaskProcessingSystem, name),
+        name: String? = null,
+        private val taskProcessor: TaskProcessor = TaskProcessor(name),
+    ) : ModelElement(parent, name),
         TaskProcessorPerformanceIfc, TaskProcessorIfc by taskProcessor {
 
         private val myFractionTimeBusy = Response(this, name = "${this.name}:FractionTimeBusy")
@@ -367,9 +368,10 @@ open class TaskProcessingSystem(
      * Responsible for executing tasks that have been supplied.
      */
     open inner class TaskProcessor(
-        override val taskProcessingSystem: TaskProcessingSystem,
         name: String? = null
     ) : TaskProcessorIfc, IdentityIfc by Identity(name) {
+
+        override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
 
         private var myTaskProvider: TaskProviderIfc? = null
         private var myProcessor: Processor? = null

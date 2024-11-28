@@ -29,7 +29,7 @@ class TestTaskProcessor(
 
     private val myWaitingQ: Queue<Task> = Queue(this, "TaskQ")
 
-    private val myTaskProcessor = TaskProcessor(this, name = "TestProcessor")
+    private val myTaskProcessor = TaskProcessorME(this, name = "TestProcessor")
     private val myTaskProvider = QueueBasedTaskProvider(myTaskProcessor, myWaitingQ)
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrivals, myTBA, myTBA)
 
