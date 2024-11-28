@@ -367,10 +367,13 @@ open class TaskProcessingSystem(
     /**
      * Responsible for executing tasks that have been supplied.
      */
+    //TODO rename TransientTaskProcessor
+    // parameters to indicate when to end, when to remove/shutdown
     open inner class TaskProcessor(
         name: String? = null
     ) : TaskProcessorIfc, IdentityIfc by Identity(name) {
 
+        //TODO why is this needed
         override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
 
         private var myTaskProvider: TaskProviderIfc? = null
