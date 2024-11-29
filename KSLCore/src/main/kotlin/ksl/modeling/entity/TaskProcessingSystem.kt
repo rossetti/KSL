@@ -270,7 +270,7 @@ open class TaskProcessingSystem(
     }
 
     interface TaskProcessorIfc {
-        val taskProcessingSystem: TaskProcessingSystem
+        val taskProcessingSystem: TaskProcessingSystem //TODO??
         val idleState: StateAccessorIfc
         val busyState: StateAccessorIfc
         val inRepairState: StateAccessorIfc
@@ -300,6 +300,9 @@ open class TaskProcessingSystem(
         fun isIdle(): Boolean
         fun isInactive(): Boolean
         fun isShutDown(): Boolean
+        fun isNotShutDown(): Boolean {
+            return !isShutDown()
+        }
 
         /**
          *  Causes the task processor to be activated and to start processing tasks from the supplied
