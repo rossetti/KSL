@@ -465,7 +465,7 @@ open class TaskProcessingSystem(
 
         //TODO why is this needed
         override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
-
+        //TODO why is this needed
         private var myTaskProvider: TaskDispatcher? = null
         private var myProcessor: Processor? = null
 
@@ -652,7 +652,7 @@ open class TaskProcessingSystem(
         /**
          *  Receives the task for processing. Enqueues the task and if the
          *  processor is idle, activates the processor to process tasks.
-         *  
+         *
          *  @param task The task that needs executing.
          */
         fun receive(task: Task) {
