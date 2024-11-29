@@ -89,9 +89,8 @@ open class TaskProcessingSystem(
         }
 
         fun register(taskProcessor: TaskProcessorIfc) {
-            if (!myProcessors.contains(taskProcessor)){
-                myProcessors.add(taskProcessor)
-            }
+            require(!myProcessors.contains(taskProcessor)) {"The task processor, ${taskProcessor}, is already registered with dispatcher, $name"}
+            myProcessors.add(taskProcessor)
         }
 
         fun unregister(taskProcessor: TaskProcessorIfc) : Boolean {

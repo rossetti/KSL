@@ -28,10 +28,12 @@ class TestTaskProcessor(
 
     //private val myWaitingQ: Queue<Task> = Queue(this, "TaskQ")
 
-    private val myTaskProcessor = TaskProcessorME(this, name = "TestProcessor")
+    private val myTaskProcessor1 = TaskProcessorME(this, name = "TestProcessor1")
+//    private val myTaskProcessor2 = TaskProcessorME(this, name = "TestProcessor2")
     private val myTaskDispatcher = TaskDispatcher(this, name = "Dispatcher")
     init {
-        myTaskDispatcher.register(myTaskProcessor)
+        myTaskDispatcher.register(myTaskProcessor1)
+//        myTaskDispatcher.register(myTaskProcessor2)
     }
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrivals, myTBA, myTBA)
 
