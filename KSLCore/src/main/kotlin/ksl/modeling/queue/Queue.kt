@@ -129,9 +129,8 @@ interface QueueIfc<T : ModelElement.QObject> {
      * Automatically, updates the number in queue response variable.
      *
      * @param qObject - the QObject to enqueue
-     * @param priority - the priority for ordering the object, lower has more priority
-     * @param obj an Object to be "wrapped" and queued while the QObject is queued </S> */
-    fun enqueue(qObject: T, priority: Int = qObject.priority, obj: Any? = qObject.attachedObject)
+     */
+    fun enqueue(qObject: T)
 
     /**
      * Returns a reference to the QObject representing the item that is next to
@@ -378,6 +377,17 @@ open class Queue<T : ModelElement.QObject>(
         return myQueueListeners.remove(listener)
     }
 
+
+    /**
+     * Places the QObject in the queue, with the specified priority
+     * Automatically, updates the number in queue response variable.
+     *
+     * @param qObject - the QObject to enqueue
+     */
+    override fun enqueue(qObject: T){
+        enqueue(qObject, qObject.priority, qObject.attachedObject)
+    }
+
     /**
      * Places the QObject in the queue, with the specified priority
      * Automatically, updates the number in queue response variable.
@@ -385,7 +395,7 @@ open class Queue<T : ModelElement.QObject>(
      * @param qObject - the QObject to enqueue
      * @param priority - the priority for ordering the object, lower has more priority
      * @param obj an Object to be "wrapped" and queued while the QObject is queued </S> */
-    override fun enqueue(qObject: T, priority: Int, obj: Any?) {
+    fun enqueue(qObject: T, priority: Int = qObject.priority, obj: Any? = qObject.attachedObject) {
         qObject.enterQueue(this, time, priority, obj)
         myDiscipline.add(qObject)
         status = Status.ENQUEUED
