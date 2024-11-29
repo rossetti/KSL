@@ -381,6 +381,10 @@ open class TaskProcessingSystem(
             myTaskList.clear()
         }
 
+        override fun iterator(): Iterator<Task> {
+            return myTaskList.iterator()
+        }
+
         override fun contains(qObj: Task): Boolean {
             return myTaskList.contains(qObj)
         }

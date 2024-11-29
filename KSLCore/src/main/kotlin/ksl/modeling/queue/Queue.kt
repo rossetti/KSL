@@ -104,7 +104,7 @@ interface QueueCIfc<T : ModelElement.QObject> : DefaultReportingOptionIfc {
     var waitTimeStatOption: Boolean
 }
 
-interface QueueIfc<T : ModelElement.QObject> {
+interface QueueIfc<T : ModelElement.QObject> : Iterable<T>{
     /**
      * Gets the size (number of elements) of the queue.
      */
@@ -200,7 +200,7 @@ open class Queue<T : ModelElement.QObject>(
     name: String? = null,
     discipline: Discipline = Discipline.FIFO
 ) :
-    ModelElement(parent, name), Iterable<T>, QueueCIfc<T>, QueueIfc<T> {
+    ModelElement(parent, name), QueueCIfc<T>, QueueIfc<T> {
 
     override var waitTimeStatOption: Boolean = true
 
