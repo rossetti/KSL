@@ -778,9 +778,9 @@ open class TaskProcessingSystem(
                     TaskProcessorStatus.START_WORK
                 }
             }
-//            for(task in taskQueue){
-//
-//            }
+            for(task in taskQueue){
+                task.onTaskProcessorAction(this, actionType)
+            }
         }
 
         private fun notifyProviderOfStartAction(taskType: TaskType) {
@@ -800,6 +800,25 @@ open class TaskProcessingSystem(
             }
 
             myTaskProvider?.onTaskProcessorAction(this, actionType)
+        }
+
+        private fun notifyTasksOfEndAction(taskType: TaskType){
+            val actionType = when (taskType) {
+                TaskType.BREAK -> {
+                    TaskProcessorStatus.END_INACTIVE
+                }
+
+                TaskType.REPAIR -> {
+                    TaskProcessorStatus.END_FAILURE
+                }
+
+                TaskType.WORK -> {
+                    TaskProcessorStatus.END_WORK
+                }
+            }
+            for(task in taskQueue){
+                task.onTaskProcessorAction(this, actionType)
+            }
         }
 
         private fun notifyProviderOfEndAction(taskType: TaskType) {
