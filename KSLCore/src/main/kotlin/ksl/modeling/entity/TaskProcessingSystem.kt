@@ -459,12 +459,12 @@ open class TaskProcessingSystem(
     //TODO rename TransientTaskProcessor
     // parameters to indicate when to end, when to remove/shutdown
     open inner class TaskProcessor(
-        name: String? = null
+        name: String? = null,
+        private val taskQueue: QueueIfc<Task> = TaskQueue()
     ) : TaskProcessorIfc, IdentityIfc by Identity(name) {
 
         //TODO why is this needed
         override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
-        private val myTaskQueue = mutableListOf<Task>()
 
         private var myTaskProvider: TaskDispatcher? = null
         private var myProcessor: Processor? = null
@@ -539,7 +539,7 @@ open class TaskProcessingSystem(
 
         fun initialize() {
             resetStates()
-            myTaskQueue.clear()
+            taskQueue.clear()
             myTaskProvider = null
             myProcessor = null
             previousTask = null
@@ -649,10 +649,20 @@ open class TaskProcessingSystem(
                 return totalFailedTime / tt
             }
 
+        /**
+         *  Receives the task for processing. Enqueues the task and if the
+         *  processor is idle, activates the processor to process tasks.
+         *  
+         *  @param task The task that needs executing.
+         */
         fun receive(task: Task) {
             require(!shutdown) { "${this.name} Task Processor: cannot receive task = $task because it is shutdown!" }
-            require(!myTaskQueue.contains(task)) {"${this.name} Task Processor: cannot receive task = $task because it already has the task!"}
-
+            taskQueue.enqueue(task)
+            task.taskProcessor = this
+            if (isIdle()){
+                myProcessor = Processor("Processor_${this.name}")
+                activate(myProcessor!!.taskProcessing)
+            }
         }
 
         /**
