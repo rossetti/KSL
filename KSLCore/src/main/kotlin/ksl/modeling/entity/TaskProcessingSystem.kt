@@ -225,15 +225,22 @@ open class TaskProcessingSystem(
         open fun afterTaskCompleted() {}
 
         /**
-         *  This function is called by task processors that are processing tasks sent by the provider.
-         *  Subclasses can provide specific logic to react to the occurrence of the start of a failure,
-         *  the end of a failure, start of an inactive period, end of an inactive period, and the warning
-         *  of a shutdown and the shutdown. By default, no reaction occurs.
-         *  @param taskProcessor the task processor
+         *  This function is called when the task's associated processor is starting a processor action.
+         *  The task is only notified if it is waiting for the processor and not yet executing.
+         *  Subclasses can provide specific logic to react to the occurrence of a processor
+         *  start action (START_WORK, START_FAILURE, START_INACTIVE, START_SHUTDOWN).
          *  @param status the status indicator for the type of action
          */
-        fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus) {}
+        open fun onTaskProcessorStartAction(status: TaskProcessorStatus) {}
 
+        /**
+         *  This function is called when the task's associated processor is starting a processor action.
+         *  The task is only notified if it is waiting for the processor and not yet executing.
+         *  Subclasses can provide specific logic to react to the occurrence of a processor
+         *  start action (END_WORK, END_FAILURE, END_INACTIVE, SHUTDOWN, CANCEL_SHUTDOWN).
+         *  @param status the status indicator for the type of action
+         */
+        open fun onTaskProcessorEndAction(status:TaskProcessorStatus) {}
     }
 
     inner class WorkTask(
@@ -779,7 +786,7 @@ open class TaskProcessingSystem(
                 }
             }
             for(task in taskQueue){
-                task.onTaskProcessorAction(this, actionType)
+                task.onTaskProcessorStartAction(actionType)
             }
         }
 
@@ -817,7 +824,7 @@ open class TaskProcessingSystem(
                 }
             }
             for(task in taskQueue){
-                task.onTaskProcessorAction(this, actionType)
+                task.onTaskProcessorEndAction(actionType)
             }
         }
 
