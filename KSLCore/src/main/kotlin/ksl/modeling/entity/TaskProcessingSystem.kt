@@ -87,7 +87,7 @@ open class TaskProcessingSystem(
             }
         }
 
-        fun enqueue(task: Task) {
+        override fun receive(task: Task) {
             queue.enqueue(task)
             val taskProcessor = myTaskProcessor
             if (taskProcessor != null) {
@@ -96,6 +96,7 @@ open class TaskProcessingSystem(
                 }
             }
         }
+        
     }
 
     fun interface TaskCompletedIfc {
@@ -107,6 +108,8 @@ open class TaskProcessingSystem(
     }
 
     interface TaskProviderIfc {
+
+        fun receive(task: Task)
 
         /**
          *  Checks if the provider has another task
