@@ -419,6 +419,7 @@ open class TaskProcessingSystem(
 
         //TODO why is this needed
         override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
+        private val myTaskQueue = mutableListOf<Task>()
 
         private var myTaskProvider: TaskDispatcher? = null
         private var myProcessor: Processor? = null
@@ -493,6 +494,7 @@ open class TaskProcessingSystem(
 
         fun initialize() {
             resetStates()
+            myTaskQueue.clear()
             myTaskProvider = null
             myProcessor = null
             previousTask = null
@@ -601,6 +603,12 @@ open class TaskProcessingSystem(
                 }
                 return totalFailedTime / tt
             }
+
+        fun receive(task: Task) {
+            require(!shutdown) { "${this.name} Task Processor: cannot receive task = $task because it is shutdown!" }
+            require(!myTaskQueue.contains(task)) {"${this.name} Task Processor: cannot receive task = $task because it already has the task!"}
+
+        }
 
         /**
          *  Causes the task processor to be activated and to start processing tasks from the supplied
