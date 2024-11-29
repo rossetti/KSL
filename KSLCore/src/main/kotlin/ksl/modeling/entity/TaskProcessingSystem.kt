@@ -101,50 +101,6 @@ open class TaskProcessingSystem(
 
     }
 
-    inner class QueueBasedTaskProvider(
-        val queue: Queue<Task>
-    ) : TaskDispatcherIfc {
-
-        private var myTaskProcessor: TaskProcessorIfc? = null
-
-        override fun hasNext(): Boolean {
-            return queue.peekNext() != null
-        }
-
-        override fun next(): Task? {
-            val task = queue.removeNext()
-            task?.taskProvider = this
-            return task
-        }
-
-        override fun register(taskProcessor: TaskProcessorIfc) {
-            myTaskProcessor = taskProcessor
-        }
-
-        override fun unregister(taskProcessor: TaskProcessorIfc) : Boolean {
-            if (taskProcessor == myTaskProcessor) {
-                myTaskProcessor = null
-                return true
-            }
-            return false
-        }
-
-        override fun selectProcessor(): TaskProcessorIfc? {
-            TODO("Not yet implemented")
-        }
-
-        override fun receive(task: Task) {
-            queue.enqueue(task)
-            val taskProcessor = myTaskProcessor
-            if (taskProcessor != null) {
-                if (taskProcessor.isIdle() && !taskProcessor.isShutDown()) {
-                    taskProcessor.activateProcessor(this)
-                }
-            }
-        }
-
-    }
-
     fun interface TaskCompletedIfc {
         fun taskCompleted(task: Task)
     }
