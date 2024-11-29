@@ -62,9 +62,11 @@ open class TaskProcessingSystem(
 //    }
 
     inner class QueueBasedTaskProvider(
-        val taskProcessor: TaskProcessorIfc,
         val queue: Queue<Task>
     ) : TaskProviderIfc {
+
+        private var myTaskProcessor: TaskProcessorIfc? = null
+
         override fun hasNext(): Boolean {
             return queue.peekNext() != null
         }
@@ -75,10 +77,23 @@ open class TaskProcessingSystem(
             return task
         }
 
+        override fun register(taskProcessor: TaskProcessorIfc) {
+            myTaskProcessor = taskProcessor
+        }
+
+        override fun unregister(taskProcessor: TaskProcessorIfc) {
+            if (taskProcessor == myTaskProcessor) {
+                myTaskProcessor = null
+            }
+        }
+
         fun enqueue(task: Task) {
             queue.enqueue(task)
-            if (taskProcessor.isIdle() && !taskProcessor.isShutDown()) {
-                taskProcessor.activateProcessor(this)
+            val taskProcessor = myTaskProcessor
+            if (taskProcessor != null) {
+                if (taskProcessor.isIdle() && !taskProcessor.isShutDown()) {
+                    taskProcessor.activateProcessor(this)
+                }
             }
         }
     }
@@ -119,6 +134,9 @@ open class TaskProcessingSystem(
          */
         fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus) {}
 
+        fun register(taskProcessor: TaskProcessorIfc)
+
+        fun unregister(taskProcessor: TaskProcessorIfc)
     }
 
     /**
