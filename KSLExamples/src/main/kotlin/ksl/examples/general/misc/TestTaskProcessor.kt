@@ -38,6 +38,6 @@ class TestTaskProcessor(
 
     private fun arrivals(generator: EventGenerator) {
         val task = WorkTask(myST)
-        myTaskProvider.enqueue(task)
+        myTaskProvider.receive(task)
     }
 }
