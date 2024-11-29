@@ -3,6 +3,7 @@ package ksl.modeling.entity
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.Queue.Discipline
 import ksl.modeling.queue.QueueCIfc
+import ksl.modeling.queue.QueueIfc
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.KSLEvent
@@ -335,6 +336,50 @@ open class TaskProcessingSystem(
          *  Indicates true if selectNextTask() results in a non-null task
          */
         fun hasNextTask(): Boolean
+    }
+
+    inner class TaskQueue: QueueIfc<Task> {
+
+        private val myTaskList = mutableListOf<Task>()
+
+        override val size: Int
+            get() = myTaskList.size
+        override val isEmpty: Boolean
+            get() = myTaskList.isEmpty()
+        override val isNotEmpty: Boolean
+            get() = myTaskList.isNotEmpty()
+
+        override fun peekNext(): Task? {
+            if (isNotEmpty){
+                return myTaskList.first()
+            } else {
+                return null
+            }
+        }
+
+        override fun removeNext(): Task? {
+            val next = peekNext()
+            if (next != null) {
+                myTaskList.remove(next)
+                return next
+            } else {
+                return null
+            }
+        }
+
+        override fun clear() {
+            myTaskList.clear()
+        }
+
+        override fun contains(qObj: Task): Boolean {
+            return myTaskList.contains(qObj)
+        }
+
+        override fun enqueue(qObject: Task) {
+            require(!contains(qObject)) {"The task, $qObject is already in the queue"}
+            myTaskList.add(qObject)
+        }
+
     }
 
     open inner class TaskProcessorME(
