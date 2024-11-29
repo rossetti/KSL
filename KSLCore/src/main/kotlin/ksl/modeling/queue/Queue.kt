@@ -104,6 +104,82 @@ interface QueueCIfc<T : ModelElement.QObject> : DefaultReportingOptionIfc {
     var waitTimeStatOption: Boolean
 }
 
+interface QueueIfc<T : ModelElement.QObject> {
+    /**
+     * Gets the size (number of elements) of the queue.
+     */
+    val size: Int
+
+    /**
+     * Returns whether the queue is empty.
+     *
+     * @return True if the queue is empty.
+     */
+    val isEmpty: Boolean
+
+    /**
+     * Returns true if the queue is not empty
+     *
+     * @return true if the queue is not empty
+     */
+    val isNotEmpty: Boolean
+
+    /**
+     * Places the QObject in the queue, with the specified priority
+     * Automatically, updates the number in queue response variable.
+     *
+     * @param qObject - the QObject to enqueue
+     * @param priority - the priority for ordering the object, lower has more priority
+     * @param obj an Object to be "wrapped" and queued while the QObject is queued </S> */
+    fun enqueue(qObject: T, priority: Int = qObject.priority, obj: Any? = qObject.attachedObject)
+
+    /**
+     * Returns a reference to the QObject representing the item that is next to
+     * be removed from the queue according to the queue discipline that was
+     * specified.
+     *
+     * @return a reference to the QObject object next item to be removed, or
+     * null if the queue is empty
+     */
+    fun peekNext(): T?
+
+    /**
+     * Removes the next item from the queue according to the queue discipline
+     * that was specified. Returns a reference to the QObject representing the
+     * item that was removed
+     *
+     * Automatically, collects the time in queue for the item and includes it in
+     * the time in queue response variable.
+     *
+     * Automatically, updates the number in queue response variable.
+     *
+     * @return a reference to the QObject object, or null if the queue is empty
+     */
+    fun removeNext(): T?
+
+    /**
+     * Returns true if this queue contains the specified element. More formally,
+     * returns true if and only if this list contains at least one element e
+     * such that (o==null ? e==null : o.equals(e)).
+     *
+     * @param qObj The object to be removed
+     * @return True if the queue contains the specified element.
+     */
+    operator fun contains(qObj: T): Boolean
+
+    /**
+     * Removes all the elements from this collection
+     *
+     * WARNING: This method DOES NOT record the time in queue for the cleared
+     * items if the user wants this functionality, it can be accomplished using
+     * the remove(int index) method, while looping through the items to remove
+     * Listeners are notified of the queue change with IGNORE
+     *
+     * This method simply clears the underlying data structure that holds the objects
+     */
+    fun clear()
+}
+
 /**
  * The Queue class provides the ability to hold entities (QObjects) within the
  * model.
@@ -125,7 +201,7 @@ open class Queue<T : ModelElement.QObject>(
     name: String? = null,
     discipline: Discipline = Discipline.FIFO
 ) :
-    ModelElement(parent, name), Iterable<T>, QueueCIfc<T> {
+    ModelElement(parent, name), Iterable<T>, QueueCIfc<T>, QueueIfc<T> {
 
     override var waitTimeStatOption: Boolean = true
 
@@ -309,7 +385,7 @@ open class Queue<T : ModelElement.QObject>(
      * @param qObject - the QObject to enqueue
      * @param priority - the priority for ordering the object, lower has more priority
      * @param obj an Object to be "wrapped" and queued while the QObject is queued </S> */
-    fun enqueue(qObject: T, priority: Int = qObject.priority, obj: Any? = qObject.attachedObject) {
+    override fun enqueue(qObject: T, priority: Int, obj: Any?) {
         qObject.enterQueue(this, time, priority, obj)
         myDiscipline.add(qObject)
         status = Status.ENQUEUED
@@ -325,7 +401,7 @@ open class Queue<T : ModelElement.QObject>(
      * @return a reference to the QObject object next item to be removed, or
      * null if the queue is empty
      */
-    fun peekNext(): T? {
+    override fun peekNext(): T? {
         return myDiscipline.peekNext()
     }
 
@@ -341,7 +417,7 @@ open class Queue<T : ModelElement.QObject>(
      *
      * @return a reference to the QObject object, or null if the queue is empty
      */
-    fun removeNext(): T? {
+    override fun removeNext(): T? {
         val qObj: T? = myDiscipline.removeNext()
         if (qObj != null) {
             qObj.exitQueue(time)
@@ -361,7 +437,7 @@ open class Queue<T : ModelElement.QObject>(
      * @param qObj The object to be removed
      * @return True if the queue contains the specified element.
      */
-    operator fun contains(qObj: T): Boolean {
+    override operator fun contains(qObj: T): Boolean {
         return myList.contains(qObj)
     }
 
@@ -689,7 +765,7 @@ open class Queue<T : ModelElement.QObject>(
      *
      * This method simply clears the underlying data structure that holds the objects
      */
-    fun clear() {
+    override fun clear() {
         for (qObj in myList) {
             qObj.exitQueue(time)
         }
