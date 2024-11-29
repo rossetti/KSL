@@ -1,6 +1,7 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
+import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.KSLEvent
@@ -61,9 +62,48 @@ open class TaskProcessingSystem(
 //        myTaskProcessors[taskProcessor.name] = taskProcessor
 //    }
 
+    open inner class TaskDispatcher(
+        parent: ModelElement,
+        name: String? = null
+    ) : ModelElement(parent, name), TaskDispatcherIfc {
+
+        protected val myProcessors = mutableListOf<TaskProcessorIfc>()
+        protected val myTaskQueue: Queue<Task> = Queue(this, name = "${this.name}:TaskQ")
+        val queue: QueueCIfc<Task>
+            get() = myTaskQueue
+
+        override fun receive(task: Task) {
+            myTaskQueue.enqueue(task)
+            selectProcessor()?.activateProcessor(this)
+        }
+
+        override fun hasNext(): Boolean {
+            return myTaskQueue.peekNext() != null
+        }
+
+        override fun next(): Task? {
+            return myTaskQueue.removeNext()
+        }
+
+        override fun register(taskProcessor: TaskProcessorIfc) {
+            if (!myProcessors.contains(taskProcessor)){
+                myProcessors.add(taskProcessor)
+            }
+        }
+
+        override fun unregister(taskProcessor: TaskProcessorIfc) : Boolean {
+            return myProcessors.remove(taskProcessor)
+        }
+
+        override fun selectProcessor(): TaskProcessorIfc? {
+            return myProcessors.firstOrNull { it.isIdle() && !it.isShutDown() }
+        }
+
+    }
+
     inner class QueueBasedTaskProvider(
         val queue: Queue<Task>
-    ) : TaskProviderIfc {
+    ) : TaskDispatcherIfc {
 
         private var myTaskProcessor: TaskProcessorIfc? = null
 
@@ -81,10 +121,16 @@ open class TaskProcessingSystem(
             myTaskProcessor = taskProcessor
         }
 
-        override fun unregister(taskProcessor: TaskProcessorIfc) {
+        override fun unregister(taskProcessor: TaskProcessorIfc) : Boolean {
             if (taskProcessor == myTaskProcessor) {
                 myTaskProcessor = null
+                return true
             }
+            return false
+        }
+
+        override fun selectProcessor(): TaskProcessorIfc? {
+            TODO("Not yet implemented")
         }
 
         override fun receive(task: Task) {
@@ -107,7 +153,7 @@ open class TaskProcessingSystem(
         fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus)
     }
 
-    interface TaskProviderIfc {
+    interface TaskDispatcherIfc {
 
         fun receive(task: Task)
 
@@ -139,7 +185,9 @@ open class TaskProcessingSystem(
 
         fun register(taskProcessor: TaskProcessorIfc)
 
-        fun unregister(taskProcessor: TaskProcessorIfc)
+        fun unregister(taskProcessor: TaskProcessorIfc): Boolean
+
+        fun selectProcessor() : TaskProcessorIfc?
     }
 
     /**
@@ -176,7 +224,7 @@ open class TaskProcessingSystem(
         /**
          *  The provider that supplied the task for processing
          */
-        var taskProvider: TaskProviderIfc? = null
+        var taskProvider: TaskDispatcherIfc? = null
 
         /**
          * The deadline may be used by the task processor to assist with task selection
@@ -289,7 +337,7 @@ open class TaskProcessingSystem(
          *
          * @param taskProvider the task provider from which tasks will be pulled after activation
          */
-        fun activateProcessor(taskProvider: TaskProviderIfc)
+        fun activateProcessor(taskProvider: TaskDispatcherIfc)
 
         /**
          *  Causes a shutdown event to be scheduled for the supplied time. The shutdown event is scheduled
@@ -397,7 +445,7 @@ open class TaskProcessingSystem(
         //TODO why is this needed
         override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
 
-        private var myTaskProvider: TaskProviderIfc? = null
+        private var myTaskProvider: TaskDispatcherIfc? = null
         private var myProcessor: Processor? = null
 
         /**
@@ -587,7 +635,7 @@ open class TaskProcessingSystem(
          *
          * @param taskProvider the task provider from which tasks will be pulled after activation
          */
-        override fun activateProcessor(taskProvider: TaskProviderIfc) {
+        override fun activateProcessor(taskProvider: TaskDispatcherIfc) {
             require(!shutdown) { "${this.name} Task Processor: cannot be activated because it is shutdown!" }
             require(isIdle()) { "${this.name} Task Processor: cannot be activated because it is not idle!" }
             // must be idle thus it can be activated
