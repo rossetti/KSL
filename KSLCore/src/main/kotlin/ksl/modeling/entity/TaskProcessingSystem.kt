@@ -63,6 +63,7 @@ open class TaskProcessingSystem(
 //        myTaskProcessors[taskProcessor.name] = taskProcessor
 //    }
 
+    //TODO work on public interface, hiding methods
     open inner class TaskDispatcher(
         parent: ModelElement,
         name: String? = null,
