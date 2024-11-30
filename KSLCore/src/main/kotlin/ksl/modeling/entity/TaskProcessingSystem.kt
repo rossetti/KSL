@@ -343,6 +343,9 @@ open class TaskProcessingSystem(
          */
         fun activateProcessor(taskProvider: TaskDispatcher)
 
+        //TODO documentation
+        fun receive(task: Task)
+
         /**
          *  Causes a shutdown event to be scheduled for the supplied time. The shutdown event is scheduled
          *  and the current task provider is notified of the pending shutdown. This allows the
@@ -687,7 +690,7 @@ open class TaskProcessingSystem(
          *
          *  @param task The task that needs executing.
          */
-        fun receive(task: Task) {
+        override fun receive(task: Task) {
             require(!shutdown) { "${this.name} Task Processor: cannot receive task = $task because it is shutdown!" }
             taskQueue.enqueue(task)
             task.taskProcessor = this
