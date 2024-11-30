@@ -78,15 +78,16 @@ open class TaskProcessingSystem(
 
         fun receive(task: Task) {
             myTaskQueue.enqueue(task)
-            dispatch()
-//            selectProcessor()?.activateProcessor(this)
-        }
-
-        protected open fun dispatch(){
             val processor = selectProcessor()
             if (processor != null) {
+                dispatch(processor)
+            }
+        }
+
+        protected open fun dispatch(processor: TaskProcessorIfc) {
+            if (hasNext()){
                 val nextTask = next()
-                if (nextTask != null){
+                if (nextTask != null) {
                     nextTask.taskDispatcher = this
                     processor.receive(nextTask)
                 }
@@ -102,11 +103,11 @@ open class TaskProcessingSystem(
         }
 
         fun register(taskProcessor: TaskProcessorIfc) {
-            require(!myProcessors.contains(taskProcessor)) {"The task processor, ${taskProcessor}, is already registered with dispatcher, $name"}
+            require(!myProcessors.contains(taskProcessor)) { "The task processor, ${taskProcessor}, is already registered with dispatcher, $name" }
             myProcessors.add(taskProcessor)
         }
 
-        fun unregister(taskProcessor: TaskProcessorIfc) : Boolean {
+        fun unregister(taskProcessor: TaskProcessorIfc): Boolean {
             return myProcessors.remove(taskProcessor)
         }
 
@@ -114,17 +115,16 @@ open class TaskProcessingSystem(
             return myProcessors.firstOrNull { it.isIdle() && !it.isShutDown() }
         }
 
+        protected fun taskCompleted(task: Task) {
+
+        }
+
         /**
          * Called when the task is completed
          */
-        fun taskCompleted(processor: TaskProcessorIfc) {
-            if (hasNext()){
-                val nextTask = next()
-                if (nextTask != null){
-                    nextTask.taskDispatcher = this
-                    processor.receive(nextTask)
-                }
-            }
+        internal fun dispatchCompleted(processor: TaskProcessorIfc, task: Task) {
+            dispatch(processor)
+            taskCompleted(task)
         }
 
         /**
@@ -260,7 +260,7 @@ open class TaskProcessingSystem(
          *  start action (END_WORK, END_FAILURE, END_INACTIVE, SHUTDOWN, CANCEL_SHUTDOWN).
          *  @param status the status indicator for the type of action
          */
-        open fun onTaskProcessorEndAction(status:TaskProcessorStatus) {}
+        open fun onTaskProcessorEndAction(status: TaskProcessorStatus) {}
     }
 
     inner class WorkTask(
@@ -383,7 +383,7 @@ open class TaskProcessingSystem(
         fun hasNextTask(): Boolean
     }
 
-    inner class TaskQueue: QueueIfc<Task> {
+    inner class TaskQueue : QueueIfc<Task> {
 
         private val myTaskList = mutableListOf<Task>()
 
@@ -395,7 +395,7 @@ open class TaskProcessingSystem(
             get() = myTaskList.isNotEmpty()
 
         override fun peekNext(): Task? {
-            if (isNotEmpty){
+            if (isNotEmpty) {
                 return myTaskList.first()
             } else {
                 return null
@@ -425,7 +425,7 @@ open class TaskProcessingSystem(
         }
 
         override fun enqueue(qObject: Task) {
-            require(!contains(qObject)) {"The task, $qObject is already in the queue"}
+            require(!contains(qObject)) { "The task, $qObject is already in the queue" }
             myTaskList.add(qObject)
         }
 
@@ -514,6 +514,7 @@ open class TaskProcessingSystem(
 
         //TODO why is this needed
         override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
+
         //TODO why is this needed
 //        private var myDispatcher: TaskDispatcher? = null
         private var myProcessor: Processor? = null
@@ -708,7 +709,7 @@ open class TaskProcessingSystem(
             require(!shutdown) { "${this.name} Task Processor: cannot receive task = $task because it is shutdown!" }
             taskQueue.enqueue(task)
             task.taskProcessor = this
-            if (isIdle()){
+            if (isIdle()) {
                 myProcessor = Processor("Processor_${this.name}")
                 activate(myProcessor!!.taskProcessing)
             }
@@ -749,7 +750,7 @@ open class TaskProcessingSystem(
             myShutDownEvent = schedule(this@TaskProcessor::shutDownAction, timeUntilShutdown)
             // notify the provider of tasks of pending shutdown
 //            myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.START_SHUTDOWN)
-            for(task in taskQueue){
+            for (task in taskQueue) {
                 task.onTaskProcessorStartAction(TaskProcessorStatus.START_SHUTDOWN)
             }
         }
@@ -762,7 +763,7 @@ open class TaskProcessingSystem(
             myShutDownEvent?.cancel = true
             myShutDownEvent = null
 //            myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.CANCEL_SHUTDOWN)
-            for(task in taskQueue){
+            for (task in taskQueue) {
                 task.onTaskProcessorEndAction(TaskProcessorStatus.CANCEL_SHUTDOWN)
             }
         }
@@ -805,7 +806,7 @@ open class TaskProcessingSystem(
             return taskQueue.removeNext()
         }
 
-        private fun notifyTasksOfStartAction(taskType: TaskType){
+        private fun notifyTasksOfStartAction(taskType: TaskType) {
             val actionType = when (taskType) {
                 TaskType.BREAK -> {
                     TaskProcessorStatus.START_INACTIVE
@@ -819,7 +820,7 @@ open class TaskProcessingSystem(
                     TaskProcessorStatus.START_WORK
                 }
             }
-            for(task in taskQueue){
+            for (task in taskQueue) {
                 task.onTaskProcessorStartAction(actionType)
             }
         }
@@ -843,7 +844,7 @@ open class TaskProcessingSystem(
 //            myDispatcher?.onTaskProcessorAction(this, actionType)
         }
 
-        private fun notifyTasksOfEndAction(taskType: TaskType){
+        private fun notifyTasksOfEndAction(taskType: TaskType) {
             val actionType = when (taskType) {
                 TaskType.BREAK -> {
                     TaskProcessorStatus.END_INACTIVE
@@ -857,7 +858,7 @@ open class TaskProcessingSystem(
                     TaskProcessorStatus.END_WORK
                 }
             }
-            for(task in taskQueue){
+            for (task in taskQueue) {
                 task.onTaskProcessorEndAction(actionType)
             }
         }
@@ -895,7 +896,7 @@ open class TaskProcessingSystem(
                 shutdown = true
                 // notify the provider of tasks of shutdown
 //                myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.SHUTDOWN)
-                for(task in taskQueue){
+                for (task in taskQueue) {
                     task.onTaskProcessorEndAction(TaskProcessorStatus.SHUTDOWN)
                 }
                 myShutDownEvent = null
@@ -924,7 +925,7 @@ open class TaskProcessingSystem(
                     notifyProviderOfEndAction(nextTask.taskType)
                     afterTaskExecution()
                     //TODO
-                    nextTask.taskDispatcher?.taskCompleted(this@TaskProcessor)
+                    nextTask.taskDispatcher?.dispatchCompleted(this@TaskProcessor, nextTask)
 //                    myDispatcher?.taskCompleted(nextTask)
                     previousTask = nextTask
                     currentTask = null
