@@ -78,7 +78,8 @@ open class TaskProcessingSystem(
 
         fun receive(task: Task) {
             myTaskQueue.enqueue(task)
-            selectProcessor()?.activateProcessor(this)
+            dispatch()
+//            selectProcessor()?.activateProcessor(this)
         }
 
         protected open fun dispatch(){
@@ -86,8 +87,8 @@ open class TaskProcessingSystem(
             if (processor != null) {
                 val nextTask = next()
                 if (nextTask != null){
-                    nextTask.taskProvider = this
- //TODO                   processor.receive(nextTask)
+                    nextTask.taskDispatcher = this
+                    processor.receive(nextTask)
                 }
             }
         }
@@ -116,7 +117,15 @@ open class TaskProcessingSystem(
         /**
          * Called when the task is completed
          */
-        fun taskCompleted(task: Task) {}
+        fun taskCompleted(processor: TaskProcessorIfc) {
+            if (hasNext()){
+                val nextTask = next()
+                if (nextTask != null){
+                    nextTask.taskDispatcher = this
+                    processor.receive(nextTask)
+                }
+            }
+        }
 
         /**
          *  This function is called by task processors that are processing tasks sent by the provider.
@@ -208,7 +217,7 @@ open class TaskProcessingSystem(
         /**
          *  The provider that supplied the task for processing
          */
-        var taskProvider: TaskDispatcher? = null
+        var taskDispatcher: TaskDispatcher? = null
 
         /**
          * The deadline may be used by the task processor to assist with task selection
@@ -506,7 +515,7 @@ open class TaskProcessingSystem(
         //TODO why is this needed
         override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
         //TODO why is this needed
-        private var myTaskProvider: TaskDispatcher? = null
+//        private var myDispatcher: TaskDispatcher? = null
         private var myProcessor: Processor? = null
 
         /**
@@ -580,7 +589,7 @@ open class TaskProcessingSystem(
         fun initialize() {
             resetStates()
             taskQueue.clear()
-            myTaskProvider = null
+//            myDispatcher = null
             myProcessor = null
             previousTask = null
             currentTask = null
@@ -719,9 +728,9 @@ open class TaskProcessingSystem(
             // must be idle thus it can be activated
             // if the incoming task provider is different from the current provider
             // then we can exchange it, otherwise it stays the same
-            if (myTaskProvider != taskProvider) {
-                myTaskProvider = taskProvider
-            }
+//            if (myDispatcher != taskProvider) {
+//                myDispatcher = taskProvider
+//            }
             myProcessor = Processor("Processor_${this.name}")
             activate(myProcessor!!.taskProcessing)
         }
@@ -739,7 +748,10 @@ open class TaskProcessingSystem(
             require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
             myShutDownEvent = schedule(this@TaskProcessor::shutDownAction, timeUntilShutdown)
             // notify the provider of tasks of pending shutdown
-            myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.START_SHUTDOWN)
+//            myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.START_SHUTDOWN)
+            for(task in taskQueue){
+                task.onTaskProcessorStartAction(TaskProcessorStatus.START_SHUTDOWN)
+            }
         }
 
         /**
@@ -749,7 +761,10 @@ open class TaskProcessingSystem(
         override fun cancelShutDown() {
             myShutDownEvent?.cancel = true
             myShutDownEvent = null
-            myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.CANCEL_SHUTDOWN)
+//            myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.CANCEL_SHUTDOWN)
+            for(task in taskQueue){
+                task.onTaskProcessorEndAction(TaskProcessorStatus.CANCEL_SHUTDOWN)
+            }
         }
 
         private fun nextState(task: Task): State {
@@ -780,14 +795,14 @@ open class TaskProcessingSystem(
          *  Indicates true if selectNextTask() results in a non-null task
          */
         override fun hasNextTask(): Boolean {
-            return myTaskProvider?.hasNext() ?: false
+            return taskQueue.peekNext() != null
         }
 
         /**
          *  Finds the next task to work on.  If null, then a new task could not be selected.
          */
         private fun nextTask(): Task? {
-            return myTaskProvider?.next()
+            return taskQueue.removeNext()
         }
 
         private fun notifyTasksOfStartAction(taskType: TaskType){
@@ -825,7 +840,7 @@ open class TaskProcessingSystem(
                 }
             }
 
-            myTaskProvider?.onTaskProcessorAction(this, actionType)
+//            myDispatcher?.onTaskProcessorAction(this, actionType)
         }
 
         private fun notifyTasksOfEndAction(taskType: TaskType){
@@ -861,7 +876,7 @@ open class TaskProcessingSystem(
                     TaskProcessorStatus.END_WORK
                 }
             }
-            myTaskProvider?.onTaskProcessorAction(this, actionType)
+//            myDispatcher?.onTaskProcessorAction(this, actionType)
 
         }
 
@@ -879,7 +894,10 @@ open class TaskProcessingSystem(
             if (!shutdown) {
                 shutdown = true
                 // notify the provider of tasks of shutdown
-                myTaskProvider?.onTaskProcessorAction(this, TaskProcessorStatus.SHUTDOWN)
+//                myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.SHUTDOWN)
+                for(task in taskQueue){
+                    task.onTaskProcessorEndAction(TaskProcessorStatus.SHUTDOWN)
+                }
                 myShutDownEvent = null
             }
         }
@@ -905,7 +923,9 @@ open class TaskProcessingSystem(
                     nextTask.afterTaskCompleted()
                     notifyProviderOfEndAction(nextTask.taskType)
                     afterTaskExecution()
-                    myTaskProvider?.taskCompleted(nextTask)
+                    //TODO
+                    nextTask.taskDispatcher?.taskCompleted(this@TaskProcessor)
+//                    myDispatcher?.taskCompleted(nextTask)
                     previousTask = nextTask
                     currentTask = null
                     // need to catch shutdown that might have occurred during task execution
