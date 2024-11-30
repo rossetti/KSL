@@ -343,7 +343,12 @@ open class TaskProcessingSystem(
          */
         fun activateProcessor(taskProvider: TaskDispatcher)
 
-        //TODO documentation
+        /**
+         *  Receives the task for processing. Enqueues the task and if the
+         *  processor is idle, activates the processor to process tasks.
+         *
+         *  @param task The task that needs executing.
+         */
         fun receive(task: Task)
 
         /**
