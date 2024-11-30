@@ -115,9 +115,7 @@ open class TaskProcessingSystem(
             return myProcessors.firstOrNull { it.isIdle() && !it.isShutDown() }
         }
 
-        protected fun taskCompleted(task: Task) {
-
-        }
+        protected open fun taskCompleted(task: Task) {}
 
         /**
          * Called when the task is completed
@@ -136,52 +134,8 @@ open class TaskProcessingSystem(
          *  @param status the status indicator for the type of action
          */
         fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus) {}
+        //TODO need separate functions by status, protected
     }
-
-    fun interface TaskCompletedIfc {
-        fun taskCompleted(task: Task)
-    }
-
-    fun interface TaskProcessorActionIfc {
-        fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus)
-    }
-
-//    interface TaskDispatcherIfc {
-//
-//        fun receive(task: Task)
-//
-//        /**
-//         *  Checks if the provider has another task
-//         */
-//        fun hasNext(): Boolean
-//
-//        /**
-//         *  Provides the task. Implementors should set the provider of the task
-//         *  before supplying the task.
-//         */
-//        fun next(): Task?
-//
-//        /**
-//         * Called when the task is completed
-//         */
-//        fun taskCompleted(task: Task) {}
-//
-//        /**
-//         *  This function is called by task processors that are processing tasks sent by the provider.
-//         *  Subclasses can provide specific logic to react to the occurrence of the start of a failure,
-//         *  the end of a failure, start of an inactive period, end of an inactive period, and the warning
-//         *  of a shutdown and the shutdown. By default, no reaction occurs.
-//         *  @param taskProcessor the task processor
-//         *  @param status the status indicator for the type of action
-//         */
-//        fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus) {}
-//
-//        fun register(taskProcessor: TaskProcessorIfc)
-//
-//        fun unregister(taskProcessor: TaskProcessorIfc): Boolean
-//
-//        fun selectProcessor() : TaskProcessorIfc?
-//    }
 
     /**
      *  Represents something that must be executed by a TaskProcessor.
