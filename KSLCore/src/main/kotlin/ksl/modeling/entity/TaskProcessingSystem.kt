@@ -918,7 +918,8 @@ open class TaskProcessingSystem(
             val taskProcessing = process("${this.name}_TaskProcessing") {
                 while (hasNextTask() && !shutdown) {
                     val nextTask = nextTask() ?: break
-                    nextTask.taskProcessor = this@TaskProcessor
+                    //TODO this@TaskProcessor is the delegate, not the thing that was registered!!!
+                   //nextTask.taskProcessor = this@TaskProcessor
                     currentTask = nextTask
                     // set the state based on the task type
                     val nextState = nextState(nextTask)
