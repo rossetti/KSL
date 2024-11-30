@@ -76,6 +76,13 @@ open class TaskProcessingSystem(
         val queue: QueueCIfc<Task>
             get() = myTaskQueue
 
+        /**
+         *  Receives tasks and attempts to dispatch them. Selects a processor
+         *  via the selectProcessor() function and then dispatches the task
+         *  to the processor with the dispatch() function.
+         *
+         * @param task The task that needs dispatching
+         */
         fun receive(task: Task) {
             myTaskQueue.enqueue(task)
             val processor = selectProcessor()
@@ -84,9 +91,17 @@ open class TaskProcessingSystem(
             }
         }
 
+        /**
+         *  Called to cause a task to be sent to the supplied processor.
+         *  If the dispatcher has a task for dispatching the task is
+         *  selected via the nextTask() function and then the processor
+         *  is told to receive the task for processing.
+         *
+         *  @param processor the processor to attempt sending a task to
+         */
         protected open fun dispatch(processor: TaskProcessorIfc) {
-            if (hasNext()){
-                val nextTask = next()
+            if (hasTask()) {
+                val nextTask = nextTask()
                 if (nextTask != null) {
                     nextTask.taskDispatcher = this
                     processor.receive(nextTask)
@@ -94,34 +109,69 @@ open class TaskProcessingSystem(
             }
         }
 
-        fun hasNext(): Boolean {
+        /**
+         *  @return true if there is a task ready for dispatching
+         */
+        fun hasTask(): Boolean {
             return myTaskQueue.peekNext() != null
         }
 
-        protected open fun next(): Task? {
+        /**
+         *  @return the task that should be dispatched or null if no task is ready
+         */
+        protected open fun nextTask(): Task? {
             return myTaskQueue.removeNext()
         }
 
+        /** Registers the processor to receive tasks that are dispatched by
+         * the dispatcher.
+         *
+         * @param taskProcessor the processor that should be registered
+         */
         fun register(taskProcessor: TaskProcessorIfc) {
             require(!myProcessors.contains(taskProcessor)) { "The task processor, ${taskProcessor}, is already registered with dispatcher, $name" }
             myProcessors.add(taskProcessor)
+            println("registered the task processor $taskProcessor with dispatcher, ${this.name}")
         }
 
+        /**
+         *  Unregisters the processor so that it no longer receives tasks from the dispatcher.
+         *
+         *  @param taskProcessor the processor that should be unregistered
+         */
         fun unregister(taskProcessor: TaskProcessorIfc): Boolean {
             return myProcessors.remove(taskProcessor)
         }
 
+        /**
+         *  Selects a processor to receive that next task to be dispatched.
+         *  The default is to select the first processor that is idle and is not shutdown.
+         *  Idle implies that the processor is not failed (in-repair), busy, or inactive.
+         *
+         * @return the processor that should next receive tasks
+         */
         protected open fun selectProcessor(): TaskProcessorIfc? {
             return myProcessors.firstOrNull { it.isIdle() && !it.isShutDown() }
         }
 
+        /**
+         *  Called when a formally dispatched task is completed.
+         *  @param task the completed task
+         */
         protected open fun taskCompleted(task: Task) {}
 
         /**
-         * Called when the task is completed
+         * Called (internally) by the processor when a formally dispatched task is completed.
+         * @param processor the processor that completed the task
+         * @param task the task that was completed.
          */
         internal fun dispatchCompleted(processor: TaskProcessorIfc, task: Task) {
+            require(myProcessors.contains(processor)) {"The processor $processor is not associated with dispatcher, ${this.name}"}
+            //TODO it is not being found because the processor is the delegate not the original
             dispatch(processor)
+//            if (myProcessors.contains(processor)){
+//                dispatch(processor)
+//            }
             taskCompleted(task)
         }
 
@@ -197,6 +247,8 @@ open class TaskProcessingSystem(
          *  is notified of completion
          */
         open fun afterTaskCompleted() {}
+
+        //TODO need to consider functional actions
 
         /**
          *  This function is called when the task's associated processor is starting a processor action.
@@ -471,7 +523,7 @@ open class TaskProcessingSystem(
 
         //TODO why is this needed
 //        private var myDispatcher: TaskDispatcher? = null
-        private var myProcessor: Processor? = null
+        private var myProcessingEntity: ProcessingEntity? = null
 
         /**
          *  The task that the processor is currently executing
@@ -545,7 +597,7 @@ open class TaskProcessingSystem(
             resetStates()
             taskQueue.clear()
 //            myDispatcher = null
-            myProcessor = null
+            myProcessingEntity = null
             previousTask = null
             currentTask = null
             shutdown = false
@@ -664,8 +716,8 @@ open class TaskProcessingSystem(
             taskQueue.enqueue(task)
             task.taskProcessor = this
             if (isIdle()) {
-                myProcessor = Processor("Processor_${this.name}")
-                activate(myProcessor!!.taskProcessing)
+                myProcessingEntity = ProcessingEntity("ProcessingEntity_${this.name}")
+                activate(myProcessingEntity!!.taskProcessing)
             }
         }
 
@@ -686,8 +738,8 @@ open class TaskProcessingSystem(
 //            if (myDispatcher != taskProvider) {
 //                myDispatcher = taskProvider
 //            }
-            myProcessor = Processor("Processor_${this.name}")
-            activate(myProcessor!!.taskProcessing)
+            myProcessingEntity = ProcessingEntity("Processor_${this.name}")
+            activate(myProcessingEntity!!.taskProcessing)
         }
 
         /**
@@ -857,7 +909,7 @@ open class TaskProcessingSystem(
             }
         }
 
-        private inner class Processor(name: String?) : Entity(name) {
+        private inner class ProcessingEntity(name: String?) : Entity(name) {
 
             /**
              *  Describes how to process a task. If there are tasks, a new task
@@ -889,7 +941,7 @@ open class TaskProcessingSystem(
                     }
                 }
                 changeState(myIdleState)
-                myProcessor = null
+                myProcessingEntity = null
             }
         }
     }
