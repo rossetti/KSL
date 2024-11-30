@@ -269,6 +269,11 @@ open class TaskProcessingSystem(
         open fun onTaskProcessorEndAction(status: TaskProcessorStatus) {}
     }
 
+    /**
+     *  Simple delay task to represent work being done.
+     *
+     *  @param workTime the time to do the work
+     */
     inner class WorkTask(
         var workTime: GetValueIfc
     ) : Task(TaskType.WORK) {
@@ -280,17 +285,25 @@ open class TaskProcessingSystem(
         }
     }
 
+    /**
+     *  Simple delay task to represent repair being done.
+     *  @param repairTime the time down to complete the repair
+     */
     inner class RepairTask(
-        var downTime: GetValueIfc
+        var repairTime: GetValueIfc
     ) : Task(TaskType.REPAIR) {
 
-        constructor(downTime: Double) : this(ConstantValue(downTime))
+        constructor(repairTime: Double) : this(ConstantValue(repairTime))
 
         override val taskProcess: KSLProcess = process {
-            delay(downTime)
+            delay(repairTime)
         }
     }
 
+    /**
+     *  Simple delay to represent a break period for a processor.
+     *  @param awayTime the time away for the break.
+     */
     inner class InactiveTask(
         var awayTime: GetValueIfc
     ) : Task(TaskType.BREAK) {
@@ -302,6 +315,7 @@ open class TaskProcessingSystem(
         }
     }
 
+    //TODO extract performance out to its own class
     /**
      *  An interface for reporting task processor performance.
      */
@@ -316,6 +330,7 @@ open class TaskProcessingSystem(
         val numTimesInactiveResponse: ResponseCIfc
     }
 
+    //TODO need to add some queue functionality
     interface TaskProcessorIfc {
         val taskProcessingSystem: TaskProcessingSystem //TODO??
 
