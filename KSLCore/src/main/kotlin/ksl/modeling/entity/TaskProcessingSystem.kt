@@ -909,25 +909,6 @@ open class TaskProcessingSystem(
             }
         }
 
-        private fun notifyProviderOfStartAction(taskType: TaskType) {
-
-            val actionType = when (taskType) {
-                TaskType.BREAK -> {
-                    TaskProcessorStatus.START_INACTIVE
-                }
-
-                TaskType.REPAIR -> {
-                    TaskProcessorStatus.START_FAILURE
-                }
-
-                TaskType.WORK -> {
-                    TaskProcessorStatus.START_WORK
-                }
-            }
-
-//            myDispatcher?.onTaskProcessorAction(this, actionType)
-        }
-
         private fun notifyTasksOfEndAction(taskType: TaskType) {
             val actionType = when (taskType) {
                 TaskType.BREAK -> {
@@ -945,24 +926,6 @@ open class TaskProcessingSystem(
             for (task in taskQueue) {
                 task.onTaskProcessorEndAction(actionType)
             }
-        }
-
-        private fun notifyProviderOfEndAction(taskType: TaskType) {
-            val actionType = when (taskType) {
-                TaskType.BREAK -> {
-                    TaskProcessorStatus.END_INACTIVE
-                }
-
-                TaskType.REPAIR -> {
-                    TaskProcessorStatus.END_FAILURE
-                }
-
-                TaskType.WORK -> {
-                    TaskProcessorStatus.END_WORK
-                }
-            }
-//            myDispatcher?.onTaskProcessorAction(this, actionType)
-
         }
 
         private fun shutDownAction(event: KSLEvent<Nothing>) {
@@ -1003,11 +966,11 @@ open class TaskProcessingSystem(
                     val nextState = nextState(nextTask)
                     changeState(nextState)
                     beforeTaskExecution()
-                    notifyProviderOfStartAction(nextTask.taskType)
+                    notifyTasksOfStartAction(nextTask.taskType)
                     nextTask.beforeTaskStart()
                     waitFor(nextTask.taskProcess)
                     nextTask.afterTaskCompleted()
-                    notifyProviderOfEndAction(nextTask.taskType)
+                    notifyTasksOfEndAction(nextTask.taskType)
                     afterTaskExecution()
                     //TODO
                     nextTask.taskDispatcher?.dispatchCompleted(this@TaskProcessor, nextTask)
