@@ -89,6 +89,7 @@ open class TaskProcessingSystem(
             if (processor != null) {
                 dispatch(processor)
             }
+//            selectProcessor()?.activateProcessor(this)
         }
 
         /**
@@ -190,6 +191,43 @@ open class TaskProcessingSystem(
         fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus)
     }
 
+//    interface TaskDispatcherIfc {
+//
+//        fun receive(task: Task)
+//
+//        /**
+//         *  Checks if the provider has another task
+//         */
+//        fun hasNext(): Boolean
+//
+//        /**
+//         *  Provides the task. Implementors should set the provider of the task
+//         *  before supplying the task.
+//         */
+//        fun next(): Task?
+//
+//        /**
+//         * Called when the task is completed
+//         */
+//        fun taskCompleted(task: Task) {}
+//
+//        /**
+//         *  This function is called by task processors that are processing tasks sent by the provider.
+//         *  Subclasses can provide specific logic to react to the occurrence of the start of a failure,
+//         *  the end of a failure, start of an inactive period, end of an inactive period, and the warning
+//         *  of a shutdown and the shutdown. By default, no reaction occurs.
+//         *  @param taskProcessor the task processor
+//         *  @param status the status indicator for the type of action
+//         */
+//        fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus) {}
+//
+//        fun register(taskProcessor: TaskProcessorIfc)
+//
+//        fun unregister(taskProcessor: TaskProcessorIfc): Boolean
+//
+//        fun selectProcessor() : TaskProcessorIfc?
+//    }
+
     /**
      *  Represents something that must be executed by a TaskProcessor.
      *  @param taskType the type of task
@@ -251,7 +289,6 @@ open class TaskProcessingSystem(
          */
         open fun afterTaskCompleted() {}
 
-        //TODO consider functional delegation
         /**
          *  This function is called when the task's associated processor is starting a processor action.
          *  The task is only notified if it is waiting for the processor and not yet executing.
@@ -271,11 +308,6 @@ open class TaskProcessingSystem(
         open fun onTaskProcessorEndAction(status:TaskProcessorStatus) {}
     }
 
-    /**
-     *  A task to represent a simple delay for working.
-     *
-     * @param workTime the time to spend working
-     */
     inner class WorkTask(
         var workTime: GetValueIfc
     ) : Task(TaskType.WORK) {
@@ -287,12 +319,6 @@ open class TaskProcessingSystem(
         }
     }
 
-    /**
-     *  A task representing a simple delay for repair. The processor executing this task
-     *  will be considered as being under repair (that is, failed).
-     *
-     *  @param downTime the time spent down for repair.
-     */
     inner class RepairTask(
         var downTime: GetValueIfc
     ) : Task(TaskType.REPAIR) {
@@ -304,12 +330,6 @@ open class TaskProcessingSystem(
         }
     }
 
-    /**
-     *  A task representing a simple delay for scheduled inactivity. The processor executing this task
-     *  will be considered as being on break (that is, inactive/unavailable).
-     *
-     *  @param awayTime the time spent away being inactive.
-     */
     inner class InactiveTask(
         var awayTime: GetValueIfc
     ) : Task(TaskType.BREAK) {
@@ -321,10 +341,6 @@ open class TaskProcessingSystem(
         }
     }
 
-    /**
-     *  An interface to represent statistics that might be captured about the performance
-     *  of a task processor.
-     */
     interface TaskProcessorPerformanceIfc {
         val fractionTimeBusyResponse: ResponseCIfc
         val numTimesBusyResponse: ResponseCIfc
@@ -336,12 +352,7 @@ open class TaskProcessingSystem(
         val numTimesInactiveResponse: ResponseCIfc
     }
 
-    /**
-     *  A general interface for things that act as task processors.
-     */
     interface TaskProcessorIfc {
-        //TODO consider adding information about the task queue
-
         val taskProcessingSystem: TaskProcessingSystem //TODO??
         val idleState: StateAccessorIfc
         val busyState: StateAccessorIfc
@@ -376,15 +387,15 @@ open class TaskProcessingSystem(
             return !isShutDown()
         }
 
-//        /**
-//         *  Causes the task processor to be activated and to start processing tasks from the supplied
-//         *  task provider. The task provider must not be shutdown and must be idle in order to be
-//         *  activated. The task processor will continue to execute tasks from the provider as long
-//         *  as the provider can supply them.
-//         *
-//         * @param taskProvider the task provider from which tasks will be pulled after activation
-//         */
-//        fun activateProcessor(taskProvider: TaskDispatcher)
+        /**
+         *  Causes the task processor to be activated and to start processing tasks from the supplied
+         *  task provider. The task provider must not be shutdown and must be idle in order to be
+         *  activated. The task processor will continue to execute tasks from the provider as long
+         *  as the provider can supply them.
+         *
+         * @param taskProvider the task provider from which tasks will be pulled after activation
+         */
+        fun activateProcessor(taskProvider: TaskDispatcher)
 
         /**
          *  Receives the task for processing. Enqueues the task and if the
@@ -748,26 +759,26 @@ open class TaskProcessingSystem(
             }
         }
 
-//        /**
-//         *  Causes the task processor to be activated and to start processing tasks from the supplied
-//         *  task provider. The task provider must not be shutdown and must be idle in order to be
-//         *  activated. The task processor will continue to execute tasks from the provider as long
-//         *  as the provider can supply them.
-//         *
-//         * @param taskProvider the task provider from which tasks will be pulled after activation
-//         */
-//        override fun activateProcessor(taskProvider: TaskDispatcher) {
-//            require(!shutdown) { "${this.name} Task Processor: cannot be activated because it is shutdown!" }
-//            require(isIdle()) { "${this.name} Task Processor: cannot be activated because it is not idle!" }
-//            // must be idle thus it can be activated
-//            // if the incoming task provider is different from the current provider
-//            // then we can exchange it, otherwise it stays the same
-////            if (myDispatcher != taskProvider) {
-////                myDispatcher = taskProvider
-////            }
-//            myProcessor = Processor("Processor_${this.name}")
-//            activate(myProcessor!!.taskProcessing)
-//        }
+        /**
+         *  Causes the task processor to be activated and to start processing tasks from the supplied
+         *  task provider. The task provider must not be shutdown and must be idle in order to be
+         *  activated. The task processor will continue to execute tasks from the provider as long
+         *  as the provider can supply them.
+         *
+         * @param taskProvider the task provider from which tasks will be pulled after activation
+         */
+        override fun activateProcessor(taskProvider: TaskDispatcher) {
+            require(!shutdown) { "${this.name} Task Processor: cannot be activated because it is shutdown!" }
+            require(isIdle()) { "${this.name} Task Processor: cannot be activated because it is not idle!" }
+            // must be idle thus it can be activated
+            // if the incoming task provider is different from the current provider
+            // then we can exchange it, otherwise it stays the same
+//            if (myDispatcher != taskProvider) {
+//                myDispatcher = taskProvider
+//            }
+            myProcessor = Processor("Processor_${this.name}")
+            activate(myProcessor!!.taskProcessing)
+        }
 
         /**
          *  Causes a shutdown event to be scheduled for the supplied time. The shutdown event is scheduled
