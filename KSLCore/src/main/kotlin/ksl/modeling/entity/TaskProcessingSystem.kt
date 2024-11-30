@@ -166,7 +166,7 @@ open class TaskProcessingSystem(
          * @param task the task that was completed.
          */
         internal fun dispatchCompleted(processor: TaskProcessorIfc, task: Task) {
-            require(myProcessors.contains(processor)) {"The processor $processor is not associated with dispatcher, ${this.name}"}
+//            require(myProcessors.contains(processor)) {"The processor $processor is not associated with dispatcher, ${this.name}"}
             //TODO it is not being found because the processor is the delegate not the original
             dispatch(processor)
 //            if (myProcessors.contains(processor)){
@@ -315,48 +315,140 @@ open class TaskProcessingSystem(
 
     interface TaskProcessorIfc {
         val taskProcessingSystem: TaskProcessingSystem //TODO??
+
+        /**
+         *  Allows access to accumulated state (idle) usage.
+         */
         val idleState: StateAccessorIfc
+        /**
+         *  Allows access to accumulated state (busy) usage.
+         */
         val busyState: StateAccessorIfc
+        /**
+         *  Allows access to accumulated state (in-repair) usage.
+         */
         val inRepairState: StateAccessorIfc
+        /**
+         *  Allows access to accumulated state (inactive) usage.
+         */
         val inactiveState: StateAccessorIfc
+        /**
+         *  Allows access to accumulated state (current) usage.
+         */
         val currentState: StateAccessorIfc
 
+        /**
+         *  Indicates if a shutdown has been scheduled.
+         */
         val isShutdownPending: Boolean
-        val timeUntilShutdown: Double
-        val timeOfShutDown: Double
-        val numTimesRepaired: Double
-        val numTimesInactive: Double
-        val numTimesIdle: Double
-        val numTimesBusy: Double
-        val totalIdleTime: Double
-        val totalBusyTime: Double
-        val totalFailedTime: Double
-        val totalInactiveTime: Double
-        val totalCycleTime: Double
-        val fractionTimeIdle: Double
-        val fractionTimeBusy: Double
-        val fractionTimeInactive: Double
-        val fractionTimeFailed: Double
 
+        /**
+         * The time until a shutdown or infinity.
+         */
+        val timeUntilShutdown: Double
+
+        /**
+         *  The time of the shutdown or infinity.
+         */
+        val timeOfShutDown: Double
+
+        /**
+         *  The number of times the processor has completed repair.
+         */
+        val numTimesRepaired: Double
+
+        /**
+         * The number of times that the processor has completed inactive periods.
+         */
+        val numTimesInactive: Double
+
+        /**
+         *  The number of times that the processor has completed an idle period.
+         */
+        val numTimesIdle: Double
+
+        /**
+         *  The number of times that the processor has exited the busy state.
+         */
+        val numTimesBusy: Double
+
+        /**
+         *  The total time up to the current time that the processor has been idle.
+         */
+        val totalIdleTime: Double
+        /**
+         *  The total time up to the current time that the processor has been busy.
+         */
+        val totalBusyTime: Double
+        /**
+         *  The total time up to the current time that the processor has been in the repaired state.
+         */
+        val totalInRepairTime: Double
+        /**
+         *  The total time up to the current time that the processor has been in the inactive state.
+         */
+        val totalInactiveTime: Double
+        /**
+         *  The total time up to the current time that the processor has been in any state.
+         */
+        val totalCycleTime: Double
+
+        /**
+         *  The fraction of time up to the current time that the processor has been in the idle state.
+         */
+        val fractionTimeIdle: Double
+
+        /**
+         *  The fraction of time up to the current time that the processor has been in the busy state.
+         */
+        val fractionTimeBusy: Double
+
+        /**
+         *  The fraction of time up to the current time that the processor has been in the active state.
+         */
+        val fractionTimeInactive: Double
+
+        /**
+         *  The fraction of time up to the current time that the processor has been in the in-repair state.
+         */
+        val fractionTimeInRepair: Double
+
+        /**
+         *  Causes the accumulated state information to be reset.
+         */
         fun resetStates()
+
+        /**
+         *  Indicates if the processor is in the busy state.
+         */
         fun isBusy(): Boolean
-        fun isFailed(): Boolean
+
+        /**
+         *  Indicates if the processor is in the in-repair state.
+         */
+        fun isInRepair(): Boolean
+
+        /**
+         *  Indicates if the processor is in the idle state.
+         */
         fun isIdle(): Boolean
+
+        /**
+         *  Indicates if the processor is in the inactive state.
+         */
         fun isInactive(): Boolean
+
+        /**
+         *  Indicates if the processor has been shutdown.
+         */
         fun isShutDown(): Boolean
+
+        /**
+         *  Indicates if the processor has not been shutdown.
+         */
         fun isNotShutDown(): Boolean {
             return !isShutDown()
         }
-
-        /**
-         *  Causes the task processor to be activated and to start processing tasks from the supplied
-         *  task provider. The task provider must not be shutdown and must be idle in order to be
-         *  activated. The task processor will continue to execute tasks from the provider as long
-         *  as the provider can supply them.
-         *
-         * @param taskProvider the task provider from which tasks will be pulled after activation
-         */
-        fun activateProcessor(taskProvider: TaskDispatcher)
 
         /**
          *  Receives the task for processing. Enqueues the task and if the
@@ -494,7 +586,7 @@ open class TaskProcessingSystem(
             if (allPerformance) {
                 myFractionIdleTime.value = taskProcessor.fractionTimeIdle
                 myNumTimesIdle.value = taskProcessor.numTimesIdle
-                myFractionInRepairTime.value = taskProcessor.fractionTimeFailed
+                myFractionInRepairTime.value = taskProcessor.fractionTimeInRepair
                 myNumTimesRepaired.value = taskProcessor.numTimesRepaired
                 myFractionInactiveTime.value = taskProcessor.fractionTimeInactive
                 myNumTimesInactive.value = taskProcessor.numTimesInactive
@@ -618,7 +710,7 @@ open class TaskProcessingSystem(
             return myCurrentState === myBusyState
         }
 
-        override fun isFailed(): Boolean {
+        override fun isInRepair(): Boolean {
             return myCurrentState === myInRepairState
         }
 
@@ -654,9 +746,9 @@ open class TaskProcessingSystem(
                 return myBusyState.totalTimeInState + st
             }
 
-        override val totalFailedTime: Double
+        override val totalInRepairTime: Double
             get() {
-                val st = if (isFailed()) time - myInRepairState.timeStateEntered else 0.0
+                val st = if (isInRepair()) time - myInRepairState.timeStateEntered else 0.0
                 return myInRepairState.totalTimeInState + st
             }
 
@@ -667,7 +759,7 @@ open class TaskProcessingSystem(
             }
 
         override val totalCycleTime: Double
-            get() = totalIdleTime + totalBusyTime + totalFailedTime + totalInactiveTime
+            get() = totalIdleTime + totalBusyTime + totalInRepairTime + totalInactiveTime
 
         override val fractionTimeIdle: Double
             get() {
@@ -696,13 +788,13 @@ open class TaskProcessingSystem(
                 return totalInactiveTime / tt
             }
 
-        override val fractionTimeFailed: Double
+        override val fractionTimeInRepair: Double
             get() {
                 val tt = totalCycleTime
                 if (tt == 0.0) {
                     return Double.NaN
                 }
-                return totalFailedTime / tt
+                return totalInRepairTime / tt
             }
 
         /**
@@ -719,27 +811,6 @@ open class TaskProcessingSystem(
                 myProcessingEntity = ProcessingEntity("ProcessingEntity_${this.name}")
                 activate(myProcessingEntity!!.taskProcessing)
             }
-        }
-
-        /**
-         *  Causes the task processor to be activated and to start processing tasks from the supplied
-         *  task provider. The task provider must not be shutdown and must be idle in order to be
-         *  activated. The task processor will continue to execute tasks from the provider as long
-         *  as the provider can supply them.
-         *
-         * @param taskProvider the task provider from which tasks will be pulled after activation
-         */
-        override fun activateProcessor(taskProvider: TaskDispatcher) {
-            require(!shutdown) { "${this.name} Task Processor: cannot be activated because it is shutdown!" }
-            require(isIdle()) { "${this.name} Task Processor: cannot be activated because it is not idle!" }
-            // must be idle thus it can be activated
-            // if the incoming task provider is different from the current provider
-            // then we can exchange it, otherwise it stays the same
-//            if (myDispatcher != taskProvider) {
-//                myDispatcher = taskProvider
-//            }
-            myProcessingEntity = ProcessingEntity("Processor_${this.name}")
-            activate(myProcessingEntity!!.taskProcessing)
         }
 
         /**
