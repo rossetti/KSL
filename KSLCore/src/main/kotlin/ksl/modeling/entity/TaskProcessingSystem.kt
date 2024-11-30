@@ -387,6 +387,16 @@ open class TaskProcessingSystem(
             return !isShutDown()
         }
 
+//        /**
+//         *  Causes the task processor to be activated and to start processing tasks from the supplied
+//         *  task provider. The task provider must not be shutdown and must be idle in order to be
+//         *  activated. The task processor will continue to execute tasks from the provider as long
+//         *  as the provider can supply them.
+//         *
+//         * @param taskProvider the task provider from which tasks will be pulled after activation
+//         */
+//        fun activateProcessor(taskProvider: TaskDispatcher)
+
         /**
          *  Causes the task processor to be activated and to start processing tasks from the supplied
          *  task provider. The task provider must not be shutdown and must be idle in order to be
@@ -758,6 +768,27 @@ open class TaskProcessingSystem(
                 activate(myProcessor!!.taskProcessing)
             }
         }
+
+//        /**
+//         *  Causes the task processor to be activated and to start processing tasks from the supplied
+//         *  task provider. The task provider must not be shutdown and must be idle in order to be
+//         *  activated. The task processor will continue to execute tasks from the provider as long
+//         *  as the provider can supply them.
+//         *
+//         * @param taskProvider the task provider from which tasks will be pulled after activation
+//         */
+//        override fun activateProcessor(taskProvider: TaskDispatcher) {
+//            require(!shutdown) { "${this.name} Task Processor: cannot be activated because it is shutdown!" }
+//            require(isIdle()) { "${this.name} Task Processor: cannot be activated because it is not idle!" }
+//            // must be idle thus it can be activated
+//            // if the incoming task provider is different from the current provider
+//            // then we can exchange it, otherwise it stays the same
+////            if (myDispatcher != taskProvider) {
+////                myDispatcher = taskProvider
+////            }
+//            myProcessor = Processor("Processor_${this.name}")
+//            activate(myProcessor!!.taskProcessing)
+//        }
 
         /**
          *  Causes the task processor to be activated and to start processing tasks from the supplied
