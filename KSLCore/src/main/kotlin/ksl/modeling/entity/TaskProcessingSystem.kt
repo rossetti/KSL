@@ -76,16 +76,31 @@ open class TaskProcessingSystem(
         val queue: QueueCIfc<Task>
             get() = myTaskQueue
 
+        /**
+         *  Receives tasks for dispatching to processors. Selects a processor for dispatching
+         *  according to the selectProcessor() function and if a processor is found
+         *  dispatches the task using the dispatch() function.
+         *
+         *  @param task the task that needs dispatching
+         */
         fun receive(task: Task) {
             myTaskQueue.enqueue(task)
-            dispatch()
+            val processor = selectProcessor()
+            if (processor != null) {
+                dispatch(processor)
+            }
 //            selectProcessor()?.activateProcessor(this)
         }
 
-        protected open fun dispatch(){
-            val processor = selectProcessor()
-            if (processor != null) {
-                val nextTask = next()
+        /**
+         *  Checks if there is a task that needs dispatching and if so
+         *  dispatches it to the supplied processor.
+         *
+         *  @param processor the processor to send the next task to
+         */
+        protected open fun dispatch(processor: TaskProcessorIfc){
+            if (hasTask()){
+                val nextTask = nextTask()
                 if (nextTask != null){
                     nextTask.taskDispatcher = this
                     processor.receive(nextTask)
@@ -93,38 +108,66 @@ open class TaskProcessingSystem(
             }
         }
 
-        fun hasNext(): Boolean {
+        /**
+         *  Determines if there is a task that needs dispatching.
+         *  Returns true if there is a task that needs dispatching.
+         */
+        fun hasTask(): Boolean {
             return myTaskQueue.peekNext() != null
         }
 
-        protected open fun next(): Task? {
+        /**
+         *  Returns the next task that needs dispatching or null
+         *  if no task is available for dispatching.
+         */
+        protected open fun nextTask(): Task? {
             return myTaskQueue.removeNext()
         }
 
+        /**
+         *  Registers the supplied task processor as a possible processor for
+         *  dispatches.
+         *
+         *  @param taskProcessor the task processor to register
+         */
         fun register(taskProcessor: TaskProcessorIfc) {
             require(!myProcessors.contains(taskProcessor)) {"The task processor, ${taskProcessor}, is already registered with dispatcher, $name"}
             myProcessors.add(taskProcessor)
         }
 
+        /** Causes the supplied task processor to no longer be considered for
+         *  dispatching.
+         *  @param taskProcessor the task processor to unregister
+         */
         fun unregister(taskProcessor: TaskProcessorIfc) : Boolean {
             return myProcessors.remove(taskProcessor)
         }
 
+        /**
+         *  Selects a task processor for dispatching. The default behavior is to
+         *  select the first processor that is idle and not shutdown. A task
+         *  processor is idle if it is not failed or not inactive.
+         */
         protected open fun selectProcessor(): TaskProcessorIfc? {
             return myProcessors.firstOrNull { it.isIdle() && !it.isShutDown() }
         }
 
         /**
-         * Called when the task is completed
+         *  Called when a dispatched task is completed. The default behavior is
+         *  to do nothing.
          */
-        fun taskCompleted(processor: TaskProcessorIfc) {
-            if (hasNext()){
-                val nextTask = next()
-                if (nextTask != null){
-                    nextTask.taskDispatcher = this
-                    processor.receive(nextTask)
-                }
+        protected fun taskCompleted(task: Task) {}
+
+        /**
+         * Called when a dispatched task is completed by the processor
+         */
+        internal fun dispatchCompleted(processor: TaskProcessorIfc, task: Task) {
+            // handle the possibility that the processor was unregistered during the
+            // execution of the task.
+            if (myProcessors.contains(processor)){
+                dispatch(processor)
             }
+            taskCompleted(task)
         }
 
         /**
@@ -132,10 +175,12 @@ open class TaskProcessingSystem(
          *  Subclasses can provide specific logic to react to the occurrence of the start of a failure,
          *  the end of a failure, start of an inactive period, end of an inactive period, and the warning
          *  of a shutdown and the shutdown. By default, no reaction occurs.
-         *  @param taskProcessor the task processor
+         *  @param processor the task processor
          *  @param status the status indicator for the type of action
          */
-        fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus) {}
+        fun onTaskProcessorAction(processor: TaskProcessor, status: TaskProcessorStatus) {}
+        //TODO consider unregistering processors that shutdown
+        //TODO consider protected methods to handle the cases and making onTaskProcessorAction() internal
     }
 
     fun interface TaskCompletedIfc {
@@ -924,7 +969,7 @@ open class TaskProcessingSystem(
                     notifyProviderOfEndAction(nextTask.taskType)
                     afterTaskExecution()
                     //TODO
-                    nextTask.taskDispatcher?.taskCompleted(this@TaskProcessor)
+                    nextTask.taskDispatcher?.dispatchCompleted(this@TaskProcessor, nextTask)
 //                    myDispatcher?.taskCompleted(nextTask)
                     previousTask = nextTask
                     currentTask = null
