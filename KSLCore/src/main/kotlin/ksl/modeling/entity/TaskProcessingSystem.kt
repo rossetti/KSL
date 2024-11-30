@@ -81,11 +81,22 @@ open class TaskProcessingSystem(
             selectProcessor()?.activateProcessor(this)
         }
 
+        protected open fun dispatch(){
+            val processor = selectProcessor()
+            if (processor != null) {
+                val nextTask = next()
+                if (nextTask != null){
+                    nextTask.taskProvider = this
+ //TODO                   processor.receive(nextTask)
+                }
+            }
+        }
+
         fun hasNext(): Boolean {
             return myTaskQueue.peekNext() != null
         }
 
-        fun next(): Task? {
+        protected open fun next(): Task? {
             return myTaskQueue.removeNext()
         }
 
@@ -98,7 +109,7 @@ open class TaskProcessingSystem(
             return myProcessors.remove(taskProcessor)
         }
 
-        protected fun selectProcessor(): TaskProcessorIfc? {
+        protected open fun selectProcessor(): TaskProcessorIfc? {
             return myProcessors.firstOrNull { it.isIdle() && !it.isShutDown() }
         }
 
