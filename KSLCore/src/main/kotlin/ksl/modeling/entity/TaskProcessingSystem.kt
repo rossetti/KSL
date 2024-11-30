@@ -397,6 +397,7 @@ open class TaskProcessingSystem(
 //         */
 //        fun activateProcessor(taskProvider: TaskDispatcher)
 
+<<<<<<< HEAD
         /**
          *  Causes the task processor to be activated and to start processing tasks from the supplied
          *  task provider. The task provider must not be shutdown and must be idle in order to be
@@ -407,6 +408,8 @@ open class TaskProcessingSystem(
          */
         fun activateProcessor(taskProvider: TaskDispatcher)
 
+=======
+>>>>>>> parent of 7b992d0c (Update TaskProcessingSystem.kt)
         /**
          *  Receives the task for processing. Enqueues the task and if the
          *  processor is idle, activates the processor to process tasks.
@@ -790,6 +793,7 @@ open class TaskProcessingSystem(
 //            activate(myProcessor!!.taskProcessing)
 //        }
 
+<<<<<<< HEAD
         /**
          *  Causes the task processor to be activated and to start processing tasks from the supplied
          *  task provider. The task provider must not be shutdown and must be idle in order to be
@@ -811,6 +815,8 @@ open class TaskProcessingSystem(
             activate(myProcessor!!.taskProcessing)
         }
 
+=======
+>>>>>>> parent of 7b992d0c (Update TaskProcessingSystem.kt)
         /**
          *  Causes a shutdown event to be scheduled for the supplied time. The shutdown event is scheduled
          *  and the current task provider is notified of the pending shutdown. This allows the
