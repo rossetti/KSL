@@ -302,6 +302,9 @@ open class TaskProcessingSystem(
         }
     }
 
+    /**
+     *  An interface for reporting task processor performance.
+     */
     interface TaskProcessorPerformanceIfc {
         val fractionTimeBusyResponse: ResponseCIfc
         val numTimesBusyResponse: ResponseCIfc
@@ -481,6 +484,10 @@ open class TaskProcessingSystem(
         fun hasNextTask(): Boolean
     }
 
+    /**
+     *  A task queue can hold tasks for a processor. This class
+     *  does not collect queueing statistics.
+     */
     inner class TaskQueue : QueueIfc<Task> {
 
         private val myTaskList = mutableListOf<Task>()
