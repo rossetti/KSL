@@ -27,8 +27,8 @@ open class TaskProcessingSystem(
 
     enum class TaskType { WORK, REPAIR, BREAK }
 
-    private val myTaskProcessors = mutableMapOf<String, TransientTaskProcessor>()
-    val taskProcessors: Map<String, TransientTaskProcessor>
+    private val myTaskProcessors = mutableMapOf<String, TaskProcessorIfc>()
+    val taskProcessors: Map<String, TaskProcessorIfc>
         get() = myTaskProcessors
 
     /**
@@ -166,7 +166,6 @@ open class TaskProcessingSystem(
          */
         internal fun dispatchCompleted(processor: TaskProcessorIfc, task: Task) {
             require(myProcessors.contains(processor)) {"The processor $processor is not associated with dispatcher, ${this.name}"}
-            //TODO it is not being found because the processor is the delegate not the original
             dispatch(processor)
             taskCompleted(task)
         }
@@ -179,8 +178,9 @@ open class TaskProcessingSystem(
          *  @param taskProcessor the task processor
          *  @param status the status indicator for the type of action
          */
-        fun onTaskProcessorAction(taskProcessor: TransientTaskProcessor, status: TaskProcessorStatus) {}
+        fun onTaskProcessorAction(taskProcessor: TaskProcessorIfc, status: TaskProcessorStatus) {}
         //TODO need separate functions by status, protected
+        //TODO consider initializing registered transient processors
     }
 
     /**
@@ -313,9 +313,11 @@ open class TaskProcessingSystem(
 
     //TODO extract performance out to its own class
 
-    //TODO need to add some queue functionality
+    /**
+     *  An interface to represent the general concept of a task processor.
+     *  A task processor is something that receives tasks and executes them.
+     */
     interface TaskProcessorIfc {
-        val taskProcessingSystem: TaskProcessingSystem //TODO??
 
         /**
          *  Allows access to accumulated state (idle) usage.
@@ -611,8 +613,6 @@ open class TaskProcessingSystem(
             myTaskProcessor.resetStates()
         }
 
-        override val taskProcessingSystem: TaskProcessingSystem
-            get() = myTaskProcessor.taskProcessingSystem
         override val idleState: StateAccessorIfc
             get() = myTaskProcessor.idleState
         override val busyState: StateAccessorIfc
@@ -713,9 +713,6 @@ open class TaskProcessingSystem(
         name: String? = null,
         private val taskQueue: QueueIfc<Task> = TaskQueue()
     ) : TaskProcessorIfc, IdentityIfc by Identity(name) {
-
-        //TODO why is this needed
-        override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
 
         /**
          *  The internal entity used to run processes for the processor.
