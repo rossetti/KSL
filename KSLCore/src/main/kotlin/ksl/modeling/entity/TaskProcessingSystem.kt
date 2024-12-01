@@ -131,7 +131,6 @@ open class TaskProcessingSystem(
         fun register(taskProcessor: TaskProcessorIfc) {
             require(!myProcessors.contains(taskProcessor)) { "The task processor, ${taskProcessor}, is already registered with dispatcher, $name" }
             myProcessors.add(taskProcessor)
-            println("registered the task processor $taskProcessor with dispatcher, ${this.name}")
         }
 
         /**
