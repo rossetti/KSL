@@ -27,8 +27,8 @@ open class TaskProcessingSystem(
 
     enum class TaskType { WORK, REPAIR, BREAK }
 
-    private val myTaskProcessors = mutableMapOf<String, TaskProcessor>()
-    val taskProcessors: Map<String, TaskProcessor>
+    private val myTaskProcessors = mutableMapOf<String, TransientTaskProcessor>()
+    val taskProcessors: Map<String, TransientTaskProcessor>
         get() = myTaskProcessors
 
     /**
@@ -183,7 +183,7 @@ open class TaskProcessingSystem(
          *  @param taskProcessor the task processor
          *  @param status the status indicator for the type of action
          */
-        fun onTaskProcessorAction(taskProcessor: TaskProcessor, status: TaskProcessorStatus) {}
+        fun onTaskProcessorAction(taskProcessor: TransientTaskProcessor, status: TaskProcessorStatus) {}
         //TODO need separate functions by status, protected
     }
 
@@ -216,7 +216,7 @@ open class TaskProcessingSystem(
         /**
          *  The processor that executed the task's process
          */
-        var taskProcessor: TaskProcessor? = null
+        var taskProcessor: TransientTaskProcessor? = null
 
         /**
          *  The provider that supplied the task for processing
@@ -557,7 +557,7 @@ open class TaskProcessingSystem(
         parent: ModelElement,
         private val allPerformance: Boolean = false,
         name: String? = null,
-        private val taskProcessor: TaskProcessor = TaskProcessor(name)
+        private val taskProcessor: TransientTaskProcessor = TransientTaskProcessor(name)
     ) : ModelElement(parent, name),
         TaskProcessorPerformanceIfc, TaskProcessorIfc by taskProcessor {
 
@@ -629,7 +629,7 @@ open class TaskProcessingSystem(
      */
     //TODO rename TransientTaskProcessor
     // parameters to indicate when to end, when to remove/shutdown
-    open inner class TaskProcessor(
+    open inner class TransientTaskProcessor(
         name: String? = null,
         private val taskQueue: QueueIfc<Task> = TaskQueue()
     ) : TaskProcessorIfc, IdentityIfc by Identity(name) {
@@ -637,8 +637,9 @@ open class TaskProcessingSystem(
         //TODO why is this needed
         override val taskProcessingSystem: TaskProcessingSystem = this@TaskProcessingSystem
 
-        //TODO why is this needed
-//        private var myDispatcher: TaskDispatcher? = null
+        /**
+         *  The internal entity used to run processes for the processor.
+         */
         private var myProcessingEntity: ProcessingEntity? = null
 
         /**
@@ -847,7 +848,7 @@ open class TaskProcessingSystem(
          */
         override fun scheduleShutDown(timeUntilShutdown: Double) {
             require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
-            myShutDownEvent = schedule(this@TaskProcessor::shutDownAction, timeUntilShutdown)
+            myShutDownEvent = schedule(this@TransientTaskProcessor::shutDownAction, timeUntilShutdown)
             // notify the provider of tasks of pending shutdown
 //            myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.START_SHUTDOWN)
             for (task in taskQueue) {
@@ -989,7 +990,7 @@ open class TaskProcessingSystem(
                     notifyTasksOfEndAction(nextTask.taskType)
                     afterTaskExecution()
                     //TODO
-                    nextTask.taskDispatcher?.dispatchCompleted(this@TaskProcessor, nextTask)
+                    nextTask.taskDispatcher?.dispatchCompleted(this@TransientTaskProcessor, nextTask)
 //                    myDispatcher?.taskCompleted(nextTask)
                     previousTask = nextTask
                     currentTask = null
