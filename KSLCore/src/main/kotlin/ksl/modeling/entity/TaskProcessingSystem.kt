@@ -316,19 +316,6 @@ open class TaskProcessingSystem(
     }
 
     //TODO extract performance out to its own class
-    /**
-     *  An interface for reporting task processor performance.
-     */
-    interface TaskProcessorPerformanceIfc {
-        val fractionTimeBusyResponse: ResponseCIfc
-        val numTimesBusyResponse: ResponseCIfc
-        val fractionTimeIdleResponse: ResponseCIfc
-        val numTimesIdleResponse: ResponseCIfc
-        val fractionTimeInRepairResponse: ResponseCIfc
-        val numTimesRepairedResponse: ResponseCIfc
-        val fractionTimeInactiveResponse: ResponseCIfc
-        val numTimesInactiveResponse: ResponseCIfc
-    }
 
     //TODO need to add some queue functionality
     interface TaskProcessorIfc {
@@ -558,32 +545,31 @@ open class TaskProcessingSystem(
         private val allPerformance: Boolean = false,
         name: String? = null,
         private val taskProcessor: TransientTaskProcessor = TransientTaskProcessor(name)
-    ) : ModelElement(parent, name),
-        TaskProcessorPerformanceIfc, TaskProcessorIfc by taskProcessor {
+    ) : ModelElement(parent, name), TaskProcessorIfc by taskProcessor {
 
         private val myFractionTimeBusy = Response(this, name = "${this.name}:FractionTimeBusy")
-        override val fractionTimeBusyResponse: ResponseCIfc
+        val fractionTimeBusyResponse: ResponseCIfc
             get() = myFractionTimeBusy
         private val myNumTimesBusy = Response(this, name = "${this.name}:NumTimesBusy")
-        override val numTimesBusyResponse: ResponseCIfc
+        val numTimesBusyResponse: ResponseCIfc
             get() = myNumTimesBusy
         private val myFractionIdleTime by lazy { Response(this, name = "${this.name}:FractionTimeIdle") }
-        override val fractionTimeIdleResponse: ResponseCIfc
+        val fractionTimeIdleResponse: ResponseCIfc
             get() = myFractionIdleTime
         private val myNumTimesIdle by lazy { Response(this, name = "${this.name}:NumTimesIdle") }
-        override val numTimesIdleResponse: ResponseCIfc
+        val numTimesIdleResponse: ResponseCIfc
             get() = myNumTimesIdle
         private val myFractionInRepairTime by lazy { Response(this, name = "${this.name}:FractionTimeInRepair") }
-        override val fractionTimeInRepairResponse: ResponseCIfc
+        val fractionTimeInRepairResponse: ResponseCIfc
             get() = myFractionInRepairTime
         private val myNumTimesRepaired by lazy { Response(this, name = "${this.name}:NumTimesRepaired") }
-        override val numTimesRepairedResponse: ResponseCIfc
+        val numTimesRepairedResponse: ResponseCIfc
             get() = myNumTimesRepaired
         private val myFractionInactiveTime by lazy { Response(this, name = "${this.name}:FractionTimeInactive") }
-        override val fractionTimeInactiveResponse: ResponseCIfc
+        val fractionTimeInactiveResponse: ResponseCIfc
             get() = myFractionInactiveTime
         private val myNumTimesInactive by lazy { Response(this, name = "${this.name}:NumTimesInactive") }
-        override val numTimesInactiveResponse: ResponseCIfc
+        val numTimesInactiveResponse: ResponseCIfc
             get() = myNumTimesInactive
 
         init {
