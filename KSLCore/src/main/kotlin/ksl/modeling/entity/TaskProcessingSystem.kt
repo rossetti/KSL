@@ -600,7 +600,7 @@ open class TaskProcessingSystem(
 
         override fun initialize() {
             super.initialize()
-            taskProcessor.initialize()
+            taskProcessor.setup()
         }
 
         override fun replicationEnded() {
@@ -709,10 +709,9 @@ open class TaskProcessingSystem(
                 Double.POSITIVE_INFINITY
             }
 
-        fun initialize() {
+        fun setup() {
             resetStates()
             taskQueue.clear()
-//            myDispatcher = null
             myProcessingEntity = null
             previousTask = null
             currentTask = null
