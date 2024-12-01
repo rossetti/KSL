@@ -131,6 +131,7 @@ open class TaskProcessingSystem(
         fun register(taskProcessor: TaskProcessorIfc) {
             require(!myProcessors.contains(taskProcessor)) { "The task processor, ${taskProcessor}, is already registered with dispatcher, $name" }
             myProcessors.add(taskProcessor)
+            //TODO consider adding statistics when registering transient processors
         }
 
         /**
@@ -245,7 +246,7 @@ open class TaskProcessingSystem(
         open fun afterTaskCompleted() {}
 
         //TODO need to consider functional actions
-
+        //TODO need to consider passing action from processor to the dispatcher
         /**
          *  This function is called when the task's associated processor is starting a processor action.
          *  The task is only notified if it is waiting for the processor and not yet executing.
@@ -311,13 +312,11 @@ open class TaskProcessingSystem(
         }
     }
 
-    //TODO extract performance out to its own class
-
     /**
      *  An interface to represent the general concept of a task processor.
      *  A task processor is something that receives tasks and executes them.
      */
-    interface TaskProcessorIfc {
+    interface TaskProcessorIfc : IdentityIfc {
 
         /**
          *  Allows access to accumulated state (idle) usage.
@@ -415,6 +414,11 @@ open class TaskProcessingSystem(
          *  The fraction of time up to the current time that the processor has been in the in-repair state.
          */
         val fractionTimeInRepair: Double
+
+        /**
+         *  Cause the task processor to be setup (initialized) for processing
+         */
+        fun setup()
 
         /**
          *  Causes the accumulated state information to be reset.
@@ -541,16 +545,22 @@ open class TaskProcessingSystem(
 
     }
 
-    //TODO extract out performance, supply it (or not)
-    // don't use delegation, consider sub-classing from TaskProcessor
-    open inner class TaskProcessorME(
+    /**
+     *  Used to collect statistical performance for a processor based on
+     *  accumulated state information from within replications. Performance
+     *  is across replications.
+     *  @param parent the parent of the model element
+     *  @param processor the processor being observed for performance
+     *  @param allPerformance if false, only busy state performance is collected. If true
+     *  then all state performance is collected. The default is false.
+     *  @param name the name of the model element
+     */
+    inner class TaskProcessorPerformance(
         parent: ModelElement,
-        private val allPerformance: Boolean = false,
-        private val taskQueue: QueueIfc<Task> = TaskQueue(),
+        private val processor: TaskProcessorIfc,
+        val allPerformance: Boolean = false,
         name: String? = null
-    ) : ModelElement(parent, name), TaskProcessorIfc {
-
-        private val myTaskProcessor: TransientTaskProcessor = TransientTaskProcessor(name, taskQueue)
+    ) : ModelElement(parent, name) {
 
         private val myFractionTimeBusy = Response(this, name = "${this.name}:FractionTimeBusy")
         val fractionTimeBusyResponse: ResponseCIfc
@@ -558,25 +568,24 @@ open class TaskProcessingSystem(
         private val myNumTimesBusy = Response(this, name = "${this.name}:NumTimesBusy")
         val numTimesBusyResponse: ResponseCIfc
             get() = myNumTimesBusy
-        
         private val myFractionIdleTime by lazy { Response(this, name = "${this.name}:FractionTimeIdle") }
-        val fractionTimeIdleResponse: ResponseCIfc
-            get() = myFractionIdleTime
+        val fractionTimeIdleResponse: ResponseCIfc?
+            get() = if (allPerformance) myFractionIdleTime else null
         private val myNumTimesIdle by lazy { Response(this, name = "${this.name}:NumTimesIdle") }
-        val numTimesIdleResponse: ResponseCIfc
-            get() = myNumTimesIdle
+        val numTimesIdleResponse: ResponseCIfc?
+            get() = if (allPerformance) myNumTimesIdle else null
         private val myFractionInRepairTime by lazy { Response(this, name = "${this.name}:FractionTimeInRepair") }
-        val fractionTimeInRepairResponse: ResponseCIfc
-            get() = myFractionInRepairTime
+        val fractionTimeInRepairResponse: ResponseCIfc?
+            get() = if (allPerformance) myFractionInRepairTime else null
         private val myNumTimesRepaired by lazy { Response(this, name = "${this.name}:NumTimesRepaired") }
-        val numTimesRepairedResponse: ResponseCIfc
-            get() = myNumTimesRepaired
+        val numTimesRepairedResponse: ResponseCIfc?
+            get() = if (allPerformance) myNumTimesRepaired else null
         private val myFractionInactiveTime by lazy { Response(this, name = "${this.name}:FractionTimeInactive") }
-        val fractionTimeInactiveResponse: ResponseCIfc
-            get() = myFractionInactiveTime
+        val fractionTimeInactiveResponse: ResponseCIfc?
+            get() = if (allPerformance) myFractionInactiveTime else null
         private val myNumTimesInactive by lazy { Response(this, name = "${this.name}:NumTimesInactive") }
-        val numTimesInactiveResponse: ResponseCIfc
-            get() = myNumTimesInactive
+        val numTimesInactiveResponse: ResponseCIfc?
+            get() = if (allPerformance) myNumTimesInactive else null
 
         init {
             if (allPerformance) {
@@ -592,26 +601,44 @@ open class TaskProcessingSystem(
 
         override fun initialize() {
             super.initialize()
-            myTaskProcessor.setup()
+            processor.setup()
         }
 
         override fun replicationEnded() {
             super.replicationEnded()
-            myFractionTimeBusy.value = myTaskProcessor.fractionTimeBusy
-            myNumTimesBusy.value = myTaskProcessor.numTimesBusy
+            myFractionTimeBusy.value = processor.fractionTimeBusy
+            myNumTimesBusy.value = processor.numTimesBusy
             if (allPerformance) {
-                myFractionIdleTime.value = myTaskProcessor.fractionTimeIdle
-                myNumTimesIdle.value = myTaskProcessor.numTimesIdle
-                myFractionInRepairTime.value = myTaskProcessor.fractionTimeInRepair
-                myNumTimesRepaired.value = myTaskProcessor.numTimesRepaired
-                myFractionInactiveTime.value = myTaskProcessor.fractionTimeInactive
-                myNumTimesInactive.value = myTaskProcessor.numTimesInactive
+                myFractionIdleTime.value = processor.fractionTimeIdle
+                myNumTimesIdle.value = processor.numTimesIdle
+                myFractionInRepairTime.value = processor.fractionTimeInRepair
+                myNumTimesRepaired.value = processor.numTimesRepaired
+                myFractionInactiveTime.value = processor.fractionTimeInactive
+                myNumTimesInactive.value = processor.numTimesInactive
             }
         }
 
         override fun warmUp() {
             super.warmUp()
-            myTaskProcessor.resetStates()
+            processor.resetStates()
+        }
+    }
+
+    open inner class TaskProcessor(
+        parent: ModelElement,
+        allPerformance: Boolean = false,
+        private val taskQueue: QueueIfc<Task> = TaskQueue(),
+        name: String? = null
+    ) : ModelElement(parent, name), TaskProcessorIfc {
+
+        private val myTaskProcessor: TransientTaskProcessor = TransientTaskProcessor(name, taskQueue)
+
+        val performance: TaskProcessorPerformance = TaskProcessorPerformance(
+            this, myTaskProcessor, allPerformance, name = "${this.name}:Performance"
+        )
+
+        override fun setup() {
+            myTaskProcessor.setup()
         }
 
         override val idleState: StateAccessorIfc
@@ -707,9 +734,13 @@ open class TaskProcessingSystem(
 
     /**
      * Responsible for executing tasks that have been supplied.
+     * This processor is transient. It is not a model element and thus
+     * does not participate in automatic model element actions such as
+     * initialization, warmup, and replication ending.
+     * @param name the name of the processor
+     * @param taskQueue a queue that will be used to hold tasks while the processor
+     * is processing its current task. The default is a non-statistical based queue.
      */
-    //TODO rename TransientTaskProcessor
-    // parameters to indicate when to end, when to remove/shutdown
     open inner class TransientTaskProcessor(
         name: String? = null,
         private val taskQueue: QueueIfc<Task> = TaskQueue()
@@ -788,7 +819,7 @@ open class TaskProcessingSystem(
                 Double.POSITIVE_INFINITY
             }
 
-        fun setup() {
+        override fun setup() {
             resetStates()
             taskQueue.clear()
             myProcessingEntity = null
@@ -917,31 +948,27 @@ open class TaskProcessingSystem(
 
         /**
          *  Causes a shutdown event to be scheduled for the supplied time. The shutdown event is scheduled
-         *  and the current task provider is notified of the pending shutdown. This allows the
-         *  current task provider to react gracefully to the pending shutdown.  If there is no task provider
-         *  then no notification occurs.  There is no task provider if the task processor has not been
-         *  activated.
+         *  and any waiting tasks are notified of the pending shutdown. This allows the
+         *  tasks to react gracefully to the pending shutdown.
          *
          * @param timeUntilShutdown The time until the commencement of the shutdown. The default is 0 (now).
          */
         override fun scheduleShutDown(timeUntilShutdown: Double) {
             require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
             myShutDownEvent = schedule(this@TransientTaskProcessor::shutDownAction, timeUntilShutdown)
-            // notify the provider of tasks of pending shutdown
-//            myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.START_SHUTDOWN)
+            // notify the tasks of pending shutdown
             for (task in taskQueue) {
                 task.onTaskProcessorStartAction(TaskProcessorStatus.START_SHUTDOWN)
             }
         }
 
         /**
-         *  Causes a pending shutdown event to be cancelled. If there is a task provider associated with
-         *  the task processor it will be notified of the cancellation.
+         *  Causes a pending shutdown event to be cancelled. If there are waiting tasks associated with
+         *  the task processor, they will be notified of the cancellation.
          */
         override fun cancelShutDown() {
             myShutDownEvent?.cancel = true
             myShutDownEvent = null
-//            myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.CANCEL_SHUTDOWN)
             for (task in taskQueue) {
                 task.onTaskProcessorEndAction(TaskProcessorStatus.CANCEL_SHUTDOWN)
             }
@@ -1040,8 +1067,7 @@ open class TaskProcessingSystem(
         private fun shutdown() {
             if (!shutdown) {
                 shutdown = true
-                // notify the provider of tasks of shutdown
-//                myDispatcher?.onTaskProcessorAction(this, TaskProcessorStatus.SHUTDOWN)
+                // notify the tasks of shutdown
                 for (task in taskQueue) {
                     task.onTaskProcessorEndAction(TaskProcessorStatus.SHUTDOWN)
                 }
@@ -1058,8 +1084,6 @@ open class TaskProcessingSystem(
             val taskProcessing = process("${this.name}_TaskProcessing") {
                 while (hasNextTask() && !shutdown) {
                     val nextTask = nextTask() ?: break
-                    //TODO this@TaskProcessor is the delegate, not the thing that was registered!!!
-                   //nextTask.taskProcessor = this@TaskProcessor
                     currentTask = nextTask
                     // set the state based on the task type
                     val nextState = nextState(nextTask)
@@ -1071,9 +1095,7 @@ open class TaskProcessingSystem(
                     nextTask.afterTaskCompleted()
                     notifyTasksOfEndAction(nextTask.taskType)
                     afterTaskExecution()
-                    //TODO
                     nextTask.taskDispatcher?.dispatchCompleted(nextTask.taskProcessor!!, nextTask)
-//                    myDispatcher?.taskCompleted(nextTask)
                     previousTask = nextTask
                     currentTask = null
                     // need to catch shutdown that might have occurred during task execution
