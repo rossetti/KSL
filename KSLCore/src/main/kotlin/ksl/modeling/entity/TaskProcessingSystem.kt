@@ -558,6 +558,7 @@ open class TaskProcessingSystem(
         private val myNumTimesBusy = Response(this, name = "${this.name}:NumTimesBusy")
         val numTimesBusyResponse: ResponseCIfc
             get() = myNumTimesBusy
+        
         private val myFractionIdleTime by lazy { Response(this, name = "${this.name}:FractionTimeIdle") }
         val fractionTimeIdleResponse: ResponseCIfc
             get() = myFractionIdleTime
