@@ -551,11 +551,13 @@ open class TaskProcessingSystem(
 
     }
 
+    //TODO extract out performance, supply it (or not)
+    // don't use delegation, consider sub-classing from TaskProcessor
     open inner class TaskProcessorME(
         parent: ModelElement,
         private val allPerformance: Boolean = false,
         name: String? = null,
-        private val taskProcessor: TaskProcessor = TaskProcessor(name),
+        private val taskProcessor: TaskProcessor = TaskProcessor(name)
     ) : ModelElement(parent, name),
         TaskProcessorPerformanceIfc, TaskProcessorIfc by taskProcessor {
 
