@@ -166,12 +166,9 @@ open class TaskProcessingSystem(
          * @param task the task that was completed.
          */
         internal fun dispatchCompleted(processor: TaskProcessorIfc, task: Task) {
-//            require(myProcessors.contains(processor)) {"The processor $processor is not associated with dispatcher, ${this.name}"}
+            require(myProcessors.contains(processor)) {"The processor $processor is not associated with dispatcher, ${this.name}"}
             //TODO it is not being found because the processor is the delegate not the original
             dispatch(processor)
-//            if (myProcessors.contains(processor)){
-//                dispatch(processor)
-//            }
             taskCompleted(task)
         }
 
@@ -216,7 +213,7 @@ open class TaskProcessingSystem(
         /**
          *  The processor that executed the task's process
          */
-        var taskProcessor: TransientTaskProcessor? = null
+        var taskProcessor: TaskProcessorIfc? = null
 
         /**
          *  The provider that supplied the task for processing
@@ -484,6 +481,11 @@ open class TaskProcessingSystem(
          *  Indicates true if selectNextTask() results in a non-null task
          */
         fun hasNextTask(): Boolean
+
+        /**
+         *  The number of tasks waiting for the processor
+         */
+        fun numTasksInQ(): Int
     }
 
     /**
@@ -543,9 +545,11 @@ open class TaskProcessingSystem(
     open inner class TaskProcessorME(
         parent: ModelElement,
         private val allPerformance: Boolean = false,
-        name: String? = null,
-        private val taskProcessor: TransientTaskProcessor = TransientTaskProcessor(name)
-    ) : ModelElement(parent, name), TaskProcessorIfc by taskProcessor {
+        private val taskQueue: QueueIfc<Task> = TaskQueue(),
+        name: String? = null
+    ) : ModelElement(parent, name), TaskProcessorIfc {
+
+        private val myTaskProcessor: TransientTaskProcessor = TransientTaskProcessor(name, taskQueue)
 
         private val myFractionTimeBusy = Response(this, name = "${this.name}:FractionTimeBusy")
         val fractionTimeBusyResponse: ResponseCIfc
@@ -586,26 +590,117 @@ open class TaskProcessingSystem(
 
         override fun initialize() {
             super.initialize()
-            taskProcessor.setup()
+            myTaskProcessor.setup()
         }
 
         override fun replicationEnded() {
             super.replicationEnded()
-            myFractionTimeBusy.value = taskProcessor.fractionTimeBusy
-            myNumTimesBusy.value = taskProcessor.numTimesBusy
+            myFractionTimeBusy.value = myTaskProcessor.fractionTimeBusy
+            myNumTimesBusy.value = myTaskProcessor.numTimesBusy
             if (allPerformance) {
-                myFractionIdleTime.value = taskProcessor.fractionTimeIdle
-                myNumTimesIdle.value = taskProcessor.numTimesIdle
-                myFractionInRepairTime.value = taskProcessor.fractionTimeInRepair
-                myNumTimesRepaired.value = taskProcessor.numTimesRepaired
-                myFractionInactiveTime.value = taskProcessor.fractionTimeInactive
-                myNumTimesInactive.value = taskProcessor.numTimesInactive
+                myFractionIdleTime.value = myTaskProcessor.fractionTimeIdle
+                myNumTimesIdle.value = myTaskProcessor.numTimesIdle
+                myFractionInRepairTime.value = myTaskProcessor.fractionTimeInRepair
+                myNumTimesRepaired.value = myTaskProcessor.numTimesRepaired
+                myFractionInactiveTime.value = myTaskProcessor.fractionTimeInactive
+                myNumTimesInactive.value = myTaskProcessor.numTimesInactive
             }
         }
 
         override fun warmUp() {
             super.warmUp()
-            taskProcessor.resetStates()
+            myTaskProcessor.resetStates()
+        }
+
+        override val taskProcessingSystem: TaskProcessingSystem
+            get() = myTaskProcessor.taskProcessingSystem
+        override val idleState: StateAccessorIfc
+            get() = myTaskProcessor.idleState
+        override val busyState: StateAccessorIfc
+            get() = myTaskProcessor.busyState
+        override val inRepairState: StateAccessorIfc
+            get() = myTaskProcessor.inRepairState
+        override val inactiveState: StateAccessorIfc
+            get() = myTaskProcessor.inactiveState
+        override val currentState: StateAccessorIfc
+            get() = myTaskProcessor.currentState
+        override val isShutdownPending: Boolean
+            get() = myTaskProcessor.isShutdownPending
+        override val timeUntilShutdown: Double
+            get() = myTaskProcessor.timeUntilShutdown
+        override val timeOfShutDown: Double
+            get() = myTaskProcessor.timeOfShutDown
+        override val numTimesRepaired: Double
+            get() = myTaskProcessor.numTimesRepaired
+        override val numTimesInactive: Double
+            get() = myTaskProcessor.numTimesInactive
+        override val numTimesIdle: Double
+            get() = myTaskProcessor.numTimesIdle
+        override val numTimesBusy: Double
+            get() = myTaskProcessor.numTimesBusy
+        override val totalIdleTime: Double
+            get() = myTaskProcessor.totalIdleTime
+        override val totalBusyTime: Double
+            get() = myTaskProcessor.totalBusyTime
+        override val totalInRepairTime: Double
+            get() = myTaskProcessor.totalInRepairTime
+        override val totalInactiveTime: Double
+            get() = myTaskProcessor.totalInactiveTime
+        override val totalCycleTime: Double
+            get() = myTaskProcessor.totalCycleTime
+        override val fractionTimeIdle: Double
+            get() = myTaskProcessor.fractionTimeIdle
+        override val fractionTimeBusy: Double
+            get() = myTaskProcessor.fractionTimeBusy
+        override val fractionTimeInactive: Double
+            get() = myTaskProcessor.fractionTimeInactive
+        override val fractionTimeInRepair: Double
+            get() = myTaskProcessor.fractionTimeInRepair
+
+        override fun resetStates() {
+            myTaskProcessor.resetStates()
+        }
+
+        override fun isBusy(): Boolean {
+            return myTaskProcessor.isBusy()
+        }
+
+        override fun isInRepair(): Boolean {
+            return myTaskProcessor.isInRepair()
+        }
+
+        override fun isIdle(): Boolean {
+            return myTaskProcessor.isIdle()
+        }
+
+        override fun isInactive(): Boolean {
+            return myTaskProcessor.isInactive()
+        }
+
+        override fun isShutDown(): Boolean {
+            return myTaskProcessor.isShutDown()
+        }
+
+        override fun receive(task: Task) {
+            myTaskProcessor.receive(task)
+            //make sure that the task does not have the delegate as its processor
+            task.taskProcessor = this
+        }
+
+        override fun scheduleShutDown(timeUntilShutdown: Double) {
+            myTaskProcessor.scheduleShutDown(timeUntilShutdown)
+        }
+
+        override fun cancelShutDown() {
+            myTaskProcessor.cancelShutDown()
+        }
+
+        override fun hasNextTask(): Boolean {
+            return myTaskProcessor.hasNextTask()
+        }
+
+        override fun numTasksInQ(): Int {
+            return myTaskProcessor.numTasksInQ()
         }
 
     }
@@ -886,6 +981,10 @@ open class TaskProcessingSystem(
             return taskQueue.peekNext() != null
         }
 
+        override fun numTasksInQ(): Int {
+            return taskQueue.size
+        }
+
         /**
          *  Finds the next task to work on.  If null, then a new task could not be selected.
          */
@@ -976,7 +1075,7 @@ open class TaskProcessingSystem(
                     notifyTasksOfEndAction(nextTask.taskType)
                     afterTaskExecution()
                     //TODO
-                    nextTask.taskDispatcher?.dispatchCompleted(this@TransientTaskProcessor, nextTask)
+                    nextTask.taskDispatcher?.dispatchCompleted(nextTask.taskProcessor!!, nextTask)
 //                    myDispatcher?.taskCompleted(nextTask)
                     previousTask = nextTask
                     currentTask = null
