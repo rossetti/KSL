@@ -16,53 +16,108 @@ import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 
 
+/**
+ *  A TaskProcessingSystem facilitates the usage of task processors for doing work.
+ *  There are basically two types of task processors (TransientTaskProcessor and TaskProcessor).
+ *  A TransientTaskProcessor is not a model element. As such, it does not react to model element
+ *  actions such has initialization, warm up, replication ending, etc. Transient task processors
+ *  can be dynamically created and shutdown when no longer needed, without the overhead of adding
+ *  them to the model element hierarchy. The user is responsible for ensuring the appropriate
+ *  life-cycle management of created transient task processors. If the task processing system's
+ *  creation methods are used to create transient task processors, then the task processing system
+ *  will management the initialization and warmup of its managed task processors. Transient
+ *  task processors do not have statistics automatically collected.
+ *
+ *  A TaskProcessor is a model element that does task processing. It can be configured to
+ *  collect busy time statistics as well as statistics on idle, inactive, and in-repair states.
+ *  @param parent the parent for this task processing system
+ *  @name name the name of this task processing system
+ */
 open class TaskProcessingSystem(
     parent: ModelElement,
     name: String? = null
 ) : ProcessModel(parent, name) {
 
+    /**
+     *  Indicators of task processor status during its processing.
+     */
     enum class TaskProcessorStatus {
         START_WORK, END_WORK, START_FAILURE, END_FAILURE, START_INACTIVE, END_INACTIVE, START_SHUTDOWN, SHUTDOWN, CANCEL_SHUTDOWN
     }
 
+    /**
+     *  Basic types of task. WORK is normal work.  REPAIR indicates that the task causes the task
+     *  processor to experience the in-repair state (i.e. failure). The BREAK type indicates
+     *  that the task is associated with an inactive period.
+     */
     enum class TaskType { WORK, REPAIR, BREAK }
 
     private val myTaskProcessors = mutableMapOf<String, TaskProcessorIfc>()
     val taskProcessors: Map<String, TaskProcessorIfc>
         get() = myTaskProcessors
 
-    /**
-     *  Causes all the task processors in the system to shut down based on
-     *  the supplied time until shutdown. The shutdowns may not occur exactly
-     *  at the desired time due to the fact that a task processor may be performing
-     *  a task. The task is allowed to complete before the shutdown occurs.
-     *  @param timeUntilShutdown a desired time until shutdown, must be greater than or equal to 0.0
-     */
-    fun shutdownAllTaskProcessors(timeUntilShutdown: Double = 0.0) {
-        require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
-        for (taskProcessor in myTaskProcessors.values) {
-            taskProcessor.scheduleShutDown(timeUntilShutdown)
+
+    override fun initialize() {
+        super.initialize()
+        for((name, processor) in myTaskProcessors){
+            if (processor is TransientTaskProcessor){
+                processor.setup()
+            }
         }
     }
 
-//    fun createTaskProcessors(number: Int, prefix: String = "Processor_") {
-//        val set = mutableSetOf<String>()
-//        for (i in 1..number) {
-//            set.add(prefix + i)
-//        }
-//        createTaskProcessors(set)
-//    }
-//
-//    fun createTaskProcessors(names: Set<String>, allPerformance: Boolean = false) {
-//        for (name in names) {
-//            addTaskProcessor(TaskProcessor(this, allPerformance, name))
-//        }
-//    }
-//
-//    fun addTaskProcessor(taskProcessor: TaskProcessor) {
-//        require(!myTaskProcessors.containsKey(taskProcessor.name)) { "The task processor name (${taskProcessor.name}) already exists for ${this@TaskProcessingSystem.name}" }
-//        myTaskProcessors[taskProcessor.name] = taskProcessor
-//    }
+    override fun warmUp() {
+        super.warmUp()
+        for((name, processor) in myTaskProcessors){
+            if (processor is TransientTaskProcessor){
+                processor.resetStates()
+            }
+        }
+    }
+
+    /**
+     *  Creates transient task processors and names them.
+     *  @param number the number of processors to create
+     *  @param prefix the name prefix for the number e.g. Processor_1, Processor_2, etc.
+     */
+    fun createTransientTaskProcessors(number: Int, prefix: String = "Processor_") {
+        val set = mutableSetOf<String>()
+        for (i in 1..number) {
+            set.add(prefix + i)
+        }
+        createTransientTaskProcessors(set)
+    }
+
+    /**
+     *  Creates transient task processors based on the names.
+     *  @param names the names for the processors
+     */
+    fun createTransientTaskProcessors(names: Set<String>) {
+        for (name in names) {
+            manageTransientTaskProcessor(TransientTaskProcessor(name))
+        }
+    }
+
+    /**
+     *  Creates and adds a transient task processor with the provided [name]
+     *  to the task processing system.
+     */
+    fun manageTransientTaskProcessor(name: String) : TransientTaskProcessor{
+        val tp = TransientTaskProcessor(name)
+        manageTransientTaskProcessor(tp)
+        return tp
+    }
+
+    /**
+     *  Adds a transient task processor to the task processing system. This causes
+     *  the transient processor to react to model element initialization and warm up
+     *  via the task processing system.
+     *  @param taskProcessor the processor to add
+     */
+    fun manageTransientTaskProcessor(taskProcessor: TransientTaskProcessor) {
+        require(!myTaskProcessors.containsKey(taskProcessor.name)) { "The task processor name (${taskProcessor.name}) already exists for ${this@TaskProcessingSystem.name}" }
+        myTaskProcessors[taskProcessor.name] = taskProcessor
+    }
 
     open inner class TaskDispatcher(
         parent: ModelElement,
@@ -71,6 +126,8 @@ open class TaskProcessingSystem(
     ) : ModelElement(parent, name) {
 
         protected val myProcessors = mutableListOf<TaskProcessorIfc>()
+        val processors: List<TaskProcessorIfc>
+            get() = myProcessors
         protected val myTaskQueue: Queue<Task> = Queue(this, name = "${this.name}:TaskQ", discipline)
         val queue: QueueCIfc<Task>
             get() = myTaskQueue
