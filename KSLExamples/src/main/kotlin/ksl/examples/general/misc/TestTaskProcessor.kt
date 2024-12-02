@@ -29,7 +29,7 @@ class TestTaskProcessor(
     //private val myWaitingQ: Queue<Task> = Queue(this, "TaskQ")
 
     private val myTaskProcessor1 = TaskProcessor(this, name = "TestProcessor1")
-//    private val myTaskProcessor2 = TaskProcessorME(this, name = "TestProcessor2")
+//    private val myTaskProcessor2 = TaskProcessor(this, name = "TestProcessor2")
     private val myTaskDispatcher = TaskDispatcher(this, name = "Dispatcher")
     init {
         myTaskDispatcher.register(myTaskProcessor1)
