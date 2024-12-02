@@ -59,8 +59,8 @@ open class TaskProcessingSystem(
 
     override fun initialize() {
         super.initialize()
-        for((name, processor) in myTaskProcessors){
-            if (processor is TransientTaskProcessor){
+        for ((name, processor) in myTaskProcessors) {
+            if (processor is TransientTaskProcessor) {
                 processor.setup()
             }
         }
@@ -68,8 +68,8 @@ open class TaskProcessingSystem(
 
     override fun warmUp() {
         super.warmUp()
-        for((name, processor) in myTaskProcessors){
-            if (processor is TransientTaskProcessor){
+        for ((name, processor) in myTaskProcessors) {
+            if (processor is TransientTaskProcessor) {
                 processor.resetStates()
             }
         }
@@ -102,7 +102,7 @@ open class TaskProcessingSystem(
      *  Creates and adds a transient task processor with the provided [name]
      *  to the task processing system.
      */
-    fun manageTransientTaskProcessor(name: String) : TransientTaskProcessor{
+    fun manageTransientTaskProcessor(name: String): TransientTaskProcessor {
         val tp = TransientTaskProcessor(name)
         manageTransientTaskProcessor(tp)
         return tp
@@ -131,6 +131,7 @@ open class TaskProcessingSystem(
         protected val myTaskQueue: Queue<Task> = Queue(this, name = "${this.name}:TaskQ", discipline)
         val queue: QueueCIfc<Task>
             get() = myTaskQueue
+        protected val myTransientPerformance = mutableMapOf<String, TaskProcessorPerformance>()
 
         /**
          *  Receives tasks and attempts to dispatch them. Selects a processor
@@ -187,13 +188,31 @@ open class TaskProcessingSystem(
         fun register(taskProcessor: TaskProcessorIfc) {
             require(!myProcessors.contains(taskProcessor)) { "The task processor, ${taskProcessor}, is already registered with dispatcher, $name" }
             myProcessors.add(taskProcessor)
-            //TODO consider adding statistics when registering transient processors
+        }
+
+        /**
+         *  Can be used to cause performance statistics to be collected about any
+         *  transient task processors used by the dispatcher. This function creates model elements.
+         *  The normal use of this function would be within an init block in order to configure
+         *  behavior prior to the running of any experiments.
+         *
+         *  @param allPerformance if false (the default) on busy state statistics are collected.
+         *   If true, then all state statistics are collected.
+         */
+        fun configureTransientTaskProcessorPerformance(allPerformance: Boolean = false) {
+            for (processor in myProcessors) {
+                if (!myTransientPerformance.containsKey(processor.name)) {
+                    myTransientPerformance[processor.name] = TaskProcessorPerformance(
+                        this, processor, allPerformance, name = "${processor.name}:Performance"
+                    )
+                }
+            }
         }
 
         override fun initialize() {
             super.initialize()
-            for(processor in myProcessors){
-                if (processor is TransientTaskProcessor){
+            for (processor in myProcessors) {
+                if (processor is TransientTaskProcessor) {
                     processor.setup()
                 }
             }
@@ -201,8 +220,8 @@ open class TaskProcessingSystem(
 
         override fun warmUp() {
             super.warmUp()
-            for(processor in myProcessors){
-                if (processor is TransientTaskProcessor){
+            for (processor in myProcessors) {
+                if (processor is TransientTaskProcessor) {
                     processor.resetStates()
                 }
             }
@@ -483,7 +502,7 @@ open class TaskProcessingSystem(
      *  to when a task processor has an action such as a failure, etc.
      */
     fun interface TaskProcessorActionIfc {
-        fun action(task: Task, )
+        fun action(task: Task)
     }
 
     /**
