@@ -132,7 +132,25 @@ open class TaskProcessingSystem(
             myProcessors.add(taskProcessor)
             //TODO consider adding statistics when registering transient processors
         }
-        //TODO consider initializing registered transient processors
+
+        override fun initialize() {
+            super.initialize()
+            for(processor in myProcessors){
+                if (processor is TransientTaskProcessor){
+                    processor.setup()
+                }
+            }
+        }
+
+        override fun warmUp() {
+            super.warmUp()
+            for(processor in myProcessors){
+                if (processor is TransientTaskProcessor){
+                    processor.resetStates()
+                }
+            }
+        }
+
         /**
          *  Unregisters the processor so that it no longer receives tasks from the dispatcher.
          *
@@ -322,25 +340,93 @@ open class TaskProcessingSystem(
          */
         open fun afterTaskCompleted() {}
 
-        //TODO need to consider functional actions
-        //TODO need to consider passing action from processor to the dispatcher
-        /**
-         *  This function is called when the task's associated processor is starting a processor action.
-         *  The task is only notified if it is waiting for the processor and not yet executing.
-         *  Subclasses can provide specific logic to react to the occurrence of a processor
-         *  start action (START_WORK, START_FAILURE, START_INACTIVE, START_SHUTDOWN).
-         *  @param status the status indicator for the type of action
-         */
-        open fun onTaskProcessorStartAction(status: TaskProcessorStatus) {}
+        var startProcessorFailureAction: TaskProcessorActionIfc? = null
+        var endProcessorFailureAction: TaskProcessorActionIfc? = null
+        var startProcessorInactiveAction: TaskProcessorActionIfc? = null
+        var endProcessorInactiveAction: TaskProcessorActionIfc? = null
+        var startProcessorShutdownPendingAction: TaskProcessorActionIfc? = null
+        var processorShutdownAction: TaskProcessorActionIfc? = null
+        var processorCancelShutdownAction: TaskProcessorActionIfc? = null
+        var startProcessorWorkAction: TaskProcessorActionIfc? = null
+        var endProcessorWorkAction: TaskProcessorActionIfc? = null
 
         /**
-         *  This function is called when the task's associated processor is starting a processor action.
-         *  The task is only notified if it is waiting for the processor and not yet executing.
-         *  Subclasses can provide specific logic to react to the occurrence of a processor
-         *  start action (END_WORK, END_FAILURE, END_INACTIVE, SHUTDOWN, CANCEL_SHUTDOWN).
-         *  @param status the status indicator for the type of action
+         *  This function is called for tasks that are waiting for a processor when a processor
+         *  action occurs.
+         *  Users can provide specific logic to react to the occurrence of the start of a failure,
+         *  the end of a failure, start of an inactive period, end of an inactive period, and the warning
+         *  of a shutdown and the shutdown. By default, no reaction occurs.
+         *  @param status the status indicator for the type of action (START_WORK, START_FAILURE,
+         *  START_INACTIVE, START_SHUTDOWN, END_WORK, END_FAILURE, END_INACTIVE, SHUTDOWN, CANCEL_SHUTDOWN)
          */
-        open fun onTaskProcessorEndAction(status: TaskProcessorStatus) {}
+        internal fun handleTaskProcessorAction(status: TaskProcessorStatus) {
+            when (status) {
+                TaskProcessorStatus.START_WORK -> {
+                    startProcessorWorkAction?.action(this)
+                    startProcessWorkAction()
+                }
+
+                TaskProcessorStatus.END_WORK -> {
+                    endProcessorWorkAction?.action(this)
+                    endProcessWorkAction()
+                }
+
+                TaskProcessorStatus.START_FAILURE -> {
+                    startProcessorFailureAction?.action(this)
+                    startProcessFailureAction()
+                }
+
+                TaskProcessorStatus.END_FAILURE -> {
+                    endProcessorFailureAction?.action(this)
+                    endProcessFailureAction()
+                }
+
+                TaskProcessorStatus.START_INACTIVE -> {
+                    startProcessorInactiveAction?.action(this)
+                    startProcessInactiveAction()
+                }
+
+                TaskProcessorStatus.END_INACTIVE -> {
+                    endProcessorInactiveAction?.action(this)
+                    endProcessInactiveAction()
+                }
+
+                TaskProcessorStatus.START_SHUTDOWN -> {
+                    startProcessorShutdownPendingAction?.action(this)
+                    processorStartShutdownAction()
+                }
+
+                TaskProcessorStatus.SHUTDOWN -> {
+                    processorShutdownAction?.action(this)
+                    processorShutdownAction()
+                }
+
+                TaskProcessorStatus.CANCEL_SHUTDOWN -> {
+                    processorCancelShutdownAction?.action(this)
+                    processorCancelShutdownAction()
+                }
+            }
+            this.taskDispatcher?.handleTaskProcessorAction(this, status)
+        }
+
+        protected open fun startProcessWorkAction() {}
+        protected open fun endProcessWorkAction() {}
+        protected open fun startProcessFailureAction() {}
+        protected open fun endProcessFailureAction() {}
+        protected open fun startProcessInactiveAction() {}
+        protected open fun endProcessInactiveAction() {}
+        protected open fun processorStartShutdownAction() {}
+        protected open fun processorCancelShutdownAction() {}
+        protected open fun processorShutdownAction() {}
+
+    }
+
+    /**
+     *  A functional interface to use to model actions that can be invoked to allow a task to react
+     *  to when a task processor has an action such as a failure, etc.
+     */
+    fun interface TaskProcessorActionIfc {
+        fun action(task: Task, )
     }
 
     /**
@@ -1043,7 +1129,7 @@ open class TaskProcessingSystem(
             myShutDownEvent = schedule(this@TransientTaskProcessor::shutDownAction, timeUntilShutdown)
             // notify waiting tasks of pending shutdown
             for (task in taskQueue) {
-                task.onTaskProcessorStartAction(TaskProcessorStatus.START_SHUTDOWN)
+                task.handleTaskProcessorAction(TaskProcessorStatus.START_SHUTDOWN)
             }
         }
 
@@ -1055,7 +1141,7 @@ open class TaskProcessingSystem(
             myShutDownEvent?.cancel = true
             myShutDownEvent = null
             for (task in taskQueue) {
-                task.onTaskProcessorEndAction(TaskProcessorStatus.CANCEL_SHUTDOWN)
+                task.handleTaskProcessorAction(TaskProcessorStatus.CANCEL_SHUTDOWN)
             }
         }
 
@@ -1120,7 +1206,7 @@ open class TaskProcessingSystem(
         private fun notifyTasksOfStartAction(taskType: TaskType) {
             val actionType = processorStartActionType(taskType)
             for (task in taskQueue) {
-                task.onTaskProcessorStartAction(actionType)
+                task.handleTaskProcessorAction(actionType)
             }
         }
 
@@ -1143,7 +1229,7 @@ open class TaskProcessingSystem(
         private fun notifyTasksOfEndAction(taskType: TaskType) {
             val actionType = processorEndActionType(taskType)
             for (task in taskQueue) {
-                task.onTaskProcessorEndAction(actionType)
+                task.handleTaskProcessorAction(actionType)
             }
         }
 
@@ -1162,7 +1248,7 @@ open class TaskProcessingSystem(
                 shutdown = true
                 // notify any waiting tasks of shutdown
                 for (task in taskQueue) {
-                    task.onTaskProcessorEndAction(TaskProcessorStatus.SHUTDOWN)
+                    task.handleTaskProcessorAction(TaskProcessorStatus.SHUTDOWN)
                 }
                 myShutDownEvent = null
             }
