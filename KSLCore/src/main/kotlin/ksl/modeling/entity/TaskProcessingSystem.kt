@@ -64,7 +64,6 @@ open class TaskProcessingSystem(
 //        myTaskProcessors[taskProcessor.name] = taskProcessor
 //    }
 
-    //TODO work on public interface, hiding methods
     open inner class TaskDispatcher(
         parent: ModelElement,
         name: String? = null,
@@ -133,7 +132,7 @@ open class TaskProcessingSystem(
             myProcessors.add(taskProcessor)
             //TODO consider adding statistics when registering transient processors
         }
-
+        //TODO consider initializing registered transient processors
         /**
          *  Unregisters the processor so that it no longer receives tasks from the dispatcher.
          *
@@ -166,22 +165,100 @@ open class TaskProcessingSystem(
          * @param task the task that was completed.
          */
         internal fun dispatchCompleted(processor: TaskProcessorIfc, task: Task) {
-            require(myProcessors.contains(processor)) {"The processor $processor is not associated with dispatcher, ${this.name}"}
+            require(myProcessors.contains(processor)) { "The processor $processor is not associated with dispatcher, ${this.name}" }
             dispatch(processor)
             taskCompleted(task)
         }
 
+        var startProcessorFailureAction: TaskDispatcherActionIfc? = null
+        var endProcessorFailureAction: TaskDispatcherActionIfc? = null
+        var startProcessorInactiveAction: TaskDispatcherActionIfc? = null
+        var endProcessorInactiveAction: TaskDispatcherActionIfc? = null
+        var startProcessorShutdownPendingAction: TaskDispatcherActionIfc? = null
+        var processorShutdownAction: TaskDispatcherActionIfc? = null
+        var processorCancelShutdownAction: TaskDispatcherActionIfc? = null
+        var startProcessorWorkAction: TaskDispatcherActionIfc? = null
+        var endProcessorWorkAction: TaskDispatcherActionIfc? = null
+
         /**
-         *  This function is called by task processors that are processing tasks sent by the provider.
-         *  Subclasses can provide specific logic to react to the occurrence of the start of a failure,
+         *  This function is called by tasks that were dispatched by the dispatcher when a processor
+         *  action occurs.
+         *  Users can provide specific logic to react to the occurrence of the start of a failure,
          *  the end of a failure, start of an inactive period, end of an inactive period, and the warning
          *  of a shutdown and the shutdown. By default, no reaction occurs.
-         *  @param taskProcessor the task processor
+         *  @param task the task that was dispatched
          *  @param status the status indicator for the type of action
          */
-        fun onTaskProcessorAction(taskProcessor: TaskProcessorIfc, status: TaskProcessorStatus) {}
-        //TODO need separate functions by status, protected
-        //TODO consider initializing registered transient processors
+        internal fun handleTaskProcessorAction(task: Task, status: TaskProcessorStatus) {
+            when (status) {
+                TaskProcessorStatus.START_WORK -> {
+                    startProcessorWorkAction?.action(this, task, myProcessors)
+                    startProcessWorkAction(task)
+                }
+
+                TaskProcessorStatus.END_WORK -> {
+                    endProcessorWorkAction?.action(this, task, myProcessors)
+                    endProcessWorkAction(task)
+                }
+
+                TaskProcessorStatus.START_FAILURE -> {
+                    startProcessorFailureAction?.action(this, task, myProcessors)
+                    startProcessFailureAction(task)
+                }
+
+                TaskProcessorStatus.END_FAILURE -> {
+                    endProcessorFailureAction?.action(this, task, myProcessors)
+                    endProcessFailureAction(task)
+                }
+
+                TaskProcessorStatus.START_INACTIVE -> {
+                    startProcessorInactiveAction?.action(this, task, myProcessors)
+                    startProcessInactiveAction(task)
+                }
+
+                TaskProcessorStatus.END_INACTIVE -> {
+                    endProcessorInactiveAction?.action(this, task, myProcessors)
+                    endProcessInactiveAction(task)
+                }
+
+                TaskProcessorStatus.START_SHUTDOWN -> {
+                    startProcessorShutdownPendingAction?.action(this, task, myProcessors)
+                    processorStartShutdownAction(task)
+                }
+
+                TaskProcessorStatus.SHUTDOWN -> {
+                    processorShutdownAction?.action(this, task, myProcessors)
+                    processorShutdownAction(task)
+                }
+
+                TaskProcessorStatus.CANCEL_SHUTDOWN -> {
+                    processorCancelShutdownAction?.action(this, task, myProcessors)
+                    processorCancelShutdownAction(task)
+                }
+            }
+        }
+
+        protected open fun startProcessWorkAction(task: Task) {}
+        protected open fun endProcessWorkAction(task: Task) {}
+        protected open fun startProcessFailureAction(task: Task) {}
+        protected open fun endProcessFailureAction(task: Task) {}
+        protected open fun startProcessInactiveAction(task: Task) {}
+        protected open fun endProcessInactiveAction(task: Task) {}
+        protected open fun processorStartShutdownAction(task: Task) {}
+        protected open fun processorCancelShutdownAction(task: Task) {}
+        protected open fun processorShutdownAction(task: Task) {}
+    }
+
+    /**
+     *  A functional interface to use to model actions that can be invoked to allow a task dispatcher to react
+     *  to when a task processor has an action such as a failure, etc.
+     */
+    fun interface TaskDispatcherActionIfc {
+        fun action(
+            dispatcher: TaskDispatcher,
+            task: Task,
+            processors: MutableList<TaskProcessorIfc>
+        )
     }
 
     /**
@@ -322,18 +399,22 @@ open class TaskProcessingSystem(
          *  Allows access to accumulated state (idle) usage.
          */
         val idleState: StateAccessorIfc
+
         /**
          *  Allows access to accumulated state (busy) usage.
          */
         val busyState: StateAccessorIfc
+
         /**
          *  Allows access to accumulated state (in-repair) usage.
          */
         val inRepairState: StateAccessorIfc
+
         /**
          *  Allows access to accumulated state (inactive) usage.
          */
         val inactiveState: StateAccessorIfc
+
         /**
          *  Allows access to accumulated state (current) usage.
          */
@@ -378,18 +459,22 @@ open class TaskProcessingSystem(
          *  The total time up to the current time that the processor has been idle.
          */
         val totalIdleTime: Double
+
         /**
          *  The total time up to the current time that the processor has been busy.
          */
         val totalBusyTime: Double
+
         /**
          *  The total time up to the current time that the processor has been in the repaired state.
          */
         val totalInRepairTime: Double
+
         /**
          *  The total time up to the current time that the processor has been in the inactive state.
          */
         val totalInactiveTime: Double
+
         /**
          *  The total time up to the current time that the processor has been in any state.
          */
@@ -956,7 +1041,7 @@ open class TaskProcessingSystem(
         override fun scheduleShutDown(timeUntilShutdown: Double) {
             require(timeUntilShutdown >= 0.0) { "The time until shutdown must be >= 0.0!" }
             myShutDownEvent = schedule(this@TransientTaskProcessor::shutDownAction, timeUntilShutdown)
-            // notify the tasks of pending shutdown
+            // notify waiting tasks of pending shutdown
             for (task in taskQueue) {
                 task.onTaskProcessorStartAction(TaskProcessorStatus.START_SHUTDOWN)
             }
@@ -1016,8 +1101,8 @@ open class TaskProcessingSystem(
             return taskQueue.removeNext()
         }
 
-        private fun notifyTasksOfStartAction(taskType: TaskType) {
-            val actionType = when (taskType) {
+        private fun processorStartActionType(taskType: TaskType): TaskProcessorStatus {
+            return when (taskType) {
                 TaskType.BREAK -> {
                     TaskProcessorStatus.START_INACTIVE
                 }
@@ -1030,13 +1115,17 @@ open class TaskProcessingSystem(
                     TaskProcessorStatus.START_WORK
                 }
             }
+        }
+
+        private fun notifyTasksOfStartAction(taskType: TaskType) {
+            val actionType = processorStartActionType(taskType)
             for (task in taskQueue) {
                 task.onTaskProcessorStartAction(actionType)
             }
         }
 
-        private fun notifyTasksOfEndAction(taskType: TaskType) {
-            val actionType = when (taskType) {
+        private fun processorEndActionType(taskType: TaskType): TaskProcessorStatus {
+            return when (taskType) {
                 TaskType.BREAK -> {
                     TaskProcessorStatus.END_INACTIVE
                 }
@@ -1049,6 +1138,10 @@ open class TaskProcessingSystem(
                     TaskProcessorStatus.END_WORK
                 }
             }
+        }
+
+        private fun notifyTasksOfEndAction(taskType: TaskType) {
+            val actionType = processorEndActionType(taskType)
             for (task in taskQueue) {
                 task.onTaskProcessorEndAction(actionType)
             }
@@ -1067,7 +1160,7 @@ open class TaskProcessingSystem(
         private fun shutdown() {
             if (!shutdown) {
                 shutdown = true
-                // notify the tasks of shutdown
+                // notify any waiting tasks of shutdown
                 for (task in taskQueue) {
                     task.onTaskProcessorEndAction(TaskProcessorStatus.SHUTDOWN)
                 }
@@ -1090,10 +1183,14 @@ open class TaskProcessingSystem(
                     changeState(nextState)
                     beforeTaskExecution()
                     notifyTasksOfStartAction(nextTask.taskType)
+//                    nextTask.taskDispatcher?.handleTaskProcessorAction(
+//                        nextTask.taskProcessor!!, processorStartActionType(nextTask.taskType))
                     nextTask.beforeTaskStart()
                     waitFor(nextTask.taskProcess)
                     nextTask.afterTaskCompleted()
                     notifyTasksOfEndAction(nextTask.taskType)
+//                    nextTask.taskDispatcher?.handleTaskProcessorAction(
+//                        nextTask.taskProcessor!!, processorEndActionType(nextTask.taskType))
                     afterTaskExecution()
                     nextTask.taskDispatcher?.dispatchCompleted(nextTask.taskProcessor!!, nextTask)
                     previousTask = nextTask
