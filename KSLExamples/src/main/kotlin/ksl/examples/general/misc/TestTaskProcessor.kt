@@ -8,7 +8,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
-fun main(){
+fun main() {
     val m = Model()
     val test = TestTaskProcessor(m)
     m.numberOfReplications = 30
@@ -26,15 +26,18 @@ class TestTaskProcessor(
     private val myTBA = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
     private val myST = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
 
-    //private val myWaitingQ: Queue<Task> = Queue(this, "TaskQ")
-
+    //    private val myTaskProcessor1 = TransientTaskProcessor(name = "TestProcessor1")
     private val myTaskProcessor1 = TaskProcessor(this, name = "TestProcessor1")
-//    private val myTaskProcessor2 = TaskProcessor(this, name = "TestProcessor2")
+
+    //    private val myTaskProcessor2 = TaskProcessor(this, name = "TestProcessor2")
     private val myTaskDispatcher = TaskDispatcher(this, name = "Dispatcher")
+
     init {
         myTaskDispatcher.register(myTaskProcessor1)
 //        myTaskDispatcher.register(myTaskProcessor2)
+//        myTaskDispatcher.configureTransientTaskProcessorPerformance()
     }
+
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrivals, myTBA, myTBA)
 
     private fun arrivals(generator: EventGenerator) {
