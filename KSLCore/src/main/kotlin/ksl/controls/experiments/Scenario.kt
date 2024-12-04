@@ -34,9 +34,9 @@ import ksl.utilities.io.OutputDirectory
  *  In this manner, each experiment can have a unique name.
  *
  *  @param model The model to be simulated
- *  @param inputs The map of inputs (based on control names) to apply to the model
  *  @param name The name of the scenario. It should be unique within the context of a
  *  set of scenario being executed by a ScenarioRunner.
+ *  @param inputs The map of inputs (based on control names) to apply to the model.
  *  @param numberReplications the number of replications for the scenario. By default,
  *  this is the current setting of the model.
  *  @param lengthOfReplication the length of each replication for the scenario. By default,
@@ -46,8 +46,8 @@ import ksl.utilities.io.OutputDirectory
  */
 class Scenario(
     val model: Model,
-    inputs: Map<String, Double>,
     name: String,
+    inputs: Map<String, Double> = emptyMap(),
     numberReplications: Int = model.numberOfReplications,
     lengthOfReplication: Double = model.lengthOfReplication,
     lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
@@ -69,9 +69,11 @@ class Scenario(
     var setup: ScenarioSetupIfc? = null
 
     init {
-        require(model.validateInputKeys(inputs.keys)) { "The inputs, ${inputs.keys.joinToString(prefix = "[", postfix = "]")} contained invalid input names" }
-        for ((n, v) in inputs) {
-            myInputs[n] = v
+        if (inputs.isNotEmpty()){
+            require(model.validateInputKeys(inputs.keys)) { "The inputs, ${inputs.keys.joinToString(prefix = "[", postfix = "]")} contained invalid input names" }
+            for ((n, v) in inputs) {
+                myInputs[n] = v
+            }
         }
         model.numberOfReplications = numberReplications
         model.lengthOfReplication = lengthOfReplication

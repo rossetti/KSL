@@ -7,6 +7,7 @@ import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.OutputDirectory
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import java.io.PrintWriter
 import java.nio.file.Path
 import kotlin.io.path.deleteRecursively
 
@@ -91,13 +92,13 @@ class ScenarioRunner(
      */
     fun addScenario(
         model: Model,
-        inputs: Map<String, Double>,
         name: String,
+        inputs: Map<String, Double>,
         numberReplications: Int = model.numberOfReplications,
         lengthOfReplication: Double = model.lengthOfReplication,
         lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
     ): Scenario {
-        val s = Scenario(model, inputs, name, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
+        val s = Scenario(model, name, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
         addScenario(s)
         return s
     }
@@ -152,6 +153,26 @@ class ScenarioRunner(
                     scenario.model.turnOffCSVStatisticalReports()
                 }
             }
+        }
+    }
+
+    /**
+     *  Prints basic half-width summary reports for each scenario to the console
+     */
+    fun print(){
+        write(PrintWriter(System.out))
+    }
+
+    /**
+     *  Writes basic half-width summary reports to the provided PrintWriter
+     *  @param out The print writer. By default, this is KSL.out
+     */
+    fun write(out: PrintWriter = KSL.out) {
+        for(s in scenarioList) {
+            val sr = s.simulationRun?.statisticalReporter()
+            val r = sr?.halfWidthSummaryReport(title = s.name)
+            out.println(r)
+            out.println()
         }
     }
 
