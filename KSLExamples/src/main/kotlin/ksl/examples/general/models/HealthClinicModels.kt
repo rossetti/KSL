@@ -1,11 +1,19 @@
 package ksl.examples.general.models
 
-import ksl.observers.ExperimentDataCollector
+import ksl.controls.experiments.Scenario
+import ksl.controls.experiments.ScenarioRunner
 import ksl.observers.ReplicationDataCollector
 import ksl.simulation.Model
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 
 fun main(){
+
+   // usingReplicationDataCollector()
+    usingScenarios()
+
+}
+
+fun usingReplicationDataCollector(){
     val modelA = Model("Clinic A Model")
     val clinicA = ClinicDesignA(modelA, "Design A")
     modelA.numberOfReplications = 528
@@ -35,5 +43,26 @@ fun main(){
     val mc = MultipleComparisonAnalyzer(dataMap)
 
     println(mc)
+}
 
+fun usingScenarios(){
+    val modelA = Model("Clinic A Model")
+    val clinicA = ClinicDesignA(modelA, "Clinic")
+    modelA.numberOfReplications = 528
+
+    val modelB = Model("Clinic B Model")
+    val clinicB = ClinicDesignB(modelB, "Clinic")
+    modelB.resetStartStream()
+    modelB.numberOfReplications = 528
+
+    val s1 = Scenario(model = modelA,  name = "DesignA")
+    val s2 = Scenario(model = modelB,  name = "DesignB")
+    val list = listOf(s1, s2)
+    val scenarioRunner = ScenarioRunner("HealthClinicScenarios", list)
+    scenarioRunner.simulate()
+
+    val expNames = listOf("DesignA", "DesignB")
+    val responseName = "Clinic:TimeInSystem"
+    val mc = scenarioRunner.kslDb.multipleComparisonAnalyzerFor(expNames, responseName)
+    println(mc)
 }

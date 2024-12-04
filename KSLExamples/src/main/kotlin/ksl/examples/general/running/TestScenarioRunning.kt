@@ -41,8 +41,8 @@ fun buildScenarios() : List<Scenario> {
     GIGcQueue(sim2, 1, name = "MM1Q")
     val sim2Inputs = mapOf("MM1Q.numServers" to 3.0)
 
-    val s1 = Scenario(model = sim1, inputs = sim1Inputs, name = "MM1_Test1")
-    val s2 = Scenario(model = sim2, inputs = sim2Inputs, name = "MM1_Test2")
+    val s1 = Scenario(model = sim1, name = "MM1_Test1", inputs = sim1Inputs)
+    val s2 = Scenario(model = sim2, name = "MM1_Test2", inputs = sim2Inputs)
     val list = listOf(s1, s2)
     return list
 }

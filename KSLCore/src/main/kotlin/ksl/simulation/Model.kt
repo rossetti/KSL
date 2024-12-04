@@ -1371,7 +1371,7 @@ class Model(
      *  property.
      *
      *  @param inputKeys the set of keys to check
-     *  @param conCatChar the character used to concatenate random variables with their parameters.
+     *  @param conCatString the character used to concatenate random variables with their parameters.
      *  By default, this is "."
      *  @return true if all provided input keys are valid
      */
