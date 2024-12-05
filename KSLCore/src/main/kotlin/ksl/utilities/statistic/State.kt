@@ -211,6 +211,32 @@ open class State(
     }
 
     /**
+     *  Makes a new instance of the state that is a copy, except for
+     *  the specification of whether the state is entered.
+     *  @param enteredOption true indicates that the new instance will determine
+     *  whether the copy is entered or not based on whether this state is
+     *  entered or not; otherwise, the copy will default to not being entered.
+     *  The default is false, meaning the clone will always not be currently entered when created.
+     */
+    fun instance(enteredOption: Boolean = false): State {
+        val s = State(this.number, this.name, this.sojournTimeCollectionFlag)
+        if (enteredOption) {
+            s.isEntered = this.isEntered
+        } else {
+            s.isEntered = false
+        }
+        s.numberOfTimesEntered = numberOfTimesEntered
+        s.numberOfTimesExited = numberOfTimesExited
+        s.timeStateEntered = timeStateEntered
+        timeStateExited = timeStateExited
+        s.totalTimeInState = totalTimeInState
+        if (sojournTimeStatistic != null) {
+            s.sojournTimeStatistic = sojournTimeStatistic!!.instance()
+        }
+        return s
+    }
+
+    /**
      * Resets the statistics collected on the sojourn time in the state
      */
     fun resetSojournTimeStatistics() {
