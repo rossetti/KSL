@@ -588,6 +588,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             return coroutine
         }
 
+        //TODO require the name of the suspension to ensure that the resume matches it????
+        // will need an internal one for the 9 current uses of it that does not need the name
+        // and an external facing one that requires the name
+
         /**
          *  If the entity is executing a process and the process is suspended, then
          *  the process is scheduled to resume at the current simulation time.
@@ -1099,6 +1103,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal fun terminate(afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null) {
                 state.terminate(afterTermination)
             }
+
+            //TODO require the name of the suspension to ensure that the resume matches it????
 
             override suspend fun suspend(suspensionName: String?) {
                 currentSuspendName = suspensionName
