@@ -31,7 +31,7 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
     val resource: ResourceWithQ = ResourceWithQ(this, "R1")
 
     private inner class Customer: Entity() {
-        val process1 : KSLProcess = process("process1") {
+        val process1 : KSLProcess = process() {
             println("time = $time before the first delay in ${this@Customer}")
             delay(10.0)
             println("time = $time after the first delay in ${this@Customer}")
@@ -54,24 +54,45 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
             println("time = $time ended process 2 ${this@Customer}")
         }
 
+        val process3: KSLProcess
+                get() = process(){
+                    println("time = $time starting process 3 ${this@Customer}")
+                    val a  = seize(resource)
+                    delay(10.0)
+                    release(a)
+                    println("time = $time ended process 3 ${this@Customer}")
+                }
+
         private fun activateProcess2Event(event: KSLEvent<Nothing>){
             println("time = $time activating process 2")
             activate(this.process2)
         }
 
         override fun afterRunningProcess(completedProcess: KSLProcess) {
+            println("$time > completed process ${completedProcess.name}")
             // this is called after any process completes, thus need to check which one completed
             if (completedProcess == process1) {
                 println("time = $time activating process 2 after running $completedProcess")
                 activate(this@Customer.process2)
                 // schedule(this@Customer::activateProcess2Event, 0.0)
             }
+            //TODO looks like there is nothing that prevents the creation and running of new instances
+            // of the same "process" for the same entity (except for the name issue)
+            // ISSUE: new names cause many processes to be stored in process name map, 1 for each creation
+
+            val np = process3
+            println("time = $time activating $np after running $completedProcess")
+            activate(np)
+//            if (completedProcess == process3) {
+//                println("time = $time activating $process3 after running $completedProcess")
+//                activate(this@Customer.process3)
+//            }
         }
 
         // could also override this fun to determine the next
-        override fun determineNextProcess(completedProcess: KSLProcess): KSLProcess? {
-            return super.determineNextProcess(completedProcess)
-        }
+//        override fun determineNextProcess(completedProcess: KSLProcess): KSLProcess? {
+//            return super.determineNextProcess(completedProcess)
+//        }
 
     }
 
@@ -80,7 +101,8 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
 
     override fun initialize() {
         val e = Customer()
-        activate(e.process1)
+    //    activate(e.process1)
+        activate(e.process3)
     }
 
 }
