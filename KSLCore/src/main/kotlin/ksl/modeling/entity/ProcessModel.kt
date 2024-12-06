@@ -88,7 +88,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         override fun generate() {
             val entity = entityCreator()
-            require(entity.defaultProcess != null) { "There was no initial process specified for the entity" }
+            require(entity.defaultProcess != null) { "There was no default process specified for the entity. Ensure that the `defaultProcess` property is set via the process() function or directly." }
             activate(entity.defaultProcess!!, priority = activationPriority)
         }
 
@@ -558,29 +558,34 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  Creates the coroutine and immediately suspends it.  To start executing
          *  the created coroutine use the methods for activating processes.
          *
-         *  Note that by default, a process defined by this function, will not be
+         *  Note that a process defined by this function might not be
          *  the entity's default initial process. To use an EntityGenerator the entity
-         *  must have a default initial process.
+         *  must have a default initial process. There can only be 1 default process for an entity.
+         *  Calling this function more than once with [isDefaultProcess] true will set the default
+         *  process via the last called function.
          *
          *  @param processName the name of the process
-         *  @param isInitialProcess whether to add the process to the entity's default initial process. The default
+         *  @param isDefaultProcess whether to set the process to the entity's default initial process. The default
          *  value is false. The process will not be used as the entity's default initial process.
          */
         protected fun process(
             processName: String? = null,
-            isInitialProcess: Boolean = false,
+            isDefaultProcess: Boolean = false,
             block: suspend KSLProcessBuilder.() -> Unit
         ): KSLProcess {
+            //TODO: ISSUE no name causes new name to be created, which will never be in the map
+            // the map will never contain null because the key for the map is non-null and null causes a unique name to be created
             require(!myProcesses.contains(processName))
             { "The process name, $processName has already been used for the entity. The process name must be unique to the entity type." }
             val coroutine = ProcessCoroutine(processName)
+            //TODO only add to the map if processName was not null???
             myProcesses[coroutine.name] = coroutine
             // if this is the first defined process, make it the initial process by default
             if (myProcesses.size == 1) {
                 defaultProcess = coroutine
             } else {
                 // not the first one, overwrite initial process only if told to do so
-                if (isInitialProcess) {
+                if (isDefaultProcess) {
                     defaultProcess = coroutine
                 }
             }
