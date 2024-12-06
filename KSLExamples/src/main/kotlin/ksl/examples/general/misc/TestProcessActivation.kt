@@ -63,6 +63,25 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
                     println("time = $time ended process 3 ${this@Customer}")
                 }
 
+        // It should be clear that process() is just a function that makes a KSLProcess
+        fun anotherCreateProcess(): KSLProcess = process(){
+            println("time = $time starting process 3 ${this@Customer}")
+            val a  = seize(resource)
+            delay(10.0)
+            release(a)
+            println("time = $time ended process 3 ${this@Customer}")
+        }
+
+        fun createProcess(): KSLProcess {
+            return process(){
+                println("time = $time starting process 3 ${this@Customer}")
+                val a  = seize(resource)
+                delay(10.0)
+                release(a)
+                println("time = $time ended process 3 ${this@Customer}")
+            }
+        }
+
         private fun activateProcess2Event(event: KSLEvent<Nothing>){
             println("time = $time activating process 2")
             activate(this.process2)
