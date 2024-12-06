@@ -558,11 +558,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  Creates the coroutine and immediately suspends it.  To start executing
          *  the created coroutine use the methods for activating processes.
          *
-         *  Note that a process defined by this function might not be
+         *  Note that a process defined by this function could be specified as
          *  the entity's default initial process. To use an EntityGenerator the entity
          *  must have a default initial process. There can only be 1 default process for an entity.
          *  Calling this function more than once with [isDefaultProcess] true will set the default
-         *  process via the last called function.
+         *  process via the last called function. You can also set the default process directly
+         *  via the `defaultProcess` property of the Entity.
          *
          *  @param processName the name of the process
          *  @param isDefaultProcess whether to set the process to the entity's default initial process. The default
