@@ -231,9 +231,7 @@ interface KSLProcessBuilder {
      *
      *  @param blockage The blockage to start
      */
-    fun startBlockage(blockage: Entity.Blockage) {
-        blockage.start(entity)
-    }
+    fun startBlockage(blockage: Entity.Blockage)
 
     /** Causes the blockage to be cleared and any entities suspended because of the blockage
      * to be resumed. The blockage can only be cleared by the entity that created it.
@@ -242,9 +240,7 @@ interface KSLProcessBuilder {
      *  @param priority the priority for the resumption of suspended entities associated
      *  with the blockage
      */
-    fun clearBlockage(blockage: Entity.Blockage, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
-        blockage.end(entity, priority)
-    }
+    fun clearBlockage(blockage: Entity.Blockage, priority: Int = KSLEvent.DEFAULT_PRIORITY)
 
     /** Causes the current process to suspend (immediately) until the specified process has run to completion.
      *  This is like run blocking.  It activates the specified process and then waits for it
