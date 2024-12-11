@@ -142,7 +142,7 @@ class Suspension(
      * @param priority the priority associated with the resume. Can be used
      * to order resumptions that occur at the same time.
      */
-    fun resume(priority: Int) {
+    fun resume(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
         require(!done) { "The suspension with $name and type $type associated with entity ${entity.name} has already been resumed." }
         require(suspendedEntity != null) { "The suspension with $name and type $type associated with entity ${entity.name} is not associated with a suspended entity." }
         suspendedEntity?.resumeProcess(priority = priority)
