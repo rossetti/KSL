@@ -1131,7 +1131,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override suspend fun suspend(suspension: Suspension) {
                 //TODO this require is probably redundant
-               // require(suspension.entity == this@Entity) {"The suspension $suspension is not associated with this entity: ${this@Entity.id}"}
+                // require(suspension.entity == this@Entity) {"The suspension $suspension is not associated with this entity: ${this@Entity.id}"}
                 currentSuspendName = suspension.name
                 currentSuspendType = SuspendType.SUSPEND
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) for suspension named: $currentSuspendName" }
@@ -2144,8 +2144,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              */
             private var suspendedEntity: Entity? = null
 
-            internal fun suspending(suspendingEntity: Entity){
-                require(suspendingEntity == myEntity) {"The suspension $this is not associated with the suspending entity: ${suspendingEntity.id}"}
+            internal fun suspending(suspendingEntity: Entity) {
+                require(suspendingEntity == myEntity) { "The suspension $this is not associated with the suspending entity: ${suspendingEntity.id}" }
                 isResumed = false
                 suspendedEntity = suspendingEntity
             }
@@ -2189,6 +2189,52 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val sb = StringBuilder()
                 sb.appendLine("Suspension: id = $id, label = $label, type = $type, done = $isResumed for entity (id = ${myEntity.id}, name = ${myEntity.name}")
                 return sb.toString()
+            }
+        }
+
+        inner class Blockage(
+            name: String? = null
+        ) : IdentityIfc by Identity(name) {
+            private val myEntity: Entity = this@Entity
+            private val myBlockedEntities = mutableListOf<Entity>()
+
+            var isCreated: Boolean = true
+                private set
+            var isActive: Boolean = false
+                private set
+            var isCompleted: Boolean = false
+                private set
+            val hasBlockedEntities: Boolean
+                get() = myBlockedEntities.isNotEmpty()
+
+            /**
+             *  Cause the blockage to indicate that it is active.
+             */
+            internal fun start(starter: Entity) {
+                require(!isActive) { "The blockage ($name) was already active." }
+                require(starter == myEntity) { "The entity (${starter.name}) starting the blockage must be its associated entity (${myEntity.name}) that created it." }
+                isCreated = false
+                isCompleted = false
+                isActive = true
+            }
+
+            /**
+             *  Usage: Add the entity to the blockage and then suspend the entity.
+             */
+            internal fun addBlockedEntity(entity: Entity) {
+                require(!myBlockedEntities.contains(entity)) { "The entity ${entity.name} is already blocked by the blockage ($name)" }
+                myBlockedEntities.add(entity)
+            }
+
+            internal fun end(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+                require(isActive) { "The blockage ($name) cannot be ended because it is not active." }
+                isCompleted = true
+                isActive = false
+                while (myBlockedEntities.isNotEmpty()) {
+                    val blockedEntity = myBlockedEntities.first()
+                    blockedEntity.resumeProcess(priority = priority)
+                    myBlockedEntities.remove(blockedEntity)
+                }
             }
         }
     }
