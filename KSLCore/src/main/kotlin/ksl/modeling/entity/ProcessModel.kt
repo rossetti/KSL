@@ -421,6 +421,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         var previousProcess: KSLProcess? = null
             private set
 
+        //TODO when should the list of blockages associated with the entity get cleared?
+        // an entity can be in 1 and only 1 process at a time
+        // make sure that the process that starts the blockage is the one that clears the blockage
+        // make sure that the completing process has no active blockages (must be a corresponding clear in the process)
+        private var myBlockages: MutableList<Blockage>? = null
+
         /**  An entity can be using 0 or more resources.
          *  The key to this map represents the resources that are allocated to this entity.
          *  The element of this map represents the list of allocations allocated to the entity for the give resource.
@@ -2218,10 +2224,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             name: String? = null
         ) : IdentityIfc by Identity(name) {
             private val myEntity: Entity = this@Entity
-            //TODO need to add the blockage to the entity
+            // when the blockage gets created, it is added to the blockages of the entity
             init {
-
+                if (myBlockages == null){
+                    myBlockages = mutableListOf()
+                }
+                myBlockages?.add(this)
             }
+
             private val myBlockedEntities = mutableListOf<Entity>()
 
             var isCreated: Boolean = true
