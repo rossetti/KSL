@@ -2222,6 +2222,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  Usage: Add the entity to the blockage and then suspend the entity.
              */
             internal fun addBlockedEntity(entity: Entity) {
+                require(entity != myEntity) {"The entity ${entity.name} tried to block itself."}
                 require(!myBlockedEntities.contains(entity)) { "The entity ${entity.name} is already blocked by the blockage ($name)" }
                 myBlockedEntities.add(entity)
             }
@@ -2230,10 +2231,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(isActive) { "The blockage ($name) cannot be ended because it is not active." }
                 isCompleted = true
                 isActive = false
-                while (myBlockedEntities.isNotEmpty()) {
-                    val blockedEntity = myBlockedEntities.first()
+                for(blockedEntity in myBlockedEntities){
                     blockedEntity.resumeProcess(priority = priority)
-                    myBlockedEntities.remove(blockedEntity)
+                    //the entity are responsible for removing themselves after resuming
                 }
             }
         }
