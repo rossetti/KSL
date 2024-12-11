@@ -1142,6 +1142,28 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+            override suspend fun waitFor(
+                blockage: Blockage,
+                queue: Queue<Entity>?,
+                suspensionName: String?
+            ) {
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking for ${blockage.name} in process, ($this)" }
+                queue?.enqueue(this@Entity)
+                if (blockage.isActive){
+                    blockage.addBlockedEntity(this@Entity)
+                    entity.state.blockUntilCompletion()
+                    suspend()
+                    entity.state.activate()
+                    blockage.removeBlockedEntity(this@Entity)
+                }
+                queue?.remove(this@Entity)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked from ${blockage.name} in process, ($this)" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+            }
+
             /**
              *  The critical method. This method uses suspendCoroutineUninterceptedOrReturn() to capture
              *  the continuation for future resumption. Places the state of the process into the suspended state.
@@ -2196,6 +2218,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             name: String? = null
         ) : IdentityIfc by Identity(name) {
             private val myEntity: Entity = this@Entity
+            //TODO need to add the blockage to the entity
+            init {
+
+            }
             private val myBlockedEntities = mutableListOf<Entity>()
 
             var isCreated: Boolean = true
