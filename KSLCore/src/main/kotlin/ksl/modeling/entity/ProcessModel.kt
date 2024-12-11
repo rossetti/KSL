@@ -1148,6 +1148,27 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+            /** Causes the blockage to be active. The blockage can only be started by
+             * the entity that created it.
+             *
+             *  @param blockage The blockage to start
+             */
+            override fun startBlockage(blockage: Entity.Blockage) {
+                blockage.start(this, entity)
+            }
+
+            /** Causes the blockage to be cleared and any entities suspended because of the blockage
+             * to be resumed. The blockage can only be cleared by the entity that created it and
+             * within the same process that it was started.
+             *
+             *  @param blockage the blockage to clear
+             *  @param priority the priority for the resumption of suspended entities associated
+             *  with the blockage
+             */
+            override fun clearBlockage(blockage: Entity.Blockage, priority: Int) {
+                blockage.end(this, entity, priority)
+            }
+
             override suspend fun waitFor(
                 blockage: Blockage,
                 queue: Queue<Entity>?,
@@ -1157,7 +1178,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking for ${blockage.name} in process, ($this)" }
                 queue?.enqueue(this@Entity)
-                if (blockage.isActive){
+                if (blockage.isActive) {
                     blockage.addBlockedEntity(this@Entity)
                     entity.state.blockUntilCompletion()
                     suspend()
@@ -2224,15 +2245,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             name: String? = null
         ) : IdentityIfc by Identity(name) {
             private val myEntity: Entity = this@Entity
+
             // when the blockage gets created, it is added to the blockages of the entity
             init {
-                if (myBlockages == null){
+                if (myBlockages == null) {
                     myBlockages = mutableListOf()
                 }
                 myBlockages?.add(this)
             }
 
             private val myBlockedEntities = mutableListOf<Entity>()
+            private var myBlockingProcess: KSLProcess? = null
 
             var isCreated: Boolean = true
                 private set
@@ -2246,9 +2269,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             /**
              *  Cause the blockage to indicate that it is active.
              */
-            internal fun start(starter: Entity) {
+            internal fun start(process: KSLProcess, starter: Entity) {
                 require(!isActive) { "The blockage ($name) was already active." }
                 require(starter == myEntity) { "The entity (${starter.name}) starting the blockage must be its associated entity (${myEntity.name}) that created it." }
+                myBlockingProcess = process
                 isCreated = false
                 isCompleted = false
                 isActive = true
@@ -2259,7 +2283,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  Called from ProcessCoroutine
              */
             internal fun addBlockedEntity(entity: Entity) {
-                require(entity != myEntity) {"The entity ${entity.name} tried to block itself."}
+                require(entity != myEntity) { "The entity ${entity.name} tried to block itself." }
                 require(!myBlockedEntities.contains(entity)) { "The entity ${entity.name} is already blocked by the blockage ($name)" }
                 myBlockedEntities.add(entity)
             }
@@ -2268,16 +2292,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  Usage: Removes the entity from the blockage
              *  Called from ProcessCoroutine after the entity is resumed
              */
-            internal fun removeBlockedEntity(entity: Entity){
+            internal fun removeBlockedEntity(entity: Entity) {
                 myBlockedEntities.remove(entity)
             }
 
-            internal fun end(ender: Entity, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+            internal fun end(process: KSLProcess, ender: Entity, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+                require(myBlockingProcess == process) { "The process (${myBlockingProcess?.name}) that started the blockage was not the same process attempting to end it." }
                 require(isActive) { "The blockage ($name) cannot be ended because it is not active." }
                 require(ender == myEntity) { "The entity (${ender.name}) clearing the blockage must be its associated entity (${myEntity.name}) that created it." }
                 isCompleted = true
                 isActive = false
-                for(blockedEntity in myBlockedEntities){
+                myBlockingProcess = null
+                for (blockedEntity in myBlockedEntities) {
                     blockedEntity.resumeProcess(priority = priority)
                     //the entities are responsible for removing themselves after resuming
                 }
