@@ -1113,6 +1113,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             //TODO require the name of the suspension to ensure that the resume matches it????
 
+            @Deprecated(
+                "The general suspend function is error prone and may be replaced with other constructs in future releases",
+                level = DeprecationLevel.WARNING
+            )
             override suspend fun suspend(suspensionName: String?) {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SUSPEND
@@ -1120,6 +1124,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 //  suspensionObserver.attach(entity)
                 suspend()
                 //  suspensionObserver.detach(entity)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) resumed from suspension named: $currentSuspendName" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+            }
+
+            override suspend fun suspend(suspension: Suspension) {
+                //TODO this require is probably redundant
+               // require(suspension.entity == this@Entity) {"The suspension $suspension is not associated with this entity: ${this@Entity.id}"}
+                currentSuspendName = suspension.name
+                currentSuspendType = SuspendType.SUSPEND
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) for suspension named: $currentSuspendName" }
+                suspension.suspending(this@Entity)
+                suspend()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) resumed from suspension named: $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -2101,59 +2118,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             private inner class Completed : ProcessState("Completed")
         }
 
-        /**
-         *  An abstraction that represents a general suspension point within a process. Suspensions are
-         *  one-shot. That is, once resumed they cannot be used again unless passed through
-         *  the suspend(suspension: Suspension) function for a KSLProcess.
-         *
-         *  To be useful, a suspension must be used as an argument of the suspend(suspension: Suspension) function for a KSLProcess.
-         *  The main purpose of this class is to better facilitate process interaction coordination between
-         *  entities that must suspend and resume each other to try to make the interaction less error-prone.
-         *
-         *  @param name the name of the suspension. Useful for debugging and
-         *  tracking of suspensions. Defaults to null. If null, a useful name is created based on its identity.
-         *  @param type the type of suspension. By default, this is the general type, SuspendType.SUSPEND.
-         */
-        protected inner class Suspension(
-            name: String? = null,
-            val type: SuspendType = SuspendType.SUSPEND
-        ) : IdentityIfc by Identity(name) {
-
-            /**
-             * The entity that is suspended. This property is set by
-             * the suspend(suspension: Suspension) function before the entity suspends
-             */
-            internal var suspendedEntity: Entity? = null
-
-            /**
-             *  A suspension is once only. Once done it cannot be reused.
-             *  This flag indicates if the suspension has occurred and been resumed.
-             *  True means that the resumption has occurred. False means that
-             *  the resumption has not yet occurred.  This flag is set to false
-             *  internally by the suspend(suspension: Suspension) function when
-             *  the suspension is used.  Once the suspension has been resumed, this property
-             *  remains false, unless the suspension is passed again through the suspend(suspension: Suspension) function
-             */
-            var done: Boolean = false
-                internal set
-
-            /**
-             *  Causes the suspension to be resumed at the current time (i.e. without any delay).
-             *  Errors will result if the suspension is not associated with a suspending entity
-             *  via the suspend(suspension: Suspension) function or if the suspension has already
-             *  been resumed.
-             *
-             * @param priority the priority associated with the resume. Can be used
-             * to order resumptions that occur at the same time.
-             */
-            fun resume(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
-                require(!done) { "The suspension with $name and type $type within entity ${this@Entity.name} has already been resumed." }
-                require(suspendedEntity != null) { "The suspension with $name and type $type within entity ${this@Entity.name} is not associated with a suspended entity." }
-                suspendedEntity?.resumeProcess(priority = priority)
-                done = true
-                suspendedEntity = null
-            }
-        }
     }
 
     companion object {
