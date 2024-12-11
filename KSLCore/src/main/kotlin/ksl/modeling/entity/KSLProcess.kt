@@ -19,6 +19,7 @@
 package ksl.modeling.entity
 
 import ksl.modeling.entity.ProcessModel.Entity
+import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
@@ -189,8 +190,10 @@ interface KSLProcessBuilder {
      * the entity is in when there are multiple suspension points, assuming that every suspension point
      * has a unique suspension name..
      */
-    @Deprecated("The general suspend function is error prone and may be replaced with other constructs in future releases",
-        level = DeprecationLevel.WARNING)
+    @Deprecated(
+        "The general suspend function is error prone and may be replaced with other constructs in future releases",
+        level = DeprecationLevel.WARNING
+    )
     suspend fun suspend(suspensionName: String? = null)
 
     /**
@@ -207,6 +210,22 @@ interface KSLProcessBuilder {
      */
     suspend fun suspend(suspension: Entity.Suspension)
 
+    /** Causes the current process to suspend (immediately) until the blockage has been completed.
+     *  If the blockage is active, the entity will be suspended until the blockage is ended.
+     *  If the blockage is not active, then no suspension occurs. Some other entity
+     *  must cause the blockage to be completed. An entity cannot block itself.
+     *
+     * @param blockage the blockage to wait for
+     * @param queue an optional queue to hold the entity while it is blocked.
+     *  @param suspensionName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
+     *   are more than one waitFor suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun waitFor(
+        blockage: Entity.Blockage,
+        queue: Queue<Entity>? = null,
+        suspensionName: String? = null
+    )
+
     /** Causes the current process to suspend (immediately) until the specified process has run to completion.
      *  This is like run blocking.  It activates the specified process and then waits for it
      *  to complete before proceeding. Since the current process suspends (immediately) the time until
@@ -216,6 +235,8 @@ interface KSLProcessBuilder {
      * @param process the process to start for an entity. The supplied process must be in the created state.
      * @param timeUntilActivation the time until the start of the process being activated.
      * @param priority the priority associated with the event to activate the process
+     *  @param suspensionName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
+     *   are more than one waitFor suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun waitFor(
         process: KSLProcess,
@@ -1025,7 +1046,7 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        if (movableResource.homeBase != null){
+        if (movableResource.homeBase != null) {
             move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
         }
         release(a)
@@ -1068,7 +1089,7 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        if (movableResourceWithQ.homeBase != null){
+        if (movableResourceWithQ.homeBase != null) {
             move(movableResourceWithQ, movableResourceWithQ.homeBase!!, emptyVelocity, emptyMovePriority)
         }
         release(a)
@@ -1114,7 +1135,7 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        if (movableResource.homeBase != null){
+        if (movableResource.homeBase != null) {
             move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
         }
         release(a)
@@ -1159,7 +1180,7 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        if (movableResource.homeBase != null){
+        if (movableResource.homeBase != null) {
             move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
         }
         release(a)
@@ -1560,7 +1581,7 @@ interface KSLProcessBuilder {
         destination: IdentityIfc,
         ridePriority: Int = PRIORITY,
         suspensionName: String? = null
-    ) : Double
+    ): Double
 
     /** This suspending function causes the entity to be associated with an item that occupies the allocated
      * cells on the conveyor. The item will move on the conveyor until it reaches the supplied destination.
@@ -1584,7 +1605,7 @@ interface KSLProcessBuilder {
         destination: IdentityIfc,
         ridePriority: Int = PRIORITY,
         suspensionName: String? = null
-    ) : Double {
+    ): Double {
         require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
         return rideConveyor(entity.conveyorRequest!!, destination, ridePriority, suspensionName)
     }
