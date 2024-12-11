@@ -2118,6 +2118,79 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             private inner class Completed : ProcessState("Completed")
         }
 
+        /**
+         *  An abstraction that represents a general suspension point within a process. Suspensions are
+         *  one-shot. That is, once resumed they cannot be used again unless passed through
+         *  the suspend(suspension: Suspension) function for a KSLProcess.
+         *
+         *  To be useful, a suspension must be used as an argument of the suspend(suspension: Suspension) function for a KSLProcess.
+         *  The main purpose of this class is to better facilitate process interaction coordination between
+         *  entities that must suspend and resume each other to try to make the interaction less error-prone.
+         *
+         *  @param name the name of the suspension. Useful for debugging and
+         *  tracking of suspensions. Defaults to null. If null, a useful name is created based on its identity.
+         *  @param type the type of suspension. By default, this is the general type, SuspendType.SUSPEND.
+         */
+        inner class Suspension(
+            name: String? = null,
+            val type: SuspendType = SuspendType.SUSPEND
+        ) : IdentityIfc by Identity(name) {
+
+            private val myEntity: Entity = this@Entity
+
+            /**
+             * The entity that is suspended. This property is set by
+             * the suspend(suspension: Suspension) function before the entity suspends
+             */
+            private var suspendedEntity: Entity? = null
+
+            internal fun suspending(suspendingEntity: Entity){
+                require(suspendingEntity == myEntity) {"The suspension $this is not associated with the suspending entity: ${suspendingEntity.id}"}
+                isResumed = false
+                suspendedEntity = suspendingEntity
+            }
+
+            /**
+             *  True indicates that the suspension is suspending for the associated entity.
+             */
+            val isSuspending: Boolean
+                get() = suspendedEntity != null
+
+            /**
+             *  A suspension is once only. Once done it cannot be reused.
+             *  This flag indicates if the suspension has occurred and been resumed.
+             *  True means that the resumption has occurred. False means that
+             *  the resumption has not yet occurred.  This flag is set to false
+             *  internally by the suspend(suspension: Suspension) function when
+             *  the suspension is used.  Once the suspension has been resumed, this property
+             *  remains true, unless the suspension is passed again through the suspend(suspension: Suspension) function
+             */
+            var isResumed: Boolean = false
+                private set
+
+            /**
+             *  Causes the suspension to be resumed at the current time (i.e. without any delay).
+             *  Errors will result if the suspension is not associated with a suspending entity
+             *  via the suspend(suspension: Suspension) function or if the suspension has already
+             *  been resumed.
+             *
+             * @param priority the priority associated with the resume. Can be used
+             * to order resumptions that occur at the same time.
+             */
+            fun resume(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+                require(!isResumed) { "The suspension with label $label and type $type associated with entity ${myEntity.name} has already been resumed." }
+                require(suspendedEntity != null) { "The suspension with label $label and type $type associated with entity ${myEntity.name} is not associated with a suspended entity." }
+                suspendedEntity?.resumeProcess(priority = priority)
+                isResumed = true
+                suspendedEntity = null
+            }
+
+            override fun toString(): String {
+                val sb = StringBuilder()
+                sb.appendLine("Suspension: id = $id, label = $label, type = $type, done = $isResumed for entity (id = ${myEntity.id}, name = ${myEntity.name}")
+                return sb.toString()
+            }
+        }
     }
 
     companion object {
