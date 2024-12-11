@@ -117,9 +117,15 @@ class Suspension(
 
     internal fun suspending(suspendingEntity: Entity){
         require(suspendingEntity == entity) {"The suspension $this is not associated with the suspending entity: ${suspendingEntity.id}"}
-        done = false
+        isResumed = false
         suspendedEntity = suspendingEntity
     }
+
+    /**
+     *  True indicates that the suspension is suspending for the associated entity.
+     */
+    val isSuspending: Boolean
+        get() = suspendedEntity != null
 
     /**
      *  A suspension is once only. Once done it cannot be reused.
@@ -128,9 +134,9 @@ class Suspension(
      *  the resumption has not yet occurred.  This flag is set to false
      *  internally by the suspend(suspension: Suspension) function when
      *  the suspension is used.  Once the suspension has been resumed, this property
-     *  remains false, unless the suspension is passed again through the suspend(suspension: Suspension) function
+     *  remains true, unless the suspension is passed again through the suspend(suspension: Suspension) function
      */
-    var done: Boolean = false
+    var isResumed: Boolean = false
         private set
 
     /**
@@ -143,16 +149,16 @@ class Suspension(
      * to order resumptions that occur at the same time.
      */
     fun resume(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
-        require(!done) { "The suspension with label $label and type $type associated with entity ${entity.name} has already been resumed." }
+        require(!isResumed) { "The suspension with label $label and type $type associated with entity ${entity.name} has already been resumed." }
         require(suspendedEntity != null) { "The suspension with label $label and type $type associated with entity ${entity.name} is not associated with a suspended entity." }
         suspendedEntity?.resumeProcess(priority = priority)
-        done = true
+        isResumed = true
         suspendedEntity = null
     }
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.appendLine("Suspension: id = $id, label = $label, type = $type, done = $done for entity (id = ${entity.id}, name = ${entity.name}")
+        sb.appendLine("Suspension: id = $id, label = $label, type = $type, done = $isResumed for entity (id = ${entity.id}, name = ${entity.name}")
         return sb.toString()
     }
 }
