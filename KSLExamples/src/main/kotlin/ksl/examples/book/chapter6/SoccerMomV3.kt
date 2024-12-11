@@ -1,7 +1,6 @@
 package ksl.examples.book.chapter6
 
 import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.Suspension
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
@@ -28,7 +27,7 @@ class SoccerMomV3(
     private inner class Mother : Entity() {
 
         var errandsCompleted = false
-        val forDaughterExiting: Suspension = Suspension(this, name = "Suspend for daughter to exit van")
+        val forDaughterExiting: Suspension = Suspension(name = "Suspend for daughter to exit van")
         var forDaughterPlaying: Suspension? = null
         var forDaughterLoading: Suspension? = null
 
@@ -49,13 +48,13 @@ class SoccerMomV3(
             // suspend if daughter isn't done playing
             if (daughter.isPlaying){
                 println("$time> mom, ${this@Mother.name}, mom suspending because daughter is still playing")
-                forDaughterPlaying = Suspension(this@Mother, name = "Suspend for daughter playing")
+                forDaughterPlaying = Suspension(name = "Suspend for daughter playing")
                 suspend(forDaughterPlaying!!)
             } else {
                 println("$time> mom, ${this@Mother.name}, mom resuming daughter done playing after errands")
                 daughter.forMotherShopping!!.resume()
             }
-            forDaughterLoading = Suspension(this@Mother, name = "Suspend for daughter entering van")
+            forDaughterLoading = Suspension(name = "Suspend for daughter entering van")
             suspend(forDaughterLoading!!)
             println("$time> mom = ${this@Mother.name} driving home")
             delay(30.0)
@@ -85,7 +84,7 @@ class SoccerMomV3(
             // suspend if mom isn't here
             if (!mother.errandsCompleted){
                 println("$time> daughter, ${this@Daughter.name}, mom errands not completed suspending")
-                forMotherShopping = Suspension(this@Daughter, "Suspend for mother shopping")
+                forMotherShopping = Suspension("Suspend for mother shopping")
                 suspend(forMotherShopping!!)
             } else {
                 // mom's errand was completed and mom suspended because daughter was playing
