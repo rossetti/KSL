@@ -2262,8 +2262,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 myBlockedEntities.remove(entity)
             }
 
-            internal fun end(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+            internal fun end(ender: Entity, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
                 require(isActive) { "The blockage ($name) cannot be ended because it is not active." }
+                require(ender == myEntity) { "The entity (${ender.name}) clearing the blockage must be its associated entity (${myEntity.name}) that created it." }
                 isCompleted = true
                 isActive = false
                 for(blockedEntity in myBlockedEntities){
