@@ -193,6 +193,18 @@ interface KSLProcessBuilder {
         level = DeprecationLevel.WARNING)
     suspend fun suspend(suspensionName: String? = null)
 
+    /**
+     *  An abstraction that represents a general suspension point within a process. Suspensions are
+     *  one-shot. That is, once resumed they cannot be used again unless passed through
+     *  the suspend(suspension: Suspension) function for a KSLProcess.
+     *
+     *  To be useful, a suspension must be used as an argument of the suspend(suspension: Suspension) function for a KSLProcess.
+     *  The main purpose of this function is to set up the suspension for being associated
+     *  with the suspension of the current entity and then suspending the execution at the
+     *  current suspend function until the associated suspension is resumed.
+     *
+     *  @param suspension the suspension to be associated with this suspend call
+     */
     suspend fun suspend(suspension: Entity.Suspension)
 
     /** Causes the current process to suspend (immediately) until the specified process has run to completion.
