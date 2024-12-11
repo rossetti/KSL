@@ -2220,11 +2220,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             /**
              *  Usage: Add the entity to the blockage and then suspend the entity.
+             *  Called from ProcessCoroutine
              */
             internal fun addBlockedEntity(entity: Entity) {
                 require(entity != myEntity) {"The entity ${entity.name} tried to block itself."}
                 require(!myBlockedEntities.contains(entity)) { "The entity ${entity.name} is already blocked by the blockage ($name)" }
                 myBlockedEntities.add(entity)
+            }
+
+            /**
+             *  Usage: Removes the entity from the blockage
+             *  Called from ProcessCoroutine after the entity is resumed
+             */
+            internal fun removeBlockedEntity(entity: Entity){
+                myBlockedEntities.remove(entity)
             }
 
             internal fun end(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
@@ -2233,7 +2242,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isActive = false
                 for(blockedEntity in myBlockedEntities){
                     blockedEntity.resumeProcess(priority = priority)
-                    //the entity are responsible for removing themselves after resuming
+                    //the entities are responsible for removing themselves after resuming
                 }
             }
         }
