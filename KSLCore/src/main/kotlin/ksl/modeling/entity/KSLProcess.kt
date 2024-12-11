@@ -143,8 +143,8 @@ class Suspension(
      * to order resumptions that occur at the same time.
      */
     fun resume(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
-        require(!done) { "The suspension with $name and type $type associated with entity ${entity.name} has already been resumed." }
-        require(suspendedEntity != null) { "The suspension with $name and type $type associated with entity ${entity.name} is not associated with a suspended entity." }
+        require(!done) { "The suspension with label $label and type $type associated with entity ${entity.name} has already been resumed." }
+        require(suspendedEntity != null) { "The suspension with label $label and type $type associated with entity ${entity.name} is not associated with a suspended entity." }
         suspendedEntity?.resumeProcess(priority = priority)
         done = true
         suspendedEntity = null
@@ -152,7 +152,7 @@ class Suspension(
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.appendLine("Suspension: id = $id, name = $name, type = $type, done = $done for entity (id = ${entity.id}, name = ${entity.name}")
+        sb.appendLine("Suspension: id = $id, label = $label, type = $type, done = $done for entity (id = ${entity.id}, name = ${entity.name}")
         return sb.toString()
     }
 }
