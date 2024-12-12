@@ -211,9 +211,9 @@ interface KSLProcessBuilder {
     suspend fun suspend(suspension: Entity.Suspension)
 
     /** Causes the current process to suspend (immediately) until the blockage has been completed.
-     *  If the blockage is active, the entity will be suspended until the blockage is ended.
+     *  If the blockage is active, the entity will be suspended until the blockage is completed (cleared).
      *  If the blockage is not active, then no suspension occurs. Some other entity
-     *  must cause the blockage to be completed. An entity cannot block itself.
+     *  must cause the blockage to be started and completed. An entity cannot block itself.
      *
      * @param blockage the blockage to wait for
      * @param queue an optional queue to hold the entity while it is blocked.
