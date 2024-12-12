@@ -425,7 +425,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         // an entity can be in 1 and only 1 process at a time
         // make sure that the process that starts the blockage is the one that clears the blockage
         // make sure that the completing process has no active blockages (must be a corresponding clear in the process)
-        private var myBlockages: MutableList<Blockage>? = null
+
+        /**
+         *  This list holds the instances of Blockage that are created by the entity.
+         *  An entity can have 0 or more blockages. A blockage must be associated with
+         *  one and only 1 entity. The entity can use the blockage to denote "code"
+         *  that causes other entities to block via the waitFor(blockage: Blockage) suspending function.
+         *  When an entity completes a process that uses a blockage, the blockage must not be active.
+         *  That is, all blockages must be cleared within the same process that started them.
+         *  If any blockages are active when the entity completes a process, then it is an error.
+         *  This is similar to how there can be no allocations of a resource when the process completes.
+         */
+        private var myActiveBlockages: MutableList<Blockage>? = null  //TODO myBlockages defintion
 
         /**  An entity can be using 0 or more resources.
          *  The key to this map represents the resources that are allocated to this entity.
@@ -756,6 +767,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.error { msg.toString() }
                     throw IllegalStateException(msg.toString())
                 }
+                //TODO need to check for blockages
+                /*
+                    When an entity completes a process that uses a blockage, the blockage must not be active.
+                    That is, all blockages must be cleared within the same process that started them.
+                    If any blockages are active when the entity completes a process, then it is an error.
+                    This is similar to how there can be no allocations of a resource when the process completes.
+                 */
+
                 // okay to dispose of the entity
                 if (autoDispose) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id is being disposed by ${processModel.name}" }
@@ -1000,8 +1019,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             private var blockedUntilCompletionListeners: MutableSet<ProcessCoroutine>? = null
 
             // need a set to hold the processes that this process might be blocking until they complete
-            private var blockingUntilCompletedSet: MutableSet<ProcessCoroutine>? =
-                null  //TODO blockingUntilCompletedSet
+            private var blockingUntilCompletedSet: MutableSet<ProcessCoroutine>? = null
 
             override var isActivated: Boolean = false
                 private set
@@ -1086,18 +1104,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 state.start() // this is the coroutine state, can only start process (coroutine) from the created state
             }
 
-//            //TODO how to run a sub-process from within another process (coroutine)?
-//            // what happens if the subProcess is placed within a loop? i.e. called more than once
-//            private fun runSubProcess(subProcess: KSLProcess) {
-//                //TODO check if the process is a sub-process if so run it, if not throw an IllegalArgumentException
-//                val p = subProcess as ProcessCoroutine
-//                if (p.isCreated) {
-//                    // must start it
-//                    p.start() // coroutine run until its first suspension point
-//                }
-//                TODO("not fully implemented/tested 9-14-2022")
-//            }
-
             /**
              *  This causes the process to immediately resume the captured continuation. A state pattern
              *  enforces that the process coroutine can only be resumed if it has been suspended. This process
@@ -1136,8 +1142,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override suspend fun suspend(suspension: Suspension) {
-                //TODO this require is probably redundant
-                // require(suspension.entity == this@Entity) {"The suspension $suspension is not associated with this entity: ${this@Entity.id}"}
                 currentSuspendName = suspension.name
                 currentSuspendType = SuspendType.SUSPEND
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) for suspension named: $currentSuspendName" }
@@ -1148,23 +1152,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            /** Causes the blockage to be active. The blockage can only be started by
-             * the entity that created it.
-             *
-             *  @param blockage The blockage to start
-             */
             override fun startBlockage(blockage: Entity.Blockage) {
                 blockage.start(this, entity)
             }
 
-            /** Causes the blockage to be cleared and any entities suspended because of the blockage
-             * to be resumed. The blockage can only be cleared by the entity that created it and
-             * within the same process that it was started.
-             *
-             *  @param blockage the blockage to clear
-             *  @param priority the priority for the resumption of suspended entities associated
-             *  with the blockage
-             */
             override fun clearBlockage(blockage: Entity.Blockage, priority: Int) {
                 blockage.end(this, entity, priority)
             }
@@ -1314,35 +1305,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ) {
                 blockUntilAllCompleted(setOf(process), resumptionPriority, suspensionName)
             }
-
-            //TODO blockUntilCompletion function
-//            override suspend fun blockUntilCompletion(
-//                process: KSLProcess,
-//                resumptionPriority: Int,
-//                suspensionName: String?
-//            ) {
-//                require(currentProcess != process) { "The supplied process ${process.name} is the same as the current process! " }
-//                require(!process.isTerminated) { "The supplied process ${process.name} is terminated! Cannot block for a terminated process." }
-//                if (process.isCompleted) {
-//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} did not block for ${process.name}, because it was already completed, in process, ($this)" }
-//                    return
-//                }
-//                require(process.entity.isScheduled || process.isActivated) { "The supplied process ${process.name} must be scheduled or activated in order to block the current process! " }
-//                currentSuspendName = suspensionName
-//                currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking until ${process.name} completes, in process, ($this)" }
-//                entity.state.blockUntilCompletion()
-//                this.resumptionPriority = resumptionPriority
-//                val theCompletingProcess = process as ProcessCoroutine
-//                theCompletingProcess.attachBlockingCompletionListener(this)
-//                suspend() // theCompletingProcess will resume the blocked processes when it completes
-//                theCompletingProcess.detachBlockingCompletionListener(this)
-//                this.resumptionPriority = KSLEvent.DEFAULT_PRIORITY
-//                entity.state.activate()
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} stopped blocking until ${process.name} completes, in process, ($this)" }
-//                currentSuspendName = null
-//                currentSuspendType = SuspendType.NONE
-//            }
 
             override suspend fun hold(queue: HoldQueue, priority: Int, suspensionName: String?) {
                 currentSuspendName = suspensionName
@@ -2036,6 +1998,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all resources." }
                     releaseAllResources()
                 }
+                //TODO need to handle blockages here
                 if (isQueued) {
                     //remove it from its queue with no stats
                     @Suppress("UNCHECKED_CAST")
@@ -2241,18 +2204,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
+        //TODO Blockage class definition
         inner class Blockage(
             name: String? = null
         ) : IdentityIfc by Identity(name) {
             private val myEntity: Entity = this@Entity
 
-            // when the blockage gets created, it is added to the blockages of the entity
-            init {
-                if (myBlockages == null) {
-                    myBlockages = mutableListOf()
-                }
-                myBlockages?.add(this)
-            }
+//            // when the blockage gets created, it is added to the blockages of the entity
+//            init {
+//                if (myActiveBlockages == null) {
+//                    myActiveBlockages = mutableListOf()
+//                }
+//                myActiveBlockages?.add(this)
+//            }
 
             private val myBlockedEntities = mutableListOf<Entity>()
             private var myBlockingProcess: KSLProcess? = null
@@ -2276,6 +2240,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isCreated = false
                 isCompleted = false
                 isActive = true
+                //TODO add the blockage to the entity's management list
+
+//                if (myActiveBlockages == null) {
+//                    myActiveBlockages = mutableListOf()
+//                }
+//                myActiveBlockages?.add(this)
             }
 
             /**
@@ -2283,6 +2253,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  Called from ProcessCoroutine
              */
             internal fun addBlockedEntity(entity: Entity) {
+                require(isActive) { "Blockage ($name): Tried to add an entity ${entity.name} to an inactive blockage." }
                 require(entity != myEntity) { "The entity ${entity.name} tried to block itself." }
                 require(!myBlockedEntities.contains(entity)) { "The entity ${entity.name} is already blocked by the blockage ($name)" }
                 myBlockedEntities.add(entity)
@@ -2307,6 +2278,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     blockedEntity.resumeProcess(priority = priority)
                     //the entities are responsible for removing themselves after resuming
                 }
+                //TODO remove the blockage from the entity's management list
+//                myActiveBlockages?.remove(this)
             }
         }
     }
