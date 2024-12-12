@@ -438,6 +438,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private var myActiveBlockages: MutableList<Blockage>? = null  //TODO myBlockages defintion
 
+        /**
+         *  Indicates if the entity has active (started) blockages within a process.
+         *  A blockage is considered active if it has been started within a process routine.
+         *  If no blockages have been created or started, this will return false.
+         */
+        val hasActiveBlockages: Boolean
+            get() {
+                return if (myActiveBlockages == null) {
+                    false
+                } else {
+                    myActiveBlockages!!.isNotEmpty()
+                }
+            }
+
         /**  An entity can be using 0 or more resources.
          *  The key to this map represents the resources that are allocated to this entity.
          *  The element of this map represents the list of allocations allocated to the entity for the give resource.
@@ -767,7 +781,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.error { msg.toString() }
                     throw IllegalStateException(msg.toString())
                 }
-                //TODO need to check for blockages
+                //TODO need to handle active blockages when process completes.
                 /*
                     When an entity completes a process that uses a blockage, the blockage must not be active.
                     That is, all blockages must be cleared within the same process that started them.
@@ -1998,7 +2012,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all resources." }
                     releaseAllResources()
                 }
-                //TODO need to handle blockages here
+                //TODO need to handle blockages in termination
                 if (isQueued) {
                     //remove it from its queue with no stats
                     @Suppress("UNCHECKED_CAST")
