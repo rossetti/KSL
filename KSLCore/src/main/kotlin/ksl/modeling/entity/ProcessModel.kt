@@ -775,20 +775,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 dispose(completedProcess)
                 if (hasAllocations) {
                     val msg = StringBuilder()
-                    msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had allocations when ending process $completedProcess with no next process!")
+                    msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had allocations when ending process $completedProcess")
                     msg.appendLine()
                     msg.append(allocationsAsString())
                     logger.error { msg.toString() }
                     throw IllegalStateException(msg.toString())
                 }
-                //TODO need to handle active blockages when process completes.
-                /*
-                    When an entity completes a process that uses a blockage, the blockage must not be active.
-                    That is, all blockages must be cleared within the same process that started them.
-                    If any blockages are active when the entity completes a process, then it is an error.
-                    This is similar to how there can be no allocations of a resource when the process completes.
-                 */
-
+                // do not permit blockages to carry over to another process, there can be no active blockages when the process completes
+                if (hasActiveBlockages) {
+                    val msg = StringBuilder()
+                    msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had 1 or more active blockages when ending process $completedProcess")
+                    msg.appendLine()
+                    msg.append(allocationsAsString())
+                    logger.error { msg.toString() }
+                    throw IllegalStateException(msg.toString())
+                }
                 // okay to dispose of the entity
                 if (autoDispose) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity $id is being disposed by ${processModel.name}" }
@@ -2012,7 +2013,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all resources." }
                     releaseAllResources()
                 }
-                //TODO need to handle blockages in termination
+                //TODO need to handle blockages in termination. This entity has been terminated, what to do about blocked entities?
                 if (isQueued) {
                     //remove it from its queue with no stats
                     @Suppress("UNCHECKED_CAST")
@@ -2254,17 +2255,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isCreated = false
                 isCompleted = false
                 isActive = true
-                //TODO add the blockage to the entity's management list
-
-//                if (myActiveBlockages == null) {
-//                    myActiveBlockages = mutableListOf()
-//                }
-//                myActiveBlockages?.add(this)
+                // add the blockage to the entity's management list
+                if (myActiveBlockages == null) {
+                    myActiveBlockages = mutableListOf()
+                }
+                myActiveBlockages?.add(this)
             }
 
             /**
              *  Usage: Add the entity to the blockage and then suspend the entity.
-             *  Called from ProcessCoroutine
+             *  Called from ProcessCoroutine before the entity is suspended.
              */
             internal fun addBlockedEntity(entity: Entity) {
                 require(isActive) { "Blockage ($name): Tried to add an entity ${entity.name} to an inactive blockage." }
@@ -2285,15 +2285,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(myBlockingProcess == process) { "The process (${myBlockingProcess?.name}) that started the blockage was not the same process attempting to end it." }
                 require(isActive) { "The blockage ($name) cannot be ended because it is not active." }
                 require(ender == myEntity) { "The entity (${ender.name}) clearing the blockage must be its associated entity (${myEntity.name}) that created it." }
+                require(myActiveBlockages != null) {"The entity (${ender.name}) did not have any active blockages to end in ${process.name}"}
                 isCompleted = true
                 isActive = false
                 myBlockingProcess = null
                 for (blockedEntity in myBlockedEntities) {
                     blockedEntity.resumeProcess(priority = priority)
-                    //the entities are responsible for removing themselves after resuming
+                    //the entities are responsible for removing themselves using the removeBlockedEntity() function after resuming
                 }
-                //TODO remove the blockage from the entity's management list
-//                myActiveBlockages?.remove(this)
+                // remove the blockage from the entity's management list
+                if (myActiveBlockages != null) {
+                    // this must be true due to the require() check
+                    myActiveBlockages?.remove(this)
+                    // if there are no more active blockages, we can get rid of the list
+                    if (myActiveBlockages!!.isEmpty()){
+                        myActiveBlockages = null
+                    }
+                }
             }
         }
     }
