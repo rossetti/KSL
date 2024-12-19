@@ -41,8 +41,8 @@ class SoccerMomV3(
             println("$time> mom = ${this@Mom.name} running errands...")
             delay(45.0)
             println("$time> mom = ${this@Mom.name} completed errands")
-            errandsCompleted = true
             clearBlockage(shopping)
+            errandsCompleted = true
             if (daughter.isPlaying){
                 println("$time> mom, ${this@Mom.name}, mom suspending because daughter is still playing")
 //                suspend("mom suspended for daughter playing")
