@@ -1178,8 +1178,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override suspend fun waitFor(
                 blockage: Blockage,
                 queue: Queue<Entity>?,
+                yieldBeforeWaiting: Boolean,
+                yieldPriority: Int,
                 suspensionName: String?
             ) {
+                if (yieldBeforeWaiting) {
+                    yield(yieldPriority)
+                }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.BLOCK_UNTIL_COMPLETION
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocking for ${blockage.name} in process, ($this)" }

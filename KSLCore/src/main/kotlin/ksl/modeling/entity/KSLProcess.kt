@@ -29,7 +29,16 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import kotlin.coroutines.*
 
+/**
+ *  The default priority for use within the suspending functions. This is the
+ *  same as KSLEvent.DEFAULT_PRIORITY
+ */
 const val PRIORITY = KSLEvent.DEFAULT_PRIORITY
+
+/**
+ *  The default yield priority setting. It is much larger than the default event priority.
+ */
+const val YIELD_PRIORITY = PRIORITY + 1000
 
 val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
 
@@ -210,6 +219,23 @@ interface KSLProcessBuilder {
      */
     suspend fun suspend(suspension: Entity.Suspension)
 
+    /**
+     *  Causes the process to yield (suspend execution) at the current time, for zero time units, and return
+     *  control back to the event executive. This permits other events scheduled for the current time
+     *  to proceed due to the ordering of events.
+     *
+     *  @param yieldPriority, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time. Lower yield priorities go first.
+     *  @param suspensionName the name of the yield. can be used to identify which yield the entity is experiencing if there
+     *   are more than one suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun yield(
+        yieldPriority: Int = YIELD_PRIORITY,
+        suspensionName: String? = null
+    ){
+        delay(0.0, yieldPriority, suspensionName = suspensionName)
+    }
+
     /** Causes the current process to suspend (immediately) until the blockage has been completed.
      *  If the blockage is active, the entity will be suspended until the blockage is completed (cleared).
      *  If the blockage is not active, then no suspension occurs. Some other entity
@@ -217,12 +243,19 @@ interface KSLProcessBuilder {
      *
      * @param blockage the blockage to wait for
      * @param queue an optional queue to hold the entity while it is blocked.
+     * @param yieldBeforeWaiting indicates that the process should yield (instantaneously) control back to the
+     * event executive prior to starting to wait for the blockage. The default is true. This yield allows blockages that
+     * need to occur prior to but at the same time as the beginning of the wait.
+     *  @param yieldPriority, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time. Lower yield priorities go first.
      *  @param suspensionName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
      *   are more than one waitFor suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun waitFor(
         blockage: Entity.Blockage,
         queue: Queue<Entity>? = null,
+        yieldBeforeWaiting: Boolean = true,
+        yieldPriority: Int = YIELD_PRIORITY,
         suspensionName: String? = null
     )
 
