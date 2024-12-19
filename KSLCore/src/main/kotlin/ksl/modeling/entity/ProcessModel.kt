@@ -436,7 +436,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  If any blockages are active when the entity completes a process, then it is an error.
          *  This is similar to how there can be no allocations of a resource when the process completes.
          */
-        private var myActiveBlockages: MutableList<Blockage>? = null  //TODO myBlockages definition
+        private var myActiveBlockages: MutableList<Blockage>? = null  //TODO myActiveBlockages definition
 
         /**
          *  Indicates if the entity has active (started) blockages within a process.
