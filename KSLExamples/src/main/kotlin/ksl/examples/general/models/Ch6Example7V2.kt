@@ -1,4 +1,4 @@
-package ksl.examples.book.chapter6
+package ksl.examples.general.models
 
 import ksl.modeling.entity.ProcessModel
 import ksl.simulation.Model
@@ -6,13 +6,13 @@ import ksl.simulation.ModelElement
 
 fun main(){
     val model = Model()
-    val sm = SoccerMom(model)
+    val sm = SoccerMomV2(model)
     model.lengthOfReplication = 150.0
     model.numberOfReplications = 1
     model.simulate()
 }
 
-class SoccerMom(
+class SoccerMomV2(
     parent: ModelElement,
     name: String? = null
 ) : ProcessModel(parent, name) {
@@ -48,8 +48,8 @@ class SoccerMom(
             } else {
                 println("$time> mom, ${this@Mom.name}, mom resuming daughter done playing after errands")
                 daughter.resumeProcess()
-                suspend("mom suspended for daughter entering van")
             }
+            suspend("mom suspended for daughter entering van")
             println("$time> mom = ${this@Mom.name} driving home")
             delay(30.0)
             println("$time> mom = ${this@Mom.name} arrived home")
@@ -70,14 +70,17 @@ class SoccerMom(
             mom.resumeProcess()
             println("$time> daughter, ${this@Daughter.name}, starting playing")
             isPlaying = true
-            delay(30.0)
-         //   delay(60.0) //TODO
+           // delay(30.0)
+            delay(60.0) //TODO
             isPlaying = false
             println("$time> daughter, ${this@Daughter.name}, finished playing")
             //TODO suspend if mom isn't here
             if (!mom.errandsCompleted){
                 println("$time> daughter, ${this@Daughter.name}, mom errands not completed suspending")
                 suspend("daughter waiting on mom to complete errand")
+            }else {
+                // mom's errand was completed and mom suspended because daughter was playing
+                mom.resumeProcess()
             }
             println("$time> daughter, ${this@Daughter.name}, entering van")
             delay(2.0)
