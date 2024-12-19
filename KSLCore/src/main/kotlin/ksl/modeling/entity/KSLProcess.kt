@@ -258,6 +258,24 @@ interface KSLProcessBuilder {
         suspensionName: String? = null
     )
 
+    suspend fun waitFor(
+        blockingActivity: Entity.BlockingActivity,
+        queue: Queue<Entity>? = null,
+        yieldBeforeWaiting: Boolean = true,
+        yieldPriority: Int = YIELD_PRIORITY,
+        suspensionName: String? = null
+    ){
+        waitFor(blockingActivity.blockage, queue, yieldBeforeWaiting, yieldPriority, suspensionName)
+    }
+
+    suspend fun perform(
+        blockingActivity: Entity.BlockingActivity
+    ){
+        startBlockage(blockingActivity.blockage)
+        delay(blockingActivity.activityTime, blockingActivity.priority, blockingActivity.name)
+        clearBlockage(blockingActivity.blockage)
+    }
+
     /** Causes the blockage to be active. The blockage can only be started by
      * the entity that created it.
      *

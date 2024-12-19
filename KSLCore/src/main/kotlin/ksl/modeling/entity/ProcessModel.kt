@@ -2301,7 +2301,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
         }
-        
+
+        inner class BlockingActivity(
+            val activityTime: GetValueIfc,
+            val priority: Int = PRIORITY,
+            name: String? = null
+        ) : IdentityIfc by Identity(name){
+            internal val blockage = Blockage(this.name)
+        }
     }
 
     companion object {
