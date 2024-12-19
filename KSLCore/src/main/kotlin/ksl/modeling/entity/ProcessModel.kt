@@ -2230,14 +2230,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         ) : IdentityIfc by Identity(name) {
             private val myEntity: Entity = this@Entity
 
-//            // when the blockage gets created, it is added to the blockages of the entity
-//            init {
-//                if (myActiveBlockages == null) {
-//                    myActiveBlockages = mutableListOf()
-//                }
-//                myActiveBlockages?.add(this)
-//            }
-
             private val myBlockedEntities = mutableListOf<Entity>()
             private var myBlockingProcess: KSLProcess? = null
 
