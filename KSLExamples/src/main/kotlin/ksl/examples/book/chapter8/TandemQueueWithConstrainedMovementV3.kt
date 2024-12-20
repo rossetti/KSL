@@ -71,7 +71,7 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
     val unloadingTimeRV: RandomSourceCIfc
         get() = myUnLoadingTime
     private inner class Customer : Entity() {
-        val tandemQProcess: KSLProcess = process {
+        val tandemQProcess: KSLProcess = process(isDefaultProcess = true) {
             currentLocation = enter
             wip.increment()
             timeStamp = time

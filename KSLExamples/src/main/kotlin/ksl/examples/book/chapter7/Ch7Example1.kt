@@ -66,7 +66,7 @@ class TandemQueue(parent: ModelElement, name: String? = null) : ProcessModel(par
         get() = timeInSystem
 
     private inner class Customer : Entity(){
-        val tandemQProcess : KSLProcess = process {
+        val tandemQProcess : KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
             seize(worker1)
@@ -106,7 +106,7 @@ class TandemQueueV2(parent: ModelElement, name: String? = null) : ProcessModel(p
         get() = timeInSystem
 
     private inner class Customer : Entity(){
-        val tandemQProcess : KSLProcess = process {
+        val tandemQProcess : KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
             use(worker1, delayDuration = st1)

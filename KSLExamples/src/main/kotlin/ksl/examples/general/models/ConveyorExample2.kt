@@ -103,7 +103,7 @@ class ConveyorExample2(
 
     private inner class PartType : Entity() {
         val startingStation = stationsRV.randomElement
-        val productionProcess = process {
+        val productionProcess = process(isDefaultProcess = true) {
             myNumInSystem.increment()
             val itr = stations.listIterator(stations.indexOf(startingStation))
             var cr: ConveyorRequestIfc? = null

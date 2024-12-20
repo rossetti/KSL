@@ -40,7 +40,7 @@ class EntityGeneratorTest(parent: ModelElement, name: String? = null) : ProcessM
     private val counter = Counter(this, "${this.name}:NumServed" )
 
     private inner class Customer: Entity() {
-        val mm1: KSLProcess = process {
+        val mm1: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
             val a  = seize(worker)

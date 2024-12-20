@@ -75,7 +75,7 @@ class WalkInHealthClinic(parent: ModelElement, name: String? = null) : ProcessMo
             priority = typeMap[service]!!
         }
 
-        val clinicProcess = process {
+        val clinicProcess = process(isDefaultProcess = true) {
             if ((priority == 3) && (doctorQ.size >= balkCriteria)) {
                 // record balking
                 balkingProb.value = 1.0

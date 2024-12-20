@@ -151,7 +151,7 @@ class SeizeTesting(parent: ModelElement, name: String? = null) : ProcessModel(pa
     private inner class PartType : Entity() {
         val isType1 = myJobTypeRV.value.toBoolean()
 
-        val productionProcess = process {
+        val productionProcess = process(isDefaultProcess = true) {
             delay(60.0/25.0) // arrival to drilling
             var done = false
             while (!done) {
@@ -232,7 +232,7 @@ class SeizeTesting(parent: ModelElement, name: String? = null) : ProcessModel(pa
     private inner class PartTypeV2 : Entity() {
         val isType1 = myJobTypeRV.value.toBoolean()
 
-        val productionProcess = process {
+        val productionProcess = process(isDefaultProcess = true) {
             delay(60.0/25.0) // arrival to drilling
             var done = false
             while (!done) {

@@ -83,7 +83,7 @@ class ClinicDesignB(
         "Glucose Test Nurse", capacity = 1)
 
     private inner class Patient : Entity() {
-        val patientProcess: KSLProcess = process {
+        val patientProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
             val c1 = seize(paperWorkClerk)
