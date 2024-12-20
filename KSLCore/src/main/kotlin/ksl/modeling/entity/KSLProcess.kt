@@ -258,22 +258,116 @@ interface KSLProcessBuilder {
         suspensionName: String? = null
     )
 
+    /** Causes the current process to suspend (immediately) until the blocking task has been completed.
+     *  If the blocking task is active (in progress), the entity will be suspended until the task is completed (cleared).
+     *  If the blockage is not active, then no suspension occurs. Some other entity
+     *  must cause the task to be started and completed. An entity cannot block itself.
+     *
+     *  There are many different kinds of blocking tasks represented by the classes: BlockingActivity,
+     *  BlockingResourceUsage, BlockingResourcePoolUsage, BlockingMovement, etc.
+     *
+     * @param blockingTask the blocking activity to wait for
+     * @param queue an optional queue to hold the entity while it is blocked for statistica collection purposes.
+     * @param yieldBeforeWaiting indicates that the process should yield (instantaneously) control back to the
+     * event executive prior to starting to wait for the blockage. The default is true. This yield allows blockages that
+     * need to occur prior to but at the same time as the beginning of the wait.
+     *  @param yieldPriority, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time. Lower yield priorities go first.
+     *  @param suspensionName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
+     *   are more than one waitFor suspension points within the process. The user is responsible for uniqueness.
+     */
     suspend fun waitFor(
-        blockingActivity: Entity.BlockingActivity,
+        blockingTask: Entity.BlockingTask,
         queue: Queue<Entity>? = null,
         yieldBeforeWaiting: Boolean = true,
         yieldPriority: Int = YIELD_PRIORITY,
         suspensionName: String? = null
     ){
-        waitFor(blockingActivity.blockage, queue, yieldBeforeWaiting, yieldPriority, suspensionName)
+        waitFor(blockingTask.blockage, queue, yieldBeforeWaiting, yieldPriority, suspensionName)
     }
 
+    /**
+     *  Causes the entity's process to perform the activity. The activity (and its blockage)
+     *  are started, the activity delay occurs, and then the activity is completed such that
+     *  the blockage is cleared.  Entities that are waiting on the activity to complete will
+     *  be resumed.
+     * @param blockingActivity the activity to perform
+     */
     suspend fun perform(
         blockingActivity: Entity.BlockingActivity
     ){
         startBlockage(blockingActivity.blockage)
-        delay(blockingActivity.activityTime, blockingActivity.priority, blockingActivity.name)
+        delay(blockingActivity.activityTime, blockingActivity.activityPriority, blockingActivity.name)
         clearBlockage(blockingActivity.blockage)
+    }
+
+    /**
+     *  Causes the entity's process to perform an activity involving the usage of a resource.
+     *  The usage (and its blockage)
+     *  are started, the resource is seized, activity delay occurs, the resource is released
+     *   and then the activity is completed such that
+     *  the blockage is cleared.  Entities that are waiting on the usage to complete will
+     *  be resumed.
+     * @param blockingUsage the usage of the resource to perform
+     */
+    suspend fun perform(
+        blockingUsage: Entity.BlockingResourceUsage
+    ){
+        startBlockage(blockingUsage.blockage)
+        use(
+            resource = blockingUsage.resource,
+            amountNeeded = blockingUsage.amountNeeded,
+            seizePriority = blockingUsage.seizePriority,
+            delayDuration = blockingUsage.activityTime,
+            delayPriority = blockingUsage.activityPriority,
+            queue = blockingUsage.queue
+        )
+        clearBlockage(blockingUsage.blockage)
+    }
+
+    /**
+     *  Causes the entity's process to perform an activity involving the usage of a resource pool.
+     *  The usage (and its blockage)
+     *  are started, the resource is seized, activity delay occurs, the resource is released
+     *   and then the activity is completed such that
+     *  the blockage is cleared.  Entities that are waiting on the usage to complete will
+     *  be resumed.
+     * @param blockingUsage the usage of the resource to perform
+     */
+    suspend fun perform(
+        blockingUsage: Entity.BlockingResourcePoolUsage
+    ){
+        startBlockage(blockingUsage.blockage)
+        use(resourcePool = blockingUsage.resourcePool,
+            amountNeeded = blockingUsage.amountNeeded,
+            seizePriority = blockingUsage.seizePriority,
+            delayDuration = blockingUsage.activityTime,
+            delayPriority = blockingUsage.activityPriority,
+            queue = blockingUsage.queue
+        )
+        clearBlockage(blockingUsage.blockage)
+    }
+
+    /**
+     *  Causes the entity's process to perform a movement from one location to another.
+     *  The movement (and its blockage)
+     *  are started, the movement is completed such that
+     *  the blockage is cleared.  Entities that are waiting on the movement to complete will
+     *  be resumed.
+     * @param blockingMovement the usage of the resource to perform
+     */
+    suspend fun perform(
+        blockingMovement: Entity.BlockingMovement
+    ){
+        startBlockage(blockingMovement.blockage)
+        move(
+            fromLoc = blockingMovement.fromLoc,
+            toLoc = blockingMovement.toLoc,
+            velocity = blockingMovement.velocity,
+            movePriority = blockingMovement.movePriority,
+            suspensionName = blockingMovement.name
+        )
+        clearBlockage(blockingMovement.blockage)
     }
 
     /** Causes the blockage to be active. The blockage can only be started by
@@ -778,6 +872,36 @@ interface KSLProcessBuilder {
         amountNeeded: Int = 1,
         seizePriority: Int = PRIORITY,
         delayDuration: Double,
+        delayPriority: Int = PRIORITY,
+        queue: RequestQ
+    ) {
+        val a = seize(resourcePool, amountNeeded, seizePriority, queue)
+        delay(delayDuration, delayPriority)
+        release(a)
+    }
+
+    /**
+     *  Uses the resource with the amount of units for the delay and then releases it.
+     *  Equivalent to: seize(), delay(), release()
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resourcePool the resource from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+     *  must be finite.
+     *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+     *  delays that might be scheduled to complete at the same time.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
+     */
+    suspend fun use(
+        resourcePool: ResourcePool,
+        amountNeeded: Int = 1,
+        seizePriority: Int = PRIORITY,
+        delayDuration: GetValueIfc,
         delayPriority: Int = PRIORITY,
         queue: RequestQ
     ) {
