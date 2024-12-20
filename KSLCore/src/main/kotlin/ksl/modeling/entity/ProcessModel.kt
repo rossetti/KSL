@@ -1073,6 +1073,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override var processStartTime: Double = Double.NaN
                 private set
 
+            override var processCompletionTime: Double = Double.NaN
+                private set
+
             private val delayAction = DelayAction()
 
             /**
@@ -2120,6 +2123,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
                 override fun complete() {
                     state = completed
+                    processCompletionTime = time
                 }
             }
 
