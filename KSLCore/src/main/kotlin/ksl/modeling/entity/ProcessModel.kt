@@ -421,11 +421,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         var previousProcess: KSLProcess? = null
             private set
 
-        //TODO when should the list of blockages associated with the entity get cleared?
-        // an entity can be in 1 and only 1 process at a time
-        // make sure that the process that starts the blockage is the one that clears the blockage
-        // make sure that the completing process has no active blockages (must be a corresponding clear in the process)
-
         /**
          *  This list holds the instances of Blockage that are created by the entity.
          *  An entity can have 0 or more blockages. A blockage must be associated with
@@ -438,7 +433,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  When the entity completes a process and there are no further processes to complete,
          *  a check for active blockages will occur.
          */
-        private var myActiveBlockages: MutableList<Blockage>? = null  //TODO myActiveBlockages definition
+        private var myActiveBlockages: MutableList<Blockage>? = null
 
         /**
          *  Indicates if the entity has active (started) blockages within a process.
@@ -1160,8 +1155,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal fun terminate(afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null) {
                 state.terminate(afterTermination)
             }
-
-            //TODO require the name of the suspension to ensure that the resume matches it????
 
             @Deprecated(
                 "The general suspend function is error prone and may be replaced with other constructs in future releases",
@@ -2247,7 +2240,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        //TODO Blockage class definition
         /**
          *  A blockage is like a semaphore or lock. A blockage can be used
          *  to block (suspend) other entities while they wait for the blockage
