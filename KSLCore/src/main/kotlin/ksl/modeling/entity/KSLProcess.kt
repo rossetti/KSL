@@ -62,6 +62,11 @@ interface KSLProcess {
     val isActivated: Boolean
     val currentStateName: String
     val entity: ProcessModel.Entity
+    /**
+     *  The simulation time that the process first started (activated) after being created.
+     *  If the process was never started, this returns Double.NaN
+     */
+    val processStartTime: Double
 }
 
 enum class SuspendType {
@@ -190,7 +195,8 @@ interface KSLProcessBuilder {
     val entity: ProcessModel.Entity
 
     /**
-     *  The simulation time that the process first starts (activates) after being created
+     *  The simulation time that the process first started (activated) after being created.
+     *  If the process was never started, this returns Double.NaN
      */
     val processStartTime: Double
 
