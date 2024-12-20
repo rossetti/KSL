@@ -232,7 +232,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         Model.logger.info { "After Replication for ${this.name}: terminating ${set.size} suspended entities" }
         for (entity in set) {
             if (entity.isSuspended) {
-                //TODO this check necessary because a terminating process may terminate its calling process and
+                // This check necessary because a terminating process may terminate its calling process and
                 // that termination does not remove the suspended entity from the local copy of the set of suspended entities.
                 // So, only terminate those processes that are suspended and skip those that are already terminated
                 entity.terminateProcess()
@@ -435,6 +435,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  That is, all blockages must be cleared within the same process that started them.
          *  If any blockages are active when the entity completes a process, then it is an error.
          *  This is similar to how there can be no allocations of a resource when the process completes.
+         *  When the entity completes a process and there are no further processes to complete,
+         *  a check for active blockages will occur.
          */
         private var myActiveBlockages: MutableList<Blockage>? = null  //TODO myActiveBlockages definition
 
@@ -516,6 +518,26 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     str.appendLine()
                 }
             }
+            return str.toString()
+        }
+
+        /**
+         *  A string representation of the active blockages for the entity. Useful for printing and
+         *  diagnostics.
+         */
+        fun blockagesAsString(): String {
+            if (myActiveBlockages == null) {
+                return ""
+            }
+            if (myActiveBlockages!!.isEmpty()) {
+                return ""
+            }
+            val str = StringBuilder()
+            str.append("Active Blockages: ")
+            for(blockage in myActiveBlockages!!){
+                str.append("${blockage.name}, ")
+            }
+            str.appendLine()
             return str.toString()
         }
 
@@ -626,8 +648,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             return coroutine
         }
 
-        //TODO require the name of the suspension to ensure that the resume matches it????
-        // will need an internal one for the 9 current uses of it that does not need the name
+        //TODO Consider requiring the name of the suspension to ensure that the resume matches it????
+        // will need an internal resume for the 9 current uses of it that does not need the name
         // and an external facing one that requires the name
 
         /**
@@ -765,6 +787,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // must clear the current process so next can be run if there is one
             myCurrentProcess = null
             afterRunningProcess(completedProcess)
+            // do not permit blockages to carry over to another process, there can be no active blockages when the process completes
+            if (hasActiveBlockages) {
+                val msg = StringBuilder()
+                msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had 1 or more active blockages when ending process $completedProcess")
+                msg.appendLine()
+                msg.appendLine("You likely did not match a startBlockage(blockage) with a clearBlockage(blockage) call.")
+                msg.appendLine(blockagesAsString())
+                logger.error { msg.toString() }
+                throw IllegalStateException(msg.toString())
+            }
             val np = determineNextProcess(completedProcess)
             if (np != null) {
                 previousProcess = completedProcess
@@ -776,15 +808,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (hasAllocations) {
                     val msg = StringBuilder()
                     msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had allocations when ending process $completedProcess")
-                    msg.appendLine()
-                    msg.append(allocationsAsString())
-                    logger.error { msg.toString() }
-                    throw IllegalStateException(msg.toString())
-                }
-                // do not permit blockages to carry over to another process, there can be no active blockages when the process completes
-                if (hasActiveBlockages) {
-                    val msg = StringBuilder()
-                    msg.append("r = ${model.currentReplicationNumber} : $time > entity $id had 1 or more active blockages when ending process $completedProcess")
                     msg.appendLine()
                     msg.append(allocationsAsString())
                     logger.error { msg.toString() }
@@ -1972,7 +1995,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         // this terminates any "child" processes that are blocking first and then the parent
                         if (blockedUntilCompletionListeners != null) {
                             for (blockedProcess in blockedUntilCompletionListeners!!) {
-                                //TODO call the process with notification of termination
+                                // call the blocked process with notification of termination
                                 if (blockedProcess.isSuspended) {
                                     //println("terminating process $p")
                                     // since the blocked process is suspended, it will be in the suspendedEntities list
@@ -2225,6 +2248,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         //TODO Blockage class definition
+        /**
+         *  A blockage is like a semaphore or lock. A blockage can be used
+         *  to block (suspend) other entities while they wait for the blockage
+         *  to be cleared.  The user can mark process code with the start of a blockage
+         *  and a subsequent end of the blockage. While the entity that creates the blockage
+         *  is within the blocking code, other entities can be made to wait until the
+         *  blockage is cleared.  Only the entity that creates the blockage can start and clear it.
+         *  A started blockage must be cleared before the end of the process routine that contains
+         *  it; otherwise, an exception will occur. Thus, blockages that are started must always
+         *  be cleared.  The primary purpose of this construct is to facilitate process
+         *  interaction between entities. Using blockages should be preferred over raw suspend/resume
+         *  usage and even the use of Suspension instances.
+         */
         inner class Blockage(
             name: String? = null
         ) : IdentityIfc by Identity(name) {
@@ -2282,7 +2318,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(myBlockingProcess == process) { "The process (${myBlockingProcess?.name}) that started the blockage was not the same process attempting to end it." }
                 require(isActive) { "The blockage ($name) cannot be ended because it is not active." }
                 require(ender == myEntity) { "The entity (${ender.name}) clearing the blockage must be its associated entity (${myEntity.name}) that created it." }
-                require(myActiveBlockages != null) {"The entity (${ender.name}) did not have any active blockages to end in ${process.name}"}
+                require(myActiveBlockages != null) { "The entity (${ender.name}) did not have any active blockages to end in ${process.name}" }
                 isCompleted = true
                 isActive = false
                 myBlockingProcess = null
@@ -2295,19 +2331,232 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // this must be true due to the require() check
                     myActiveBlockages?.remove(this)
                     // if there are no more active blockages, we can get rid of the list
-                    if (myActiveBlockages!!.isEmpty()){
+                    if (myActiveBlockages!!.isEmpty()) {
                         myActiveBlockages = null
                     }
                 }
             }
         }
 
-        inner class BlockingActivity(
-            val activityTime: GetValueIfc,
-            val priority: Int = PRIORITY,
+        /**
+         *  A BlockingTask is a task that takes time to complete
+         *  and will block the process of an entity that will
+         *  wait for it to complete.
+         *  @param name the name of the task
+         */
+        abstract inner class BlockingTask(
             name: String? = null
-        ) : IdentityIfc by Identity(name){
-            internal val blockage = Blockage(this.name)
+        ) : IdentityIfc by Identity(name) {
+            internal val blockage = Blockage(name)
+        }
+
+        /**
+         * A BlockingActivity is an activity that may block other
+         * entities as they wait for the activity's delay to complete.
+         * @param activityTime the time duration of the activity
+         * @param activityPriority the priority associated with the time duration
+         * @param name the name of the activity
+         */
+        open inner class BlockingActivity(
+            val activityTime: GetValueIfc,
+            val activityPriority: Int = PRIORITY,
+            name: String? = null
+        ) : BlockingTask(name) {
+
+            /**
+             * A BlockingActivity is an activity that may block other
+             * entities as they wait for the activity's delay to complete.
+             * @param activityTime the time duration of the activity
+             * @param activityPriority the priority associated with the time duration
+             * @param name the name of the activity
+             */
+            constructor(
+                activityTime: Double,
+                activityPriority: Int = PRIORITY,
+                name: String? = null
+            ) : this(ConstantRV(activityTime), activityPriority, name){
+                require(activityTime >= 0.0) {"The activity time must be >= 0.0"}
+            }
+        }
+
+        /**
+         *  A BlockingResourceUsage represents the usage of a resource
+         *  that may block other entities while its usage occurs.
+         *  Equivalent to: seize(), delay(), release()
+         *
+         *  @param amountNeeded the number of units of the resource needed for the request.
+         *   The default is 1 unit.
+         *  @param resource the resource from which the units are being requested.
+         *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+         *  requests that may be competing for the resource.
+         *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+         *  must be finite.
+         *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+         *  delays that might be scheduled to complete at the same time.
+         *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+         *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+         *  prior to the calling use.
+         */
+        inner class BlockingResourceUsage(
+            val resource: Resource,
+            val amountNeeded: Int = 1,
+            val seizePriority: Int = PRIORITY,
+            delayDuration: Double,
+            delayPriority: Int = PRIORITY,
+            val queue: RequestQ,
+            name: String? = null
+        ) : BlockingActivity(delayDuration, delayPriority, name) {
+
+            constructor(
+                resource: ResourceWithQ,
+                amountNeeded: Int = 1,
+                seizePriority: Int = PRIORITY,
+                delayDuration: Double,
+                delayPriority: Int = PRIORITY,
+                name: String? = null
+            ) : this(
+                resource,
+                amountNeeded,
+                seizePriority,
+                delayDuration,
+                delayPriority,
+                resource.myWaitingQ,
+                name
+            )
+        }
+
+        /**
+         *  A BlockingResourcePoolUsage represents the usage of a pool of resources
+         *  that may block other entities while the usage occurs.
+         *  Equivalent to: seize(), delay(), release()
+         *
+         *  @param amountNeeded the number of units of the resource needed for the request.
+         *   The default is 1 unit.
+         *  @param resourcePool the resource from which the units are being requested.
+         *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+         *  requests that may be competing for the resource.
+         *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
+         *  must be finite.
+         *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
+         *  delays that might be scheduled to complete at the same time.
+         *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+         *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+         *  prior to the calling use.
+         */
+        inner class BlockingResourcePoolUsage(
+            val resourcePool: ResourcePool,
+            val amountNeeded: Int = 1,
+            val seizePriority: Int = PRIORITY,
+            delayDuration: Double,
+            delayPriority: Int = PRIORITY,
+            val queue: RequestQ,
+            name: String? = null
+        ) : BlockingActivity(delayDuration, delayPriority, name) {
+
+            constructor(
+                resourcePool: ResourcePoolWithQ,
+                amountNeeded: Int = 1,
+                seizePriority: Int = PRIORITY,
+                delayDuration: Double,
+                delayPriority: Int = PRIORITY,
+                name: String? = null
+            ) : this(
+                resourcePool,
+                amountNeeded,
+                seizePriority,
+                delayDuration,
+                delayPriority,
+                resourcePool.myWaitingQ,
+                name
+            )
+        }
+
+        /**
+         *  Represents the movement of the entity from the specified location to the specified location at
+         *  the supplied velocity.  This wraps the movement within a blockage which will cause
+         *  entities that are waiting for the movement to complete to block (suspend) until
+         *  the movement is completed.
+         *
+         *  If the entity is not currently at [fromLoc] then its
+         *  current location is quietly set to [fromLoc], without movement before the move commences.
+         *  To move directly from the current location, use moveTo().
+         *  @param fromLoc, the location from which the entity is supposed to move
+         *  @param toLoc the location to which the entity is supposed to move
+         *  @param velocity the velocity associated with the movement
+         *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+         *  moves that might be scheduled to complete at the same time.
+         */
+        inner class BlockingMovement(
+            val fromLoc: LocationIfc,
+            val toLoc: LocationIfc,
+            val velocity: GetValueIfc = this@Entity.velocity,
+            val movePriority: Int = PRIORITY,
+            name: String? = null
+        ): BlockingTask(name) {
+
+            /**
+             *  Represents the movement of the entity from the specified location to the specified location at
+             *  the supplied velocity.  This wraps the movement within a blockage which will cause
+             *  entities that are waiting for the movement to complete to block (suspend) until
+             *  the movement is completed.
+             *
+             *  If the entity is not currently at [fromLoc] then its
+             *  current location is quietly set to [fromLoc], without movement before the move commences.
+             *  @param fromLoc, the location from which the entity is supposed to move
+             *  @param toLoc the location to which the entity is supposed to move
+             *  @param velocity the velocity associated with the movement, must be greater than 0.0
+             *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+             *  moves that might be scheduled to complete at the same time.
+             */
+            constructor(
+                fromLoc: LocationIfc,
+                toLoc: LocationIfc,
+                velocity: Double,
+                movePriority: Int = PRIORITY,
+                name: String? = null
+            ) : this(fromLoc, toLoc, ConstantRV(velocity), movePriority, name){
+                require(velocity > 0.0) {"The velocity must be > 0.0"}
+            }
+
+            /**
+             *  Represents the movement of the entity from the specified location to the specified location at
+             *  the supplied velocity.  This wraps the movement within a blockage which will cause
+             *  entities that are waiting for the movement to complete to block (suspend) until
+             *  the movement is completed.
+             *
+             *  The current location of the entity is used at the origin location.
+             *  @param toLoc the location to which the entity is supposed to move
+             *  @param velocity the velocity associated with the movement, must be greater than 0.0
+             *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+             *  moves that might be scheduled to complete at the same time.
+             */
+            constructor(
+                toLoc: LocationIfc,
+                velocity: GetValueIfc = this@Entity.velocity,
+                movePriority: Int = PRIORITY,
+                name: String? = null
+            ) : this(this@Entity.currentLocation, toLoc, velocity, movePriority, name)
+
+            /**
+             *  Represents the movement of the entity from the specified location to the specified location at
+             *  the supplied velocity.  This wraps the movement within a blockage which will cause
+             *  entities that are waiting for the movement to complete to block (suspend) until
+             *  the movement is completed.
+             *
+             *  The current location of the entity is used at the origin location.
+             *  @param toLoc the location to which the entity is supposed to move
+             *  @param velocity the velocity associated with the movement, must be greater than 0.0
+             *  @param movePriority, since the move is scheduled, a priority can be used to determine the order of events for
+             *  moves that might be scheduled to complete at the same time.
+             */
+            constructor(
+                toLoc: LocationIfc,
+                velocity: Double,
+                movePriority: Int = PRIORITY,
+                name: String? = null
+            ) : this(this@Entity.currentLocation, toLoc, velocity, movePriority, name){
+                require(velocity > 0.0) {"The velocity must be > 0.0"}
+            }
         }
     }
 
