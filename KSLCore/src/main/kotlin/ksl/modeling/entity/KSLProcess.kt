@@ -184,8 +184,14 @@ enum class SuspendType {
 @RestrictsSuspension
 interface KSLProcessBuilder {
 
+    /**
+     *  The entity associated with the process
+     */
     val entity: ProcessModel.Entity
 
+    /**
+     *  The simulation time that the process first starts (activates) after being created
+     */
     val processStartTime: Double
 
     /**
