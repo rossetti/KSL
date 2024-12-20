@@ -95,7 +95,7 @@ class ConveyorExample4(parent: ModelElement, name: String? = null) : ProcessMode
 
     private inner class PartType : Entity() {
 
-        val productionProcess = process {
+        val productionProcess = process(isDefaultProcess = true) {
             myNumInSystem.increment()
  //           println("$time > entity ${entity.id} arrival")
             val cr = requestConveyor(conveyor, arrivalArea, numCellsNeeded = 1)

@@ -67,7 +67,7 @@ class StemFairMixer(
         private val isWanderer = myDecideToWander.value.toBoolean()
         private val isLeaver = myDecideToLeave.value.toBoolean()
 
-        val stemFairProcess = process {
+        val stemFairProcess = process(isDefaultProcess = true) {
             myNumInSystem.increment()
             delay(myNameTagTimeRV)
             if (isWanderer) {

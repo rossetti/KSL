@@ -60,7 +60,7 @@ class TieDyeTShirts(
         val size: Int = myOrderSize.value.toInt()
         var completedShirts: List<Shirt> = emptyList() // not really necessary
 
-        val orderMaking: KSLProcess = process {
+        val orderMaking: KSLProcess = process(isDefaultProcess = true) {
             myNumInSystem.increment()
             for (i in 1..size) {
                 val shirt = Shirt(this@Order.id)

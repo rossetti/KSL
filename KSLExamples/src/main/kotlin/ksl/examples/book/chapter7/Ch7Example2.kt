@@ -51,7 +51,7 @@ class TandemQueueWithBlocking(parent: ModelElement, name: String? = null) : Proc
         get() = timeInSystem
 
     private inner class Customer : Entity() {
-        val tandemQProcess: KSLProcess = process {
+        val tandemQProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
             val a1 = seize(worker1)

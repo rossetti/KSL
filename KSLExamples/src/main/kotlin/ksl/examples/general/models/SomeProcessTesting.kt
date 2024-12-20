@@ -95,9 +95,6 @@ class DumpTruckSystemProcessView(
                 myResponseTime.value = time - timeStamp
                 delay(myTravelTimeRV)
             }
-
-
-
         }
     }
 

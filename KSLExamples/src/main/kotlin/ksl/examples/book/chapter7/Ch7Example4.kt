@@ -106,7 +106,7 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
 
     // define the process
     private inner class Part : Entity() {
-        val testAndRepairProcess: KSLProcess = process {
+        val testAndRepairProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
             //every part goes to diagnostics

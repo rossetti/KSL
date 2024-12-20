@@ -625,20 +625,26 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         ): KSLProcess {
             //TODO: ISSUE no name causes new name to be created, which will never be in the map
             // the map will never contain null because the key for the map is non-null and null causes a unique name to be created
-            require(!myProcesses.contains(processName))
-            { "The process name, $processName has already been used for the entity. The process name must be unique to the entity type." }
+//            require(!myProcesses.contains(processName))
+//            { "The process name, $processName has already been used for the entity. The process name must be unique to the entity type." }
+            // if processName is null, a standard name for the coroutine based on the ID will be formed
             val coroutine = ProcessCoroutine(processName)
             //TODO only add to the map if processName was not null???
-            myProcesses[coroutine.name] = coroutine
-            // if this is the first defined process, make it the initial process by default
-            if (myProcesses.size == 1) {
-                defaultProcess = coroutine
-            } else {
-                // not the first one, overwrite initial process only if told to do so
-                if (isDefaultProcess) {
-                    defaultProcess = coroutine
-                }
+            if (processName != null) {
+                myProcesses[coroutine.name] = coroutine
             }
+            if (isDefaultProcess) {
+                defaultProcess = coroutine
+            }
+//            // if this is the first defined process, make it the initial process by default
+//            if (myProcesses.size == 1) {
+//                defaultProcess = coroutine
+//            } else {
+//                // not the first one, overwrite initial process only if told to do so
+//                if (isDefaultProcess) {
+//                    defaultProcess = coroutine
+//                }
+//            }
             coroutine.continuation = block.createCoroutineUnintercepted(receiver = coroutine, completion = coroutine)
             return coroutine
         }

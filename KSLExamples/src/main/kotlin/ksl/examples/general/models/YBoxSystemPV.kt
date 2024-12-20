@@ -52,7 +52,7 @@ class YBoxSystemPV(parent: ModelElement, name: String?= null) : ProcessModel(par
 
     private inner class YBox : Entity(){
         var numAdjustments = 0
-        val productionProcess = process {
+        val productionProcess = process(isDefaultProcess = true) {
             do {
                 val a = seize(inspectors, amountNeeded = 1)
                 delay(myInspectionRV)

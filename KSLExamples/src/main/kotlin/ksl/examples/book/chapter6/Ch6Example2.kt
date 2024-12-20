@@ -59,7 +59,7 @@ class EntityGeneratorExample(
 
     private inner class Customer : Entity() {
 
-        val mm1: KSLProcess = process {
+        val mm1: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
             val a = seize(worker)
