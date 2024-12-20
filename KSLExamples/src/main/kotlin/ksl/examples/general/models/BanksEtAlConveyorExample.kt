@@ -198,7 +198,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
     private inner class PartType : Entity() {
         val isType1 = myJobTypeRV.value.toBoolean()
 
-        val productionProcess = process {
+        val productionProcess = process(isDefaultProcess = true) {
             val cr1 = requestConveyor(arrivalConveyor, arrivalArea, 2)
             rideConveyor(cr1, myDrillingResource)
             exitConveyor(cr1)
@@ -299,7 +299,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
     private inner class PartTypeV2 : Entity() {
         val isType1 = myJobTypeRV.value.toBoolean()
 
-        val productionProcess = process {
+        val productionProcess = process(isDefaultProcess = true) {
             convey(arrivalConveyor, entryLocation = arrivalArea, destination = myDrillingResource, numCellsNeeded = 2)
             var done = false
             while (!done) {
