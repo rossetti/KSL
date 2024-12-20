@@ -623,28 +623,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             isDefaultProcess: Boolean = false,
             block: suspend KSLProcessBuilder.() -> Unit
         ): KSLProcess {
-            //TODO: ISSUE no name causes new name to be created, which will never be in the map
-            // the map will never contain null because the key for the map is non-null and null causes a unique name to be created
-//            require(!myProcesses.contains(processName))
-//            { "The process name, $processName has already been used for the entity. The process name must be unique to the entity type." }
             // if processName is null, a standard name for the coroutine based on the ID will be formed
             val coroutine = ProcessCoroutine(processName)
-            //TODO only add to the map if processName was not null???
+            // only add to the map if processName was not null, overwrite if name is the same.
             if (processName != null) {
                 myProcesses[coroutine.name] = coroutine
             }
             if (isDefaultProcess) {
                 defaultProcess = coroutine
             }
-//            // if this is the first defined process, make it the initial process by default
-//            if (myProcesses.size == 1) {
-//                defaultProcess = coroutine
-//            } else {
-//                // not the first one, overwrite initial process only if told to do so
-//                if (isDefaultProcess) {
-//                    defaultProcess = coroutine
-//                }
-//            }
             coroutine.continuation = block.createCoroutineUnintercepted(receiver = coroutine, completion = coroutine)
             return coroutine
         }
@@ -1082,6 +1069,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 get() = state == running
 
             override val entity: Entity = this@Entity // to facilitate which entity is in the process routine
+
+            override var processStartTime: Double = Double.NaN
+                private set
 
             private val delayAction = DelayAction()
 
@@ -2116,6 +2106,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     state = running
                     // this starts the coroutine for the first time, because I used createCoroutineUnintercepted()
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Created.start() : entity_id = ${entity.id} : ---> resuming initial continuation = $continuation" }
+                    processStartTime = time
                     continuation?.resume(Unit)
                 }
             }
