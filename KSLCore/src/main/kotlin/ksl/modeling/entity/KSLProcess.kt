@@ -67,6 +67,18 @@ interface KSLProcess {
      *  If the process was never started, this returns Double.NaN
      */
     val processStartTime: Double
+
+    /**
+     *  The simulation time that the process completed.
+     *  If the process was never completed, this returns Double.NaN
+     */
+    val processCompletionTime: Double
+
+    /**
+     *  The elapsed time from start to completion.
+     */
+    val processElapseTime: Double
+        get() = processCompletionTime - processStartTime
 }
 
 enum class SuspendType {
