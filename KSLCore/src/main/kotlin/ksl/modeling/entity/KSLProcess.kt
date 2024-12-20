@@ -186,6 +186,8 @@ interface KSLProcessBuilder {
 
     val entity: ProcessModel.Entity
 
+    val processStartTime: Double
+
     /**
      *  Suspends the execution of the process.  Since the process cannot resume itself, the client
      *  must provide a mechanism that resumes the process. The most basic strategy would be to
