@@ -242,7 +242,20 @@ interface KSLProcessBuilder {
      *
      *  @param suspension the suspension to be associated with this suspend call
      */
-    suspend fun suspend(suspension: Entity.Suspension)
+    suspend fun suspendFor(suspension: Entity.Suspension)
+
+    /**
+     *  Causes the suspension to be resumed at the current time (i.e. without any delay).
+     *  Errors will result if the suspension is not associated with a suspending entity
+     *  via the suspend(suspension: Suspension) function or if the suspension has already
+     *  been resumed.
+     *
+     * @param priority the priority associated with the resume. Can be used
+     * to order resumptions that occur at the same time.
+     */
+    fun resume(suspension: Entity.Suspension, priority: Int = KSLEvent.DEFAULT_PRIORITY){
+        suspension.resume(priority)
+    }
 
     /**
      *  Causes the process to yield (suspend execution) at the current time, for zero time units, and return

@@ -1171,7 +1171,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            override suspend fun suspend(suspension: Suspension) {
+            override suspend fun suspendFor(suspension: Suspension) {
                 currentSuspendName = suspension.name
                 currentSuspendType = SuspendType.SUSPEND
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) for suspension named: $currentSuspendName" }
@@ -2202,7 +2202,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             /**
              *  True indicates that the suspension is suspending for the associated entity.
              */
-            val isSuspending: Boolean
+            val isSuspended: Boolean
                 get() = suspendedEntity != null
 
             /**
@@ -2226,7 +2226,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              * @param priority the priority associated with the resume. Can be used
              * to order resumptions that occur at the same time.
              */
-            fun resume(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+            internal fun resume(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
                 require(!isResumed) { "The suspension with label $label and type $type associated with entity ${myEntity.name} has already been resumed." }
                 require(suspendedEntity != null) { "The suspension with label $label and type $type associated with entity ${myEntity.name} is not associated with a suspended entity." }
                 suspendedEntity?.resumeProcess(priority = priority)
