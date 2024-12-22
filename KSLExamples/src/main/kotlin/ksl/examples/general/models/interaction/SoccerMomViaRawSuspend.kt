@@ -6,13 +6,13 @@ import ksl.simulation.ModelElement
 
 fun main(){
     val model = Model()
-    val sm = SoccerMomV4(model)
+    val sm = SoccerMomViaRawSuspend(model)
     model.lengthOfReplication = 150.0
-    model.numberOfReplications = 2
+    model.numberOfReplications = 1
     model.simulate()
 }
 
-class SoccerMomV4(
+class SoccerMomViaRawSuspend(
     parent: ModelElement,
     name: String? = null
 ) : ProcessModel(parent, name) {
@@ -26,7 +26,6 @@ class SoccerMomV4(
     private inner class Mom : Entity() {
 
         var errandsCompleted = false
-        val shopping: BlockingActivity = BlockingActivity(45.0)
 
         val momProcess = process {
             println("$time> starting mom = ${this@Mom.name}")
@@ -36,18 +35,21 @@ class SoccerMomV4(
             val daughter = Daughter(this@Mom)
             activate(daughter.daughterProcess)
             println("$time> mom = ${this@Mom.name} suspending for daughter to exit van")
-            waitFor(daughter.unloading)
+            //TODO suspend mom's process
+            suspend("mom suspended for daughter to exit van")
             println("$time> mom = ${this@Mom.name} running errands...")
-            perform(shopping)
+            delay(45.0)
             println("$time> mom = ${this@Mom.name} completed errands")
             errandsCompleted = true
+            //TODO suspend if daughter isn't done playing
             if (daughter.isPlaying){
                 println("$time> mom, ${this@Mom.name}, mom suspending because daughter is still playing")
+                suspend("mom suspended for daughter playing")
             } else {
                 println("$time> mom, ${this@Mom.name}, mom resuming daughter done playing after errands")
+                daughter.resumeProcess()
             }
-            waitFor(daughter.playing)
-            waitFor(daughter.loading)
+            suspend("mom suspended for daughter entering van")
             println("$time> mom = ${this@Mom.name} driving home")
             delay(30.0)
             println("$time> mom = ${this@Mom.name} arrived home")
@@ -58,35 +60,34 @@ class SoccerMomV4(
 
         var isPlaying = false
 
-        val unloading: BlockingActivity = BlockingActivity(2.0)
-        //val playing: BlockingActivity = BlockingActivity(30.0)
-        val playing: BlockingActivity = BlockingActivity(60.0)
-        val loading: BlockingActivity = BlockingActivity(2.0)
-
         val daughterProcess = process {
             println("$time> starting daughter ${this@Daughter.name}")
             println("$time> daughter, ${this@Daughter.name}, exiting the van")
-            perform(unloading)
+            delay(2.0)
             println("$time> daughter, ${this@Daughter.name}, exited the van")
+            //TODO resume mom process
             println("$time> daughter, ${this@Daughter.name}, resuming mom")
+            mom.resumeProcess()
             println("$time> daughter, ${this@Daughter.name}, starting playing")
             isPlaying = true
-            perform(playing)
+           // delay(30.0)
+            delay(60.0) //TODO
             isPlaying = false
             println("$time> daughter, ${this@Daughter.name}, finished playing")
+            //TODO suspend if mom isn't here
             if (!mom.errandsCompleted){
                 println("$time> daughter, ${this@Daughter.name}, mom errands not completed suspending")
-//                suspend("daughter waiting on mom to complete errand")
+                suspend("daughter waiting on mom to complete errand")
             }else {
                 // mom's errand was completed and mom suspended because daughter was playing
-//                mom.resumeProcess()
+                mom.resumeProcess()
             }
-            waitFor(mom.shopping)
             println("$time> daughter, ${this@Daughter.name}, entering van")
-            perform(loading)
+            delay(2.0)
             println("$time> daughter, ${this@Daughter.name}, entered van")
+            //TODO resume mom process
             println("$time> daughter, ${this@Daughter.name}, entered van, resuming mom")
-//            mom.resumeProcess()
+            mom.resumeProcess()
         }
     }
 }
