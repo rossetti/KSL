@@ -1,4 +1,4 @@
-package ksl.examples.general.models
+package ksl.examples.general.models.interaction
 
 import ksl.modeling.entity.ProcessModel
 import ksl.simulation.Model
@@ -39,7 +39,7 @@ class SoccerMomWithSuspensions(
             activate(daughter.daughterProcess)
             println("$time> mom = ${this@Mother.name} suspending for daughter to exit van")
             //suspend mom's process
-            suspendFor(daughterExiting) 
+            suspendFor(daughterExiting)
             println("$time> mom = ${this@Mother.name} running errands...")
             delay(45.0)
             println("$time> mom = ${this@Mother.name} completed errands")

@@ -102,6 +102,16 @@ interface QueueCIfc<T : ModelElement.QObject> : DefaultReportingOptionIfc {
      *  upon removal of items from the queue
      */
     var waitTimeStatOption: Boolean
+
+    /**
+     * Returns true if this queue contains the specified element. More formally,
+     * returns true if and only if this list contains at least one element e
+     * such that (o==null ? e==null : o.equals(e)).
+     *
+     * @param qObj The object to be removed
+     * @return True if the queue contains the specified element.
+     */
+    operator fun contains(qObj: T): Boolean
 }
 
 interface QueueIfc<T : ModelElement.QObject> : Iterable<T>{
