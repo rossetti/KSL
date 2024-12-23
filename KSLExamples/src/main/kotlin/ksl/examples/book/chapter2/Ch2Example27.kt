@@ -43,9 +43,11 @@ import org.jetbrains.kotlinx.dataframe.io.readCSV
  *  Illustrates how to fit a continuous distribution using KSL constructs.
  */
 fun main() {
-    browserResults()
+//    browserResults()
 
 //    scriptedResults()
+
+    allGoodnessOfFitResults()
 }
 
 fun browserResults(){
@@ -55,6 +57,17 @@ fun browserResults(){
         val data = KSLFileUtil.scanToArray(myFile.toPath())
         val d = PDFModeler(data)
         d.showAllResultsInBrowser()
+    }
+}
+
+fun allGoodnessOfFitResults(){
+    // select file: PharmacyInputModelingExampleData.txt
+    val myFile = KSLFileUtil.chooseFile()
+    if (myFile != null){
+        val data = KSLFileUtil.scanToArray(myFile.toPath())
+        val d = PDFModeler(data)
+        val results  = d.estimateAndEvaluateScores()
+        d.showAllGoodnessOfFitSummariesInBrowser(results)
     }
 }
 

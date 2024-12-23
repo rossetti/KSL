@@ -567,6 +567,12 @@ class PDFModeler(
         pdfModelingResults: PDFModelingResults
     ) : String {
         val sb = StringBuilder()
+        sb.appendLine(htmlScoringSummary(pdfModelingResults, defaultRankingMethod))
+        sb.appendLine("<div>")
+        sb.appendLine("<h1>")
+        sb.appendLine("Goodness of Fit Results for All Fitted Distributions")
+        sb.appendLine("</h1>")
+        sb.appendLine("</div>")
         for(result in pdfModelingResults.resultsSortedByScoring){
             sb.append(htmlGoodnessOfFitSummary(result))
         }
