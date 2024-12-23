@@ -76,7 +76,7 @@ data class ScoringResult(
      *  Shows the fit distribution plot and the goodness of fit
      *  results for the scoring result
      */
-    fun displayDistributionResults() {
+    fun displayFittingResults() {
         val distPlot = distributionFitPlot()
         distPlot.showInBrowser("Distribution $name")
         println()
