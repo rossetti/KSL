@@ -2,9 +2,7 @@ package ksl.modeling.station
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
-import ksl.modeling.variable.TWResponse
-import ksl.modeling.variable.TWResponseCIfc
-import ksl.modeling.variable.TWResponseFunction
+import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
@@ -120,6 +118,10 @@ class SResource(
      */
     private var myNumTimesReleased = 0
 
+    private val mySeizeCounter = Counter(this, name = "${this.name}:SeizeCount")
+    val seizeCounter: CounterCIfc
+        get() = mySeizeCounter
+
     private val myNumBusy = TWResponse(this, "${this.name}:NumBusy")
     override val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
@@ -163,6 +165,7 @@ class SResource(
         require(amount <= numAvailableUnits) { "Attempted to seize more than amount available ($numAvailableUnits) " }
         myNumBusy.increment(amount.toDouble())
         myNumTimesSeized++
+        mySeizeCounter.increment()
     }
 
     /**
