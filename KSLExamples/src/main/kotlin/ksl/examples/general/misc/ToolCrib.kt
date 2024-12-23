@@ -1,22 +1,4 @@
-/*
- * The KSL provides a discrete-event simulation library for the Kotlin programming language.
- *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
- *
- *     This program is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-package ksl.examples.general.variables
+package ksl.examples.general.misc
 
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
@@ -26,28 +8,25 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
-import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.plotting.StateVariablePlot
 
-
 fun main(){
+
+    val m = Model("Tool Crib Example")
+    // setup historical variables
     val arrivals = doubleArrayOf(
         3.00, 8.00, 2.00, 1.00, 3.00, 2.00, 2.00, 6.00, 5.00, 3.00, 3.00, 7.00, 5.00, 3.00, 2.00
     )
+    val a = HistoricalVariable(m, arrivals, "arrivals")
     val serviceTimes = doubleArrayOf(
         4.00, 4.00, 4.00, 3.00, 2.00, 4.00, 3.00, 2.00, 2.00, 4.00, 3.00, 2.00, 3.00, 4.00, 4.00
     )
-    val arrivalsPath = KSLFileUtil.writeToFile(arrivals,"arrivals")
-    val serviceTimePath = KSLFileUtil.writeToFile(serviceTimes,"serviceTimes")
+    val s = HistoricalVariable(m, serviceTimes, "serviceTimes")
 
-    val m = Model("Test Historical Variables")
-    val a = HistoricalVariable(m, arrivalsPath)
-    val s = HistoricalVariable(m, serviceTimePath)
-    val hq = HistoricalQueue(m, timeBtwArrivals = a, serviceTime = s)
+    val hq = ToolCrib(m, timeBtwArrivals = a, serviceTime = s)
     val nOft = ResponseTrace(hq.numInSystem)
     val qOft = ResponseTrace(hq.waitingQ.numInQ)
     m.lengthOfReplication = 31.0
-//    m.lengthOfReplication = 100.0
     m.numberOfReplications = 1
     m.simulate()
     m.print()
@@ -59,7 +38,7 @@ fun main(){
     nqPlot.showInBrowser()
 }
 
-class HistoricalQueue(
+class ToolCrib(
     parent: ModelElement,
     numServers: Int = 1,
     private val timeBtwArrivals: GetValueIfc,

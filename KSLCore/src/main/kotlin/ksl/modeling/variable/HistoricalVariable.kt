@@ -21,6 +21,7 @@ package ksl.modeling.variable
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.PreviousValueIfc
+import ksl.utilities.io.KSLFileUtil
 import java.io.FileNotFoundException
 import java.nio.file.Path
 import java.util.*
@@ -89,6 +90,41 @@ class HistoricalVariable(
     defaultValue: GetValueIfc? = null,
     name: String? = null
 ) : ModelElement(parent, name), GetValueIfc, PreviousValueIfc {
+
+    /**
+     * Creates a file based on the data and then creates the historical variable.
+     * The file is created in the output directory of the model.
+     *
+     * @param data an array of the data (instead of a path to a file)
+     * @param fileName the file name to use to represent the file
+     */
+    constructor(
+        parent: ModelElement,
+        data: DoubleArray,
+        fileName: String,
+        arrayOption: Boolean = true,
+        stoppingOption: StoppingOption = StoppingOption.STOP,
+        stopValue: Double = Double.MAX_VALUE,
+        defaultValue: GetValueIfc? = null,
+        name: String? = null
+    ) : this(
+        parent,
+        arrayToFilePath(parent, fileName, data),
+        arrayOption,
+        stoppingOption,
+        stopValue,
+        defaultValue,
+        name
+    )
+
+    companion object{
+
+        private fun arrayToFilePath(parent: ModelElement, fileName: String, array: DoubleArray) : Path {
+            val path = parent.model.outputDirectory.outDir.resolve(fileName)
+            KSLFileUtil.writeToFile(array, path)
+            return path
+        }
+    }
 
     var stopAction: (HistoricalVariable) -> Unit = ::stoppingAction
 

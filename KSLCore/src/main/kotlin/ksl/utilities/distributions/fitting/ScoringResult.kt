@@ -72,4 +72,21 @@ data class ScoringResult(
         return FitDistPlot(data, distribution, distribution)
     }
 
+    /**
+     *  Shows the fit distribution plot and the goodness of fit
+     *  results for the scoring result
+     */
+    fun displayDistributionResults() {
+        val distPlot = distributionFitPlot()
+        distPlot.showInBrowser("Distribution $name")
+        println()
+        println("** Distribution ** $name")
+        println()
+        val gof = ContinuousCDFGoodnessOfFit(estimationResult.testData,
+            distribution,
+            numEstimatedParameters = numberOfParameters
+        )
+        println(gof)
+    }
+
 }
