@@ -52,6 +52,18 @@ data class PDFModelingResults(
             get() = scoringResults.sortedBy { it.averageRanking }
 
     /**
+     *  Display all the fitting results based on the results
+     *  sorted by scoring. Shows the fit distribution plots
+     *  and the goodness of fit results for every distribution in
+     *  the order recommended.
+     */
+    fun displayAllFittingResults(){
+        for (result in resultsSortedByScoring){
+            result.displayFittingResults()
+        }
+    }
+
+    /**
      *  The results and their overall rank based on the average of their
      *  metric ranks
      */
