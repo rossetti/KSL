@@ -546,6 +546,34 @@ class PDFModeler(
     }
 
     /**
+     *  Shows the goodness of fit summaries for every distribution
+     *  that was fit within the modeling results within the browser.
+     */
+    fun showAllGoodnessOfFitSummariesInBrowser(
+        pdfModelingResults: PDFModelingResults,
+        resultsFileName: String = "PDF_Modeling_Goodness_Of_Fit_Summaries"
+    ){
+        KSLFileUtil.openInBrowser(
+            fileName = resultsFileName,
+            htmlGoodnessOfFitSummaries(pdfModelingResults)
+        )
+    }
+
+    /**
+     *  Constructs an HTML representation of the goodness of fit
+     *  summaries for the distributions that were fit by the modeler.
+     */
+    fun htmlGoodnessOfFitSummaries(
+        pdfModelingResults: PDFModelingResults
+    ) : String {
+        val sb = StringBuilder()
+        for(result in pdfModelingResults.resultsSortedByScoring){
+            sb.append(htmlGoodnessOfFitSummary(result))
+        }
+        return sb.toString()
+    }
+
+    /**
      *  Produces a html representation of the goodness of fit results which
      *  include the distribution fit quad plot and the chi-squared goodness
      *  of fit statistics for a particular scoring result.
@@ -570,7 +598,7 @@ class PDFModeler(
             appendLine("PDF Goodness of Fit Results")
             appendLine("</h1>")
             appendLine("<h2>")
-            appendLine("Recommended Distribution:")
+            appendLine("Distribution:")
             appendLine("</h2>")
             appendLine("<p>")
             appendLine(result.name)
