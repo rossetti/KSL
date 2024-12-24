@@ -31,12 +31,12 @@ import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main() {
-    val model = Model("Drive Through Pharmacy", autoCSVReports = true)
+    val model = Model("Drive Through Pharmacy")
     model.numberOfReplications = 30
     model.lengthOfReplication = 20000.0
     model.lengthOfReplicationWarmUp = 5000.0
-    // add DriveThroughPharmacy to the main model
-    val dtp = DriveThroughPharmacyWithResource(model, 1)
+    // add the model element to the main model
+    val dtp = DriveThroughPharmacyWithResource(model, 1, name = "Pharmacy")
     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
     model.simulate()
@@ -62,7 +62,7 @@ class DriveThroughPharmacyWithResource(
 ) :
     ModelElement(parent, name = name) {
 
-    private val myPharmacists: SResource = SResource(this, numServers, "Pharmacists")
+    private val myPharmacists: SResource = SResource(this, numServers, "${this.name}:Pharmacists")
     val resource: SResourceCIfc
         get() = myPharmacists
 
@@ -73,17 +73,17 @@ class DriveThroughPharmacyWithResource(
     val arrivalRV: RandomSourceCIfc
         get() = myArrivalRV
 
-    private val myNS: TWResponse = TWResponse(this, "Num in System")
+    private val myNS: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc
         get() = myNS
-    private val mySysTime: Response = Response(this, "System Time")
+    private val mySysTime: Response = Response(this, "${this.name}:SystemTime")
     val systemTime: ResponseCIfc
         get() = mySysTime
 
-    private val myNumCustomers: Counter = Counter(this, "Num Served")
+    private val myNumCustomers: Counter = Counter(this, "${this.name}:NumServed")
     val numCustomersServed: CounterCIfc
         get() = myNumCustomers
-    private val myWaitingQ: Queue<QObject> = Queue(this, "PharmacyQ")
+    private val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:PharmacyQ")
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
