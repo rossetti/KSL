@@ -87,8 +87,8 @@ class DriveThroughPharmacyWithResource(
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrival, myArrivalRV, myArrivalRV)
-    private val endServiceEvent = this::endOfService
+    private val myArrivalGenerator: EventGenerator = EventGenerator(
+        this, this::arrival, myArrivalRV, myArrivalRV)
 
     private fun arrival(generator: EventGenerator) {
         myNS.increment() // new customer arrived
@@ -98,7 +98,7 @@ class DriveThroughPharmacyWithResource(
             myPharmacists.seize()
             val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
             // schedule end of service, include the customer as the event's message
-            schedule(endServiceEvent, myServiceRV, customer)
+            schedule(this::endOfService, myServiceRV, customer)
         }
     }
 
@@ -108,7 +108,7 @@ class DriveThroughPharmacyWithResource(
             myPharmacists.seize()
             val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
             // schedule end of service
-            schedule(endServiceEvent, myServiceRV, customer)
+            schedule(this::endOfService, myServiceRV, customer)
         }
         departSystem(event.message!!)
     }
