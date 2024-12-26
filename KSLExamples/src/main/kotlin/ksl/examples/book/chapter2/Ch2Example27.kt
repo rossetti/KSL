@@ -71,6 +71,27 @@ fun allGoodnessOfFitResults(){
     }
 }
 
+/**
+ *  Analyze the distribution based on its placement in the scoring
+ *  place = 1 means first place (the default)
+ *  place = 2 means second place, et.
+ */
+fun showGoodnessOfFitSummaryInBrowser(place: Int = 1,
+        resultsFileName: String = "PDF_Modeling_Goodness_Of_Fit_Summary"){
+    val myFile = KSLFileUtil.chooseFile()
+    if (myFile != null){
+        val data = KSLFileUtil.scanToArray(myFile.toPath())
+        val d = PDFModeler(data)
+        val results  = d.estimateAndEvaluateScores()
+        val sortedResults: List<ScoringResult> = results.resultsSortedByScoring
+        val result: ScoringResult = sortedResults[place-1]
+        KSLFileUtil.openInBrowser(
+            fileName = resultsFileName,
+            d.htmlGoodnessOfFitSummary(result)
+        )
+    }
+}
+
 fun scriptedResults(){
     // select file: PharmacyInputModelingExampleData.txt
     val myFile = KSLFileUtil.chooseFile()

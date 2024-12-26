@@ -49,7 +49,7 @@ class EntityGeneratorExample(
     name: String? = null
 ) : ProcessModel(parent, name) {
 
-    private val worker: ResourceWithQ = ResourceWithQ(this, "worker")
+    private val worker: ResourceWithQ = ResourceWithQ(this, "${this.name}:Worker")
     private val tba = ExponentialRV(6.0, 1)
     private val st = RandomVariable(this, ExponentialRV(3.0, 2))
     private val wip = TWResponse(this, "${this.name}:WIP")
@@ -59,7 +59,7 @@ class EntityGeneratorExample(
 
     private inner class Customer : Entity() {
 
-        val mm1: KSLProcess = process(isDefaultProcess = true) {
+        val pharmacyProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
             val a = seize(worker)

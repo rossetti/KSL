@@ -57,13 +57,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
     private val suspendedEntities = mutableSetOf<Entity>()
 
-    /** Note that an EntityGenerator relies on the entity having an initial process or at least one process
-     * that has been added to its process sequence via the process() method's addToSequence
-     * parameter being true. The generator will create the entity and
-     * activate the initial process or the process that is listed first in its process sequence.  If the
-     * entity does not have an initial process, or it does not have any processes in its process sequence
-     * then an illegal state exception will occur. If the entity has both an initial process defined and
-     * a non-empty process sequence, the initial process will be activated.
+    /** Note that an EntityGenerator relies on the entity having a defined default process.
+     *  The generator will create the entity and activate the default process.  If the
+     * entity does not have a default process then an illegal state exception will occur.
+     * You can specify the default process via the isDefaultProcess parameter of the
+     * process() function or directly via the defaultProcess property of the entity.
      *
      * @param entityCreator the thing that creates the entities of the particular type. Typically,
      * a reference to the constructor of the class
