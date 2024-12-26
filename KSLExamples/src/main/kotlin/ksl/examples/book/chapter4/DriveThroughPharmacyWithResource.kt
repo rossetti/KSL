@@ -29,6 +29,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.statistic.HistogramIfc
 
 fun main() {
     val model = Model("Drive Through Pharmacy")
@@ -41,6 +42,8 @@ fun main() {
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
     model.simulate()
     model.print()
+//    val hp = dtp.systemTimeHistogram.histogramPlot()
+//    hp.showInBrowser("System Time Histogram")
 }
 
 /**
@@ -83,22 +86,36 @@ class DriveThroughPharmacyWithResource(
     private val myNumCustomers: Counter = Counter(this, "${this.name}:NumServed")
     val numCustomersServed: CounterCIfc
         get() = myNumCustomers
+
     private val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:PharmacyQ")
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
+
+    private val mySTGT4: IndicatorResponse = IndicatorResponse({ x -> x >= 4.0 }, mySysTime, "SysTime >= 4 minutes")
+    val probSystemTimeGT4Minutes: ResponseCIfc
+        get() = mySTGT4
+
+    private val mySysTimeHistogram: HistogramResponse = HistogramResponse(mySysTime)
+    val systemTimeHistogram: HistogramIfc
+        get() = mySysTimeHistogram.histogram
+
+    private val myInQ = IntegerFrequencyResponse(this, "${this.name}:NQUponArrival")
+
+    private val endServiceEvent = this::endOfService
 
     private val myArrivalGenerator: EventGenerator = EventGenerator(
         this, this::arrival, myArrivalRV, myArrivalRV)
 
     private fun arrival(generator: EventGenerator) {
         myNS.increment() // new customer arrived
+        myInQ.value = myWaitingQ.numInQ.value.toInt()
         val arrivingCustomer = QObject()
         myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
         if (myPharmacists.hasAvailableUnits) {
             myPharmacists.seize()
             val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
             // schedule end of service, include the customer as the event's message
-            schedule(this::endOfService, myServiceRV, customer)
+            schedule(endServiceEvent, myServiceRV, customer)
         }
     }
 
@@ -108,7 +125,7 @@ class DriveThroughPharmacyWithResource(
             myPharmacists.seize()
             val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
             // schedule end of service
-            schedule(this::endOfService, myServiceRV, customer)
+            schedule(endServiceEvent, myServiceRV, customer)
         }
         departSystem(event.message!!)
     }
