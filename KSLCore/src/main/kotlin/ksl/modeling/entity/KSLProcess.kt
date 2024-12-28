@@ -538,6 +538,7 @@ interface KSLProcessBuilder {
         waitStats: Boolean = true,
         suspensionName: String? = null
     ) {
+        require(!queue.contains(entity)) {"Entity: ${entity.name} was already in HoldQueue: ${queue.name}"}
         require(entity != entityToSyncWith) { "The entity ${entityToSyncWith.name} cannot sync with itself" }
         if (queue.contains(entityToSyncWith)) {
             queue.removeAndResume(entityToSyncWith, resumePriority, waitStats)
