@@ -62,6 +62,7 @@ interface KSLProcess {
     val isActivated: Boolean
     val currentStateName: String
     val entity: ProcessModel.Entity
+
     /**
      *  The simulation time that the process first started (activated) after being created.
      *  If the process was never started, this returns Double.NaN
@@ -253,7 +254,7 @@ interface KSLProcessBuilder {
      * @param priority the priority associated with the resume. Can be used
      * to order resumptions that occur at the same time.
      */
-    fun resume(suspension: Entity.Suspension, priority: Int = KSLEvent.DEFAULT_PRIORITY){
+    fun resume(suspension: Entity.Suspension, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
         suspension.resume(priority)
     }
 
@@ -270,7 +271,7 @@ interface KSLProcessBuilder {
     suspend fun yield(
         yieldPriority: Int = YIELD_PRIORITY,
         suspensionName: String? = null
-    ){
+    ) {
         delay(0.0, yieldPriority, suspensionName = suspensionName)
     }
 
@@ -321,7 +322,7 @@ interface KSLProcessBuilder {
         yieldBeforeWaiting: Boolean = true,
         yieldPriority: Int = YIELD_PRIORITY,
         suspensionName: String? = null
-    ){
+    ) {
         waitFor(blockingTask.blockage, queue, yieldBeforeWaiting, yieldPriority, suspensionName)
     }
 
@@ -334,7 +335,7 @@ interface KSLProcessBuilder {
      */
     suspend fun perform(
         blockingActivity: Entity.BlockingActivity
-    ){
+    ) {
         startBlockage(blockingActivity.blockage)
         delay(blockingActivity.activityTime, blockingActivity.activityPriority, blockingActivity.name)
         clearBlockage(blockingActivity.blockage)
@@ -351,7 +352,7 @@ interface KSLProcessBuilder {
      */
     suspend fun perform(
         blockingUsage: Entity.BlockingResourceUsage
-    ){
+    ) {
         startBlockage(blockingUsage.blockage)
         use(
             resource = blockingUsage.resource,
@@ -375,9 +376,10 @@ interface KSLProcessBuilder {
      */
     suspend fun perform(
         blockingUsage: Entity.BlockingResourcePoolUsage
-    ){
+    ) {
         startBlockage(blockingUsage.blockage)
-        use(resourcePool = blockingUsage.resourcePool,
+        use(
+            resourcePool = blockingUsage.resourcePool,
             amountNeeded = blockingUsage.amountNeeded,
             seizePriority = blockingUsage.seizePriority,
             delayDuration = blockingUsage.activityTime,
@@ -397,7 +399,7 @@ interface KSLProcessBuilder {
      */
     suspend fun perform(
         blockingMovement: Entity.BlockingMovement
-    ){
+    ) {
         startBlockage(blockingMovement.blockage)
         move(
             fromLoc = blockingMovement.fromLoc,
@@ -514,6 +516,35 @@ interface KSLProcessBuilder {
      *   are more than one hold suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun hold(queue: HoldQueue, priority: Int = PRIORITY, suspensionName: String? = null)
+
+    /**
+     *  Causes the entity to be place itself in the hold queue if the entity to sync with is not within
+     *  the hold queue.  If the entity to sync with is in the hold queue, then the active entity will
+     *  cause the held entity to resume at the curren time. This function facilitates a common use case
+     *  between entities to allow them to sync in time.
+     *
+     *  @param queue a queue to hold the waiting entities
+     *  @param priority a priority for the queue discipline if needed
+     * @param resumePriority the priority for the resumption of the suspended process
+     * @param waitStats if true the waiting time statistics are collected on the usage of the queue
+     *  @param suspensionName the name of the hold. can be used to identify which hold the entity is experiencing if there
+     *   are more than one hold suspension points within the process. The user is responsible for uniqueness.
+     */
+    suspend fun syncWith(
+        entityToSyncWith: Entity,
+        queue: HoldQueue,
+        priority: Int = PRIORITY,
+        resumePriority: Int = PRIORITY,
+        waitStats: Boolean = true,
+        suspensionName: String? = null
+    ) {
+        require(entity != entityToSyncWith) { "The entity ${entityToSyncWith.name} cannot sync with itself" }
+        if (queue.contains(entityToSyncWith)) {
+            queue.removeAndResume(entityToSyncWith, resumePriority, waitStats)
+        } else {
+            hold(queue, priority, suspensionName)
+        }
+    }
 
     /**
      * This method will block (suspend) until the required number of items that meet the criteria
