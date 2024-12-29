@@ -45,7 +45,12 @@ class MallowsL2ScoringModel : PDFScoringModel(
             sum = sum + (predicted[i] - observed[i]) * (predicted[i] - observed[i])
         }
         val mL2 = sqrt(sum/n.toDouble())
-        return Score(metric, mL2,true)
+        val f = if (useNumParametersOption){
+            cdf.parameters().size.toDouble()
+        } else {
+            1.0
+        }
+        return Score(metric, f*mL2,true)
     }
 
     override fun newInstance(): MallowsL2ScoringModel {

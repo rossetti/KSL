@@ -27,7 +27,12 @@ class QQSSEScoringModel(
         val empiricalQuantiles: DoubleArray = DoubleArray(orderStats.size) { i -> cdf.invCDF(empProbabilities[i]) }
         val errors = KSLArrays.subtractElements(empiricalQuantiles, orderStats)
         val sse = errors.sumOfSquares()
-        return Score(metric, sse, true)
+        val f = if (useNumParametersOption){
+            cdf.parameters().size.toDouble()
+        } else {
+            1.0
+        }
+        return Score(metric, f*sse, true)
     }
 
     override fun newInstance(): QQSSEScoringModel {
