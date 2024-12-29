@@ -38,7 +38,12 @@ class ChiSquaredScoringModel : PDFScoringModel(
         bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
         bp = Histogram.addUpperLimit(domain.upperLimit, bp)
         val chiSq = Statistic.chiSqTestStatistic(data, bp, cdf)
-        return Score(metric, chiSq,true)
+        val f = if (useNumParametersOption){
+            cdf.parameters().size.toDouble()
+        } else {
+            1.0
+        }
+        return Score(metric, f*chiSq,true)
     }
 
     override fun newInstance(): ChiSquaredScoringModel {

@@ -42,6 +42,7 @@ abstract class PDFScoringModel(
 
     val metric = Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment)
     val domain: Interval = metric.domain
+    var useNumParametersOption: Boolean = false
 
     protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 

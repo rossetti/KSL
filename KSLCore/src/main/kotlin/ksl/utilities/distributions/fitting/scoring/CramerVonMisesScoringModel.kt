@@ -31,7 +31,12 @@ class CramerVonMisesScoringModel : PDFScoringModel(
             return Score(metric, Double.MAX_VALUE, true)
         }
         val score = Statistic.cramerVonMisesTestStatistic(data, cdf)
-        return Score(metric, score, true)
+        val f = if (useNumParametersOption){
+            cdf.parameters().size.toDouble()
+        } else {
+            1.0
+        }
+        return Score(metric, f*score, true)
     }
 
     override fun newInstance(): CramerVonMisesScoringModel {

@@ -55,7 +55,12 @@ class SquaredErrorScoringModel : PDFScoringModel(
         for (i in 0.until(n)) {
             sum = sum + (predicted[i] - observed[i]) * (predicted[i] - observed[i])
         }
-        return Score(metric, sum,true)
+        val f = if (useNumParametersOption){
+            cdf.parameters().size.toDouble()
+        } else {
+            1.0
+        }
+        return Score(metric, f*sum,true)
     }
 
     override fun newInstance(): SquaredErrorScoringModel {
