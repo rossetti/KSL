@@ -42,7 +42,6 @@ abstract class PDFScoringModel(
 
     val metric = Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment)
     val domain: Interval = metric.domain
-//    var useBootstrapping = true
 
     protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
@@ -60,33 +59,9 @@ abstract class PDFScoringModel(
             } else {
                 result.originalData
             }
-//            if (useBootstrapping){
-//                bootstrapScores(data, cdf)
-//            } else {
-//                score(data, cdf)
-//            }
             score(data, cdf)
         }
     }
-
-//    private fun bootstrapScores(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score {
-//        // make the estimator
-//        val estimator = BootStrapScore(cdf)
-//        // make the bootstrapper
-//        val bs = Bootstrap(data, estimator)
-//        // do the bootstrapping
-//        bs.generateSamples(399) //TODO have default number of samples
-//        // construct the score from the bootstrap results
-//        val scoreAvg = bs.acrossBootstrapAverage
-//        return Score(metric, scoreAvg)
-//    }
-//
-//    private inner class BootStrapScore(var cdf: ContinuousDistributionIfc) : BSEstimatorIfc {
-//        override fun estimate(data: DoubleArray): Double {
-//            val s = score(data, cdf)
-//            return s.value
-//        }
-//    }
 
     companion object{
 
