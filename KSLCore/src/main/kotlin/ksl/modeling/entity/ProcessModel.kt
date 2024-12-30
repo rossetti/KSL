@@ -668,6 +668,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         internal fun immediateResume() {
             //TODO immediateResume() who calls this?
             // called from 1) within resourceSeizeAction(), 2)resourcePoolSeizeAction(), 3) HoldQueue.removeAndImmediateResume()
+            // 4) private inner class ResumeAction : EventAction<Nothing>
+            // what schedules the ResumeAction???: the resumeProcess() function, which is called many places
             if (myCurrentProcess != null) {
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
                 myCurrentProcess!!.resumeContinuation()
@@ -1420,6 +1422,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+            //TODO analyze the usage of this: resourceSeizeAction
             private fun resourceSeizeAction(event: KSLEvent<Request>) {
                 val request = event.message!!
                 val resource = request.resource!!
@@ -1466,6 +1469,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 return allocation
             }
 
+            //TODO analyze the usage of this: resourcePoolSeizeAction
             private fun resourcePoolSeizeAction(event: KSLEvent<Request>) {
                 val request = event.message!!
                 val resource = request.resourcePool!!
