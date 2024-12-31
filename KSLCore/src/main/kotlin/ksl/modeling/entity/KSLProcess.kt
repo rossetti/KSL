@@ -34,11 +34,6 @@ import kotlin.coroutines.*
  */
 const val PRIORITY = KSLEvent.DEFAULT_PRIORITY
 
-/**
- *  The default yield priority setting. It is much larger than the default event priority.
- */
-//const val YIELD_PRIORITY = PRIORITY + 1000
-
 val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
 
 /**
