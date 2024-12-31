@@ -650,7 +650,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // entity must be in a process and suspended
             if (myCurrentProcess != null) {
                 val event = myResumeAction.schedule(timeUntilResumption, priority = priority)
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: scheduled resume action for time ${time + timeUntilResumption} : event_id = ${event.id}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > SCHEDULED : event_id = ${event.id} : resumeProcess(): entity_id = $id: scheduled resume action for time ${time + timeUntilResumption}, time to resumption: $timeUntilResumption " }
             }
         }
 
@@ -1453,7 +1453,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 queue.enqueue(request) // put the request in the queue
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: enqueued request_id = ${request.id} for $amountNeeded units of ${resource.name}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ... scheduling the delay of 0.0 for seize priority ..." }
-                schedule(::resourceSeizeAction, 0.0, priority = seizePriority, message = request)
+                val evt = schedule(::resourceSeizeAction, 0.0, priority = seizePriority, message = request)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ... scheduled event, event_id = ${evt.id} for the the delay of 0.0 for seize priority ..." }
                 entity.state.waitForResource()
                 suspend()
                 entity.state.activate()
@@ -2136,7 +2137,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     suspendedEntities.remove(entity)
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : suspension name = $currentSuspendName : resuming..." }
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : *** before COROUTINE RESUME *** : process = (${this@ProcessCoroutine})" }
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : ---> before resuming continuation = $continuation" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> before resuming continuation = $continuation" }
                     continuation?.resume(Unit)
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> after resuming continuation = $continuation" }
                     //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: *** after COROUTINE RESUME ***: continuation = ${continuation}"}
