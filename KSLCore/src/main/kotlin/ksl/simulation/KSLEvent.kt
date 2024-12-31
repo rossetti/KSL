@@ -17,6 +17,7 @@
  */
 package ksl.simulation
 
+import ksl.modeling.entity.PRIORITY
 import ksl.modeling.entity.ProcessModel.Entity //TODO not sure if this is needed anymore, why should event have an entity?
 import java.text.DecimalFormat
 
@@ -260,6 +261,11 @@ class KSLEvent<out T> internal constructor(
          *  for conveyors have an implied lower priority over requests for resources.
          */
         const val CONVEYOR_REQUEST_PRIORITY = SEIZE_PRIORITY + 20000
+
+        /**
+         *  The default yield priority setting. It is much larger than the default event priority.
+         */
+        const val YIELD_PRIORITY = CONVEYOR_REQUEST_PRIORITY + 1000
 
         /**
          *  Represents the default priority for scheduled resumptions of a process.

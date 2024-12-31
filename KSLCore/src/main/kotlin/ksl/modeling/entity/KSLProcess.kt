@@ -37,7 +37,7 @@ const val PRIORITY = KSLEvent.DEFAULT_PRIORITY
 /**
  *  The default yield priority setting. It is much larger than the default event priority.
  */
-const val YIELD_PRIORITY = PRIORITY + 1000
+//const val YIELD_PRIORITY = PRIORITY + 1000
 
 val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
 
@@ -269,7 +269,7 @@ interface KSLProcessBuilder {
      *   are more than one suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun yield(
-        yieldPriority: Int = YIELD_PRIORITY,
+        yieldPriority: Int = KSLEvent.YIELD_PRIORITY,
         suspensionName: String? = null
     ) {
         delay(0.0, yieldPriority, suspensionName = suspensionName)
@@ -294,7 +294,7 @@ interface KSLProcessBuilder {
         blockage: Entity.Blockage,
         queue: Queue<Entity>? = null,
         yieldBeforeWaiting: Boolean = true,
-        yieldPriority: Int = YIELD_PRIORITY,
+        yieldPriority: Int = KSLEvent.YIELD_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -320,7 +320,7 @@ interface KSLProcessBuilder {
         blockingTask: Entity.BlockingTask,
         queue: Queue<Entity>? = null,
         yieldBeforeWaiting: Boolean = true,
-        yieldPriority: Int = YIELD_PRIORITY,
+        yieldPriority: Int = KSLEvent.YIELD_PRIORITY,
         suspensionName: String? = null
     ) {
         waitFor(blockingTask.blockage, queue, yieldBeforeWaiting, yieldPriority, suspensionName)
