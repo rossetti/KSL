@@ -225,25 +225,63 @@ class KSLEvent<out T> internal constructor(
     companion object {
         /**
          * Represents the default priority for events within the Executive
-         * DEFAULT_PRIORITY = 10. Lower priority goes first. All integer priority
+         * DEFAULT_PRIORITY = 1000. Lower priority goes first. All integer priority
          * numbers can be used to set the priority of an event.
+         * The best practice when using this constant is to set the priority
+         * relative to the default value when scheduling events. For example,
+         * since smaller values have higher priority, set the priority
+         * in the schedule() call to priority = DEFAULT_PRIORITY - 1 to
+         * have the event have a higher priority than the default.
+         *
          */
-        const val DEFAULT_PRIORITY = 10
+        const val DEFAULT_PRIORITY = 1000
+
+        /**
+         *  Represents the default value for seizing resources in the process view.
+         *  This priority controls which seize will occur first when two or more
+         *  seizes occur at the same time. If the seizing is for the same resource
+         *  the priority will determine which seize call will occur first.
+         *  To use this in a seize() call, the recommended approach is to assign
+         *  the seize priority relative to this constant. For example,
+         *
+         *  seize(resource, priority = SEIZE_PRIORITY - 1)
+         *
+         *  Causes the seize to have higher priority (lower value is higher priority)
+         *  than the default seize priority. The default value is DEFAULT_PRIORITY + 10000
+         */
+        const val SEIZE_PRIORITY = DEFAULT_PRIORITY + 10000
+
+        /**
+         *  Represents the default value for requesting conveyors in the process view.
+         *  This priority controls which entity's request  will occur first when two or more
+         *  requests occur at the same time. If the request is for the same resource
+         *  the priority will determine which seize call will occur first.
+         *  The default value is SEIZE_PRIORITY + 20000.  Thus, requests
+         *  for conveyors have an implied lower priority over requests for resources.
+         */
+        const val CONVEYOR_REQUEST_PRIORITY = SEIZE_PRIORITY + 20000
+
+        /**
+         *  Represents the default priority for scheduled resumptions of a process.
+         *  The default value is DEFAULT_PRIORITY - 10000. Thus, resumptions will
+         *  have a higher priority than default scheduled events.
+         */
+        const val RESUME_PRIORITY = DEFAULT_PRIORITY - 10000
 
         /**
          * Default event priority for the end replication event
          */
-        const val DEFAULT_END_REPLICATION_EVENT_PRIORITY = 10000
+        const val DEFAULT_END_REPLICATION_EVENT_PRIORITY = 100000
 
         /**
          * A constant for the default warm up event priority
          */
-        const val DEFAULT_WARMUP_EVENT_PRIORITY = 9000
+        const val DEFAULT_WARMUP_EVENT_PRIORITY = 90000
 
         /**
          * A constant for the default batch priority
          */
-        const val DEFAULT_BATCH_PRIORITY = 8000
+        const val DEFAULT_BATCH_PRIORITY = 80000
 
         /**
          * A constant for the default timed update priority
