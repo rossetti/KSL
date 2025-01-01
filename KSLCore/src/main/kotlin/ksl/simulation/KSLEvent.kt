@@ -17,9 +17,7 @@
  */
 package ksl.simulation
 
-import ksl.modeling.entity.PRIORITY
 import ksl.modeling.entity.ProcessModel.Entity //TODO not sure if this is needed anymore, why should event have an entity?
-import java.text.DecimalFormat
 
 /**
  * This class represents a simulated event.  It allows for the simulation of
@@ -224,75 +222,47 @@ class KSLEvent<out T> internal constructor(
     }
 
     companion object {
+
+        const val VERY_HIGH_PRIORITY = 1
+        const val HIGH_PRIORITY = 100
+        const val MEDIUM_HIGH_PRIORITY = 1000
+        const val MEDIUM_PRIORITY = 10000
+        const val MEDIUM_LOW_PRIORITY = 100000
+        const val LOW_PRIORITY = 1000000
+        const val VERY_LOW_PRIORITY = 10000000
+
         /**
          * Represents the default priority for events within the Executive
-         * DEFAULT_PRIORITY = 1000. Lower priority goes first. All integer priority
+         * Lower priority goes first. All integer priority
          * numbers can be used to set the priority of an event.
          * The best practice when using this constant is to set the priority
          * relative to the default value when scheduling events. For example,
          * since smaller values have higher priority, set the priority
          * in the schedule() call to priority = DEFAULT_PRIORITY - 1 to
          * have the event have a higher priority than the default.
-         *
+         * The default is specified relative to value of the MEDIUM_PRIORITY constant.
          */
-        const val DEFAULT_PRIORITY = 1000
-
-        /**
-         *  Represents the default value for seizing resources in the process view.
-         *  This priority controls which seize will occur first when two or more
-         *  seizes occur at the same time. If the seizing is for the same resource
-         *  the priority will determine which seize call will occur first.
-         *  To use this in a seize() call, the recommended approach is to assign
-         *  the seize priority relative to this constant. For example,
-         *
-         *  seize(resource, priority = SEIZE_PRIORITY - 1)
-         *
-         *  Causes the seize to have higher priority (lower value is higher priority)
-         *  than the default seize priority. The default value is DEFAULT_PRIORITY + 10000
-         */
-        const val SEIZE_PRIORITY = DEFAULT_PRIORITY + 10000
-
-        /**
-         *  Represents the default value for requesting conveyors in the process view.
-         *  This priority controls which entity's request  will occur first when two or more
-         *  requests occur at the same time. If the request is for the same resource
-         *  the priority will determine which seize call will occur first.
-         *  The default value is SEIZE_PRIORITY + 20000.  Thus, requests
-         *  for conveyors have an implied lower priority over requests for resources.
-         */
-        const val CONVEYOR_REQUEST_PRIORITY = SEIZE_PRIORITY + 20000
-
-        /**
-         *  The default yield priority setting. It is much larger than the default event priority.
-         */
-        const val YIELD_PRIORITY = CONVEYOR_REQUEST_PRIORITY + 1000
-
-        /**
-         *  Represents the default priority for scheduled resumptions of a process.
-         *  The default value is DEFAULT_PRIORITY - 10000. Thus, resumptions will
-         *  have a higher priority than default scheduled events.
-         */
-        const val RESUME_PRIORITY = DEFAULT_PRIORITY - 10000
+        const val DEFAULT_PRIORITY = MEDIUM_PRIORITY
 
         /**
          * Default event priority for the end replication event
          */
-        const val DEFAULT_END_REPLICATION_EVENT_PRIORITY = 100000
+        const val DEFAULT_END_REPLICATION_EVENT_PRIORITY = VERY_LOW_PRIORITY
 
         /**
          * A constant for the default warm up event priority
          */
-        const val DEFAULT_WARMUP_EVENT_PRIORITY = 90000
+        const val DEFAULT_WARMUP_EVENT_PRIORITY = LOW_PRIORITY
 
         /**
          * A constant for the default batch priority
          */
-        const val DEFAULT_BATCH_PRIORITY = 80000
+        const val DEFAULT_BATCH_PRIORITY = MEDIUM_LOW_PRIORITY
 
         /**
          * A constant for the default timed update priority
          */
-        const val DEFAULT_TIMED_EVENT_PRIORITY = 3
+        const val DEFAULT_TIMED_EVENT_PRIORITY = MEDIUM_HIGH_PRIORITY
 
     }
 }
