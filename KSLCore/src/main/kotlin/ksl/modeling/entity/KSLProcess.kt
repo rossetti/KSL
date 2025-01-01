@@ -18,6 +18,19 @@
 
 package ksl.modeling.entity
 
+import ksl.modeling.entity.ProcessModel.Companion.BLOCKAGE_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.CONVEYOR_EXIT_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.CONVEYOR_REQUEST_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.DELAY_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.INTERRUPT_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.MOVE_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.QUEUE_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.RELEASE_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.RESUME_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.SEIZE_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.TRANSPORT_REQUEST_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.WAIT_FOR_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.YIELD_PRIORITY
 import ksl.modeling.entity.ProcessModel.Entity
 import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.*
@@ -27,12 +40,6 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import kotlin.coroutines.*
-
-/**
- *  The default priority for use within the suspending functions. This is the
- *  same as KSLEvent.DEFAULT_PRIORITY
- */
-const val PRIORITY = KSLEvent.DEFAULT_PRIORITY
 
 val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
 
@@ -249,7 +256,7 @@ interface KSLProcessBuilder {
      * @param priority the priority associated with the resume. Can be used
      * to order resumptions that occur at the same time.
      */
-    fun resume(suspension: Entity.Suspension, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+    fun resume(suspension: Entity.Suspension, priority: Int = RESUME_PRIORITY) {
         suspension.resume(priority)
     }
 
@@ -264,7 +271,7 @@ interface KSLProcessBuilder {
      *   are more than one suspension points within the process. The user is responsible for uniqueness.
      */
     suspend fun yield(
-        yieldPriority: Int = KSLEvent.YIELD_PRIORITY,
+        yieldPriority: Int = YIELD_PRIORITY,
         suspensionName: String? = null
     ) {
         delay(0.0, yieldPriority, suspensionName = suspensionName)
@@ -289,7 +296,7 @@ interface KSLProcessBuilder {
         blockage: Entity.Blockage,
         queue: Queue<Entity>? = null,
         yieldBeforeWaiting: Boolean = true,
-        yieldPriority: Int = KSLEvent.YIELD_PRIORITY,
+        yieldPriority: Int = YIELD_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -315,7 +322,7 @@ interface KSLProcessBuilder {
         blockingTask: Entity.BlockingTask,
         queue: Queue<Entity>? = null,
         yieldBeforeWaiting: Boolean = true,
-        yieldPriority: Int = KSLEvent.YIELD_PRIORITY,
+        yieldPriority: Int = YIELD_PRIORITY,
         suspensionName: String? = null
     ) {
         waitFor(blockingTask.blockage, queue, yieldBeforeWaiting, yieldPriority, suspensionName)
@@ -420,7 +427,7 @@ interface KSLProcessBuilder {
      *  @param priority the priority for the resumption of suspended entities associated
      *  with the blockage
      */
-    fun clearBlockage(blockage: Entity.Blockage, priority: Int = KSLEvent.DEFAULT_PRIORITY)
+    fun clearBlockage(blockage: Entity.Blockage, priority: Int = BLOCKAGE_PRIORITY)
 
     /** Causes the current process to suspend (immediately) until the specified process has run to completion.
      *  This is like run blocking.  It activates the specified process and then waits for it
@@ -437,7 +444,7 @@ interface KSLProcessBuilder {
     suspend fun waitFor(
         process: KSLProcess,
         timeUntilActivation: Double = 0.0,
-        priority: Int = PRIORITY,
+        priority: Int = WAIT_FOR_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -456,7 +463,7 @@ interface KSLProcessBuilder {
      */
     suspend fun waitFor(
         signal: Signal,
-        waitPriority: Int = PRIORITY,
+        waitPriority: Int = WAIT_FOR_PRIORITY,
         waitStats: Boolean = true,
         suspensionName: String? = null
     )
@@ -476,7 +483,7 @@ interface KSLProcessBuilder {
      */
     suspend fun blockUntilCompleted(
         process: KSLProcess,
-        resumptionPriority: Int = PRIORITY,
+        resumptionPriority: Int = RESUME_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -495,7 +502,7 @@ interface KSLProcessBuilder {
      */
     suspend fun blockUntilAllCompleted(
         processes: Set<KSLProcess>,
-        resumptionPriority: Int = PRIORITY,
+        resumptionPriority: Int = RESUME_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -510,7 +517,7 @@ interface KSLProcessBuilder {
      *  @param suspensionName the name of the hold. can be used to identify which hold the entity is experiencing if there
      *   are more than one hold suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun hold(queue: HoldQueue, priority: Int = PRIORITY, suspensionName: String? = null)
+    suspend fun hold(queue: HoldQueue, priority: Int = QUEUE_PRIORITY, suspensionName: String? = null)
 
     /**
      *  Causes the entity to be place itself in the hold queue if the entity to sync with is not within
@@ -528,8 +535,8 @@ interface KSLProcessBuilder {
     suspend fun syncWith(
         entityToSyncWith: Entity,
         queue: HoldQueue,
-        priority: Int = PRIORITY,
-        resumePriority: Int = PRIORITY,
+        priority: Int = QUEUE_PRIORITY,
+        resumePriority: Int = RESUME_PRIORITY,
         waitStats: Boolean = true,
         suspensionName: String? = null
     ) {
@@ -558,7 +565,7 @@ interface KSLProcessBuilder {
         blockingQ: BlockingQueue<T>,
         amount: Int = 1,
         predicate: (T) -> Boolean = alwaysTrue,
-        blockingPriority: Int = PRIORITY,
+        blockingPriority: Int = QUEUE_PRIORITY,
         suspensionName: String? = null
     ): List<T>
 
@@ -578,7 +585,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitFor(
         amount: Int = 1,
         predicate: (T) -> Boolean = alwaysTrue,
-        blockingPriority: Int = PRIORITY,
+        blockingPriority: Int = QUEUE_PRIORITY,
         suspensionName: String? = null
     ): List<T> {
         return waitForItems(this, amount, predicate, blockingPriority, suspensionName)
@@ -599,7 +606,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> waitForAnyItems(
         blockingQ: BlockingQueue<T>,
         predicate: (T) -> Boolean,
-        blockingPriority: Int = PRIORITY,
+        blockingPriority: Int = QUEUE_PRIORITY,
         suspensionName: String? = null
     ): List<T>
 
@@ -617,7 +624,7 @@ interface KSLProcessBuilder {
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitForAny(
         predicate: (T) -> Boolean,
-        blockingPriority: Int = PRIORITY,
+        blockingPriority: Int = QUEUE_PRIORITY,
         suspensionName: String? = null
     ): List<T> {
         return waitForAnyItems(this, predicate, blockingPriority, suspensionName)
@@ -637,7 +644,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> send(
         item: T,
         blockingQ: BlockingQueue<T>,
-        blockingPriority: Int = PRIORITY,
+        blockingPriority: Int = QUEUE_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -655,7 +662,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> sendItems(
         collection: Collection<T>,
         blockingQ: BlockingQueue<T>,
-        blockingPriority: Int = PRIORITY,
+        blockingPriority: Int = QUEUE_PRIORITY,
         suspensionName: String? = null
     ) {
         for (item in collection) {
@@ -677,7 +684,7 @@ interface KSLProcessBuilder {
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.send(
         item: T,
-        blockingPriority: Int = PRIORITY,
+        blockingPriority: Int = QUEUE_PRIORITY,
         suspensionName: String? = null
     ) {
         send(item, this, blockingPriority, suspensionName)
@@ -703,7 +710,7 @@ interface KSLProcessBuilder {
     suspend fun seize(
         resource: Resource,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         queue: RequestQ,
         suspensionName: String? = null
     ): Allocation
@@ -727,7 +734,7 @@ interface KSLProcessBuilder {
     suspend fun seize(
         resource: ResourceWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         suspensionName: String? = null
     ): Allocation {
         return seize(resource, amountNeeded, seizePriority, resource.myWaitingQ, suspensionName)
@@ -750,7 +757,7 @@ interface KSLProcessBuilder {
      */
     suspend fun seize(
         resource: MovableResource,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         queue: RequestQ,
         suspensionName: String? = null
     ): Allocation {
@@ -774,7 +781,7 @@ interface KSLProcessBuilder {
      */
     suspend fun seize(
         resource: MovableResourceWithQ,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         suspensionName: String? = null
     ): Allocation {
         return seize(resource, amountNeeded = 1, seizePriority, resource.myWaitingQ, suspensionName)
@@ -800,7 +807,7 @@ interface KSLProcessBuilder {
     suspend fun seize(
         resourcePool: ResourcePool,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         queue: RequestQ,
         suspensionName: String? = null
     ): ResourcePoolAllocation
@@ -824,7 +831,7 @@ interface KSLProcessBuilder {
     suspend fun seize(
         resourcePool: ResourcePoolWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         suspensionName: String? = null
     ): ResourcePoolAllocation {
         return seize(resourcePool, amountNeeded, seizePriority, resourcePool.myWaitingQ, suspensionName)
@@ -850,9 +857,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resource: Resource,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         delayDuration: Double,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
         queue: RequestQ
     ) {
         val a = seize(resource, amountNeeded, seizePriority, queue)
@@ -879,9 +886,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resource: ResourceWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         delayDuration: Double,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
     ) {
         val a = seize(resource, amountNeeded, seizePriority, resource.myWaitingQ)
         delay(delayDuration, delayPriority)
@@ -907,9 +914,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resource: ResourceWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         delayDuration: GetValueIfc,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
     ) {
         val a = seize(resource, amountNeeded, seizePriority)
         delay(delayDuration, delayPriority)
@@ -936,9 +943,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resourcePool: ResourcePool,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         delayDuration: Double,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
         queue: RequestQ
     ) {
         val a = seize(resourcePool, amountNeeded, seizePriority, queue)
@@ -966,9 +973,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resourcePool: ResourcePool,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         delayDuration: GetValueIfc,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
         queue: RequestQ
     ) {
         val a = seize(resourcePool, amountNeeded, seizePriority, queue)
@@ -995,9 +1002,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resourcePool: ResourcePoolWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         delayDuration: Double,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
     ) {
         val a = seize(resourcePool, amountNeeded, seizePriority)
         delay(delayDuration, delayPriority)
@@ -1023,9 +1030,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resourcePool: ResourcePoolWithQ,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         delayDuration: GetValueIfc,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
     ) {
         val a = seize(resourcePool, amountNeeded, seizePriority)
         delay(delayDuration, delayPriority)
@@ -1052,9 +1059,9 @@ interface KSLProcessBuilder {
     suspend fun use(
         resource: Resource,
         amountNeeded: Int = 1,
-        seizePriority: Int = PRIORITY,
+        seizePriority: Int = SEIZE_PRIORITY,
         delayDuration: GetValueIfc,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
         queue: RequestQ
     ) {
         val a = seize(resource, amountNeeded, seizePriority, queue)
@@ -1074,7 +1081,7 @@ interface KSLProcessBuilder {
      */
     suspend fun delay(
         delayDuration: Double,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -1088,7 +1095,7 @@ interface KSLProcessBuilder {
      */
     suspend fun delay(
         delayDuration: GetValueIfc,
-        delayPriority: Int = PRIORITY,
+        delayPriority: Int = DELAY_PRIORITY,
         suspensionName: String? = null
     ) {
         delay(delayDuration.value, delayPriority, suspensionName)
@@ -1111,7 +1118,7 @@ interface KSLProcessBuilder {
         fromLoc: LocationIfc,
         toLoc: LocationIfc,
         velocity: Double = entity.velocity.value,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -1132,7 +1139,7 @@ interface KSLProcessBuilder {
         fromLoc: LocationIfc,
         toLoc: LocationIfc,
         velocity: GetValueIfc = entity.velocity,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     ) {
         move(fromLoc, toLoc, velocity.value, movePriority, suspensionName)
@@ -1153,7 +1160,7 @@ interface KSLProcessBuilder {
         spatialElement: SpatialElementIfc,
         toLoc: LocationIfc,
         velocity: Double,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -1172,7 +1179,7 @@ interface KSLProcessBuilder {
         movableResource: MovableResource,
         toLoc: LocationIfc,
         velocity: Double = movableResource.velocity.value,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     ) {
         movableResource.isMovingEmpty = true
@@ -1195,7 +1202,7 @@ interface KSLProcessBuilder {
         movableResourceWithQ: MovableResourceWithQ,
         toLoc: LocationIfc,
         velocity: Double = movableResourceWithQ.velocity.value,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     ) {
         movableResourceWithQ.isMovingEmpty = true
@@ -1219,7 +1226,7 @@ interface KSLProcessBuilder {
         spatialElement: SpatialElementIfc,
         toLoc: LocationIfc,
         velocity: Double,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -1239,7 +1246,7 @@ interface KSLProcessBuilder {
         movableResource: MovableResource,
         toLoc: LocationIfc,
         velocity: Double = movableResource.velocity.value,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -1259,7 +1266,7 @@ interface KSLProcessBuilder {
         movableResourceWithQ: MovableResourceWithQ,
         toLoc: LocationIfc,
         velocity: Double = movableResourceWithQ.velocity.value,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -1287,11 +1294,11 @@ interface KSLProcessBuilder {
         transportQ: RequestQ,
         loadingDelay: GetValueIfc = ConstantRV.ZERO,
         unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
-        requestPriority: Int = PRIORITY,
-        emptyMovePriority: Int = PRIORITY,
-        loadingPriority: Int = PRIORITY,
-        transportPriority: Int = PRIORITY,
-        unLoadingPriority: Int = PRIORITY
+        requestPriority: Int = TRANSPORT_REQUEST_PRIORITY,
+        emptyMovePriority: Int = MOVE_PRIORITY,
+        loadingPriority: Int = DELAY_PRIORITY,
+        transportPriority: Int = MOVE_PRIORITY,
+        unLoadingPriority: Int = DELAY_PRIORITY
     ) {
         val a = seize(movableResource, seizePriority = requestPriority, queue = transportQ)
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
@@ -1330,11 +1337,11 @@ interface KSLProcessBuilder {
         transportVelocity: Double = movableResourceWithQ.velocity.value,
         loadingDelay: GetValueIfc = ConstantRV.ZERO,
         unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
-        requestPriority: Int = PRIORITY,
-        emptyMovePriority: Int = PRIORITY,
-        loadingPriority: Int = PRIORITY,
-        transportPriority: Int = PRIORITY,
-        unLoadingPriority: Int = PRIORITY
+        requestPriority: Int = TRANSPORT_REQUEST_PRIORITY,
+        emptyMovePriority: Int = MOVE_PRIORITY,
+        loadingPriority: Int = DELAY_PRIORITY,
+        transportPriority: Int = MOVE_PRIORITY,
+        unLoadingPriority: Int = DELAY_PRIORITY
     ) {
         val a = seize(movableResourceWithQ, seizePriority = requestPriority)
         move(movableResourceWithQ, entity.currentLocation, emptyVelocity, emptyMovePriority)
@@ -1374,11 +1381,11 @@ interface KSLProcessBuilder {
         transportQ: RequestQ,
         loadingDelay: GetValueIfc = ConstantRV.ZERO,
         unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
-        requestPriority: Int = PRIORITY,
-        emptyMovePriority: Int = PRIORITY,
-        loadingPriority: Int = PRIORITY,
-        transportPriority: Int = PRIORITY,
-        unLoadingPriority: Int = PRIORITY
+        requestPriority: Int = TRANSPORT_REQUEST_PRIORITY,
+        emptyMovePriority: Int = MOVE_PRIORITY,
+        loadingPriority: Int = DELAY_PRIORITY,
+        transportPriority: Int = MOVE_PRIORITY,
+        unLoadingPriority: Int = DELAY_PRIORITY
     ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
         // must be 1 allocation for 1 unit seized
@@ -1419,11 +1426,11 @@ interface KSLProcessBuilder {
         transportVelocity: Double = fleet.velocity.value,
         loadingDelay: GetValueIfc = ConstantRV.ZERO,
         unLoadingDelay: GetValueIfc = ConstantRV.ZERO,
-        requestPriority: Int = PRIORITY,
-        emptyMovePriority: Int = PRIORITY,
-        loadingPriority: Int = PRIORITY,
-        transportPriority: Int = PRIORITY,
-        unLoadingPriority: Int = PRIORITY
+        requestPriority: Int = TRANSPORT_REQUEST_PRIORITY,
+        emptyMovePriority: Int = MOVE_PRIORITY,
+        loadingPriority: Int = DELAY_PRIORITY,
+        transportPriority: Int = MOVE_PRIORITY,
+        unLoadingPriority: Int = DELAY_PRIORITY
     ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ)
         // must be 1 allocation for 1 unit seized because there is only 1 unit in each
@@ -1455,7 +1462,7 @@ interface KSLProcessBuilder {
     suspend fun moveTo(
         toLoc: LocationIfc,
         velocity: Double,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     ) {
         move(entity.currentLocation, toLoc, velocity, movePriority, suspensionName)
@@ -1474,7 +1481,7 @@ interface KSLProcessBuilder {
     suspend fun moveTo(
         toLoc: LocationIfc,
         velocity: GetValueIfc = entity.velocity,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     ) {
         moveTo(toLoc, velocity.value, movePriority, suspensionName)
@@ -1492,7 +1499,7 @@ interface KSLProcessBuilder {
      */
     suspend fun moveTo(
         toLoc: LocationIfc,
-        movePriority: Int = PRIORITY,
+        movePriority: Int = MOVE_PRIORITY,
         suspensionName: String? = null
     ) {
         move(entity.currentLocation, toLoc, entity.velocity, movePriority, suspensionName)
@@ -1506,7 +1513,7 @@ interface KSLProcessBuilder {
      *  to order the resumption events associated with the release. If multiple releases occur at the same
      *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun release(allocation: Allocation, releasePriority: Int = PRIORITY)
+    fun release(allocation: Allocation, releasePriority: Int = RELEASE_PRIORITY)
 
     /**
      *  Releases ANY(ALL) allocations related to the resource that are allocated
@@ -1517,7 +1524,7 @@ interface KSLProcessBuilder {
      *  to order the resumption events associated with the release. If multiple releases occur at the same
      *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun release(resource: Resource, releasePriority: Int = PRIORITY)
+    fun release(resource: Resource, releasePriority: Int = RELEASE_PRIORITY)
 
     /**
      *  Releases ALL the resources that the entity has currently allocated to it
@@ -1525,7 +1532,7 @@ interface KSLProcessBuilder {
      *  to order the resumption events associated with the release. If multiple releases occur at the same
      *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun releaseAllResources(releasePriority: Int = PRIORITY)
+    fun releaseAllResources(releasePriority: Int = RELEASE_PRIORITY)
 
     /**
      * Releases the allocations associated with using a ResourcePool
@@ -1533,7 +1540,7 @@ interface KSLProcessBuilder {
      *  to order the resumption events associated with the release. If multiple releases occur at the same
      *  simulated time, this priority can be used to order the associated resumption of dependent processes.
      */
-    fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int = PRIORITY)
+    fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int = RELEASE_PRIORITY)
 
     /**
      * This method allows a process to interrupt another process while that process is
@@ -1555,7 +1562,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptTime: Double,
-        interruptPriority: Int = PRIORITY,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
         postInterruptDelayTime: Double
     )
 
@@ -1579,7 +1586,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptTime: GetValueIfc,
-        interruptPriority: Int = PRIORITY,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
         postInterruptDelayTime: GetValueIfc
     ) {
         interruptDelay(process, delayName, interruptTime.value, interruptPriority, postInterruptDelayTime.value)
@@ -1603,7 +1610,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptTime: Double,
-        interruptPriority: Int,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
     )
 
     /**
@@ -1624,7 +1631,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptTime: GetValueIfc,
-        interruptPriority: Int,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
     ) {
         interruptDelayAndRestart(process, delayName, interruptTime.value, interruptPriority)
     }
@@ -1648,7 +1655,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptTime: Double,
-        interruptPriority: Int,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
     )
 
     /**
@@ -1670,7 +1677,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptTime: GetValueIfc,
-        interruptPriority: Int,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
     ) {
         interruptDelayAndContinue(process, delayName, interruptTime.value, interruptPriority)
     }
@@ -1697,7 +1704,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptingProcess: KSLProcess,
-        interruptPriority: Int = PRIORITY,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
         postInterruptDelayTime: Double
     )
 
@@ -1723,7 +1730,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptingProcess: KSLProcess,
-        interruptPriority: Int = PRIORITY,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
         postInterruptDelayTime: GetValueIfc
     ) {
         interruptDelayWithProcess(
@@ -1755,7 +1762,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptingProcess: KSLProcess,
-        interruptPriority: Int = PRIORITY,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
     )
 
     /**
@@ -1778,7 +1785,7 @@ interface KSLProcessBuilder {
         process: KSLProcess,
         delayName: String,
         interruptingProcess: KSLProcess,
-        interruptPriority: Int = PRIORITY,
+        interruptPriority: Int = INTERRUPT_PRIORITY,
     )
 
     /**
@@ -1808,8 +1815,8 @@ interface KSLProcessBuilder {
         conveyor: Conveyor,
         entryLocation: IdentityIfc,
         numCellsNeeded: Int = 1,
-        requestPriority: Int = PRIORITY,
-        requestResumePriority: Int = PRIORITY,
+        requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
+        requestResumePriority: Int = RESUME_PRIORITY,
         suspensionName: String? = null
     ): ConveyorRequestIfc
 
@@ -1835,7 +1842,7 @@ interface KSLProcessBuilder {
     suspend fun rideConveyor(
         conveyorRequest: ConveyorRequestIfc,
         destination: IdentityIfc,
-        ridePriority: Int = PRIORITY,
+        ridePriority: Int = CONVEYOR_REQUEST_PRIORITY,
         suspensionName: String? = null
     ): Double
 
@@ -1859,7 +1866,7 @@ interface KSLProcessBuilder {
      */
     suspend fun rideConveyor(
         destination: IdentityIfc,
-        ridePriority: Int = PRIORITY,
+        ridePriority: Int = CONVEYOR_REQUEST_PRIORITY,
         suspensionName: String? = null
     ): Double {
         require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
@@ -1882,7 +1889,7 @@ interface KSLProcessBuilder {
      */
     suspend fun exitConveyor(
         conveyorRequest: ConveyorRequestIfc,
-        exitPriority: Int = PRIORITY,
+        exitPriority: Int = CONVEYOR_EXIT_PRIORITY,
         suspensionName: String? = null
     )
 
@@ -1900,7 +1907,7 @@ interface KSLProcessBuilder {
      * the origin point, the destination, etc.
      */
     suspend fun exitConveyor(
-        exitPriority: Int = PRIORITY,
+        exitPriority: Int = CONVEYOR_EXIT_PRIORITY,
         suspensionName: String? = null
     ) {
         require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
@@ -1927,8 +1934,8 @@ interface KSLProcessBuilder {
         entryLocation: IdentityIfc,
         destination: IdentityIfc,
         numCellsNeeded: Int = 1,
-        requestPriority: Int = PRIORITY,
-        requestResumePriority: Int = PRIORITY,
+        requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
+        requestResumePriority: Int = RESUME_PRIORITY,
         suspensionName: String? = null
     ): ConveyorRequestIfc {
         val ca = requestConveyor(
@@ -1968,8 +1975,8 @@ interface KSLProcessBuilder {
         destination: IdentityIfc,
         unloadingTime: Double = 0.0,
         numCellsNeeded: Int = 1,
-        requestPriority: Int = PRIORITY,
-        requestResumePriority: Int = PRIORITY,
+        requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
+        requestResumePriority: Int = RESUME_PRIORITY,
         suspensionName: String? = null
     ): ConveyorRequestIfc {
         val ca = requestConveyor(
@@ -2011,8 +2018,8 @@ interface KSLProcessBuilder {
         destination: IdentityIfc,
         unloadingTime: GetValueIfc = ConstantRV.ZERO,
         numCellsNeeded: Int = 1,
-        requestPriority: Int = PRIORITY,
-        requestResumePriority: Int = PRIORITY,
+        requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
+        requestResumePriority: Int = RESUME_PRIORITY,
         suspensionName: String? = null
     ): ConveyorRequestIfc {
         return convey(

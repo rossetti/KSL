@@ -20,7 +20,6 @@ package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
-import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
 /**
@@ -57,7 +56,7 @@ class Signal(
     /**
      *  Used within the process implementation to hold the entities
      */
-    internal fun hold(entity: ProcessModel.Entity, queuePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
+    internal fun hold(entity: ProcessModel.Entity, queuePriority: Int = ProcessModel.QUEUE_PRIORITY) {
         holdQueue.enqueue(entity, queuePriority)
     }
 
@@ -66,7 +65,7 @@ class Signal(
      *  @param entity the entity to signal
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
-    fun signal(entity: ProcessModel.Entity, resumePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
+    fun signal(entity: ProcessModel.Entity, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
         entity.resumeProcess(0.0, resumePriority)
     }
 
@@ -75,7 +74,7 @@ class Signal(
      * @param rank the rank goes from 0 to size-1
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
-    fun signal(rank: Int = 0, resumePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
+    fun signal(rank: Int = 0, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
         require(rank >= 0) { "The rank of the desired entity must be >= 0" }
         if (holdQueue.isEmpty) {
             return
@@ -91,7 +90,7 @@ class Signal(
      * @param range the range associated with the signal
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
-    fun signal(range: IntRange, resumePriority: Int = KSLEvent.DEFAULT_PRIORITY){
+    fun signal(range: IntRange, resumePriority: Int = ProcessModel.RESUME_PRIORITY){
         for(i in range){
             signal(i, resumePriority)
         }
@@ -103,7 +102,7 @@ class Signal(
      *
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
-    fun signalAll(resumePriority: Int = KSLEvent.DEFAULT_PRIORITY) {
+    fun signalAll(resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
         for (entity in holdQueue) {
             signal(entity, resumePriority)
         }

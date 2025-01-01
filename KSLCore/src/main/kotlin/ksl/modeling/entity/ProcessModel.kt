@@ -646,7 +646,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  @param priority the priority parameter can be used to provide an ordering to the
          *  scheduled resumption events, if multiple events are scheduled at the same time
          */
-        fun resumeProcess(timeUntilResumption: Double = 0.0, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+        fun resumeProcess(timeUntilResumption: Double = 0.0, priority: Int = RESUME_PRIORITY) {
             // entity must be in a process and suspended
             if (myCurrentProcess != null) {
                 val event = myResumeAction.schedule(timeUntilResumption, priority = priority)
@@ -1039,7 +1039,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal var calledProcess: ProcessCoroutine? = null
 
             // can be used internally to control the priority of resuming after a suspension
-            internal var resumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY
+            internal var resumptionPriority: Int = ProcessModel.RESUME_PRIORITY
 
             // need a set to hold processes that are blocked waiting on the completion of this process
             private var blockedUntilCompletionListeners: MutableSet<ProcessCoroutine>? = null
@@ -1326,7 +1326,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // done blocking on the process so make sure that set is clear
                 blockingUntilCompletedSet?.clear()
                 blockingUntilCompletedSet = null
-                this.resumptionPriority = KSLEvent.DEFAULT_PRIORITY
+                this.resumptionPriority = ProcessModel.RESUME_PRIORITY
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} stopped blocking until all complete for suspension $currentSuspendName, in process, ($this)" }
                 currentSuspendName = null
@@ -1453,11 +1453,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 queue.enqueue(request) // put the request in the queue
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: enqueued request_id = ${request.id} for $amountNeeded units of ${resource.name}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ... scheduling the delay of 0.0 for seize priority ..." }
+                //TODO scheduling the seize check at current time
+                // this is not putting the entity in the delay state and thus it is permitting
+                // more than one "delay" at a time.
                 val evt = schedule(::resourceSeizeAction, 0.0, priority = seizePriority, message = request)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ... scheduled event, event_id = ${evt.id} for the the delay of 0.0 for seize priority ..." }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 entity.state.waitForResource()
                 suspend()
                 entity.state.activate()
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 // entity has been told to resume
                 require(resource.canAllocate(amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${resource.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
@@ -2229,7 +2234,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              * @param priority the priority associated with the resume. Can be used
              * to order resumptions that occur at the same time.
              */
-            internal fun resume(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+            internal fun resume(priority: Int = RESUME_PRIORITY) {
                 require(!isResumed) { "The suspension with label $label and type $type associated with entity ${myEntity.name} has already been resumed." }
                 require(suspendedEntity != null) { "The suspension with label $label and type $type associated with entity ${myEntity.name} is not associated with a suspended entity." }
                 suspendedEntity?.resumeProcess(priority = priority)
@@ -2310,7 +2315,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 myBlockedEntities.remove(entity)
             }
 
-            internal fun end(process: KSLProcess, ender: Entity, priority: Int = KSLEvent.DEFAULT_PRIORITY) {
+            internal fun end(process: KSLProcess, ender: Entity, priority: Int = ProcessModel.RESUME_PRIORITY) {
                 require(myBlockingProcess == process) { "The process (${myBlockingProcess?.name}) that started the blockage was not the same process attempting to end it." }
                 require(isActive) { "The blockage ($name) cannot be ended because it is not active." }
                 require(ender == myEntity) { "The entity (${ender.name}) clearing the blockage must be its associated entity (${myEntity.name}) that created it." }
@@ -2355,7 +2360,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         open inner class BlockingActivity(
             val activityTime: GetValueIfc,
-            val activityPriority: Int = PRIORITY,
+            val activityPriority: Int = DELAY_PRIORITY,
             name: String? = null
         ) : BlockingTask(name) {
 
@@ -2368,7 +2373,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              */
             constructor(
                 activityTime: Double,
-                activityPriority: Int = PRIORITY,
+                activityPriority: Int = DELAY_PRIORITY,
                 name: String? = null
             ) : this(ConstantRV(activityTime), activityPriority, name){
                 require(activityTime >= 0.0) {"The activity time must be >= 0.0"}
@@ -2396,9 +2401,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         inner class BlockingResourceUsage(
             val resource: Resource,
             val amountNeeded: Int = 1,
-            val seizePriority: Int = PRIORITY,
+            val seizePriority: Int = SEIZE_PRIORITY,
             delayDuration: Double,
-            delayPriority: Int = PRIORITY,
+            delayPriority: Int = DELAY_PRIORITY,
             val queue: RequestQ,
             name: String? = null
         ) : BlockingActivity(delayDuration, delayPriority, name) {
@@ -2406,9 +2411,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             constructor(
                 resource: ResourceWithQ,
                 amountNeeded: Int = 1,
-                seizePriority: Int = PRIORITY,
+                seizePriority: Int = SEIZE_PRIORITY,
                 delayDuration: Double,
-                delayPriority: Int = PRIORITY,
+                delayPriority: Int = DELAY_PRIORITY,
                 name: String? = null
             ) : this(
                 resource,
@@ -2442,9 +2447,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         inner class BlockingResourcePoolUsage(
             val resourcePool: ResourcePool,
             val amountNeeded: Int = 1,
-            val seizePriority: Int = PRIORITY,
+            val seizePriority: Int = SEIZE_PRIORITY,
             delayDuration: Double,
-            delayPriority: Int = PRIORITY,
+            delayPriority: Int = DELAY_PRIORITY,
             val queue: RequestQ,
             name: String? = null
         ) : BlockingActivity(delayDuration, delayPriority, name) {
@@ -2452,9 +2457,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             constructor(
                 resourcePool: ResourcePoolWithQ,
                 amountNeeded: Int = 1,
-                seizePriority: Int = PRIORITY,
+                seizePriority: Int = SEIZE_PRIORITY,
                 delayDuration: Double,
-                delayPriority: Int = PRIORITY,
+                delayPriority: Int = DELAY_PRIORITY,
                 name: String? = null
             ) : this(
                 resourcePool,
@@ -2486,7 +2491,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val fromLoc: LocationIfc,
             val toLoc: LocationIfc,
             val velocity: GetValueIfc = this@Entity.velocity,
-            val movePriority: Int = PRIORITY,
+            val movePriority: Int = MOVE_PRIORITY,
             name: String? = null
         ): BlockingTask(name) {
 
@@ -2508,7 +2513,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 fromLoc: LocationIfc,
                 toLoc: LocationIfc,
                 velocity: Double,
-                movePriority: Int = PRIORITY,
+                movePriority: Int = MOVE_PRIORITY,
                 name: String? = null
             ) : this(fromLoc, toLoc, ConstantRV(velocity), movePriority, name){
                 require(velocity > 0.0) {"The velocity must be > 0.0"}
@@ -2529,7 +2534,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             constructor(
                 toLoc: LocationIfc,
                 velocity: GetValueIfc = this@Entity.velocity,
-                movePriority: Int = PRIORITY,
+                movePriority: Int = MOVE_PRIORITY,
                 name: String? = null
             ) : this(this@Entity.currentLocation, toLoc, velocity, movePriority, name)
 
@@ -2548,7 +2553,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             constructor(
                 toLoc: LocationIfc,
                 velocity: Double,
-                movePriority: Int = PRIORITY,
+                movePriority: Int = MOVE_PRIORITY,
                 name: String? = null
             ) : this(this@Entity.currentLocation, toLoc, velocity, movePriority, name){
                 require(velocity > 0.0) {"The velocity must be > 0.0"}
@@ -2557,6 +2562,74 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     }
 
     companion object {
+
+        /**
+         *  The default queuing priority. By default, it is KSLEvent.MEDIUM_PRIORITY.
+         */
+        val QUEUE_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+
+        /**
+         *  The default priority for seizing resources. The default is KSLEvent.VERY_HIGH_PRIORITY
+         */
+        val SEIZE_PRIORITY = KSLEvent.HIGH_PRIORITY
+
+        /**
+         *  The default priority for requesting movable resources. The default is KSLEvent.HIGH_PRIORITY
+         */
+        val TRANSPORT_REQUEST_PRIORITY = KSLEvent.MEDIUM_HIGH_PRIORITY
+
+        /**
+         *  The default priority for requesting conveyor cells. The default is KSLEvent.HIGH_PRIORITY
+         */
+        val CONVEYOR_REQUEST_PRIORITY = KSLEvent.MEDIUM_HIGH_PRIORITY
+
+        /**
+         *  The default priority for releasing conveyor cells. The default is KSLEvent.VERY_HIGH_PRIORITY + 9.
+         *  This makes the priority slightly less than very high.
+         */
+        val CONVEYOR_EXIT_PRIORITY = KSLEvent.HIGH_PRIORITY + 9
+
+        /**
+         *  The default priority for time delays. The default is KSLEvent.MEDIUM_PRIORITY
+         */
+        val DELAY_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+
+        /**
+         *  The default priority for move delays. The default is KSLEvent.MEDIUM_PRIORITY
+         */
+        val MOVE_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+
+        /**
+         *  The default priority for queueing for signals. By default, it is KSLEvent.MEDIUM_PRIORITY.
+         */
+        val WAIT_FOR_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+
+        /**
+         *  The default priority for resuming suspends. By default, it is KSLEvent.VERY_HIGH_PRIORITY - 10.
+         */
+        val RESUME_PRIORITY = KSLEvent.VERY_HIGH_PRIORITY
+
+        /**
+         *  The default priority for resuming suspends. By default, it is KSLEvent.VERY_VERY_HIGH_PRIORITY - 9.
+         *  This makes the priority slightly higher than VERY_VERY_HIGH.
+         */
+        val RELEASE_PRIORITY = KSLEvent.VERY_HIGH_PRIORITY - 9
+
+        /**
+         *  The default priority for interrupt delays. The default is KSLEvent.MEDIUM_PRIORITY
+         */
+        val INTERRUPT_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+
+        /**
+         *  The default priority for yielding control to the executive. The default is KSLEvent.LOW_PRIORITY.
+         */
+        val YIELD_PRIORITY = KSLEvent.MEDIUM_LOW_PRIORITY
+
+        /**
+         *  The default priority for resuming from a blockage. The default is KSLEvent.VERY_HIGH_PRIORITY -10
+         */
+        val BLOCKAGE_PRIORITY = KSLEvent.HIGH_PRIORITY -10
+
         val logger = KotlinLogging.logger {}
     }
 }

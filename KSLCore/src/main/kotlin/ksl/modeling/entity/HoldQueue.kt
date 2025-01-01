@@ -41,7 +41,7 @@ class HoldQueue(
      */
     fun removeAndResume(
         entity: ProcessModel.Entity,
-        resumePriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        resumePriority: Int = ProcessModel.RESUME_PRIORITY,
         waitStats: Boolean = true
     ) {
         remove(entity, waitStats)
@@ -72,7 +72,7 @@ class HoldQueue(
      * @param resumePriority the priority for the resumption of the suspended process
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue
      */
-    fun removeAllAndResume(resumePriority: Int = KSLEvent.DEFAULT_PRIORITY, waitStats: Boolean = true) {
+    fun removeAllAndResume(resumePriority: Int = ProcessModel.RESUME_PRIORITY, waitStats: Boolean = true) {
         while (isNotEmpty) {
             val entity = peekNext()
             removeAndResume(entity!!, resumePriority, waitStats)

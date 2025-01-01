@@ -56,8 +56,8 @@ class BlockingQueue<T : ModelElement.QObject>(
         require(capacity >= 1) { "The size of the blocking queue must be >= 1" }
     }
 
-    var requestQResumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY - 8
-    var senderQResumptionPriority: Int = KSLEvent.DEFAULT_PRIORITY - 9 // sender has more priority
+    var requestQResumptionPriority: Int = ProcessModel.RESUME_PRIORITY
+    var senderQResumptionPriority: Int = requestQResumptionPriority - 1 // sender has more priority
 
     /**
      *  True if the channel does not contain any items
