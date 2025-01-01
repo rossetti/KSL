@@ -1,4 +1,4 @@
-package ksl.examples.general.models
+package ksl.examples.general.models.conveyors
 
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.ProcessModel
@@ -24,7 +24,8 @@ class ConveyorExample1(
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(10.0, 1)
 
-    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType,
+    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(
+        ::PartType,
         myTBArrivals, myTBArrivals)
 
     private val myPackingTimeRV = RandomVariable(this, TriangularRV(0.5, 2.0, 2.5, 2))

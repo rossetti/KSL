@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.general.models
+package ksl.examples.general.models.conveyors
 
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.ProcessModel
@@ -106,7 +106,8 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
 
-    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType,
+    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(
+        ::PartType,
         myTBArrivals, myTBArrivals)
 
     private val myDrillingRV = RandomVariable(this, UniformRV(6.0, 9.0, 2))
