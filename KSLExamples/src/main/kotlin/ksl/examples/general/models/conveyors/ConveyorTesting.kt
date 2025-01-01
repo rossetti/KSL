@@ -1,4 +1,4 @@
-package ksl.examples.general.models
+package ksl.examples.general.models.conveyors
 
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.KSLProcess

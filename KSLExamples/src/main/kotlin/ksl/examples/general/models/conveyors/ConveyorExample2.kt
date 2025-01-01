@@ -1,4 +1,4 @@
-package ksl.examples.general.models
+package ksl.examples.general.models.conveyors
 
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.Conveyor
@@ -48,7 +48,8 @@ class ConveyorExample2(
 ) : ProcessModel(parent, name) {
 
     private val myTBArrivals: RVariableIfc = ExponentialRV(5.0, 1)
-    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(::PartType,
+    private val myArrivalGenerator: EntityGenerator<PartType> = EntityGenerator(
+        ::PartType,
         myTBArrivals, myTBArrivals)
     private val conveyor: Conveyor
     private val station1: IdentityIfc = Identity("Station1")

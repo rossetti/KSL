@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.general.models
+package ksl.examples.general.models.conveyors
 
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.KSLProcess
