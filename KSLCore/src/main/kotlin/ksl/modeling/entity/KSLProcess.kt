@@ -273,9 +273,7 @@ interface KSLProcessBuilder {
     suspend fun yield(
         yieldPriority: Int = YIELD_PRIORITY,
         suspensionName: String? = null
-    ) {
-        delay(0.0, yieldPriority, suspensionName = suspensionName)
-    }
+    )
 
     /** Causes the current process to suspend (immediately) until the blockage has been completed.
      *  If the blockage is active, the entity will be suspended until the blockage is completed (cleared).
