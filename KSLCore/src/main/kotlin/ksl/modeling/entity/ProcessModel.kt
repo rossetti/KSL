@@ -1102,8 +1102,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 check(!hasCurrentProcess) { "The $this process cannot be activated for the entity because the entity is already running a process: ${currentProcess?.name}" }
                 myPendingProcess = this
                 entity.state.schedule()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduling process $this to start at time ${time + timeUntilActivation}" }
-                return myActivationAction.schedule(timeUntilActivation, this, priority)
+                //logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduling process $this to start at time ${time + timeUntilActivation}" }
+                val evt = myActivationAction.schedule(timeUntilActivation, this, priority)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduling process $this to start at time ${time + timeUntilActivation} : Event : event_id = ${evt.id}" }
+                return evt
             }
 
             private inner class ActivateAction : EventAction<KSLProcess>() {
