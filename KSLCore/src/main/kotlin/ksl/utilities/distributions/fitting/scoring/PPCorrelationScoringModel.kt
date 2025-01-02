@@ -25,7 +25,7 @@ class PPCorrelationScoringModel(
     }
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
-        if (data.isEmpty()){
+        if (data.isEmpty()) {
             return Score(metric, 0.0, true)
         }
         val orderStats = data.orderStatistics()
@@ -33,12 +33,22 @@ class PPCorrelationScoringModel(
         val theoreticalProbabilities: DoubleArray = DoubleArray(orderStats.size) { i -> cdf.cdf(orderStats[i]) }
         val stat = StatisticXY()
         stat.collectXY(theoreticalProbabilities, empProbabilities)
-        val s = if (stat.correlationXY.isNaN()){
+        val s = if (stat.correlationXY.isNaN()) {
             0.0
         } else {
             stat.correlationXY
         }
-        return Score(metric, s, true)
+        val f = if (useNumParametersOption) {
+            val n = cdf.parameters().size.toDouble()
+            if (n == 0.0) {
+                1.0
+            } else {
+                n
+            }
+        } else {
+            1.0
+        }
+        return Score(metric, s / f, true)
     }
 
     override fun newInstance(): PPCorrelationScoringModel {
