@@ -38,11 +38,7 @@ class ChiSquaredScoringModel : PDFScoringModel(
         bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
         bp = Histogram.addUpperLimit(domain.upperLimit, bp)
         val chiSq = Statistic.chiSqTestStatistic(data, bp, cdf)
-        val f = if (useNumParametersOption){
-            cdf.parameters().size.toDouble()
-        } else {
-            1.0
-        }
+        val f = parameterScalingFactor(cdf)
         return Score(metric, f*chiSq,true)
     }
 

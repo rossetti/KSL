@@ -27,11 +27,7 @@ class KSScoringModel : PDFScoringModel(
 
     override fun score(data: DoubleArray, cdf: ContinuousDistributionIfc): Score {
         val score = Statistic.ksTestStatistic(data, cdf)
-        val f = if (useNumParametersOption){
-            cdf.parameters().size.toDouble()
-        } else {
-            1.0
-        }
+        val f = parameterScalingFactor(cdf)
         return Score(metric, f*score, true)
     }
 

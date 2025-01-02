@@ -38,17 +38,8 @@ class QQCorrelationScoringModel(
         } else {
             stat.correlationXY
         }
-        val f = if (useNumParametersOption){
-            val n = cdf.parameters().size.toDouble()
-            if (n == 0.0) {
-                1.0
-            } else {
-                n
-            }
-        } else {
-            1.0
-        }
-        return Score(metric, s/f, true)
+        val f = parameterScalingFactor(cdf)
+        return Score(metric, f*s, true)
     }
 
     override fun newInstance(): QQCorrelationScoringModel {

@@ -31,11 +31,7 @@ class CramerVonMisesScoringModel : PDFScoringModel(
             return Score(metric, Double.MAX_VALUE, true)
         }
         val score = Statistic.cramerVonMisesTestStatistic(data, cdf)
-        val f = if (useNumParametersOption){
-            cdf.parameters().size.toDouble()
-        } else {
-            1.0
-        }
+        val f = parameterScalingFactor(cdf)
         return Score(metric, f*score, true)
     }
 
