@@ -42,7 +42,7 @@ abstract class PDFScoringModel(
 
     val metric = Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment)
     val domain: Interval = metric.domain
-    
+
     // for possible extensions that use the number of parameters as part of the scoring
     private var useNumParametersOption: Boolean = DEFAULT_NUM_PARAMETER_OPTION
 
