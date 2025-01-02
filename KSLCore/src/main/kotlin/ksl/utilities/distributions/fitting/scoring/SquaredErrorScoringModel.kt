@@ -55,11 +55,7 @@ class SquaredErrorScoringModel : PDFScoringModel(
         for (i in 0.until(n)) {
             sum = sum + (predicted[i] - observed[i]) * (predicted[i] - observed[i])
         }
-        val f = if (useNumParametersOption){
-            cdf.parameters().size.toDouble()
-        } else {
-            1.0
-        }
+        val f = parameterScalingFactor(cdf)
         return Score(metric, f*sum,true)
     }
 

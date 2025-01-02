@@ -42,7 +42,9 @@ abstract class PDFScoringModel(
 
     val metric = Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment)
     val domain: Interval = metric.domain
-    var useNumParametersOption: Boolean = DEFAULT_NUM_PARAMETER_OPTION
+    
+    // for possible extensions that use the number of parameters as part of the scoring
+    private var useNumParametersOption: Boolean = DEFAULT_NUM_PARAMETER_OPTION
 
     protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
@@ -64,6 +66,29 @@ abstract class PDFScoringModel(
         }
     }
 
+    // for possible extensions that use the number of parameters as part of the scoring
+    protected fun numParameters(cdf: ContinuousDistributionIfc): Double {
+        if (!useNumParametersOption) {
+            return 1.0
+        }
+        val n = cdf.parameters().size.toDouble()
+        return if (n == 0.0) {
+            1.0
+        } else {
+            n
+        }
+    }
+
+    // for possible extensions that use the number of parameters as part of the scoring
+    protected open fun parameterScalingFactor(cdf: ContinuousDistributionIfc) : Double {
+        val n = numParameters(cdf)
+        if (metric.direction == MetricIfc.Direction.BiggerIsBetter){
+            return 1.0/n
+        } else {
+            return n
+        }
+    }
+
     companion object{
 
         var LOWER_LIMIT = -10000000.0
@@ -72,6 +97,7 @@ abstract class PDFScoringModel(
         val DEFAULT_BIG_RANGE
             get () = Interval(LOWER_LIMIT, UPPER_LIMIT)
 
-        var DEFAULT_NUM_PARAMETER_OPTION = false
+        // for possible extensions that use the number of parameters as part of the scoring
+        private var DEFAULT_NUM_PARAMETER_OPTION = false
     }
 }
