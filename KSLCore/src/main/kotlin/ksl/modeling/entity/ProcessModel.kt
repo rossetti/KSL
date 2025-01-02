@@ -527,7 +527,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
             val str = StringBuilder()
             str.append("Active Blockages: ")
-            for(blockage in myActiveBlockages!!){
+            for (blockage in myActiveBlockages!!) {
                 str.append("${blockage.name}, ")
             }
             str.appendLine()
@@ -1459,20 +1459,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
-
-//                //create the request based on the current resource state
-//                val request = createRequest(amountNeeded, resource)
-//                request.priority = entity.priority
-//                queue.enqueue(request) // put the request in the queue
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: enqueued request_id = ${request.id} for $amountNeeded units of ${resource.name}" }
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > ... scheduling the delay of 0.0 for seize priority ..." }
-//                //TODO scheduling the seize check at current time
-//                // this is not putting the entity in the delay state and thus it is permitting
-//                // more than one "delay" at a time.
-//                val evt = schedule(::resourceSeizeAction, 0.0, priority = seizePriority, message = request)
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > ... scheduled event, event_id = ${evt.id} for the the delay of 0.0 for seize priority ..." }
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-
                 val request = createRequest(amountNeeded, resource)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
@@ -1521,15 +1507,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
-
-//                //create the request based on the current resource state
-//                val request = createRequest(amountNeeded, resourcePool)
-//                request.priority = entity.priority
-//                queue.enqueue(request) // put the request in the queue
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: enqueued request_id = ${request.id} for $amountNeeded units of ${resourcePool.name}" }
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > ... scheduling the delay of 0.0 for seize priority ..." }
-//                schedule(::resourcePoolSeizeAction, 0.0, priority = seizePriority, message = request)
-
                 val request = createRequest(amountNeeded, resourcePool)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
@@ -2406,8 +2383,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 activityTime: Double,
                 activityPriority: Int = DELAY_PRIORITY,
                 name: String? = null
-            ) : this(ConstantRV(activityTime), activityPriority, name){
-                require(activityTime >= 0.0) {"The activity time must be >= 0.0"}
+            ) : this(ConstantRV(activityTime), activityPriority, name) {
+                require(activityTime >= 0.0) { "The activity time must be >= 0.0" }
             }
         }
 
@@ -2524,7 +2501,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val velocity: GetValueIfc = this@Entity.velocity,
             val movePriority: Int = MOVE_PRIORITY,
             name: String? = null
-        ): BlockingTask(name) {
+        ) : BlockingTask(name) {
 
             /**
              *  Represents the movement of the entity from the specified location to the specified location at
@@ -2546,8 +2523,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 velocity: Double,
                 movePriority: Int = MOVE_PRIORITY,
                 name: String? = null
-            ) : this(fromLoc, toLoc, ConstantRV(velocity), movePriority, name){
-                require(velocity > 0.0) {"The velocity must be > 0.0"}
+            ) : this(fromLoc, toLoc, ConstantRV(velocity), movePriority, name) {
+                require(velocity > 0.0) { "The velocity must be > 0.0" }
             }
 
             /**
@@ -2586,8 +2563,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 velocity: Double,
                 movePriority: Int = MOVE_PRIORITY,
                 name: String? = null
-            ) : this(this@Entity.currentLocation, toLoc, velocity, movePriority, name){
-                require(velocity > 0.0) {"The velocity must be > 0.0"}
+            ) : this(this@Entity.currentLocation, toLoc, velocity, movePriority, name) {
+                require(velocity > 0.0) { "The velocity must be > 0.0" }
             }
         }
     }
@@ -2659,7 +2636,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  The default priority for resuming from a blockage. The default is KSLEvent.VERY_HIGH_PRIORITY -10
          */
-        val BLOCKAGE_PRIORITY = KSLEvent.HIGH_PRIORITY -10
+        val BLOCKAGE_PRIORITY = KSLEvent.HIGH_PRIORITY - 10
 
         val logger = KotlinLogging.logger {}
     }
