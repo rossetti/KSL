@@ -71,21 +71,21 @@ abstract class PDFScoringModel(
         if (!useNumParametersOption) {
             return 1.0
         }
-        val n = cdf.parameters().size.toDouble()
-        return if (n == 0.0) {
+        val p = cdf.parameters().size.toDouble()
+        return if (p == 0.0) {
             1.0
         } else {
-            n
+            p
         }
     }
 
     // for possible extensions that use the number of parameters as part of the scoring
     protected open fun parameterScalingFactor(cdf: ContinuousDistributionIfc) : Double {
-        val n = numParameters(cdf)
+        val p = numParameters(cdf)
         if (metric.direction == MetricIfc.Direction.BiggerIsBetter){
-            return 1.0/n
+            return 1.0/p
         } else {
-            return n
+            return p
         }
     }
 
