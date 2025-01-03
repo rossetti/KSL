@@ -80,7 +80,7 @@ abstract class PDFScoringModel(
     }
 
     // for possible extensions that use the number of parameters as part of the scoring
-    protected open fun parameterScalingFactor(cdf: ContinuousDistributionIfc) : Double {
+    protected open fun parameterScalingFactor(sampleSize: Double, cdf: ContinuousDistributionIfc) : Double {
         val p = numParameters(cdf)
         if (metric.direction == MetricIfc.Direction.BiggerIsBetter){
             return 1.0/p
