@@ -33,7 +33,7 @@ class AndersonDarlingScoringModel : PDFScoringModel(
         if (score.isInfinite()) {
             return metric.badScore()
         }
-        val f = parameterScalingFactor(cdf)
+        val f = parameterScalingFactor(data.size.toDouble(), cdf)
         return Score(metric, f*score, true)
     }
 
