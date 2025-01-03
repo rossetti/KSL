@@ -99,6 +99,6 @@ abstract class PDFScoringModel(
             get () = Interval(LOWER_LIMIT, UPPER_LIMIT)
 
         // for possible extensions that use the number of parameters as part of the scoring
-        private var DEFAULT_NUM_PARAMETER_OPTION = false
+        var DEFAULT_NUM_PARAMETER_OPTION = false
     }
 }
