@@ -27,8 +27,7 @@ class PPSSEScoringModel(
         val theoreticalProbabilities: DoubleArray = DoubleArray(orderStats.size) { i -> cdf.cdf(orderStats[i]) }
         val errors = KSLArrays.subtractElements(theoreticalProbabilities, empProbabilities)
         val sse = errors.sumOfSquares()
-        val f = parameterScalingFactor(data.size.toDouble(), cdf)
-        return Score(metric, f*sse, true)
+        return Score(metric, sse, true)
     }
 
     override fun newInstance(): PPSSEScoringModel {

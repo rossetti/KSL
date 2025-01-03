@@ -45,8 +45,7 @@ class MallowsL2ScoringModel : PDFScoringModel(
             sum = sum + (predicted[i] - observed[i]) * (predicted[i] - observed[i])
         }
         val mL2 = sqrt(sum/n.toDouble())
-        val f = parameterScalingFactor(data.size.toDouble(), cdf)
-        return Score(metric, f*mL2,true)
+        return Score(metric, mL2,true)
     }
 
     override fun newInstance(): MallowsL2ScoringModel {

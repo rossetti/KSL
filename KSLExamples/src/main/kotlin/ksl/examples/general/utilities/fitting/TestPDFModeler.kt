@@ -324,12 +324,12 @@ fun testGammaCaseV2(shape: Double, scale: Double) {
 fun testBootStrappingOfFamily(){
     //     val rv = ShiftedRV(5.0, LognormalRV(20.0, 2.0))
 //    val rv = LognormalRV(20.0, 2.0)
-    val rv = ExponentialRV(mean = 10.0)
-//    val rv = UniformRV(5.0, 15.0 )
+//    val rv = ExponentialRV(mean = 10.0)
+    val rv = UniformRV(5.0, 15.0 )
     //   val rv = TriangularRV(3.0, 6.0, 10.0)
     val data = rv.sample(100)
 
-//    PDFScoringModel.DEFAULT_NUM_PARAMETER_OPTION = true
+    PDFScoringModel.DEFAULT_NUM_PARAMETER_OPTION = true
     val sm = setOf(
         BayesianInfoCriterionScoringModel(),
         AndersonDarlingScoringModel(),

@@ -32,14 +32,11 @@ class ChiSquaredScoringModel : PDFScoringModel(
             return Score(metric, Double.MAX_VALUE, true)
         }
         var bp = PDFModeler.equalizedCDFBreakPoints(data.size, cdf)
-//        bp.sort()
-//        bp.toSet().toDoubleArray()
         val domain = cdf.domain()
         bp = Histogram.addLowerLimit(domain.lowerLimit, bp)
         bp = Histogram.addUpperLimit(domain.upperLimit, bp)
         val chiSq = Statistic.chiSqTestStatistic(data, bp, cdf)
-        val f = parameterScalingFactor(data.size.toDouble(), cdf)
-        return Score(metric, f*chiSq,true)
+        return Score(metric, chiSq,true)
     }
 
     override fun newInstance(): ChiSquaredScoringModel {

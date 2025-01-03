@@ -44,7 +44,7 @@ abstract class PDFScoringModel(
     val domain: Interval = metric.domain
 
     // for possible extensions that use the number of parameters as part of the scoring
-    private var useNumParametersOption: Boolean = DEFAULT_NUM_PARAMETER_OPTION
+//    private var useNumParametersOption: Boolean = DEFAULT_NUM_PARAMETER_OPTION
 
     protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
@@ -67,28 +67,28 @@ abstract class PDFScoringModel(
     }
 
     // for possible extensions that use the number of parameters as part of the scoring
-    protected fun numParameters(cdf: ContinuousDistributionIfc): Double {
-        if (!useNumParametersOption) {
-            return 1.0
-        }
-        val p = cdf.parameters().size.toDouble()
-        return if (p == 0.0) {
-            1.0
-        } else {
-            p
-        }
-    }
+//    protected fun numParameters(cdf: ContinuousDistributionIfc): Double {
+//        if (!useNumParametersOption) {
+//            return 1.0
+//        }
+//        val p = cdf.parameters().size.toDouble()
+//        return if (p == 0.0) {
+//            1.0
+//        } else {
+//            p
+//        }
+//    }
 
     // for possible extensions that use the number of parameters as part of the scoring
-    protected open fun parameterScalingFactor(sampleSize: Double, cdf: ContinuousDistributionIfc) : Double {
-        val p = numParameters(cdf)
-        val f = (sampleSize - p) / (sampleSize - 1.0)
-        if (metric.direction == MetricIfc.Direction.BiggerIsBetter){
-            return 1.0/f
-        } else {
-            return f
-        }
-    }
+//    protected open fun parameterScalingFactor(sampleSize: Double, cdf: ContinuousDistributionIfc) : Double {
+//        val p = numParameters(cdf)
+//        val f = (sampleSize - p) / (sampleSize - 1.0)
+//        if (metric.direction == MetricIfc.Direction.BiggerIsBetter){
+//            return 1.0/f
+//        } else {
+//            return f
+//        }
+//    }
 
     companion object{
 
@@ -99,6 +99,6 @@ abstract class PDFScoringModel(
             get () = Interval(LOWER_LIMIT, UPPER_LIMIT)
 
         // for possible extensions that use the number of parameters as part of the scoring
-        var DEFAULT_NUM_PARAMETER_OPTION = false
+//        var DEFAULT_NUM_PARAMETER_OPTION = false
     }
 }
