@@ -15,7 +15,8 @@ class Laplace(
     var location: Double = 0.0,
     scale: Double = 1.0,
     name: String? = null
-) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Laplace {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
+    RVParametersTypeIfc by RVType.Laplace, MomentsIfc {
 
     init {
         require(scale > 0.0) { "The scale must be > 0.0" }
@@ -36,7 +37,7 @@ class Laplace(
     }
 
     override fun variance(): Double {
-        return 2.0*scale*scale
+        return 2.0 * scale * scale
     }
 
     override fun instance(): Laplace {
@@ -45,17 +46,17 @@ class Laplace(
 
     override fun cdf(x: Double): Double {
         val z = (x - location) / scale
-        return if (x <= location){
-            0.5*exp(z)
+        return if (x <= location) {
+            0.5 * exp(z)
         } else {
-            (1.0 - 0.5*exp(-z))
+            (1.0 - 0.5 * exp(-z))
         }
     }
 
     override fun pdf(x: Double): Double {
         val z = abs(x - location) / scale
         val num = exp(-z)
-        val denom = 2.0*scale
+        val denom = 2.0 * scale
         return num / denom
     }
 
@@ -96,4 +97,14 @@ class Laplace(
     override fun toString(): String {
         return "Laplace(location=$location, scale=$scale)"
     }
+
+    override val mean: Double
+        get() = mean()
+    override val variance: Double
+        get() = variance()
+    override val skewness: Double
+        get() = 0.0
+    override val kurtosis: Double
+        get() = 3.0
+
 }

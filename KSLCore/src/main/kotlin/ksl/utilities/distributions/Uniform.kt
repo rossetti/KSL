@@ -27,7 +27,8 @@ import ksl.utilities.random.rvariable.*
  * @param name an optional name/label
  */
 class Uniform (minimum: Double = 0.0, maximum: Double = 1.0, name: String? = null) :
-    Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Uniform {
+    Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
+    RVParametersTypeIfc by RVType.Uniform, MomentsIfc {
 
     init {
         require(minimum < maximum) { "Lower limit must be < upper limit. lower limit = $minimum upper limit = $maximum" }
@@ -118,14 +119,18 @@ class Uniform (minimum: Double = 0.0, maximum: Double = 1.0, name: String? = nul
      * www.mathworld.wolfram.com/UniformDistribution.html
      * @return the kurtosis
      */
-    val kurtosis: Double
+    override val kurtosis: Double
         get() = -6.0 / 5.0
+    override val mean: Double
+        get() = mean()
+    override val variance: Double
+        get() = variance()
 
     /** Gets the skewness of the distribution
      * www.mathworld.wolfram.com/UniformDistribution.html
      * @return the skewness
      */
-    val skewness: Double
+    override val skewness: Double
         get() = 0.0
 
     /** Sets the parameters for the distribution where parameters[0] is the

@@ -41,7 +41,8 @@ class Beta(
     alphaShape: Double,
     betaShape: Double,
     name: String? = null
-) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.Beta {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc,
+    RVParametersTypeIfc by RVType.Beta, MomentsIfc {
     init {
         require(alphaShape > 0) { "The 1st shape parameter must be > 0" }
         require(betaShape > 0) { "The 2nd shape parameter must be > 0" }
@@ -131,6 +132,17 @@ class Beta(
     override fun toString(): String {
         return "Beta(alpha=$alpha, beta=$beta)"
     }
+
+    override val mean: Double
+        get() = mean()
+    override val variance: Double
+        get() = variance()
+    override val skewness: Double
+        get() = (2.0 * (beta - alpha) * sqrt(alpha + beta + 1)) / ((alpha + beta + 2) * sqrt(alpha * beta))
+
+    override val kurtosis: Double
+        get() = (6.0 * ((((alpha - beta) * (alpha - beta) * (alpha + beta + 1.0)) - alpha * beta * (alpha + beta + 2.0)))) / (alpha * beta * (alpha + beta + 2.0) * (alpha + beta + 3.0))
+
 
     companion object {
         private val myContinuedFraction = IncompleteBetaFunctionFraction()

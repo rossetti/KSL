@@ -33,15 +33,16 @@ import kotlin.math.sqrt
  */
 class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = null) :
     Distribution(name), ContinuousDistributionIfc,
-    LossFunctionDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Normal {
+    LossFunctionDistributionIfc, InverseCDFIfc, GetRVariableIfc,
+    RVParametersTypeIfc by RVType.Normal, MomentsIfc {
 
     init {
         require(theVariance > 0) { "Variance must be positive" }
     }
 
-    var mean = theMean
+    override var mean = theMean
 
-    var variance = theVariance
+    override var variance = theVariance
         set(value) {
             require(value > 0) { "Variance must be positive" }
             field = value
@@ -102,13 +103,13 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
     /** Gets the kurtosis of the distribution
      * @return the kurtosis
      */
-    val kurtosis: Double
+    override val kurtosis: Double
         get() = 0.0
 
     /** Gets the skewness of the distribution
      * @return the skewness
      */
-    val skewness: Double
+    override val skewness: Double
         get() = 0.0
 
     override fun complementaryCDF(x: Double): Double {

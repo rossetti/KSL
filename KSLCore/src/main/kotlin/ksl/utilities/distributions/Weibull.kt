@@ -35,7 +35,7 @@ import kotlin.math.sqrt
  */
 class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
     Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
-    RVParametersTypeIfc by RVType.Weibull {
+    RVParametersTypeIfc by RVType.Weibull, MomentsIfc {
     init {
         require(theShape > 0) { "Shape parameter must be positive" }
         require(theScale > 0) { "Scale parameter must be positive" }
@@ -154,6 +154,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
     val moment4: Double
         get() = shape.pow(4.0) * exp(Gamma.logGammaFunction(1.0 + 4.0 * (1.0 / scale)))
 
+
     /** Gets the kurtosis of the distribution
      * www.mathworld.wolfram.com/WeibullDistribution.html
      * @return the kurtosis
@@ -191,6 +192,15 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
         return WeibullRV(shape, scale, stream)
     }
+
+    override val mean: Double
+        get() = mean()
+    override val variance: Double
+        get() = variance()
+    override val skewness: Double
+        get() = skewness()
+    override val kurtosis: Double
+        get() = kurtosis()
 
     override fun toString(): String {
         return "Weibull(shape=$shape, scale=$scale)"

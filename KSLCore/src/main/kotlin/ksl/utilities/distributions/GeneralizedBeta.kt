@@ -24,6 +24,7 @@ import ksl.utilities.random.rvariable.GeneralizedBetaRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
+import kotlin.math.sqrt
 
 /**
  * Create Beta distribution with the supplied parameters
@@ -39,7 +40,8 @@ class GeneralizedBeta(
     minimum: Double = 0.0,
     maximum: Double = 1.0,
     name: String? = null
-) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, RVParametersTypeIfc by RVType.GeneralizedBeta {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc,
+    RVParametersTypeIfc by RVType.GeneralizedBeta, MomentsIfc {
 
     init {
         require(minimum < maximum) { "Lower limit must be < upper limit. lower limit = $minimum upper limit = $maximum" }
@@ -53,7 +55,7 @@ class GeneralizedBeta(
     var max = maximum
         private set
 
-    val range : Double
+    val range: Double
         get() = max - min
 
     val alpha: Double
@@ -111,7 +113,7 @@ class GeneralizedBeta(
 
     override fun pdf(x: Double): Double {
         val y = (x - min) / range
-        return (myBeta.pdf(y)/range) //TODO check this
+        return (myBeta.pdf(y) / range) //TODO check this
     }
 
     override fun mean(): Double {
@@ -132,6 +134,16 @@ class GeneralizedBeta(
         val y = myBeta.invCDF(p)
         return y * range + min
     }
+
+    override val mean: Double
+        get() = mean()
+    override val variance: Double
+        get() = variance()
+    override val skewness: Double
+        get() = (2.0 * (beta - alpha) * sqrt(alpha + beta + 1)) / ((alpha + beta + 2) * sqrt(alpha * beta))
+
+    override val kurtosis: Double
+        get() = (6.0 * ((((alpha - beta) * (alpha - beta) * (alpha + beta + 1.0)) - alpha * beta * (alpha + beta + 2.0)))) / (alpha * beta * (alpha + beta + 2.0) * (alpha + beta + 3.0))
 
     override fun toString(): String {
         return "GeneralizedBeta(min=$min, max=$max, alpha=$alpha, beta=$beta)"
