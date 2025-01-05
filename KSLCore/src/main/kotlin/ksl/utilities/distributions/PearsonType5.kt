@@ -27,6 +27,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.math.exp
 import kotlin.math.pow
 import kotlin.math.ln
+import kotlin.math.sqrt
 
 /** Represents a Pearson Type V distribution,
  * see Law (2007) Simulation Modeling and Analysis, McGraw-Hill, pg 293
@@ -37,7 +38,7 @@ import kotlin.math.ln
  */
 class PearsonType5(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
-    RVParametersTypeIfc by RVType.PearsonType5 {
+    RVParametersTypeIfc by RVType.PearsonType5, MomentsIfc {
 
     init {
         require(shape > 0) { "Alpha (shape parameter) should be > 0" }
@@ -175,6 +176,25 @@ class PearsonType5(shape: Double = 1.0, scale: Double = 1.0, name: String? = nul
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
         return PearsonType5RV(shape, scale, stream)
     }
+
+    override val mean: Double
+        get() = mean()
+    override val variance: Double
+        get() = variance()
+    override val skewness: Double
+        get() {
+            if (shape <= 3.0){
+                return Double.NaN
+            }
+            return (4.0* sqrt(shape - 2.0))/(shape - 3.0)
+        }
+    override val kurtosis: Double
+        get() {
+            if (shape <= 4.0){
+                return Double.NaN
+            }
+            return (6.0*(5.0*shape - 11.0))/((shape - 3.0)*(shape - 4.0))
+        }
 
     override fun toString(): String {
         return "PearsonType5(shape=$shape, scale=$scale)"
