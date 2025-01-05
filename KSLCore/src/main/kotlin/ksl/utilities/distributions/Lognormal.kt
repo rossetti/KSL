@@ -39,7 +39,7 @@ import kotlin.math.sqrt
  */
 class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? = null) :
     Distribution(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc,
-    GetRVariableIfc, RVParametersTypeIfc by RVType.Lognormal {
+    GetRVariableIfc, RVParametersTypeIfc by RVType.Lognormal, MomentsIfc {
 
     init {
         require(theMean > 0) { "Mean must be positive" }
@@ -47,10 +47,10 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
         parameters(theMean, theVariance)
     }
 
-    var mean = theMean
+    override var mean = theMean
         private set
 
-    var variance = theVariance
+    override var variance = theVariance
         private set
 
     /** Sets the parameters of a lognormal distribution to
@@ -173,7 +173,7 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
     /** Gets the skewness of the distribution
      * @return the skewness
      */
-    val skewness: Double
+    override val skewness: Double
         get() {
             val t = exp(normalStdDev * normalStdDev)
             return sqrt(t - 1.0) * (t + 2.0)
@@ -182,7 +182,7 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
     /** Gets the kurtosis of the distribution
      * @return the kurtosis
      */
-    val kurtosis: Double
+    override val kurtosis: Double
         get() {
             val t1 = exp(4.0 * normalStdDev * normalStdDev)
             val t2 = exp(3.0 * normalStdDev * normalStdDev)

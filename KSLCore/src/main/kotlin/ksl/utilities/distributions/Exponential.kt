@@ -31,7 +31,7 @@ import kotlin.math.pow
  * @param name an optional label/name
  */
 class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name),
-    LossFunctionDistributionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
+    LossFunctionDistributionIfc, ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, MomentsIfc,
     RVParametersTypeIfc by RVType.Exponential {
 
     /** Constructs an exponential distribution where parameter[0] is the
@@ -47,11 +47,22 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
     /**
      * mean of the distribution, must be &gt; 0.0
      */
-    var mean = mean
+    override var mean = mean
         set(value) {
             require(value > 0.0) { "Exponential mean must be > 0.0" }
             field = value
         }
+
+    override fun variance(): Double {
+        return mean * mean
+    }
+
+    override val kurtosis: Double = 6.0
+
+    override val skewness: Double = 2.0
+
+    override val variance: Double
+        get() = variance()
 
     override fun instance(): Exponential {
         return Exponential(mean)
@@ -108,14 +119,6 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
         val sum = data.sum()
         return -1.0 * data.size.toDouble() * ln(mean) - (sum / mean)
     }
-
-    override fun variance(): Double {
-        return mean * mean
-    }
-
-    val kurtosis: Double = 6.0
-
-    val skewness: Double = 2.0
 
     override fun parameters(params: DoubleArray) {
         mean = params[0]

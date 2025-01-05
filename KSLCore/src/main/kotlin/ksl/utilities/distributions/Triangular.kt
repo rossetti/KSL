@@ -41,7 +41,9 @@ class Triangular(
     theMode: Double = 0.0,
     theMax: Double = 1.0,
     name: String? = null
-) : Distribution(name), ContinuousDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Triangular {
+) : Distribution(name), ContinuousDistributionIfc, GetRVariableIfc,
+    RVParametersTypeIfc by RVType.Triangular, MomentsIfc {
+
     init {
         require(theMin <= theMode) { "min must be <= mode" }
         require(theMin < theMax) { "min must be < max" }
@@ -270,15 +272,19 @@ class Triangular(
      * www.mathworld.wolfram.com/TriangularDistribution.html
      * @return the kurtosis
      */
-    val kurtosis: Double
+    override val kurtosis: Double
         get() = 2.4
+    override val mean: Double
+        get() = mean()
+    override val variance: Double
+        get() = variance()
 
     /** Gets the skewness of the distribution
      * mu3/mu2^(3/2), www.mathworld.wolfram.com/Skewness.html
      * www.mathworld.wolfram.com/TriangularDistribution.html
      * @return the skewness
      */
-    val skewness: Double
+    override val skewness: Double
         get() {
             val mu3 =
                 -(minimum + maximum - 2.0 * mode) * (minimum + mode - 2.0 * maximum) * (maximum + mode - 2.0 * minimum) / 270.0

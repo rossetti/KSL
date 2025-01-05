@@ -37,7 +37,7 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     LossFunctionDistributionIfc,
     InverseCDFIfc,
     GetRVariableIfc,
-    RVParametersTypeIfc by RVType.Gamma
+    RVParametersTypeIfc by RVType.Gamma, MomentsIfc
 {
 
     init {
@@ -196,13 +196,19 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     /** Gets the kurtosis of the distribution
      * @return the kurtosis
      */
-    val kurtosis: Double
+    override val kurtosis: Double
         get() = 6.0 / shape
+
+    override val mean: Double
+        get() = mean()
+
+    override val variance: Double
+        get() = variance()
 
     /** Gets the skewness of the distribution
      * @return the skewness
      */
-    val skewness: Double
+    override val skewness: Double
         get() = 2.0 / sqrt(shape)
 
     /**

@@ -17,7 +17,8 @@ class Logistic(
     var location: Double = 0.0,
     scale: Double = 1.0,
     name: String? = null
-) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Logistic {
+) : Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
+    RVParametersTypeIfc by RVType.Logistic, MomentsIfc {
 
     init {
         require(scale > 0.0) { "The scale must be > 0.0" }
@@ -94,4 +95,13 @@ class Logistic(
     override fun toString(): String {
         return "Logistic(location=$location, scale=$scale)"
     }
+
+    override val mean: Double
+        get() = mean()
+    override val variance: Double
+        get() = variance()
+    override val skewness: Double
+        get() = 0.0
+    override val kurtosis: Double
+        get() = 6.0/5.0
 }
