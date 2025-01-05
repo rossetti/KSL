@@ -18,7 +18,7 @@ import ksl.utilities.statistic.StatisticXY
 class AdjustedQQCorrelationScoringModel(
     var empDistType: EmpDistType = EmpDistType.Continuity1,
     domain: Interval = Interval(0.0, 1.0)
-) : PDFScoringModel("QQC", domain, allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = false) {
+) : PDFScoringModel("AdjQQC", domain, allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = false) {
 
     init {
         metric.direction = MetricIfc.Direction.BiggerIsBetter

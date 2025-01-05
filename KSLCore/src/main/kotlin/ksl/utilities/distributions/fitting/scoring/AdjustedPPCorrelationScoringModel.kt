@@ -18,7 +18,7 @@ import ksl.utilities.statistic.StatisticXY
 class AdjustedPPCorrelationScoringModel(
     var empDistType: EmpDistType = EmpDistType.Continuity1,
     domain: Interval = Interval(0.0, 1.0)
-) : PDFScoringModel("PPC", domain, allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = false) {
+) : PDFScoringModel("AdjPPC", domain, allowLowerLimitAdjustment = false, allowUpperLimitAdjustment = false) {
 
     init {
         metric.direction = MetricIfc.Direction.BiggerIsBetter

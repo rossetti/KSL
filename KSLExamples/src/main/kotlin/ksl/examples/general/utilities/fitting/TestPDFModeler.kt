@@ -335,6 +335,7 @@ fun testBootStrappingOfFamily(){
         BayesianInfoCriterionScoringModel(),
         AndersonDarlingScoringModel(),
         CramerVonMisesScoringModel(),
+//        AdjustedQQCorrelationScoringModel(),
         QQCorrelationScoringModel(),
 //        ParameterMSEModel()
     )
