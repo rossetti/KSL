@@ -30,7 +30,7 @@ plugins {
     id("org.jetbrains.dokka") version "1.9.20"
 }
 group = "io.github.rossetti"
-version = "R1.1.7"
+version = "R1.1.8"
 
 repositories {
 
@@ -40,18 +40,19 @@ repositories {
 dependencies {
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
-    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "6.0.9")
+    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "7.0.3")
 
-    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.13")
+    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.16")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.13")
+    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.15")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.13")
+    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.15")
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
-    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.23.1")
+//    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.23.1")
+    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
@@ -182,7 +183,7 @@ publishing {
             groupId = "io.github.rossetti"
             artifactId = "KSLCore"
             // update this field when generating new release
-            version = "R1.1.7"
+            version = "R1.1.8"
             from(components["java"])
             versionMapping {
                 usage("java-api") {
