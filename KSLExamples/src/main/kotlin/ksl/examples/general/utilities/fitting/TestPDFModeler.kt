@@ -342,7 +342,9 @@ fun testBootStrappingOfFamily(){
     val pdfModeler = PDFModeler(data, sm)
 //   PDFModeler.defaultScalingFunction = PDFModeler.Companion.DefaultScalingFunction.Logistic
 
-    pdfModeler.showAllResultsInBrowser()
+    val results = pdfModeler.showAllResultsInBrowser()
+
+    pdfModeler.showAllGoodnessOfFitSummariesInBrowser(results)
 
     val freq = PDFModeler.bootstrapFamilyFrequencyAsDataFrame(data, EvaluationMethod.Scoring,
         automaticShifting = true)
