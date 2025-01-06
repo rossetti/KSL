@@ -97,9 +97,21 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.1.6"
+version = "R1.1.8"
 
 ## Release Notes
+
+Latest Release R1.1.8
+- improved suspend/resume coding with new Suspension class
+  - deprecated suspend() function in favor of newer process interaction functions
+- Added AdjustedPPCCorrelation and AdjustedQQCorrelation PDF scoring models
+- Added blockages to process interaction, including blocking activities
+- Revised seize function to prevent edge case suspend/resume issues
+- Added yield suspending function
+- Changed default event priority numbering scheme
+- updated logging dependencies
+- improved the signature for constructing Scenarios
+
 Latest Release R1.1.6
 - Added blockUntilAllCompleted() suspending function to permit suspension until a set of processes completes.
 - Added home base concept for MovableResource
