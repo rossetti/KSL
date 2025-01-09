@@ -2,6 +2,7 @@ package ksl.modeling.variable
 
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.statistic.WeightedStatisticIfc
 
 class TimeSeriesResponse(
     parent: ModelElement,
@@ -65,6 +66,20 @@ class TimeSeriesResponse(
         }
     private var myPeriodLength = periodLength
 
+    /**
+     * This represents the time that a period last started in absolute time.
+     *
+     */
+    var timeLastStarted: Double = 0.0
+        private set
+
+    /**
+     * This represents the time that a period last ended in absolute time.
+     *
+     */
+    var timeLastEnded: Double = 0.0
+        private set
+
     /** Causes the start of the first period to be scheduled.
      *  The collection must not have already been started.
      *  @param startTime the time from the current time until the start of the first period
@@ -81,8 +96,18 @@ class TimeSeriesResponse(
      *  cancels any further collection.
      */
     fun cancelCollection() {
-        myStartEvent?.cancel
-        myPeriodEvent?.cancel
+        if (myStartEvent != null) {
+            if (myStartEvent!!.isScheduled){
+                myStartEvent?.cancel
+            }
+            myStartEvent = null
+        }
+        if (myPeriodEvent != null) {
+            if (myPeriodEvent!!.isScheduled){
+                myPeriodEvent?.cancel
+            }
+            myPeriodEvent = null
+        }
     }
 
     override fun initialize() {
@@ -122,12 +147,26 @@ class TimeSeriesResponse(
     }
 
     private fun startFirstPeriod(event: KSLEvent<Nothing>) {
-        //TODO capture statistics at beginning of period
-        myPeriodEvent = schedule(this::startFirstPeriod, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
+        startPeriod()
+        myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
     }
 
+    private fun startPeriod(){
+        for ((response, data) in myResponses) {
+            timeLastStarted = time
+            val w: WeightedStatisticIfc = response.withinReplicationStatistic
+            data.mySumAtStart = w.weightedSum
+            data.mySumOfWeightsAtStart = w.sumOfWeights
+            data.myNumObsAtStart = w.count
+        }
+        for ((counter, data) in myCounters) {
+            data.myTotalAtStart = counter.value
+        }
+    }
 
     private fun endPeriodEvent(event: KSLEvent<Nothing>) {
+        // capture what happened during the period
 
+        // capture data from end of period which is the start of the next period
     }
 }
