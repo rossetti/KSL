@@ -2,8 +2,47 @@ package ksl.modeling.variable
 
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rvariable.toDouble
 import ksl.utilities.statistic.WeightedStatisticIfc
+
+data class TSResponsePeriodData(
+    val response: Response,
+    val repNum: Double,
+    val period: Double,
+    val startTime: Double,
+    val length: Double,
+    val value: Double?
+)
+{
+    init {
+        require(length.isFinite()) { "The length of the time series period must be finite" }
+        require(length > 0.0) { "The length of the time series period must be > 0.0" }
+        require(repNum >= 1.0) {"The replication number must be >= 1"}
+        require(period >= 1.0) {"The period number must be >= 1"}
+        require(startTime >= 0.0) { "The start time of the period must be >= 0.0" }
+    }
+
+    val endTime: Double = startTime + length
+}
+
+data class TSCounterPeriodData(
+    val counter: Counter,
+    val repNum: Double,
+    val period: Double,
+    val startTime: Double,
+    val length: Double,
+    val value: Double?
+)
+{
+    init {
+        require(length.isFinite()) { "The length of the time series period must be finite" }
+        require(length > 0.0) { "The length of the time series period must be > 0.0" }
+        require(repNum >= 1.0) {"The replication number must be >= 1"}
+        require(period >= 1.0) {"The period number must be >= 1"}
+        require(startTime >= 0.0) { "The start time of the period must be >= 0.0" }
+    }
+
+    val endTime: Double = startTime + length
+}
 
 class TimeSeriesResponse(
     parent: ModelElement,
@@ -41,6 +80,8 @@ class TimeSeriesResponse(
 
     private val myResponses = mutableMapOf<Response, PeriodStartData>()
     private val myCounters = mutableMapOf<Counter, PeriodStartData>()
+    private val myResponseData = mutableMapOf<Response, MutableList<TSResponsePeriodData>>()
+    private val myCounterData = mutableMapOf<Counter, MutableList<TSCounterPeriodData>>()
 
     init {
         require(periodLength.isFinite()) { "The length of the time series period must be finite" }
@@ -48,9 +89,11 @@ class TimeSeriesResponse(
         require(responses.isNotEmpty() || counters.isNotEmpty()) { "Both the responses set and the counter set were empty." }
         for (response in responses) {
             myResponses[response] = PeriodStartData()
+            myResponseData[response] = mutableListOf()
         }
         for (counter in counters) {
             myCounters[counter] = PeriodStartData()
+            myCounterData[counter] = mutableListOf()
         }
     }
 
@@ -66,6 +109,9 @@ class TimeSeriesResponse(
             field = value
         }
     private var myPeriodLength = periodLength
+
+    var periodCounter: Double = 0.0
+        private set
 
     /**
      * This represents the time that a period last started in absolute time.
@@ -112,6 +158,7 @@ class TimeSeriesResponse(
     }
 
     override fun initialize() {
+        periodCounter = 0.0
         myStartEvent = null
         myPeriodEvent = null
         myPeriodLength = periodLength
@@ -166,6 +213,7 @@ class TimeSeriesResponse(
     }
 
     private fun endPeriodEvent(event: KSLEvent<Nothing>) {
+        periodCounter++
         // capture what happened during the period
         endPeriodCollection()
         // capture data from end of period which is the start of the next period
@@ -173,36 +221,37 @@ class TimeSeriesResponse(
     }
 
     private fun endPeriodCollection(){
-        for ((key, data) in myResponses) {
+        for ((response, data) in myResponses) {
             timeLastEnded = time
-            val w: WeightedStatisticIfc = key.withinReplicationStatistic
+            val w: WeightedStatisticIfc = response.withinReplicationStatistic
             val sum: Double = w.weightedSum - data.mySumAtStart
             val denom: Double = w.sumOfWeights - data.mySumOfWeightsAtStart
             val numObs: Double = w.count - data.myNumObsAtStart
-            if (numObs == 0.0) {
+            val value: Double? = if (numObs == 0.0) {
                 // there were no changes of the variable during the period
                 // cannot observe Response but can observe TWResponse
-                if (key is TWResponse) {
+                if (response is TWResponse) {
                     //no observations, value did not change during interval
                     // average = area/time = height*width/width = height
-                    //data.myResponse.value = key.value
-                    //TODO capture
+                    //data.myResponse.value = response.value
+                    response.value
+                } else {
+                    null
                 }
-//                    val r = data.myResponse.model.currentReplicationNumber
-//                    println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom")
             } else {
                 // there were observations, denominator cannot be 0, but just in case
                 if (denom != 0.0) {
                     val avg = sum / denom
-//                        val r = data.myResponse.model.currentReplicationNumber
-//                        KSL.out.println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom avg = $avg")
-                   // data.myResponse.value = avg
-                    //TODO capture data
+                    avg
+                } else {
+                    null
                 }
             }
+            //                    val r = data.myResponse.model.currentReplicationNumber
+            //TODO now construct the data and capture it
         }
-        for ((key, data) in myCounters) {
-            val intervalCount: Double = key.value - data.myTotalAtStart
+        for ((counter, data) in myCounters) {
+            val intervalCount: Double = counter.value - data.myTotalAtStart
             //TODO capture data
             //data.myResponse.value = intervalCount
         }
