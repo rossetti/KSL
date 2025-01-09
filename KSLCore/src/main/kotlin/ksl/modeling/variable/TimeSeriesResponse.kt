@@ -2,6 +2,7 @@ package ksl.modeling.variable
 
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.random.rvariable.toDouble
 import ksl.utilities.statistic.WeightedStatisticIfc
 
 class TimeSeriesResponse(
@@ -147,11 +148,11 @@ class TimeSeriesResponse(
     }
 
     private fun startFirstPeriod(event: KSLEvent<Nothing>) {
-        startPeriod()
+        startPeriodCollection()
         myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
     }
 
-    private fun startPeriod(){
+    private fun startPeriodCollection(){
         for ((response, data) in myResponses) {
             timeLastStarted = time
             val w: WeightedStatisticIfc = response.withinReplicationStatistic
@@ -166,7 +167,44 @@ class TimeSeriesResponse(
 
     private fun endPeriodEvent(event: KSLEvent<Nothing>) {
         // capture what happened during the period
-
+        endPeriodCollection()
         // capture data from end of period which is the start of the next period
+        startPeriodCollection()
+    }
+
+    private fun endPeriodCollection(){
+        for ((key, data) in myResponses) {
+            timeLastEnded = time
+            val w: WeightedStatisticIfc = key.withinReplicationStatistic
+            val sum: Double = w.weightedSum - data.mySumAtStart
+            val denom: Double = w.sumOfWeights - data.mySumOfWeightsAtStart
+            val numObs: Double = w.count - data.myNumObsAtStart
+            if (numObs == 0.0) {
+                // there were no changes of the variable during the period
+                // cannot observe Response but can observe TWResponse
+                if (key is TWResponse) {
+                    //no observations, value did not change during interval
+                    // average = area/time = height*width/width = height
+                    //data.myResponse.value = key.value
+                    //TODO capture
+                }
+//                    val r = data.myResponse.model.currentReplicationNumber
+//                    println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom")
+            } else {
+                // there were observations, denominator cannot be 0, but just in case
+                if (denom != 0.0) {
+                    val avg = sum / denom
+//                        val r = data.myResponse.model.currentReplicationNumber
+//                        KSL.out.println("R = $r  ${data.myResponse.name}  sum = $sum  denom = $denom avg = $avg")
+                   // data.myResponse.value = avg
+                    //TODO capture data
+                }
+            }
+        }
+        for ((key, data) in myCounters) {
+            val intervalCount: Double = key.value - data.myTotalAtStart
+            //TODO capture data
+            //data.myResponse.value = intervalCount
+        }
     }
 }
