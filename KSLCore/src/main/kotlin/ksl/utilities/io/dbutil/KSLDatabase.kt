@@ -174,6 +174,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * @param expName the experiment name for the simulation
      */
     fun deleteExperimentWithName(expName: String) {
+        //TODO need to implement cascade delete
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete experiment $expName in database: $label" }
             db.getConnection().use { connection ->
@@ -208,6 +209,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * @return true if the record was deleted, false if it was not
      */
     private fun deleteSimulationRunWithName(expId: Int, runName: String): Boolean {
+        //TODO need to implement cascade delete
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
             db.getConnection().use { connection ->
