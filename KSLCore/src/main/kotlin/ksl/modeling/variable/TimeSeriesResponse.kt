@@ -3,9 +3,13 @@ package ksl.modeling.variable
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.WeightedStatisticIfc
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 data class TSResponsePeriodData(
-    val response: Response,
+    val response: ResponseCIfc,
     val repNum: Double,
     val period: Double,
     val startTime: Double,
@@ -25,7 +29,7 @@ data class TSResponsePeriodData(
 }
 
 data class TSCounterPeriodData(
-    val counter: Counter,
+    val counter: CounterCIfc,
     val repNum: Double,
     val period: Double,
     val startTime: Double,
@@ -117,15 +121,13 @@ class TimeSeriesResponse(
      * This represents the time that a period last started in absolute time.
      *
      */
-    var timeLastStarted: Double = 0.0
-        private set
+    private var timeLastStarted: Double = 0.0
 
     /**
      * This represents the time that a period last ended in absolute time.
      *
      */
-    var timeLastEnded: Double = 0.0
-        private set
+    private var timeLastEnded: Double = 0.0
 
     /** Causes the start of the first period to be scheduled.
      *  The collection must not have already been started.
@@ -157,8 +159,44 @@ class TimeSeriesResponse(
         }
     }
 
+    /**
+     *  Provides a data frame representation of the response period data for the [response]
+     *  or an empty data frame if the response is not collected.
+     */
+    fun responsePeriodDataAsList(response: ResponseCIfc): List<TSResponsePeriodData> {
+        return myResponseData[response] ?: emptyList()
+    }
+
+    /**
+     *  Provides a data frame representation of the counter period data for the [counter]
+     *  or an empty data frame if the counter is not collected.
+     */
+    fun counterPeriodDataAsList(counter: CounterCIfc): List<TSCounterPeriodData> {
+        return myCounterData[counter] ?: emptyList()
+    }
+
+    /**
+     *  Provides a data frame representation of the response period data for the [response]
+     *  or an empty data frame if the response is not collected.
+     */
+    fun responsePeriodData(response: ResponseCIfc): DataFrame<TSResponsePeriodData> {
+        val list = myResponseData[response]
+        return list?.toDataFrame() ?: emptyDataFrame()
+    }
+
+    /**
+     *  Provides a data frame representation of the counter period data for the [counter]
+     *  or an empty data frame if the counter is not collected.
+     */
+    fun counterPeriodData(counter: CounterCIfc): DataFrame<TSCounterPeriodData> {
+        val list = myCounterData[counter]
+        return list?.toDataFrame() ?: emptyDataFrame()
+    }
+
     override fun initialize() {
         periodCounter = 0.0
+        timeLastStarted = 0.0
+        timeLastEnded = 0.0
         myStartEvent = null
         myPeriodEvent = null
         myPeriodLength = periodLength
@@ -174,6 +212,16 @@ class TimeSeriesResponse(
         }
         for (d in myCounters.values) {
             d.reset()
+        }
+    }
+
+    override fun beforeExperiment() {
+        super.beforeExperiment()
+        for((_, list) in myResponseData){
+            list.clear()
+        }
+        for((_, list) in myCounterData){
+            list.clear()
         }
     }
 
@@ -219,6 +267,8 @@ class TimeSeriesResponse(
         endPeriodCollection()
         // capture data from end of period which is the start of the next period
         startPeriodCollection()
+        // schedule the next end of period
+        myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
     }
 
     private fun endPeriodCollection(){
