@@ -8,8 +8,8 @@ import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
-data class TSResponsePeriodData(
-    val response: ResponseCIfc,
+data class TimeSeriesPeriodData(
+    val responseName: String,
     val repNum: Double,
     val period: Double,
     val startTime: Double,
@@ -28,34 +28,67 @@ data class TSResponsePeriodData(
     val endTime: Double = startTime + length
 }
 
-data class TSCounterPeriodData(
-    val counter: CounterCIfc,
-    val repNum: Double,
-    val period: Double,
-    val startTime: Double,
-    val length: Double,
-    val value: Double?
-)
-{
-    init {
-        require(length.isFinite()) { "The length of the time series period must be finite" }
-        require(length > 0.0) { "The length of the time series period must be > 0.0" }
-        require(repNum >= 1.0) {"The replication number must be >= 1"}
-        require(period >= 1.0) {"The period number must be >= 1"}
-        require(startTime >= 0.0) { "The start time of the period must be >= 0.0" }
-    }
 
-    val endTime: Double = startTime + length
+interface TimeSeriesResponseCIfc {
+
+    /**
+     *  Indicates whether the collection will be scheduled to start automatically at time 0.0
+     */
+    var autoStart: Boolean
+
+    /**
+     *  The length (in base time units) for the period
+     */
+    var periodLength: Double
+
+    /**
+     *  Counts the number of periods collected
+     */
+    val periodCounter: Double
+
+    /**
+     *  Returns all time series period data as a list for responses and counters
+     */
+    fun allTimeSeriesPeriodDataAsList() : List<TimeSeriesPeriodData>
+
+    /**
+     *  Returns all time series period data as a data frame for responses and counters
+     */
+    fun allTimeSeriesPeriodDataAsDataFrame() : DataFrame<TimeSeriesPeriodData>
+
+    /**
+     *  Provides a data frame representation of the response period data for the [response]
+     *  or an empty data frame if the response is not collected.
+     */
+    fun responsePeriodDataAsList(response: ResponseCIfc): List<TimeSeriesPeriodData>
+
+    /**
+     *  Provides a data frame representation of the counter period data for the [counter]
+     *  or an empty data frame if the counter is not collected.
+     */
+    fun counterPeriodDataAsList(counter: CounterCIfc): List<TimeSeriesPeriodData>
+
+    /**
+     *  Provides a data frame representation of the response period data for the [response]
+     *  or an empty data frame if the response is not collected.
+     */
+    fun responsePeriodDataAsDataFrame(response: ResponseCIfc): DataFrame<TimeSeriesPeriodData>
+
+    /**
+     *  Provides a data frame representation of the counter period data for the [counter]
+     *  or an empty data frame if the counter is not collected.
+     */
+    fun counterPeriodDataAsDataFrame(counter: CounterCIfc): DataFrame<TimeSeriesPeriodData>
 }
 
 class TimeSeriesResponse(
     parent: ModelElement,
     periodLength: Double,
-    responses: Set<Response> = parent.model.responses.toSet(),
-    counters: Set<Counter> = parent.model.counters.toSet(),
-    var autoStart: Boolean = true,
+    responses: Set<Response> = emptySet(),
+    counters: Set<Counter> = emptySet(),
+    override var autoStart: Boolean = true,
     name: String? = null
-) : ModelElement(parent, name) {
+) : ModelElement(parent, name), TimeSeriesResponseCIfc {
 
     constructor(
         parent: ModelElement,
@@ -84,8 +117,8 @@ class TimeSeriesResponse(
 
     private val myResponses = mutableMapOf<Response, PeriodStartData>()
     private val myCounters = mutableMapOf<Counter, PeriodStartData>()
-    private val myResponseData = mutableMapOf<Response, MutableList<TSResponsePeriodData>>()
-    private val myCounterData = mutableMapOf<Counter, MutableList<TSCounterPeriodData>>()
+    private val myResponseData = mutableMapOf<Response, MutableList<TimeSeriesPeriodData>>()
+    private val myCounterData = mutableMapOf<Counter, MutableList<TimeSeriesPeriodData>>()
 
     init {
         require(periodLength.isFinite()) { "The length of the time series period must be finite" }
@@ -107,14 +140,14 @@ class TimeSeriesResponse(
     /**
      *  The length (in base time units) for the period
      */
-    var periodLength: Double = periodLength
+    override var periodLength: Double = periodLength
         set(value) {
             require(value > 0.0) { "The length of the time series period must be > 0.0" }
             field = value
         }
     private var myPeriodLength = periodLength
 
-    var periodCounter: Double = 0.0
+    override var periodCounter: Double = 0.0
         private set
 
     /**
@@ -160,10 +193,31 @@ class TimeSeriesResponse(
     }
 
     /**
+     *  Returns all time series period data as a list for responses and counters
+     */
+    override fun allTimeSeriesPeriodDataAsList() : List<TimeSeriesPeriodData>{
+        val list = mutableListOf<TimeSeriesPeriodData>()
+        for((_, dataList) in myResponseData){
+            list.addAll(dataList)
+        }
+        for((_, dataList) in myCounterData){
+            list.addAll(dataList)
+        }
+        return list
+    }
+
+    /**
+     *  Returns all time series period data as a data frame for responses and counters
+     */
+    override fun allTimeSeriesPeriodDataAsDataFrame() : DataFrame<TimeSeriesPeriodData>{
+        return allTimeSeriesPeriodDataAsList().toDataFrame()
+    }
+
+    /**
      *  Provides a data frame representation of the response period data for the [response]
      *  or an empty data frame if the response is not collected.
      */
-    fun responsePeriodDataAsList(response: ResponseCIfc): List<TSResponsePeriodData> {
+    override fun responsePeriodDataAsList(response: ResponseCIfc): List<TimeSeriesPeriodData> {
         return myResponseData[response] ?: emptyList()
     }
 
@@ -171,7 +225,7 @@ class TimeSeriesResponse(
      *  Provides a data frame representation of the counter period data for the [counter]
      *  or an empty data frame if the counter is not collected.
      */
-    fun counterPeriodDataAsList(counter: CounterCIfc): List<TSCounterPeriodData> {
+    override fun counterPeriodDataAsList(counter: CounterCIfc): List<TimeSeriesPeriodData> {
         return myCounterData[counter] ?: emptyList()
     }
 
@@ -179,7 +233,7 @@ class TimeSeriesResponse(
      *  Provides a data frame representation of the response period data for the [response]
      *  or an empty data frame if the response is not collected.
      */
-    fun responsePeriodData(response: ResponseCIfc): DataFrame<TSResponsePeriodData> {
+    override fun responsePeriodDataAsDataFrame(response: ResponseCIfc): DataFrame<TimeSeriesPeriodData> {
         val list = myResponseData[response]
         return list?.toDataFrame() ?: emptyDataFrame()
     }
@@ -188,7 +242,7 @@ class TimeSeriesResponse(
      *  Provides a data frame representation of the counter period data for the [counter]
      *  or an empty data frame if the counter is not collected.
      */
-    fun counterPeriodData(counter: CounterCIfc): DataFrame<TSCounterPeriodData> {
+    override fun counterPeriodDataAsDataFrame(counter: CounterCIfc): DataFrame<TimeSeriesPeriodData> {
         val list = myCounterData[counter]
         return list?.toDataFrame() ?: emptyDataFrame()
     }
@@ -300,13 +354,13 @@ class TimeSeriesResponse(
                 }
             }
             //construct the data and capture it
-            val responseData = TSResponsePeriodData(response, r, periodCounter, timeLastStarted, periodLength, value)
+            val responseData = TimeSeriesPeriodData(response.name, r, periodCounter, timeLastStarted, periodLength, value)
             myResponseData[response]?.add(responseData)
         }
 
         for ((counter, data) in myCounters) {
             val intervalCount: Double = counter.value - data.myTotalAtStart
-            val counterData = TSCounterPeriodData(counter, r, periodCounter, timeLastStarted, periodLength, intervalCount)
+            val counterData = TimeSeriesPeriodData(counter.name, r, periodCounter, timeLastStarted, periodLength, intervalCount)
             myCounterData[counter]?.add(counterData)
         }
     }

@@ -9,6 +9,7 @@ import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import org.jetbrains.kotlinx.dataframe.api.print
@@ -23,10 +24,13 @@ fun main() {
     val dtp = TestTimeSeriesResponse(model, 1, name = "Pharmacy")
     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
+
+    // demonstrate capturing data to database with an observer
+    val kslDatabaseObserver = KSLDatabaseObserver(model)
     model.simulate()
     model.print()
     println()
-    val df1 = dtp.timeSeriesResponse.responsePeriodData(dtp.systemTime)
+    val df1 = dtp.timeSeriesResponse.allTimeSeriesPeriodDataAsDataFrame()
     df1.print(rowsLimit = 100)
 }
 
@@ -57,7 +61,9 @@ class TestTimeSeriesResponse(
     val systemTime: ResponseCIfc
         get() = mySysTime
 
-    val timeSeriesResponse = TimeSeriesResponse(this, 100.0, setOf(mySysTime, myNS))
+    private val myTimeSeriesResponse = TimeSeriesResponse(this, 100.0, setOf(mySysTime, myNS))
+    val timeSeriesResponse: TimeSeriesResponseCIfc
+        get() = myTimeSeriesResponse
 
     private val myNumCustomers: Counter = Counter(this, "${this.name}:NumServed")
     val numCustomersServed: CounterCIfc
