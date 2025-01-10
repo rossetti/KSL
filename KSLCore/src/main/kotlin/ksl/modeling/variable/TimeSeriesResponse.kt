@@ -214,6 +214,7 @@ class TimeSeriesResponse(
 
     private fun endPeriodEvent(event: KSLEvent<Nothing>) {
         periodCounter++
+        timeLastEnded = time
         // capture what happened during the period
         endPeriodCollection()
         // capture data from end of period which is the start of the next period
@@ -221,6 +222,7 @@ class TimeSeriesResponse(
     }
 
     private fun endPeriodCollection(){
+        val r = model.currentReplicationNumber.toDouble()
         for ((response, data) in myResponses) {
             timeLastEnded = time
             val w: WeightedStatisticIfc = response.withinReplicationStatistic
@@ -247,13 +249,15 @@ class TimeSeriesResponse(
                     null
                 }
             }
-            //                    val r = data.myResponse.model.currentReplicationNumber
-            //TODO now construct the data and capture it
+            //construct the data and capture it
+            val responseData = TSResponsePeriodData(response, r, periodCounter, timeLastStarted, periodLength, value)
+            myResponseData[response]?.add(responseData)
         }
+
         for ((counter, data) in myCounters) {
             val intervalCount: Double = counter.value - data.myTotalAtStart
-            //TODO capture data
-            //data.myResponse.value = intervalCount
+            val counterData = TSCounterPeriodData(counter, r, periodCounter, timeLastStarted, periodLength, intervalCount)
+            myCounterData[counter]?.add(counterData)
         }
     }
 }
