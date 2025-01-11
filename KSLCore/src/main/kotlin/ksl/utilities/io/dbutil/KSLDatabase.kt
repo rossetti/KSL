@@ -164,10 +164,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         val expName = model.experimentName
         // find the record and delete it. This should cascade all related records
         deleteExperimentWithName(expName)
-        //TODO if an experiment is deleted then what else should be deleted
-        // - SIMULATION_RUN and any related records to it
-        // (ACROSS_REP_STAT, HISTOGRAM, FREQUENCY, WITHIN_REP_COUNTER_STAT, BATCH_STAT, WITHIN_REP_STAT)
-        // - MODEL_ELEMENT and any related records to it (CONTROL, RV_PARAMETER)
     }
 
     /**
@@ -204,8 +200,105 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         }
     }
 
+    /**
+     *  Deletes by manual cascading any records related to the experiment
+     *  with the provided name. If the database does not contain the specified
+     *  experiment, then nothing occurs.
+     *
+     *  @param expName the name of the experiment to delete
+     */
     fun deleteExperimentWithNameCascading(expName: String) {
-        //TODO
+        val experimentRecord = fetchExperimentData(expName)
+        if (experimentRecord == null) {
+            DatabaseIfc.logger.trace { "Delete Experiment Cascade: No experiment called $expName was in database: $label" }
+            return
+        }
+        // run a transaction to cascade delete the related records
+        db.getConnection().use { connection ->
+            // do a transaction over the deletions
+            try {
+                connection.autoCommit = false
+                // make all the prepared statements to execute
+                val statements = mutableListOf<PreparedStatement>()
+                // first control, rv_parameter, model_element
+                statements.addAll(
+                    makeExperimentCascadingDeletePreparedStatements(
+                        connection, experimentRecord.exp_id,
+                    )
+                )
+                // now need to delete simulation runs related to the experiment
+                // first delete any data related to simulation runs related to the experiment
+                val runRecords = fetchSimulationRunRecords(experimentRecord.exp_id)
+                // need to iterate because an experiment can have many runs associated with it
+                for (runRecord in runRecords) {
+                    val ps = makeCascadingDeletePreparedStatements(connection, runRecord.run_id)
+                    statements.addAll(ps)
+                }
+                //need to delete simulation runs associated with the experiment
+                val deleteSimRunSQL = DatabaseIfc.deleteFromTableWhereSQL(
+                    "simulation_run", "exp_id_fk", defaultSchemaName
+                )
+                val deleteSimRunPS = connection.prepareStatement(deleteSimRunSQL)
+                deleteSimRunPS.setInt(1, experimentRecord.exp_id)
+                statements.add(deleteSimRunPS)
+                // need to delete experiment
+                val deleteExpSQL = DatabaseIfc.deleteFromTableWhereSQL(
+                    "experiment", "exp_id", defaultSchemaName
+                )
+                val deleteExpPS = connection.prepareStatement(deleteExpSQL)
+                deleteExpPS.setInt(1, experimentRecord.exp_id)
+                statements.add(deleteExpPS)
+                // now execute all the prepared statements in the order created
+                for (statement in statements) {
+                    statement.execute()
+                }
+                connection.commit()
+                connection.autoCommit = true
+                DatabaseIfc.logger.trace { "Delete Experiment Cascade: Deleted all records associated with experiment: $expName in database: $label" }
+            } catch (e: SQLException) {
+                connection.rollback()
+                DatabaseIfc.logger.warn { "There was an SQLException when trying to delete Experiment: $expName" }
+                DatabaseIfc.logger.warn { "SQLException: $e" }
+                connection.autoCommit = true
+            } finally {
+                connection.autoCommit = true
+            }
+        }
+    }
+
+    /**
+     *  Makes the prepared statements to delete controls, rv_parameters, and model elements
+     *  related to the experiment with id [expId]
+     */
+    private fun makeExperimentCascadingDeletePreparedStatements(
+        connection: Connection,
+        expId: Int
+    ): List<PreparedStatement> {
+        val statements = mutableListOf<PreparedStatement>()
+        val sqlStrings = makeExperimentCascadingDeleteSQL()
+        for (sql in sqlStrings) {
+            val ps = connection.prepareStatement(sql)
+            ps.setInt(1, expId)
+        }
+        return statements
+    }
+
+    /**
+     *  Makes the SQL strings for prepared statements to delete controls, rv_parameters, and model elements
+     *  related to an experiment with a given id
+     */
+    private fun makeExperimentCascadingDeleteSQL(): List<String> {
+        val list = mutableListOf<String>()
+        val deleteControls = DatabaseIfc.deleteFromTableWhereSQL(
+            "control", "exp_id_fk", defaultSchemaName
+        )
+        val deleteRVParameters = DatabaseIfc.deleteFromTableWhereSQL(
+            "rv_parameter", "exp_id_fk", defaultSchemaName
+        )
+        val deleteModelElements = DatabaseIfc.deleteFromTableWhereSQL(
+            "model_element", "exp_id_fk", defaultSchemaName
+        )
+        return list
     }
 
     /**
@@ -284,6 +377,20 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     /**
+     *  Retrieves the simulation runs related to the experiment
+     */
+    private fun fetchSimulationRunRecords(expId: Int): List<SimulationRunTableData> {
+        val data: List<SimulationRunTableData> = db.selectTableDataIntoDbData(::SimulationRunTableData)
+        val list = mutableListOf<SimulationRunTableData>()
+        for (d in data) {
+            if ((d.exp_id_fk == expId)) {
+                list.add(d)
+            }
+        }
+        return list
+    }
+
+    /**
      *  Retrieves the simulation run ID based on the experiment id and the run name.
      */
     private fun fetchSimulationRunID(expId: Int, runName: String): Int? {
@@ -299,10 +406,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     private fun makeCascadingDeletePreparedStatements(
         connection: Connection,
         simRunID: Int
-    )
-            : List<PreparedStatement> {
+    ): List<PreparedStatement> {
         val statements = mutableListOf<PreparedStatement>()
-        val sqlStrings = makeCascadingDeleteSQLStrings()
+        val sqlStrings = makeSimulationRunCascadingDeleteSQLStrings()
         for (sql in sqlStrings) {
             val ps = connection.prepareStatement(sql)
             ps.setInt(1, simRunID)
@@ -310,7 +416,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return statements
     }
 
-    private fun makeCascadingDeleteSQLStrings(): List<String> {
+    private fun makeSimulationRunCascadingDeleteSQLStrings(): List<String> {
         val statements = mutableListOf<String>()
         val deleteAcrossRepStats = DatabaseIfc.deleteFromTableWhereSQL(
             "across_rep_stat",
@@ -573,7 +679,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 currentSimRun = createSimulationRunData(model)
                 db.insertDbDataIntoTable(currentSimRun!!)
             } else {
-                println(experimentRecord)
+                // println(experimentRecord)
                 // not a chunk, same experiment but not chunked, this is a potential user error
                 reportExistingExperimentRecordError(model)
             }
