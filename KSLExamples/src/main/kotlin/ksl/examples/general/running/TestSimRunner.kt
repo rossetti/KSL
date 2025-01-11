@@ -30,8 +30,8 @@ import org.jetbrains.kotlinx.dataframe.api.print
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 fun main(){
-    showControls()
-//    testSimulationRunner()
+//    showControls()
+    testSimulationRunner()
 }
 
 fun showControls(){
