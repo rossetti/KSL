@@ -27,7 +27,6 @@ import javax.sql.DataSource
  * the same name will be deleted and an empty database will be constructed.
  * @return a DuckDb configured database
  */
-@Suppress("LeakingThis")
 class DuckDb(
     dbName: String,
     dbDirectory: Path = KSL.dbDir,
