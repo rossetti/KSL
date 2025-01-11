@@ -164,6 +164,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         val expName = model.experimentName
         // find the record and delete it. This should cascade all related records
         deleteExperimentWithName(expName)
+        //TODO if an experiment is deleted then what else should be deleted
+        // - SIMULATION_RUN and any related records to it
+        // (ACROSS_REP_STAT, HISTOGRAM, FREQUENCY, WITHIN_REP_COUNTER_STAT, BATCH_STAT, WITHIN_REP_STAT)
+        // - MODEL_ELEMENT and any related records to it (CONTROL, RV_PARAMETER)
     }
 
     /**
@@ -200,6 +204,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         }
     }
 
+    fun deleteExperimentWithNameCascading(expName: String) {
+        //TODO
+    }
+
     /**
      * The expName should be unique within the database. Many
      * experiments can be run with different names for the same simulation. This method
@@ -215,6 +223,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
             db.getConnection().use { connection ->
+                //TODO note that this approach depends on the database implementing cascade delete
                 var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "run_name", defaultSchemaName)
                 sql = "$sql and exp_id_fk = ?"
                 val ps = connection.prepareStatement(sql)
