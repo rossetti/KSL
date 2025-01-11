@@ -113,8 +113,8 @@ fun testSimulationRunner(){
         srList.add(simulationRun)
     }
 
-    for(sRun in srList){
-        println(sRun.toJson())
-    }
+//    for(sRun in srList){
+//        println(sRun.toJson())
+//    }
 
 }

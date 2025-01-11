@@ -173,30 +173,25 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * associated with that experiment.  If an experiment record does not
      * exist with the expName, then nothing occurs.
      *
+     * Note: This function is called from the clearSimulationData(model: Model) function
+     * using the current model's experiment name.
+     *
      * @param expName the experiment name for the simulation
      */
     fun deleteExperimentWithName(expName: String) {
-        //TODO need to implement cascade delete
+        //println("In deleteExperimentWithName: deleting experiment $expName")
+        //TODO note that this approach depends on the database implementing cascade delete
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete experiment $expName in database: $label" }
             db.getConnection().use { connection ->
-                //TODO note that this approach depends on the database implementing cascade delete
                 val ps =
                     DatabaseIfc.makeDeleteFromPreparedStatement(connection, "experiment", "exp_name", defaultSchemaName)
                 ps.setString(1, expName)
                 ps.execute()
-                //val deleted = ps.execute()
-//                if (deleted) {
-//                    DatabaseIfc.logger.info { "Deleted Experiment, $expName, for simulation." }
-//                } else {
-//                    DatabaseIfc.logger.info { "PreparedStatement: Experiment, $expName, was not deleted." }
-//                }
-//                return deleted
             }
         } catch (e: SQLException) {
             DatabaseIfc.logger.warn { "There was an SQLException when trying to delete experiment $expName" }
             DatabaseIfc.logger.warn { "SQLException: $e" }
-            // return false
         }
     }
 
@@ -305,28 +300,30 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * The expName should be unique within the database. Many
      * experiments can be run with different names for the same simulation. This method
      * deletes any simulation runs for the given named experiment
-     * from the simulation_run table
+     * from the simulation_run table by assuming the db or the design allows cascade deletion
      *
      * @param expId the experiment name for the simulation
      * @param runName the related simulation run name
      * @return true if the record was deleted, false if it was not
      */
     private fun deleteSimulationRunWithName(expId: Int, runName: String): Boolean {
-        //TODO need to implement cascade delete
+        //TODO note that this approach depends on the database allowing cascade delete
         try {
             DatabaseIfc.logger.trace { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
             db.getConnection().use { connection ->
-                //TODO note that this approach depends on the database implementing cascade delete
                 var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "run_name", defaultSchemaName)
                 sql = "$sql and exp_id_fk = ?"
                 val ps = connection.prepareStatement(sql)
                 ps.setString(1, runName)
                 ps.setInt(2, expId)
-                val deleted = ps.execute()
-                if (deleted) {
+                ps.execute()
+                val deleted = if (ps.updateCount > 0) {
+                    // deletions do not have result set, so use updateCount
                     DatabaseIfc.logger.trace { "Deleted SimulationRun, $runName, for experiment $expId." }
+                    true
                 } else {
                     DatabaseIfc.logger.trace { "PreparedStatement: SimulationRun, $runName, was not deleted." }
+                    false
                 }
                 return deleted
             }
@@ -337,13 +334,27 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         }
     }
 
+    /**
+     * The expName should be unique within the database. Many
+     * experiments can be run with different names for the same simulation. This method
+     * deletes any simulation runs for the given named experiment
+     * from the simulation_run table by manually cascading the deletions.
+     *
+     * @param expId the experiment name for the simulation
+     * @param runName the related simulation run name
+     * @return true if the record was deleted, false if it was not
+     */
     private fun deleteSimulationRunWithNameCascading(expId: Int, runName: String): Boolean {
+        //TODO assumes that db does not support cascade delete and will perform "manual" cascade
+
         // get the simulation run identifier
         val simRunID = fetchSimulationRunID(expId, runName)
         if (simRunID == null) {
             DatabaseIfc.logger.warn { "There was no simulation run record for experiment: $expId and run name: $runName" }
+            println("in deleteSimulationRunWithNameCascading: There was no simulation run record for experiment: $expId and run name: $runName")
             return false
         }
+        println("in deleteSimulationRunWithNameCascading")
         var deleteSimRunStr = DatabaseIfc.deleteFromTableWhereSQL(
             "simulation_run", "run_name", defaultSchemaName
         )
@@ -353,6 +364,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             // do a transaction over the deletions
             try {
                 connection.autoCommit = false
+                println("executing deletion transaction")
                 val cascades = makeCascadingDeletePreparedStatements(connection, simRunID)
                 for (statement in cascades) {
                     statement.execute()
@@ -363,6 +375,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 ps.execute()
                 connection.commit()
                 connection.autoCommit = true
+                println("committing deletion transaction")
                 return true
             } catch (e: SQLException) {
                 connection.rollback()
@@ -666,13 +679,17 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         } else {
 //            println("**** The experiment record was not null. Database: ${db.label} Experiment: ${model.experimentName}")
             // there was already and existing record for this experiment
+            // this could be a chunk for an existing experiment
             // the experiment must be chunked or there is a potential user error
+            //TODO this logic is not working as I thought it did
             if (model.numChunks > 1) {
                 // run is a chunk, make sure there is not an existing simulation run
                 // just assume user wants to write over any existing simulation runs with the same name for this
                 // experiment during this simulation execution
                 currentExp = experimentRecord
+                DatabaseIfc.logger.info { "Database: ${label} : Execution has chunks: If necessary delete experiment id = ${experimentRecord.exp_id} with simulation run = ${model.runName}" }
                 deleteSimulationRunWithName(experimentRecord.exp_id, model.runName)
+                //deleteSimulationRunWithNameCascading(experimentRecord.exp_id, model.runName)
                 // create the simulation run associated with the chunked experiment
                 // because if it was there by mistake, we just deleted it
                 // start simulation run record
@@ -844,7 +861,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     private fun finalizeCurrentSimulationRun(model: Model) {
         currentSimRun?.last_rep_id = model.startingRepId + model.numberReplicationsCompleted - 1
-        currentSimRun?.run_end_time_stamp = Timestamp.from(Clock.System.now().toJavaInstant())
+        currentSimRun?.run_end_time_stamp = Timestamp.from(Clock.System.now().toJavaInstant()).time
         currentSimRun?.run_error_msg = model.runErrorMsg
         db.updateDbDataInTable(currentSimRun!!)
         DatabaseIfc.logger.trace { "Finalized SimulationRun record for simulation: ${model.simulationName}" }
@@ -889,7 +906,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         record.num_reps = model.numberOfReplications
         record.run_name = model.runName
         record.start_rep_id = model.startingRepId
-        record.run_start_time_stamp = Timestamp.from(Clock.System.now().toJavaInstant())
+        record.run_start_time_stamp = Timestamp.from(Clock.System.now().toJavaInstant()).time
         return record
     }
 
@@ -1504,8 +1521,8 @@ data class SimulationRunTableData(
     var num_reps: Int = -1,
     var start_rep_id: Int = -1,
     var last_rep_id: Int? = null,
-    var run_start_time_stamp: Timestamp? = null,
-    var run_end_time_stamp: Timestamp? = null,
+    var run_start_time_stamp: Long? = null,
+    var run_end_time_stamp: Long? = null,
     var run_error_msg: String? = null
 ) : DbTableData("simulation_run", keyFields = listOf("run_id"), autoIncField = true)
 
